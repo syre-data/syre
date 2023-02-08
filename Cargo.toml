@@ -1,0 +1,28 @@
+[workspace]
+
+members = [
+    "cli",
+    "core",
+    "dependency-license-audit",
+    "desktop",
+    "desktop/src-lib",
+    "desktop/src-tauri",
+    "dev_utils",
+    "has_id",
+    "has_id/has_id_derive",
+    "lang/python",
+    "lang/rust",
+    "local",
+    "local/database",
+    "settings_manager",
+    "settings_manager/settings_manager_change_path",
+    "ui",
+]
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3
+debug = false

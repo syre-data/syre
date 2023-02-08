@@ -1,0 +1,63 @@
+@use 'themes' as t;
+
+.tab-list {
+  list-style: none;
+  margin: 0;
+
+  &.tab-horizontal > li {
+    display: inline-block;
+
+    border: t.$border-width-s solid t.$background-accent-color;
+    border-bottom: none;
+    border-radius: 0;
+
+  }
+}
+
+#main-navigation-tabs {
+  background-color: t.$frame-background-color;
+  border-bottom: solid t.$border-width-s t.$frame-border-color;
+
+  #home-navigation {
+
+  }
+
+  #project-navigation-tabs {
+    display: inline-block;
+    vertical-align: bottom;
+    padding: 0 5px;
+
+    .active {
+      background-color: t.$background-color;
+    }
+
+
+    li {
+      display: flex;
+      float: left;
+      min-width: 3em;
+
+      padding: 0 5px;
+      border: none;
+      border-left: t.$border-width-s solid t.$background-accent-color;
+      border-right: t.$border-width-s solid t.$background-accent-color;
+
+      .tab-name {
+        flex-grow: 1;
+      }
+
+      .btn-tab-close {
+        visibility: hidden;
+
+        background-color: transparent;
+        padding: 0 3px;
+        border-radius: 0;
+        margin: 0;
+      }
+
+      &:hover .btn-tab-close {
+        visibility: visible;
+      }
+    }
+  }
+}

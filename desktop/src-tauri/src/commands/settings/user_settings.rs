@@ -1,0 +1,67 @@
+//! Commands to interact with [`UserSettings`].
+use crate::error::{DesktopSettingsError, Result};
+use crate::settings::UserSettings as AppUserSettings;
+use crate::state::AppState;
+use settings_manager::UserSettings;
+use tauri::State;
+use thot_core::types::ResourceId;
+use thot_desktop_lib::settings::UserSettings as DesktopUserSettings;
+
+/// Loads a user's [`UserSettings`](DesktopUserSettings) from file and stores them.
+#[tauri::command]
+pub fn load_user_settings(
+    app_state: State<AppState>,
+    rid: ResourceId,
+) -> Result<DesktopUserSettings> {
+    let mut settings = app_state
+        .user_settings
+        .lock()
+        .expect("could not lock `AppState.user_settings`");
+
+    if let Some(settings) = settings.as_ref() {
+        // user settings loaded
+        if settings.user == rid {
+            // user settings for user already loaded
+            let desktop_settings: DesktopUserSettings = settings.clone().into();
+            return Ok(desktop_settings);
+        }
+    }
+
+    let user_settings = AppUserSettings::load_user(rid)?;
+    let desktop_settings: DesktopUserSettings = user_settings.clone().into();
+    *settings = Some(user_settings);
+
+    Ok(desktop_settings)
+}
+
+/// Gets the currently loaded [`UserSettings`](DersktopUserSettings).
+#[tauri::command]
+pub fn get_user_settings(app_state: State<AppState>) -> Option<DesktopUserSettings> {
+    let settings = app_state
+        .user_settings
+        .lock()
+        .expect("could not lock `AppState.user_settings`");
+
+    (*settings).clone().map(|s| s.into())
+}
+
+/// Update a user's [`UserSettings`](DesktopUserSettings).
+#[tauri::command]
+pub fn update_user_settings(app_state: State<AppState>, settings: DesktopUserSettings) -> Result {
+    let mut user_settings = app_state
+        .user_settings
+        .lock()
+        .expect("could not lock `AppState.user_settings`");
+
+    let Some(user_settings) = user_settings.as_mut() else {
+        return Err(DesktopSettingsError::InvalidUpdate("`AppState.user_settings` not loaded".to_string()).into());
+    };
+
+    user_settings.update(settings)?;
+    user_settings.save()?;
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "./user_settings_test.rs"]
+mod user_settings_test;

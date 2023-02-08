@@ -1,0 +1,51 @@
+@use 'themes' as t;
+
+.project-canvas {
+  height: 100%;
+
+  &:not(.active) {
+    display: none;
+  }
+
+  .project-canvas-navbar {
+    background-color: t.$frame-background-color;
+    padding: 5px;
+    border-right: solid t.$border-width-s t.$frame-border-color;
+  }
+
+  .details-bar-drawer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+
+    background-color: t.$frame-background-color;
+
+    .drawer-toggle {
+      height: 100%;
+      line-height: 100%;
+      vertical-align: middle;
+      cursor: pointer;
+
+      padding: 0 t.$padding-s;
+      border-right: solid t.$border-width-s t.$frame-border-color;
+    }
+
+    .project-canvas-details-bar {
+      padding: 5px;
+
+      &.hidden {
+        display: none;
+      }
+    }
+  }
+
+  .project-canvas-content {
+    min-height: 100%;
+    display: flex;
+
+    .project {
+      flex-grow: 1;
+    }
+  }
+}

@@ -1,0 +1,183 @@
+@use 'themes' as t;
+
+:root {
+  font-family: t.$body-font-family;
+  font-size: t.$font-size-base;
+  line-height: t.$line-height-base;
+  font-weight: t.$font-weight-base;
+
+  color: t.$body-text-color;
+  background-color: t.$background-color;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+html {
+  min-height: 100%;
+  display: flex;
+}
+
+body {
+  min-width: 100%;
+  margin: 0;
+}
+
+#content {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+main {
+  order: 0;
+  flex-grow: 12;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+}
+
+a {
+  color: t.$link-text-color;
+  text-decoration: inherit;
+
+  &:hover {
+    color: t.$link-hover-text-color;
+  }
+}
+
+
+.align-center {
+    text-align: center;
+}
+
+h1 {
+  text-align: center;
+}
+
+input,
+textarea,
+button {
+  color: t.$body-text-color;
+  border-radius: t.$border-radius-l;
+  border: t.$border-width-s solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: t.$interactive-element-background-color;
+  transition: border-color 0.25s;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+
+  &:focus {
+    border-color: t.$primary-color;
+  }
+}
+
+input[type="number"] {
+  padding: 7px;
+  border-radius: 0;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.25s;
+  outline: none;
+
+  &:hover {
+    background-color: t.$interactive-element-active-background-color;
+  }
+
+  &.btn-link {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  &.btn-primary {
+    background-color: t.$primary-button-color;
+
+    &:hover {
+      background-color: t.$primary-button-hover-color;
+    }
+  }
+}
+
+input {
+  outline: none;
+}
+
+.title {
+  font-family: t.$title-font-family;
+}
+
+.card {
+    display: inline-block;
+    padding: 0.5em;
+    border: t.$border-width-s t.$background-accent-color solid;
+    border-radius: t.$border-radius-m;
+    margin: 0.5em;
+}
+
+.inline-form-element {
+    display: inline-block;
+
+    &:not(.active):hover {
+        cursor: pointer;
+        border-radius: t.$border-radius-s;
+        padding: 0.25em 0.5em;
+        box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
+    }
+}
+
+.tag {
+    padding: 0.25em 0.50em;
+    border-radius: t.$border-radius-s;
+    margin: 0 0.15em;
+    background-color: t.$background-accent-color;
+}
+
+.thot-ui-shadow-box {
+  z-index: 100;
+  background-color: rgba(0, 0, 0, 1);
+  border-radius: t.$border-radius-m;
+}
+
+@media (prefers-color-scheme: dark) {
+  select {
+    appearance: none;
+    color: t.$body-text-color;
+    background-color: t.$interactive-element-background-color;
+
+    padding: 0.25em 1.5em 0.25em 0.5em;
+    border: solid t.$border-width-s t.$background-accent-color;
+    border-radius: t.$border-radius-s;
+      
+    background-image: linear-gradient(t.$background-accent-color, t.$background-accent-color),
+        linear-gradient(-135deg, transparent 55%, t.$background-accent-color 50%),
+        linear-gradient(-225deg, transparent 55%, t.$background-accent-color 50%),
+        linear-gradient(transparent 42%, t.$background-contrast-color 42%);
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+    background-size: 1px 100%, 20px 22px, 20px 22px, 20px 100%;
+    background-position: right 20px center, right bottom, right bottom, right bottom;
+
+      option {
+          background-color: t.$background-accent-color;
+      }
+  }
+}

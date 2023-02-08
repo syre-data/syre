@@ -1,0 +1,85 @@
+@use 'themes' as t;
+
+$control-button-size: 35px;
+
+.container-tree {
+  text-align: center;
+  
+  .container-node {
+    position: relative; // positioning for add child button
+    display: inline-block;
+
+    text-align: center;
+
+    background-color: t.$background-accent-color;
+    padding: 0.5rem 0.5rem 20px 0.5rem; // give room for add child button
+    border-radius: t.$border-radius-m;
+    margin: 0.5em 0.5em $control-button-size 0.5em;
+
+    .selected {
+      border: solid t.$border-width-m t.$primary-color;
+    }
+
+    .container-settings-control {
+      position: absolute;
+      top: 5px;
+      right: 5px;       
+      
+      button.container-settings-toggle {
+        background-color: transparent;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+      }
+
+      .container-settings-menu {
+        background-color: t.$background-accent-color;
+        padding: 5px;
+        border-radius: t.$border-radius-m;
+        position: absolute;
+
+        ul {
+          list-style: none;
+          margin: 0;
+          padding: 5px;
+        }
+      }
+    }     
+
+    .container-name {
+      font-family: t.$title-font-family;
+    }
+
+    .container-control {
+      width: $control-button-size;
+      height: $control-button-size;
+      padding: 5px;
+      margin: 5px;
+      background-color: t.$background-color;
+    }
+
+    .add-child-container-control {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      
+      button {
+        width: $control-button-size;
+        height: $control-button-size;
+        padding: 0;
+        border-radius: 50%;
+        background-color: t.$primary-button-color;
+
+        &:hover {
+          background-color: t.$primary-button-hover-color;
+        }
+      }
+    }
+  }
+
+  .children {
+      display: flex;
+      justify-content: space-evenly;
+  }
+}

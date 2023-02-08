@@ -1,0 +1,17 @@
+[package]
+name = "thot-data"
+version = "0.10.0-intermediate"
+edition = "2021"
+
+authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+description = "Rust language bindings for Thot data management and analysis software."
+license = "MIT OR Apache-2.0"
+
+homepage = "https://thot-data.com"
+repository = "https://github.com/thot-data/lib-rust"
+keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+categories = [ "science" ]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

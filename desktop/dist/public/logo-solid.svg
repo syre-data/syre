@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="svg"
+   version="1.1"
+   width="400"
+   height="400"
+   viewBox="0, 0, 400,400"
+   sodipodi:docname="logo-solid.svg"
+   inkscape:version="1.1 (ce6663b3b7, 2021-05-25)"
+   inkscape:export-filename="/home/brian/Documents/www/thot/marketing/_img/logo-solid.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs7" />
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="1.4"
+     inkscape:cx="52.5"
+     inkscape:cy="226.78571"
+     inkscape:window-width="1600"
+     inkscape:window-height="836"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svgg" />
+  <g
+     id="svgg">
+    <path
+       id="path0"
+       d="M 156.25,87.508 C 91.433,96.261 32.403,156.528 12.398,234.375 5.823,259.96 4.88,300 10.853,300 c 2.188,0 2.824,-3.155 4.186,-20.775 2.305,-29.8 10.84,-44.7 31.66,-55.266 3.105,-1.576 7.322,-4.096 9.371,-5.6 5.03,-3.691 8.733,-3.439 11.502,0.782 6.421,9.789 18.774,20.227 34.234,28.928 14.662,8.251 53.149,15.5 75.144,14.152 l 8.206,-0.502 0.437,20.798 0.437,20.799 5.032,-0.486 16.751,0.512 c 8.71086,-61.5239 -35.79017,-118.97777 -36.84,-162.702 1.26286,-30.13048 2.31,-43.888646 29.2,-48.303 l -22.25,-5.112 c -8.157,-1.261 -10.463,-1.231 -21.673,0.283 m 43.923,4.829 c -66.36707,41.15423 6.98735,147.68912 7.64,211.005 l 3.515,-0.499 c 3.412,-0.485 3.562,-1.268 5.078,-26.546 0.86,-14.325 1.914,-26.365 2.344,-26.754 0.43,-0.389 3.121,-1.898 5.98,-3.353 3.25,-1.654 7.563,-6.414 11.503,-12.699 l 6.304,-10.053 8.028,-0.045 8.029,-0.044 -6.408,-3.471 C 220.308,202.607 218.991,201.654 208.582,188.323 191.964,167.042 187.86,154.55 192.27,138.672 c 1.905,-6.862 1.457,-6.732 9.35,-2.705 15.349,7.83 27.14,5.63 43.302,-8.079 13.239,-11.23 13.516,-12.546 4.595,-21.856 C 237.331,93.314 216.198,87.449 200.173,92.337 m 36.491,10.95 c 8.26,7.252 6.498,10.69 -5.512,10.754 -5.695,0.031 -15.869,-11.616 -12.815,-14.669 2.867,-2.868 13.09,-0.684 18.327,3.915 m 18.946,25.842 c -10.23,8.422 -10.338,7.91 2.291,10.856 10.93,2.55 56.073,17.476 58.505,19.345 0.86,0.66 4.094,2.015 7.188,3.01 12.866,4.14 53.703,27.61 62.064,35.67 3.496,3.369 3.774,2.21 0.554,-2.307 -15.443,-21.663 -55.343,-48.037 -104.443,-69.038 -14.556,-6.226 -15.739,-6.114 -26.159,2.464"
+       stroke="none"
+       fill="#000000"
+       fill-rule="evenodd"
+       sodipodi:nodetypes="ccscccccccccccccccccccssccccccccccccccccccccccc" />
+    <rect
+       id="rect4651"
+       width="47.448341"
+       height="37.769409"
+       x="152.15547"
+       y="92.336998"
+       style="stroke-width:0.902162"
+       inkscape:export-filename="/home/brian/Documents/www/thot/marketing/_img/logo-solid.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <rect
+       id="rect4651-7"
+       width="21.330704"
+       height="60.385181"
+       x="192.4823"
+       y="240.95682"
+       style="stroke-width:0.764842" />
+    <rect
+       id="rect4651-3"
+       width="25.784908"
+       height="132.63553"
+       x="117.74432"
+       y="166.56319"
+       style="stroke-width:1.24628"
+       transform="matrix(0.96375482,-0.26678953,0.23221712,0.97266398,0,0)" />
+    <rect
+       id="rect5042"
+       width="1.6567969"
+       height="2.7552769"
+       x="206.4514"
+       y="300.48096" />
+  </g>
+</svg>

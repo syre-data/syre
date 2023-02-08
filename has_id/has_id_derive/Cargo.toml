@@ -1,0 +1,25 @@
+[package]
+name = "has_id_derive"
+version = "0.0.1"
+edition = "2021"
+
+authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+description = "Custom derive for the `has_id::HasId` trait."
+license = "MIT OR Apache-2.0"
+
+repository = "https://github.com/thot-data/has_id"
+keywords = []
+categories = []
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+quote = "1.0"
+serde = { version = "1.0", optional = true }
+syn = { version = "1.0", features = ["full"] }
+
+[features]
+serde = ["dep:serde"]

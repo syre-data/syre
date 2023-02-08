@@ -1,0 +1,19 @@
+[package]
+name = "thot-desktop-lib"
+version = "0.10.0"
+description = "Shared types and functionality for the front- and back-end of Thot desktop."
+authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
+
+homepage = "https://thot-data.com"
+repository = "https://github.com/thot-data/desktop"
+keywords = ["thot", "thot-data"]
+categories = []
+edition = "2021"
+rust-version = "1.57"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+indexmap = { version = "1.9", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+thot-core = { path = "../../core", features = ["serde"] }

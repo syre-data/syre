@@ -1,0 +1,20 @@
+[package]
+name = "lib-python"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "thot"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.17.1", features = ["extension-module", "serde"] }
+pythonize = "0.17"
+serde = "1.0"
+serde_json = "1.0.91"
+uuid = { version = "0.8", features = ["v4"] }
+
+settings_manager = { path = "../../settings_manager" }
+thot-core = { path = "../../core", features = ["pyo3"] }
+thot-local-database = { path = "../../local/database", features = ["client"] }

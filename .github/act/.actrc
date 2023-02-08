@@ -1,0 +1,2 @@
+--env-file .github/act/vars
+--secret-file .github/act/secrets

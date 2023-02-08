@@ -1,0 +1,79 @@
+# packages
+/0.9
+/dependency-license-audit
+/releases
+/watcher
+
+# general
+target
+Cargo.lock
+.DS_Store
+
+# Byte-compiled / optimized / DLL files
+/lang/python/**/__pycache__/
+/lang/python/**/.pytest_cache/
+/lang/python/**/*.py[cod]
+
+# C extensions
+/lang/python/**/*.so
+
+# Distribution / packaging
+/lang/python/**/.Python
+/lang/python/**/.venv/
+/lang/python/**/env/
+/lang/python/**/bin/
+/lang/python/**/build/
+/lang/python/**/develop-eggs/
+/lang/python/**/dist/
+/lang/python/**/eggs/
+/lang/python/**/lib/
+/lang/python/**/lib64/
+/lang/python/**/parts/
+/lang/python/**/sdist/
+/lang/python/**/var/
+/lang/python/**/include/
+/lang/python/**/man/
+/lang/python/**/venv/
+/lang/python/**/*.egg-info/
+/lang/python/**/.installed.cfg
+/lang/python/**/*.egg
+
+# Installer logs
+/lang/python/**/pip-log.txt
+/lang/python/**/pip-delete-this-directory.txt
+/lang/python/**/pip-selfcheck.json
+
+# Unit test / coverage reports
+/lang/python/**/htmlcov/
+/lang/python/**/.tox/
+/lang/python/**/.coverage
+/lang/python/**/.cache
+/lang/python/**/nosetests.xml
+/lang/python/**/coverage.xml
+
+# Translations
+/lang/python/**/*.mo
+
+# Mr Developer
+/lang/python/**/.mr.developer.cfg
+/lang/python/**/.project
+/lang/python/**/.pydevproject
+
+# Rope
+/lang/python/**/.ropeproject
+
+# Django stuff:
+/lang/python/**/*.log
+/lang/python/**/*.pot
+
+# Sphinx documentation
+/lang/python/**/docs/_build/
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# Pyenv
+.python-version

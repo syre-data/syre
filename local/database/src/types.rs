@@ -1,0 +1,21 @@
+//! Types.
+use serde::{Deserialize, Serialize};
+
+/// Convenience type to indicate valid port numbers.
+pub type PortNumber = u16;
+
+/// Socket types used for hash keys.
+///
+/// # Note
+/// `zmq::SocketType` is not `hash`able, making this enum required.
+/// This has been raised as an issue on the [`zmq GitHub`](https://github.com/erickt/rust-zmq/issues/362).
+/// If this faeture is implemented, this enum can be depricated.
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
+pub enum SocketType {
+    /// [`zmq::SocketType::REP`]
+    REP,
+}
+
+#[cfg(test)]
+#[path = "./types_test.rs"]
+mod types_test;

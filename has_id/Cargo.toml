@@ -1,0 +1,22 @@
+[package]
+name = "has_id"
+version = "0.0.1"
+edition = "2021"
+
+authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+description = "Indicate an object has a unique id."
+license = "MIT OR Apache-2.0"
+
+repository = "https://github.com/thot-data/has_id"
+keywords = []
+categories = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", optional = true }
+has_id_derive = { path = "./has_id_derive", optional = true }
+
+[features]
+derive = ["dep:has_id_derive"]
+serde = ["dep:serde", "has_id_derive?/serde"]

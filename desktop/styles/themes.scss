@@ -1,0 +1,79 @@
+@use 'variables' as vars;
+
+// ************
+// *** font ***
+// ************
+
+$title-font-family: vars.$font-family-primary;
+$body-font-family: vars.$font-family-secondary;
+$font-size-base: vars.$font-size-base;
+$font-weight-base: vars.$font-weight-base;
+$line-height-base: vars.$line-height-base;
+
+// *************
+// *** color ***
+// *************
+
+$primary-color: vars.$primary-color-800;
+$primary-color-accent: vars.$primary-color-700;
+
+$background-color: vars.$secondary-color-800;
+$background-accent-color: vars.$secondary-color-700;
+$background-contrast-color: vars.$secondary-color-300;
+
+$frame-background-color: vars.$secondary-color-900;
+$frame-border-color: $background-accent-color;
+
+$body-text-color: vars.$secondary-color-50;
+$title-text-color: vars.$secondary-color-50;
+$link-text-color: vars.$secondary-color-200;
+$link-hover-text-color: vars.$secondary-color-100;
+
+$interactive-element-background-color: vars.$secondary-color-700;
+$interactive-element-active-background-color: vars.$secondary-color-600;
+$primary-button-color: vars.$primary-color-700;
+$primary-button-hover-color: vars.$primary-color-600;
+
+
+@media (prefers-color-scheme: light) {
+  $primary-color: vars.$primary-color-300;
+  $primary-color-accent: vars.$primary-color-400;
+
+  $background-color: vars.$secondary-color-50;
+  $background-accent-color: vars.$secondary-color-200;
+  $background-contrast-color: vars.$secondary-color-700;
+
+  $body-text-color: vars.$secondary-color-900;
+  $title-text-color: vars.$secondary-color-900;
+  $link-text-color: vars.$secondary-color-700;
+  $link-hover-text-color: vars.$secondary-color-800;
+
+  $button-color: vars.$secondary-color-200;
+  $button-hover-color: vars.$secondary-color-300;
+  $primary-button-color: vars.$primary-color-200;
+  $primary-button-hover-color: vars.$primary-color-300;
+
+  $error-color: vars.$utility-red-300;
+}
+
+// ****************
+// *** geometry ***
+// ****************
+
+$padding-s: 3px;
+$padding-m: 5px;
+$padding-l: 8px;
+
+$border-radius-s: 3px;
+$border-radius-m: 5px;
+$border-radius-l: 7px;
+
+$border-width-s: 1px;
+$border-width-m: 2px;
+$border-width-l: 4px;
+
+// ****************
+// *** messages ***
+// ****************
+
+$error-color: vars.$utility-red-600;

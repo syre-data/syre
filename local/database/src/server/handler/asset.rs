@@ -4,6 +4,8 @@ use crate::command::AssetCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::LocalSettings;
+use std::collections::HashSet;
+use thot_core::db::resources::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::ResourceId;
@@ -48,6 +50,11 @@ impl Database {
                 let res = self.update_asset_properties(&rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
+
+            AssetCommand::Find(root, filter) => {
+                let res = self.find_assets(&root, filter);
+                serde_json::to_value(res).expect("could not convert result to JSON")
+            }
         }
     }
 
@@ -68,6 +75,15 @@ impl Database {
         asset.properties = properties;
         container.save()?;
         Ok(())
+    }
+
+    /// # Arguments
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    fn find_assets(&self, root: &ResourceId, filter: StandardSearchFilter) -> HashSet<CoreAsset> {
+        let mut assets = HashSet::new();
+
+        assets
     }
 }
 

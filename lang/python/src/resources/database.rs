@@ -80,12 +80,8 @@ impl Database {
         thot_runner::dev_mode()
     }
 
-    /// Returns the root path of the project.
-    fn root_path(&self) -> PathBuf {
-        self.root_path.clone()
-    }
-
     /// Returns the root Container of the project.
+    #[getter]
     fn root(&self) -> PyResult<DbContainer> {
         let root = self
             .db
@@ -101,15 +97,15 @@ impl Database {
         Ok(root.into())
     }
 
-    // /// Finds a single Container matching the search fitler.
-    // fn find_container(
-    //     &self,
-    //     py: Python<'_>,
-    //     search: Option<DictMap>,
-    // ) -> PyResult<Option<DbContainer>> {
-    //     let filter = dict_map_to_filter(py, search)?;
-    //     Ok(self.db.containers.find_one(&filter))
-    // }
+    /// Finds a single Container matching the search fitler.
+    fn find_container(
+        &self,
+        py: Python<'_>,
+        search: Option<DictMap>,
+    ) -> PyResult<Option<DbContainer>> {
+        let filter = dict_map_to_filter(py, search)?;
+        Ok(self.db.containers.find_one(&filter))
+    }
 
     // /// Finds all Containers matching the search filter.
     // fn find_containers(

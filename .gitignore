@@ -9,6 +9,14 @@ target
 Cargo.lock
 .DS_Store
 
+# --- IDE ---
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# --- lang / python ---
 # Byte-compiled / optimized / DLL files
 /lang/python/**/__pycache__/
 /lang/python/**/.pytest_cache/
@@ -19,7 +27,7 @@ Cargo.lock
 
 # Distribution / packaging
 /lang/python/**/.Python
-/lang/python/**/.venv/
+/lang/python/**/.venv*/
 /lang/python/**/env/
 /lang/python/**/bin/
 /lang/python/**/build/
@@ -69,11 +77,8 @@ Cargo.lock
 # Sphinx documentation
 /lang/python/**/docs/_build/
 
-# PyCharm
-.idea/
-
-# VSCode
-.vscode/
-
 # Pyenv
 .python-version
+
+# --- desktop ---
+/desktop/dist

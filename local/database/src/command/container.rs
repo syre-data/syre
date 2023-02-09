@@ -19,12 +19,13 @@ pub enum ContainerCommand {
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
     GetContainer(ResourceId),
 
-    ///// Retrieves [`Container`](CoreContainer)s based on a filter.
-    /////
-    ///// # Fields
-    ///// 1. Root `Container`.
-    ///// 2. Search filter.
-    //GetContainers(ResourceId, StandardSearchFilter),
+    /// Retrieves [`Container`](CoreContainer)s based on a filter.
+    ///
+    /// # Fields
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    Find(ResourceId, StandardSearchFilter),
+
     /// Updates a [`Container`](CoreContainer)'s properties.
     UpdateContainerProperties(UpdatePropertiesArgs),
 

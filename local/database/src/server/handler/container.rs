@@ -47,10 +47,11 @@ impl Database {
                 serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }
 
-            // ContainerCommand::GetContainers(root, filter) => {
-            //     let containers = self.get_containers(&root, filter);
-            //     serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
-            // }
+            ContainerCommand::Find(root, filter) => {
+                let containers = self.find_containers(&root, filter);
+                serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
+            }
+
             ContainerCommand::UpdateContainerProperties(UpdatePropertiesArgs {
                 rid,
                 properties,
@@ -130,7 +131,10 @@ impl Database {
         Ok(container_val)
     }
 
-    fn get_containers(
+    /// # Arguments
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    fn find_containers(
         &self,
         root: &ResourceId,
         filter: StandardSearchFilter,

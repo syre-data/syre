@@ -1,4 +1,4 @@
-name: 'release'
+name: 'release desktop'
 on:
   push:
     branches:
@@ -20,64 +20,6 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          path: desktop
-      - name: checkout thot-data/dev_utils
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/dev_utils
-          path: dev_utils
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: checkout thot-data/has_id
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/has_id
-          path: has_id
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: checkout thot-data/setings_manager
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/settings_manager
-          path: settings_manager
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: checkout thot-data/thot-core
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/core
-          path: core
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: checkout thot-data/thot-local
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/local
-          path: local
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: checkout thot-data/thot-ui
-        uses: actions/checkout@v3
-        with:
-          repository: thot-data/ui
-          path: ui
-          token: ${{ secrets.ACCESS_TOKEN }}
-      - name: create workspace
-        run: |
-          touch Cargo.toml
-          echo '[workspace]' >> Cargo.toml
-          echo 'members = [' >> Cargo.toml
-          echo '"core",' >> Cargo.toml
-          echo '"desktop",' >> Cargo.toml
-          echo '"desktop/src-lib",' >> Cargo.toml
-          echo '"desktop/src-tauri",' >> Cargo.toml
-          echo '"dev_utils",' >> Cargo.toml
-          echo '"has_id",' >> Cargo.toml
-          echo '"has_id/has_id_derive",' >> Cargo.toml
-          echo '"local",' >> Cargo.toml
-          echo '"local/database",' >> Cargo.toml
-          echo '"settings_manager",' >> Cargo.toml
-          echo '"ui",' >> Cargo.toml
-          echo ']' >> Cargo.toml
-          echo '[profile.release]' >> Cargo.toml
-          echo 'opt-level = 3' >> Cargo.toml
-          echo 'debug = false' >> Cargo.toml
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-20.04'
         run: |
@@ -85,8 +27,6 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
       - name: install Rust toolchain
         uses: dtolnay/rust-toolchain@master
-        with: 
-          toolchain: ${{ vars.RUST_TOOLCHAIN }}
       - name: install wasm target
         run: rustup target add wasm32-unknown-unknown
       - name: install Trunk

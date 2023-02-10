@@ -8,9 +8,6 @@ use has_id_derive;
 #[cfg(feature = "derive")]
 pub use has_id_derive::HasId;
 
-#[cfg(feature = "derive")]
-pub use has_id_derive::HasIdMut;
-
 #[cfg(all(feature = "derive", feature = "serde"))]
 pub use has_id_derive::HasIdSerde;
 

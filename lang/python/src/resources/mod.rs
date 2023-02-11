@@ -1,4 +1,5 @@
 //! Resources.
+// pub mod asset;
 pub mod asset;
 pub mod database;
 pub mod metadata;

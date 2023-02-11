@@ -3,7 +3,6 @@
 members = [
     "cli",
     "core",
-    "dependency-license-audit",
     "desktop",
     "desktop/src-lib",
     "desktop/src-tauri",

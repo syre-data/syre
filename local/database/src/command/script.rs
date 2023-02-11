@@ -11,23 +11,23 @@ pub enum ScriptCommand {
     ///
     /// # Fields
     /// 1. `Project`'s `ResourceId`.
-    LoadProjectScripts(ResourceId),
+    LoadProject(ResourceId),
 
     /// Gets a `Script`.
     ///
     /// # Fields
     /// 1. `Script`'s `ResourceId`.
-    GetScript(ResourceId),
+    Get(ResourceId),
 
     /// Updates a `Script`.
-    UpdateScript(CoreScript),
+    Update(CoreScript),
 
     /// Adds a `Script` to a `Project`.
     ///
     /// # Fields
     /// 1. `Project`'s id.
     /// 2. `Script`'s path.
-    AddScript(ResourceId, PathBuf),
+    Add(ResourceId, PathBuf),
 }
 
 #[cfg(test)]

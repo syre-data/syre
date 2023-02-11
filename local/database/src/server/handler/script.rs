@@ -14,22 +14,22 @@ use thot_local::system::collections::Projects;
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
         match cmd {
-            ScriptCommand::GetScript(script) => {
+            ScriptCommand::Get(script) => {
                 let script = self.store.get_script(&script);
                 serde_json::to_value(script.clone()).expect("could not convert `Script` to JsValue")
             }
 
-            ScriptCommand::AddScript(project, script) => {
+            ScriptCommand::Add(project, script) => {
                 let script = self.add_script(project, script);
                 serde_json::to_value(script).expect("could not convert `Script` to JsValue")
             }
 
-            ScriptCommand::UpdateScript(script) => {
+            ScriptCommand::Update(script) => {
                 let res = self.update_script(script);
                 serde_json::to_value(res).expect("could not convert result to JsValue")
             }
 
-            ScriptCommand::LoadProjectScripts(project) => {
+            ScriptCommand::LoadProject(project) => {
                 let scripts = self.load_project_scripts(project);
                 serde_json::to_value(scripts).expect("could not convert result to JsValue")
             }

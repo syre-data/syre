@@ -6,7 +6,7 @@ use crate::error::{Error, Result};
 use crate::project::container::path_is_container;
 use crate::types::{ResourceStore, ResourceValue};
 use cluFlock::FlockLock;
-use has_id::{HasId, HasIdMut};
+use has_id::HasId;
 use serde::{Deserialize, Serialize};
 use settings_manager::error::{
     Error as SettingsError, Result as SettingsResult, SettingsError as LocalSettingsError,
@@ -18,7 +18,6 @@ use std::fs::{self, File};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use thot_core::db::resources::{Object, StandardObject};
 use thot_core::error::{ContainerError, Error as CoreError, ProjectError, ResourceError};
 use thot_core::project::container::{ContainerStore as CoreContainerStore, ScriptMap};
 use thot_core::project::{
@@ -37,7 +36,7 @@ pub type ContainerMap = ResourceStore<Container>;
 // *** Container ***
 // *****************
 
-#[derive(Serialize, Deserialize, HasId, HasIdMut, Debug)]
+#[derive(Serialize, Deserialize, HasId, Debug)]
 pub struct Container {
     #[serde(skip)]
     _file_lock: Option<FlockLock<File>>,
@@ -520,18 +519,6 @@ impl Hash for Container {
         self.rid.hash(state);
     }
 }
-
-// impl Object for Container {}
-
-// impl StandardObject for Container {
-//     fn properties(&self) -> &CoreStandardProperties {
-//         &self.properties
-//     }
-
-//     fn properties_mut(&mut self) -> &mut CoreStandardProperties {
-//         &mut self.properties
-//     }
-// }
 
 // *************
 // *** serde ***

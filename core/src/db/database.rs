@@ -1,6 +1,6 @@
 //! Database of a Thot project.
-use super::collection::Collection;
-use super::resources::{asset::Asset, container::Container};
+use super::Collection;
+use crate::project::{Asset, Container};
 use crate::types::ResourceId;
 
 #[derive(Debug)]

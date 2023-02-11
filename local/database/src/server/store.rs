@@ -1,11 +1,12 @@
 //! Database for storing resources.
 use crate::error::Result;
 use settings_manager::LocalSettings;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset as CoreAsset, Script as CoreScript};
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Script as CoreScript};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
@@ -196,6 +197,28 @@ impl Datastore {
         Some(container.clone())
     }
 
+    pub fn find_containers(&self, root: &ResourceId, filter: StdFilter) -> ContainerMap {
+        let mut found = HashMap::new();
+        let Some(root) = self.containers.get(root) else {
+            return found;
+        };
+
+        let root_val = root.lock().expect("could not lock `Container`");
+        for cid in root_val.children.keys() {
+            let matches = self.find_containers(&cid, filter.clone());
+            for (mid, m) in matches.clone().into_iter() {
+                found.insert(mid, m);
+            }
+        }
+
+        let root_val: CoreContainer = root_val.clone().into();
+        if filter.matches(&root_val) {
+            found.insert(root_val.rid, root.clone());
+        }
+
+        found
+    }
+
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
     }
@@ -228,6 +251,46 @@ impl Datastore {
     /// Inserts a map from the `Asset` to its `Container`.
     pub fn insert_asset(&mut self, asset: ResourceId, container: ResourceId) -> Option<ResourceId> {
         self.assets.insert(asset, container)
+    }
+
+    /// Adds an [`Asset`](CoreAsset) to a `Container`.
+    pub fn add_asset(
+        &mut self,
+        asset: CoreAsset,
+        container: ResourceId,
+    ) -> Result<Option<CoreAsset>> {
+        let Some(container) = self.containers.get(&container) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded".to_string())).into());
+        };
+
+        let mut container = container.lock().expect("could not lock `Container`");
+        let o_asset = container.assets.insert(asset.rid.clone(), asset);
+        container.save()?;
+
+        Ok(o_asset)
+    }
+
+    pub fn find_assets(&self, root: &ResourceId, filter: StdFilter) -> HashSet<CoreAsset> {
+        let mut found = HashSet::new();
+        let Some(root) = self.containers.get(root) else {
+            return found;
+        };
+
+        let root_val = root.lock().expect("could not lock `Container`");
+        for cid in root_val.children.keys() {
+            let matches = self.find_assets(&cid, filter.clone());
+            for asset in matches.into_iter() {
+                found.insert(asset);
+            }
+        }
+
+        for asset in root_val.assets.values() {
+            if filter.matches(asset) {
+                found.insert(asset.clone());
+            }
+        }
+
+        found
     }
 
     // **************

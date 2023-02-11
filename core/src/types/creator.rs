@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Creator of a resource.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum Creator {
     User(Option<UserId>),
     Script(ResourceId),

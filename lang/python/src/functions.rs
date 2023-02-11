@@ -3,7 +3,6 @@ use crate::types::DictMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::collections::HashSet;
-use thot_core::db::resources::object::StandardObject as StdObject;
 use thot_core::runner::common as thot_runner;
 
 /// Returns whether the script is being run in developement mode.

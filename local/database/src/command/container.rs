@@ -1,7 +1,7 @@
 //! Container related commands.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use thot_core::db::resources::StandardSearchFilter;
+use thot_core::db::StandardSearchFilter;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::StandardProperties;
 use thot_core::types::ResourceId;
@@ -11,13 +11,13 @@ use thot_local::types::AssetFileAction;
 #[derive(Serialize, Deserialize)]
 pub enum ContainerCommand {
     /// Load a [`Container`](crate::project::resources::Container) tree from its root path.
-    LoadContainerTree(PathBuf),
+    LoadTree(PathBuf),
 
     /// Load a single [`Container`](crate::project::resources::Container) from a path.
-    LoadContainer(PathBuf),
+    Load(PathBuf),
 
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
-    GetContainer(ResourceId),
+    Get(ResourceId),
 
     /// Retrieves [`Container`](CoreContainer)s based on a filter.
     ///
@@ -27,11 +27,11 @@ pub enum ContainerCommand {
     Find(ResourceId, StandardSearchFilter),
 
     /// Updates a [`Container`](CoreContainer)'s properties.
-    UpdateContainerProperties(UpdatePropertiesArgs),
+    UpdateProperties(UpdatePropertiesArgs),
 
     /// Updates a [`Container`](CoreContainer)'s
     /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
-    UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
+    UpdateScriptAssociations(UpdateScriptAssociationsArgs),
 
     /// Add [`Asset`](CoreAsset)s to a [`Container`](CoreContainer).
     ///
@@ -44,7 +44,7 @@ pub enum ContainerCommand {
     NewChild(NewChildArgs),
 
     /// Gets the path of a [`Container`](thot_local::project::resources::Container).
-    GetContainerPath(ResourceId),
+    GetPath(ResourceId),
 }
 
 // *****************

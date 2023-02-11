@@ -18,7 +18,7 @@ use thot_local_database::Result as DbResult;
 /// Adds containers into the [`ContainerStore`].
 #[tauri::command]
 pub fn load_container_tree(db: State<DbClient>, root: PathBuf) -> Result<CoreContainer> {
-    let root = db.send(ContainerCommand::LoadContainerTree(root).into());
+    let root = db.send(ContainerCommand::LoadTree(root).into());
     let root: DbResult<CoreContainer> = serde_json::from_value(root)
         .expect("could not convert `LoadContainerTree` result to a `Container`");
 
@@ -57,7 +57,7 @@ pub fn init_container(
     let _rid = container::init_from(&path, container)?;
 
     // load and store container
-    let container = db.send(ContainerCommand::LoadContainer(path).into());
+    let container = db.send(ContainerCommand::Load(path).into());
     let container: DbResult<CoreContainer> = serde_json::from_value(container)
         .expect("could not convert `LoadContainer` result to a `Container`");
 
@@ -82,7 +82,7 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 /// Retrieves a [`Container`](CoreContainer), or `None` if it is not loaded.
 #[tauri::command]
 pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<CoreContainer> {
-    let child = db.send(ContainerCommand::GetContainer(rid).into());
+    let child = db.send(ContainerCommand::Get(rid).into());
     serde_json::from_value(child).expect("could not convert `GetContainer` result to `Container`")
 }
 
@@ -93,10 +93,8 @@ pub fn update_container_properties(
     rid: ResourceId,
     properties: StandardProperties,
 ) -> Result {
-    let res = db.send(
-        ContainerCommand::UpdateContainerProperties(UpdatePropertiesArgs { rid, properties })
-            .into(),
-    );
+    let res = db
+        .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into());
 
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
@@ -119,7 +117,7 @@ pub fn update_container_script_associations(
         serde_json::from_str(&associations).expect("could not deserialize into `ScriptMap`");
 
     let res = db.send(
-        ContainerCommand::UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs {
+        ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
             rid,
             associations,
         })
@@ -135,7 +133,7 @@ pub fn update_container_script_associations(
 /// Gets the current location of a [`Container`](LocalContainer).
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Result<Option<PathBuf>> {
-    let path = db.send(ContainerCommand::GetContainerPath(rid).into());
+    let path = db.send(ContainerCommand::GetPath(rid).into());
     let path: DbResult<Option<PathBuf>> = serde_json::from_value(path)
         .expect("could not convert `GetContainerPath` result to `PathBuf`");
 

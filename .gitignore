@@ -1,10 +1,10 @@
 # packages
 /0.9
-/dependency-license-audit
 /releases
 /watcher
 
 # general
+/tags
 target
 Cargo.lock
 .DS_Store

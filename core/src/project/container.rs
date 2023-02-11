@@ -1,8 +1,10 @@
 //! Container.
-use super::asset::Asset;
-use super::script_association::RunParameters;
 use super::standard_properties::StandardProperties;
+use super::{Asset, RunParameters};
+use crate::db::{Resource, StandardResource};
 use crate::types::{ResourceId, ResourceMap, ResourceStore};
+use has_id::HasId;
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "serde")]
@@ -22,8 +24,10 @@ pub type ScriptMap = ResourceMap<RunParameters>;
 // *****************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Debug)]
+#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
+#[derive(Clone, Debug, HasId)]
 pub struct Container {
+    #[id]
     pub rid: ResourceId,
     pub properties: StandardProperties,
     pub parent: Option<ResourceId>,
@@ -46,10 +50,36 @@ impl Default for Container {
 }
 
 impl PartialEq for Container {
-    /// Compares `rid` and `properties` for equality.
-    /// Ignores all other fields.
     fn eq(&self, other: &Self) -> bool {
-        (self.rid == other.rid) && (self.properties == other.properties)
+        if self.rid != other.rid {
+            return false;
+        }
+
+        if self.properties != other.properties {
+            return false;
+        }
+
+        true
+    }
+}
+
+impl Eq for Container {}
+
+impl Hash for Container {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rid.hash(state);
+    }
+}
+
+impl Resource for Container {}
+
+impl StandardResource for Container {
+    fn properties(&self) -> &StandardProperties {
+        &self.properties
+    }
+
+    fn properties_mut(&mut self) -> &mut StandardProperties {
+        &mut self.properties
     }
 }
 

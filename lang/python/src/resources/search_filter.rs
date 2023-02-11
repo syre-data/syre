@@ -4,13 +4,14 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use std::collections::HashSet;
 use std::str::FromStr;
-use thot_core::db::resources::search_filter::StandardSearchFilter as StdFilter;
+use thot_core::db::StandardSearchFilter as StdFilter;
+use thot_core::project::Metadata;
 use thot_core::types::ResourceId;
 
 /// Convert a raw search map to a StandardPropertiesSearchFilter.
 pub fn dict_map_to_filter(py: Python<'_>, search: Option<DictMap>) -> PyResult<StdFilter> {
     match search {
-        None => Ok(StdFilter::new()),
+        None => Ok(StdFilter::default()),
         Some(m) => convert_dict_map_to_search_filter(py, m),
     }
 }
@@ -21,7 +22,7 @@ pub fn dict_map_to_filter(py: Python<'_>, search: Option<DictMap>) -> PyResult<S
 /// + If an invalid key is encountered.
 /// + If a valid key has an invalid type or value.
 fn convert_dict_map_to_search_filter(py: Python<'_>, map: DictMap) -> PyResult<StdFilter> {
-    let mut filter = StdFilter::new();
+    let mut filter = StdFilter::default();
     for (k, v) in map {
         match k.as_str() {
             "_id" => {
@@ -70,13 +71,13 @@ fn convert_dict_map_to_search_filter(py: Python<'_>, map: DictMap) -> PyResult<S
                 filter.tags = Some(tags);
             }
             "metadata" => {
-                //                let md = v.extract::<HashMap<String, SerdeValue>>(py);
-                //                if !md.is_err() {
-                //                    return Err(PyTypeError::new_err("Invalid value for `metadata`"));
-                //                }
-                //
-                //                let md = md.unwrap();
-                //                filter.metadata = Some(md);
+                // let md = v.extract::<Metadata>(py);
+                // if !md.is_err() {
+                //     return Err(PyTypeError::new_err("Invalid value for `metadata`"));
+                // }
+
+                // let md = md.unwrap();
+                // filter.metadata = Some(md);
             }
             _ => {
                 return Err(PyValueError::new_err(format!("Invalid search key `{}`", k)));

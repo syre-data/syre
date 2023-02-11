@@ -1,10 +1,9 @@
 //! Defines the Collection trait for database implementations to use.
-use super::error::Error as DbError;
-use super::resources::object::StandardObject;
-use super::resources::search_filter::{
-    ResourceIdSearchFilter as RidFilter, SearchFilter, StandardSearchFilter as StdFilter,
+use super::{
+    search_filter::SearchFilter, Error as DbError, StandardResource,
+    StandardSearchFilter as StdFilter,
 };
-use crate::types::{ResourceId, ResourceMap};
+use crate::types::ResourceMap;
 use crate::{Error, Result};
 use std::collections::HashSet;
 
@@ -14,11 +13,11 @@ use std::collections::HashSet;
 
 /// Collections.
 #[derive(Debug)]
-pub struct Collection<T: StandardObject> {
+pub struct Collection<T: StandardResource> {
     objects: ResourceMap<T>,
 }
 
-impl<T: StandardObject> Collection<T> {
+impl<T: StandardResource> Collection<T> {
     pub fn new() -> Self {
         Collection {
             objects: ResourceMap::new(),
@@ -65,21 +64,19 @@ impl<T: StandardObject> Collection<T> {
         Ok(())
     }
 
-    /// Updates an object given its universal id.
-    /// The object's universal id is not altered from the object passed in for the update,
-    /// however other aspects of the resource id may be.
+    /// Updates an object given its id.
     ///
     /// # Returns
     /// The old value.
     ///
     /// # Errors
     /// + If an object with the given universal id is not found.
-    pub fn update(&mut self, uid: ResourceId, mut obj: T) -> Result<T> {
+    pub fn update(&mut self, obj: T) -> Result<T> {
+        let uid = obj.id().clone();
         if !self.objects.contains_key(&uid) {
             return Err(Error::DbError(DbError::DoesNotExist(uid)));
         }
 
-        *obj.id_mut() = uid.clone();
         let old_val = self.objects.insert(uid.clone(), obj);
         let Some(old_val) = old_val else {
             // @unreachable
@@ -97,10 +94,13 @@ impl<T: StandardObject> Collection<T> {
     /// # Errors
     /// + If no objects match the search.
     /// + If more than one object matches the search.
-    pub fn update_one(&mut self, search: &RidFilter, mut obj: T) -> Result<T> {
-        // serach for match
+    pub fn update_one(&mut self, obj: T) -> Result<T> {
+        // search for match
+        let mut search = StdFilter::default();
+        search.rid = Some(obj.id().clone());
+
         let mut matched = self.objects.clone();
-        matched.retain(|_, obj| search.matches(obj.id()));
+        matched.retain(|_, obj| search.matches(obj));
 
         if matched.is_empty() {
             return Err(Error::DbError(DbError::NoMatches));
@@ -116,7 +116,6 @@ impl<T: StandardObject> Collection<T> {
         };
 
         // update
-        *obj.id_mut() = uid.clone();
         let old_val = self.objects.insert(uid.clone(), obj);
         if old_val.is_none() {
             // should not be reachable
@@ -127,17 +126,18 @@ impl<T: StandardObject> Collection<T> {
     }
 
     /// Updates an object if one is found, otherwise inserts it as new.
-    /// If inserting a new object, the resource id is taken as is.
-    /// If updating a previous object, the resource id aremains as the original's.
     ///
     /// # Returns
     /// `None` if the object was newly inserted, or `Some` with the old value if it was updated.
     ///
     /// # Errors
     /// + If more than one object matches the search.
-    pub fn update_or_insert_one(&mut self, search: &RidFilter, obj: T) -> Result<Option<T>> {
+    pub fn update_or_insert_one(&mut self, obj: T) -> Result<Option<T>> {
+        let mut search = StdFilter::default();
+        search.rid = Some(obj.id().clone());
+
         let mut matched = self.objects.clone();
-        matched.retain(|_, obj| search.matches(obj.id()));
+        matched.retain(|_, obj| search.matches(obj));
 
         match matched.len() {
             0 => {
@@ -145,14 +145,7 @@ impl<T: StandardObject> Collection<T> {
                 Ok(None)
             }
             1 => {
-                let uid = matched.into_keys().next();
-                let Some(uid) = uid else {
-                    // @unreachable
-                    // not sure aobut which error is best to put here.
-                    return Err(Error::DbError(DbError::NoMatches));
-                };
-
-                let old_val = self.update(uid, obj)?;
+                let old_val = self.update(obj)?;
                 Ok(Some(old_val))
             }
             _ => Err(Error::DbError(DbError::MultipleMatches)),

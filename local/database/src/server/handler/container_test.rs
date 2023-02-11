@@ -18,7 +18,7 @@ fn load_container_should_work() {
     let mut db = Database::new();
 
     // test
-    let container = db.handle_command_container(ContainerCommand::LoadContainer(c_path.clone()));
+    let container = db.handle_command_container(ContainerCommand::Load(c_path.clone()));
 
     let container: Result<CoreContainer> =
         serde_json::from_value(container).expect("could not convert JsValue to `Container`");
@@ -31,7 +31,7 @@ fn load_container_should_work() {
     );
 
     // second retrieval
-    let container = db.handle_command_container(ContainerCommand::LoadContainer(c_path));
+    let container = db.handle_command_container(ContainerCommand::Load(c_path));
 
     let container: Result<CoreContainer> =
         serde_json::from_value(container).expect("could not convert JsValue to `Container`");
@@ -50,8 +50,7 @@ fn database_command_update_container_properties_should_work() {
     let _dir = TempDir::new().expect("could not create new temp dir");
     let _rid = container::init(_dir.path()).expect("could not init `Container`");
     let mut db = Database::new();
-    let container =
-        db.handle_command_container(ContainerCommand::LoadContainer(_dir.path().to_path_buf()));
+    let container = db.handle_command_container(ContainerCommand::Load(_dir.path().to_path_buf()));
 
     let container: Result<CoreContainer> =
         serde_json::from_value(container).expect("could not contvert JsValue to `Container`");
@@ -62,12 +61,10 @@ fn database_command_update_container_properties_should_work() {
     properties.name = Some(name);
 
     // test
-    db.handle_command_container(ContainerCommand::UpdateContainerProperties(
-        UpdatePropertiesArgs {
-            rid: container.rid.clone(),
-            properties: properties.clone(),
-        },
-    ));
+    db.handle_command_container(ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
+        rid: container.rid.clone(),
+        properties: properties.clone(),
+    }));
 
     // ensure stored container updated
     let stored = db

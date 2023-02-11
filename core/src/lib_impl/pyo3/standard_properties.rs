@@ -1,5 +1,5 @@
 //! [`PyO3`](pyo3) implementation for [`StandardProperties`].
-use crate::db::resources::standard_properties::StandardProperties;
+use crate::project::StandardProperties;
 use pyo3::conversion::ToPyObject;
 use pyo3::prelude::*;
 use serde_json::Value as SerdeValue;
@@ -19,13 +19,13 @@ impl StandardProperties {
 
     #[getter(tags)]
     fn py_tags(&self) -> HashSet<String> {
-        self.tags.clone()
+        self.tags.clone().into_iter().collect()
     }
 
     #[getter(metadata)]
     fn py_metadata(&self) -> HashMap<String, SerdePyValue> {
         let mut md = HashMap::new();
-        for (k, (v, _)) in &self.metadata {
+        for (k, v) in &self.metadata {
             let val = SerdePyValue(v.clone());
             md.insert(k.clone(), val);
         }

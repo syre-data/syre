@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use pythonize::depythonize;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use thot_core::project::{Asset as PrjAsset, StandardProperties as StdProps};
+use thot_core::project::{Asset as CoreAsset, StandardProperties as StdProps};
 use thot_core::types::{ResourceId, ResourcePath};
 
 // *************
@@ -21,7 +21,7 @@ pub struct Asset {
     pub description: Option<String>,
     pub tags: Option<HashSet<String>>,
     pub metadata: Option<DictMap>,
-    pub file: Option<PathBuf>,
+    pub path: Option<PathBuf>,
 }
 
 impl Asset {
@@ -30,16 +30,21 @@ impl Asset {
     }
 
     /// Converts self into a [`thot_core::project::Asset`].
-    pub fn into_project_asset(self, py: Python<'_>, rid: Option<ResourceId>) -> PyResult<PrjAsset> {
+    pub fn into_core_asset(self, py: Python<'_>, rid: Option<ResourceId>) -> PyResult<CoreAsset> {
         let rid = rid.unwrap_or_else(|| ResourceId::new());
 
         // path
         let path = derive_path(&self, rid.clone());
         let Ok(path) = ResourcePath::new(path) else {
             return Err(PyRuntimeError::new_err(
-                "Could not convert path to resource path.",
+                "Could not convert file to resource path",
             ));
         };
+
+        // ensure path is relative
+        if !matches!(path, ResourcePath::Relative(_)) {
+            return Err(PyValueError::new_err("Asset's file path must be relative"));
+        }
 
         // properties
         let mut props = StdProps::default();
@@ -73,22 +78,58 @@ impl Asset {
             }
         };
 
-        Ok(PrjAsset {
+        Ok(CoreAsset {
             rid,
             properties: props,
             path,
         })
     }
-}
 
-// *****************
-// *** functions ***
-// *****************
+    pub fn from_dict_map(py: Python<'_>, map: DictMap) -> PyResult<Asset> {
+        let mut asset = Asset::new();
+        for (k, v) in map {
+            match k.as_str() {
+                "name" => {
+                    let name = depythonize(v.as_ref(py));
+                    if name.is_err() {
+                        return Err(PyTypeError::new_err("Invalid value for `name`"));
+                    }
 
-pub fn dict_map_to_asset(py: Python<'_>, map: Option<DictMap>) -> PyResult<Asset> {
-    match map {
-        None => Ok(Asset::new()),
-        Some(m) => convert_dict_map_to_asset(py, m),
+                    asset.name = name.unwrap();
+                }
+                "kind" => {
+                    let kind = depythonize(v.as_ref(py));
+                    if kind.is_err() {
+                        return Err(PyTypeError::new_err("Invalid value for `kind`"));
+                    }
+
+                    asset.kind = kind.unwrap();
+                }
+                "description" => {
+                    let desc = depythonize(v.as_ref(py));
+                    if desc.is_err() {
+                        return Err(PyTypeError::new_err("Invalid value for `desc`"));
+                    }
+
+                    asset.description = desc.unwrap();
+                }
+                "tags" => {}
+                "metadata" => {}
+                "file" => {
+                    let path = depythonize(v.as_ref(py));
+                    if path.is_err() {
+                        return Err(PyTypeError::new_err("Invalid value for `file`"));
+                    }
+
+                    asset.path = path.expect("could not unwrap path");
+                }
+                _ => {
+                    return Err(PyValueError::new_err(format!("Invalid key `{}`", k)));
+                }
+            }
+        }
+
+        Ok(asset)
     }
 }
 
@@ -98,63 +139,16 @@ pub fn dict_map_to_asset(py: Python<'_>, map: Option<DictMap>) -> PyResult<Asset
 
 /// Derives a canonical file path for an [`Asset`].
 fn derive_path(asset: &Asset, rid: ResourceId) -> PathBuf {
-    if let Some(file) = asset.file.clone() {
-        return file;
+    if let Some(file) = asset.path.as_ref() {
+        return file.clone();
     }
 
-    if let Some(name) = asset.name.clone() {
-        return PathBuf::from(name);
+    if let Some(name) = asset.name.as_ref() {
+        return PathBuf::from(name.clone());
     }
 
     // default to id
     PathBuf::from(rid.to_string())
-}
-
-fn convert_dict_map_to_asset(py: Python<'_>, map: DictMap) -> PyResult<Asset> {
-    let mut asset = Asset::new();
-    for (k, v) in map {
-        match k.as_str() {
-            "name" => {
-                let name = depythonize(v.as_ref(py));
-                if name.is_err() {
-                    return Err(PyTypeError::new_err("Invalid value for `name`"));
-                }
-
-                asset.name = name.unwrap();
-            }
-            "kind" => {
-                let kind = depythonize(v.as_ref(py));
-                if kind.is_err() {
-                    return Err(PyTypeError::new_err("Invalid value for `kind`"));
-                }
-
-                asset.kind = kind.unwrap();
-            }
-            "description" => {
-                let desc = depythonize(v.as_ref(py));
-                if desc.is_err() {
-                    return Err(PyTypeError::new_err("Invalid value for `desc`"));
-                }
-
-                asset.description = desc.unwrap();
-            }
-            "tags" => {}
-            "metadata" => {}
-            "file" => {
-                let file = depythonize(v.as_ref(py));
-                if file.is_err() {
-                    return Err(PyTypeError::new_err("Invalid value for `file`"));
-                }
-
-                asset.file = file.unwrap();
-            }
-            _ => {
-                return Err(PyValueError::new_err(format!("Invalid key `{}`", k)));
-            }
-        }
-    }
-
-    Ok(asset)
 }
 
 #[cfg(test)]

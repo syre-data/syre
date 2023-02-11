@@ -5,9 +5,6 @@ use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::types::PortNumber;
 use serde_json::Value as JsValue;
 use std::net::TcpListener;
-use thot_core::db::resources::StandardSearchFilter;
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
-use thot_core::types::ResourceMap;
 
 pub struct Client {
     zmq_context: zmq::Context,
@@ -47,14 +44,6 @@ impl Client {
                 .expect("could not interpret `Message` as string"),
         )
         .expect("could not convert `Message` to JsValue")
-    }
-
-    pub fn containers_where(filter: StandardSearchFilter) -> ResourceMap<CoreContainer> {
-        todo!();
-    }
-
-    pub fn assets_where(filter: StandardSearchFilter) -> ResourceMap<CoreAsset> {
-        todo!();
     }
 
     /// Checks if a database is running.

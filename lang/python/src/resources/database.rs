@@ -1,20 +1,20 @@
 //! Thot Project.
 use super::search_filter::dict_map_to_filter;
+use super::Asset;
 use crate::types::DictMap;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::PyTypeInfo;
 use std::collections::HashSet;
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use thot_core::db::resources::{
-    Asset as DbAsset, Container as DbContainer, StandardSearchFilter as StdPropsFilter,
-};
-use thot_core::project::Container as CoreContainer;
+use thot_core::db::StandardSearchFilter as StdFilter;
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::runner::common as thot_runner;
-use thot_core::types::ResourceId;
-use thot_local_database::{Client as DbClient, ContainerCommand, Result as DbResult};
+use thot_core::types::{ResourceId, ResourcePath};
+use thot_local_database::{AssetCommand, Client as DbClient, ContainerCommand, Result as DbResult};
 
 // ***************
 // *** Project ***
@@ -59,7 +59,7 @@ impl Database {
         let db = DbClient::new();
 
         // load tree
-        let root_container = db.send(ContainerCommand::LoadContainerTree(root_path.clone()).into());
+        let root_container = db.send(ContainerCommand::LoadTree(root_path.clone()).into());
         let root_container: DbResult<CoreContainer> = serde_json::from_value(root_container)
             .expect("could not convert result of `LoadContainerTree` to `Container`");
 
@@ -82,10 +82,10 @@ impl Database {
 
     /// Returns the root Container of the project.
     #[getter]
-    fn root(&self) -> PyResult<DbContainer> {
+    fn root(&self) -> PyResult<CoreContainer> {
         let root = self
             .db
-            .send(ContainerCommand::GetContainer(self.root_id.clone()).into());
+            .send(ContainerCommand::Get(self.root_id.clone()).into());
 
         let root: Option<CoreContainer> = serde_json::from_value(root)
             .expect("could not convert result of `GetContainer` to `Container`");
@@ -102,200 +102,133 @@ impl Database {
         &self,
         py: Python<'_>,
         search: Option<DictMap>,
-    ) -> PyResult<Option<DbContainer>> {
-        let filter = dict_map_to_filter(py, search)?;
-        Ok(self.db.containers.find_one(&filter))
+    ) -> PyResult<Option<CoreContainer>> {
+        let containers = self.find_containers(py, search)?;
+        Ok(containers.into_iter().next())
     }
 
-    // /// Finds all Containers matching the search filter.
-    // fn find_containers(
-    //     &self,
-    //     py: Python<'_>,
-    //     search: Option<DictMap>,
-    // ) -> PyResult<HashSet<DbContainer>> {
-    //     let filter = dict_map_to_filter(py, search)?;
-    //     Ok(self.db.containers.find(&filter))
-    // }
+    /// Finds all Containers matching th1 search filter.
+    fn find_containers(
+        &self,
+        py: Python<'_>,
+        search: Option<DictMap>,
+    ) -> PyResult<HashSet<CoreContainer>> {
+        let filter = dict_map_to_filter(py, search)?;
+        let containers = self
+            .db
+            .send(ContainerCommand::Find(self.root_id.clone(), filter).into());
 
-    // /// Finds a single Asset matching the search filter.
-    // fn find_asset(&self, py: Python<'_>, search: Option<DictMap>) -> PyResult<Option<DbAsset>> {
-    //     let filter = dict_map_to_filter(py, search)?;
-    //     Ok(self.db.assets.find_one(&filter))
-    // }
+        let containers: HashSet<CoreContainer> = serde_json::from_value(containers)
+            .expect("could not convert result of `Find` to `HashSet<Container>`");
 
-    // /// Finds all Assets matching the search filter.
-    // fn find_assets(&self, py: Python<'_>, search: Option<DictMap>) -> PyResult<HashSet<DbAsset>> {
-    //     let filter = dict_map_to_filter(py, search)?;
-    //     Ok(self.db.assets.find(&filter))
-    // }
+        return Ok(containers);
+    }
+
+    /// Finds a single Asset matching the search filter.
+    fn find_asset(&self, py: Python<'_>, search: Option<DictMap>) -> PyResult<Option<CoreAsset>> {
+        let assets = self.find_assets(py, search)?;
+        Ok(assets.into_iter().next())
+    }
+
+    /// Finds all Assets matching the search filter.
+    fn find_assets(&self, py: Python<'_>, search: Option<DictMap>) -> PyResult<HashSet<CoreAsset>> {
+        let filter = dict_map_to_filter(py, search)?;
+        let assets = self
+            .db
+            .send(AssetCommand::Find(self.root_id.clone(), filter).into());
+
+        let assets: HashSet<CoreAsset> = serde_json::from_value(assets)
+            .expect("could not convert result of `Find` to `HashSet<Asset>`");
+
+        return Ok(assets);
+    }
 
     // @todo: fix
     // @todo: Allow either an Asset object or dictionary.
-    ///// Adds an Asset to the database.
-    /////
-    ///// # Arguments
-    ///// + `asset`: Dictionary of properties for the Asset.
-    ///// + `_id`: Id for the Asset.
-    ///// + `overwrite`: Whether the Asset can be overwritten if it already exists.
-    /////
-    ///// # Returns
-    ///// The Asset's file path.
-    //fn add_asset(
-    //    &mut self,
-    //    py: Python<'_>,
-    //    asset: Option<DictMap>,
-    //    _id: Option<String>,
-    //    overwrite: Option<bool>,
-    //) -> PyResult<PathBuf> {
-    //    // -- validation
-    //    // load root container
-    //    let c_root = PrjContainer::load(&self.root_path);
-    //    if c_root.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not load root Container to register Asset {:?}",
-    //            c_root
-    //        )));
-    //    }
+    /// Adds an Asset to the database.
+    ///
+    /// # Arguments
+    /// + `asset`: Dictionary of properties for the Asset.
+    /// + `overwrite`: Whether the Asset can be overwritten if it already exists.
+    ///
+    /// # Returns
+    /// The Asset's file path.
+    fn add_asset(
+        &mut self,
+        py: Python<'_>,
+        asset: Option<DictMap>,
+        overwrite: Option<bool>,
+    ) -> PyResult<PathBuf> {
+        let asset = match asset {
+            None => Asset::new(),
+            Some(map) => Asset::from_dict_map(py, map)?,
+        };
 
-    //    let mut c_root = c_root.unwrap();
+        let root = self
+            .db
+            .send(ContainerCommand::Get(self.root_id.clone()).into());
 
-    //    // load assets
-    //    let prj_assets = PrjAssets::load(&self.root_path);
-    //    if prj_assets.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not load Assets {:?}",
-    //            prj_assets
-    //        )));
-    //    }
+        let root: CoreContainer =
+            serde_json::from_value(root).expect("could not convert result of `Get` to `Container`");
 
-    //    let mut prj_assets = prj_assets.unwrap();
+        // check if asset already exists
+        let Some(path) =  asset.path.as_ref() else {
+                return Err(PyValueError::new_err(
+                    "If `overwrite` is `False` the Asset's `file` must be set",
+                ));
+            };
 
-    //    // check if asset is already registered if `overwrite` is false.
-    //    if overwrite == Some(false) {
-    //        if _id.is_none() {
-    //            return Err(PyValueError::new_err(
-    //                "If `overwrite` is `False` an `_id` must be set.",
-    //            ));
-    //        }
+        let Ok(path) = ResourcePath::new(path.clone()) else {
+                return Err(PyValueError::new_err(
+                    "Invalid file {path}, could not convert to `ResourcePath`",
+                ));
+            };
 
-    //        let lid = _id.clone().unwrap();
-    //        if prj_assets.contains_lid(&lid) {
-    //            return Err(PyRuntimeError::new_err(format!(
-    //                "Asset with id `{}` already exists",
-    //                lid
-    //            )));
-    //        }
-    //    }
+        let mut asset_id = None;
+        for c_asset in root.assets.values() {
+            if c_asset.path == path {
+                if overwrite == Some(false) {
+                    return Err(PyRuntimeError::new_err(
+                        "Asset with file `{path}` already exists",
+                    ));
+                }
 
-    //    // create project asset
-    //    let asset = dict_map_to_asset(py, asset)?;
-    //    let mut prj_asset = asset.into_project_asset(py, _id.clone())?;
-    //    let path = prj_asset.path.clone();
-    //    if path.is_none() {
-    //        return Err(PyRuntimeError::new_err(
-    //            "Could not get path to Asset's file",
-    //        ));
-    //    }
-    //    let path = path.unwrap();
+                asset_id = Some(c_asset.rid.clone());
+                break;
+            }
+        }
 
-    //    // ensure path is relative
-    //    if !matches!(path, ResourcePath::Relative(_)) {
-    //        return Err(PyValueError::new_err("Asset's file path must be relative"));
-    //    }
+        let asset = asset.into_core_asset(py, asset_id)?;
+        let asset_path = asset.path.clone();
+        let bucket = asset.bucket();
+        let res = self
+            .db
+            .send(AssetCommand::Add(asset, root.rid.clone()).into());
 
-    //    // --- creation
-    //    // save asset
-    //    let found = match &_id {
-    //        None => None,
-    //        Some(id) => prj_assets.index_by_lid(id),
-    //    };
+        let res: DbResult<Option<CoreAsset>> = serde_json::from_value(res)
+            .expect("could not convert result of `Add` to `Option<Asset>`");
 
-    //    match found {
-    //        None => prj_assets.push(prj_asset.clone()),
-    //        Some(ind) => {
-    //            let o_asset = prj_assets.assets.get(ind).unwrap();
-    //            prj_asset.properties.rid = o_asset.properties.rid.clone();
-    //            prj_assets.assets[ind] = prj_asset.clone();
-    //        }
-    //    }
+        if res.is_err() {
+            return Err(PyRuntimeError::new_err("Could not create `Asset`"));
+        }
 
-    //    let save_res = prj_assets.save();
-    //    if save_res.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not save Assets {:?}",
-    //            save_res
-    //        )));
-    //    }
+        // ensure bucket exists
+        if let Some(bucket) = bucket {
+            let mut path = self.root_path.clone();
+            path.push(bucket);
 
-    //    // register asset with root container, if needed
-    //    let aid = prj_asset.properties.rid.clone();
-    //    let prev_reg = c_root.register_asset(aid);
-    //    if prev_reg.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not register Asset {:?}",
-    //            prev_reg
-    //        )));
-    //    }
+            let res = fs::create_dir_all(&path);
+            if res.is_err() {
+                return Err(PyRuntimeError::new_err(
+                    "Could not create directory `{path}`",
+                ));
+            }
+        }
 
-    //    let save_res = c_root.save();
-    //    if save_res.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not save Container {:?}",
-    //            save_res
-    //        )));
-    //    }
-
-    //    // insert into or update db
-    //    let db_asset = DbAsset::from(prj_asset, self.root_id.clone());
-    //    let bucket = db_asset.bucket();
-    //    let ins_res = match &_id {
-    //        None => self.db.assets.insert_one(db_asset),
-    //        Some(lid) => {
-    //            let mut search = RidFilter::new();
-    //            search.lid = Some(Some(lid.clone()));
-    //            match self.db.assets.update_one(&search, db_asset) {
-    //                Ok(_) => Ok(()),
-    //                Err(err) => Err(err),
-    //            }
-    //        }
-    //    };
-
-    //    if ins_res.is_err() {
-    //        return Err(PyRuntimeError::new_err(format!(
-    //            "Could not insert Asset into the database: {:?}",
-    //            ins_res
-    //        )));
-    //    }
-
-    //    // create bucket if needed
-    //    if bucket.is_err() {
-    //        // @unreachable
-    //        return Err(PyRuntimeError::new_err("Asset's path not set"));
-    //    }
-
-    //    let bucket = bucket.unwrap();
-    //    if let Some(bp) = bucket {
-    //        let b_path = self.root_path.join(bp);
-    //        if !b_path.exists() {
-    //            let dir_res = fs::create_dir_all(b_path);
-    //            if dir_res.is_err() {
-    //                return Err(PyRuntimeError::new_err(format!(
-    //                    "Could not create bucket: {:?}",
-    //                    dir_res
-    //                )));
-    //            }
-    //        } else {
-    //            if !b_path.is_dir() {
-    //                return Err(PyRuntimeError::new_err("Bucket is not a directory"));
-    //            }
-    //        }
-    //    }
-
-    //    // return asset file path to user
-    //    let path = path.as_path().to_path_buf();
-    //    let path = self.root_path.join(path);
-    //    Ok(path)
-    //}
+        let mut path = self.root_path.clone();
+        path.push(asset_path);
+        Ok(path.into())
+    }
 }
 
 #[cfg(test)]

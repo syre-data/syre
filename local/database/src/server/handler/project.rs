@@ -15,22 +15,22 @@ impl Database {
     /// Directs the command to the correct handler.
     pub fn handle_command_project(&mut self, cmd: ProjectCommand) -> JsValue {
         match cmd {
-            ProjectCommand::LoadProject(path) => {
+            ProjectCommand::Load(path) => {
                 let project = self.load_project(path);
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
-            ProjectCommand::LoadUserProjects(user) => {
+            ProjectCommand::LoadUser(user) => {
                 let projects = self.load_user_projects(user);
                 serde_json::to_value(projects).expect("could not convert `Project`s to JsValue")
             }
 
-            ProjectCommand::GetProject(rid) => {
+            ProjectCommand::Get(rid) => {
                 let project = self.get_project(rid);
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
-            ProjectCommand::UpdateProject(update) => {
+            ProjectCommand::Update(update) => {
                 let res = self.update_project(update);
                 serde_json::to_value(res)
                     .expect("could not convert `update_project` result to JsValue")

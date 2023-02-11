@@ -12,7 +12,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use thot_core::db::resources::StandardSearchFilter;
+use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container as CoreContainer, StandardProperties};
@@ -24,17 +24,17 @@ use thot_local::project::resources::Container as LocalContainer;
 impl Database {
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
         match cmd {
-            ContainerCommand::LoadContainerTree(root) => {
+            ContainerCommand::LoadTree(root) => {
                 let container = self.load_container_tree(&root);
                 serde_json::to_value(container).expect("could not convert `Container` into JsValue")
             }
 
-            ContainerCommand::LoadContainer(path) => {
+            ContainerCommand::Load(path) => {
                 let container = self.load_container(&path);
                 serde_json::to_value(container).expect("could not convert `Container` to JsValue")
             }
 
-            ContainerCommand::GetContainer(rid) => {
+            ContainerCommand::Get(rid) => {
                 let container: Option<CoreContainer> = {
                     if let Some(container) = self.store.get_container(&rid) {
                         let container = container.lock().expect("could not lock `Container`");
@@ -52,15 +52,12 @@ impl Database {
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
-            ContainerCommand::UpdateContainerProperties(UpdatePropertiesArgs {
-                rid,
-                properties,
-            }) => {
+            ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }) => {
                 let res = self.update_container_properties(rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
-            ContainerCommand::UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs {
+            ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
                 rid,
                 associations,
             }) => {
@@ -79,7 +76,7 @@ impl Database {
             }
 
             // @todo: Handle errors.
-            ContainerCommand::GetContainerPath(rid) => {
+            ContainerCommand::GetPath(rid) => {
                 let path = self.get_container_path(&rid);
                 serde_json::to_value(path).expect("could not convert path to JsValue")
             }
@@ -139,7 +136,14 @@ impl Database {
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        let mut containers = HashSet::new();
+        let containers = self.store.find_containers(&root, filter);
+        let containers = containers
+            .values()
+            .map(|container| {
+                let container = container.lock().expect("could not lock `Container`");
+                container.clone().into()
+            })
+            .collect();
 
         containers
     }

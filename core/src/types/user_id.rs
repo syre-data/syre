@@ -29,7 +29,7 @@ impl error::Error for ParseError {}
 // **************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum UserId {
     Email(String),
     Id(ResourceId),

@@ -20,7 +20,7 @@ use thot_local_database::Result as DbResult;
 /// with the associated error.
 #[tauri::command]
 pub fn load_user_projects(db: State<DbClient>, user: ResourceId) -> Result<Vec<CoreProject>> {
-    let projects = db.send(ProjectCommand::LoadUserProjects(user).into());
+    let projects = db.send(ProjectCommand::LoadUser(user).into());
     let projects: DbResult<Vec<CoreProject>> = serde_json::from_value(projects)
         .expect("could not convert `GetUserProjects` result to `Vec<Project>`");
 
@@ -34,7 +34,7 @@ pub fn load_user_projects(db: State<DbClient>, user: ResourceId) -> Result<Vec<C
 /// Loads a [`Project`].
 #[tauri::command]
 pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<CoreProject> {
-    let project = db.send(ProjectCommand::LoadProject(path).into());
+    let project = db.send(ProjectCommand::Load(path).into());
     let project: DbResult<CoreProject> = serde_json::from_value(project)
         .expect("could not convert `LoadProject` result to `Project`");
 
@@ -47,7 +47,7 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<CoreProject> {
 /// Gets a [`Project`].
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<CoreProject>> {
-    let project = db.send(ProjectCommand::GetProject(rid).into());
+    let project = db.send(ProjectCommand::Get(rid).into());
     let project: Option<CoreProject> = serde_json::from_value(project)
         .expect("could not convert `GetProject` result to `Project`");
 
@@ -128,7 +128,7 @@ pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
 /// Updates a project.
 #[tauri::command]
 pub fn update_project(db: State<DbClient>, project: CoreProject) -> Result {
-    let res = db.send(ProjectCommand::UpdateProject(project).into());
+    let res = db.send(ProjectCommand::Update(project).into());
     let res: DbResult =
         serde_json::from_value(res).expect("could not convert from `UpdateProject`");
 

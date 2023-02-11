@@ -1,6 +1,5 @@
 //! [`PyO3`](pyo3) implementation for [`Container`].
-use crate::db::resources::container::Container;
-use crate::db::resources::standard_properties::StandardProperties;
+use crate::project::{Container, StandardProperties};
 use crate::types::ResourceId;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -33,7 +32,7 @@ impl Container {
 
     #[getter(tags)]
     fn py_tags(&self) -> HashSet<String> {
-        self.properties.tags.clone()
+        self.properties.tags.clone().into_iter().collect()
     }
 
     // @todo: Provide inherited and native metadata separated.
@@ -41,7 +40,7 @@ impl Container {
     #[getter(metadata)]
     fn py_metadata(&self, py: Python<'_>) -> PyResult<HashMap<String, PyObject>> {
         let mut md = HashMap::with_capacity(self.properties.metadata.len());
-        for (k, (v, _)) in self.properties.metadata.clone() {
+        for (k, v) in self.properties.metadata.clone() {
             let val = pythonize(py, &v);
             if val.is_err() {
                 return Err(PyRuntimeError::new_err(format!(
@@ -60,12 +59,12 @@ impl Container {
     // others
     #[getter(children)]
     fn py_children(&self) -> HashSet<ResourceId> {
-        self.children.clone()
+        self.children.clone().into_keys().collect()
     }
 
     #[getter(assets)]
     fn py_assets(&self) -> HashSet<ResourceId> {
-        self.assets.clone()
+        self.assets.clone().into_keys().collect()
     }
 
     #[getter(parent)]

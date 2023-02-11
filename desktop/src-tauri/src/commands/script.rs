@@ -14,7 +14,7 @@ use thot_local_database::Result as DbResult;
 
 #[tauri::command]
 pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<CoreScript>> {
-    let scripts = db.send(ScriptCommand::LoadProjectScripts(rid).into());
+    let scripts = db.send(ScriptCommand::LoadProject(rid).into());
     let scripts: DbResult<Vec<CoreScript>> = serde_json::from_value(scripts)
         .expect("could not convert `AddScript` result to `CoreScripts`");
 
@@ -27,7 +27,7 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<C
 
 #[tauri::command]
 pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Result<CoreScript> {
-    let script = db.send(ScriptCommand::AddScript(project, path).into());
+    let script = db.send(ScriptCommand::Add(project, path).into());
     let script: DbResult<CoreScript> = serde_json::from_value(script)
         .expect("could not convert `AddScript` result to `CoreScript`");
 

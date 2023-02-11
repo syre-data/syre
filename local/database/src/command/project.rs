@@ -8,7 +8,7 @@ use thot_core::types::ResourceId;
 #[derive(Serialize, Deserialize)]
 pub enum ProjectCommand {
     /// Load a [`Project`](crate::project::resources::Project) from a path.
-    LoadProject(PathBuf),
+    Load(PathBuf),
 
     /// Loads the user's projects.
     ///
@@ -17,13 +17,13 @@ pub enum ProjectCommand {
     ///
     /// # Returns
     /// A tuple of loaded projects and projects that errored while loading,
-    LoadUserProjects(ResourceId),
+    LoadUser(ResourceId),
 
     /// Retrieves a [`Project`](thot_core::project::Project) by [`ResourceId`].
-    GetProject(ResourceId),
+    Get(ResourceId),
 
     /// Update a [`Project`](CoreProject).
-    UpdateProject(CoreProject),
+    Update(CoreProject),
 }
 
 #[cfg(test)]

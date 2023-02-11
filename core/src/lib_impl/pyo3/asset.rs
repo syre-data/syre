@@ -1,7 +1,5 @@
 //! PyO3 implementation for [`Asset`].
-use crate::db::resources::asset::Asset;
-use crate::db::resources::standard_properties::StandardProperties;
-use crate::types::ResourceId;
+use crate::project::{Asset, StandardProperties};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pythonize::pythonize;
@@ -34,7 +32,7 @@ impl Asset {
 
     #[getter(tags)]
     fn py_tags(&self) -> HashSet<String> {
-        self.properties.tags.clone()
+        self.properties.tags.clone().into_iter().collect()
     }
 
     // @todo: Provide inherited and native metadata separated.
@@ -42,7 +40,7 @@ impl Asset {
     #[getter(metadata)]
     fn py_metadata(&self, py: Python<'_>) -> PyResult<HashMap<String, PyObject>> {
         let mut md = HashMap::with_capacity(self.properties.metadata.len());
-        for (k, (v, _)) in self.properties.metadata.clone() {
+        for (k, v) in self.properties.metadata.clone() {
             let val = pythonize(py, &v);
             if val.is_err() {
                 return Err(PyRuntimeError::new_err(format!(
@@ -64,10 +62,11 @@ impl Asset {
         PathBuf::from(self.path.as_path())
     }
 
-    #[getter(parent)]
-    fn py_parent(&self) -> Option<ResourceId> {
-        self.parent.clone()
-    }
+    // @todo: Unclear if needed.
+    // #[getter(parent)]
+    // fn py_parent(&self) -> Option<ResourceId> {
+    //     self.parent.clone()
+    // }
 }
 
 #[cfg(test)]

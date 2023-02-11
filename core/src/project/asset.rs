@@ -1,7 +1,9 @@
 /// Asset.
 use super::standard_properties::StandardProperties;
+use crate::db::{Resource, StandardResource};
 use crate::types::{ResourceId, ResourcePath};
 use has_id::HasId;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 #[cfg(feature = "serde")]
@@ -12,7 +14,8 @@ use has_id::HasIdSerde;
 
 /// Assets represent a consumable or producable resource.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, HasIdSerde))]
-#[derive(HasId, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
+#[derive(HasId, Debug, Clone, PartialEq, Eq)]
 pub struct Asset {
     #[id]
     pub rid: ResourceId,
@@ -46,6 +49,24 @@ impl Asset {
         };
 
         path.parent().map(|p| p.to_path_buf())
+    }
+}
+
+impl Hash for Asset {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rid.hash(state);
+    }
+}
+
+impl Resource for Asset {}
+
+impl StandardResource for Asset {
+    fn properties(&self) -> &StandardProperties {
+        &self.properties
+    }
+
+    fn properties_mut(&mut self) -> &mut StandardProperties {
+        &mut self.properties
     }
 }
 

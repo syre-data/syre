@@ -4,8 +4,6 @@ use crate::command::AssetCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::LocalSettings;
-use std::collections::HashSet;
-use thot_core::db::resources::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::ResourceId;
@@ -13,7 +11,7 @@ use thot_core::types::ResourceId;
 impl Database {
     pub fn handle_command_asset(&mut self, cmd: AssetCommand) -> JsValue {
         match cmd {
-            AssetCommand::GetAsset(rid) => {
+            AssetCommand::Get(rid) => {
                 let asset: Option<CoreAsset> = {
                     if let Some(container) = self.store.get_asset_container(&rid) {
                         let container = container.lock().expect("could not lock `Container`");
@@ -26,7 +24,7 @@ impl Database {
                 serde_json::to_value(asset).expect("could not convert `Asset` to JSON")
             }
 
-            AssetCommand::GetAssets(rids) => {
+            AssetCommand::GetMany(rids) => {
                 let assets = rids
                     .iter()
                     .filter_map(|rid| {
@@ -46,14 +44,19 @@ impl Database {
                 serde_json::to_value(assets).expect("could not convert `Vec<Asset>` to JSON")
             }
 
-            AssetCommand::UpdateAssetProperties(rid, properties) => {
+            AssetCommand::Add(asset, container) => {
+                let res = self.store.add_asset(asset, container);
+                serde_json::to_value(res).expect("could not convert result to JSON")
+            }
+
+            AssetCommand::UpdateProperties(rid, properties) => {
                 let res = self.update_asset_properties(&rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
             AssetCommand::Find(root, filter) => {
-                let res = self.find_assets(&root, filter);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                let assets = self.store.find_assets(&root, filter);
+                serde_json::to_value(assets).expect("could not convert result to JSON")
             }
         }
     }
@@ -75,15 +78,6 @@ impl Database {
         asset.properties = properties;
         container.save()?;
         Ok(())
-    }
-
-    /// # Arguments
-    /// 1. Root `Container`.
-    /// 2. Search filter.
-    fn find_assets(&self, root: &ResourceId, filter: StandardSearchFilter) -> HashSet<CoreAsset> {
-        let mut assets = HashSet::new();
-
-        assets
     }
 }
 

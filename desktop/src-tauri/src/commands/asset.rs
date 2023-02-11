@@ -18,7 +18,7 @@ pub fn get_assets(
     db: State<DbClient>,
     assets: Vec<ResourceId>,
 ) -> HashMap<ResourceId, Option<PathBuf>> {
-    let assets = db.send(AssetCommand::GetAssets(assets).into());
+    let assets = db.send(AssetCommand::GetMany(assets).into());
     serde_json::from_value(assets).expect("could not convert result of `GetAssets` to `Vec<Asset>`")
 }
 
@@ -29,7 +29,7 @@ pub fn update_asset_properties(
     rid: ResourceId,
     properties: StandardProperties,
 ) -> Result {
-    db.send(AssetCommand::UpdateAssetProperties(rid, properties).into());
+    db.send(AssetCommand::UpdateProperties(rid, properties).into());
     Ok(())
 }
 

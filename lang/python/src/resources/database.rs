@@ -7,12 +7,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::PyTypeInfo;
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use thot_core::db::StandardSearchFilter as StdFilter;
+use std::str::FromStr;
+use std::{env, fs};
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
-use thot_core::runner::common as thot_runner;
+use thot_core::runner::{common as thot_runner, ThotEnv};
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local_database::{AssetCommand, Client as DbClient, ContainerCommand, Result as DbResult};
 
@@ -34,20 +34,7 @@ pub struct Database {
 impl Database {
     /// Initialize a new Thot Project.
     #[new]
-    fn py_new(py: Python<'_>, root: Option<PathBuf>, dev_root: Option<PathBuf>) -> PyResult<Self> {
-        // resolve root
-        let root_path = if Self::dev_mode(Self::type_object(py)) {
-            dev_root
-        } else {
-            root
-        };
-
-        let Some(root_path) = root_path else {
-            return Err(PyValueError::new_err(
-                "Root `Container` not passed and `THOT_CONTAINER_ID` not set.",
-            ));
-        };
-
+    fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
             let _server =
@@ -57,6 +44,40 @@ impl Database {
         }
 
         let db = DbClient::new();
+
+        // resolve root
+        let root_path = if Self::dev_mode(Self::type_object(py)) {
+            let Some(dev_root) = dev_root else {
+                return Err(PyValueError::new_err(
+                    "`dev_root` must be specified",
+                ));
+            };
+
+            dev_root
+        } else {
+            // @todo: Pass Container path instead of id.
+            let Ok(root_id) = env::var(ThotEnv::container_id_key()) else {
+                return Err(PyValueError::new_err(
+                    "could not get `THOT_CONTAINER_ID`"
+                ));
+            };
+
+            let root_id = ResourceId::from_str(&root_id)
+                .expect("could not convert `THOT_CONTAINER_ID` to `ResourceId`");
+
+            let root_path = db.send(ContainerCommand::GetPath(root_id).into());
+            let root_path: DbResult<Option<PathBuf>> = serde_json::from_value(root_path)
+                .expect("could not convert result of `GetPath` to `PathBuf`");
+
+            let Ok(Some(root_path)) = root_path else {
+                return Err(PyRuntimeError::new_err("Could not get root `Container` path"));
+            };
+
+            PathBuf::from(root_path)
+        };
+
+        // move to root directory, so relative paths are correct
+        env::set_current_dir(&root_path).expect("could not move to root path");
 
         // load tree
         let root_container = db.send(ContainerCommand::LoadTree(root_path.clone()).into());
@@ -143,7 +164,6 @@ impl Database {
         return Ok(assets);
     }
 
-    // @todo: fix
     // @todo: Allow either an Asset object or dictionary.
     /// Adds an Asset to the database.
     ///

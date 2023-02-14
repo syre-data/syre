@@ -6,10 +6,12 @@ use crate::common::invoke;
 use crate::hooks::use_project;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
-use tauri_sys::dialog::FileDialogBuilder;
 use thot_core::types::ResourceId;
+use thot_ui::components::file_selector::FileSelectorProps;
+use thot_ui::components::{FileSelector, FileSelectorAction};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew::props;
 
 #[derive(Properties, PartialEq)]
 pub struct SetDataRootProps {
@@ -17,7 +19,11 @@ pub struct SetDataRootProps {
 
     /// Called after the form has been successfully submitted.
     #[prop_or_default]
-    pub onsuccess: Option<Callback<()>>,
+    pub onsuccess: Callback<()>,
+
+    /// Called if selection is canceled.
+    #[prop_or_default]
+    pub oncancel: Callback<()>,
 }
 
 /// Component to set the [`Project`](CoreProject)'s `data_root`.
@@ -31,53 +37,42 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         panic!("`Project` not loaded");
     };
 
-    let data_root = use_state(|| None);
+    let project_path = use_state(|| None);
+    {
+        // get project directory
+        let project_path = project_path.clone();
+        let pid = props.project.clone();
 
-    let onclick = {
-        let data_root = data_root.clone();
-        let prj_id = project.rid.clone();
+        use_effect_with_deps(
+            move |_| {
+                spawn_local(async move {
+                    let path = invoke("get_project_path", GetProjectPathArgs { id: pid })
+                        .await
+                        .expect("could not invoke `get_project_path`");
 
-        Callback::from(move |_: web_sys::MouseEvent| {
-            let data_root = data_root.clone();
-            let prj_id = prj_id.clone();
+                    let path: PathBuf = swb::from_value(path)
+                        .expect("could not convert `get_project_path` result from JsValue");
 
-            spawn_local(async move {
-                // get project directory
-                let prj_path = invoke("get_project_path", GetProjectPathArgs { id: prj_id })
-                    .await
-                    .expect("could not invoke `get_project_path`");
+                    project_path.set(Some(path));
+                })
+            },
+            (),
+        )
+    }
 
-                let prj_path: PathBuf = swb::from_value(prj_path)
-                    .expect("could not convert `get_project_path` result from JsValue");
-
-                // user directory selection
-                let path = FileDialogBuilder::new()
-                    .set_title("Select data root")
-                    .set_default_path(&prj_path)
-                    .pick_folder()
-                    .await;
-
-                let path = path.expect("could not retrieve directory");
-                data_root.set(path);
-            });
-        })
-    };
-
-    let onsubmit = {
+    let onsuccess = {
         let onsuccess = props.onsuccess.clone();
         let projects_state = projects_state.clone();
         let project = project.clone();
-        let data_root = data_root.clone();
 
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
+        Callback::from(move |path: PathBuf| {
             let onsuccess = onsuccess.clone();
             let projects_state = projects_state.clone();
             let mut project = project.clone();
-            let data_root = data_root.clone();
 
-            if let Some(path) = (*data_root).clone() {
-                // initialize data root as container, if needed
+            {
+                // initialize data root as container
+                let path = path.clone();
                 spawn_local(async move {
                     let rid = invoke("init_container", PathBufArgs { path })
                         .await
@@ -88,7 +83,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 });
             }
 
-            project.data_root = (*data_root).clone();
+            project.data_root = Some(path);
             {
                 // save project
                 let onsuccess = onsuccess.clone();
@@ -109,32 +104,29 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                         .expect("could not convert `update_project` result from JsValue");
 
                     projects_state.dispatch(ProjectsStateAction::UpdateProject(project));
-                    if let Some(onsuccess) = onsuccess {
-                        onsuccess.emit(());
-                    }
+                    onsuccess.emit(());
                 });
             }
         })
     };
 
+    let props = props! {
+        FileSelectorProps {
+            title: "Select data root",
+            default_path: (*project_path).clone(),
+            action: FileSelectorAction::PickFolder,
+            show_cancel: false,
+            onsuccess,
+            oncancel: props.oncancel.clone(),
+        }
+    };
+
     html! {
-        <form class={classes!("align-center")} {onsubmit}>
-            <div>
-                if let Some(path) = (*data_root).clone() {
-                    <span>{ path.to_str().expect("could not convert path to string") }</span>
-                }
-                <button type={"button"} {onclick}>
-                    if data_root.is_none() {
-                        { "Set" }
-                    } else {
-                        { "Change" }
-                    }
-                </button>
-            </div>
-            <div>
-                <button disabled={data_root.is_none()}>{ "Save" }</button>
-            </div>
-        </form>
+        if project_path.is_some() {
+            <FileSelector ..props />
+        } else {
+            { "Loading" }
+        }
     }
 }
 

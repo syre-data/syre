@@ -81,6 +81,7 @@ pub struct MetadatumEditorProps {
     pub value: JsValue,
 
     /// Initial active state of the controller.
+    /// Only relevant if `onchange` is provided.
     #[prop_or(false)]
     pub active: bool,
 
@@ -107,10 +108,13 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let value_ref = use_node_ref();
 
     let activate = {
+        let onchange = props.onchange.clone();
         let active = active.clone();
 
-        Callback::from(move |_: web_sys::MouseEvent| {
-            active.set(true);
+        Callback::from(move |_: MouseEvent| {
+            if onchange.is_some() {
+                active.set(true);
+            }
         })
     };
 
@@ -160,7 +164,7 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
 
             // get value
             if let Ok(value) = value_from_input(value_ref.clone(), kind) {
-                if let Some(onchange) = onchange.clone() {
+                if let Some(onchange) = onchange.as_ref() {
                     onchange.emit((key, value));
                 }
             } else {

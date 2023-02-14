@@ -1,7 +1,6 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::container::{
-    UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
-};
+use crate::commands::common::UpdatePropertiesArgs;
+use crate::commands::container::UpdateScriptAssociationsArgs;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -24,7 +23,7 @@ pub enum ContainerTreeStateAction {
     InsertContainerTree(Arc<Mutex<CoreContainer>>),
 
     /// Update a [`Container`](CoreContainer)'s [`StandardProperties`](thot_core::project::StandardProperties).
-    UpdateContainerProperties(UpdateContainerPropertiesArgs),
+    UpdateContainerProperties(UpdatePropertiesArgs),
 
     /// Add a [`Container`](CoreContainer) as a child.
     ///
@@ -47,7 +46,7 @@ pub enum ContainerTreeStateAction {
 #[derive(Clone)]
 pub struct ContainerTreeState {
     pub preview: ContainerPreview,
-    pub containers: ContainerStore,
+    pub containers: ContainerStore, // @todo: `Container`s should not be wrapped in a `Mutex`.
 
     /// Map from an [`Asset`](CoreAsset)'s id to its [`Container`](CoreContainer)'s.
     pub asset_map: AssetContainerMap,

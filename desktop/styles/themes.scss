@@ -34,6 +34,13 @@ $interactive-element-active-background-color: vars.$secondary-color-600;
 $primary-button-color: vars.$primary-color-700;
 $primary-button-hover-color: vars.$primary-color-600;
 
+$info-color: vars.$primary-color-600;
+$success-color: vars.$utility-green-600;
+$error-color: vars.$utility-red-600;
+
+$shadow-light: rgba(0, 0, 0, 0.2);
+$shadow-medium: rgba(0, 0, 0, 0.4);
+$shadow-dark: rgba(0, 0, 0, 0.8);
 
 @media (prefers-color-scheme: light) {
   $primary-color: vars.$primary-color-300;
@@ -53,6 +60,8 @@ $primary-button-hover-color: vars.$primary-color-600;
   $primary-button-color: vars.$primary-color-200;
   $primary-button-hover-color: vars.$primary-color-300;
 
+  $info-color: vars.$primary-color-300;
+  $success-color: vars.$utility-green-300;
   $error-color: vars.$utility-red-300;
 }
 
@@ -72,8 +81,6 @@ $border-width-s: 1px;
 $border-width-m: 2px;
 $border-width-l: 4px;
 
-// ****************
-// *** messages ***
-// ****************
-
-$error-color: vars.$utility-red-600;
+$margin-s: 3px;
+$margin-m: 5px;
+$margin-l: 8px;

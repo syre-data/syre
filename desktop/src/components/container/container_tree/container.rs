@@ -1,6 +1,6 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
-use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
+use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
@@ -8,7 +8,7 @@ use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateRedu
 use crate::components::details_bar::DetailsBarWidget;
 use crate::hooks::use_container;
 use std::sync::{Arc, Mutex};
-use thot_core::project::{Container as CoreContainer, Metadata};
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Metadata};
 use thot_core::types::ResourceId;
 use thot_ui::components::ShadowBox;
 use thot_ui::widgets::container::container_tree::{
@@ -86,7 +86,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             let tree_state = tree_state.clone();
 
             spawn_local(async move {
-                let update = UpdateContainerPropertiesArgs { rid, properties };
+                let update = UpdatePropertiesArgs { rid, properties };
                 let _res = invoke("update_container_properties", update.clone())
                     .await
                     .expect("could not invoke `update_container_properties`");
@@ -101,17 +101,26 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let container = container.clone();
 
         Callback::from(move |metadata: Metadata| {
+            let tree_state = tree_state.clone();
             let container = container.lock().expect("could not lock `Container`");
             let rid = container.rid.clone();
             let mut properties = container.properties.clone();
             Mutex::unlock(container);
 
             properties.metadata = metadata;
-            let tree_state = tree_state.clone();
-
             spawn_local(async move {
-                let update = UpdateContainerPropertiesArgs { rid, properties };
-                let _res = invoke("update_container_properties", update.clone())
+                // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+                // See: https://github.com/tauri-apps/tauri/issues/6078
+                let properties_str = serde_json::to_string(&properties)
+                    .expect("could not serialize `StandardProperties`");
+
+                let update_str = UpdatePropertiesStringArgs {
+                    rid: rid.clone(),
+                    properties: properties_str,
+                };
+
+                let update = UpdatePropertiesArgs { rid, properties };
+                let _res = invoke("update_container_properties", update_str)
                     .await
                     .expect("could not invoke `update_container_properties`");
 
@@ -177,9 +186,24 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let canvas_state = canvas_state.clone();
                 let tree_state = tree_state.clone();
 
-                Callback::from(move |asset| {
-                    tree_state.dispatch(ContainerTreeStateAction::UpdateAsset(asset));
-                    canvas_state.dispatch(CanvasStateAction::CloseDetailsBar);
+                Callback::from(move |asset: CoreAsset| {
+                    let tree_state = tree_state.clone();
+                    let canvas_state = canvas_state.clone();
+
+                    spawn_local(async move {
+                        let res = invoke(
+                            "update_asset_properties",
+                            &UpdatePropertiesArgs {
+                                rid: asset.rid.clone(),
+                                properties: asset.properties.clone(),
+                            },
+                        )
+                        .await
+                        .expect("could not invoke `update_asset_properties`");
+
+                        tree_state.dispatch(ContainerTreeStateAction::UpdateAsset(asset));
+                        canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
+                    });
                 })
             };
 
@@ -209,7 +233,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let canvas_state = canvas_state.clone();
 
                 Callback::from(move |_: ()| {
-                    canvas_state.dispatch(CanvasStateAction::CloseDetailsBar);
+                    canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
                 })
             };
 
@@ -268,16 +292,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     Ok(html! {
         <>
         <ContainerUi ..c_props />
-        // if *show_container_editor {
-        //     <ShadowBox
-        //         title={container_name.clone()}
-        //         onclose={close_container_editor}>
-
-        //         // @todo: Open in details bar.
-        //         <ContainerEditor container={container_val.clone()}
-        //             onchange_properties={onchange_properties.clone()} />
-        //     </ShadowBox>
-        // }
         if *show_create_asset {
             <ShadowBox
                 title={format!("Add Asset to {container_name}")}
@@ -336,7 +350,7 @@ fn create_update_container_string_property_callback(
             let tree_state = tree_state.clone();
 
             spawn_local(async move {
-                let update = UpdateContainerPropertiesArgs { rid, properties };
+                let update = UpdatePropertiesArgs { rid, properties };
                 let _res = invoke("update_container_properties", update.clone())
                     .await
                     .expect("could not invoke `update_container_properties`");

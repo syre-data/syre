@@ -31,6 +31,16 @@ pub struct UpdateProjectArgs {
     pub project: Project,
 }
 
+/// Arguments for `analyze`.
+#[derive(Serialize)]
+pub struct AnalyzeArgs {
+    /// Root `Container`.
+    pub root: ResourceId,
+
+    /// Maximum number of allowed tasks.
+    pub max_tasks: Option<usize>,
+}
+
 #[cfg(test)]
 #[path = "./project_test.rs"]
 mod project_test;

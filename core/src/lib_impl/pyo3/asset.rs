@@ -57,7 +57,7 @@ impl Asset {
     }
 
     // others
-    #[getter(path)]
+    #[getter(file)]
     fn py_path(&self) -> PathBuf {
         PathBuf::from(self.path.as_path())
     }

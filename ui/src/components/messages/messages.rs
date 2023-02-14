@@ -18,8 +18,10 @@ pub struct MessagesProps {
 #[function_component(Messages)]
 pub fn messages(props: &MessagesProps) -> Html {
     html! {
-        // { props.messages.iter().map(|m| Into::<Html>::into(m.clone())).collect::<Html>() }
-        { props.children.iter().collect::<Html>() }
+        <div class={classes!("thot-ui-messages")}>
+            // { props.messages.iter().map(|m| Into::<Html>::into(m.clone())).collect::<Html>() }
+            { props.children.iter().collect::<Html>() }
+        </div>
     }
 }
 

@@ -31,7 +31,7 @@ pub type ProjectMap = ResourceMap<LocalProject>;
 /// Map of [`ResourceId`] to [`Container`](LocalContainer).
 pub type ContainerMap = ResourceMap<ContainerWrapper>;
 
-/// Project's scripts.
+/// Map from [`Project`](LocalProject)s to their [`Script`](CoreScript)s.
 pub type ProjectScriptsMap = HashMap<ResourceId, ProjectScripts>;
 
 // *****************
@@ -64,7 +64,7 @@ pub struct Datastore {
     /// Map from an [`Asset`]'s [`ResourceId`] to its [`Container`]'s.
     assets: IdMap,
 
-    /// Map from a `Script`'s [`ResourceId`] to its `Project`.
+    /// Map from a [`Script`](CoreScript)'s [`ResourceId`] to its `Project`.
     script_projects: IdMap,
 
     /// Holds a `Project`'s `Scripts`.
@@ -264,9 +264,13 @@ impl Datastore {
         };
 
         let mut container = container.lock().expect("could not lock `Container`");
-        let o_asset = container.assets.insert(asset.rid.clone(), asset);
+        let aid = asset.rid.clone();
+        let cid = container.rid.clone();
+        let o_asset = container.assets.insert(aid.clone(), asset);
         container.save()?;
+        drop(container); // needed to end immutable borrow of `self` for `insert_asset`
 
+        self.insert_asset(aid, cid);
         Ok(o_asset)
     }
 
@@ -302,6 +306,11 @@ impl Datastore {
         project: ResourceId,
         scripts: ProjectScripts,
     ) -> Option<ProjectScripts> {
+        // map scripts
+        for script in scripts.keys() {
+            self.script_projects.insert(script.clone(), project.clone());
+        }
+
         self.scripts.insert(project, scripts)
     }
 
@@ -328,7 +337,7 @@ impl Datastore {
         scripts.save()?;
 
         // map script
-        self.script_projects.insert(project, sid);
+        self.script_projects.insert(sid, project);
 
         Ok(o_script)
     }

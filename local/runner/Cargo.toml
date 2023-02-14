@@ -1,0 +1,22 @@
+[package]
+name = "thot-local-runner"
+version = "0.0.1"
+edition = "2021"
+
+authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+description = "Local runner for Thot projects."
+license = "MIT OR Apache-2.0"
+
+homepage = "https://thot.so"
+repository = "https://github.com/thot-data/thot"
+keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+categories = [ "science", "data-structures" ]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0"
+
+thot-core = { path = "../../core" }
+thot-local = { path = "../../local" }
+thot-local-database = { path = "../database", features = ["client"] }

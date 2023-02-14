@@ -1,4 +1,5 @@
 //! Message displayed to the user.
+use uuid::Uuid;
 
 /// Message types.
 #[derive(Clone, PartialEq, Debug)]
@@ -16,6 +17,8 @@ pub enum MessageType {
 /// A Message.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Message {
+    id: Uuid,
+
     /// Message to display.
     pub message: String,
 
@@ -27,6 +30,7 @@ impl Message {
     /// Create a `Message` with a `kind` of [`MessageType::Info`].
     pub fn info(message: String) -> Self {
         Self {
+            id: Uuid::new_v4(),
             message,
             kind: MessageType::Info,
         }
@@ -35,6 +39,7 @@ impl Message {
     /// Create a `Message` with a `kind` of [`MessageType::Success`].
     pub fn success(message: String) -> Self {
         Self {
+            id: Uuid::new_v4(),
             message,
             kind: MessageType::Success,
         }
@@ -43,9 +48,14 @@ impl Message {
     /// Create a `Message` with a `kind` of [`MessageType::Error`].
     pub fn error(message: String) -> Self {
         Self {
+            id: Uuid::new_v4(),
             message,
             kind: MessageType::Error,
         }
+    }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
     }
 }
 

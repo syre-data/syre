@@ -33,10 +33,13 @@ $control-button-size: 35px;
       }
 
       .container-settings-menu {
+        position: absolute;
+        z-index: 100;
+
         background-color: t.$background-accent-color;
         padding: 5px;
+        border: t.$border-width-s t.$shadow-medium solid;
         border-radius: t.$border-radius-m;
-        position: absolute;
 
         ul {
           list-style: none;
@@ -81,5 +84,23 @@ $control-button-size: 35px;
   .children {
       display: flex;
       justify-content: space-evenly;
+  }
+
+  .container-preview {
+    .assets-preview {
+      .thot-ui-assets-list {
+        text-align: left;
+        list-style: none;
+        padding: 0;
+      }
+    }
+
+    .thot-ui-script-associations-preview {
+      .thot-ui-script-associations-list {
+        text-align: left;
+        list-style: none;
+        padding: 0;
+      }
+    }
   }
 }

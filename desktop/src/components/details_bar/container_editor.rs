@@ -1,5 +1,5 @@
 //! Container editor widget.
-use crate::commands::container::UpdatePropertiesArgs;
+use crate::commands::common::UpdatePropertiesArgs;
 use crate::common::invoke;
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
 use crate::hooks::use_container;

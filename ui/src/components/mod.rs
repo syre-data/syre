@@ -2,6 +2,7 @@
 pub mod card;
 pub mod card_deck;
 pub mod drawer;
+pub mod file_selector;
 pub mod form;
 pub mod funnel;
 pub mod messages;
@@ -14,6 +15,7 @@ pub mod shadow_box;
 pub use card::Card;
 pub use card_deck::CardDeck;
 pub use drawer::{Drawer, DrawerPosition};
+pub use file_selector::{FileSelector, FileSelectorAction};
 pub use funnel::Funnel;
 pub use messages::{Message, Messages};
 pub use shadow_box::ShadowBox;

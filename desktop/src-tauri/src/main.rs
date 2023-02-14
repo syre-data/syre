@@ -58,6 +58,7 @@ fn main() {
             get_project,
             // new_project, @todo: Possibly remove.
             update_project,
+            analyze,
             // container
             add_assets,
             get_container,

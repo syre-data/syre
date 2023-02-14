@@ -1,7 +1,8 @@
 //! Container tree UI.
 use super::Container;
 use crate::app::AuthStateReducer;
-use crate::commands::container::{NewChildArgs, UpdatePropertiesArgs};
+use crate::commands::common::UpdatePropertiesArgs;
+use crate::commands::container::NewChildArgs;
 use crate::common::invoke;
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
 use crate::hooks::use_container;

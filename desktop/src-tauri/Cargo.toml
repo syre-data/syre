@@ -4,8 +4,8 @@ version = "0.10.0"
 description = "Thot desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 
-homepage = "https://thot-data.com"
-repository = "https://github.com/thot-data/desktop"
+homepage = "https://thot.so"
+repository = "https://github.com/thot-data/thot"
 keywords = ["thot", "thot-data", "data", "data-analysis", "data-management"]
 categories = ["gui", "science"]
 edition = "2021"
@@ -17,21 +17,22 @@ rust-version = "1.57"
 tauri-build = { version = "1.1", features = [] }
 
 [dependencies]
-cluFlock = "1.2.7"
+cluFlock = "1.2"
 directories = "4.0"
-pretty_env_logger = "0.4.0"
+open = "3.2"
+pretty_env_logger = "0.4"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-uuid = { version = "1.2.1", features = ["serde", "v4"] }
+uuid = { version = "1.2", features = ["serde", "v4"] }
 tauri = { version = "1.2", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
 zmq = "0.10.0"
 
 settings_manager = { path = "../../settings_manager" }
 thot-core = { path = "../../core", features = ["serde"] }
+thot-desktop-lib = { path = "../src-lib" }
 thot-local = { path = "../../local" }
 thot-local-database = { path = "../../local/database", features = ["server", "client"] }
-thot-desktop-lib = { version = "0.10.0", path = "../src-lib" }
-open = "3.2.0"
+thot-local-runner = { path = "../../local/runner" }
 
 [features]
 # by default Tauri runs in production mode

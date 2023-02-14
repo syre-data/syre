@@ -4,11 +4,13 @@ use crate::commands::common::PathBufArgs;
 use crate::common::invoke;
 use crate::routes::Route;
 use serde_wasm_bindgen as swb;
-use tauri_sys::dialog::FileDialogBuilder;
+use std::path::PathBuf;
 use thot_core::project::Project as CoreProject;
 use thot_core::types::ResourceId;
+use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew::props;
 use yew_router::prelude::*;
 
 // ********************************
@@ -23,49 +25,25 @@ use yew_router::prelude::*;
 /// 3. Build the project tree.
 #[function_component(CreateProject)]
 pub fn create_project() -> Html {
+    let navigator = use_navigator().expect("navigator not found");
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
-    let navigator = use_navigator().expect("navigator not found");
-    let path = use_state(|| None);
-
-    let onclick = {
-        let path = path.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            let path = path.clone();
-
-            spawn_local(async move {
-                let prj_path = FileDialogBuilder::new()
-                    .set_title("Select project directory")
-                    .pick_folder()
-                    .await;
-
-                let prj_path = prj_path.expect("could not retrieve directory");
-                path.set(prj_path);
-            });
-        })
-    };
-
-    let onsubmit = {
+    let onsuccess = {
         let app_state = app_state.clone();
         let projects_state = projects_state.clone();
         let navigator = navigator.clone();
-        let path = path.clone();
 
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
+        Callback::from(move |path: PathBuf| {
             let app_state = app_state.clone();
             let projects_state = projects_state.clone();
             let navigator = navigator.clone();
-            let path = path.clone();
 
             app_state.dispatch(AppStateAction::SetActiveWidget(None)); // close self
 
             // create and go to project
             spawn_local(async move {
-                let path = (*path).clone().expect("path not set");
                 // todo: Validate path is not already a project.
                 // todo: Set project creator.
                 let rid = invoke("init_project", PathBufArgs { path: path.clone() })
@@ -92,31 +70,26 @@ pub fn create_project() -> Html {
         })
     };
 
-    html! {
-        <div>
-            <form {onsubmit}>
-                <div class={classes!("align-center")}>
-                    <div style={"margin-bottom: 1em"}>
-                        if let Some(path) = (*path).clone() {
-                            { path.to_str().unwrap() }
-                        } else {
-                            { "Set project directory" }
-                        }
-                    </div>
+    let oncancel = {
+        let app_state = app_state.clone();
 
-                    <button type={"button"} {onclick}>
-                        if path.is_none() {
-                            { "Set" }
-                        } else {
-                            { "Change" }
-                        }
-                    </button>
-                </div>
-                <div class={classes!("align-center")}>
-                    <button disabled={path.is_none()}>{ "Create" }</button>
-                </div>
-            </form>
-        </div>
+        Callback::from(move |_| {
+            app_state.dispatch(AppStateAction::SetActiveWidget(None));
+        })
+    };
+
+    let props = props! {
+        FileSelectorProps {
+            title: "Select project directory",
+            action: FileSelectorAction::PickFolder,
+            show_cancel: false,
+            onsuccess,
+            oncancel,
+        }
+    };
+
+    html! {
+        <FileSelector ..props />
     }
 }
 

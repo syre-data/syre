@@ -12,13 +12,26 @@ pub struct AssetEditorProps {
     pub asset: CoreAsset,
 
     #[prop_or_default]
-    pub onsave: Option<Callback<CoreAsset>>,
+    pub onsave: Callback<CoreAsset>,
+
+    #[prop_or_default]
+    pub oncancel: Callback<()>,
 }
 
 /// [`Asset`](thot_core::project::Asset)s editor.
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let asset = use_state(|| props.asset.clone());
+    {
+        let asset = asset.clone();
+
+        use_effect_with_deps(
+            move |a| {
+                asset.set(a.clone());
+            },
+            props.asset.clone(),
+        );
+    }
 
     let onchange = {
         let asset = asset.clone();
@@ -35,14 +48,22 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         let onsave = props.onsave.clone();
 
         Callback::from(move |_: MouseEvent| {
-            if let Some(onsave) = onsave.as_ref() {
-                onsave.emit((*asset).clone());
-            }
+            onsave.emit((*asset).clone());
         })
     };
 
+    let oncancel = {
+        let oncancel = props.oncancel.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            oncancel.emit(());
+        })
+    };
+
+    let class = classes!("thot-ui-asset-editor", props.class.clone());
+
     html! {
-        <div class={props.class.clone()}>
+        <div key={asset.rid.clone()} {class}>
             <StandardPropertiesEditor
                 properties={asset.properties.clone()}
                 {onchange} />
@@ -51,6 +72,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
                 { asset.path.as_path().to_str() }
             </div>
             <div>
+                <button onclick={oncancel}>{ "Cancel" }</button>
                 <button onclick={onsave}>{ "Save" }</button>
             </div>
         </div>

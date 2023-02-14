@@ -16,6 +16,6 @@ serde = "1.0"
 serde_json = "1.0"
 uuid = { version = "0.8", features = ["v4"] }
 
-settings_manager = { path = "../../settings_manager" }
+settings_manager = { path = "../../settings_manager", version = "*" }
 thot-core = { path = "../../core", features = ["pyo3"] }
 thot-local-database = { path = "../../local/database", features = ["client"] }

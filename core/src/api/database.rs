@@ -22,10 +22,6 @@ pub trait Database {
 
     /// Adds an Asset to the database.
     fn add_asset(&mut self, asset: Asset) -> Result;
-
-    // @remove
-    // /// Returns whether the datbase is running in development mode or not.
-    // fn dev_mode() -> bool;
 }
 
 #[cfg(test)]

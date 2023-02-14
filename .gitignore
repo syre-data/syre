@@ -6,7 +6,6 @@
 # general
 /tags
 target
-Cargo.lock
 .DS_Store
 
 # --- IDE ---

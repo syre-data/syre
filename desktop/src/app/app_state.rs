@@ -2,6 +2,7 @@
 use std::rc::Rc;
 use thot_desktop_lib::settings::{UserAppState, UserSettings};
 use thot_ui::types::Message;
+use uuid::Uuid;
 use yew::prelude::*;
 
 /// Application widgets.
@@ -23,7 +24,7 @@ pub enum AppStateAction {
     AddMessage(Message),
 
     /// Removes a message.
-    RemoveMessage(usize),
+    RemoveMessage(Uuid),
 
     /// Clears all messages.
     ClearMessages,
@@ -66,8 +67,8 @@ impl Reducible for AppState {
             AppStateAction::AddMessage(message) => {
                 current.messages.push(Rc::new(message));
             }
-            AppStateAction::RemoveMessage(index) => {
-                current.messages.remove(index);
+            AppStateAction::RemoveMessage(id) => {
+                current.messages.retain(|m| m.id() != &id);
             }
             AppStateAction::ClearMessages => {
                 current.messages = Vec::new();

@@ -27,7 +27,9 @@ pub struct ProjectCanvasProps {
 
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
-    let canvas_state = use_reducer(|| CanvasState::new(props.project.clone()));
+    let show_side_bars = use_state(|| true);
+    let canvas_state =
+        use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
     let tree_state = use_reducer(|| ContainerTreeState::new());
 
     let projects_state =
@@ -57,7 +59,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
     }
 
     let fallback = html! { <Loading text={"Loading project"} /> };
-
     html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<ContainerTreeStateReducer> context={tree_state}>
@@ -69,7 +70,8 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
                 </Suspense>
             </div>
             <Drawer class={classes!("details-bar-drawer")}
-                position={DrawerPosition::Left}>
+                position={DrawerPosition::Right}
+                open={show_side_bars}>
 
                 <DetailsBar />
             </Drawer>

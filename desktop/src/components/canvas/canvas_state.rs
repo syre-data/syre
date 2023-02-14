@@ -8,8 +8,8 @@ pub enum CanvasStateAction {
     /// Set the active widget in the details bar.
     SetDetailsBarWidget(DetailsBarWidget),
 
-    /// Close the details bar.
-    CloseDetailsBar,
+    /// Clear the details bar.
+    ClearDetailsBar,
 }
 
 #[derive(Clone, PartialEq)]
@@ -17,13 +17,15 @@ pub struct CanvasState {
     /// Id of the `Project` the canvas is for.
     pub project: ResourceId,
     pub details_bar_widget: Option<DetailsBarWidget>,
+    show_side_bars: UseStateHandle<bool>,
 }
 
 impl CanvasState {
-    pub fn new(project: ResourceId) -> Self {
+    pub fn new(project: ResourceId, show_side_bars: UseStateHandle<bool>) -> Self {
         Self {
             project,
             details_bar_widget: None,
+            show_side_bars,
         }
     }
 }
@@ -36,8 +38,9 @@ impl Reducible for CanvasState {
         match action {
             CanvasStateAction::SetDetailsBarWidget(widget) => {
                 current.details_bar_widget = Some(widget);
+                current.show_side_bars.set(true);
             }
-            CanvasStateAction::CloseDetailsBar => {
+            CanvasStateAction::ClearDetailsBar => {
                 current.details_bar_widget = None;
             }
         }

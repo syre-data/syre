@@ -17,17 +17,19 @@ pub struct DrawerProps {
     #[prop_or_default]
     pub children: Children,
 
-    #[prop_or_default]
-    pub open: bool,
+    // @todo: Allow this to be optional, creating a
+    // state for internal management if not provided.
+    /// Toggle the open state of the [`Drawer`].
+    pub open: UseStateHandle<bool>,
 
+    /// Location of the [`Drawer`] on screen.
     pub position: DrawerPosition,
 }
 
 #[function_component(Drawer)]
 pub fn drawer(props: &DrawerProps) -> Html {
-    let open = use_state(|| props.open);
     let toggle_open = {
-        let open = open.clone();
+        let open = props.open.clone();
 
         Callback::from(move |_: MouseEvent| {
             open.set(!*open);
@@ -43,7 +45,7 @@ pub fn drawer(props: &DrawerProps) -> Html {
 
     let class = classes!(
         "thot-ui-drawer",
-        (*open).then(|| "open"),
+        (*props.open).then(|| "open"),
         props.class.clone()
     );
 
@@ -51,14 +53,14 @@ pub fn drawer(props: &DrawerProps) -> Html {
         display: flex;
     ";
 
-    let contents_style = if !*open { "display: none;" } else { "" };
+    let contents_style = if !*props.open { "display: none;" } else { "" };
 
     html! {
         <div {class} {style}>
             <div class={classes!("drawer-toggle")}
                 onclick={toggle_open}>
 
-                { if *open {
+                { if *props.open {
                     { open_symbol }
                 } else {
                     { close_symbol }

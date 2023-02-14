@@ -4,8 +4,8 @@ version = "0.10.0"
 description = "Shared types and functionality for the front- and back-end of Thot desktop."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 
-homepage = "https://thot-data.com"
-repository = "https://github.com/thot-data/desktop"
+homepage = "https://thot.so"
+repository = "https://github.com/thot-data/thot"
 keywords = ["thot", "thot-data"]
 categories = []
 edition = "2021"

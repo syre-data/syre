@@ -1,5 +1,6 @@
 //! Thot project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
+use super::ThotEnv;
 use crate::error::RunnerError;
 use crate::project::{Container, Script};
 use crate::types::ResourceId;
@@ -112,8 +113,8 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(hooks: RunnerHooks) -> Result<Self> {
-        Ok(Self { hooks })
+    pub fn new(hooks: RunnerHooks) -> Self {
+        Self { hooks }
     }
 
     /// Analyze a tree
@@ -171,7 +172,8 @@ impl Runner {
                 .filter(|s| s.autorun)
                 .map(|assoc| {
                     let rid = assoc.script;
-                    get_script(&rid).expect("could not retrieve `Script` with `ResourceId` {rid}")
+                    get_script(&rid)
+                        .expect(&format!("could not retrieve `Script` with id `{}`", rid))
                 })
                 .collect();
 
@@ -265,6 +267,10 @@ impl Runner {
         let out = process::Command::new(&script.env.cmd)
             .arg(script.path.as_path())
             .args(&script.env.args)
+            .env(
+                ThotEnv::container_id_key(),
+                container.rid.clone().to_string(),
+            )
             .envs(&script.env.env)
             .output()
             .expect("failed to execute command");

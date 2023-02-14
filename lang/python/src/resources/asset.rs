@@ -97,10 +97,10 @@ impl Asset {
 
                     asset.name = name.unwrap();
                 }
-                "kind" => {
+                "type" => {
                     let kind = depythonize(v.as_ref(py));
                     if kind.is_err() {
-                        return Err(PyTypeError::new_err("Invalid value for `kind`"));
+                        return Err(PyTypeError::new_err("Invalid value for `type`"));
                     }
 
                     asset.kind = kind.unwrap();

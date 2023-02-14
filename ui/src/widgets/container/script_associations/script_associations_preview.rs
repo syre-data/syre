@@ -16,11 +16,11 @@ pub struct ScriptAssociationsPreviewProps {
 #[function_component(ScriptAssociationsPreview)]
 pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Html {
     html! {
-        <div>
+        <div class={classes!("thot-ui-script-associations-preview")}>
             if props.scripts.len() == 0 {
                 { "(no scripts)" }
             } else {
-                <ol>
+                <ol class={classes!("thot-ui-script-associations-list")}>
                     { props.scripts.iter().map(|(script, run_parameters)| { html! {
                         // @todo: Use `Script` names if available.
                         // @todo: Add `RunParameters` functionality.

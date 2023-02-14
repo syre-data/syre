@@ -2,7 +2,7 @@
 use super::container_editor::ContainerEditor;
 use super::project_actions::ProjectActions;
 use super::script_associations_editor::ScriptAssociationsEditor;
-use crate::components::canvas::CanvasStateReducer;
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
 use thot_ui::widgets::asset::AssetEditor;
@@ -33,6 +33,14 @@ pub fn details_bar() -> Html {
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`WorkspaceStateReducer` context not found");
 
+    let oncancel = {
+        let canvas_state = canvas_state.clone();
+
+        Callback::from(move |_| {
+            canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
+        })
+    };
+
     html! {
         <div class={classes!("project-canvas-details-bar")}>
             if let Some(widget) = canvas_state.details_bar_widget.clone() {
@@ -40,7 +48,8 @@ pub fn details_bar() -> Html {
                     DetailsBarWidget::AssetEditor(asset, onsave) => html! {
                         <AssetEditor
                             {asset}
-                            {onsave} />
+                            {onsave}
+                            {oncancel} />
                     },
 
                     DetailsBarWidget::ScriptsAssociationsEditor(container, onsave) => html! {

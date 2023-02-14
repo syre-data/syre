@@ -3,15 +3,16 @@ use crate::error::Result;
 use crate::state::AppState;
 use std::path::{Path, PathBuf};
 use tauri::State;
-use thot_core::error::{Error as CoreError, ProjectError};
-use thot_core::project::Project as CoreProject;
+use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
+use thot_core::project::{Container as CoreContainer, Project as CoreProject};
 use thot_core::types::ResourceId;
 use thot_local::project::project;
 use thot_local::system::projects as sys_projects;
 use thot_local::system::resources::Project as SystemProject;
 use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::ProjectCommand;
+use thot_local_database::command::{ContainerCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;
+use thot_local_runner::Runner;
 
 /// Loads all the active user's projects.
 ///
@@ -129,10 +130,29 @@ pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
 #[tauri::command]
 pub fn update_project(db: State<DbClient>, project: CoreProject) -> Result {
     let res = db.send(ProjectCommand::Update(project).into());
-    let res: DbResult =
-        serde_json::from_value(res).expect("could not convert from `UpdateProject`");
+    let res: DbResult = serde_json::from_value(res).expect("could not convert from `Update`");
 
     Ok(res?)
+}
+
+// ***************
+// *** analyze ***
+// ***************
+
+#[tauri::command]
+pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> Result {
+    let container = db.send(ContainerCommand::Get(root).into());
+    let container: Option<CoreContainer> =
+        serde_json::from_value(container).expect("could not convert from `Get` to `Container`");
+
+    let Some(container) = container else {
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded".to_string())).into());
+    };
+
+    let runner = Runner::new();
+    runner.run(container, max_tasks)?;
+
+    Ok(())
 }
 
 // ---------------

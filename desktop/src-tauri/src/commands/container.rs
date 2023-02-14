@@ -91,8 +91,13 @@ pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<CoreContain
 pub fn update_container_properties(
     db: State<DbClient>,
     rid: ResourceId,
-    properties: StandardProperties,
+    properties: String, // @todo: Issue with deserializing `HashMap` of `metadata`. perform manually.
+                        // See: https://github.com/tauri-apps/tauri/issues/6078
+                        // properties: StandardProperties,
 ) -> Result {
+    let properties: StandardProperties =
+        serde_json::from_str(&properties).expect("could not deserialize into `StandardProperties`");
+
     let res = db
         .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into());
 

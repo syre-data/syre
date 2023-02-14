@@ -31,7 +31,7 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
         }
     };
 
-    let on_data_root_set = {
+    let hide_select_data_root = {
         let select_data_root_visible = select_data_root_visible.clone();
 
         Callback::from(move |_: ()| {
@@ -65,7 +65,8 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
             <ShadowBox title={"Set data root"} onclose={show_select_data_root(false)}>
                 <SetDataRoot
                     project={project.rid.clone()}
-                    onsuccess={on_data_root_set} />
+                    onsuccess={hide_select_data_root.clone()}
+                    oncancel={hide_select_data_root} />
             </ShadowBox>
         }
         </>

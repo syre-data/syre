@@ -11,9 +11,6 @@ pub mod types;
 #[cfg(feature = "fs")]
 pub mod project;
 
-#[cfg(feature = "fs")]
-pub mod runner;
-
 #[cfg(test)]
 #[path = "./lib_test.rs"]
 mod lib_test;

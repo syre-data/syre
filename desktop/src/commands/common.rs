@@ -1,6 +1,7 @@
 //! Resources for common commands.
 use serde::Serialize;
 use std::path::PathBuf;
+use thot_core::project::StandardProperties;
 use thot_core::types::ResourceId;
 
 /// Used for functions that do not accept arguments.
@@ -18,6 +19,29 @@ pub struct ResourceIdArgs {
 pub struct PathBufArgs {
     /// Path to the project root.
     pub path: PathBuf,
+}
+
+/// Arguments to update a resorce's [`StandardProperties`].
+#[derive(Clone, Serialize)]
+pub struct UpdatePropertiesArgs {
+    /// [`ResourceId`] of the resource to update.
+    pub rid: ResourceId,
+
+    /// Updated values.
+    pub properties: StandardProperties, // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+                                        // See: https://github.com/tauri-apps/tauri/issues/6078
+}
+
+/// Arguments to update a resorce's [`StandardProperties`].
+#[derive(Clone, Serialize)]
+pub struct UpdatePropertiesStringArgs {
+    /// [`ResourceId`] of the resource to update.
+    pub rid: ResourceId,
+
+    /// Updated values.
+    pub properties: String, // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+                            // Unify with `UpdatePropertiesArgs` once resolved.
+                            // See: https://github.com/tauri-apps/tauri/issues/6078
 }
 
 #[cfg(test)]

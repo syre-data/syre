@@ -77,8 +77,11 @@ impl Client {
             .expect("could not recieve `Message`");
 
         let Some(id_str) = msg.as_str() else {
-        panic!("invalid response");
-    };
+            panic!("invalid response");
+        };
+
+        let id_str: &str =
+            serde_json::from_str(id_str).expect("could not convert `Message` to `String`");
 
         return id_str == DATABASE_ID;
     }

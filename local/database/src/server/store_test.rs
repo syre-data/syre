@@ -365,3 +365,16 @@ fn find_assets_should_work() {
         "child `Asset` should be found"
     );
 }
+
+#[test]
+fn insert_project_scripts_should_work() {
+    // setup
+    let mut _dir = TempDir::new().expect("new `TempDir` should work");
+    let project = LocalProject::load(_dir.path()).expect("load `Project` should work");
+    let pid = project.rid.clone();
+
+    let mut db = Datastore::new();
+
+    // test
+    todo!();
+}

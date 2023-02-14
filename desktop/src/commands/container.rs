@@ -2,7 +2,7 @@
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container as CoreContainer, StandardProperties};
+use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 use thot_local_database::command::container::AddAssetInfo;
 
@@ -31,16 +31,6 @@ pub struct NewChildArgs {
     pub parent: ResourceId,
 }
 
-/// Arguments to update a resorce's [`StandardProperties`].
-#[derive(Clone, Serialize)]
-pub struct UpdatePropertiesArgs {
-    /// [`ResourceId`] of the resource to update.
-    pub rid: ResourceId,
-
-    /// Updated values.
-    pub properties: StandardProperties,
-}
-
 /// Arguments to update a [`Container`](thot_core::project::Container)'s
 /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
 #[derive(Clone, Serialize)]
@@ -64,6 +54,7 @@ pub struct UpdateScriptAssociationsStringArgs {
     pub rid: ResourceId,
 
     // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
+    // Unify with `UpdateScriptAssociationsArgs` once resolved.
     // See: https://github.com/tauri-apps/tauri/issues/6078
     /// Updated script associations.
     pub associations: String,

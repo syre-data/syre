@@ -1,0 +1,25 @@
+@use 'themes' as t;
+
+.thot-ui-messages {
+  position: absolute;
+  bottom:0;
+  right: t.$margin-l;
+
+  .thot-ui-message {
+    padding: t.$padding-m;
+    border-radius: t.$border-radius-m;
+    margin-bottom: t.$margin-l;
+
+    &.message-info {
+      background-color: t.$info-color;
+    }
+
+    &.message-success {
+      background-color: t.$success-color;
+    }
+
+    &.message-error {
+      background-color: t.$error-color;
+    }
+  }
+}

@@ -46,7 +46,7 @@ pub enum ContainerTreeStateAction {
 #[derive(Clone)]
 pub struct ContainerTreeState {
     pub preview: ContainerPreview,
-    pub containers: ContainerStore, // @todo: `Container`s should not be wrapped in a `Mutex`.
+    pub containers: ContainerStore, // @todo: `Container`s should not be wrapped in a `Mutex`, but currently `thot_core::project::Container` requires this.
 
     /// Map from an [`Asset`](CoreAsset)'s id to its [`Container`](CoreContainer)'s.
     pub asset_map: AssetContainerMap,

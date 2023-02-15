@@ -65,10 +65,12 @@ where
         let input_ref = input_ref.clone();
         let onchange = props.onchange.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
             active.set(false);
 
             if let Some(onchange) = onchange.clone() {
+                e.stop_propagation();
+
                 let input = input_ref
                     .cast::<web_sys::HtmlInputElement>()
                     .expect("could not `NodeRef` to `HtmlInputElement`.");
@@ -82,7 +84,8 @@ where
     let oncancel = {
         let active = active.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             active.set(false);
         })
     };

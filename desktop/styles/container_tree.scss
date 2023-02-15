@@ -13,11 +13,14 @@ $control-button-size: 35px;
 
     background-color: t.$background-accent-color;
     padding: 0.5rem 0.5rem 20px 0.5rem; // give room for add child button
+    border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
     margin: 0.5em 0.5em $control-button-size 0.5em;
 
-    .selected {
-      border: solid t.$border-width-m t.$primary-color;
+    transition: border-color t.$transition-fast;
+
+    &.selected {
+      border-color: t.$primary-color;
     }
 
     .container-settings-control {
@@ -87,6 +90,25 @@ $control-button-size: 35px;
   }
 
   .container-preview {
+    .thot-ui-metadata-preview {
+      text-align: left;
+      list-style: none;
+      padding: 0;
+
+      .metadatum-key {
+        display: inline-block;
+        font-weight: bold;
+        margin-right: t.$margin-m;
+
+        &::after {
+          content: ":";
+        }
+      }
+
+      // .metadatum-value {
+      // }
+    }
+
     .assets-preview {
       .thot-ui-assets-list {
         text-align: left;

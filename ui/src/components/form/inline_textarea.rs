@@ -46,10 +46,12 @@ pub fn inline_textarea(props: &InlineTextareaProps<'static>) -> Html {
         let input_ref = input_ref.clone();
         let onchange = props.onchange.clone();
 
-        Callback::from(move |_e: web_sys::MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
             active.set(false);
 
             if let Some(onchange) = onchange.clone() {
+                e.stop_propagation();
+
                 let input = input_ref
                     .cast::<web_sys::HtmlTextAreaElement>()
                     .expect("could not cast node ref into textarea");
@@ -62,7 +64,8 @@ pub fn inline_textarea(props: &InlineTextareaProps<'static>) -> Html {
     let oncancel = {
         let active = active.clone();
 
-        Callback::from(move |_: web_sys::MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             active.set(false);
         })
     };

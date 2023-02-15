@@ -70,9 +70,13 @@ fn asset_display_name(asset: &CoreAsset) -> String {
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
-fn delegate_callback<In: 'static + Clone, De>(input: In, cb: Option<Callback<In>>) -> Callback<De> {
-    Callback::from(move |_: De| {
+fn delegate_callback<In: 'static + Clone>(
+    input: In,
+    cb: Option<Callback<In>>,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
         if let Some(cb) = cb.as_ref() {
+            e.stop_propagation();
             cb.emit(input.clone());
         }
     })

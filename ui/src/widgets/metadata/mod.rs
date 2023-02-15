@@ -1,10 +1,18 @@
 //! Metadata widgets.
 pub mod metadata_editor;
+pub mod metadata_preview;
+pub mod metadatum_builder;
 pub mod metadatum_editor;
+pub mod metadatum_editor_inline;
+pub mod types;
 
 // Re-exports
 pub use metadata_editor::MetadataEditor;
-pub use metadatum_editor::{Metadatum, MetadatumEditor};
+pub use metadata_preview::MetadataPreview;
+pub use metadatum_builder::MetadatumBuilder;
+pub use metadatum_editor::MetadatumEditor;
+pub use metadatum_editor_inline::InlineMetadatumEditor;
+pub use types::{type_from_string, type_of_value, Metadatum, MetadatumType};
 
 #[cfg(test)]
 #[path = "./mod_test.rs"]

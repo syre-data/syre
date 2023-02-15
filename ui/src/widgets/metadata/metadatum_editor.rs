@@ -1,96 +1,17 @@
 //! Inline editor for a single metadatum.
+use super::{type_from_string, type_of_value, MetadatumType};
 use serde_json::{Result as JsResult, Value as JsValue};
-use yew::html::IntoPropValue;
 use yew::prelude::*;
-use yew::virtual_dom::AttrValue;
-
-// ****************
-// *** Metadata ***
-// ****************
-
-pub type Metadatum = (Option<String>, JsValue);
-
-/// Types a metadatum value can assume.
-#[derive(PartialEq, Clone)]
-pub enum MetadatumType {
-    String,
-    Bool,
-    Number,
-    Array,
-    Object,
-}
-
-impl Into<String> for MetadatumType {
-    fn into(self) -> String {
-        match self {
-            MetadatumType::String => "String".to_string(),
-            MetadatumType::Number => "Number".to_string(),
-            MetadatumType::Bool => "Boolean".to_string(),
-            MetadatumType::Array => "Array".to_string(),
-            MetadatumType::Object => "Object".to_string(),
-        }
-    }
-}
-
-impl Into<AttrValue> for MetadatumType {
-    fn into(self) -> AttrValue {
-        Into::<String>::into(self).into()
-    }
-}
-
-impl IntoPropValue<Option<AttrValue>> for MetadatumType {
-    fn into_prop_value(self) -> Option<AttrValue> {
-        Some(self.into())
-    }
-}
-
-/// Returns the type the string represents.
-fn type_from_string(s: &str) -> Option<MetadatumType> {
-    match s {
-        "String" => Some(MetadatumType::String),
-        "Number" => Some(MetadatumType::Number),
-        "Boolean" => Some(MetadatumType::Bool),
-        "Array" => Some(MetadatumType::Array),
-        "Object" => Some(MetadatumType::Object),
-        _ => None,
-    }
-}
-
-/// Returns the type of the value.
-fn type_of_value(value: &JsValue) -> Option<MetadatumType> {
-    match value {
-        JsValue::Null => None,
-        JsValue::String(_) => Some(MetadatumType::String),
-        JsValue::Number(_) => Some(MetadatumType::Number),
-        JsValue::Bool(_) => Some(MetadatumType::Bool),
-        JsValue::Array(_) => Some(MetadatumType::Array),
-        JsValue::Object(_) => Some(MetadatumType::Object),
-    }
-}
-
-// *****************
-// *** Component ***
-// *****************
 
 #[derive(Properties, PartialEq)]
 pub struct MetadatumEditorProps {
-    #[prop_or_default]
-    pub name: Option<String>,
+    pub name: String,
 
     #[prop_or(JsValue::Null)]
     pub value: JsValue,
 
-    /// Initial active state of the controller.
-    /// Only relevant if `onchange` is provided.
-    #[prop_or(false)]
-    pub active: bool,
-
-    /// Triggered when either the key or value change.
-    /// # Fields
-    /// 1. New value
-    /// 2. Old value
     #[prop_or_default]
-    pub onchange: Option<Callback<Metadatum>>,
+    pub onchange: Callback<JsValue>,
 }
 
 #[function_component(MetadatumEditor)]
@@ -98,88 +19,78 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     // @note: `kind` and `value` are set to default values if they can not be
     // interpreted correctly. It may be better to return an error instead,
     // although this situation should likely never arise due to their types.
-    let active = use_state(|| props.active);
-    let kind = use_state(|| type_of_value(&props.value));
-    let value = use_state(|| serde_json::to_string_pretty(&props.value).unwrap_or("".to_string()));
+    let kind = use_state(|| type_of_value(&props.value).unwrap_or(MetadatumType::String));
+    let value = use_state(|| props.value.clone());
     let error = use_state(|| None);
 
-    let key_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let value_ref = use_node_ref();
 
-    let activate = {
-        let onchange = props.onchange.clone();
-        let active = active.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            if onchange.is_some() {
-                active.set(true);
-            }
-        })
-    };
-
-    let on_type_change = {
+    {
+        // update states if prop value changes
         let kind = kind.clone();
-        let kind_ref = kind_ref.clone();
+        let value = value.clone();
 
-        Callback::from(move |_: web_sys::Event| {
-            let type_input = kind_ref
-                .cast::<web_sys::HtmlSelectElement>()
-                .expect("could not cast node ref to select");
+        use_effect_with_deps(
+            move |val| {
+                kind.set(type_of_value(val).unwrap_or(MetadatumType::String));
+                value.set(val.clone());
+            },
+            props.value.clone(),
+        );
+    }
 
-            kind.set(type_from_string(&type_input.value()));
-        })
-    };
-
-    let onsave = {
-        let active = active.clone();
-        let key_ref = key_ref.clone();
-        let kind_ref = kind_ref.clone();
-        let value_ref = value_ref.clone();
-        let error = error.clone();
+    {
+        // call onchange whenever the value has changed
+        let name = props.name.clone();
         let onchange = props.onchange.clone();
+        let value = value.clone();
 
-        Callback::from(move |_: web_sys::MouseEvent| {
-            active.set(false);
+        use_effect_with_deps(
+            move |value| {
+                onchange.emit((**value).clone());
+            },
+            value,
+        );
+    }
 
-            // get key
-            let key = key_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not cast key node ref into input");
+    let onchange_kind = {
+        let kind = kind.clone();
+        let value = value.clone();
+        let kind_ref = kind_ref.clone();
+        let error = error.clone();
 
-            let key = key.value().trim().to_owned();
-            let key = if key.is_empty() { None } else { Some(key) };
-
+        Callback::from(move |_: Event| {
             // get kind
-            let kind = kind_ref
+            let kind_val = kind_ref
                 .cast::<web_sys::HtmlSelectElement>()
                 .expect("could not cast kind node ref into select");
 
-            let Some(kind) = type_from_string(&kind.value()) else {
+            let Some(kind_val) = type_from_string(&kind_val.value()) else {
                 // @unreachble
                 error.set(Some("Invalid data type"));
-                active.set(true);
                 return;
             };
 
-            // get value
-            if let Ok(value) = value_from_input(value_ref.clone(), kind) {
-                if let Some(onchange) = onchange.as_ref() {
-                    onchange.emit((key, value));
-                }
-            } else {
-                // invalid input for type
-                error.set(Some("Invalid value"));
-                active.set(true);
-            };
+            kind.set(kind_val.clone());
+            value.set(convert_value((*value).clone(), &kind_val));
         })
     };
 
-    let oncancel = {
-        let active = active.clone();
+    let onchange_value = {
+        let kind = kind.clone();
+        let value = value.clone();
+        let value_ref = value_ref.clone();
+        let error = error.clone();
 
-        Callback::from(move |_: web_sys::MouseEvent| {
-            active.set(false);
+        Callback::from(move |_: Event| {
+            // get value
+            if let Ok(val) = value_from_input(value_ref.clone(), &*kind) {
+                value.set(convert_value(val, &*kind));
+            } else {
+                // invalid input for type
+                error.set(Some("Invalid value"));
+            };
         })
     };
 
@@ -196,69 +107,76 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
         { kind_opts.into_iter().map(|k| { html! {
                 <option
                     value={k.clone()}
-                    selected={Some(k.clone()) == *kind}>{
-                    Into::<String>::into(k)
-                }</option>
+                    selected={k.clone() == *kind}>
+
+                    { Into::<String>::into(k) }
+                </option>
             }}).collect::<Html>()
         }
     };
 
+    // ui
     html! {
-        <div class={classes!("metadatum")} ondblclick={activate}>
-            if *active {
-                <input
-                    ref={key_ref}
-                    placeholder="Name"
-                    value={props.name.clone().unwrap_or("".to_string())} />
+        <div class={classes!("metadatum")}>
+            <span class={classes!("metadatum-key")}>
+                    { &props.name }
+            </span>
 
-                <select ref={kind_ref} onchange={on_type_change}>
-                    { kind_opts }
-                </select>
+            <select ref={kind_ref} onchange={onchange_kind.clone()}>
+                { kind_opts }
+            </select>
 
-                if let Some(kind) = &*kind {
-                    { match kind {
-                        MetadatumType::String => html! { <input ref={value_ref} value={(*value).clone()} /> },
-                        MetadatumType::Number => html! { <input ref={value_ref} type={"number"} /> },
-                        MetadatumType::Bool => html! { <input ref={value_ref} type={"checkbox"} /> },
-                        MetadatumType::Array => html! { <textarea ref={value_ref}></textarea> },
-                        MetadatumType::Object => html! { <textarea ref={value_ref}></textarea> },
-                    }}
-                } else {
-                    <input ref={value_ref} />
-                }
+            { match (*value).clone() {
+                JsValue::String(value) => html! {
+                    <input
+                        ref={value_ref}
+                        {value}
+                        onchange={onchange_value.clone()} />
+                },
 
-                <button onclick={onsave}>{ "Save" }</button>
-                <button onclick={oncancel}>{ "Cancel" }</button>
+                JsValue::Number(value) => html! {
+                    <input
+                        ref={value_ref}
+                        type={"number"}
+                        value={value.to_string()}
+                        onchange={onchange_value.clone()} />
+                },
 
-                if let Some(msg) = *error {
-                    { msg }
-                }
-            } else {
-                <span class={classes!("metadatum-key")}>{
-                    if let Some(name) = &props.name {
-                        name
-                    } else {
-                        { "(no key)" }
-                    }
-                }</span>
+                JsValue::Bool(value) => html! {
+                    <input
+                        ref={value_ref}
+                        type={"checkbox"}
+                        checked={value}
+                        onchange={onchange_value.clone()} />
+                },
 
-                if let Some(kind) = (*kind).clone() {
-                    <span class={classes!("metadatum-kind")}>{ Into::<String>::into(kind) }</span>
-                }
+                JsValue::Array(value) => html! {
+                    <textarea
+                        ref={value_ref}
+                        value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        onchange={onchange_value.clone()}>
+                    </textarea>
+                },
 
-                <span class={classes!("metadatum-value")}>
-                    if props.value == JsValue::Null {
-                        { "(no value)" }
-                    } else {
-                        { value.to_string() }
-                    }
-                </span>
+                JsValue::Object(value) => html! {
+                    <textarea
+                        ref={value_ref}
+                        value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        onchange={onchange_value.clone()}>
+                    </textarea>
+                },
+
+                JsValue::Null => html! {}
+            }}
+
+            if let Some(msg) = *error {
+                <span class={classes!("error")}>{ msg }</span>
             }
         </div>
     }
 }
 
-fn value_from_input(value_ref: NodeRef, kind: MetadatumType) -> JsResult<JsValue> {
+fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValue> {
     let value = match kind {
         MetadatumType::String => {
             let v_in = value_ref
@@ -314,6 +232,55 @@ fn value_from_input(value_ref: NodeRef, kind: MetadatumType) -> JsResult<JsValue
     };
 
     Ok(value)
+}
+
+fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
+    match (value.clone(), target.clone()) {
+        (JsValue::String(_), MetadatumType::String)
+        | (JsValue::Number(_), MetadatumType::Number)
+        | (JsValue::Bool(_), MetadatumType::Bool)
+        | (JsValue::Array(_), MetadatumType::Array)
+        | (JsValue::Object(_), MetadatumType::Object) => value,
+
+        (JsValue::String(value), MetadatumType::Number) => {
+            let value = value.parse::<u64>().unwrap_or(0);
+            value.into()
+        }
+
+        (JsValue::Number(value), MetadatumType::String) => value.to_string().into(),
+
+        (JsValue::Array(value), MetadatumType::String) => serde_json::to_string_pretty(&value)
+            .unwrap_or(String::default())
+            .into(),
+
+        (JsValue::Object(value), MetadatumType::String) => serde_json::to_string_pretty(&value)
+            .unwrap_or(String::default())
+            .into(),
+
+        (JsValue::String(value), MetadatumType::Array) => {
+            let value = serde_json::to_value(value).unwrap_or_default();
+            if value.is_array() {
+                value
+            } else {
+                JsValue::Array(Vec::default())
+            }
+        }
+
+        (JsValue::String(value), MetadatumType::Object) => {
+            let value = serde_json::to_value(value).unwrap_or_default();
+            if value.is_object() {
+                value
+            } else {
+                JsValue::Object(serde_json::Map::default())
+            }
+        }
+
+        (_, MetadatumType::String) => JsValue::String(String::default()),
+        (_, MetadatumType::Number) => JsValue::Number(0.into()),
+        (_, MetadatumType::Bool) => JsValue::Bool(false),
+        (_, MetadatumType::Array) => JsValue::Array(Vec::default()),
+        (_, MetadatumType::Object) => JsValue::Object(serde_json::Map::default()),
+    }
 }
 
 #[cfg(test)]

@@ -3,7 +3,7 @@ use crate::components::form::{InlineInput, InlineTextarea};
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;
-use crate::widgets::metadata::MetadataEditor;
+use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::TagsEditor;
 use thot_core::project::container::{AssetMap, ScriptMap};
 use thot_core::project::{Asset as CoreAsset, Metadata, StandardProperties};
@@ -17,9 +17,6 @@ use yew::prelude::*;
 /// Menu items available in the [`Container`]'s settings menu.
 #[derive(PartialEq, Clone, Debug)]
 pub enum ContainerSettingsMenuEvent {
-    /// Edit the [`Container`](thot_core::project::Container).
-    Edit,
-
     /// Add an [`Asset`](thot_core::project::Asset).
     AddAsset,
 
@@ -60,10 +57,6 @@ fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
         <div class={classes!("container-settings-menu")}>
             <ul>
                 <li class={classes!("clickable")}
-                    onclick={onclick(ContainerSettingsMenuEvent::Edit)}>
-                    { "Edit" }
-                </li>
-                <li class={classes!("clickable")}
                     onclick={onclick(ContainerSettingsMenuEvent::AddAsset)}>
                     { "Add Assets" }
                 </li>
@@ -83,8 +76,19 @@ pub struct ContainerProps {
     pub assets: AssetMap,
     pub scripts: ScriptMap,
 
+    #[prop_or_default]
+    pub class: Classes,
+
     #[prop_or(ContainerPreview::None)]
     pub preview: ContainerPreview,
+
+    /// Callback to run when the `Container` is clicked.
+    #[prop_or_default]
+    pub onclick: Callback<()>,
+
+    /// Callback to run when the `Container` is double clicked.
+    #[prop_or_default]
+    pub ondblclick: Callback<()>,
 
     /// Callback to run when the `name` is changed.
     #[prop_or_default]
@@ -134,7 +138,7 @@ pub struct ContainerProps {
 
     /// Callback when container properties edit button is clicked.
     #[prop_or_default]
-    pub onclick_edit_properties: Option<Callback<ResourceId>>,
+    pub onclick_add_assets: Option<Callback<ResourceId>>,
 
     /// Callback when container script edit button is clicked.
     #[prop_or_default]
@@ -160,25 +164,47 @@ pub fn container(props: &ContainerProps) -> Html {
         .map(|(_rid, asset): (&ResourceId, &CoreAsset)| asset.clone())
         .collect::<Vec<CoreAsset>>();
 
+    let stop_propagation = Callback::from(|e: MouseEvent| {
+        e.stop_propagation();
+    });
+
     let prevent_drag_default = Callback::from(|e: web_sys::DragEvent| {
         e.prevent_default();
     });
 
+    let onclick = {
+        let onclick = props.onclick.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            onclick.emit(());
+        })
+    };
+
+    let ondblclick = {
+        let ondblclick = props.ondblclick.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            ondblclick.emit(());
+        })
+    };
+
     let onclick_settings = {
         let show_settings_menu = show_settings_menu.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             show_settings_menu.set(!*show_settings_menu);
         })
     };
 
-    let onclick_edit_properties = {
-        let onclick_edit_properties = props.onclick_edit_properties.clone();
+    let onclick_add_assets = {
+        let onclick_add_assets = props.onclick_add_assets.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |_: MouseEvent| {
-            if let Some(onclick_edit_properties) = onclick_edit_properties.clone() {
-                onclick_edit_properties.emit(rid.clone());
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
+            if let Some(onclick_add_assets) = onclick_add_assets.clone() {
+                onclick_add_assets.emit(rid.clone());
             }
         })
     };
@@ -187,7 +213,8 @@ pub fn container(props: &ContainerProps) -> Html {
         let onclick_edit_scripts = props.onclick_edit_scripts.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             if let Some(onclick_edit_scripts) = onclick_edit_scripts.clone() {
                 onclick_edit_scripts.emit(rid.clone());
             }
@@ -198,7 +225,8 @@ pub fn container(props: &ContainerProps) -> Html {
         let onclick_toggle_visibility = props.onclick_toggle_visibility.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             if let Some(onclick_toggle_visibility) = onclick_toggle_visibility.clone() {
                 onclick_toggle_visibility.emit(rid.clone());
             }
@@ -209,7 +237,8 @@ pub fn container(props: &ContainerProps) -> Html {
         let onadd_child = props.onadd_child.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             if let Some(onadd_child) = onadd_child.clone() {
                 onadd_child.emit(rid.clone());
             }
@@ -228,8 +257,12 @@ pub fn container(props: &ContainerProps) -> Html {
         )
     });
 
+    let class = classes!("container-node", props.class.clone());
+
     html! {
-        <div class={classes!("container-node")}
+        <div {class}
+            {onclick}
+            {ondblclick}
             ondragenter={prevent_drag_default.clone()}
             ondragover={prevent_drag_default}
             ondrop={props.ondrop.clone()} >
@@ -248,7 +281,10 @@ pub fn container(props: &ContainerProps) -> Html {
                 </div>
             }
 
-            <div class={classes!("container-name")}>
+            <div
+                class={classes!("container-name")}
+                ondblclick={stop_propagation.clone()}>
+
                 <InlineInput<String>
                     placeholder={"Name"}
                     value={props.properties.name.clone()}
@@ -258,9 +294,12 @@ pub fn container(props: &ContainerProps) -> Html {
                 </InlineInput<String>>
             </div>
 
-            <div class={classes!("container-preview")}>
+            <div
+                class={classes!("container-preview")}
+                ondblclick={stop_propagation.clone()}>
+
                 { match props.preview {
-                    ContainerPreview::None => { html! {} },
+                    ContainerPreview::None => { html! { <></> } },
                     ContainerPreview::Type => { html! {
                         <InlineInput<String>
                             placeholder={"Type"}
@@ -284,9 +323,9 @@ pub fn container(props: &ContainerProps) -> Html {
                         </TagsEditor>
                     }},
                     ContainerPreview::Metadata => { html! {
-                        <MetadataEditor value={props.properties.metadata.clone()}
+                        <MetadataPreview value={props.properties.metadata.clone()}
                             onchange={&props.onchange_metadata}>
-                        </MetadataEditor>
+                        </MetadataPreview>
                     }},
                     ContainerPreview::Assets => { html! {
                         <AssetsPreview
@@ -304,9 +343,9 @@ pub fn container(props: &ContainerProps) -> Html {
             <div class={classes!("container-controls")}>
                 <button
                     class={classes!("container-control")}
-                    onclick={onclick_edit_properties}>
+                    onclick={onclick_add_assets}>
 
-                    { "/" }
+                    { "[]" }
                 </button>
 
                 <button

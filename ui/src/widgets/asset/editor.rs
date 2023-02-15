@@ -13,9 +13,6 @@ pub struct AssetEditorProps {
 
     #[prop_or_default]
     pub onsave: Callback<CoreAsset>,
-
-    #[prop_or_default]
-    pub oncancel: Callback<()>,
 }
 
 /// [`Asset`](thot_core::project::Asset)s editor.
@@ -52,16 +49,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         })
     };
 
-    let oncancel = {
-        let oncancel = props.oncancel.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            oncancel.emit(());
-        })
-    };
-
     let class = classes!("thot-ui-asset-editor", props.class.clone());
-
     html! {
         <div key={asset.rid.clone()} {class}>
             <StandardPropertiesEditor
@@ -72,7 +60,6 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
                 { asset.path.as_path().to_str() }
             </div>
             <div>
-                <button onclick={oncancel}>{ "Cancel" }</button>
                 <button onclick={onsave}>{ "Save" }</button>
             </div>
         </div>

@@ -1,7 +1,8 @@
 //! Properties editor for [`Contaier`](thot_core::project::Container)s.
+use super::MetadataEditor;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use thot_core::project::StandardProperties;
+use thot_core::project::{Metadata, StandardProperties};
 use yew::prelude::*;
 
 // ************************
@@ -12,6 +13,7 @@ enum StandardPropertiesStateAction {
     SetKind(Option<String>),
     SetDescription(Option<String>),
     SetTags(Vec<String>),
+    SetMetadata(Metadata),
 }
 
 #[derive(PartialEq, Clone)]
@@ -62,6 +64,9 @@ impl Reducible for StandardPropertiesState {
             StandardPropertiesStateAction::SetTags(tags) => {
                 current.tags = tags;
             }
+            StandardPropertiesStateAction::SetMetadata(metadata) => {
+                current.metadata = metadata;
+            }
         }
 
         current.into()
@@ -83,11 +88,8 @@ pub struct StandardPropertiesEditorProps {
     pub properties: StandardProperties,
 
     /// Callback when value changes.
-    /// # Note
-    /// + Even though [`StandardProperties`] are returned,
-    /// `metadata` is ignored.
     #[prop_or_default]
-    pub onchange: Option<Callback<StandardProperties>>,
+    pub onchange: Callback<StandardProperties>,
 }
 
 /// [`StandardProperties`] editor.
@@ -178,15 +180,21 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
         })
     };
 
+    let onchange_metadata = {
+        let properties_state = properties_state.clone();
+
+        Callback::from(move |value: Metadata| {
+            properties_state.dispatch(StandardPropertiesStateAction::SetMetadata(value));
+        })
+    };
+
     {
         let properties_state = properties_state.clone();
         let onchange = props.onchange.clone();
 
         use_effect_with_deps(
             move |properties_state| {
-                if let Some(onchange) = onchange.as_ref() {
-                    onchange.emit((**properties_state).clone().into());
-                }
+                onchange.emit((**properties_state).clone().into());
             },
             properties_state,
         );
@@ -200,7 +208,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                     <input
                         ref={name_ref}
                         placeholder={"(no name)"}
-                        value={(*properties_state).name.clone()}
+                        value={properties_state.name.clone()}
                         onchange={onchange_name} />
                 </label>
             </div>
@@ -211,7 +219,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                     <input
                         ref={kind_ref}
                         placeholder={"(no type)"}
-                        value={(*properties_state).kind.clone()}
+                        value={properties_state.kind.clone()}
                         onchange={onchange_kind} />
                 </label>
             </div>
@@ -221,7 +229,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 <textarea
                     ref={description_ref}
                     placeholder={"(no description)"}
-                    value={(*properties_state).description.clone()}
+                    value={properties_state.description.clone()}
                     onchange={onchange_description}></textarea>
             </div>
             <div>
@@ -233,6 +241,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                         value={tags_val}
                         onchange={onchange_tags} />
                 </label>
+            </div>
+
+            <div>
+                <h4>{ "Metadata" }</h4>
+                <MetadataEditor
+                    value={properties_state.metadata.clone()}
+                    onchange={onchange_metadata} />
             </div>
         </form>
     }

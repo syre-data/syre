@@ -1,12 +1,12 @@
 //! Container editor widget.
-use crate::commands::common::UpdatePropertiesArgs;
+use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
 use crate::hooks::use_container;
 use std::sync::{Arc, Mutex};
-use thot_core::project::{Container as CoreContainer, Metadata, StandardProperties};
+use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
-use thot_ui::widgets::{MetadataEditor, StandardPropertiesEditor};
+use thot_ui::widgets::StandardPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -15,7 +15,7 @@ pub struct ContainerEditorProps {
     pub rid: ResourceId,
 
     #[prop_or_default]
-    pub onsave: Option<Callback<()>>,
+    pub onsave: Callback<()>,
 }
 
 #[function_component(ContainerEditor)]
@@ -26,44 +26,11 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let container = use_container(props.rid.clone());
     let properties = use_state(|| container_properties(container.as_ref()));
 
-    //     {
-    //         let properties = properties.clone();
-    //         let metadata = metadata.clone();
-
-    //         let container = container.clone();
-    //         let Some(container) = container.as_ref() else {
-    //             panic!("`Container` not loaded");
-    //         };
-
-    //         let container_lock = container.lock().expect("could not lock `Container`");
-    //         let container = container_lock.clone();
-    //         Mutex::unlock(container_lock);
-
-    //         use_effect_with_deps(
-    //             move |container| {
-    //                 properties.set(container_properties(container.as_ref()));
-    //                 metadata.set(container_metadata(container.as_ref()));
-    //             },
-    //             container,
-    //         );
-    //     }
-
-    let onchange_properties = {
+    let onchange = {
         let properties = properties.clone();
 
-        Callback::from(move |mut update: StandardProperties| {
-            update.metadata = properties.metadata.clone();
+        Callback::from(move |update: StandardProperties| {
             properties.set(update);
-        })
-    };
-
-    let onchange_metadata = {
-        let properties = properties.clone();
-
-        Callback::from(move |metadata: Metadata| {
-            let mut props = (*properties).clone();
-            props.metadata = metadata;
-            properties.set(props);
         })
     };
 
@@ -74,23 +41,29 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         let properties = properties.clone();
 
         Callback::from(move |_: MouseEvent| {
+            let rid = rid.clone();
             let onsave = onsave.clone();
             let tree_state = tree_state.clone();
-
-            let update = UpdatePropertiesArgs {
-                rid: rid.clone(),
-                properties: (*properties).clone(),
-            };
+            let properties = (*properties).clone();
 
             spawn_local(async move {
-                let _res = invoke("update_container_properties", update.clone())
+                // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+                // See: https://github.com/tauri-apps/tauri/issues/6078
+                let properties_str = serde_json::to_string(&properties)
+                    .expect("could not serialize `StandardProperties`");
+
+                let update_str = UpdatePropertiesStringArgs {
+                    rid: rid.clone(),
+                    properties: properties_str,
+                };
+
+                let update = UpdatePropertiesArgs { rid, properties };
+                let _res = invoke("update_container_properties", update_str)
                     .await
                     .expect("could not invoke `update_container_properties`");
 
                 tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
-                if let Some(onsave) = onsave {
-                    onsave.emit(());
-                }
+                onsave.emit(());
             });
         })
     };
@@ -99,13 +72,11 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         <div>
             <StandardPropertiesEditor
                 properties={(*properties).clone()}
-                onchange={onchange_properties} />
+                onchange={onchange} />
 
-            <MetadataEditor
-                value={properties.metadata.clone()}
-                onchange={onchange_metadata} />
-
-            <button onclick={onsave}>{ "Save" }</button>
+            <div>
+                <button onclick={onsave}>{ "Save" }</button>
+            </div>
             // @todo: <AssetDropZone />
         </div>
     }

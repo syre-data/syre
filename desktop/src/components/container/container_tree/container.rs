@@ -8,6 +8,7 @@ use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateRedu
 use crate::components::details_bar::DetailsBarWidget;
 use crate::hooks::use_container;
 use std::sync::{Arc, Mutex};
+use thot_core::project::StandardProperties;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Metadata};
 use thot_core::types::ResourceId;
 use thot_ui::components::ShadowBox;
@@ -22,6 +23,11 @@ use yew::props;
 // *****************
 // *** Container ***
 // *****************
+
+// @remove
+// ContainerSettingsMenuEvent::Edit => canvas_state.dispatch(
+//     CanvasStateAction::SetDetailsBarWidget(DetailsBarWidget::ContainerEditor(rid)),
+// ),
 
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
@@ -48,6 +54,34 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let container = use_container(props.rid.clone());
     let Some(container) = container.as_ref() else {
         panic!("`Container` not loaded");
+    };
+
+    let container_id = {
+        let container = container.lock().expect("could not lock `Container`");
+        container.rid.clone()
+    };
+
+    let selected = canvas_state.selected.contains(&container_id);
+
+    // -------------------
+    // --- interaction ---
+    // -------------------
+
+    let onclick = {
+        let canvas_state = canvas_state.clone();
+        let container_id = container_id.clone();
+        let selected = selected.clone();
+
+        Callback::from(move |_| {
+            let container_id = container_id.clone();
+            let action = if selected {
+                CanvasStateAction::Unselect(container_id)
+            } else {
+                CanvasStateAction::Select(container_id)
+            };
+
+            canvas_state.dispatch(action);
+        })
     };
 
     // -----------------------
@@ -77,21 +111,15 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let container = container.clone();
 
         Callback::from(move |tags| {
+            let tree_state = tree_state.clone();
             let container = container.lock().expect("could not lock `Container`");
             let rid = container.rid.clone();
             let mut properties = container.properties.clone();
             Mutex::unlock(container);
 
             properties.tags = tags;
-            let tree_state = tree_state.clone();
-
             spawn_local(async move {
-                let update = UpdatePropertiesArgs { rid, properties };
-                let _res = invoke("update_container_properties", update.clone())
-                    .await
-                    .expect("could not invoke `update_container_properties`");
-
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
+                update_container_properties(rid, properties, tree_state).await;
             });
         })
     };
@@ -109,22 +137,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             properties.metadata = metadata;
             spawn_local(async move {
-                // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
-                // See: https://github.com/tauri-apps/tauri/issues/6078
-                let properties_str = serde_json::to_string(&properties)
-                    .expect("could not serialize `StandardProperties`");
-
-                let update_str = UpdatePropertiesStringArgs {
-                    rid: rid.clone(),
-                    properties: properties_str,
-                };
-
-                let update = UpdatePropertiesArgs { rid, properties };
-                let _res = invoke("update_container_properties", update_str)
-                    .await
-                    .expect("could not invoke `update_container_properties`");
-
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
+                update_container_properties(rid, properties, tree_state).await;
             });
         })
     };
@@ -140,10 +153,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(
             move |(rid, event): (ResourceId, ContainerSettingsMenuEvent)| match event {
-                // ContainerSettingsMenuEvent::Edit => show_container_editor.set(true),
-                ContainerSettingsMenuEvent::Edit => canvas_state.dispatch(
-                    CanvasStateAction::SetDetailsBarWidget(DetailsBarWidget::ContainerEditor(rid)),
-                ),
                 ContainerSettingsMenuEvent::AddAsset => show_create_asset.set(true),
                 ContainerSettingsMenuEvent::Analyze => {}
             },
@@ -259,17 +268,24 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // ----------
 
     // props
+    let mut class = Classes::new();
+    if selected {
+        class.push("selected");
+    }
+
     let container_val = container.lock().expect("could not lock container").clone();
     let c_props = {
         let c = container_val.clone();
 
         props! {
             ContainerUiProps {
+                class,
                 rid: c.rid,
                 properties: c.properties,
                 assets: c.assets,
                 scripts: c.scripts,
                 preview: tree_state.preview.clone(),
+                onclick,
                 onchange_name,
                 onchange_kind,
                 onchange_tags,
@@ -346,19 +362,33 @@ fn create_update_container_string_property_callback(
             ContainerStringProperty::Description => properties.description = value,
         }
 
-        {
-            let tree_state = tree_state.clone();
-
-            spawn_local(async move {
-                let update = UpdatePropertiesArgs { rid, properties };
-                let _res = invoke("update_container_properties", update.clone())
-                    .await
-                    .expect("could not invoke `update_container_properties`");
-
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
-            });
-        }
+        let tree_state = tree_state.clone();
+        spawn_local(async move { update_container_properties(rid, properties, tree_state).await });
     })
+}
+
+/// Updates a `Container`'s properties.
+async fn update_container_properties(
+    rid: ResourceId,
+    properties: StandardProperties,
+    tree_state: ContainerTreeStateReducer,
+) {
+    // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+    // See: https://github.com/tauri-apps/tauri/issues/6078
+    let properties_str =
+        serde_json::to_string(&properties).expect("could not serialize `StandardProperties`");
+
+    let update_str = UpdatePropertiesStringArgs {
+        rid: rid.clone(),
+        properties: properties_str,
+    };
+
+    let update = UpdatePropertiesArgs { rid, properties };
+    let _res = invoke("update_container_properties", update_str)
+        .await
+        .expect("could not invoke `update_container_properties`");
+
+    tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
 }
 
 #[cfg(test)]

@@ -1,82 +1,8 @@
 //! Inline metadata editor.
-use super::Metadatum;
-use super::MetadatumEditor;
-use serde_json::Value as JsValue;
-use std::rc::Rc;
+use super::{MetadatumBuilder, MetadatumEditor};
+use std::collections::HashSet;
 use thot_core::project::Metadata;
-use wasm_bindgen::JsCast;
 use yew::prelude::*;
-
-// *****************************
-// *** Metadata Editor State ***
-// *****************************
-
-enum MetadataEditorStateAction {
-    /// Add a new [`MetadatumEditor`].
-    AddMetadatum,
-
-    /// Remove the [`MetadatumEditor`] at the provided index.
-    /// If an editor does not exist at the given index no action is performed.
-    RemoveMetadatum(usize),
-}
-
-#[derive(PartialEq, Debug)]
-struct MetadataEditorState {
-    pub fields: Vec<Metadatum>,
-    pub init_active_editors: Vec<usize>,
-}
-
-impl MetadataEditorState {
-    pub fn new(metadata: Metadata) -> Self {
-        let fields = metadata
-            .into_iter()
-            .map(|(k, v)| (Some(k), v))
-            .collect::<Vec<Metadatum>>();
-
-        Self {
-            fields,
-            init_active_editors: Vec::new(),
-        }
-    }
-}
-
-impl Reducible for MetadataEditorState {
-    type Action = MetadataEditorStateAction;
-
-    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        match action {
-            MetadataEditorStateAction::AddMetadatum => {
-                let mut fields = self.fields.clone();
-                let mut init_active_editors = self.init_active_editors.clone();
-                fields.push((None, JsValue::Null));
-                init_active_editors.push(fields.len() - 1);
-
-                Self {
-                    fields,
-                    init_active_editors,
-                }
-            }
-            MetadataEditorStateAction::RemoveMetadatum(index) => {
-                if index >= self.fields.len() {
-                    return self;
-                }
-
-                let mut fields = self.fields.clone();
-                fields.remove(index);
-
-                Self {
-                    fields,
-                    init_active_editors: self.init_active_editors.clone(),
-                }
-            }
-        }
-        .into()
-    }
-}
-
-// *****************
-// *** Component ***
-// *****************
 
 #[derive(Properties, PartialEq)]
 pub struct MetadataEditorProps {
@@ -90,135 +16,105 @@ pub struct MetadataEditorProps {
     #[prop_or(Metadata::new())]
     pub value: Metadata,
 
-    /// Callback triggered when the value of a single `Metadatum` is changed.
+    /// Callback triggered when the value of a single `Metadatum` is changed
+    /// or a new `Metadatum` is added.
     ///
     /// # Fields
-    /// 1. New value
+    /// 1. Current value
     #[prop_or_default]
-    pub onchange: Option<Callback<Metadata>>,
+    pub onchange: Callback<Metadata>,
 }
 
 #[function_component(MetadataEditor)]
 pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
-    let editor_state = use_reducer(|| MetadataEditorState::new(props.value.clone()));
+    let add_metadatum_visible = use_state(|| false);
 
-    let add_metadatum = {
-        let editor_state = editor_state.clone();
+    let show_add_metadatum = {
+        let add_metadatum_visible = add_metadatum_visible.clone();
 
         Callback::from(move |_: MouseEvent| {
-            editor_state.dispatch(MetadataEditorStateAction::AddMetadatum)
+            add_metadatum_visible.set(true);
         })
     };
 
-    let remove_metadatum = {
-        let editor_state = editor_state.clone();
+    let add_metadatum = {
+        let metadata = props.value.clone();
+        let onchange = props.onchange.clone();
+        let add_metadatum_visible = add_metadatum_visible.clone();
+
+        Callback::from(move |(key, value)| {
+            let mut metadata = metadata.clone();
+            metadata.insert(key, value);
+            onchange.emit(metadata);
+            add_metadatum_visible.set(false);
+        })
+    };
+
+    let oncancel_add_metadatum = {
+        let add_metadatum_visible = add_metadatum_visible.clone();
+
+        Callback::from(move |_| {
+            add_metadatum_visible.set(false);
+        })
+    };
+
+    let remove_metadatum = move |key: String| {
+        let metadata = props.value.clone();
         let onchange = props.onchange.clone();
 
-        Callback::from(move |e: web_sys::MouseEvent| {
-            // get index to remove
-            let btn_remove = e
-                .target()
-                .expect("button could not be found")
-                .dyn_ref::<web_sys::HtmlButtonElement>()
-                .expect("could not cast target to button")
-                .clone();
+        Callback::from(move |_: MouseEvent| {
+            let mut metadata = metadata.clone();
 
-            let index: usize = btn_remove
-                .dataset()
-                .get("index")
-                .expect("`index` not set on dataset")
-                .parse()
-                .expect("could not parse `index` as int");
-
-            if index >= editor_state.fields.len() {
-                panic!("metadatum index exceeded `fields` size");
-            }
-
-            // remove field
-            editor_state.dispatch(MetadataEditorStateAction::RemoveMetadatum(index));
-
-            if editor_state.fields[index].0.is_some() {
-                if let Some(onchange) = onchange.clone() {
-                    // calculate updated value
-                    let value = fields_to_metadata(editor_state.fields.clone());
-                    onchange.emit(value);
-                }
-            }
+            metadata.remove(&key);
+            onchange.emit(metadata);
         })
     };
 
-    let on_change = |index: usize| -> Callback<Metadatum> {
-        let editor_state = editor_state.clone();
+    let onchange = {
         let onchange = props.onchange.clone();
+        let metadata = props.value.clone();
 
-        Callback::from(move |metadatum| {
-            if let Some(onchange) = onchange.clone() {
-                // update changed field
-                let mut fields = editor_state.fields.clone();
-                fields[index] = metadatum;
+        move |key: String| {
+            let onchange = onchange.clone();
+            let metadata = metadata.clone();
 
-                // calculate updated value
-                let md = fields_to_metadata(fields);
-                onchange.emit(md);
-            }
-        })
+            Callback::from(move |value| {
+                let mut metadata = metadata.clone();
+                metadata.insert(key.clone(), value);
+                onchange.emit(metadata);
+            })
+        }
     };
 
-    // css
-    let mut class = props.class.clone();
-    class.push("metadata");
+    let name_filter = props.value.clone().into_keys().collect::<HashSet<String>>();
+    let class = classes!("thot-ui-metadata-editor", props.class.clone());
 
     html! {
         <div {class}>
-            <button onclick={add_metadatum}>{ "+" }</button>
+            <div class={classes!("add-metadatum-controls")}>
+                if *add_metadatum_visible {
+                    <MetadatumBuilder
+                        {name_filter}
+                        onsave={add_metadatum}
+                        oncancel={oncancel_add_metadatum} />
+                } else {
+                    <button onclick={show_add_metadatum}>{ "+" }</button>
+                }
+            </div>
+            <ol class={classes!("metadata-editor")}>
+                { props.value.clone().into_iter().map(|(name, value)| html! {
+                    <li key={name.clone()}>
+                        <MetadatumEditor
+                            name={name.clone()}
+                            {value}
+                            onchange={onchange(name.clone())}/>
 
-            { editor_state.fields.iter().enumerate()
-                .map(|(index, (name, value))| {
-                    let active = editor_state.init_active_editors.contains(&index);
-
-                    html! {
-                        <div key={index} class={classes!("metadatum-controller")}>
-                            <MetadatumEditor
-                                name={name.clone()}
-                                value={value.clone()}
-                                {active}
-                                onchange={on_change(index)} />
-
-                            <button
-                                onclick={remove_metadatum.clone()}
-                                data-index={index.to_string()}>{
-                                "X"
-                            }</button>
-                        </div>
-                    }
-                }).collect::<Html>()
-            }
+                        <button onclick={remove_metadatum(name)}>{ "X" }</button>
+                    </li>
+                }).collect::<Html>() }
+            </ol>
         </div>
     }
-}
-
-// ************************
-// *** helper functions ***
-// ************************
-
-/// Calculates the [`Metadata`] value from a collection of [`MetadatumField`]s.
-fn fields_to_metadata(fields: Vec<Metadatum>) -> Metadata {
-    fields
-        .into_iter()
-        .filter_map(|(k, v)| {
-            // filter any data with empty keys
-            let Some(k) = k else {
-                return None;
-            };
-
-            let k = k.trim().to_string();
-            if k.is_empty() {
-                return None;
-            }
-
-            return Some((k, v));
-        })
-        .collect::<Metadata>()
 }
 
 #[cfg(test)]

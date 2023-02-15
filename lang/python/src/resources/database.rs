@@ -137,7 +137,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let containers = self
             .db
-            .send(ContainerCommand::FindWithAllMetadata(self.root_id.clone(), filter).into());
+            .send(ContainerCommand::FindWithinTree(self.root_id.clone(), filter).into());
 
         let containers: HashSet<CoreContainer> = serde_json::from_value(containers)
             .expect("could not convert result of `Find` to `HashSet<Container>`");
@@ -156,7 +156,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let assets = self
             .db
-            .send(AssetCommand::FindWithAllMetadata(self.root_id.clone(), filter).into());
+            .send(AssetCommand::FindWithinTree(self.root_id.clone(), filter).into());
 
         let assets: HashSet<CoreAsset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");

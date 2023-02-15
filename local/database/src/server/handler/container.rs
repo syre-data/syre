@@ -52,8 +52,8 @@ impl Database {
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
-            ContainerCommand::FindWithAllMetadata(root, filter) => {
-                let containers = self.find_containers_with_all_metadata(&root, filter);
+            ContainerCommand::FindWithinTree(root, filter) => {
+                let containers = self.find_containers_within_tree(&root, filter);
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
@@ -156,12 +156,12 @@ impl Database {
     /// # Arguments
     /// 1. Root `Container`.
     /// 2. Search filter.
-    fn find_containers_with_all_metadata(
+    fn find_containers_within_tree(
         &self,
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        let containers = self.store.find_containers_with_all_metadata(&root, filter);
+        let containers = self.store.find_containers_within_tree(&root, filter);
         let containers = containers
             .values()
             .map(|container| {

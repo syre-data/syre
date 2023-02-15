@@ -9,6 +9,7 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{
     Asset as CoreAsset, Container as CoreContainer, Metadata, Script as CoreScript,
 };
+use thot_core::types::ResourcePath;
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
@@ -221,15 +222,15 @@ impl Datastore {
         found
     }
 
-    pub fn find_containers_with_all_metadata(
+    pub fn find_containers_within_tree(
         &self,
         root: &ResourceId,
         filter: StdFilter,
     ) -> ContainerMap {
-        self.find_containers_with_all_metadata_recursive(&root, filter, Metadata::default())
+        self.find_containers_within_tree_recursive(&root, filter, Metadata::default())
     }
 
-    fn find_containers_with_all_metadata_recursive(
+    fn find_containers_within_tree_recursive(
         &self,
         root: &ResourceId,
         filter: StdFilter,
@@ -247,11 +248,8 @@ impl Datastore {
         }
 
         for cid in root_val.children.keys() {
-            let matches = self.find_containers_with_all_metadata_recursive(
-                &cid,
-                filter.clone(),
-                metadata.clone(),
-            );
+            let matches =
+                self.find_containers_within_tree_recursive(&cid, filter.clone(), metadata.clone());
             for (mid, m) in matches.clone().into_iter() {
                 found.insert(mid, m);
             }
@@ -344,15 +342,15 @@ impl Datastore {
         found
     }
 
-    pub fn find_assets_with_all_metadata(
+    pub fn find_assets_within_tree(
         &self,
         root: &ResourceId,
         filter: StdFilter,
     ) -> HashSet<CoreAsset> {
-        self.find_assets_with_all_metadata_recursive(&root, filter, Metadata::default())
+        self.find_assets_within_tree_recursive(&root, filter, Metadata::default())
     }
 
-    fn find_assets_with_all_metadata_recursive(
+    fn find_assets_within_tree_recursive(
         &self,
         root: &ResourceId,
         filter: StdFilter,
@@ -370,11 +368,8 @@ impl Datastore {
         }
 
         for cid in root_val.children.keys() {
-            let matches = self.find_assets_with_all_metadata_recursive(
-                &cid,
-                filter.clone(),
-                metadata.clone(),
-            );
+            let matches =
+                self.find_assets_within_tree_recursive(&cid, filter.clone(), metadata.clone());
 
             for asset in matches.into_iter() {
                 found.insert(asset);
@@ -390,6 +385,12 @@ impl Datastore {
 
             asset.properties.metadata = metadata;
             if filter.matches(&asset) {
+                let mut abs_path = root_val.base_path().expect("`Container` path not set");
+                abs_path.push(asset.path.clone().as_path());
+                let abs_path = ResourcePath::new(abs_path)
+                    .expect("could not convert `Asset` path to `ResourcePath`");
+
+                asset.path = abs_path;
                 found.insert(asset);
             }
         }

@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Script as CoreScript};
+use thot_core::project::{
+    Asset as CoreAsset, Container as CoreContainer, Metadata, Script as CoreScript,
+};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
@@ -219,6 +221,51 @@ impl Datastore {
         found
     }
 
+    pub fn find_containers_with_all_metadata(
+        &self,
+        root: &ResourceId,
+        filter: StdFilter,
+    ) -> ContainerMap {
+        self.find_containers_with_all_metadata_recursive(&root, filter, Metadata::default())
+    }
+
+    fn find_containers_with_all_metadata_recursive(
+        &self,
+        root: &ResourceId,
+        filter: StdFilter,
+        metadata: Metadata,
+    ) -> ContainerMap {
+        let mut found = HashMap::new();
+        let Some(root) = self.containers.get(root) else {
+            return found;
+        };
+
+        let mut metadata = metadata.clone();
+        let root_val = root.lock().expect("could not lock `Container`");
+        for (key, value) in root_val.properties.metadata.clone().into_iter() {
+            metadata.insert(key, value);
+        }
+
+        for cid in root_val.children.keys() {
+            let matches = self.find_containers_with_all_metadata_recursive(
+                &cid,
+                filter.clone(),
+                metadata.clone(),
+            );
+            for (mid, m) in matches.clone().into_iter() {
+                found.insert(mid, m);
+            }
+        }
+
+        let mut root_val: CoreContainer = root_val.clone().into();
+        root_val.properties.metadata = metadata;
+        if filter.matches(&root_val) {
+            found.insert(root_val.rid, root.clone());
+        }
+
+        found
+    }
+
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
     }
@@ -291,6 +338,59 @@ impl Datastore {
         for asset in root_val.assets.values() {
             if filter.matches(asset) {
                 found.insert(asset.clone());
+            }
+        }
+
+        found
+    }
+
+    pub fn find_assets_with_all_metadata(
+        &self,
+        root: &ResourceId,
+        filter: StdFilter,
+    ) -> HashSet<CoreAsset> {
+        self.find_assets_with_all_metadata_recursive(&root, filter, Metadata::default())
+    }
+
+    fn find_assets_with_all_metadata_recursive(
+        &self,
+        root: &ResourceId,
+        filter: StdFilter,
+        metadata: Metadata,
+    ) -> HashSet<CoreAsset> {
+        let mut found = HashSet::new();
+        let Some(root) = self.containers.get(root) else {
+            return found;
+        };
+
+        let mut metadata = metadata.clone();
+        let root_val = root.lock().expect("could not lock `Container`");
+        for (key, value) in root_val.properties.metadata.clone().into_iter() {
+            metadata.insert(key, value);
+        }
+
+        for cid in root_val.children.keys() {
+            let matches = self.find_assets_with_all_metadata_recursive(
+                &cid,
+                filter.clone(),
+                metadata.clone(),
+            );
+
+            for asset in matches.into_iter() {
+                found.insert(asset);
+            }
+        }
+
+        for asset in root_val.assets.values() {
+            let mut asset = asset.clone();
+            let mut metadata = metadata.clone();
+            for (key, value) in asset.properties.metadata.clone().into_iter() {
+                metadata.insert(key, value);
+            }
+
+            asset.properties.metadata = metadata;
+            if filter.matches(&asset) {
+                found.insert(asset);
             }
         }
 

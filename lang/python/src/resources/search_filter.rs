@@ -2,6 +2,8 @@
 use crate::types::DictMap;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use pythonize::depythonize;
 use std::collections::HashSet;
 use std::str::FromStr;
 use thot_core::db::StandardSearchFilter as StdFilter;
@@ -37,12 +39,8 @@ fn convert_dict_map_to_search_filter(py: Python<'_>, map: DictMap) -> PyResult<S
                 let name = if v.is_none(py) {
                     None
                 } else {
-                    let name = v.extract::<String>(py);
-                    if name.is_err() {
-                        return Err(PyTypeError::new_err("Invalid value for `name`"));
-                    }
-
-                    Some(name.unwrap())
+                    let name = v.extract::<String>(py)?;
+                    Some(name)
                 };
 
                 filter.name = Some(name);
@@ -51,33 +49,19 @@ fn convert_dict_map_to_search_filter(py: Python<'_>, map: DictMap) -> PyResult<S
                 let kind = if v.is_none(py) {
                     None
                 } else {
-                    let kind = v.extract::<String>(py);
-                    if kind.is_err() {
-                        return Err(PyTypeError::new_err("Invalid value for `kind`"));
-                    }
-
-                    Some(kind.unwrap())
+                    let kind = v.extract::<String>(py)?;
+                    Some(kind)
                 };
 
                 filter.kind = Some(kind);
             }
             "tags" => {
-                let tags = v.extract::<HashSet<String>>(py);
-                if tags.is_err() {
-                    return Err(PyTypeError::new_err("Invalid value for `tags`"));
-                }
-
-                let tags = tags.unwrap();
+                let tags = v.extract::<HashSet<String>>(py)?;
                 filter.tags = Some(tags);
             }
             "metadata" => {
-                // let md = v.extract::<Metadata>(py);
-                // if !md.is_err() {
-                //     return Err(PyTypeError::new_err("Invalid value for `metadata`"));
-                // }
-
-                // let md = md.unwrap();
-                // filter.metadata = Some(md);
+                let md = depythonize(v.as_ref(py))?;
+                filter.metadata = Some(md);
             }
             _ => {
                 return Err(PyValueError::new_err(format!("Invalid search key `{}`", k)));

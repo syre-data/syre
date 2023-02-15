@@ -26,6 +26,14 @@ pub enum ContainerCommand {
     /// 2. Search filter.
     Find(ResourceId, StandardSearchFilter),
 
+    /// Retrieves [`Container`](CoreContainer)s based on a filter.
+    /// Metadata from lineage is compiled.
+    ///
+    /// # Fields
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    FindWithAllMetadata(ResourceId, StandardSearchFilter),
+
     /// Updates a [`Container`](CoreContainer)'s properties.
     UpdateProperties(UpdatePropertiesArgs),
 

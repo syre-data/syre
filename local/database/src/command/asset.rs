@@ -34,6 +34,14 @@ pub enum AssetCommand {
     /// 1. Root `Container`.
     /// 2. Search filter.
     Find(ResourceId, StandardSearchFilter),
+
+    /// Retrieves [`Asset`](CoreAsset)s based on a filter.
+    /// Metadata from lineage is compiled.
+    ///
+    /// # Fields
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    FindWithAllMetadata(ResourceId, StandardSearchFilter),
 }
 
 #[cfg(test)]

@@ -52,6 +52,11 @@ impl Database {
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
+            ContainerCommand::FindWithAllMetadata(root, filter) => {
+                let containers = self.find_containers_with_all_metadata(&root, filter);
+                serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
+            }
+
             ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }) => {
                 let res = self.update_container_properties(rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
@@ -137,6 +142,26 @@ impl Database {
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
         let containers = self.store.find_containers(&root, filter);
+        let containers = containers
+            .values()
+            .map(|container| {
+                let container = container.lock().expect("could not lock `Container`");
+                container.clone().into()
+            })
+            .collect();
+
+        containers
+    }
+
+    /// # Arguments
+    /// 1. Root `Container`.
+    /// 2. Search filter.
+    fn find_containers_with_all_metadata(
+        &self,
+        root: &ResourceId,
+        filter: StandardSearchFilter,
+    ) -> HashSet<CoreContainer> {
+        let containers = self.store.find_containers_with_all_metadata(&root, filter);
         let containers = containers
             .values()
             .map(|container| {

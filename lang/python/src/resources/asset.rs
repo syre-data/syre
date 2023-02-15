@@ -62,15 +62,13 @@ impl Asset {
             Some(py_md) => {
                 let mut md = HashMap::new();
                 for (k, v) in py_md {
-                    let val = depythonize(v.as_ref(py));
-                    if val.is_err() {
+                    let Ok(val) = depythonize(v.as_ref(py)) else {
                         return Err(PyValueError::new_err(format!(
                             "Could not convert value for key `{}`: {:?}",
-                            k, val
+                            k, v
                         )));
-                    }
+                    };
 
-                    let val = val.unwrap();
                     md.insert(k, val);
                 }
 

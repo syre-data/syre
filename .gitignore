@@ -8,6 +8,9 @@
 target
 .DS_Store
 
+# github
+.github/act/secrets
+
 # --- IDE ---
 # PyCharm
 .idea/

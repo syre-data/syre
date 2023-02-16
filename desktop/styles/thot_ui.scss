@@ -1,5 +1,11 @@
 @use 'themes' as t;
 
+.thot-ui-shadow-box {
+  z-index: 100;
+  background-color: rgba(0, 0, 0, 1);
+  border-radius: t.$border-radius-m;
+}
+
 .thot-ui-messages {
   position: absolute;
   bottom:0;
@@ -23,3 +29,17 @@
     }
   }
 }
+
+.thot-ui-standard-properties-editor {
+  .form-field {
+    margin-bottom: t.$margin-l;
+  }
+
+  .thot-ui-metadata-editor {
+    .metadata-editor {
+      list-style: none;
+      padding: 0;
+    }
+  }
+}
+

@@ -32,10 +32,15 @@
     }
 
     .project-canvas-details-bar {
-      padding: 5px;
+      padding: t.$padding-m t.$padding-l;
 
       &.hidden {
         display: none;
+      }
+
+      label input,
+      label textarea {
+        display: block;
       }
     }
   }

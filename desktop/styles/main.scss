@@ -152,12 +152,6 @@ input {
     background-color: t.$background-accent-color;
 }
 
-.thot-ui-shadow-box {
-  z-index: 100;
-  background-color: rgba(0, 0, 0, 1);
-  border-radius: t.$border-radius-m;
-}
-
 @media (prefers-color-scheme: dark) {
   select {
     appearance: none;

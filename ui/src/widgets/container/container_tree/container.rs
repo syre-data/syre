@@ -1,12 +1,11 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
-use crate::components::form::{InlineInput, InlineTextarea};
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
-use crate::widgets::TagsEditor;
+use crate::widgets::Tags;
 use thot_core::project::container::{AssetMap, ScriptMap};
-use thot_core::project::{Asset as CoreAsset, Metadata, StandardProperties};
+use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
@@ -27,28 +26,22 @@ pub enum ContainerSettingsMenuEvent {
 /// Properties for [`ContainerSettingsMenu`].
 #[derive(PartialEq, Properties)]
 struct ContainerSettingsMenuProps {
-    /// [`ResourceId`] of the associated [`Container`](thot_core::project::Container).
-    pub rid: ResourceId,
-
     /// Callback when a menu item is clicked.
-    pub onclick: Option<Callback<(ResourceId, ContainerSettingsMenuEvent)>>,
+    pub onclick: Callback<ContainerSettingsMenuEvent>,
 }
 
 /// Container settings menu.
 #[function_component(ContainerSettingsMenu)]
 fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
     let onclick = {
-        let rid = props.rid.clone();
         let onclick = props.onclick.clone();
 
         move |event: ContainerSettingsMenuEvent| {
-            let rid = rid.clone();
             let onclick = onclick.clone();
 
-            Callback::from(move |_: MouseEvent| {
-                if let Some(onclick) = onclick.clone() {
-                    onclick.emit((rid.clone(), event.clone()));
-                }
+            Callback::from(move |e: MouseEvent| {
+                e.stop_propagation();
+                onclick.emit(event.clone());
             })
         }
     };
@@ -90,26 +83,6 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub ondblclick: Callback<()>,
 
-    /// Callback to run when the `name` is changed.
-    #[prop_or_default]
-    pub onchange_name: Option<Callback<String>>,
-
-    /// Callback to run when the `kind` is changed.
-    #[prop_or_default]
-    pub onchange_kind: Option<Callback<String>>,
-
-    /// Callback to run when the `description` is changed.
-    #[prop_or_default]
-    pub onchange_description: Option<Callback<String>>,
-
-    /// Callback to run when the `tags` are changed.
-    #[prop_or_default]
-    pub onchange_tags: Option<Callback<Vec<String>>>,
-
-    /// Callback to run when `metadata` changes.
-    #[prop_or_default]
-    pub onchange_metadata: Option<Callback<Metadata>>,
-
     /// Callback to run when an Asset is cilcked.
     #[prop_or_default]
     pub onclick_asset: Option<Callback<ResourceId>>,
@@ -134,7 +107,7 @@ pub struct ContainerProps {
     ///     the event was called on.
     /// 2. [`SettingsMenuEvent`] indicating which action was requested.
     #[prop_or_default]
-    pub on_settings_event: Option<Callback<(ResourceId, ContainerSettingsMenuEvent)>>,
+    pub on_settings_event: Option<Callback<ContainerSettingsMenuEvent>>,
 
     /// Callback when container properties edit button is clicked.
     #[prop_or_default]
@@ -163,10 +136,6 @@ pub fn container(props: &ContainerProps) -> Html {
         .iter()
         .map(|(_rid, asset): (&ResourceId, &CoreAsset)| asset.clone())
         .collect::<Vec<CoreAsset>>();
-
-    let stop_propagation = Callback::from(|e: MouseEvent| {
-        e.stop_propagation();
-    });
 
     let prevent_drag_default = Callback::from(|e: web_sys::DragEvent| {
         e.prevent_default();
@@ -249,12 +218,10 @@ pub fn container(props: &ContainerProps) -> Html {
     let on_settings_event = props.on_settings_event.clone().map(|on_settings_event| {
         let show_settings_menu = show_settings_menu.clone();
 
-        Callback::from(
-            move |(rid, event): (ResourceId, ContainerSettingsMenuEvent)| {
-                show_settings_menu.set(false); // close settigns menu
-                on_settings_event.emit((rid, event)); // trigger callback
-            },
-        )
+        Callback::from(move |event: ContainerSettingsMenuEvent| {
+            show_settings_menu.set(false); // close settigns menu
+            on_settings_event.emit(event); // trigger callback
+        })
     });
 
     let class = classes!("container-node", props.class.clone());
@@ -274,58 +241,41 @@ pub fn container(props: &ContainerProps) -> Html {
                         onclick={onclick_settings}>{ "\u{22ee}" }</button>
 
                     if *show_settings_menu {
-                        <ContainerSettingsMenu
-                            rid={props.rid.clone()}
-                            onclick={on_settings_event} />
+                        <ContainerSettingsMenu onclick={on_settings_event} />
                     }
                 </div>
             }
 
-            <div
-                class={classes!("container-name")}
-                ondblclick={stop_propagation.clone()}>
-
-                <InlineInput<String>
-                    placeholder={"Name"}
-                    value={props.properties.name.clone()}
-                    onchange={&props.onchange_name}>
-
+            <div class={classes!("container-name")}>
+                if let Some(name) = props.properties.name.as_ref() {
+                    { &name }
+                } else {
                     { "(no name)" }
-                </InlineInput<String>>
+                }
             </div>
 
-            <div
-                class={classes!("container-preview")}
-                ondblclick={stop_propagation.clone()}>
-
+            <div class={classes!("container-preview")}>
                 { match props.preview {
                     ContainerPreview::None => { html! { <></> } },
                     ContainerPreview::Type => { html! {
-                        <InlineInput<String>
-                            placeholder={"Type"}
-                            value={props.properties.kind.clone()}
-                            onchange={&props.onchange_kind}>
-
+                        if let Some(kind) = props.properties.kind.as_ref() {
+                            { &kind }
+                        } else {
                             { "(no type)" }
-                        </InlineInput<String>>
+                        }
                     }},
                     ContainerPreview::Description => { html! {
-                        <InlineTextarea placeholder={"Description"}
-                            value={props.properties.description.clone()}
-                            onchange={&props.onchange_description}>
-
+                        if let Some(description) = props.properties.description.as_ref() {
+                            { &description }
+                        } else {
                             { "(no description)" }
-                        </InlineTextarea>
+                        }
                     }},
                     ContainerPreview::Tags => { html! {
-                        <TagsEditor value={props.properties.tags.clone()}
-                            onchange={&props.onchange_tags}>
-                        </TagsEditor>
+                        <Tags value={props.properties.tags.clone()} />
                     }},
                     ContainerPreview::Metadata => { html! {
-                        <MetadataPreview value={props.properties.metadata.clone()}
-                            onchange={&props.onchange_metadata}>
-                        </MetadataPreview>
+                        <MetadataPreview value={props.properties.metadata.clone()} />
                     }},
                     ContainerPreview::Assets => { html! {
                         <AssetsPreview

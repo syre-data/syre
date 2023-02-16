@@ -1,5 +1,5 @@
 //! Properties editor for [`Contaier`](thot_core::project::Container)s.
-use super::MetadataEditor;
+use super::{MetadataEditor, TagsEditor};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use thot_core::project::{Metadata, StandardProperties};
@@ -101,7 +101,6 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
-    let tags_ref = use_node_ref();
 
     let onchange_name = {
         let properties_state = properties_state.clone();
@@ -151,31 +150,10 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
         })
     };
 
-    let tags_val = properties_state.tags.join(", ");
     let onchange_tags = {
         let properties_state = properties_state.clone();
-        let elm = tags_ref.clone();
 
-        Callback::from(move |_: Event| {
-            // update state
-            let elm = elm
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not cast `NodeRef` into element");
-
-            let value = elm
-                .value()
-                .split(",")
-                .into_iter()
-                .filter_map(|t| {
-                    let t = t.trim().to_string();
-                    if t.is_empty() {
-                        None
-                    } else {
-                        Some(t)
-                    }
-                })
-                .collect::<Vec<String>>();
-
+        Callback::from(move |value: Vec<String>| {
             properties_state.dispatch(StandardPropertiesStateAction::SetTags(value));
         })
     };
@@ -201,8 +179,8 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
     }
 
     html! {
-        <form>
-            <div>
+        <form class={classes!("thot-ui-standard-properties-editor")}>
+            <div class={classes!("form-field", "name")}>
                 <label>
                     { "Name" }
                     <input
@@ -213,7 +191,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 </label>
             </div>
 
-            <div>
+            <div class={classes!("form-field", "kind")}>
                 <label>
                     { "Type" }
                     <input
@@ -224,26 +202,26 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 </label>
             </div>
 
-            <div>
-                <label for={"container-properties-editor-description"}>{ "Description" }</label>
-                <textarea
-                    ref={description_ref}
-                    placeholder={"(no description)"}
-                    value={properties_state.description.clone()}
-                    onchange={onchange_description}></textarea>
+            <div class={classes!("form-field", "description")}>
+                <label>{ "Description" }
+                    <textarea
+                        ref={description_ref}
+                        placeholder={"(no description)"}
+                        value={properties_state.description.clone()}
+                        onchange={onchange_description}></textarea>
+                </label>
             </div>
-            <div>
+
+            <div class={classes!("form-field", "tags")}>
                 <label>
                     { "Tags" }
-                    <input
-                        ref={tags_ref}
-                        placeholder={"(no tags)"}
-                        value={tags_val}
+                    <TagsEditor
+                        value={properties_state.tags.clone()}
                         onchange={onchange_tags} />
                 </label>
             </div>
 
-            <div>
+            <div class={classes!("form-field", "metadata")}>
                 <h4>{ "Metadata" }</h4>
                 <MetadataEditor
                     value={properties_state.metadata.clone()}

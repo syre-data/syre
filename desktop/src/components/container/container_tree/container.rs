@@ -1,14 +1,18 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
+use std::path::PathBuf;
+
+use crate::app::ProjectsStateReducer;
 use crate::commands::common::UpdatePropertiesArgs;
+use crate::commands::script;
 use crate::common::invoke;
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
 use crate::components::details_bar::DetailsBarWidget;
 use crate::hooks::use_container;
-use thot_core::project::Asset as CoreAsset;
-use thot_core::types::ResourceId;
+use thot_core::project::{Asset as CoreAsset, Project};
+use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::components::ShadowBox;
 use thot_ui::widgets::container::container_tree::{
     container::ContainerProps as ContainerUiProps, container::ContainerSettingsMenuEvent,
@@ -42,6 +46,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- setup ---
     // -------------
 
+    let projects_state =
+        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
@@ -60,6 +67,22 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let selected = canvas_state.selected.contains(&container_id);
+
+    let script_names = projects_state
+        .project_scripts
+        .get(&canvas_state.project)
+        .expect("project's state not found")
+        .iter()
+        .map(|(rid, script)| {
+            let name = script.name.clone().unwrap_or(
+                Into::<PathBuf>::into(script.path.clone())
+                    .to_str()
+                    .expect("could not convert path to string.")
+                    .to_string(),
+            );
+            (rid.clone(), name)
+        })
+        .collect::<ResourceMap<String>>();
 
     // -------------------
     // --- interaction ---
@@ -220,6 +243,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 properties: c.properties,
                 assets: c.assets,
                 scripts: c.scripts,
+                script_names,
                 preview: tree_state.preview.clone(),
                 onclick,
                 ondblclick_asset,

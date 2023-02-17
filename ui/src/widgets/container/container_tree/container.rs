@@ -6,7 +6,7 @@ use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use thot_core::project::container::{AssetMap, ScriptMap};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 
 // *********************
@@ -68,6 +68,7 @@ pub struct ContainerProps {
     pub properties: StandardProperties,
     pub assets: AssetMap,
     pub scripts: ScriptMap,
+    pub script_names: ResourceMap<String>,
 
     #[prop_or_default]
     pub class: Classes,
@@ -285,7 +286,9 @@ pub fn container(props: &ContainerProps) -> Html {
                     }},
                     ContainerPreview::Scripts => { html! {
                         <ScriptAssociationsPreview
-                            scripts={props.scripts.clone()} />
+                            scripts={props.scripts.clone()}
+                            names={props.script_names.clone()}
+                        />
                     }},
                 }}
             </div>

@@ -44,7 +44,7 @@ pub enum ProjectsStateAction {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-/// Maintines the state of application [`Projects`].
+/// Maintains the state of application [`Projects`].
 pub struct ProjectsState {
     /// All user [`Projects`].
     pub projects: ProjectMap,

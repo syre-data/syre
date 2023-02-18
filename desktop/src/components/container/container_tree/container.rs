@@ -23,6 +23,9 @@ use yew::props;
 pub struct ContainerProps {
     pub rid: ResourceId,
 
+    #[prop_or_default]
+    pub r#ref: NodeRef,
+
     /// Callback to run when the add child button is clicked.
     #[prop_or_default]
     pub onadd_child: Option<Callback<ResourceId>>,
@@ -251,6 +254,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         props! {
             ContainerUiProps {
+                r#ref: props.r#ref.clone(),
                 class,
                 rid: c.rid,
                 properties: c.properties,

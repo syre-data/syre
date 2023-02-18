@@ -101,11 +101,9 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                         .expect("could not create `tauri://file-drop` listener");
 
                     while let Some(event) = events.next().await {
-                        web_sys::console::debug_1(&format!("{:#?}", &event).into());
-
                         // get active container id
                         let node = node_ref
-                            .cast::<web_sys::HtmlDivElement>()
+                            .cast::<web_sys::Element>()
                             .expect("could not cast node to div");
 
                         let active_nodes = node
@@ -256,7 +254,9 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
     let container_tree_fallback = html! { <Loading text={"Loading container tree"} /> };
 
     html! {
-        <div ref={node_ref} class={classes!("container-tree-controller")}>
+        <div ref={node_ref}
+            class={classes!("container-tree-controller")}>
+
             if root.is_some() {
                 <div class={classes!("container-tree-controls")}>
                     <ContainerPreviewSelect onchange={set_preview} />

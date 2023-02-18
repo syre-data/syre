@@ -49,4 +49,5 @@ features = [
     "HtmlInputElement",
     "InputEvent",
     "SubmitEvent",
+    "SvgPolylineElement",
 ]

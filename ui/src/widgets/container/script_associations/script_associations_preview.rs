@@ -15,17 +15,17 @@ struct ScriptAssociationPreviewProps {
 #[function_component(ScriptAssociationPreview)]
 fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
     // @todo: Add `RunParameters` functionality.
+    let mut class = classes!("thot-ui-script-association-preview");
+    if props.run_parameters.autorun {
+        class.push("autorun-true");
+    } else {
+        class.push("autorun-false");
+    }
+
     html! {
-        <div class={classes!("thot-ui-script-association-preview")}>
+        <div {class}>
             <span class={classes!("script-name")}>{ &props.name }</span>
             <span class={classes!("script-priority")}>{ props.run_parameters.priority }</span>
-            <span class={classes!("script-autorun")}>
-                if props.run_parameters.autorun {
-                    { "\u{2605}" }
-                } else {
-                    { "\u{2606}" }
-                }
-            </span>
         </div>
     }
 }

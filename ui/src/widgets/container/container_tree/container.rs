@@ -72,6 +72,9 @@ pub struct ContainerProps {
     pub script_names: ResourceMap<String>,
 
     #[prop_or_default]
+    pub r#ref: NodeRef,
+
+    #[prop_or_default]
     pub class: Classes,
 
     #[prop_or(ContainerPreview::None)]
@@ -237,7 +240,8 @@ pub fn container(props: &ContainerProps) -> Html {
     }
 
     html! {
-        <div {class}
+        <div ref={props.r#ref.clone()}
+            {class}
             onclick={props.onclick.clone()}
             ondblclick={props.ondblclick.clone()}
             {ondragenter}

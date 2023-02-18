@@ -11,6 +11,7 @@ use thot_core::project::Container as CoreContainer;
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_ui::components::ShadowBox;
 use thot_ui::widgets::suspense::Loading;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -97,6 +98,9 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
     let show_add_child_form = use_state(|| false);
     let new_child_parent = use_state(|| None);
+    let root_ref = use_node_ref();
+    let children_ref = use_node_ref();
+    let connectors_ref = use_node_ref();
 
     // -----------------
     // --- add child ---
@@ -177,16 +181,95 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     // --- ui ---
     // ----------
 
+    // add connectors
+    {
+        let root_ref = root_ref.clone();
+        let children_ref = children_ref.clone();
+        let connectors_ref = connectors_ref.clone();
+
+        use_effect(move || {
+            let window = web_sys::window().expect("could not get window");
+            let document = window.document().expect("window should have a document");
+
+            let root_elm = root_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast root node to element");
+
+            let children_elm = children_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could cast children node to element");
+
+            let connectors_elm = connectors_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast connectors node to element");
+
+            let children = children_elm
+                .query_selector_all(":scope > .container-tree")
+                .expect("could not query children");
+
+            for index in 0..children.length() {
+                let Some(child_elm) = children.get(index) else {
+                    continue;
+                };
+
+                let child_elm = child_elm
+                    .dyn_ref::<web_sys::HtmlElement>()
+                    .expect("could not cast child node to element");
+
+                let child_node_elm = child_elm
+                    .query_selector(":scope > .container-node")
+                    .expect("could not get child node")
+                    .expect("child node not found");
+
+                let child_node_elm = child_node_elm
+                    .dyn_ref::<web_sys::HtmlElement>()
+                    .expect("could not cast child node to element");
+
+                let root_bottom = root_elm.offset_top() + root_elm.client_height();
+                let root_center = root_elm.offset_left() + root_elm.client_width() / 2;
+
+                let child_top = child_elm.offset_top() + child_node_elm.offset_top();
+                let child_center = child_elm.offset_left()
+                    + child_node_elm.offset_left()
+                    + child_node_elm.client_width() / 2;
+
+                let gap = (root_bottom + child_top) / 2;
+                let points_list = format!("{root_center},{root_bottom} {root_center},{gap} {child_center},{gap} {child_center},{child_top}");
+
+                let connector = document
+                    .create_element_ns(Some("http://www.w3.org/2000/svg"), "polyline")
+                    .expect("could not create polyline");
+
+                let connector = connector
+                    .dyn_ref::<web_sys::SvgPolylineElement>()
+                    .expect("could not cast element as polyline");
+
+                connector
+                    .set_attribute("points", &points_list)
+                    .expect("could not set `points` on connector");
+
+                connector
+                    .set_attribute("class", "container-tree-node-connector")
+                    .expect("could not set `class` on connector");
+
+                connectors_elm
+                    .append_child(connector)
+                    .expect("could not add connector to document");
+            }
+        });
+    }
+
     let container_fallback = html! { <Loading text={"Loading container"} /> };
 
     Ok(html! {
         <div class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>
                 <Container
+                    r#ref={root_ref}
                     rid={props.root.clone()}
                     {onadd_child} />
 
-                <div class={classes!("children")}>
+                <div ref={children_ref} class={classes!("children")}>
                     { container
                         .lock()
                         .expect("could not lock container")
@@ -198,6 +281,8 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                         .collect::<Html>()
                     }
                 </div>
+                <svg ref={connectors_ref} class="container-tree-node-connectors">
+                </svg>
             </Suspense>
 
             if *show_add_child_form {

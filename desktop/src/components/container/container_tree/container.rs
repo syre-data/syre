@@ -1,31 +1,21 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
-use crate::commands::common::UpdatePropertiesArgs;
-use crate::common::invoke;
+use crate::app::{AppStateAction, AppStateReducer};
 use crate::components::asset::CreateAssets;
-use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
-use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
+use crate::components::canvas::{
+    CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
+};
 use crate::components::details_bar::DetailsBarWidget;
 use crate::hooks::use_container;
-use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
 use thot_ui::components::ShadowBox;
+use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
     container::ContainerProps as ContainerUiProps, container::ContainerSettingsMenuEvent,
     Container as ContainerUi,
 };
-use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
-
-// *****************
-// *** Container ***
-// *****************
-
-// @remove
-// ContainerSettingsMenuEvent::Edit => canvas_state.dispatch(
-//     CanvasStateAction::SetDetailsBarWidget(DetailsBarWidget::ContainerEditor(rid)),
-// ),
 
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
@@ -41,7 +31,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------
     // --- setup ---
     // -------------
-
+    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
@@ -60,6 +50,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let selected = canvas_state.selected.contains(&container_id);
+    let multiple_selected = canvas_state.selected.len() > 1;
 
     // -------------------
     // --- interaction ---
@@ -69,16 +60,25 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let canvas_state = canvas_state.clone();
         let container_id = container_id.clone();
         let selected = selected.clone();
+        let multiple_selected = multiple_selected.clone();
 
-        Callback::from(move |_| {
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
             let container_id = container_id.clone();
-            let action = if selected {
-                CanvasStateAction::Unselect(container_id)
-            } else {
-                CanvasStateAction::Select(container_id)
-            };
+            match selection_action(selected, multiple_selected, e) {
+                SelectionAction::SelectOnly => {
+                    canvas_state.dispatch(CanvasStateAction::ClearSelected);
+                    canvas_state.dispatch(CanvasStateAction::SelectContainer(container_id));
+                }
 
-            canvas_state.dispatch(action);
+                SelectionAction::Select => {
+                    canvas_state.dispatch(CanvasStateAction::SelectContainer(container_id));
+                }
+
+                SelectionAction::Unselect => {
+                    canvas_state.dispatch(CanvasStateAction::Unselect(container_id));
+                }
+            }
         })
     };
 
@@ -107,11 +107,14 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- assets ---
     // --------------
 
-    let ondblclick_asset = {
+    let onclick_asset = {
+        // let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let tree_state = tree_state.clone();
+        let selected = selected.clone();
+        let multiple_selected = multiple_selected.clone();
 
-        Callback::from(move |asset: ResourceId| {
+        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
             let container = tree_state
                 .asset_map
                 .get(&asset)
@@ -127,34 +130,21 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 .expect("could not lock `Container`");
 
             let asset = container.assets.get(&asset).expect("`Asset` not found");
-            let onsave = {
-                let canvas_state = canvas_state.clone();
-                let tree_state = tree_state.clone();
+            let rid = asset.rid.clone();
+            match selection_action(selected, multiple_selected, e) {
+                SelectionAction::SelectOnly => {
+                    canvas_state.dispatch(CanvasStateAction::ClearSelected);
+                    canvas_state.dispatch(CanvasStateAction::SelectAsset(rid));
+                }
 
-                Callback::from(move |asset: CoreAsset| {
-                    let tree_state = tree_state.clone();
-                    let canvas_state = canvas_state.clone();
+                SelectionAction::Select => {
+                    canvas_state.dispatch(CanvasStateAction::SelectAsset(rid));
+                }
 
-                    spawn_local(async move {
-                        let res = invoke(
-                            "update_asset_properties",
-                            &UpdatePropertiesArgs {
-                                rid: asset.rid.clone(),
-                                properties: asset.properties.clone(),
-                            },
-                        )
-                        .await
-                        .expect("could not invoke `update_asset_properties`");
-
-                        tree_state.dispatch(ContainerTreeStateAction::UpdateAsset(asset));
-                        canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
-                    });
-                })
-            };
-
-            canvas_state.dispatch(CanvasStateAction::SetDetailsBarWidget(
-                DetailsBarWidget::AssetEditor(asset.clone(), onsave),
-            ));
+                SelectionAction::Unselect => {
+                    canvas_state.dispatch(CanvasStateAction::Unselect(rid));
+                }
+            }
         })
     };
 
@@ -171,14 +161,19 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // ---------------
 
     let onclick_edit_scripts = {
+        let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
 
         Callback::from(move |container: ResourceId| {
             let onsave = {
+                let app_state = app_state.clone();
                 let canvas_state = canvas_state.clone();
 
                 Callback::from(move |_: ()| {
                     canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
+                    app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                        "Resource saved".to_string(),
+                    )));
                 })
             };
 
@@ -192,10 +187,22 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
-    let ondrop = {
-        Callback::from(move |e: web_sys::DragEvent| {
-            e.prevent_default();
-            web_sys::console::log_1(&format!("{e:#?}").into()); // @remove
+    let ondragenter = {
+        let tree_state = tree_state.clone();
+        let container_id = container_id.clone();
+
+        Callback::from(move |_: web_sys::DragEvent| {
+            tree_state.dispatch(ContainerTreeStateAction::SetDragOverContainer(
+                container_id.clone(),
+            ));
+        })
+    };
+
+    let ondragleave = {
+        let tree_state = tree_state.clone();
+
+        Callback::from(move |_: web_sys::DragEvent| {
+            tree_state.dispatch(ContainerTreeStateAction::ClearDragOverContainer);
         })
     };
 
@@ -219,13 +226,15 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 rid: c.rid,
                 properties: c.properties,
                 assets: c.assets,
+                active_assets: canvas_state.selected.clone(),
                 scripts: c.scripts,
                 preview: tree_state.preview.clone(),
                 onclick,
-                ondblclick_asset,
+                onclick_asset,
                 onadd_child: props.onadd_child.clone(),
                 on_settings_event,
-                ondrop,
+                ondragenter,
+                ondragleave,
                 onclick_edit_scripts,
             }
         }
@@ -251,6 +260,42 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         }
         </>
     })
+}
+
+// ***************
+// *** helpers ***
+// ***************
+
+enum SelectionAction {
+    SelectOnly,
+    Select,
+    Unselect,
+}
+
+/// Determines the selection action from the current action and state.
+///
+/// # Arguments
+/// 1. If the clicked resource is currently selected.
+/// 2. If at least one other resource is currently selected.
+/// 3. The [`MouseEvent`].
+fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
+    if e.ctrl_key() {
+        if selected {
+            return SelectionAction::Unselect;
+        } else {
+            return SelectionAction::Select;
+        }
+    }
+
+    if selected {
+        if multiple {
+            return SelectionAction::SelectOnly;
+        }
+
+        return SelectionAction::Unselect;
+    }
+
+    SelectionAction::SelectOnly
 }
 
 #[cfg(test)]

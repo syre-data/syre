@@ -10,6 +10,7 @@ mod navigation;
 mod pages;
 mod routes;
 mod widgets;
+pub mod constants;
 
 use app::App;
 pub use error::Result;

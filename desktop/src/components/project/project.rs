@@ -1,9 +1,11 @@
 //! Project component with suspense.
 use super::set_data_root::SetDataRoot;
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::container::ContainerTreeController;
 use crate::hooks::use_project;
 use thot_core::types::ResourceId;
 use thot_ui::components::ShadowBox;
+use wasm_bindgen::JsCast;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -13,6 +15,9 @@ pub struct ProjectProps {
 
 #[function_component(Project)]
 pub fn project(props: &ProjectProps) -> HtmlResult {
+    let canvas_state =
+        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
+
     let project = use_project(&props.rid);
     let Some(project) = project.as_ref() else {
         panic!("`Project` not loaded");
@@ -31,6 +36,8 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
         }
     };
 
+    let project_ref = use_node_ref();
+
     let hide_select_data_root = {
         let select_data_root_visible = select_data_root_visible.clone();
 
@@ -39,9 +46,33 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
         })
     };
 
+    let clear_selection = {
+        let canvas_state = canvas_state.clone();
+        let project_ref = project_ref.clone();
+
+        Callback::from(move |e: MouseEvent| {
+            let project_elm = project_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast node to element");
+
+            let Some(target) = e.target() else {
+                return;
+            };
+
+            let target = target
+                .dyn_ref::<web_sys::HtmlElement>()
+                .expect("could not cast target to element");
+
+            canvas_state.dispatch(CanvasStateAction::ClearSelected);
+        })
+    };
+
     Ok(html! {
         <>
-        <div class={classes!("project")}>
+        <div ref={project_ref}
+            class={classes!("project")}
+            onclick={clear_selection} >
+
             <div class={classes!("header")}>
                 <h1 class={classes!("title", "inline-block")}>{
                     &project.name

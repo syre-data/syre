@@ -153,7 +153,7 @@ impl ScriptEnv {
 
         // cmd
         let cmd = match &language {
-            ScriptLang::Python => "python",
+            ScriptLang::Python => "python3",
             ScriptLang::R => "Rscript",
         };
         let cmd = cmd.to_string();

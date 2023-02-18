@@ -19,8 +19,6 @@ use ui::{handle_menu_event, handle_system_tray_event, main_menu, system_tray};
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
 fn main() {
-    pretty_env_logger::init();
-
     // check for database, create if needed
     let _db_handler = db::functions::verify_database();
 

@@ -2,8 +2,14 @@
 use crate::components::details_bar::DetailsBarWidget;
 use std::collections::HashSet;
 use std::rc::Rc;
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
+
+#[derive(PartialEq, Clone)]
+enum ResourceType {
+    Container,
+    Asset,
+}
 
 pub enum CanvasStateAction {
     /// Set the active widget in the details bar.
@@ -12,7 +18,8 @@ pub enum CanvasStateAction {
     /// Clear the details bar.
     ClearDetailsBar,
 
-    Select(ResourceId),
+    SelectContainer(ResourceId),
+    SelectAsset(ResourceId),
     Unselect(ResourceId),
     ClearSelected,
 }
@@ -23,6 +30,7 @@ pub struct CanvasState {
     pub project: ResourceId,
     pub details_bar_widget: Option<DetailsBarWidget>,
     pub selected: HashSet<ResourceId>,
+    resource_types: ResourceMap<ResourceType>,
     show_side_bars: UseStateHandle<bool>,
 }
 
@@ -31,7 +39,8 @@ impl CanvasState {
         Self {
             project,
             details_bar_widget: None,
-            selected: HashSet::new(),
+            selected: HashSet::default(),
+            resource_types: ResourceMap::default(),
             show_side_bars,
         }
     }
@@ -44,9 +53,16 @@ impl CanvasState {
                     return None;
                 };
 
-                Some(DetailsBarWidget::ContainerEditor(rid.clone()))
+                let kind = self
+                    .resource_types
+                    .get(&rid)
+                    .expect("could not find resource type");
+
+                match kind {
+                    ResourceType::Container => Some(DetailsBarWidget::ContainerEditor(rid.clone())),
+                    ResourceType::Asset => Some(DetailsBarWidget::AssetEditor(rid.clone())),
+                }
                 // @todo: Editors for other resources.
-                // DetailsBarWidget::AssetEditor(CoreAsset, Callback<CoreAsset>),
                 // DetailsBarWidget::ScriptsAssociationsEditor(ResourceId, Option<Callback<()>>),
             }
             _ => {
@@ -72,8 +88,15 @@ impl Reducible for CanvasState {
                 current.details_bar_widget = None;
             }
 
-            CanvasStateAction::Select(rid) => {
-                current.selected.insert(rid);
+            CanvasStateAction::SelectContainer(rid) => {
+                current.selected.insert(rid.clone());
+                current.resource_types.insert(rid, ResourceType::Container);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::SelectAsset(rid) => {
+                current.selected.insert(rid.clone());
+                current.resource_types.insert(rid, ResourceType::Asset);
                 current.details_bar_widget = current.details_bar_widget_from_selected();
             }
 

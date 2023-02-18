@@ -20,6 +20,12 @@ pub enum AssetFileAction {
     Reference,
 }
 
+impl Default for AssetFileAction {
+    fn default() -> Self {
+        Self::Copy
+    }
+}
+
 impl Into<String> for AssetFileAction {
     fn into(self) -> String {
         match self {

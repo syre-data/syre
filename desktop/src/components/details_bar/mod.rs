@@ -5,6 +5,7 @@ pub mod project_actions;
 pub mod project_scripts;
 pub mod script_associations_editor;
 pub mod script_editor;
+pub mod asset_editor;
 
 // Re-exports
 pub use details_bar::{DetailsBar, DetailsBarWidget};

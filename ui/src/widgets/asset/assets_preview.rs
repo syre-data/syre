@@ -1,4 +1,5 @@
 //! Assets preview.
+use std::collections::HashSet;
 use std::path::PathBuf;
 use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
@@ -9,13 +10,17 @@ pub struct AssetsPreviewProps {
     /// [`Asset`](CoreAsset)s to display.
     pub assets: Vec<CoreAsset>,
 
+    /// Selected.
+    #[prop_or_default]
+    pub active: HashSet<ResourceId>,
+
     /// Callback when an [`Asset`](CoreAsset) is clicked.
     #[prop_or_default]
-    pub onclick_asset: Option<Callback<ResourceId>>,
+    pub onclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
 
     /// Callback when an [`Asset`](CoreAsset) is double clicked.
     #[prop_or_default]
-    pub ondblclick_asset: Option<Callback<ResourceId>>,
+    pub ondblclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
 }
 
 #[function_component(AssetsPreview)]
@@ -26,20 +31,27 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
              { "(no assets)" }
             } else {
                 <ol class={classes!("thot-ui-assets-list")}>
-                    { props.assets.iter().map(|asset| html! {
-                        <li key={asset.rid.clone()}
-                            class={classes!("thot-ui-asset-preview", "clickable")}
-                            onclick={delegate_callback(
-                                asset.rid.clone(),
-                                props.onclick_asset.clone()
-                            )}
-                            ondblclick={delegate_callback(
-                                asset.rid.clone(),
-                                props.ondblclick_asset.clone()
-                            )} >
+                    { props.assets.iter().map(|asset| {
+                        let mut class = classes!("thot-ui-asset-preview", "clickable");
+                        if props.active.contains(&asset.rid) {
+                            class.push("active");
+                        }
 
-                            { asset_display_name(&asset) }
-                        </li>
+                        html! {
+                            <li key={asset.rid.clone()}
+                                {class}
+                                onclick={delegate_callback(
+                                    asset.rid.clone(),
+                                    props.onclick_asset.clone()
+                                )}
+                                ondblclick={delegate_callback(
+                                    asset.rid.clone(),
+                                    props.ondblclick_asset.clone()
+                                )} >
+
+                                { asset_display_name(&asset) }
+                            </li>
+                        }
                     }).collect::<Html>() }
                 </ol>
             }
@@ -72,12 +84,12 @@ fn asset_display_name(asset: &CoreAsset) -> String {
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
 fn delegate_callback<In: 'static + Clone>(
     input: In,
-    cb: Option<Callback<In>>,
+    cb: Option<Callback<(In, MouseEvent)>>,
 ) -> Callback<MouseEvent> {
     Callback::from(move |e: MouseEvent| {
         if let Some(cb) = cb.as_ref() {
             e.stop_propagation();
-            cb.emit(input.clone());
+            cb.emit((input.clone(), e));
         }
     })
 }

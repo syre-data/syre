@@ -75,12 +75,6 @@ pub fn app() -> Html {
     }
 
     // @todo: Respond to `open_settings` event.
-    // let events = tauri_event::listen::<()>("open_settings");
-    // spawn_local(async move {
-    //     while let Some(event) = events.poll_next().await {
-    //         web_sys::console::log_1(&"O".into());
-    //     }
-    // });
 
     html! {
         <BrowserRouter>

@@ -41,6 +41,9 @@ pub enum ContainerTreeStateAction {
 
     /// Update an [`Asset`](CoreAsset).
     UpdateAsset(CoreAsset),
+
+    SetDragOverContainer(ResourceId),
+    ClearDragOverContainer,
 }
 
 #[derive(Clone)]
@@ -50,6 +53,10 @@ pub struct ContainerTreeState {
 
     /// Map from an [`Asset`](CoreAsset)'s id to its [`Container`](CoreContainer)'s.
     pub asset_map: AssetContainerMap,
+
+    /// Indicates the `Container` which currently has something dragged over it.
+    /// Used to indicate which `Container` dropped files should be added to as `Asset`s.
+    pub dragover_container: Option<ResourceId>,
 }
 
 impl ContainerTreeState {
@@ -58,6 +65,7 @@ impl ContainerTreeState {
             preview: ContainerPreview::None,
             containers: ContainerStore::new(),
             asset_map: HashMap::new(),
+            dragover_container: None,
         }
     }
 }
@@ -118,6 +126,7 @@ impl Reducible for ContainerTreeState {
             ContainerTreeStateAction::SetPreview(preview) => {
                 current.preview = preview;
             }
+
             ContainerTreeStateAction::InsertContainer(container) => {
                 // map assets
                 for rid in container.assets.keys() {
@@ -128,9 +137,11 @@ impl Reducible for ContainerTreeState {
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
+
             ContainerTreeStateAction::InsertContainerTree(root) => {
                 flatten_container_tree(root, &mut current.containers, &mut current.asset_map);
             }
+
             ContainerTreeStateAction::UpdateContainerProperties(update) => {
                 let mut container = current
                     .containers
@@ -147,6 +158,7 @@ impl Reducible for ContainerTreeState {
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
+
             ContainerTreeStateAction::UpdateContainerScriptAssociations(update) => {
                 let mut container = current
                     .containers
@@ -163,6 +175,7 @@ impl Reducible for ContainerTreeState {
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
+
             ContainerTreeStateAction::InsertChildContainer(parent, child) => {
                 // @todo: Set creator to user.
                 let parent = current
@@ -190,6 +203,7 @@ impl Reducible for ContainerTreeState {
                     .children
                     .insert(c_rid, child);
             }
+
             ContainerTreeStateAction::InsertContainerAssets(container, assets) => {
                 let mut container = current
                     .containers
@@ -213,6 +227,7 @@ impl Reducible for ContainerTreeState {
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
+
             ContainerTreeStateAction::UpdateAsset(asset) => {
                 let container = current
                     .asset_map
@@ -235,6 +250,14 @@ impl Reducible for ContainerTreeState {
                 current
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
+            }
+
+            ContainerTreeStateAction::SetDragOverContainer(rid) => {
+                current.dragover_container = Some(rid);
+            }
+
+            ContainerTreeStateAction::ClearDragOverContainer => {
+                current.dragover_container = None;
             }
         };
 

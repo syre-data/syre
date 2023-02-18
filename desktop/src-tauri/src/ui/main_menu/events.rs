@@ -13,7 +13,7 @@ pub fn handle_menu_event(event: WindowMenuEvent) {
 
 /// Emit an `open_settings` event.
 pub fn open_settings(window: &Window) -> Result {
-    window.emit("open_settings", ())?;
+    window.emit("thot://open-settings", ())?;
     Ok(())
 }
 

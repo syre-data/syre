@@ -1,4 +1,5 @@
 //! Main application state.
+use gloo_timers::callback::Timeout;
 use std::rc::Rc;
 use thot_desktop_lib::settings::{UserAppState, UserSettings};
 use thot_ui::types::Message;
@@ -23,6 +24,11 @@ pub enum AppStateAction {
     /// Add a message to display.
     AddMessage(Message),
 
+    // @todo: Remove requirement to pass `AppStateReducer`.
+    /// Adda a message to display,
+    /// disappering after some time.
+    AddMessageWithTimeout(Message, u32, AppStateReducer),
+
     /// Removes a message.
     RemoveMessage(Uuid),
 
@@ -46,6 +52,7 @@ pub struct AppState {
     pub app_widget: Option<AppWidget>,
 
     /// Messages for the user.
+    /// `([Message], timeout).
     pub messages: Vec<Rc<Message>>,
 
     /// User's application state.
@@ -64,21 +71,38 @@ impl Reducible for AppState {
             AppStateAction::SetActiveWidget(widget) => {
                 current.app_widget = widget;
             }
+
             AppStateAction::AddMessage(message) => {
                 current.messages.push(Rc::new(message));
             }
+
+            AppStateAction::AddMessageWithTimeout(message, timeout, state) => {
+                let mid = message.id().clone();
+
+                current.messages.push(Rc::new(message));
+                let timeout = Timeout::new(timeout, move || {
+                    state.dispatch(AppStateAction::RemoveMessage(mid));
+                });
+
+                timeout.forget();
+            }
+
             AppStateAction::RemoveMessage(id) => {
                 current.messages.retain(|m| m.id() != &id);
             }
+
             AppStateAction::ClearMessages => {
                 current.messages = Vec::new();
             }
+
             AppStateAction::SetUserAppState(state) => {
                 current.user_app_state = state;
             }
+
             AppStateAction::SetUserSettings(settings) => {
                 current.user_settings = settings;
             }
+
             AppStateAction::ClearUserSettingAndAppState => {
                 current.user_app_state = None;
                 current.user_settings = None;

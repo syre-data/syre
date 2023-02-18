@@ -4,6 +4,7 @@ use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
+use std::collections::HashSet;
 use thot_core::project::container::{AssetMap, ScriptMap};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::ResourceId;
@@ -49,10 +50,10 @@ fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
     html! {
         <div class={classes!("container-settings-menu")}>
             <ul>
-                <li class={classes!("clickable")}
-                    onclick={onclick(ContainerSettingsMenuEvent::AddAsset)}>
-                    { "Add Assets" }
-                </li>
+                // <li class={classes!("clickable")}
+                //     onclick={onclick(ContainerSettingsMenuEvent::AddAsset)}>
+                //     { "Add Assets" }
+                // </li>
             </ul>
         </div>
     }
@@ -75,21 +76,24 @@ pub struct ContainerProps {
     #[prop_or(ContainerPreview::None)]
     pub preview: ContainerPreview,
 
+    #[prop_or_default]
+    pub active_assets: HashSet<ResourceId>,
+
     /// Callback to run when the `Container` is clicked.
     #[prop_or_default]
-    pub onclick: Callback<()>,
+    pub onclick: Callback<MouseEvent>,
 
     /// Callback to run when the `Container` is double clicked.
     #[prop_or_default]
-    pub ondblclick: Callback<()>,
+    pub ondblclick: Callback<MouseEvent>,
 
     /// Callback to run when an Asset is cilcked.
     #[prop_or_default]
-    pub onclick_asset: Option<Callback<ResourceId>>,
+    pub onclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
 
     /// Callback to run when an Asset is double cilcked.
     #[prop_or_default]
-    pub ondblclick_asset: Option<Callback<ResourceId>>,
+    pub ondblclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
 
     /// Callback to run when Assets are added to the Container.
     #[prop_or_default]
@@ -121,15 +125,21 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub onclick_toggle_visibility: Option<Callback<ResourceId>>,
 
-    /// Callback to run when a user drops a file on the Container.
     #[prop_or_default]
-    pub ondrop: Option<Callback<web_sys::DragEvent>>,
+    pub ondragenter: Callback<web_sys::DragEvent>,
+
+    #[prop_or_default]
+    pub ondragleave: Callback<web_sys::DragEvent>,
+
+    #[prop_or_default]
+    pub ondrop: Callback<web_sys::DragEvent>,
 }
 
 /// A Container node within a Container tree.
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> Html {
     let show_settings_menu = use_state(|| false);
+    let dragover_counter = use_state(|| 0);
 
     let assets = props
         .assets
@@ -137,23 +147,31 @@ pub fn container(props: &ContainerProps) -> Html {
         .map(|(_rid, asset): (&ResourceId, &CoreAsset)| asset.clone())
         .collect::<Vec<CoreAsset>>();
 
-    let prevent_drag_default = Callback::from(|e: web_sys::DragEvent| {
-        e.prevent_default();
-    });
+    let ondragenter = {
+        let ondragenter = props.ondragenter.clone();
+        let dragover_counter = dragover_counter.clone();
 
-    let onclick = {
-        let onclick = props.onclick.clone();
+        Callback::from(move |e: DragEvent| {
+            if *dragover_counter == 0 {
+                ondragenter.emit(e);
+            }
 
-        Callback::from(move |_: MouseEvent| {
-            onclick.emit(());
+            dragover_counter.set(*dragover_counter + 1);
         })
     };
 
-    let ondblclick = {
-        let ondblclick = props.ondblclick.clone();
+    let ondragleave = {
+        let ondragleave = props.ondragleave.clone();
+        let dragover_counter = dragover_counter.clone();
 
-        Callback::from(move |_: MouseEvent| {
-            ondblclick.emit(());
+        Callback::from(move |e: DragEvent| {
+            dragover_counter.set(*dragover_counter - 1);
+
+            // @todo: `UseStateHandle` value not updated until later.
+            // See https://github.com/yewstack/yew/issues/3125
+            if *dragover_counter == 1 {
+                ondragleave.emit(e);
+            }
         })
     };
 
@@ -163,18 +181,6 @@ pub fn container(props: &ContainerProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
             show_settings_menu.set(!*show_settings_menu);
-        })
-    };
-
-    let onclick_add_assets = {
-        let onclick_add_assets = props.onclick_add_assets.clone();
-        let rid = props.rid.clone();
-
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            if let Some(onclick_add_assets) = onclick_add_assets.clone() {
-                onclick_add_assets.emit(rid.clone());
-            }
         })
     };
 
@@ -224,15 +230,19 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     });
 
-    let class = classes!("container-node", props.class.clone());
+    let mut class = classes!("container-node", props.class.clone());
+    if *dragover_counter > 0 {
+        class.push("dragover-active");
+    }
 
     html! {
         <div {class}
-            {onclick}
-            {ondblclick}
-            ondragenter={prevent_drag_default.clone()}
-            ondragover={prevent_drag_default}
-            ondrop={props.ondrop.clone()} >
+            onclick={props.onclick.clone()}
+            ondblclick={props.ondblclick.clone()}
+            {ondragenter}
+            {ondragleave}
+            ondrop={props.ondrop.clone()}
+            data-rid={props.rid.clone()} >
 
             if let Some(on_settings_event) = on_settings_event {
                 <div class={classes!("container-settings-control")}>
@@ -257,6 +267,7 @@ pub fn container(props: &ContainerProps) -> Html {
             <div class={classes!("container-preview")}>
                 { match props.preview {
                     ContainerPreview::None => { html! { <></> } },
+
                     ContainerPreview::Type => { html! {
                         if let Some(kind) = props.properties.kind.as_ref() {
                             { &kind }
@@ -264,6 +275,7 @@ pub fn container(props: &ContainerProps) -> Html {
                             { "(no type)" }
                         }
                     }},
+
                     ContainerPreview::Description => { html! {
                         if let Some(description) = props.properties.description.as_ref() {
                             { &description }
@@ -271,18 +283,23 @@ pub fn container(props: &ContainerProps) -> Html {
                             { "(no description)" }
                         }
                     }},
+
                     ContainerPreview::Tags => { html! {
                         <Tags value={props.properties.tags.clone()} />
                     }},
+
                     ContainerPreview::Metadata => { html! {
                         <MetadataPreview value={props.properties.metadata.clone()} />
                     }},
+
                     ContainerPreview::Assets => { html! {
                         <AssetsPreview
                             {assets}
+                            active={props.active_assets.clone()}
                             onclick_asset={&props.onclick_asset}
                             ondblclick_asset={&props.ondblclick_asset} />
                     }},
+
                     ContainerPreview::Scripts => { html! {
                         <ScriptAssociationsPreview
                             scripts={props.scripts.clone()} />
@@ -291,13 +308,6 @@ pub fn container(props: &ContainerProps) -> Html {
             </div>
 
             <div class={classes!("container-controls")}>
-                <button
-                    class={classes!("container-control")}
-                    onclick={onclick_add_assets}>
-
-                    { "[]" }
-                </button>
-
                 <button
                     class={classes!("container-control")}
                     onclick={onclick_edit_scripts}>

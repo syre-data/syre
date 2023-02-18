@@ -30,6 +30,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
     let show_side_bars = use_state(|| true);
     let canvas_state =
         use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
+
     let tree_state = use_reducer(|| ContainerTreeState::new());
 
     let projects_state =
@@ -63,8 +64,9 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<ContainerTreeStateReducer> context={tree_state}>
         <div class={classes!("project-canvas", props.class.clone())}>
-            <div class={classes!("project-canvas-content")}>
-                // <NavBar />
+            // <NavBar />
+            <div class={classes!("project-canvas-content")} >
+
                 <Suspense {fallback}>
                     <ProjectUi rid={props.project.clone()} />
                 </Suspense>

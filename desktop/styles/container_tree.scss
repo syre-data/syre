@@ -23,11 +23,24 @@ $control-button-size: 35px;
       border-color: t.$primary-color;
     }
 
+    &.dragover-active {
+      border-color: t.$primary-color;
+    }
+
+    &:hover .container-settings-control,
+    &:hover .add-child-container-control {
+      display: inherit;
+      opacity: 1;
+    }
+      
     .container-settings-control {
       position: absolute;
       top: 5px;
-      right: 5px;       
-      
+      right: 5px;     
+
+      opacity: 0;
+      transition: opacity t.$transition-fast;
+
       button.container-settings-toggle {
         background-color: transparent;
         padding: 0;
@@ -69,6 +82,9 @@ $control-button-size: 35px;
       bottom: 0;
       left: 50%;
       transform: translate(-50%, 50%);
+
+      opacity: 0;
+      transition: opacity t.$transition-fast;
       
       button {
         width: $control-button-size;
@@ -114,6 +130,12 @@ $control-button-size: 35px;
         text-align: left;
         list-style: none;
         padding: 0;
+
+        .thot-ui-asset-preview {
+          &.active {
+            background-color: t.$primary-color;
+          }
+        }
       }
     }
 

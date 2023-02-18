@@ -15,6 +15,12 @@ pub enum MetadatumType {
     Object,
 }
 
+impl Default for MetadatumType {
+    fn default() -> Self {
+        Self::String
+    }
+}
+
 impl Into<String> for MetadatumType {
     fn into(self) -> String {
         match self {

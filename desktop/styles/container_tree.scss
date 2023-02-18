@@ -144,6 +144,27 @@ $control-button-size: 35px;
         text-align: left;
         list-style: none;
         padding: 0;
+
+        // .script-name {
+        // }
+
+        .script-priority {
+          display: inline-block;
+          margin-left: t.$margin-l;
+
+          &::before {
+            content: "(";
+          }
+
+          &::after {
+            content: ")";
+          }
+        }
+
+        .script-autorun {
+          display: inline-block;
+          margin-left: t.$margin-m;
+        }
       }
     }
   }

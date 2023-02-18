@@ -2,11 +2,38 @@
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
 use thot_core::project::container::ScriptMap;
+use thot_core::project::RunParameters;
+use thot_core::types::ResourceMap;
 use yew::prelude::*;
+
+#[derive(PartialEq, Properties)]
+struct ScriptAssociationPreviewProps {
+    pub name: String,
+    pub run_parameters: RunParameters,
+}
+
+#[function_component(ScriptAssociationPreview)]
+fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
+    // @todo: Add `RunParameters` functionality.
+    html! {
+        <div class={classes!("thot-ui-script-association-preview")}>
+            <span class={classes!("script-name")}>{ &props.name }</span>
+            <span class={classes!("script-priority")}>{ props.run_parameters.priority }</span>
+            <span class={classes!("script-autorun")}>
+                if props.run_parameters.autorun {
+                    { "\u{2605}" }
+                } else {
+                    { "\u{2606}" }
+                }
+            </span>
+        </div>
+    }
+}
 
 #[derive(PartialEq, Properties)]
 pub struct ScriptAssociationsPreviewProps {
     pub scripts: ScriptMap,
+    pub names: ResourceMap<String>,
 
     /// MAp from `Script` id to name.
     #[prop_or_default]
@@ -21,13 +48,14 @@ pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Ht
                 { "(no scripts)" }
             } else {
                 <ol class={classes!("thot-ui-script-associations-list")}>
-                    { props.scripts.iter().map(|(script, run_parameters)| { html! {
-                        // @todo: Use `Script` names if available.
-                        // @todo: Add `RunParameters` functionality.
-                        <li>
-                            { script.to_string() }
-                        </li>
-                    }}).collect::<Html>() }
+                    { props.scripts.iter().map(|(script, run_parameters)| {
+                        let name = props.names.get(script).expect("script name not found.");
+                        html! {
+                            <li>
+                                <ScriptAssociationPreview name={name.clone()} run_parameters={run_parameters.clone()} />
+                            </li>
+                        }
+                    }).collect::<Html>() }
                 </ol>
             }
         </div>

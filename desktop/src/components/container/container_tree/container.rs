@@ -1,13 +1,15 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
-use crate::app::{AppStateAction, AppStateReducer};
+use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
 };
 use crate::components::details_bar::DetailsBarWidget;
+use crate::constants::SCRIPT_DISPLAY_NAME_MAX_LENGTH;
 use crate::hooks::use_container;
-use thot_core::types::ResourceId;
+use std::path::PathBuf;
+use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::components::ShadowBox;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
@@ -32,6 +34,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- setup ---
     // -------------
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
+
+    let projects_state =
+        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
@@ -51,6 +57,29 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let selected = canvas_state.selected.contains(&container_id);
     let multiple_selected = canvas_state.selected.len() > 1;
+
+    let script_names = projects_state
+        .project_scripts
+        .get(&canvas_state.project)
+        .expect("project's state not found")
+        .iter()
+        .map(|(rid, script)| {
+            let mut name = script.name.clone().unwrap_or(
+                Into::<PathBuf>::into(script.path.clone())
+                    .file_name()
+                    .expect("could not get `Script`'s file name")
+                    .to_str()
+                    .expect("could not convert file name to str")
+                    .to_string(),
+            );
+
+            if name.len() > SCRIPT_DISPLAY_NAME_MAX_LENGTH {
+                name.replace_range(0..(SCRIPT_DISPLAY_NAME_MAX_LENGTH + 3), "...");
+            };
+
+            (rid.clone(), name)
+        })
+        .collect::<ResourceMap<String>>();
 
     // -------------------
     // --- interaction ---
@@ -228,6 +257,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 assets: c.assets,
                 active_assets: canvas_state.selected.clone(),
                 scripts: c.scripts,
+                script_names,
                 preview: tree_state.preview.clone(),
                 onclick,
                 onclick_asset,

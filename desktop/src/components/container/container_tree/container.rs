@@ -1,14 +1,18 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
+use crate::commands::common::{PathBufArgs, ResourceIdArgs};
+use crate::common::invoke;
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
 };
 use crate::components::details_bar::DetailsBarWidget;
-use crate::constants::SCRIPT_DISPLAY_NAME_MAX_LENGTH;
+use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
 use crate::hooks::use_container;
+use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
+use thot_core::project::Asset as CoreAsset;
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::components::ShadowBox;
 use thot_ui::types::Message;
@@ -16,6 +20,7 @@ use thot_ui::widgets::container::container_tree::{
     container::ContainerProps as ContainerUiProps, container::ContainerSettingsMenuEvent,
     Container as ContainerUi,
 };
+use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
 
@@ -120,10 +125,31 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let on_settings_event = {
         let show_create_asset = show_create_asset.clone();
+        let container_id = container_id.clone();
 
         Callback::from(move |event: ContainerSettingsMenuEvent| match event {
-            ContainerSettingsMenuEvent::AddAsset => show_create_asset.set(true),
-            ContainerSettingsMenuEvent::Analyze => {}
+            ContainerSettingsMenuEvent::AddAssets => show_create_asset.set(true),
+            ContainerSettingsMenuEvent::OpenFolder => {
+                let container_id = container_id.clone();
+
+                spawn_local(async move {
+                    let path = invoke(
+                        "get_container_path",
+                        ResourceIdArgs {
+                            rid: container_id.clone(),
+                        },
+                    )
+                    .await
+                    .expect("could not get `Container` path");
+
+                    let path: PathBuf = swb::from_value(path)
+                        .expect("could not convert result of `get_container_path` to `PathBuf`");
+
+                    invoke("open_file", PathBufArgs { path })
+                        .await
+                        .expect("could not open file");
+                });
+            }
         })
     };
 
@@ -140,28 +166,18 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --------------
 
     let onclick_asset = {
-        // let app_state = app_state.clone();
+        let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let tree_state = tree_state.clone();
         let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
-            let container = tree_state
-                .asset_map
-                .get(&asset)
-                .expect("`Asset`'s `Container` not found");
+            let Some(asset) = get_asset(&asset, tree_state.clone()) else {
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+                return;
+            };
 
-            let container = tree_state
-                .containers
-                .get(container)
-                .expect("`Container` not found")
-                .as_ref()
-                .expect("`Container` not set")
-                .lock()
-                .expect("could not lock `Container`");
-
-            let asset = container.assets.get(&asset).expect("`Asset` not found");
             let rid = asset.rid.clone();
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
@@ -177,6 +193,41 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     canvas_state.dispatch(CanvasStateAction::Unselect(rid));
                 }
             }
+        })
+    };
+
+    let ondblclick_asset = {
+        let app_state = app_state.clone();
+        let tree_state = tree_state.clone();
+        let container_id = container_id.clone();
+
+        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+            e.stop_propagation();
+            let container_id = container_id.clone();
+
+            let Some(asset) = get_asset(&asset, tree_state.clone()) else {
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+                return;
+            };
+
+            spawn_local(async move {
+                let path = invoke(
+                    "get_container_path",
+                    ResourceIdArgs {
+                        rid: container_id.clone(),
+                    },
+                )
+                .await
+                .expect("could not get `Container` path");
+
+                let mut path: PathBuf = swb::from_value(path)
+                    .expect("could not convert result of `get_container_path` to `PathBuf`");
+
+                path.push(asset.path.clone());
+                invoke("open_file", PathBufArgs { path })
+                    .await
+                    .expect("could not open file");
+            });
         })
     };
 
@@ -211,6 +262,22 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             canvas_state.dispatch(CanvasStateAction::SetDetailsBarWidget(
                 DetailsBarWidget::ScriptsAssociationsEditor(container.clone(), Some(onsave)),
+            ));
+        })
+    };
+
+    // ---------------
+    // --- scripts ---
+    // ---------------
+
+    let onclick_toggle_visibility = {
+        let canvas_state = canvas_state.clone();
+        let container_id = container_id.clone();
+
+        Callback::from(move |_| {
+            canvas_state.dispatch(CanvasStateAction::SetVisibility(
+                container_id.clone(),
+                !canvas_state.is_visible(&container_id),
             ));
         })
     };
@@ -256,6 +323,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             ContainerUiProps {
                 r#ref: props.r#ref.clone(),
                 class,
+                visible: canvas_state.is_visible(&container_id),
                 rid: c.rid,
                 properties: c.properties,
                 assets: c.assets,
@@ -265,11 +333,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 preview: tree_state.preview.clone(),
                 onclick,
                 onclick_asset,
+                ondblclick_asset,
                 onadd_child: props.onadd_child.clone(),
                 on_settings_event,
                 ondragenter,
                 ondragleave,
                 onclick_edit_scripts,
+                onclick_toggle_visibility,
             }
         }
     };
@@ -283,6 +353,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         <>
         <ContainerUi ..c_props />
         if *show_create_asset {
+            // @todo: Use portal.
             <ShadowBox
                 title={format!("Add Asset to {container_name}")}
                 onclose={close_create_asset}>
@@ -330,6 +401,25 @@ fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionA
     }
 
     SelectionAction::SelectOnly
+}
+
+fn get_asset(rid: &ResourceId, tree_state: ContainerTreeStateReducer) -> Option<CoreAsset> {
+    let Some(container) = tree_state
+                .asset_map
+                .get(&rid) else {
+                    return None;
+                };
+
+    let container = tree_state
+        .containers
+        .get(container)
+        .expect("`Container` not found")
+        .as_ref()
+        .expect("`Container` not set")
+        .lock()
+        .expect("could not lock `Container`");
+
+    container.assets.get(&rid).cloned()
 }
 
 #[cfg(test)]

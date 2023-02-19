@@ -9,24 +9,30 @@ use thot_core::project::container::{AssetMap, ScriptMap};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 // *********************
 // *** Settings Menu ***
 // *********************
 
+// @todo: Possible items:
+// + Analyze: Analyze subtree.
 /// Menu items available in the [`Container`]'s settings menu.
 #[derive(PartialEq, Clone, Debug)]
 pub enum ContainerSettingsMenuEvent {
-    /// Add an [`Asset`](thot_core::project::Asset).
-    AddAsset,
+    /// Open the `Container`'s folder.
+    OpenFolder,
 
-    /// Analyze Container tree.
-    Analyze,
+    /// Add a [`Asset`](thot_core::project::Asset)s to a `Container` using custom options.
+    AddAssets,
 }
 
 /// Properties for [`ContainerSettingsMenu`].
 #[derive(PartialEq, Properties)]
 struct ContainerSettingsMenuProps {
+    #[prop_or_default]
+    pub r#ref: NodeRef,
+
     /// Callback when a menu item is clicked.
     pub onclick: Callback<ContainerSettingsMenuEvent>,
 }
@@ -48,12 +54,19 @@ fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
     };
 
     html! {
-        <div class={classes!("container-settings-menu")}>
+        <div ref={props.r#ref.clone()}
+            class={classes!("container-settings-menu")}>
+
             <ul>
-                // <li class={classes!("clickable")}
-                //     onclick={onclick(ContainerSettingsMenuEvent::AddAsset)}>
-                //     { "Add Assets" }
-                // </li>
+                <li class={classes!("clickable")}
+                    onclick={onclick(ContainerSettingsMenuEvent::OpenFolder)}>
+                    { "Open folder" }
+                </li>
+
+                <li class={classes!("clickable")}
+                    onclick={onclick(ContainerSettingsMenuEvent::AddAssets)}>
+                    { "Add assets" }
+                </li>
             </ul>
         </div>
     }
@@ -76,6 +89,9 @@ pub struct ContainerProps {
 
     #[prop_or_default]
     pub class: Classes,
+
+    #[prop_or(true)]
+    pub visible: bool,
 
     #[prop_or(ContainerPreview::None)]
     pub preview: ContainerPreview,
@@ -117,17 +133,13 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub on_settings_event: Option<Callback<ContainerSettingsMenuEvent>>,
 
-    /// Callback when container properties edit button is clicked.
-    #[prop_or_default]
-    pub onclick_add_assets: Option<Callback<ResourceId>>,
-
     /// Callback when container script edit button is clicked.
     #[prop_or_default]
     pub onclick_edit_scripts: Option<Callback<ResourceId>>,
 
     /// Callback when visibility toggle button is clicked.
     #[prop_or_default]
-    pub onclick_toggle_visibility: Option<Callback<ResourceId>>,
+    pub onclick_toggle_visibility: Option<Callback<()>>,
 
     #[prop_or_default]
     pub ondragenter: Callback<web_sys::DragEvent>,
@@ -144,6 +156,7 @@ pub struct ContainerProps {
 pub fn container(props: &ContainerProps) -> Html {
     let show_settings_menu = use_state(|| false);
     let dragover_counter = use_state(|| 0);
+    let menu_ref = use_node_ref();
 
     let assets = props
         .assets
@@ -202,12 +215,11 @@ pub fn container(props: &ContainerProps) -> Html {
 
     let onclick_toggle_visibility = {
         let onclick_toggle_visibility = props.onclick_toggle_visibility.clone();
-        let rid = props.rid.clone();
 
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
             if let Some(onclick_toggle_visibility) = onclick_toggle_visibility.clone() {
-                onclick_toggle_visibility.emit(rid.clone());
+                onclick_toggle_visibility.emit(());
             }
         })
     };
@@ -256,7 +268,9 @@ pub fn container(props: &ContainerProps) -> Html {
                         onclick={onclick_settings}>{ "\u{22ee}" }</button>
 
                     if *show_settings_menu {
-                        <ContainerSettingsMenu onclick={on_settings_event} />
+                        <ContainerSettingsMenu
+                            r#ref={menu_ref}
+                            onclick={on_settings_event} />
                     }
                 </div>
             }
@@ -314,19 +328,27 @@ pub fn container(props: &ContainerProps) -> Html {
             </div>
 
             <div class={classes!("container-controls")}>
-                <button
-                    class={classes!("container-control")}
-                    onclick={onclick_edit_scripts}>
+                if props.onclick_edit_scripts.is_some() {
+                    <button
+                        class={classes!("container-control")}
+                        onclick={onclick_edit_scripts}>
 
-                    { "</>" }
-                </button>
+                        <Icon icon_id={IconId::FontAwesomeSolidCode} />
+                    </button>
+                }
 
-                <button
-                    class={classes!("container-control")}
-                    onclick={onclick_toggle_visibility}>
+                if props.onclick_toggle_visibility.is_some() {
+                    <button
+                        class={classes!("container-control")}
+                        onclick={onclick_toggle_visibility}>
 
-                    { "<o>" }
-                </button>
+                        if props.visible {
+                            <Icon icon_id={IconId::FontAwesomeRegularEye} />
+                        } else {
+                            <Icon icon_id={IconId::FontAwesomeRegularEyeSlash} />
+                        }
+                    </button>
+                }
             </div>
             <div class={classes!("add-child-container-control")}>
                 <button onclick={onadd_child}>{ "+" }</button>

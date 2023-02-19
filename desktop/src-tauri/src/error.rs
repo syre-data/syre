@@ -1,8 +1,8 @@
 //! `Error`s and `Result`s
 use settings_manager::Error as SettingsError;
 use std::error::Error as StdErrorTrait;
-use std::fmt;
 use std::result::Result as StdResult;
+use std::{fmt, io};
 use tauri::Error as TauriError;
 use thot_core::Error as CoreError;
 use thot_local::Error as LocalError;
@@ -26,6 +26,7 @@ pub enum DesktopSettingsError {
 pub enum Error {
     CoreError(CoreError),
     DesktopSettingsError(DesktopSettingsError),
+    IoError(io::Error),
     LocalError(LocalError),
     SettingsError(SettingsError),
     TauriError(TauriError),
@@ -35,6 +36,12 @@ pub enum Error {
 impl From<DesktopSettingsError> for Error {
     fn from(err: DesktopSettingsError) -> Self {
         Self::DesktopSettingsError(err)
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self::IoError(err)
     }
 }
 

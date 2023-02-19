@@ -19,7 +19,11 @@
   border-bottom: solid t.$border-width-s t.$frame-border-color;
 
   #home-navigation {
-
+    img {
+      height: 1rem;
+      vertical-align: middle;
+      margin-left: t.$margin-s;
+    }
   }
 
   #project-navigation-tabs {

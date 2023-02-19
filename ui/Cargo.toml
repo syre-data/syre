@@ -45,6 +45,14 @@ features=[
 	"Window",
 ]
 
+[dependencies.yew_icons]
+version = "0.7"
+features=[
+    "FontAwesomeRegularEye",
+    "FontAwesomeRegularEyeSlash",
+    "FontAwesomeSolidCode",
+]
+
 [dev-dependencies]
 fake = "2.4"
 wasm-bindgen-test = "0.3"

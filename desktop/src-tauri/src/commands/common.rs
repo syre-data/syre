@@ -1,4 +1,5 @@
 //! Common functionality.
+use crate::error::Result;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
@@ -44,11 +45,15 @@ pub fn get_directory(title: Option<String>, dir: Option<PathBuf>) -> Option<Path
             break;
         }
 
-        dbg!("waiting for user");
-        sleep(Duration::from_millis(1000));
+        sleep(Duration::from_millis(100));
     }
 
     (*user_path).clone()
+}
+
+#[tauri::command]
+pub fn open_file(path: PathBuf) -> Result {
+    open::that(path).map_err(|err| err.into())
 }
 
 #[cfg(test)]

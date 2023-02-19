@@ -4,7 +4,9 @@ use crate::app::AuthStateReducer;
 use crate::commands::common::UpdatePropertiesArgs;
 use crate::commands::container::NewChildArgs;
 use crate::common::invoke;
-use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
+use crate::components::canvas::{
+    CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
+};
 use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
 use thot_core::project::Container as CoreContainer;
@@ -75,6 +77,8 @@ fn new_child_name(props: &NewChildNameProps) -> Html {
 // *** Container Tree ***
 // **********************
 
+static CONNECTOR_CLASS: &str = "container-tree-node-connector";
+
 /// Properties for a [`ContainerTree`].
 #[derive(Properties, PartialEq)]
 pub struct ContainerTreeProps {
@@ -87,6 +91,9 @@ pub struct ContainerTreeProps {
 pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let auth_state =
         use_context::<AuthStateReducer>().expect("`AuthStateReducer` context not found");
+
+    let canvas_state =
+        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeReducer` context not found");
@@ -207,6 +214,12 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 .query_selector_all(":scope > .container-tree")
                 .expect("could not query children");
 
+            // clear connectors
+            while let Some(connector) = connectors_elm.first_child() {
+                let _ = connectors_elm.remove_child(&connector);
+            }
+
+            // add connectors
             for index in 0..children.length() {
                 let Some(child_elm) = children.get(index) else {
                     continue;
@@ -249,7 +262,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     .expect("could not set `points` on connector");
 
                 connector
-                    .set_attribute("class", "container-tree-node-connector")
+                    .set_attribute("class", CONNECTOR_CLASS)
                     .expect("could not set `class` on connector");
 
                 connectors_elm
@@ -270,16 +283,17 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     {onadd_child} />
 
                 <div ref={children_ref} class={classes!("children")}>
-                    { container
-                        .lock()
-                        .expect("could not lock container")
-                        .children
-                        .keys()
-                        .map(|root| html! {
-                            <ContainerTree root={root.clone()} />
-                        })
-                        .collect::<Html>()
-                    }
+                    if canvas_state.is_visible(&props.root) {{
+                         container
+                            .lock()
+                            .expect("could not lock container")
+                            .children
+                            .keys()
+                            .map(|root| html! {
+                                <ContainerTree root={root.clone()} />
+                            })
+                            .collect::<Html>()
+                    }}
                 </div>
                 <svg ref={connectors_ref} class="container-tree-node-connectors">
                 </svg>

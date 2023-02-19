@@ -35,6 +35,7 @@ fn main() {
             authenticate_user,
             // common
             get_directory,
+            open_file,
             // settings
             get_user_app_state,
             get_user_settings,

@@ -73,8 +73,9 @@ pub fn main_navigation() -> Html {
         Callback::from(move |TabCloseInfo { closing, next }| {
             projects_state.dispatch(ProjectsStateAction::RemoveOpenProject(closing, next));
 
-            // @todo: Redirect not working.
-            if projects_state.open_projects.len() == 0 {
+            // @todo: State becomes stale after dispatch.
+            // See https://github.com/yewstack/yew/issues/3125
+            if projects_state.open_projects.len() == 1 {
                 navigator.push(&Route::Dashboard);
             }
         })
@@ -86,7 +87,9 @@ pub fn main_navigation() -> Html {
                 id={"home-navigation"}
                 class={classes!("inline-block")}>
 
-                <Link<Route> to={Route::Dashboard}>{ "Home" }</Link<Route>>
+                <Link<Route> to={Route::Dashboard}>
+                    <img src="/public/logos/logo-white-icon.svg" />
+                </Link<Route>>
             </span>
 
             <TabBar<ResourceId>

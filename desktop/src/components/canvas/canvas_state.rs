@@ -18,18 +18,38 @@ pub enum CanvasStateAction {
     /// Clear the details bar.
     ClearDetailsBar,
 
+    /// Mark a `Container` as selected.
     SelectContainer(ResourceId),
+
+    /// Mark an `Asset` as selected.
     SelectAsset(ResourceId),
+
+    /// Mark a resource as unselected.
     Unselect(ResourceId),
+
+    /// Clear selection state.
     ClearSelected,
+
+    /// Set the visibility state of a `Container`.
+    SetVisibility(ResourceId, bool),
 }
 
 #[derive(Clone, PartialEq)]
 pub struct CanvasState {
     /// Id of the `Project` the canvas is for.
     pub project: ResourceId,
+
+    /// Active details bar widget.
     pub details_bar_widget: Option<DetailsBarWidget>,
+
+    /// Selected resources.
     pub selected: HashSet<ResourceId>,
+
+    /// `Container` tree visibility state.
+    /// Key indicates the tree root, whose children are affected.
+    visible: ResourceMap<bool>,
+
+    /// Map of [`ResourceId`] to the type of the resource.
     resource_types: ResourceMap<ResourceType>,
     show_side_bars: UseStateHandle<bool>,
 }
@@ -40,9 +60,15 @@ impl CanvasState {
             project,
             details_bar_widget: None,
             selected: HashSet::default(),
+            visible: ResourceMap::default(),
             resource_types: ResourceMap::default(),
             show_side_bars,
         }
+    }
+
+    /// Returns the visibility state for a resource.
+    pub fn is_visible(&self, rid: &ResourceId) -> bool {
+        self.visible.get(&rid).unwrap_or(&true).to_owned()
     }
 
     fn details_bar_widget_from_selected(&self) -> Option<DetailsBarWidget> {
@@ -108,6 +134,10 @@ impl Reducible for CanvasState {
             CanvasStateAction::ClearSelected => {
                 current.selected.clear();
                 current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::SetVisibility(rid, visible) => {
+                current.visible.insert(rid, visible);
             }
         }
 

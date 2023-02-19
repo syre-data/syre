@@ -7,6 +7,7 @@ pub mod script;
 pub mod standard_properties_editor;
 pub mod suspense;
 pub mod tags;
+pub mod batch_editor;
 
 // Re-exports
 pub use metadata::MetadataEditor;

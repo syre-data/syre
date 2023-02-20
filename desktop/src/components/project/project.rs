@@ -18,6 +18,7 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
+    let project_ref = use_node_ref();
     let project = use_project(&props.rid);
     let Some(project) = project.as_ref() else {
         panic!("`Project` not loaded");
@@ -35,8 +36,6 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
             })
         }
     };
-
-    let project_ref = use_node_ref();
 
     let hide_select_data_root = {
         let select_data_root_visible = select_data_root_visible.clone();

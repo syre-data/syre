@@ -1,4 +1,5 @@
 //! Create a [`Script`](CoreScript) from a file.
+use std::collections::HashSet;
 use std::path::PathBuf;
 use tauri_sys::dialog::FileDialogBuilder;
 use wasm_bindgen_futures::spawn_local;
@@ -6,12 +7,12 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct CreateScriptProps {
-    #[prop_or("Add script")]
+    #[prop_or("Add scripts")]
     pub text: &'static str,
 
     /// Callback when a user selectr a file to create a path from.
     #[prop_or_default]
-    pub oncreate: Option<Callback<PathBuf>>,
+    pub oncreate: Callback<HashSet<PathBuf>>,
 }
 
 #[function_component(CreateScript)]
@@ -24,18 +25,18 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
 
             spawn_local(async move {
                 let mut path = FileDialogBuilder::new();
-                path.set_title("Script file").add_filter("Scripts", &["py"]); // @todo: Pull valid extensions from `Script`.
-                                                                              // @todo: Set default path.
+                path.set_title("Script files")
+                    .add_filter("Scripts", &["py"]); // @todo: Pull valid extensions from `Script`.
+                                                     // @todo: Set default path.
 
-                let path = path
-                    .pick_file()
+                let paths = path
+                    .pick_files()
                     .await
                     .expect("could not get user file selection");
 
-                if let Some(path) = path {
-                    if let Some(oncreate) = oncreate.as_ref() {
-                        oncreate.emit(path);
-                    }
+                if let Some(paths) = paths {
+                    let paths = paths.collect::<HashSet<PathBuf>>();
+                    oncreate.emit(paths);
                 }
             });
         })

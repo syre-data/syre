@@ -1,14 +1,15 @@
 //! Project scripts editor.
 use crate::hooks::{use_canvas_project, use_project_scripts};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use thot_ui::widgets::script::CreateScript;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct ProjectScriptsProps {
-    /// Called when a user adds a `Script` to the `Project`.
+    /// Called when a user adds `Script`s to the `Project`.
     #[prop_or_default]
-    pub onadd: Option<Callback<PathBuf>>,
+    pub onadd: Option<Callback<HashSet<PathBuf>>>,
 }
 
 #[function_component(ProjectScripts)]
@@ -18,8 +19,9 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> Html {
 
     html! {
         <div>
-            <CreateScript
-                oncreate={&props.onadd} />
+            if let Some(onadd) = props.onadd.as_ref() {
+                <CreateScript oncreate={onadd.clone()} />
+            }
 
             <ul>
                 if let Some(project_scripts) = project_scripts.as_ref() {{

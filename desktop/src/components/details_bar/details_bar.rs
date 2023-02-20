@@ -4,7 +4,6 @@ use super::container_editor::ContainerEditor;
 use super::project_actions::ProjectActions;
 use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::components::canvas::CanvasStateReducer;
-use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 

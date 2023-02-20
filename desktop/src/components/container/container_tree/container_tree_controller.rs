@@ -103,8 +103,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                     while let Some(event) = events.next().await {
                         // get active container id
                         let node = node_ref
-                            .cast::<web_sys::Element>()
-                            .expect("could not cast node to div");
+                            .cast::<web_sys::HtmlElement>()
+                            .expect("could not cast node to element");
 
                         let active_nodes = node
                             .query_selector_all(".dragover-active")
@@ -115,8 +115,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                         }
 
                         let Some(active_node) = active_nodes.get(0) else {
-                    continue;
-                };
+                            continue;
+                        };
 
                         let active_node = active_node
                             .dyn_ref::<web_sys::HtmlElement>()
@@ -221,11 +221,13 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
 
     let analyze = {
         let app_state = app_state.clone();
+        let tree_state = tree_state.clone();
         let analysis_state = analysis_state.clone();
         let root = root.clone();
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
+            let tree_state = tree_state.clone();
             let analysis_state = analysis_state.clone();
 
             let Some(root) = (*root).clone() else {
@@ -233,6 +235,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
             };
 
             spawn_local(async move {
+                // analyze
                 let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
@@ -241,7 +244,27 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                     app_state.clone(),
                 ));
 
-                let res = invoke("analyze", &AnalyzeArgs { root, max_tasks }).await;
+                // @todo: Handle analysis error.
+                let res = invoke(
+                    "analyze",
+                    &AnalyzeArgs {
+                        root: root.clone(),
+                        max_tasks,
+                    },
+                )
+                .await;
+
+                // update tree
+                let update = invoke("get_container", &ResourceIdArgs { rid: root })
+                    .await
+                    .expect("could not `get_container`");
+
+                let update: CoreContainer = swb::from_value(update)
+                    .expect("could not convert result of `get_container` to `Container`");
+
+                tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(Arc::new(
+                    Mutex::new(update),
+                )));
 
                 analysis_state.set(AnalysisState::Complete);
                 app_state.dispatch(AppStateAction::AddMessage(Message::success(

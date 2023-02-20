@@ -129,6 +129,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |event: ContainerSettingsMenuEvent| match event {
             ContainerSettingsMenuEvent::AddAssets => show_create_asset.set(true),
+
             ContainerSettingsMenuEvent::OpenFolder => {
                 let container_id = container_id.clone();
 
@@ -149,7 +150,27 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         .await
                         .expect("could not open file");
                 });
-            }
+            } // ContainerSettingsMenuEvent::DuplicateTree => {
+              //     let container_id = container_id.clone();
+
+              //     spawn_local(async move {
+              //         let rid = invoke(
+              //             "duplicate_container_tree",
+              //             ResourceIdArgs {
+              //                 rid: container_id.clone(),
+              //             },
+              //         )
+              //         .await
+              //         .expect("could not invoke `duplicate_container_tree`");
+
+              //         let rid: ResourceId = swb::from_value(rid).expect(
+              //             "could not convert result of `duplicate_container_tree` to `ResourceId`",
+              //         );
+
+              //         let tree = invoke(
+              //             "load_container_tree",
+              //     });
+              // }
         })
     };
 
@@ -254,9 +275,11 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                 Callback::from(move |_: ()| {
                     canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
-                    app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                        "Resource saved".to_string(),
-                    )));
+                    app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                        Message::success("Resource saved".to_string()),
+                        MESSAGE_TIMEOUT,
+                        app_state.clone(),
+                    ));
                 })
             };
 

@@ -21,12 +21,13 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<Option<ContainerWrapper>
         }
     });
 
+    // tree_state updates
     {
         let tree_state = tree_state.clone();
         let container = container.clone();
 
         use_effect_with_deps(
-            move |tree_state| {
+            move |(rid, tree_state)| {
                 let container_val = if let Some(c) = tree_state.containers.get(&rid) {
                     c.clone()
                 } else {
@@ -35,7 +36,7 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<Option<ContainerWrapper>
 
                 container.set(container_val);
             },
-            tree_state,
+            (rid, tree_state),
         )
     }
 

@@ -37,7 +37,6 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         .expect("could not lock `Container`");
 
     let asset = container.assets.get(&props.rid).expect("`Asset` not found");
-
     let onsave = {
         let app_state = app_state.clone();
         let tree_state = tree_state.clone();

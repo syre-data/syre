@@ -3,6 +3,7 @@
 .thot-ui-shadow-box {
   z-index: 100;
   background-color: rgba(0, 0, 0, 1);
+  padding: t.$padding-l;
   border-radius: t.$border-radius-m;
 }
 
@@ -43,3 +44,17 @@
   }
 }
 
+.thot-ui-file-selector {
+  text-align: center;
+
+  .path-control {
+    .path {
+      font-weight: bold;
+    }
+
+    button {
+      padding: t.$padding-s;
+      border-radius: t.$border-radius-s;
+    }
+  }
+}

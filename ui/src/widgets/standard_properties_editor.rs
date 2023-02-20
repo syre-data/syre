@@ -14,6 +14,7 @@ enum StandardPropertiesStateAction {
     SetDescription(Option<String>),
     SetTags(Vec<String>),
     SetMetadata(Metadata),
+    Update(StandardProperties),
 }
 
 #[derive(PartialEq, Clone)]
@@ -67,6 +68,9 @@ impl Reducible for StandardPropertiesState {
             StandardPropertiesStateAction::SetMetadata(metadata) => {
                 current.metadata = metadata;
             }
+            StandardPropertiesStateAction::Update(properties) => {
+                return Self(properties).into();
+            }
         }
 
         current.into()
@@ -101,6 +105,18 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
+
+    {
+        let properties_state = properties_state.clone();
+
+        use_effect_with_deps(
+            move |properties| {
+                properties_state
+                    .dispatch(StandardPropertiesStateAction::Update(properties.clone()));
+            },
+            props.properties.clone(),
+        );
+    }
 
     let onchange_name = {
         let properties_state = properties_state.clone();

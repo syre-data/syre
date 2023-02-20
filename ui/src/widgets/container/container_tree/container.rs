@@ -25,6 +25,9 @@ pub enum ContainerSettingsMenuEvent {
 
     /// Add a [`Asset`](thot_core::project::Asset)s to a `Container` using custom options.
     AddAssets,
+
+    /// Duplicate the `Contiainer` tree.
+    DuplicateTree,
 }
 
 /// Properties for [`ContainerSettingsMenu`].
@@ -66,6 +69,11 @@ fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
                 <li class={classes!("clickable")}
                     onclick={onclick(ContainerSettingsMenuEvent::AddAssets)}>
                     { "Add assets" }
+                </li>
+
+                <li class={classes!("clickable")}
+                    onclick={onclick(ContainerSettingsMenuEvent::DuplicateTree)}>
+                    { "Duplicate Tree" }
                 </li>
             </ul>
         </div>

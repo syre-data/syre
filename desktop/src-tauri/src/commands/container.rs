@@ -79,11 +79,16 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
     Ok(child?)
 }
 
+// /// Retrieves a [`Container`](CoreContainer) tree.
+// #[tauri::command]
+// pub fn get_container_tree(db: State<DbClient>, rid: ResourceId) -> Option<CoreContainer> {}
+
 /// Retrieves a [`Container`](CoreContainer), or `None` if it is not loaded.
 #[tauri::command]
 pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<CoreContainer> {
-    let child = db.send(ContainerCommand::Get(rid).into());
-    serde_json::from_value(child).expect("could not convert `GetContainer` result to `Container`")
+    let container = db.send(ContainerCommand::Get(rid).into());
+    serde_json::from_value(container)
+        .expect("could not convert `GetContainer` result to `Container`")
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s properties and persists changes to disk.

@@ -150,27 +150,28 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         .await
                         .expect("could not open file");
                 });
-            } // ContainerSettingsMenuEvent::DuplicateTree => {
-              //     let container_id = container_id.clone();
+            }
+            ContainerSettingsMenuEvent::DuplicateTree => {
+                let container_id = container_id.clone();
 
-              //     spawn_local(async move {
-              //         let rid = invoke(
-              //             "duplicate_container_tree",
-              //             ResourceIdArgs {
-              //                 rid: container_id.clone(),
-              //             },
-              //         )
-              //         .await
-              //         .expect("could not invoke `duplicate_container_tree`");
+                spawn_local(async move {
+                    let rid = invoke(
+                        "duplicate_container_tree",
+                        ResourceIdArgs {
+                            rid: container_id.clone(),
+                        },
+                    )
+                    .await
+                    .expect("could not invoke `duplicate_container_tree`");
 
-              //         let rid: ResourceId = swb::from_value(rid).expect(
-              //             "could not convert result of `duplicate_container_tree` to `ResourceId`",
-              //         );
+                    let rid: ResourceId = swb::from_value(rid).expect(
+                        "could not convert result of `duplicate_container_tree` to `ResourceId`",
+                    );
 
-              //         let tree = invoke(
-              //             "load_container_tree",
-              //     });
-              // }
+                    // let tree = invoke(
+                    //     "load_container_tree",
+                });
+            }
         })
     };
 

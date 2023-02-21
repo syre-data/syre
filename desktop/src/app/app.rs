@@ -88,6 +88,7 @@ pub fn app() -> Html {
                         </main>
                         <Messages />
                         <GlobalWidgets />
+                        <div id={"app-main-shadow-box"}></div>
                     </div>
                 </ContextProvider<ProjectsStateReducer>>
             } else {

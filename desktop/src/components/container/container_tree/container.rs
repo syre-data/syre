@@ -1,5 +1,6 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
+use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::common::invoke;
@@ -14,7 +15,6 @@ use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use thot_core::project::Asset as CoreAsset;
 use thot_core::types::{ResourceId, ResourceMap};
-use thot_ui::components::ShadowBox;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
     container::ContainerProps as ContainerUiProps, container::ContainerSettingsMenuEvent,

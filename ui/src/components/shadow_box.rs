@@ -5,6 +5,9 @@ use yew::prelude::*;
 
 #[derive(PartialEq, Properties)]
 pub struct ShadowBoxProps {
+    /// Html id of the host element.
+    pub host_id: AttrValue,
+
     #[prop_or_default]
     pub class: Classes,
 
@@ -12,7 +15,7 @@ pub struct ShadowBoxProps {
     pub children: Children,
 
     #[prop_or_default]
-    pub title: Option<String>,
+    pub title: Option<AttrValue>,
 
     #[prop_or(Callback::noop())]
     pub onclose: Callback<MouseEvent>,
@@ -79,7 +82,13 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
         PreferredTheme::Dark => CONTENT_STYLES_DARK,
     };
 
-    html! {
+    let window = web_sys::window().expect("could not get window");
+    let document = window.document().expect("window should have a document");
+    let host = document
+        .get_element_by_id(&props.host_id)
+        .expect("could not get host element");
+
+    let out = html! {
         <div class={classes!("thot-ui-shadow-box-wrapper")}style={container_styles}>
             <div class={classes!("thot-ui-shadow-box")} style={content_styles}>
                 <button
@@ -96,7 +105,9 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
                 </div>
             </div>
         </div>
-    }
+    };
+
+    create_portal(out, host.into())
 }
 
 #[cfg(test)]

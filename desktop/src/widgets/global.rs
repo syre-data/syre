@@ -1,9 +1,8 @@
 //! Collection of widgetst available from anywhere in the app.
 //! Activation of the widgets is determined by the [`AppState`].
-use crate::app::{AppStateAction, AppStateReducer, AppWidget};
+use crate::app::{AppStateAction, AppStateReducer, AppWidget, ShadowBox};
 use crate::components::project::CreateProject;
 use crate::components::settings::Settings;
-use thot_ui::components::ShadowBox;
 use yew::prelude::*;
 
 #[function_component(GlobalWidgets)]

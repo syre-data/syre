@@ -1,6 +1,7 @@
 //! Container tree UI.
 use super::Container;
 use crate::app::AuthStateReducer;
+use crate::app::ShadowBox;
 use crate::commands::common::UpdatePropertiesArgs;
 use crate::commands::container::NewChildArgs;
 use crate::common::invoke;
@@ -11,7 +12,6 @@ use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::{Creator, ResourceId, UserId};
-use thot_ui::components::ShadowBox;
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;

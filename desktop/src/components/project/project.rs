@@ -1,10 +1,10 @@
 //! Project component with suspense.
 use super::set_data_root::SetDataRoot;
+use crate::app::ShadowBox;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::container::ContainerTreeController;
 use crate::hooks::use_project;
 use thot_core::types::ResourceId;
-use thot_ui::components::ShadowBox;
 use wasm_bindgen::JsCast;
 use yew::prelude::*;
 

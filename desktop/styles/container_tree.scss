@@ -1,6 +1,6 @@
 @use 'themes' as t;
 
-$control-button-size: 35px;
+$control-button-size: 25px;
 
 .container-tree {
   position: relative;
@@ -13,10 +13,10 @@ $control-button-size: 35px;
     text-align: center;
 
     background-color: t.$background-accent-color;
-    padding: 0.5rem 0.5rem 20px 0.5rem; // give room for add child button
+    padding: t.$padding-m t.$padding-m calc(0.5* #{$control-button-size}) t.$padding-m; // give room for add child button
     border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
-    margin: 0.5em 0.5em $control-button-size 0.5em;
+    margin: t.$padding-m t.$padding-m $control-button-size t.$padding-m;
 
     transition: border-color t.$transition-fast;
 
@@ -65,6 +65,10 @@ $control-button-size: 35px;
 
           li {
             white-space: nowrap;
+
+            &:hover {
+              filter: brightness(t.$darker); 
+            }
           }
         }
       }
@@ -78,9 +82,14 @@ $control-button-size: 35px;
       width: $control-button-size;
       height: $control-button-size;
       vertical-align: bottom;
-      padding: 5px;
+      padding: 0;
+      border-radius: t.$border-radius-s;
       margin: 5px;
       background-color: t.$background-color;
+
+      svg {
+        width: calc(0.7* #{$control-button-size});
+      }
     }
 
     .add-child-container-control {
@@ -187,6 +196,10 @@ $control-button-size: 35px;
     }
   }
 
+  .child-node-marker {
+    margin: t.$padding-m;
+  }
+
   .container-tree-node-connectors {
     position: absolute;
     top: 0;
@@ -196,13 +209,22 @@ $control-button-size: 35px;
 
     width: 100%;
     height: 100%;
-    z-index: -10;
 
     .container-tree-node-connector {
       fill: none;
-      stroke: white;
+      stroke: t.$background-accent-color;
       stroke-width: 1;
     }
 
+    .container-tree-visibility-control {
+      fill: t.$background-accent-color;
+      stroke: none;
+      opacity: 0;
+      transition: opacity t.$transition-fast;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
   }
 }

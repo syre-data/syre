@@ -13,7 +13,8 @@ use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
 use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
-use thot_core::project::Asset as CoreAsset;
+use std::sync::{Arc, Mutex};
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
@@ -52,20 +53,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeReducer` context not found");
 
-    let show_create_asset = use_state(|| false);
     let container = use_container(props.rid.clone());
-    let Some(container) = container.as_ref() else {
-        panic!("`Container` not loaded");
-    };
+    let show_create_asset = use_state(|| false);
 
-    let container_id = {
-        let container = container.lock().expect("could not lock `Container`");
-        container.rid.clone()
-    };
+    let selected = canvas_state.selected.contains(&container.rid);
 
-    let selected = canvas_state.selected.contains(&container_id);
     let multiple_selected = canvas_state.selected.len() > 1;
-
     let script_names = projects_state
         .project_scripts
         .get(&canvas_state.project)
@@ -95,13 +88,14 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let onclick = {
         let canvas_state = canvas_state.clone();
-        let container_id = container_id.clone();
+        let container = container.clone();
         let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
-            let container_id = container_id.clone();
+
+            let container_id = container.rid.clone();
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
                     canvas_state.dispatch(CanvasStateAction::ClearSelected);
@@ -124,53 +118,63 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // ----------------------------
 
     let on_settings_event = {
+        let tree_state = tree_state.clone();
+        let container = container.clone();
         let show_create_asset = show_create_asset.clone();
-        let container_id = container_id.clone();
 
-        Callback::from(move |event: ContainerSettingsMenuEvent| match event {
-            ContainerSettingsMenuEvent::AddAssets => show_create_asset.set(true),
+        Callback::from(move |event: ContainerSettingsMenuEvent| {
+            let container_id = container.rid.clone();
+            match event {
+                ContainerSettingsMenuEvent::AddAssets => show_create_asset.set(true),
 
-            ContainerSettingsMenuEvent::OpenFolder => {
-                let container_id = container_id.clone();
+                ContainerSettingsMenuEvent::OpenFolder => {
+                    spawn_local(async move {
+                        let path =
+                            invoke("get_container_path", ResourceIdArgs { rid: container_id })
+                                .await
+                                .expect("could not get `Container` path");
 
-                spawn_local(async move {
-                    let path = invoke(
-                        "get_container_path",
-                        ResourceIdArgs {
-                            rid: container_id.clone(),
-                        },
-                    )
-                    .await
-                    .expect("could not get `Container` path");
+                        let path: PathBuf = swb::from_value(path).expect(
+                            "could not convert result of `get_container_path` to `PathBuf`",
+                        );
 
-                    let path: PathBuf = swb::from_value(path)
-                        .expect("could not convert result of `get_container_path` to `PathBuf`");
+                        invoke("open_file", PathBufArgs { path })
+                            .await
+                            .expect("could not open file");
+                    });
+                }
 
-                    invoke("open_file", PathBufArgs { path })
+                ContainerSettingsMenuEvent::DuplicateTree => {
+                    let tree_state = tree_state.clone();
+                    let container_id = container_id.clone();
+
+                    spawn_local(async move {
+                        let rid = invoke(
+                            "duplicate_container_tree",
+                            ResourceIdArgs {
+                                rid: container_id.clone(),
+                            },
+                        )
                         .await
-                        .expect("could not open file");
-                });
-            }
-            ContainerSettingsMenuEvent::DuplicateTree => {
-                let container_id = container_id.clone();
+                        .expect("could not invoke `duplicate_container_tree`");
 
-                spawn_local(async move {
-                    let rid = invoke(
-                        "duplicate_container_tree",
-                        ResourceIdArgs {
-                            rid: container_id.clone(),
-                        },
-                    )
-                    .await
-                    .expect("could not invoke `duplicate_container_tree`");
-
-                    let rid: ResourceId = swb::from_value(rid).expect(
+                        let rid: ResourceId = swb::from_value(rid).expect(
                         "could not convert result of `duplicate_container_tree` to `ResourceId`",
                     );
 
-                    // let tree = invoke(
-                    //     "load_container_tree",
-                });
+                        let root = invoke("get_container_tree", ResourceIdArgs { rid })
+                            .await
+                            .expect("could not invoke `get_container_tree`");
+
+                        let root: CoreContainer = swb::from_value(root).expect(
+                            "could not convert result of `get_container_tree` to `Container`",
+                        );
+
+                        tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(
+                            Arc::new(Mutex::new(root)),
+                        ));
+                    });
+                }
             }
         })
     };
@@ -221,12 +225,11 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let ondblclick_asset = {
         let app_state = app_state.clone();
         let tree_state = tree_state.clone();
-        let container_id = container_id.clone();
+        let container = container.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
             e.stop_propagation();
-            let container_id = container_id.clone();
-
+            let container = container.clone();
             let Some(asset) = get_asset(&asset, tree_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
                 return;
@@ -236,7 +239,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let path = invoke(
                     "get_container_path",
                     ResourceIdArgs {
-                        rid: container_id.clone(),
+                        rid: container.rid.clone(),
                     },
                 )
                 .await
@@ -294,29 +297,17 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- scripts ---
     // ---------------
 
-    let onclick_toggle_visibility = {
-        let canvas_state = canvas_state.clone();
-        let container_id = container_id.clone();
-
-        Callback::from(move |_| {
-            canvas_state.dispatch(CanvasStateAction::SetVisibility(
-                container_id.clone(),
-                !canvas_state.is_visible(&container_id),
-            ));
-        })
-    };
-
     // ----------------------
     // --- on drop events ---
     // ----------------------
 
     let ondragenter = {
         let tree_state = tree_state.clone();
-        let container_id = container_id.clone();
+        let container = container.clone();
 
         Callback::from(move |_: web_sys::DragEvent| {
             tree_state.dispatch(ContainerTreeStateAction::SetDragOverContainer(
-                container_id.clone(),
+                container.rid.clone(),
             ));
         })
     };
@@ -339,20 +330,16 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         class.push("selected");
     }
 
-    let container_val = container.lock().expect("could not lock container").clone();
-    let c_props = {
-        let c = container_val.clone();
-
-        props! {
+    let c_props = props! {
             ContainerUiProps {
                 r#ref: props.r#ref.clone(),
                 class,
-                visible: canvas_state.is_visible(&container_id),
-                rid: c.rid,
-                properties: c.properties,
-                assets: c.assets,
+                visible: canvas_state.is_visible(&container.rid),
+                rid: container.rid.clone(),
+                properties: container.properties.clone(),
+                assets: container.assets.clone(),
                 active_assets: canvas_state.selected.clone(),
-                scripts: c.scripts,
+                scripts: container.scripts.clone(),
                 script_names,
                 preview: tree_state.preview.clone(),
                 onclick,
@@ -363,12 +350,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 ondragenter,
                 ondragleave,
                 onclick_edit_scripts,
-                onclick_toggle_visibility,
             }
-        }
     };
 
-    let container_name = match container_val.properties.name.clone() {
+    let container_name = match container.properties.name.clone() {
         None => "(no name)".to_string(),
         Some(name) => name,
     };
@@ -383,7 +368,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onclose={close_create_asset}>
 
                 <CreateAssets
-                    container={container_val.rid.clone()}
+                    container={container.rid.clone()}
                     onsuccess={onadd_assets} />
             </ShadowBox>
         }

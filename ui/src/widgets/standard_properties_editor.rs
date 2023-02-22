@@ -9,9 +9,12 @@ use yew::prelude::*;
 // *** Properties State ***
 // ************************
 enum StandardPropertiesStateAction {
-    SetName(Option<String>),
-    SetKind(Option<String>),
-    SetDescription(Option<String>),
+    SetName(String),
+    ClearName,
+    SetKind(String),
+    ClearKind,
+    SetDescription(String),
+    ClearDescription,
     SetTags(Vec<String>),
     SetMetadata(Metadata),
     Update(StandardProperties),
@@ -51,23 +54,39 @@ impl Reducible for StandardPropertiesState {
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
-
         match action {
-            StandardPropertiesStateAction::SetName(name) => {
-                current.name = name;
+            StandardPropertiesStateAction::SetName(value) => {
+                let _ = current.name.insert(value);
             }
-            StandardPropertiesStateAction::SetKind(kind) => {
-                current.kind = kind;
+
+            StandardPropertiesStateAction::ClearName => {
+                current.name.take();
             }
-            StandardPropertiesStateAction::SetDescription(description) => {
-                current.description = description;
+
+            StandardPropertiesStateAction::SetKind(value) => {
+                let _ = current.kind.insert(value);
             }
+
+            StandardPropertiesStateAction::ClearKind => {
+                current.kind.take();
+            }
+
+            StandardPropertiesStateAction::SetDescription(value) => {
+                let _ = current.description.insert(value);
+            }
+
+            StandardPropertiesStateAction::ClearDescription => {
+                current.description.take();
+            }
+
             StandardPropertiesStateAction::SetTags(tags) => {
                 current.tags = tags;
             }
+
             StandardPropertiesStateAction::SetMetadata(metadata) => {
                 current.metadata = metadata;
             }
+
             StandardPropertiesStateAction::Update(properties) => {
                 return Self(properties).into();
             }
@@ -129,8 +148,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let value = if value.is_empty() { None } else { Some(value) };
-            properties_state.dispatch(StandardPropertiesStateAction::SetName(value));
+            let action = if value.is_empty() {
+                StandardPropertiesStateAction::ClearName
+            } else {
+                StandardPropertiesStateAction::SetName(value)
+            };
+
+            properties_state.dispatch(action);
         })
     };
 
@@ -145,8 +169,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let value = if value.is_empty() { None } else { Some(value) };
-            properties_state.dispatch(StandardPropertiesStateAction::SetKind(value));
+            let action = if value.is_empty() {
+                StandardPropertiesStateAction::ClearKind
+            } else {
+                StandardPropertiesStateAction::SetKind(value)
+            };
+
+            properties_state.dispatch(action);
         })
     };
 
@@ -161,8 +190,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let value = if value.is_empty() { None } else { Some(value) };
-            properties_state.dispatch(StandardPropertiesStateAction::SetDescription(value));
+            let action = if value.is_empty() {
+                StandardPropertiesStateAction::ClearDescription
+            } else {
+                StandardPropertiesStateAction::SetDescription(value)
+            };
+
+            properties_state.dispatch(action);
         })
     };
 

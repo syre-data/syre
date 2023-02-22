@@ -46,7 +46,7 @@ pub struct CanvasState {
     pub selected: HashSet<ResourceId>,
 
     /// `Container` tree visibility state.
-    /// Key indicates the tree root, whose children are affected.
+    /// Key indicates the root of the hidden tree.
     visible: ResourceMap<bool>,
 
     /// Map of [`ResourceId`] to the type of the resource.

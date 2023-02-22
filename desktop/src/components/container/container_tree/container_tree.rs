@@ -10,6 +10,7 @@ use crate::components::canvas::{
 };
 use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
+use std::str::FromStr;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_ui::widgets::suspense::Loading;
@@ -17,6 +18,7 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 // **********************
 // *** New Child Name ***
@@ -79,6 +81,9 @@ fn new_child_name(props: &NewChildNameProps) -> Html {
 // **********************
 
 static CONNECTOR_CLASS: &str = "container-tree-node-connector";
+static VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
+static VISIBILITY_CONTROL_SIZE: u8 = 20;
+static EYE_ICON_SIZE: u8 = 16;
 
 /// Properties for a [`ContainerTree`].
 #[derive(Properties, PartialEq)]
@@ -100,10 +105,6 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
         .expect("`ContainerTreeReducer` context not found");
 
     let container = use_container(props.root.clone());
-    let Some(container) = container.as_ref() else {
-        panic!("`Container` not loaded");
-    };
-
     let show_add_child_form = use_state(|| false);
     let new_child_parent = use_state(|| None);
     let root_ref = use_node_ref();
@@ -191,6 +192,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
     // add connectors
     {
+        let canvas_state = canvas_state.clone();
         let root_ref = root_ref.clone();
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
@@ -200,10 +202,12 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 root_ref.clone(),
                 children_ref.clone(),
                 connectors_ref.clone(),
+                canvas_state.clone(),
             );
         });
     }
     {
+        let canvas_state = canvas_state.clone();
         let root_ref = root_ref.clone();
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
@@ -216,6 +220,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                         root_ref.clone(),
                         children_ref.clone(),
                         connectors_ref.clone(),
+                        canvas_state.clone(),
                     )
                 });
 
@@ -237,26 +242,58 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     Ok(html! {
         <div class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>
+                <svg ref={connectors_ref}
+                    class="container-tree-node-connectors">
+
+                    <defs>
+                        <g id={"visible-marker"}>
+                            <Icon icon_id={IconId::FontAwesomeRegularEye}
+                                width={format!("{EYE_ICON_SIZE}")}
+                                height={format!("{EYE_ICON_SIZE}")} />
+                        </g>
+
+                        <g id={"hidden-marker"}>
+                            <Icon icon_id={IconId::FontAwesomeRegularEyeSlash}
+                                width={format!("{EYE_ICON_SIZE}")}
+                                height={format!("{EYE_ICON_SIZE}")} />
+                        </g>
+                    </defs>
+                </svg>
+
                 <Container
                     r#ref={root_ref}
                     rid={props.root.clone()}
                     {onadd_child} />
 
                 <div ref={children_ref} class={classes!("children")}>
-                    if canvas_state.is_visible(&props.root) {{
-                         container
-                            .lock()
-                            .expect("could not lock container")
-                            .children
-                            .keys()
-                            .map(|root| html! {
-                                <ContainerTree root={root.clone()} />
-                            })
-                            .collect::<Html>()
-                    }}
+                    { container
+                        .children
+                        .iter()
+                        .map(|(rid, child)| html! {
+                            if canvas_state.is_visible(&rid) {
+                                <ContainerTree root={rid.clone()} />
+                            } else {
+                                <div class={classes!("child-node-marker")}
+                                    data-rid={rid.clone()}>
+
+                                    { match child
+                                        .clone()
+                                        .expect("child `Container` not loaded")
+                                        .lock()
+                                        .expect("could not lock child `Container`")
+                                        .properties
+                                        .name
+                                        .clone() {
+                                            Some(name) => name,
+                                            None => "(no name)".to_string()
+                                        }
+                                    }
+                                </div>
+                            }
+                        })
+                        .collect::<Html>()
+                    }
                 </div>
-                <svg ref={connectors_ref} class="container-tree-node-connectors">
-                </svg>
             </Suspense>
 
             if *show_add_child_form {
@@ -273,10 +310,12 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 // ***************
 
 /// Creates connectors between `Container` nodes in a tree.
-fn create_connectors(root: NodeRef, children: NodeRef, connectors: NodeRef) {
-    let window = web_sys::window().expect("could not get window");
-    let document = window.document().expect("window should have a document");
-
+fn create_connectors(
+    root: NodeRef,
+    children: NodeRef,
+    connectors: NodeRef,
+    canvas_state: CanvasStateReducer,
+) {
     let root_elm = root
         .cast::<web_sys::HtmlElement>()
         .expect("could not cast root node to element");
@@ -293,16 +332,32 @@ fn create_connectors(root: NodeRef, children: NodeRef, connectors: NodeRef) {
         .query_selector_all(":scope > .container-tree")
         .expect("could not query children");
 
+    let children_markers = children_elm
+        .query_selector_all(":scope > .child-node-marker")
+        .expect("could not query children markers");
+
     // clear connectors
-    while let Some(connector) = connectors_elm.first_child() {
-        let _ = connectors_elm.remove_child(&connector);
+    let current_elements = connectors_elm
+        .query_selector_all(":scope > :not(defs)")
+        .expect("could not query current elements");
+
+    for index in 0..current_elements.length() {
+        let Some(child_elm) = current_elements.get(index) else {
+            continue;
+        };
+
+        let _ = connectors_elm.remove_child(&child_elm);
     }
 
-    // add connectors
+    // root position
+    let root_bottom = root_elm.offset_top() + root_elm.client_height();
+    let root_center = root_elm.offset_left() + root_elm.client_width() / 2;
+
+    // add connectors to children
     for index in 0..children.length() {
         let Some(child_elm) = children.get(index) else {
-                    continue;
-                };
+            continue;
+        };
 
         let child_elm = child_elm
             .dyn_ref::<web_sys::HtmlElement>()
@@ -317,37 +372,224 @@ fn create_connectors(root: NodeRef, children: NodeRef, connectors: NodeRef) {
             .dyn_ref::<web_sys::HtmlElement>()
             .expect("could not cast child node to element");
 
-        let root_bottom = root_elm.offset_top() + root_elm.client_height();
-        let root_center = root_elm.offset_left() + root_elm.client_width() / 2;
-
         let child_top = child_elm.offset_top() + child_node_elm.offset_top();
         let child_center = child_elm.offset_left()
             + child_node_elm.offset_left()
             + child_node_elm.client_width() / 2;
 
-        let gap = (root_bottom + child_top) / 2;
-        let points_list = format!("{root_center},{root_bottom} {root_center},{gap} {child_center},{gap} {child_center},{child_top}");
+        let midgap = (root_bottom + child_top) / 2;
+        let points_list = format!("{root_center},{root_bottom} {root_center},{midgap} {child_center},{midgap} {child_center},{child_top}");
 
-        let connector = document
-            .create_element_ns(Some("http://www.w3.org/2000/svg"), "polyline")
-            .expect("could not create polyline");
+        let connector = create_connector_element(&points_list);
+        connectors_elm
+            .append_child(&connector)
+            .expect("could not add connector to document");
 
-        let connector = connector
-            .dyn_ref::<web_sys::SvgPolylineElement>()
-            .expect("could not cast element as polyline");
+        // visibility toggle
+        let child_id = child_node_elm
+            .dataset()
+            .get("rid")
+            .expect("could not get `ResourceId` of child element");
 
-        connector
-            .set_attribute("points", &points_list)
-            .expect("could not set `points` on connector");
-
-        connector
-            .set_attribute("class", CONNECTOR_CLASS)
-            .expect("could not set `class` on connector");
+        let visibility =
+            create_visibility_control_element(child_center, midgap, child_id, canvas_state.clone());
 
         connectors_elm
-            .append_child(connector)
-            .expect("could not add connector to document");
+            .append_child(&visibility)
+            .expect("could not add visibility control to document");
     }
+
+    // add connectors to children markers
+    for index in 0..children_markers.length() {
+        let Some(child_elm) = children_markers.get(index) else {
+            continue;
+        };
+
+        let child_elm = child_elm
+            .dyn_ref::<web_sys::HtmlElement>()
+            .expect("could not cast child node to element");
+
+        let child_top = child_elm.offset_top();
+        let child_center = child_elm.offset_left() + child_elm.client_width() / 2;
+
+        let midgap = (root_bottom + child_top) / 2;
+        let points_list = format!("{root_center},{root_bottom} {root_center},{midgap} {child_center},{midgap} {child_center},{child_top}");
+
+        let connector = create_connector_element(&points_list);
+        connectors_elm
+            .append_child(&connector)
+            .expect("could not add connector to document");
+
+        // visibility toggle
+        let child_id = child_elm
+            .dataset()
+            .get("rid")
+            .expect("could not get `ResourceId` of child marker element");
+
+        let visibility =
+            create_visibility_control_element(child_center, midgap, child_id, canvas_state.clone());
+
+        connectors_elm
+            .append_child(&visibility)
+            .expect("could not add visibility control to document");
+    }
+}
+
+fn create_connector_element(points: &str) -> web_sys::SvgPolylineElement {
+    let window = web_sys::window().expect("could not get window");
+    let document = window.document().expect("window should have a document");
+
+    let connector = document
+        .create_element_ns(Some("http://www.w3.org/2000/svg"), "polyline")
+        .expect("could not create polyline");
+
+    let connector = connector
+        .dyn_ref::<web_sys::SvgPolylineElement>()
+        .expect("could not cast element as polyline");
+
+    connector
+        .set_attribute("points", &points)
+        .expect("could not set `points` on connector");
+
+    connector
+        .set_attribute("class", CONNECTOR_CLASS)
+        .expect("could not set `class` on connector");
+
+    connector.to_owned()
+}
+
+fn create_visibility_control_element(
+    cx: i32,
+    cy: i32,
+    rid: String,
+    canvas_state: CanvasStateReducer,
+) -> web_sys::SvgsvgElement {
+    let window = web_sys::window().expect("could not get window");
+    let document = window.document().expect("window should have a document");
+
+    let vis_circle = document
+        .create_element_ns(Some("http://www.w3.org/2000/svg"), "circle")
+        .expect("could not create `circle`");
+
+    let vis_circle = vis_circle
+        .dyn_ref::<web_sys::SvgCircleElement>()
+        .expect("could not cast element as `circle`");
+
+    vis_circle
+        .set_attribute("cx", &format!("{}", VISIBILITY_CONTROL_SIZE / 2))
+        .expect("could not set `cx` on visibility control");
+
+    vis_circle
+        .set_attribute("cy", &format!("{}", VISIBILITY_CONTROL_SIZE / 2))
+        .expect("could not set `cy` on visibility control");
+
+    vis_circle
+        .set_attribute("r", &format!("{}", VISIBILITY_CONTROL_SIZE / 2))
+        .expect("could not set `r` on visibility control");
+
+    let child_id = ResourceId::from_str(&rid).expect("could not parse child's `ResourceId`");
+    let eye_icon = document
+        .create_element_ns(Some("http://www.w3.org/2000/svg"), "use")
+        .expect("could not create `use`");
+
+    let eye_icon = eye_icon
+        .dyn_ref::<web_sys::SvgUseElement>()
+        .expect("could not cast element as `use`");
+
+    let icon_id = if canvas_state.is_visible(&child_id) {
+        "#visible-marker"
+    } else {
+        "#hidden-marker"
+    };
+
+    eye_icon
+        .set_attribute("href", icon_id)
+        .expect("could not set `href` on visiblilty icon");
+
+    eye_icon
+        .set_attribute(
+            "x",
+            &format!("{}", (VISIBILITY_CONTROL_SIZE - EYE_ICON_SIZE) / 2),
+        )
+        .expect("could not set `x` on visibility icon");
+
+    eye_icon
+        .set_attribute(
+            "y",
+            &format!("{}", (VISIBILITY_CONTROL_SIZE - EYE_ICON_SIZE) / 2),
+        )
+        .expect("could not set `y` on visibility icon");
+
+    // eye_icon
+    //     .set_attribute("width", "100%")
+    //     .expect("could not set `width` on visibility icon");
+
+    // eye_icon
+    //     .set_attribute("height", "100%")
+    //     .expect("could not set `height` on visibility icon");
+
+    let visibility = document
+        .create_element_ns(Some("http://www.w3.org/2000/svg"), "svg")
+        .expect("could not create `svg`");
+
+    let visibility = visibility
+        .dyn_ref::<web_sys::SvgsvgElement>()
+        .expect("could not cast element as `svg`");
+
+    visibility
+        .set_attribute(
+            "viewBox",
+            &format!("0 0 {VISIBILITY_CONTROL_SIZE} {VISIBILITY_CONTROL_SIZE}"),
+        )
+        .expect("could not set `x` on visibility control");
+
+    visibility
+        .set_attribute("width", &format!("{VISIBILITY_CONTROL_SIZE}"))
+        .expect("could not set `width` on visibility control");
+
+    visibility
+        .set_attribute("height", &format!("{VISIBILITY_CONTROL_SIZE}"))
+        .expect("could not set `height` on visibility control");
+
+    visibility
+        .set_attribute("class", VISIBILITY_CONTROL_CLASS)
+        .expect("could not set `class` on visibility control");
+
+    visibility
+        .set_attribute(
+            "x",
+            &format!("{}", cx - (VISIBILITY_CONTROL_SIZE / 2) as i32),
+        )
+        .expect("could not set `x` on visibility control");
+
+    visibility
+        .set_attribute(
+            "y",
+            &format!("{}", cy - (VISIBILITY_CONTROL_SIZE / 2) as i32),
+        )
+        .expect("could not set `y` on visibility control");
+
+    visibility
+        .append_child(vis_circle)
+        .expect("could not append `circle` as child");
+
+    visibility
+        .append_child(&eye_icon)
+        .expect("could not append icon as child");
+
+    let toggle_visibility = Closure::<dyn Fn(MouseEvent)>::new(move |e: MouseEvent| {
+        e.stop_propagation();
+
+        canvas_state.dispatch(CanvasStateAction::SetVisibility(
+            child_id.clone(),
+            !canvas_state.is_visible(&child_id),
+        ));
+    });
+
+    visibility.set_onclick(Some(toggle_visibility.as_ref().unchecked_ref()));
+    toggle_visibility.forget();
+
+    visibility.to_owned()
 }
 
 #[cfg(test)]

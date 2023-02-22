@@ -145,10 +145,6 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub onclick_edit_scripts: Option<Callback<ResourceId>>,
 
-    /// Callback when visibility toggle button is clicked.
-    #[prop_or_default]
-    pub onclick_toggle_visibility: Option<Callback<()>>,
-
     #[prop_or_default]
     pub ondragenter: Callback<web_sys::DragEvent>,
 
@@ -217,17 +213,6 @@ pub fn container(props: &ContainerProps) -> Html {
             e.stop_propagation();
             if let Some(onclick_edit_scripts) = onclick_edit_scripts.clone() {
                 onclick_edit_scripts.emit(rid.clone());
-            }
-        })
-    };
-
-    let onclick_toggle_visibility = {
-        let onclick_toggle_visibility = props.onclick_toggle_visibility.clone();
-
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            if let Some(onclick_toggle_visibility) = onclick_toggle_visibility.clone() {
-                onclick_toggle_visibility.emit(());
             }
         })
     };
@@ -342,19 +327,6 @@ pub fn container(props: &ContainerProps) -> Html {
                         onclick={onclick_edit_scripts}>
 
                         <Icon icon_id={IconId::FontAwesomeSolidCode} />
-                    </button>
-                }
-
-                if props.onclick_toggle_visibility.is_some() {
-                    <button
-                        class={classes!("container-control")}
-                        onclick={onclick_toggle_visibility}>
-
-                        if props.visible {
-                            <Icon icon_id={IconId::FontAwesomeRegularEye} />
-                        } else {
-                            <Icon icon_id={IconId::FontAwesomeRegularEyeSlash} />
-                        }
                     </button>
                 }
             </div>

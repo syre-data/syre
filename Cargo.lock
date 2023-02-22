@@ -3942,6 +3942,7 @@ dependencies = [
  "web-sys",
  "yew",
  "yew-router",
+ "yew_icons",
 ]
 
 [[package]]

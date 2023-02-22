@@ -79,10 +79,6 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
     Ok(child?)
 }
 
-// /// Retrieves a [`Container`](CoreContainer) tree.
-// #[tauri::command]
-// pub fn get_container_tree(db: State<DbClient>, rid: ResourceId) -> Option<CoreContainer> {}
-
 /// Retrieves a [`Container`](CoreContainer), or `None` if it is not loaded.
 #[tauri::command]
 pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<CoreContainer> {

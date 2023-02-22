@@ -1,24 +1,25 @@
 //! Hook for obtaining a [`Container`](CoreContainer).
 use crate::components::canvas::ContainerTreeStateReducer;
-use std::sync::{Arc, Mutex};
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
-type ContainerWrapper = Arc<Mutex<CoreContainer>>;
-
 /// Gets a [`Container`](CoreContainer).
 #[hook]
-pub fn use_container(rid: ResourceId) -> UseStateHandle<Option<ContainerWrapper>> {
+pub fn use_container(rid: ResourceId) -> UseStateHandle<CoreContainer> {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeStateReducer` context not found");
 
     let container = use_state(|| {
-        if let Some(container) = tree_state.containers.get(&rid) {
-            container.clone()
-        } else {
-            None
-        }
+        tree_state
+            .containers
+            .get(&rid)
+            .cloned()
+            .flatten()
+            .expect("`Container` not loaded")
+            .lock()
+            .expect("could not lock container")
+            .clone()
     });
 
     // tree_state updates
@@ -28,13 +29,17 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<Option<ContainerWrapper>
 
         use_effect_with_deps(
             move |(rid, tree_state)| {
-                let container_val = if let Some(c) = tree_state.containers.get(&rid) {
-                    c.clone()
-                } else {
-                    None
-                };
-
-                container.set(container_val);
+                container.set(
+                    tree_state
+                        .containers
+                        .get(&rid)
+                        .cloned()
+                        .flatten()
+                        .expect("`Container` not loaded")
+                        .lock()
+                        .expect("could not lock container")
+                        .clone(),
+                )
             },
             (rid, tree_state),
         )

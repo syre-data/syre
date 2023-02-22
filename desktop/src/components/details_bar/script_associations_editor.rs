@@ -35,16 +35,8 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .expect("`ContainerTreeStateReducer` context not found");
 
     let project_scripts = use_project_scripts(canvas_state.project.clone());
-
     let container = use_container(props.container.clone());
-    let Some(container) = container.as_ref() else {
-        panic!("`Container` not loaded");
-    };
-
-    let associations = use_state(|| {
-        let container = container.lock().expect("could not lock `Container`");
-        container.scripts.clone()
-    });
+    let associations = use_state(|| container.scripts.clone());
 
     let remaining_scripts = use_state(|| {
         if let Some(project_scripts) = project_scripts.as_ref() {
@@ -65,11 +57,6 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
     {
         let container = container.clone();
-        let container = container
-            .lock()
-            .expect("could not lock `Container`")
-            .clone();
-
         let associations = associations.clone();
 
         use_effect_with_deps(

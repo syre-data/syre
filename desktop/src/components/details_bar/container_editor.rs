@@ -27,22 +27,17 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeReducer` context not found");
 
-    let container = tree_state
-        .containers
-        .get(&props.rid)
-        .expect("`Container` not loaded");
-
-    let properties = use_state(|| container_properties(container.as_ref()));
-
+    let container = use_container(props.rid.clone());
+    let properties = use_state(|| container.properties.clone());
     {
         let container = container.clone();
         let properties = properties.clone();
 
         use_effect_with_deps(
-            move |_| {
-                properties.set(container_properties(container.as_ref()));
+            move |container| {
+                properties.set(container.properties.clone());
             },
-            props.rid.clone(),
+            container.clone(),
         );
     }
 

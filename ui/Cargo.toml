@@ -48,8 +48,6 @@ features=[
 [dependencies.yew_icons]
 version = "0.7"
 features=[
-    "FontAwesomeRegularEye",
-    "FontAwesomeRegularEyeSlash",
     "FontAwesomeSolidCode",
 ]
 

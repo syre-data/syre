@@ -47,20 +47,21 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
 
     let clear_selection = {
         let canvas_state = canvas_state.clone();
-        let project_ref = project_ref.clone();
+        // let project_ref = project_ref.clone();
 
-        Callback::from(move |e: MouseEvent| {
-            let project_elm = project_ref
-                .cast::<web_sys::HtmlElement>()
-                .expect("could not cast node to element");
+        Callback::from(move |_: MouseEvent| {
+            // @remove
+            // let project_elm = project_ref
+            //     .cast::<web_sys::HtmlElement>()
+            //     .expect("could not cast node to element");
 
-            let Some(target) = e.target() else {
-                return;
-            };
+            // let Some(target) = e.target() else {
+            //     return;
+            // };
 
-            let target = target
-                .dyn_ref::<web_sys::HtmlElement>()
-                .expect("could not cast target to element");
+            // let target = target
+            //     .dyn_ref::<web_sys::HtmlElement>()
+            //     .expect("could not cast target to element");
 
             canvas_state.dispatch(CanvasStateAction::ClearSelected);
         })

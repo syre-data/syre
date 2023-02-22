@@ -49,5 +49,17 @@ features = [
     "HtmlInputElement",
     "InputEvent",
     "SubmitEvent",
+    "SvgCircleElement",
+    "SvggElement",
+    "SvgForeignObjectElement",
     "SvgPolylineElement",
+    "SvgsvgElement",
+    "SvgUseElement",
+]
+
+[dependencies.yew_icons]
+version = "0.7"
+features = [
+    "FontAwesomeRegularEye",
+    "FontAwesomeRegularEyeSlash",
 ]

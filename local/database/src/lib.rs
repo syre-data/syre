@@ -1,3 +1,4 @@
+#![feature(mutex_unlock)]
 //! # Thot Local Database
 //! Implements a local database for Thot.
 pub mod command;

@@ -7,6 +7,7 @@ use crate::command::container::{
 use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
+use settings_manager::local_settings::LockSettingsFile;
 use settings_manager::LocalSettings;
 use std::collections::HashSet;
 use std::path::Path;
@@ -17,9 +18,11 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
+use thot_local::common::unique_file_name;
 use thot_local::project::asset::AssetBuilder;
 use thot_local::project::container;
 use thot_local::project::resources::Container as LocalContainer;
+use thot_local::types::ResourceValue;
 
 impl Database {
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
@@ -75,9 +78,15 @@ impl Database {
                 serde_json::to_value(asset_rids)
                     .expect("could not convert `Asset` `ResourceId`s to JSON")
             }
+
             ContainerCommand::NewChild(NewChildArgs { name, parent }) => {
                 let child = self.container_new_child(&parent, name);
                 serde_json::to_value(child).expect("could not convert child `Container` to JsValue")
+            }
+
+            ContainerCommand::DuplicateTree(root) => {
+                let res = self.duplicate_container_tree(root);
+                serde_json::to_value(res).expect("could not convert `Result` to JsValue")
             }
 
             // @todo: Handle errors.
@@ -269,6 +278,64 @@ impl Database {
         child.save()?;
 
         Ok(child.clone().into())
+    }
+
+    fn duplicate_container_tree(&mut self, rid: ResourceId) -> Result<CoreContainer> {
+        /// Saves a `Container` tree.
+        fn save_tree(root: Arc<Mutex<LocalContainer>>) -> Result {
+            let mut root = root.lock().expect("could not lock `Container`");
+
+            root.acquire_lock()?;
+            root.save()?;
+
+            for child in root.children.values() {
+                let ResourceValue::Resource(child) = child else {
+                    return Err(CoreError::ResourceError(ResourceError::DoesNotExist("child `Container` not loaded".to_string())).into());
+                };
+
+                save_tree(child.clone())?;
+            }
+
+            Ok(())
+        }
+
+        let Some(root) = self.store.get_container(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded".to_string())).into());
+        };
+
+        let root = root.lock().expect("could not lock root `Container`");
+        let mut dup = root.duplicate()?;
+        dup.set_base_path(unique_file_name(root.base_path()?)?)?;
+        Mutex::unlock(root);
+
+        dup.update_tree_base_paths()?;
+        let dup_val = dup.clone().into();
+        let dup = Arc::new(Mutex::new(dup));
+        self.insert_child_container(dup.clone())?;
+
+        save_tree(dup)?;
+        Ok(dup_val)
+    }
+
+    fn insert_child_container(&mut self, root: Arc<Mutex<LocalContainer>>) -> Result {
+        let root_val = root.lock().expect("could not lock root `Container`");
+        let Some(parent) = root_val.parent.as_ref() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` does not have a parent".to_string())).into());
+        };
+
+        let Some(parent) = self.store.get_container(&parent) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("parent `Container` not loaded".to_string())).into());
+        };
+
+        let rid = root_val.rid.clone();
+        Mutex::unlock(root_val);
+        self.store.insert_container_tree(root.clone())?;
+
+        let mut parent = parent.lock().expect("could not lock parent `Container`");
+        parent.register_child(rid);
+        parent.save()?;
+
+        Ok(())
     }
 
     fn get_container_path(&self, container: &ResourceId) -> Result<Option<PathBuf>> {

@@ -31,6 +31,7 @@ use thot_core::types::{ResourceId, ResourcePath, UserPermissions};
 // *************
 
 pub type ContainerMap = ResourceStore<Container>;
+pub type ContainerWrapper = Arc<Mutex<Container>>;
 
 // *****************
 // *** Container ***
@@ -74,6 +75,40 @@ impl Container {
             assets: LocalAssets::new(),
             scripts: ScriptMap::new(),
         })
+    }
+
+    /// Duplicates the tree.
+    /// Copies the structure of the tree,
+    /// along with `properties`, and `scripts`,
+    /// into a new tree.
+    ///
+    /// # Note
+    /// + Children should be loaded prior to call.
+    /// See `load_children`.
+    pub fn duplicate(&self) -> Result<Self> {
+        let mut dup = Self::new()?;
+        dup.properties = self.properties.clone();
+        dup.scripts = self.scripts.clone();
+        dup.parent = self.parent.clone();
+        if let Ok(base_path) = self.base_path() {
+            dup.set_base_path(base_path)?;
+        }
+
+        for child in self.children.clone().values() {
+            let ResourceValue::Resource(child) = child else {
+            // @todo: Return `Err`.
+            panic!("child `Container` not loaded");
+        };
+
+            let child = child.lock().expect("could not lock child `Container`");
+            let mut dup_child = child.duplicate()?;
+
+            dup_child.parent = Some(dup.rid.clone());
+            dup.children
+                .insert_resource(dup_child.rid.clone(), dup_child);
+        }
+
+        Ok(dup)
     }
 
     // --------------
@@ -234,6 +269,38 @@ impl Container {
 
             child.parent = Some(self.rid.clone());
             self.children.insert_resource(child.rid.clone(), child);
+        }
+
+        Ok(())
+    }
+
+    /// Sets the base path of children based on the root's base path.
+    /// If a child's base path is unset, it remains unset.
+    ///
+    /// # Errors
+    pub fn update_tree_base_paths(&mut self) -> Result {
+        for child in self.children.clone().values() {
+            let ResourceValue::Resource(child) = child else {
+            // @todo: Return `Err`.
+            panic!("child `Container` not loaded");
+        };
+
+            let mut child = child.lock().expect("could not lock child `Container`");
+            let Ok(c_file_name) = child.base_path() else {
+                continue;
+            };
+
+            let c_file_name = c_file_name
+                .file_name()
+                .expect("could not get file name of child `Container`");
+
+            let mut c_path = self.base_path().expect("root base path not set");
+            c_path.push(c_file_name);
+            child
+                .set_base_path(c_path)
+                .expect("could not set base path");
+
+            child.update_tree_base_paths()?;
         }
 
         Ok(())
@@ -404,6 +471,8 @@ impl LocalSettings for Container {
             .ok_or(SettingsError::SettingsError(LocalSettingsError::PathNotSet))
     }
 
+    // @todo: Should only be allowed to set if not loaded or unset?
+    // Good case for builder or loader pattern?
     fn set_base_path(&mut self, path: PathBuf) -> SettingsResult {
         self._base_path = Some(path.clone());
         self.assets.set_base_path(path)?;
@@ -433,7 +502,22 @@ impl LocalSettings for Container {
     }
 }
 
-impl LockSettingsFile for Container {}
+impl LockSettingsFile for Container {
+    /// Acquire lock for self and `Asset`s.
+    fn acquire_lock(&mut self) -> SettingsResult {
+        // check lock is not already acquired
+        if !self.controls_file() {
+            let path = self.path()?;
+            let file = settings::ensure_file(path.as_path())?;
+            let file_lock = settings::lock(file)?;
+
+            self.store_lock(file_lock);
+        }
+
+        self.assets.acquire_lock()?;
+        Ok(())
+    }
+}
 
 // **********************
 // *** Core Container ***

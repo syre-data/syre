@@ -25,7 +25,7 @@ fn user_id_should_implement_clap_from_arg_matches_for_email() {
 #[test]
 fn user_id_should_implement_clap_from_arg_matches_for_id() {
     let id_val = ResourceId::new();
-    let matches = create_user_id_arg_matches(&id_val.id.to_string());
+    let matches = create_user_id_arg_matches(&id_val.to_string());
 
     let id = match UserId::from_arg_matches(&matches) {
         Ok(uid) => uid,
@@ -73,7 +73,7 @@ fn user_id_should_implement_clap_update_from_arg_matches_email() {
 #[test]
 fn user_id_should_implement_clap_update_from_arg_matches_id() {
     let ref_id = ResourceId::new();
-    let matches = create_user_id_arg_matches(&ref_id.id.to_string());
+    let matches = create_user_id_arg_matches(&ref_id.to_string());
 
     // id
     let id = ResourceId::new();

@@ -11,9 +11,10 @@ $control-button-size: 25px;
     display: inline-block;
 
     text-align: center;
-
     background-color: t.$background-accent-color;
-    padding: t.$padding-m t.$padding-m calc(0.5* #{$control-button-size}) t.$padding-m; // give room for add child button
+
+    min-width: t.$card-min-width;
+    padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
     border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
     margin: t.$padding-m t.$padding-m $control-button-size t.$padding-m;
@@ -28,28 +29,28 @@ $control-button-size: 25px;
       border-color: t.$primary-color;
     }
 
-    &:hover .container-settings-control,
+    &:hover .container-menu-control,
     &:hover .add-child-container-control {
       display: inherit;
       opacity: 1;
     }
       
-    .container-settings-control {
+    .container-menu-control {
       position: absolute;
-      top: 5px;
-      right: 5px;     
+      top: t.$padding-m;
+      right: t.$padding-m;     
 
       opacity: 0;
       transition: opacity t.$transition-fast;
 
-      button.container-settings-toggle {
+      button.container-menu-toggle {
         background-color: transparent;
         padding: 0;
         border: none;
         box-shadow: none;
       }
 
-      .container-settings-menu {
+      .container-menu {
         position: absolute;
         z-index: 100;
 
@@ -64,9 +65,12 @@ $control-button-size: 25px;
           padding: 5px;
 
           li {
+            text-align: left;
             white-space: nowrap;
+            border-bottom: t.$border-width-s t.$background-color solid;
 
             &:hover {
+              // @todo: Darken background.
               filter: brightness(t.$darker); 
             }
           }

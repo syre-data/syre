@@ -18,7 +18,7 @@ use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
-    container::ContainerProps as ContainerUiProps, container::ContainerSettingsMenuEvent,
+    container::ContainerMenuEvent, container::ContainerProps as ContainerUiProps,
     Container as ContainerUi,
 };
 use wasm_bindgen_futures::spawn_local;
@@ -54,7 +54,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         .expect("`ContainerTreeReducer` context not found");
 
     let container = use_container(props.rid.clone());
-    let show_create_asset = use_state(|| false);
+    let show_create_assets = use_state(|| false);
 
     let selected = canvas_state.selected.contains(&container.rid);
 
@@ -113,21 +113,22 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         })
     };
 
-    // ----------------------------
-    // --- settings menu events ---
-    // ----------------------------
+    // -------------------
+    // --- menu events ---
+    // -------------------
 
-    let on_settings_event = {
+    let on_menu_event = {
+        let app_state = app_state.clone();
         let tree_state = tree_state.clone();
         let container = container.clone();
-        let show_create_asset = show_create_asset.clone();
+        let show_create_assets = show_create_assets.clone();
 
-        Callback::from(move |event: ContainerSettingsMenuEvent| {
+        Callback::from(move |event: ContainerMenuEvent| {
             let container_id = container.rid.clone();
             match event {
-                ContainerSettingsMenuEvent::AddAssets => show_create_asset.set(true),
+                ContainerMenuEvent::AddAssets => show_create_assets.set(true),
 
-                ContainerSettingsMenuEvent::OpenFolder => {
+                ContainerMenuEvent::OpenFolder => {
                     spawn_local(async move {
                         let path =
                             invoke("get_container_path", ResourceIdArgs { rid: container_id })
@@ -144,12 +145,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     });
                 }
 
-                ContainerSettingsMenuEvent::DuplicateTree => {
+                ContainerMenuEvent::DuplicateTree => {
+                    let app_state = app_state.clone();
                     let tree_state = tree_state.clone();
                     let container_id = container_id.clone();
 
                     spawn_local(async move {
-                        let rid = invoke(
+                        let root = invoke(
                             "duplicate_container_tree",
                             ResourceIdArgs {
                                 rid: container_id.clone(),
@@ -158,21 +160,43 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         .await
                         .expect("could not invoke `duplicate_container_tree`");
 
-                        let rid: ResourceId = swb::from_value(rid).expect(
-                        "could not convert result of `duplicate_container_tree` to `ResourceId`",
-                    );
-
-                        let root = invoke("get_container_tree", ResourceIdArgs { rid })
-                            .await
-                            .expect("could not invoke `get_container_tree`");
-
                         let root: CoreContainer = swb::from_value(root).expect(
-                            "could not convert result of `get_container_tree` to `Container`",
+                            "could not convert result of `duplicate_container_tree` to `Container`",
                         );
 
+                        let Some(parent) = root.parent.clone() else {
+                            app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Something went wrong trying to duplicate the tree".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+
+                            web_sys::console::debug_1(&"parent not set on duplicated `Container` tree".into());
+                            return;
+                        };
+
+                        // let Some(parent) = tree_state.containers.get(&parent).cloned().flatten() else {
+                        //     app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Something went wrong trying to duplicate the tree".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+
+                        //     web_sys::console::debug_1(&"parent `Container` not loaded".into());
+                        //     return;
+                        // };
+
+                        // let Ok(parent) = parent.lock() else {
+                        //     app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Something went wrong trying to duplicate the tree".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+
+                        //     web_sys::console::debug_1(&"could not lock parent `Container`".into());
+                        //     return;
+                        // };
+
+                        // let mut parent = parent.clone();
+                        // let rid = root.rid.clone();
+
+                        let root_val = Arc::new(Mutex::new(root.clone()));
                         tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(
-                            Arc::new(Mutex::new(root)),
+                            root_val.clone(),
                         ));
+
+                        tree_state
+                            .dispatch(ContainerTreeStateAction::InsertChildContainer(parent, root));
+
+                        // parent.children.insert(rid, Some(root));
                     });
                 }
             }
@@ -180,10 +204,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let close_create_asset = {
-        let show_create_asset = show_create_asset.clone();
+        let show_create_assets = show_create_assets.clone();
 
         Callback::from(move |_: MouseEvent| {
-            show_create_asset.set(false);
+            show_create_assets.set(false);
         })
     };
 
@@ -257,10 +281,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let onadd_assets = {
-        let show_create_asset = show_create_asset.clone();
+        let show_create_assets = show_create_assets.clone();
 
         Callback::from(move |_: ()| {
-            show_create_asset.set(false);
+            show_create_assets.set(false);
         })
     };
 
@@ -346,7 +370,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onclick_asset,
                 ondblclick_asset,
                 onadd_child: props.onadd_child.clone(),
-                on_settings_event,
+                on_menu_event,
                 ondragenter,
                 ondragleave,
                 onclick_edit_scripts,
@@ -361,8 +385,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     Ok(html! {
         <>
         <ContainerUi ..c_props />
-        if *show_create_asset {
-            // @todo: Use portal.
+        if *show_create_assets {
             <ShadowBox
                 title={format!("Add Asset to {container_name}")}
                 onclose={close_create_asset}>

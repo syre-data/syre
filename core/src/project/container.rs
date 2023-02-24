@@ -2,6 +2,7 @@
 use super::standard_properties::StandardProperties;
 use super::{Asset, RunParameters};
 use crate::db::{Resource, StandardResource};
+use crate::error::{ResourceError, Result};
 use crate::types::{ResourceId, ResourceMap, ResourceStore};
 use has_id::HasId;
 use std::hash::{Hash, Hasher};
@@ -34,6 +35,34 @@ pub struct Container {
     pub children: ContainerStore,
     pub assets: AssetMap,
     pub scripts: ScriptMap,
+}
+
+impl Container {
+    /// Duplicates the tree.
+    /// Copies the structure of the tree,
+    /// along with `properties`, and `scripts`,
+    /// into a new tree.
+    pub fn duplicate(&self) -> Result<Self> {
+        let mut dup = Self::default();
+        dup.properties = self.properties.clone();
+        dup.scripts = self.scripts.clone();
+        dup.parent = self.parent.clone();
+
+        for child in self.children.clone().values() {
+            let Some(child) = child else {
+                return Err(ResourceError::DoesNotExist("child `Container` not loaded".to_string()).into());
+            };
+
+            let child = child.lock().expect("could not lock child `Container`");
+            let mut dup_child = child.duplicate()?;
+
+            dup_child.parent = Some(dup.rid.clone());
+            dup.children
+                .insert(dup_child.rid.clone(), Some(Arc::new(Mutex::new(dup_child))));
+        }
+
+        Ok(dup)
+    }
 }
 
 impl Default for Container {

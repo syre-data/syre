@@ -136,6 +136,9 @@ impl Datastore {
     ///
     /// # Panics
     /// + If `container.path()` returns an error.
+    ///
+    /// # Notes
+    /// + Does not insert children.
     pub fn insert_container(
         &mut self,
         container: LocalContainer,

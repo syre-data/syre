@@ -1,18 +1,10 @@
+use super::super::dev_utils::StdObj;
 use super::*;
-use crate::db::dev_utils::mock_props;
-use crate::db::resources::object::{Object, StandardObject};
-use crate::db::resources::search_filter::{
-    ResourceIdSearchFilter as RidFilter, StandardSearchFilter as StdFilter,
-};
-use crate::db::resources::standard_properties::StandardProperties;
-use crate::types::ResourceId;
+use crate::db::search_filter::StandardSearchFilter as StdFilter;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
-use has_id::{HasId, HasIdMut};
-
-#[cfg(feature = "serde")]
-use serde::Deserialize;
+use has_id::HasId;
 
 #[test]
 fn new_should_work() {
@@ -39,13 +31,13 @@ fn find_should_work() {
     c.insert_one(o2.clone())
         .expect("insert second object should work");
 
-    let mut kind_filter = StdFilter::new();
+    let mut kind_filter = StdFilter::default();
     kind_filter.kind = Some(kind.clone());
 
-    let mut n1_filter = StdFilter::new();
+    let mut n1_filter = StdFilter::default();
     n1_filter.name = Some(o1.props.name.clone());
 
-    let mut none_filter = StdFilter::new();
+    let mut none_filter = StdFilter::default();
     none_filter.kind = Some(Some(Word(EN).fake::<String>()));
 
     // test
@@ -73,13 +65,13 @@ fn find_one_should_work() {
     c.insert_one(o1.clone()).expect("insert object should work");
     c.insert_one(o2.clone()).expect("insert object should work");
 
-    let mut kind_filter = StdFilter::new();
+    let mut kind_filter = StdFilter::default();
     kind_filter.kind = Some(kind.clone());
 
-    let mut n1_filter = StdFilter::new();
+    let mut n1_filter = StdFilter::default();
     n1_filter.name = Some(o1.props.name.clone());
 
-    let mut none_filter = StdFilter::new();
+    let mut none_filter = StdFilter::default();
     none_filter.kind = Some(Some(String::from("not_a_kind")));
 
     // test
@@ -139,7 +131,7 @@ fn update_should_work() {
     c.insert_one(o0).expect("insert one should work");
 
     // test
-    let ov = c.update(o1.rid.clone(), o1).unwrap();
+    let ov = c.update(o1).unwrap();
     assert_eq!(n0, ov.props.name, "return value should be original");
 
     let of = c.objects.get(&id).expect("object should be found");
@@ -154,7 +146,7 @@ fn update_with_invalid_id_should_error() {
     let o = StdObj::new(None, None);
 
     // test
-    c.update(o.rid.clone(), o).unwrap();
+    c.update(o).unwrap();
 }
 
 #[test]
@@ -164,7 +156,7 @@ fn update_one_should_work() {
     let o0 = StdObj::new(None, None);
 
     let mut o1 = StdObj::new(Some(true), Some(false));
-    *o1.id_mut() = o0.rid.clone();
+    o1.rid = o0.rid.clone();
 
     let o2 = StdObj::new(Some(true), Some(false));
 
@@ -174,13 +166,11 @@ fn update_one_should_work() {
     c.insert_one(o2.clone())
         .expect("insert second object should work");
 
-    let mut rid_filter = RidFilter::new();
-    rid_filter.rid = Some(o0.id().clone());
+    let mut filter = StdFilter::default();
+    filter.rid = Some(o0.id().clone());
 
     // test
-    let f1 = c
-        .update_one(&rid_filter, o0.clone())
-        .expect("update should work");
+    let f1 = c.update_one(o0.clone()).expect("update should work");
 
     assert_eq!(
         o1.props.name, f1.props.name,
@@ -200,10 +190,9 @@ fn update_one_if_no_matches_should_error() {
     // setup
     let mut c = Collection::<StdObj>::new();
     let o0 = StdObj::new(None, None);
-    let none_filter = RidFilter::new();
 
     // test
-    c.update_one(&none_filter, o0).unwrap();
+    c.update_one(o0).unwrap();
 }
 
 #[test]
@@ -221,13 +210,12 @@ fn update_one_with_multiple_matches_should_error() {
 
     c.insert_one(o1.clone())
         .expect("insert first object should work");
+
     c.insert_one(o2.clone())
         .expect("insert second object should work");
 
-    let mut rid_filter = RidFilter::new();
-
     // test
-    c.update_one(&rid_filter, o0).unwrap();
+    c.update_one(o0).unwrap();
 }
 
 // ------------------------
@@ -241,11 +229,9 @@ fn update_or_insert_one_with_new_object_should_work() {
     let o0 = StdObj::new(None, None);
     let oid = o0.rid.clone();
 
-    let mut rid_filter = RidFilter::new();
-
     // test
     let res = c
-        .update_or_insert_one(&rid_filter, o0)
+        .update_or_insert_one(o0)
         .expect("update or insert should work");
 
     assert_eq!(None, res, "object should be newly inserted");
@@ -264,11 +250,9 @@ fn update_or_insert_one_with_updated_object_should_work() {
     c.insert_one(o1.clone())
         .expect("insert first object should work");
 
-    let mut rid_filter = RidFilter::new();
-
     // test
     let f1 = c
-        .update_or_insert_one(&rid_filter, o0.clone())
+        .update_or_insert_one(o0.clone())
         .expect("insert or update should work");
 
     let f1 = f1.expect("old value should be returned");
@@ -301,47 +285,4 @@ fn len_should_work() {
 
     c.insert_one(o2).expect("insert second object should work");
     assert_eq!(2, c.len(), "two objects should be inserted");
-}
-
-// ***************
-// *** helpers ***
-// ***************
-
-// -----------------------
-// --- Standard Object ---
-// -----------------------
-
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-#[derive(HasId, HasIdMut, Clone, Debug, Hash, PartialEq, Eq)]
-struct StdObj {
-    #[id]
-    rid: ResourceId,
-    props: StandardProperties,
-}
-
-impl StdObj {
-    /// Create a new StdObj.
-    ///
-    /// # Arguments
-    /// + `name_none`: `None` if `name` is allowed to be `None` or `Some`, chosen randomly.
-    ///     `Some(false)` to force `name` to be `None` or `Some(true)` to force `name` to have a value.
-    /// + `kind`: `None` if `kind` is allowed to be `None` or `Some`, chosen randomly.
-    ///     `Some(false)` to force `kind` to be `None` or `Some(true)` to force `kind` to have a value.
-    pub fn new(name_none: Option<bool>, kind_none: Option<bool>) -> StdObj {
-        StdObj {
-            rid: ResourceId::new(),
-            props: mock_props(name_none, kind_none),
-        }
-    }
-}
-
-impl Object for StdObj {}
-impl StandardObject for StdObj {
-    fn properties(&self) -> &StandardProperties {
-        &self.props
-    }
-
-    fn properties_mut(&mut self) -> &mut StandardProperties {
-        &mut self.props
-    }
 }

@@ -1,1 +1,20 @@
 @use 'themes' as t;
+
+#dashboard {
+  #dashboard-header {
+    button {
+      vertical-align: bottom;
+    }
+  }
+
+  .card {
+    min-width: t.$card-min-width;
+    background-color: t.$background-accent-color;
+    border-radius: t.$border-radius-m;
+
+    .title {
+      margin-top: t.$margin-m;
+      margin-bottom: t.$margin-xl;
+    }
+  }
+}

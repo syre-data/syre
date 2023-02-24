@@ -4,6 +4,10 @@ use crate::project::container;
 use crate::types::ResourceValue;
 use dev_utils::fs::TempDir;
 use dev_utils::path::resource_path::resource_path;
+use fake::faker::filesystem::raw::FilePath;
+use fake::faker::lorem::raw::Words;
+use fake::locales::EN;
+use fake::Fake;
 use settings_manager::types::Priority as SettingsPriority;
 use std::path::Path;
 use thot_core::project::{
@@ -63,6 +67,65 @@ fn container_rel_path_should_be_correct() {
         path,
         "rel_path should be correct"
     );
+}
+
+#[test]
+fn duplicate_with_no_children_should_work() {
+    // setup
+    let mut o_root = Container::new().expect("could not create `Container`");
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    o_root.properties.name = Some(name);
+
+    let path: PathBuf = FilePath(EN).fake();
+    o_root.set_base_path(path).expect("could not set base path");
+
+    // test
+    let root = o_root.duplicate().expect("could not duplicate tree");
+
+    assert_ne!(o_root.rid, root.rid, "`ResourceId` should not match");
+    assert_eq!(
+        o_root.properties, root.properties,
+        "properties do not match"
+    );
+
+    assert!(root.base_path().is_err(), "path should not be set");
+}
+
+#[test]
+fn duplicate_should_work() {
+    // setup
+    let mut o_root = Container::new().expect("could not create root `Container`");
+    let mut oc1 = Container::new().expect("could not create child `Container`");
+    let mut oc2 = Container::new().expect("could not create child `Container`");
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    o_root.properties.name = Some(name);
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    oc1.properties.name = Some(name);
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    oc2.properties.name = Some(name);
+
+    o_root.children.insert_resource(oc1.rid.clone(), oc1);
+    o_root.children.insert_resource(oc2.rid.clone(), oc2);
+
+    let path: PathBuf = FilePath(EN).fake();
+
+    // test
+    let root = o_root.duplicate().expect("could not duplicate tree");
+    assert_ne!(o_root.rid, root.rid, "`ResourceId` should not match");
+    assert_eq!(
+        o_root.properties, root.properties,
+        "properties do not match"
+    );
+
+    assert_eq!(2, root.children.len(), "incorrect children loaded");
+    // @todo: Test children better.
 }
 
 // -------------
@@ -451,6 +514,62 @@ fn container_load_children_with_recursion_should_work() {
         grandchild_id, grandchild.rid,
         "incorrect grandchild `Container` found"
     );
+}
+
+#[test]
+fn update_tree_base_paths_should_work() {
+    // setup
+    let mut root = Container::new().expect("could not create root `Container`");
+    let mut c0 = Container::new().expect("could not create child `Container`");
+    let c1 = Container::new().expect("could not create child `Container`");
+
+    let base_path: PathBuf = FilePath(EN).fake();
+    let c_path: PathBuf = FilePath(EN).fake();
+    let mut c_path_exp = base_path.clone();
+    c_path_exp.push(c_path.file_name().expect("could not get file name"));
+
+    root.set_base_path(base_path.clone())
+        .expect("could not set root base path");
+
+    c0.set_base_path(c_path.clone())
+        .expect("could not set child base path");
+
+    let c0_rid = c0.rid.clone();
+    let c1_rid = c1.rid.clone();
+    root.children.insert_resource(c0.rid.clone(), c0);
+    root.children.insert_resource(c1.rid.clone(), c1);
+
+    let c0 = root
+        .children
+        .get_resource(&c0_rid)
+        .expect("could not get child `Container`")
+        .expect("child `Container` not loaded");
+
+    let c1 = root
+        .children
+        .get_resource(&c1_rid)
+        .expect("could not get child `Container`")
+        .expect("child `Container` not loaded");
+
+    // test
+    root.update_tree_base_paths()
+        .expect("could not update paths");
+
+    assert_eq!(
+        base_path,
+        root.base_path().expect("could not get root base path"),
+        "incorrect base path"
+    );
+
+    let c0 = c0.lock().expect("could not lock child `Container`");
+    let c1 = c1.lock().expect("could not lock child `Container`");
+    assert_eq!(
+        c_path_exp,
+        c0.base_path().expect("could not get child base path"),
+        "incorrect base path"
+    );
+
+    assert!(c1.base_path().is_err(), "base path should not be set");
 }
 
 // @todo

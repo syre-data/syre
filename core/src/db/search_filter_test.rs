@@ -1,89 +1,72 @@
+use super::super::dev_utils::StdObj;
 use super::*;
-use super::{
-    ResourceIdSearchFilter as RidFilter, StandardPropertiesSearchFilter as StdPropsFilter,
-};
-
-use crate::db::dev_utils::mock_props;
-use crate::types::ResourceId;
 use rand::Rng;
+use std::collections::HashMap;
 
 #[test]
-fn std_new_should_work() {
-    let f = StandardSearchFilter::new();
+fn standard_search_filter_new_should_work() {
+    let f = StandardSearchFilter::default();
 
     assert_eq!(f.rid, None, "rid should be None");
     assert_eq!(f.name, None, "name should be None");
     assert_eq!(f.kind, None, "kind should be None");
     assert_eq!(f.tags, None, "tags should be None");
     assert_eq!(f.metadata, None, "metadata should be None");
-}
-
-#[test]
-fn std_props_new_should_work() {
-    let f = StandardPropertiesSearchFilter::new();
-
-    assert_eq!(f.name, None, "name should be None");
-    assert_eq!(f.kind, None, "kind should be None");
-    assert_eq!(f.tags, None, "tags should be None");
-    assert_eq!(f.metadata, None, "metadata should be None");
-}
-
-#[test]
-fn rid_new_should_work() {
-    let f = ResourceIdSearchFilter::new();
-
-    assert_eq!(f.rid, None, "rid should be None");
 }
 
 // @todo: Known errors in test caused by randomized values can cause failure.
 #[test]
-fn std_props_matches_should_work() {
+fn standard_search_filter_matches_should_work() {
     // setup
     // props
-    let props0 = mock_props(None, None);
+    let obj0 = StdObj::new(None, None);
 
     // force p1 to have different name and kind if either is None
-    let p1_name = match &props0.name {
+    let p1_name = match &obj0.props.name {
         None => Some(true),
         Some(_) => None,
     };
 
-    let p1_kind = match &props0.kind {
+    let p1_kind = match &obj0.props.kind {
         None => Some(true),
         Some(_) => None,
     };
 
-    let mut props1 = mock_props(p1_name, p1_kind);
+    let mut obj1 = StdObj::new(p1_name, p1_kind);
 
     // prepend to tags to prevent clash
-    props1.tags = props1
+    obj1.props.tags = obj1
+        .props
         .tags
         .into_iter()
         .map(|t| format!("pre_{t}"))
         .collect();
 
     // filters
-    let mut name_filter = StdPropsFilter::new();
-    name_filter.name = Some(props0.name.clone());
+    let mut rid_filter = StandardSearchFilter::default();
+    rid_filter.rid = Some(obj0.rid.clone());
 
-    let mut kind_filter = StdPropsFilter::new();
-    kind_filter.kind = Some(props0.kind.clone());
+    let mut name_filter = StandardSearchFilter::default();
+    name_filter.name = Some(obj0.props.name.clone());
 
-    let mut tags_filter = StdPropsFilter::new();
+    let mut kind_filter = StandardSearchFilter::default();
+    kind_filter.kind = Some(obj0.props.kind.clone());
+
+    let mut tags_filter = StandardSearchFilter::default();
     let mut tf = HashSet::new();
-    for t in &props0.tags {
+    for t in &obj0.props.tags {
         if rand::random() {
             tf.insert(t.clone());
         }
     }
     tags_filter.tags = Some(tf);
 
-    let mut md_filter = StdPropsFilter::new();
+    let mut md_filter = StandardSearchFilter::default();
     let mut md = HashMap::new();
 
     // create random metadata filter from data
     // ensure at least one value is included
-    let f_len = props0.metadata.len();
+    let f_len = obj0.props.metadata.len();
     let mut include: Vec<bool> = Vec::with_capacity(f_len);
     for _ in 0..f_len {
         include.push(rand::random());
@@ -96,7 +79,7 @@ fn std_props_matches_should_work() {
     }
 
     let mut i = 0;
-    for (k, (v, _)) in &props0.metadata {
+    for (k, v) in &obj0.props.metadata {
         if include[i] {
             md.insert(k.clone(), v.clone());
         }
@@ -106,64 +89,40 @@ fn std_props_matches_should_work() {
         for (k, v) in &md {
             if let serde_json::Value::Bool(_) = v {
                 // ensure if matching on boolean value only
-                // props1 has opposite value of props0
-                let (p0_val, _) = props0.metadata.get(k).expect("metadata should exist");
+                // obj1 has opposite value of obj0
+                let p0_val = obj0.props.metadata.get(k).expect("metadata should exist");
                 let p0_val = p0_val.as_bool().expect("metadata value should be a bool");
-                let (_, inherited) = props1.metadata.get(k).expect("metadata value should exist");
-                props1.metadata.insert(
-                    k.clone(),
-                    (serde_json::Value::Bool(!p0_val), inherited.clone()),
-                );
+                obj1.props
+                    .metadata
+                    .insert(k.clone(), serde_json::Value::Bool(!p0_val));
             }
         }
     }
     md_filter.metadata = Some(md);
 
     // test
+    // rid
+    assert!(rid_filter.matches(&obj0), "rid filter should match");
+    assert!(!rid_filter.matches(&obj1), "rid filter should not match");
+
     // name
-    assert!(name_filter.matches(&props0), "name filter should match");
-    assert!(
-        !name_filter.matches(&props1),
-        "name filter should not match"
-    );
+    assert!(name_filter.matches(&obj0), "name filter should match");
+    assert!(!name_filter.matches(&obj1), "name filter should not match");
 
     // kind
-    assert!(kind_filter.matches(&props0), "kind filter should match");
-    assert!(
-        !kind_filter.matches(&props1),
-        "kind filter should not match"
-    );
+    assert!(kind_filter.matches(&obj0), "kind filter should match");
+    assert!(!kind_filter.matches(&obj1), "kind filter should not match");
 
     // tags
-    assert!(tags_filter.matches(&props0), "tags filter should match");
-    assert!(
-        !tags_filter.matches(&props1),
-        "tags filter should not match"
-    );
+    assert!(tags_filter.matches(&obj0), "tags filter should match");
+    assert!(!tags_filter.matches(&obj1), "tags filter should not match");
 
     // metadata
-    assert!(md_filter.matches(&props0), "metadata filter should match");
+    assert!(md_filter.matches(&obj0), "metadata filter should match");
     assert!(
-        !md_filter.matches(&props1),
+        !md_filter.matches(&obj1),
         "metadata filter should not match"
     );
 
     // @todo: Check empty filters. Specifically for `tags` and `metadata`.
-}
-
-#[test]
-fn rid_matches_should_work() {
-    // setup
-    let rid0 = ResourceId::new();
-    let mut rid1 = ResourceId::new();
-
-    let mut rid_filter = RidFilter::new();
-    rid_filter.rid = Some(rid0.clone());
-
-    // test
-    assert!(rid_filter.matches(&rid0), "resource id filter should match");
-    assert!(
-        !rid_filter.matches(&rid1),
-        "resource id filter should not match"
-    );
 }

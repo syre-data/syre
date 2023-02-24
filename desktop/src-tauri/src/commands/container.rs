@@ -162,6 +162,42 @@ pub fn add_assets(
     Ok(asset_rids?)
 }
 
+/// Duplicates a [`Container`](LocalContainer) tree.
+///
+/// # Arguments
+/// 1. Id of the root of the `Container` tree to duplicate.
+#[tauri::command]
+pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> Result<CoreContainer> {
+    let root = db.send(ContainerCommand::DuplicateTree(rid).into());
+    let root: DbResult<CoreContainer> = serde_json::from_value(root)
+        .expect("could not convert result of `DupilcateTree` to `Container`");
+
+    // Update name
+    let mut root = root?;
+    root.properties.name = match root.properties.name.clone() {
+        None => Some("Copy".to_string()),
+        Some(mut name) => {
+            name.push_str(" (Copy)");
+            Some(name)
+        }
+    };
+
+    let res = db.send(
+        ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
+            rid: root.rid.clone(),
+            properties: root.properties.clone(),
+        })
+        .into(),
+    );
+
+    let res: DbResult = serde_json::from_value(res)
+        .expect("could not convert result of `UpdateContainerProperties` from JsValue");
+
+    res?;
+
+    Ok(root)
+}
+
 #[cfg(test)]
 #[path = "./container_test.rs"]
 mod container_test;

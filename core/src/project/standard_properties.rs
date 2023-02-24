@@ -26,7 +26,7 @@ pub struct StandardProperties {
     pub name: Option<String>,
     pub kind: Option<String>,
     pub description: Option<String>,
-    pub tags: Vec<String>,
+    pub tags: Vec<String>, // @todo: Should be a `HashSet`.
     pub metadata: Metadata,
 }
 

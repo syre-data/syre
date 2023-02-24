@@ -51,6 +51,9 @@ pub enum ContainerCommand {
     /// Creates a new child `Container`.
     NewChild(NewChildArgs),
 
+    /// Inserts a new child tree and saves it.
+    DuplicateTree(ResourceId),
+
     /// Gets the path of a [`Container`](thot_local::project::resources::Container).
     GetPath(ResourceId),
 }

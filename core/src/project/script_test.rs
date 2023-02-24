@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ResourceId, ResourcePath};
+use crate::types::ResourcePath;
 use fake::faker::filesystem::raw::FilePath;
 use fake::locales::EN;
 use fake::Fake;
@@ -37,10 +37,17 @@ fn scripts_new_should_work() {
 fn scripts_contains_path_should_work() {
     // setup
     let scripts = create_scripts();
+    let c_rid = scripts
+        .keys()
+        .next()
+        .cloned()
+        .expect("no `Script`s available");
+
+    let script = scripts.get(&c_rid).expect("could not get `Script`");
+    let c_path = script.path.clone();
 
     // test
     // known
-    let c_path = scripts.scripts[0].path.clone();
     let found = scripts.contains_path(&c_path);
     assert!(found, "script should be found");
 
@@ -53,16 +60,21 @@ fn scripts_contains_path_should_work() {
 fn scripts_by_path_should_work() {
     // setup
     let scripts = create_scripts();
+    let c_rid = scripts
+        .keys()
+        .next()
+        .cloned()
+        .expect("no `Script`s available");
+
+    let script = scripts.get(&c_rid).expect("could not get `Script`");
+    let c_path = script.path.clone();
 
     // test
     // known
-    let script = &scripts.scripts[0];
-    let c_rid = script.rid.clone();
-    let c_path = script.path.clone();
+    let Some(found) = scripts.by_path(&c_path) else {
+        panic!("script should be found");
+    };
 
-    let found = scripts.by_path(&c_path);
-    assert!(found.is_some(), "script should be found");
-    let found = found.unwrap();
     assert_eq!(c_rid, found.rid, "correct script should be found");
 
     // unknown
@@ -168,7 +180,7 @@ fn create_scripts() -> Scripts {
     let mut scripts = Scripts::new();
     for _ in 0..n_scripts {
         let script = create_script(None).expect("creating new script should work");
-        scripts.scripts.push(script);
+        scripts.insert(script.rid.clone(), script);
     }
 
     scripts

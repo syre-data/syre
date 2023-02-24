@@ -96,3 +96,8 @@ fn database_command_update_asset_should_work() {
 fn database_add_assets_should_work() {
     todo!();
 }
+
+#[test]
+fn duplicate_tree_should_work() {
+    todo!();
+}

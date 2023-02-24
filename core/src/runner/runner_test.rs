@@ -1,7 +1,7 @@
 use super::*;
+use crate::error::{Error, ProjectError, RunnerError};
+use crate::project::Script;
 use crate::project::{Container, ScriptAssociation};
-use crate::result::{Error, ProjectError, RunnerError};
-use crate::system::Script;
 use crate::types::{ResourceId, ResourcePath};
 use dev_utils::fs::temp_file;
 use dev_utils::{create_lock, lock::get_lock};
@@ -36,7 +36,7 @@ fn runner_hooks_new_should_work() {
 
 #[test]
 fn runner_new_should_work() {
-    Runner::new(create_default_runner_hooks()).expect("could not create new runner");
+    Runner::new(create_default_runner_hooks());
 }
 
 // ------------------
@@ -49,8 +49,8 @@ fn runner_run_script_should_work() {
     let script = create_script("py");
     let key: String = Word(EN).fake();
     fs::write(&script.path, format!("print('{}')", key)).expect("could not write to file");
-    let runner = Runner::new(create_default_runner_hooks()).expect("could not create new runner");
-    let container = Container::new();
+    let runner = Runner::new(create_default_runner_hooks());
+    let container = Container::default();
 
     // test
     let out = runner
@@ -72,8 +72,8 @@ fn runner_run_script_if_script_errors_should_err() {
 
     fs::write(&script.path, prg).expect("could not write to file");
 
-    let runner = Runner::new(create_default_runner_hooks()).expect("could not create new runner");
-    let container = Container::new();
+    let runner = Runner::new(create_default_runner_hooks());
+    let container = Container::default();
 
     let sid = script.rid.clone();
     let cid = container.rid.clone();
@@ -104,7 +104,7 @@ fn runner_run_scripts_should_work() {
     let prg = format!("print('{}')", key);
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -117,7 +117,7 @@ fn runner_run_scripts_should_work() {
     hooks.assets_added = Some(TestHooks::assets_added);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
+    let runner = Runner::new(hooks);
 
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
@@ -145,7 +145,7 @@ fn runner_run_scripts_with_unhandled_error_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -157,7 +157,7 @@ fn runner_run_scripts_with_unhandled_error_should_halt() {
     hooks.assets_added = Some(TestHooks::assets_added);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
+    let runner = Runner::new(hooks);
 
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
@@ -181,7 +181,7 @@ fn runner_run_scripts_with_handled_error_that_returns_ok_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -194,7 +194,7 @@ fn runner_run_scripts_with_handled_error_that_returns_ok_should_work() {
     hooks.script_error = Some(TestHooks::script_error_ok);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
+    let runner = Runner::new(hooks);
 
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
@@ -226,7 +226,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -239,7 +239,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_should_halt() {
     hooks.script_error = Some(TestHooks::script_error_err);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
+    let runner = Runner::new(hooks);
 
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
@@ -269,7 +269,7 @@ fn runner_run_scripts_with_unhandled_error_ignored_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -281,7 +281,7 @@ fn runner_run_scripts_with_unhandled_error_ignored_should_work() {
     hooks.assets_added = Some(TestHooks::assets_added);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
+    let runner = Runner::new(hooks);
 
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
@@ -306,7 +306,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_ignored_should_work() 
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::default();
     let sid = script.rid.clone();
     let cid = container.rid.clone();
 
@@ -319,8 +319,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_ignored_should_work() 
     hooks.script_error = Some(TestHooks::script_error_err);
     hooks.post_script = Some(TestHooks::post_script);
 
-    let runner = Runner::new(hooks).expect("could not create new `Runner`");
-
+    let runner = Runner::new(hooks);
     // test
     let pre_script_ctx = TestHooks::pre_script_context();
     let assets_added_ctx = TestHooks::assets_added_context();

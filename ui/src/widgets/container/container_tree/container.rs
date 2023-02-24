@@ -11,15 +11,15 @@ use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
-// *********************
-// *** Settings Menu ***
-// *********************
+// ************
+// *** Menu ***
+// ************
 
 // @todo: Possible items:
 // + Analyze: Analyze subtree.
-/// Menu items available in the [`Container`]'s settings menu.
+/// Menu items available in the [`Container`]'s menu.
 #[derive(PartialEq, Clone, Debug)]
-pub enum ContainerSettingsMenuEvent {
+pub enum ContainerMenuEvent {
     /// Open the `Container`'s folder.
     OpenFolder,
 
@@ -30,23 +30,23 @@ pub enum ContainerSettingsMenuEvent {
     DuplicateTree,
 }
 
-/// Properties for [`ContainerSettingsMenu`].
+/// Properties for [`ContainerMenu`].
 #[derive(PartialEq, Properties)]
-struct ContainerSettingsMenuProps {
+struct ContainerMenuProps {
     #[prop_or_default]
     pub r#ref: NodeRef,
 
     /// Callback when a menu item is clicked.
-    pub onclick: Callback<ContainerSettingsMenuEvent>,
+    pub onclick: Callback<ContainerMenuEvent>,
 }
 
-/// Container settings menu.
-#[function_component(ContainerSettingsMenu)]
-fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
+/// Container menu.
+#[function_component(ContainerMenu)]
+fn container_menu(props: &ContainerMenuProps) -> Html {
     let onclick = {
         let onclick = props.onclick.clone();
 
-        move |event: ContainerSettingsMenuEvent| {
+        move |event: ContainerMenuEvent| {
             let onclick = onclick.clone();
 
             Callback::from(move |e: MouseEvent| {
@@ -58,21 +58,21 @@ fn container_settings_menu(props: &ContainerSettingsMenuProps) -> Html {
 
     html! {
         <div ref={props.r#ref.clone()}
-            class={classes!("container-settings-menu")}>
+            class={classes!("container-menu")}>
 
             <ul>
                 <li class={classes!("clickable")}
-                    onclick={onclick(ContainerSettingsMenuEvent::OpenFolder)}>
+                    onclick={onclick(ContainerMenuEvent::OpenFolder)}>
                     { "Open folder" }
                 </li>
 
                 <li class={classes!("clickable")}
-                    onclick={onclick(ContainerSettingsMenuEvent::AddAssets)}>
+                    onclick={onclick(ContainerMenuEvent::AddAssets)}>
                     { "Add assets" }
                 </li>
 
                 <li class={classes!("clickable")}
-                    onclick={onclick(ContainerSettingsMenuEvent::DuplicateTree)}>
+                    onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
                     { "Duplicate Tree" }
                 </li>
             </ul>
@@ -131,15 +131,15 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub onadd_child: Option<Callback<ResourceId>>,
 
-    /// Callback when container settings button is clicked.
+    /// Callback when container button is clicked.
     /// If not provided, button is not shown.
     ///
     /// # Fields
     /// 1. [`ResourceId`] of the [`Container`](thot_core::project::Container)
     ///     the event was called on.
-    /// 2. [`SettingsMenuEvent`] indicating which action was requested.
+    /// 2. [`ContainerMenuEvent`] indicating which action was requested.
     #[prop_or_default]
-    pub on_settings_event: Option<Callback<ContainerSettingsMenuEvent>>,
+    pub on_menu_event: Option<Callback<ContainerMenuEvent>>,
 
     /// Callback when container script edit button is clicked.
     #[prop_or_default]
@@ -158,7 +158,7 @@ pub struct ContainerProps {
 /// A Container node within a Container tree.
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> Html {
-    let show_settings_menu = use_state(|| false);
+    let show_menu = use_state(|| false);
     let dragover_counter = use_state(|| 0);
     let menu_ref = use_node_ref();
 
@@ -196,12 +196,12 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     };
 
-    let onclick_settings = {
-        let show_settings_menu = show_settings_menu.clone();
+    let onclick_menu = {
+        let show_menu = show_menu.clone();
 
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
-            show_settings_menu.set(!*show_settings_menu);
+            show_menu.set(!*show_menu);
         })
     };
 
@@ -229,13 +229,13 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     };
 
-    // inject closing setings menu on click to `on_settings_event` callback
-    let on_settings_event = props.on_settings_event.clone().map(|on_settings_event| {
-        let show_settings_menu = show_settings_menu.clone();
+    // inject closing setings menu on click to `on_menu_event` callback
+    let on_menu_event = props.on_menu_event.clone().map(|on_menu_event| {
+        let show_menu = show_menu.clone();
 
-        Callback::from(move |event: ContainerSettingsMenuEvent| {
-            show_settings_menu.set(false); // close settigns menu
-            on_settings_event.emit(event); // trigger callback
+        Callback::from(move |event: ContainerMenuEvent| {
+            show_menu.set(false); // close settigns menu
+            on_menu_event.emit(event); // trigger callback
         })
     });
 
@@ -254,16 +254,16 @@ pub fn container(props: &ContainerProps) -> Html {
             ondrop={props.ondrop.clone()}
             data-rid={props.rid.clone()} >
 
-            if let Some(on_settings_event) = on_settings_event {
-                <div class={classes!("container-settings-control")}>
+            if let Some(on_menu_event) = on_menu_event {
+                <div class={classes!("container-menu-control")}>
                     <button
-                        class={classes!("container-settings-toggle")}
-                        onclick={onclick_settings}>{ "\u{22ee}" }</button>
+                        class={classes!("container-menu-toggle")}
+                        onclick={onclick_menu}>{ "\u{22ee}" }</button>
 
-                    if *show_settings_menu {
-                        <ContainerSettingsMenu
+                    if *show_menu {
+                        <ContainerMenu
                             r#ref={menu_ref}
-                            onclick={on_settings_event} />
+                            onclick={on_menu_event} />
                     }
                 </div>
             }

@@ -67,6 +67,7 @@ fn main() {
             new_child,
             update_container_properties,
             update_container_script_associations,
+            duplicate_container_tree,
             // asset
             get_assets,
             update_asset_properties,

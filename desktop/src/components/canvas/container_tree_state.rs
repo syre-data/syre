@@ -267,7 +267,9 @@ impl Reducible for ContainerTreeState {
 
 pub type ContainerTreeStateReducer = UseReducerHandle<ContainerTreeState>;
 
-/// Flattens all the noder of a `Container` tree.
+/// Flattens all the nodes of a `Container` tree,
+/// inserting the nodes into the store and
+/// their `Asset`s into the given `Asset` map.
 ///
 /// # Arguments
 /// 1. Root [`Container`](CoreContainer) of the tree.

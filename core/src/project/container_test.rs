@@ -1,9 +1,64 @@
-/*
 use super::*;
-use crate::project::script_association::{RunParameters, ScriptAssociation};
-use crate::project::{HasStandardProperties, StandardProperties};
-use crate::types::ResourceId;
-*/
+use fake::faker::lorem::raw::Words;
+use fake::locales::EN;
+use fake::Fake;
+
+#[test]
+fn duplicate_with_no_children_should_work() {
+    // setup
+    let mut o_root = Container::default();
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    o_root.properties.name = Some(name);
+
+    // test
+    let root = o_root.duplicate().expect("could not duplicate tree");
+
+    assert_ne!(o_root.rid, root.rid, "`ResourceId` should not match");
+    assert_eq!(
+        o_root.properties, root.properties,
+        "properties do not match"
+    );
+}
+
+#[test]
+fn duplicate_should_work() {
+    // setup
+    let mut o_root = Container::default();
+    let mut oc1 = Container::default();
+    let mut oc2 = Container::default();
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    o_root.properties.name = Some(name);
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    oc1.properties.name = Some(name);
+
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    oc2.properties.name = Some(name);
+
+    o_root
+        .children
+        .insert(oc1.rid.clone(), Some(Arc::new(Mutex::new(oc1))));
+
+    o_root
+        .children
+        .insert(oc2.rid.clone(), Some(Arc::new(Mutex::new(oc2))));
+
+    // test
+    let root = o_root.duplicate().expect("could not duplicate tree");
+    assert_ne!(o_root.rid, root.rid, "`ResourceId` should not match");
+    assert_eq!(
+        o_root.properties, root.properties,
+        "properties do not match"
+    );
+
+    assert_eq!(2, root.children.len(), "incorrect children loaded");
+    // @todo: Test children better.
+}
 
 // @note: Left for future use, if needed.
 // **********************

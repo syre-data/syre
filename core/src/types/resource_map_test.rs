@@ -4,9 +4,9 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-struct ResourceMapMock {
+struct ResourceStoreMock {
     #[cfg_attr(feature = "serde", serde(with = "keys_only"))]
-    pub map: ResourceMap<bool>,
+    pub map: ResourceStore<bool>,
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
@@ -29,7 +29,7 @@ fn serialize_resource_map_keys_only_serialize_should_work() {
     let k_false = ResourceId::new();
     map.insert(k_false, Some(false));
 
-    let m = ResourceMapMock { map };
+    let m = ResourceStoreMock { map };
     let json = serde_json::to_string(&m).expect("serialization should work");
 
     // test
@@ -56,11 +56,11 @@ fn serialize_resource_map_keys_only_deserialize_should_work() {
     let k_false = ResourceId::new();
     map.insert(k_false, Some(false));
 
-    let m = ResourceMapMock { map };
+    let m = ResourceStoreMock { map };
     let json = serde_json::to_string(&m).expect("serialization should work");
 
     // test
-    let n: ResourceMapMock = serde_json::from_str(&json).expect("deserialization should work");
+    let n: ResourceStoreMock = serde_json::from_str(&json).expect("deserialization should work");
 
     for key in m.map.keys() {
         let val = n.map.get(key).expect("key should exist");

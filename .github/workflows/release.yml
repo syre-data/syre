@@ -27,8 +27,9 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
       - name: install Rust toolchain
         uses: dtolnay/rust-toolchain@master
-      - name: install wasm target
-        run: rustup target add wasm32-unknown-unknown
+        with: 
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: wasm32-unknown-unknown
       - name: install Trunk
         uses: jetli/trunk-action@v0.4.0
       - name: setup node
@@ -40,7 +41,7 @@ jobs:
           cd local/database
           ./build.sh
           cd ../..
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@dev
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}

@@ -171,23 +171,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             return;
                         };
 
-                        // let Some(parent) = tree_state.containers.get(&parent).cloned().flatten() else {
-                        //     app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Something went wrong trying to duplicate the tree".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
-
-                        //     web_sys::console::debug_1(&"parent `Container` not loaded".into());
-                        //     return;
-                        // };
-
-                        // let Ok(parent) = parent.lock() else {
-                        //     app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Something went wrong trying to duplicate the tree".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
-
-                        //     web_sys::console::debug_1(&"could not lock parent `Container`".into());
-                        //     return;
-                        // };
-
-                        // let mut parent = parent.clone();
-                        // let rid = root.rid.clone();
-
                         let root_val = Arc::new(Mutex::new(root.clone()));
                         tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(
                             root_val.clone(),
@@ -195,8 +178,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                         tree_state
                             .dispatch(ContainerTreeStateAction::InsertChildContainer(parent, root));
-
-                        // parent.children.insert(rid, Some(root));
                     });
                 }
             }

@@ -42,7 +42,7 @@
         "assets/icons/icon.icns",
         "assets/icons/icon.ico"
       ],
-      "identifier": "so.thot.www",
+      "identifier": "so.thot",
       "longDescription": "Visual data management and analysis tools using Thot's framework.",
       "macOS": {
         "entitlements": null,
@@ -71,7 +71,7 @@
         "https://releases.thot.so/{{target}}/{{current_version}}?arch={{arch}}"
       ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdGQzk2RDg2RjkwNUVGMzAKUldRdzd3WDVobTNKZjFGcy82bnRpd3NaaDZ6VTAwUFBUOXhPVGhHN3NTRXhRQVRscURTL0k4eTkK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENEMDA2QUY4QkQyNTdCNDAKUldSQWV5VzkrR29BelJzS1NPUXMzdmwvSlhCUHRQOEc1WjNaTTllbVRjRzFaelE3UEFzdzZSR2QK"
     },
     "windows": [
       {

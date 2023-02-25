@@ -25,17 +25,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: install Rust toolchain
+      - name: install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with: 
           toolchain: ${{ vars.RUST_TOOLCHAIN }}
           targets: wasm32-unknown-unknown
-      - name: install Trunk
+      - name: install trunk
         uses: jetli/trunk-action@v0.4.0
-      - name: setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
+      - name: install tauri
+        run: cargo install tauri-cli
       - name: build thot-local-database
         run: |
           cd local/database
@@ -54,6 +52,9 @@ jobs:
           tagName: __VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
           releaseName: '__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           projectPath: 'desktop'
+
+          includeDebug: true
+          tauriScript: 'cargo tauri'

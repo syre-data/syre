@@ -27,8 +27,11 @@ signature_key="(updater) Info 1 updater archive at: Info "
 bundles=${res#*$bundle_key}
 bundles=( ${bundles//$signature_key/} )
 
+echo $bundles
 for file_path in "${bundles[@]}"
 do
+    echo "parsing $file_path"
+
     # parse file path
     base_path=$(dirname $file_path)
     filename=$(basename $file_path)

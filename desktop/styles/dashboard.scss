@@ -2,8 +2,14 @@
 
 #dashboard {
   #dashboard-header {
-    button {
-      vertical-align: bottom;
+    #new-project {
+      margin-left: t.$margin-l;
+
+      button {
+        vertical-align: bottom;
+        padding: 0 t.$padding-m;
+        line-height: 2rem;
+      }
     }
   }
 

@@ -68,7 +68,7 @@ pub fn dashboard() -> HtmlResult {
                             <h1 class={classes!("title", "inline-block")}>
                                 { "Dashboard" }
                             </h1>
-                            <div class={classes!("inline-block")}>
+                            <div id={"new-project"} class={classes!("inline-block")}>
                                 <button
                                     class={classes!("btn-primary")}
                                     onclick={create_project.clone()}>

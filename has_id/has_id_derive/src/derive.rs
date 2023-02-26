@@ -6,6 +6,8 @@ use syn::{Data, Field, Fields, Type};
 
 pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
+    let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
+
     let Data::Struct(obj) = &ast.data else {
         panic!("derive `HasId` can only be appied to structs");
     };
@@ -29,24 +31,24 @@ pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
         .collect::<Vec<&Field>>();
 
     if id_fields.len() == 0 {
-        panic!("no fields marked as id");
+        panic!("no fields marked as `id`");
     } else if id_fields.len() > 1 {
-        panic!("multiple fields marked as id");
+        panic!("multiple fields marked as `id`");
     }
 
     let id_field = id_fields[0];
     let id_field_ident = &id_field
         .ident
         .as_ref()
-        .expect("could not get ident of id field");
+        .expect("could not get ident of `id` field");
 
     let id_type = match &id_field.ty {
         Type::Path(path) => path,
-        _ => panic!("invalid id field type"),
+        _ => panic!("invalid `id` field type"),
     };
 
     let gen = quote! {
-        impl HasId for #name {
+        impl #impl_generics HasId for #name #ty_generics #where_clause {
             type Id = #id_type;
 
             fn id(&self) -> &Self::Id {

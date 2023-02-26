@@ -3898,6 +3898,7 @@ dependencies = [
  "directories",
  "fake",
  "has_id",
+ "indexmap",
  "lazy_static",
  "mockall",
  "mockall_double",

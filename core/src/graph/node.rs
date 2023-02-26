@@ -7,9 +7,9 @@ pub type NodeId = Uuid;
 
 /// A graph node.
 /// Contains data.
-// #[derive(HasId)]
+#[derive(HasId)]
 pub struct Node<D> {
-    // #[id]
+    #[id]
     id: NodeId,
     data: D,
 }

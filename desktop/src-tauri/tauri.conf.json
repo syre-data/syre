@@ -71,7 +71,7 @@
         "https://releases.thot.so/{{target}}/{{current_version}}?arch={{arch}}"
       ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENEMDA2QUY4QkQyNTdCNDAKUldSQWV5VzkrR29BelJzS1NPUXMzdmwvSlhCUHRQOEc1WjNaTTllbVRjRzFaelE3UEFzdzZSR2QK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJBMzY0QjRGQzA2RDY3M0QKUldROVoyM0FUMHMyS3NUV1IwNjRhc1hmTURpejRaUkVTSlpUUGJtU2xKOGlTaGZ1Y2dwVHlQMUUK"
     },
     "windows": [
       {

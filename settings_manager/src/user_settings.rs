@@ -42,9 +42,8 @@ pub trait UserSettings: settings::Settings {
     }
 
     /// Saves the settings to the file given by path.
-    fn save(&self) -> Result {
-        let path = self.path()?;
-        settings::save::<Self>(&self, path.as_path())
+    fn save(&mut self) -> Result {
+        settings::save::<Self>(self)
     }
 }
 
@@ -56,7 +55,7 @@ pub trait UserSettings: settings::Settings {
 pub trait LockSettingsFile: UserSettings {
     fn acquire_lock(&mut self) -> Result {
         // check lock is not already acquired
-        if self.controls_file() {
+        if self.file().is_some() {
             // lock already acquired
             return Ok(());
         }

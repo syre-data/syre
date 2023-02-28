@@ -6,9 +6,8 @@ use serde::Serialize;
 use serde_json;
 use std::default::Default;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufReader, Read};
+use std::io::{self, BufReader, Read, Seek};
 use std::path::Path;
-use tempfile::NamedTempFile;
 
 /// Base traits for setting types.
 ///
@@ -17,8 +16,11 @@ pub trait Settings: Serialize + DeserializeOwned + Default {
     /// Store the file lock of the settings file to prevent outside changes.
     fn store_lock(&mut self, lock: FlockLock<File>);
 
-    /// Returns whether the current object controls the settings file or not.
-    fn controls_file(&self) -> bool;
+    /// Returns the settings file if it is controlled.
+    fn file(&self) -> Option<&File>;
+
+    /// Returns a mutable reference to the settings file if it is controlled.
+    fn file_mut(&mut self) -> Option<&mut File>;
 
     /// Returns the priority of the settings object.
     fn priority(&self) -> Priority;
@@ -57,31 +59,29 @@ pub fn load<T: Settings>(path: &Path) -> Result<T> {
 }
 
 /// Save the current object to a file.
-pub fn save<T: Settings>(settings: &T, path: &Path) -> Result<()> {
-    if !settings.controls_file() {
+pub fn save<T: Settings>(settings: &mut T) -> Result {
+    // delete all data
+    {
+        let Some(file) = settings.file_mut() else {
+            return Err(Error::IoError(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "object does not control the settings file",
+            )));
+        };
+
+        file.set_len(0)?;
+        file.rewind()?;
+    }
+
+    // write new data
+    let Some(file) = settings.file() else {
         return Err(Error::IoError(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "object does not control the settings file",
         )));
-    }
-
-    // write settings to temp file
-    let settings_file_tmp = match NamedTempFile::new() {
-        Ok(file) => file,
-        Err(err) => return Err(Error::IoError(err)),
     };
 
-    let write_result = serde_json::to_writer_pretty(&settings_file_tmp, settings);
-    if let Err(err) = write_result {
-        return Err(Error::SerdeError(err));
-    };
-
-    let mv_result = fs::rename(settings_file_tmp.path(), path);
-    if let Err(err) = mv_result {
-        return Err(Error::IoError(err));
-    }
-
-    // success
+    serde_json::to_writer_pretty(file, &settings).map_err(|err| Error::SerdeError(err))?;
     Ok(())
 }
 

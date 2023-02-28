@@ -283,7 +283,7 @@ fn container_get_child_should_work() {
     let child_dir = _dir.mkdir().expect("mkdir should work");
 
     let mut root = Container::load(_dir.path()).expect("load root `Container` should work");
-    let child = Container::load(&child_dir).expect("load child `Container` should work");
+    let mut child = Container::load(&child_dir).expect("load child `Container` should work");
 
     let child_id = child.rid.clone();
     root.register_child(child_id.clone());
@@ -336,7 +336,7 @@ fn container_get_children_should_work() {
     let child_dir = _dir.mkdir().expect("mkdir should work");
 
     let mut root = Container::load(_dir.path()).expect("load root `Container` should work");
-    let child = Container::load(&child_dir).expect("load child `Container` should work");
+    let mut child = Container::load(&child_dir).expect("load child `Container` should work");
 
     let child_id = child.rid.clone();
     let child_ids = vec![child_id.clone()];
@@ -393,7 +393,7 @@ fn container_load_children_without_recursion_should_work() {
 
     let mut root = Container::load(_dir.path()).expect("load root `Container` should work");
     let mut child = Container::load(&child_dir).expect("load child `Container` should work");
-    let grandchild =
+    let mut grandchild =
         Container::load(&grandchild_dir).expect("load grandchild `Container` should work");
 
     let child_id = child.rid.clone();
@@ -458,7 +458,7 @@ fn container_load_children_with_recursion_should_work() {
 
     let mut root = Container::load(_dir.path()).expect("load root `Container` should work");
     let mut child = Container::load(&child_dir).expect("load child `Container` should work");
-    let grandchild =
+    let mut grandchild =
         Container::load(&grandchild_dir).expect("load grandchild `Container` should work");
 
     let child_id = child.rid.clone();

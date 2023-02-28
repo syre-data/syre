@@ -66,9 +66,9 @@ fn user_settings_save_should_work() {
 
 #[test]
 fn user_settings_save_should_error_if_lock_not_obtained() {
-    let settings = UserSettings::default();
+    let mut settings = UserSettings::default();
     assert!(
-        !settings.controls_file(),
+        settings.file().is_none(),
         "default settings should not control file initially"
     );
 
@@ -96,7 +96,7 @@ fn user_settings_save_should_error_if_lock_not_obtained() {
 fn user_settings_default_should_not_acquire_file_lock() {
     let settings = UserSettings::default();
     assert!(
-        !settings.controls_file(),
+        !settings.file().is_none(),
         "default user settings should not lock file"
     )
 }

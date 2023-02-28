@@ -47,8 +47,18 @@ impl Settings for MockUserSettings {
         self._file_lock = Some(file_lock);
     }
 
-    fn controls_file(&self) -> bool {
-        self._file_lock.is_some()
+    fn file(&self) -> Option<&File> {
+        match self._file_lock.as_ref() {
+            None => None,
+            Some(lock) => Some(&*lock),
+        }
+    }
+
+    fn file_mut(&mut self) -> Option<&mut File> {
+        match self._file_lock.as_mut() {
+            None => None,
+            Some(lock) => Some(&mut *lock),
+        }
     }
 
     fn priority(&self) -> Priority {
@@ -106,16 +116,18 @@ fn user_settings_load_should_work() {
     // setup
     let filename = PathBuf::from(FileName(EN).fake::<String>());
     let mut sets = MockUserSettings::new();
+    let sets_id = sets.id.clone();
     sets.set_rel_path(filename.clone())
         .expect("set_rel_path should work");
 
     sets.acquire_lock().expect("acquire lock should work");
     sets.save().expect("save should work");
+    drop(sets);
 
     // test
     let loaded = MockUserSettings::load(&filename).expect("load should work");
     assert_eq! {
-        sets.id, loaded.id,
+        sets_id, loaded.id,
         "incorrect settings loaded"
     };
 }
@@ -158,7 +170,7 @@ fn lock_file_settings_acquire_lock_should_obtain_file_lock() {
 
     settings.acquire_lock().expect("acquire lock panicked");
 
-    assert!(settings.controls_file(), "acquire lock failed")
+    assert!(settings.file().is_some(), "acquire lock failed")
 }
 
 #[test]

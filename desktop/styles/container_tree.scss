@@ -122,6 +122,10 @@ $control-button-size: 25px;
   .children {
       display: flex;
       justify-content: space-evenly;
+
+      .child-node-marker {
+        font-family: t.$title-font-family;
+      }
   }
 
   .container-preview {

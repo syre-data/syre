@@ -34,10 +34,17 @@ jobs:
         uses: jetli/trunk-action@v0.4.0
       - name: install tauri
         run: cargo install tauri-cli
-      - name: build thot-local-database
+      - name: build thot-local-database (linux, macos)
+        if: (matrix.platform == 'ubuntu-20.04') || (matrix.platform == 'macos-latest')
         run: |
           cd local/database
           ./build.sh
+          cd ../..
+      - name: build thot-local-database (windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cd local/database
+          ./build.bat
           cd ../..
       - uses: tauri-apps/tauri-action@dev
         env:

@@ -25,6 +25,24 @@ pub enum Error {
     SettingsError(SettingsError),
 }
 
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self::IoError(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::SerdeError(err)
+    }
+}
+
+impl From<SettingsError> for Error {
+    fn from(err: SettingsError) -> Self {
+        Self::SettingsError(err)
+    }
+}
+
 // ***************
 // *** Results ***
 // ***************

@@ -13,7 +13,6 @@ pub mod error;
 pub mod identifier;
 pub mod lib_impl;
 pub mod types;
-pub mod graph;
 
 #[cfg(feature = "project")]
 pub mod project;

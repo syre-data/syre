@@ -42,8 +42,18 @@ impl Settings for MockSystemSettings {
         self._file_lock = Some(file_lock);
     }
 
-    fn controls_file(&self) -> bool {
-        self._file_lock.is_some()
+    fn file(&self) -> Option<&File> {
+        match self._file_lock.as_ref() {
+            None => None,
+            Some(lock) => Some(&*lock),
+        }
+    }
+
+    fn file_mut(&mut self) -> Option<&mut File> {
+        match self._file_lock.as_mut() {
+            None => None,
+            Some(lock) => Some(&mut *lock),
+        }
     }
 
     fn priority(&self) -> Priority {
@@ -78,13 +88,15 @@ fn system_settings_path_should_work() {
 fn system_settings_load_should_work() {
     // setup
     let mut sets = MockSystemSettings::new();
+    let sets_id = sets.id.clone();
     sets.acquire_lock().expect("acquire lock should work");
     sets.save().expect("save should work");
+    drop(sets);
 
     // test
     let loaded = MockSystemSettings::load().expect("load should work");
     assert_eq! {
-        sets.id, loaded.id,
+        sets_id, loaded.id,
         "incorrect settings loaded"
     };
 }
@@ -117,7 +129,7 @@ fn lock_file_settings_acquire_lock_should_obtain_file_lock() {
     let mut settings = MockSystemSettings::new();
     settings.acquire_lock().expect("acquire lock panicked");
 
-    assert!(settings.controls_file(), "acquire lock failed")
+    assert!(settings.file().is_some(), "acquire lock failed")
 }
 
 #[test]

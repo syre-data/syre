@@ -66,20 +66,23 @@ fn database_command_update_container_properties_should_work() {
         properties: properties.clone(),
     }));
 
-    // ensure stored container updated
-    let stored = db
-        .store
-        .get_container(&container.rid)
-        .expect("`Container` not stored");
+    {
+        // ensure stored container updated
+        let stored = db
+            .store
+            .get_container(&container.rid)
+            .expect("`Container` not stored");
 
-    let stored = stored.lock().expect("could not lock `Container`");
-    assert_eq!(
-        properties.name, stored.properties.name,
-        "incorrect name stored"
-    );
+        let stored = stored.lock().expect("could not lock `Container`");
+        assert_eq!(
+            properties.name, stored.properties.name,
+            "incorrect name stored"
+        );
 
-    // ensure persisted container updated
-    db.store.remove_container(&container.rid);
+        // ensure persisted container updated
+        db.store.remove_container(&container.rid);
+    }
+
     let saved = LocalContainer::load(_dir.path()).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,

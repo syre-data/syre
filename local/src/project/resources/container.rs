@@ -451,8 +451,18 @@ impl Settings for Container {
         self._file_lock = Some(lock);
     }
 
-    fn controls_file(&self) -> bool {
-        self._file_lock.is_some()
+    fn file(&self) -> Option<&File> {
+        match self._file_lock.as_ref() {
+            None => None,
+            Some(lock) => Some(&*lock),
+        }
+    }
+
+    fn file_mut(&mut self) -> Option<&mut File> {
+        match self._file_lock.as_mut() {
+            None => None,
+            Some(lock) => Some(lock),
+        }
     }
 
     fn priority(&self) -> SettingsPriority {
@@ -494,9 +504,8 @@ impl LocalSettings for Container {
         Ok(container)
     }
 
-    fn save(&self) -> SettingsResult {
-        let path = self.path()?;
-        settings::save::<Self>(&self, &path)?;
+    fn save(&mut self) -> SettingsResult {
+        settings::save::<Self>(self)?;
         self.assets.save()?;
         Ok(())
     }
@@ -506,7 +515,7 @@ impl LockSettingsFile for Container {
     /// Acquire lock for self and `Asset`s.
     fn acquire_lock(&mut self) -> SettingsResult {
         // check lock is not already acquired
-        if !self.controls_file() {
+        if self.file().is_none() {
             let path = self.path()?;
             let file = settings::ensure_file(path.as_path())?;
             let file_lock = settings::lock(file)?;
@@ -696,8 +705,18 @@ impl Settings for ContainerSettings {
         self._file_lock = Some(lock);
     }
 
-    fn controls_file(&self) -> bool {
-        self._file_lock.is_some()
+    fn file(&self) -> Option<&File> {
+        match self._file_lock.as_ref() {
+            None => None,
+            Some(lock) => Some(&*lock),
+        }
+    }
+
+    fn file_mut(&mut self) -> Option<&mut File> {
+        match self._file_lock.as_mut() {
+            None => None,
+            Some(lock) => Some(lock),
+        }
     }
 
     fn priority(&self) -> SettingsPriority {

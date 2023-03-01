@@ -110,8 +110,18 @@ impl Settings for Assets {
         self._file_lock = Some(lock);
     }
 
-    fn controls_file(&self) -> bool {
-        self._file_lock.is_some()
+    fn file(&self) -> Option<&File> {
+        match self._file_lock.as_ref() {
+            None => None,
+            Some(lock) => Some(&*lock),
+        }
+    }
+
+    fn file_mut(&mut self) -> Option<&mut File> {
+        match self._file_lock.as_mut() {
+            None => None,
+            Some(lock) => Some(lock),
+        }
     }
 
     fn priority(&self) -> SettingsPriority {

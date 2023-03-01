@@ -58,11 +58,11 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 
     // initialize container
     // assets included
-    let container = Container::load(path)?;
+    let mut container = Container::load(path)?;
     container.save()?;
 
     // initialize container settings
-    let settings = ContainerSettings::load(path)?;
+    let mut settings = ContainerSettings::load(path)?;
     settings.save()?;
 
     Ok(container.rid.clone())

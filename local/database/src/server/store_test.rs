@@ -198,7 +198,8 @@ fn find_containers_should_work() {
     let mut child_1 =
         LocalContainer::load(&child_1_dir).expect("load child `Container` should work");
 
-    let child_2 = LocalContainer::load(&child_2_dir).expect("load child `Container` should work");
+    let mut child_2 =
+        LocalContainer::load(&child_2_dir).expect("load child `Container` should work");
 
     root.register_child(child_1.rid.clone());
     root.register_child(child_2.rid.clone());

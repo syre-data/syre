@@ -28,7 +28,7 @@ jobs:
       - name: install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with: 
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          toolchain: ${{ vars.RUST_TOOLCHAIN }}
           targets: wasm32-unknown-unknown
       - name: install trunk
         uses: jetli/trunk-action@v0.4.0

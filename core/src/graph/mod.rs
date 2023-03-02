@@ -1,12 +1,12 @@
 //! Graph structures.
-pub mod edge;
+// pub mod edge;
 pub mod node;
 pub mod tree;
 
 // Re-exports
-pub use edge::{DirectedEdge, DirectedEdgeBuilder};
-pub use node::{Node, NodeId};
-pub use tree::Tree;
+// pub use edge::{DirectedEdge, DirectedEdgeBuilder};
+pub use node::ResourceNode;
+pub use tree::ResourceTree;
 
 #[cfg(test)]
 #[path = "./mod_test.rs"]

@@ -1,29 +1,41 @@
 //! Graph node.
+use crate::types::ResourceId;
 use has_id::HasId;
 use std::ops::{Deref, DerefMut};
-use uuid::Uuid;
 
-pub type NodeId = Uuid;
-
-/// A graph node.
+/// A graph node for a resource.
+/// The id of the node matches the id of the resource.
 /// Contains data.
 #[derive(HasId)]
-pub struct Node<D> {
+pub struct ResourceNode<D>
+where
+    D: HasId<Id = ResourceId>,
+{
     #[id]
-    id: NodeId,
+    id: ResourceId,
     data: D,
 }
 
-impl<D> Node<D> {
+impl<D> ResourceNode<D>
+where
+    D: HasId<Id = ResourceId>,
+{
     pub fn new(data: D) -> Self {
-        Self {
-            id: NodeId::new_v4(),
-            data,
-        }
+        let id = data.id().clone();
+
+        Self { id, data }
+    }
+
+    /// Consumes self, returning the data.
+    pub fn into_data(self) -> D {
+        self.data
     }
 }
 
-impl<D> Deref for Node<D> {
+impl<D> Deref for ResourceNode<D>
+where
+    D: HasId<Id = ResourceId>,
+{
     type Target = D;
 
     fn deref(&self) -> &Self::Target {
@@ -31,7 +43,10 @@ impl<D> Deref for Node<D> {
     }
 }
 
-impl<D> DerefMut for Node<D> {
+impl<D> DerefMut for ResourceNode<D>
+where
+    D: HasId<Id = ResourceId>,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }

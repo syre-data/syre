@@ -17,6 +17,9 @@ pub mod types;
 #[cfg(feature = "project")]
 pub mod project;
 
+#[cfg(feature = "project")]
+pub mod graph;
+
 #[cfg(feature = "db")]
 pub mod db;
 
@@ -29,9 +32,9 @@ pub mod system;
 #[cfg(test)]
 pub mod dev_utils;
 
+// Re-exports
+pub use error::{Error, Result};
+
 #[cfg(test)]
 #[path = "./lib_test.rs"]
 mod lib_test;
-
-// Re-exports
-pub use error::{Error, Result};

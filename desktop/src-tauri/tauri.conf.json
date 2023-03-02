@@ -42,7 +42,7 @@
         "assets/icons/icon.icns",
         "assets/icons/icon.ico"
       ],
-      "identifier": "so.thot",
+      "identifier": "so.thot.desktop",
       "longDescription": "Visual data management and analysis tools using Thot's framework.",
       "macOS": {
         "entitlements": null,

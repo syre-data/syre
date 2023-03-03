@@ -1,14 +1,16 @@
 //! Project actions detail widget bar.
 use super::project_scripts::ProjectScripts;
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::script::AddScriptArgs;
+use crate::commands::script::{AddScriptArgs, RemoveScriptArgs};
 use crate::common::invoke;
 use crate::components::canvas::CanvasStateReducer;
 use crate::hooks::{use_project, use_project_scripts};
+use crate::Result;
 use serde_wasm_bindgen as swb;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use thot_core::project::Script as CoreScript;
+use thot_core::types::ResourceId;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -66,9 +68,47 @@ pub fn project_actions() -> Html {
         })
     };
 
+    let onremove_script = {
+        let projects_state = projects_state.clone();
+        let project_scripts = project_scripts.clone();
+        let project = project.rid.clone();
+
+        Callback::from(move |rid: ResourceId| {
+            let projects_state = projects_state.clone();
+            let project_scripts = project_scripts.clone();
+            let project = project.clone();
+
+            spawn_local(async move {
+                let Some(mut scripts) = (*project_scripts).clone() else {
+                    panic!("`Project` `Script`s not loaded");
+                };
+
+                let project = project.clone();
+                let res = invoke(
+                    "remove_script",
+                    RemoveScriptArgs {
+                        project: project.clone(),
+                        script: rid.clone(),
+                    },
+                )
+                .await
+                .expect("could not invoke `remove_script`");
+
+                // @todo[2]: Process result display error to user
+                // let res: Result = swb::from_value(res)
+                //     .expect("could not convert result of `remove_script` to `Result`");
+
+                scripts.remove(&rid);
+
+                projects_state
+                    .dispatch(ProjectsStateAction::UpdateProjectScripts(project, scripts));
+            });
+        })
+    };
+
     html! {
         <div>
-            <ProjectScripts onadd={onadd_scripts} />
+            <ProjectScripts onadd={onadd_scripts} onremove={onremove_script} />
         </div>
     }
 }

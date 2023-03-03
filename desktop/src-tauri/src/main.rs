@@ -74,6 +74,7 @@ fn main() {
             // script
             get_project_scripts,
             add_script,
+            remove_script,
         ])
         .setup(setup::setup)
         .build(tauri::generate_context!())

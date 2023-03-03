@@ -445,6 +445,24 @@ impl Datastore {
 
         Ok(o_script)
     }
+    pub fn remove_script(
+        &mut self,
+        project: &ResourceId,
+        script: &ResourceId,
+    ) -> Result<Option<CoreScript>> {
+        let Some(scripts) = self.scripts.get_mut(&project) else {
+            // project does not exist
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist".to_string())).into());
+        };
+
+        let o_script = scripts.remove(script);
+        scripts.save()?;
+
+        // remove map script
+        self.script_projects.remove(script);
+
+        Ok(o_script)
+    }
 
     pub fn get_script(&self, script: &ResourceId) -> Option<&CoreScript> {
         let Some(project) = self.script_projects.get(&script) else {

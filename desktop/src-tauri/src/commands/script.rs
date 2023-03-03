@@ -34,6 +34,21 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
     Ok(script?)
 }
 
+// *********************
+// *** remove script ***
+// *********************
+
+#[tauri::command]
+pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceId) -> Result {
+    let res = db.send(ScriptCommand::Remove(project, script).into());
+    let res: DbResult =
+        serde_json::from_value(res).expect("could not convert `RemoveScript` result to `Result`");
+
+    res.expect("error removing `Script`");
+    dbg!("0");
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "./script_test.rs"]
 mod script_test;

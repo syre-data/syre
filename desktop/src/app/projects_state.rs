@@ -29,18 +29,25 @@ pub enum ProjectsStateAction {
     /// 2. New project to set as active, if needed.
     RemoveOpenProject(ResourceId, Option<ResourceId>),
 
-    /// Set the active project.
+    /// Set the active `Project`.
     SetActiveProject(ResourceId),
 
-    /// Update the project
+    /// Update the [`Project`](CoreProject).
     UpdateProject(CoreProject),
 
-    /// Insert a Script.
+    /// Insert a `Script`.
     ///
     /// # Fields
     /// 1. `Project`'s id.
     /// 2. `Project`'s `Script`s.
     InsertProjectScripts(ResourceId, ProjectScripts),
+
+    /// Update a `Project` `Script`s.
+    ///
+    /// # Fields
+    /// 1. `Project`'s id.
+    /// 2. `Project`'s `Script`s.
+    UpdateProjectScripts(ResourceId, ProjectScripts),
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -93,6 +100,10 @@ impl Reducible for ProjectsState {
             }
 
             ProjectsStateAction::InsertProjectScripts(project, scripts) => {
+                current.project_scripts.insert(project.clone(), scripts);
+            }
+
+            ProjectsStateAction::UpdateProjectScripts(project, scripts) => {
                 current.project_scripts.insert(project.clone(), scripts);
             }
 

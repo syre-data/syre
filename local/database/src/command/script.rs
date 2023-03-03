@@ -28,6 +28,13 @@ pub enum ScriptCommand {
     /// 1. `Project`'s id.
     /// 2. `Script`'s path.
     Add(ResourceId, PathBuf),
+
+    /// Removes `Script` from a `Project`.
+    ///
+    /// # Fields
+    /// 1. `Project`'s id.
+    /// 2. `Script`'s id.
+    Remove(ResourceId, ResourceId),
 }
 
 #[cfg(test)]

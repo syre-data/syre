@@ -5,11 +5,15 @@ use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::{LocalSettings, SystemSettings};
 use std::path::PathBuf;
-use thot_core::error::{Error as CoreError, ResourceError};
+use std::sync::{Arc, Mutex};
+use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::project::Script as CoreScript;
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local::project::resources::{Script as LocalScript, Scripts as ProjectScripts};
+use thot_local::project::resources::{
+    Container as LocalContainer, Script as LocalScript, Scripts as ProjectScripts,
+};
 use thot_local::system::collections::Projects;
+use thot_local::types::ResourceValue;
 
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
@@ -73,8 +77,38 @@ impl Database {
     }
 
     /// Remove `Script` from `Project`.
-    fn remove_script(&mut self, project: &ResourceId, script: &ResourceId) -> Result {
-        self.store.remove_script(project, script)?;
+    fn remove_script(&mut self, pid: &ResourceId, script: &ResourceId) -> Result {
+        fn remove_recursively_script_association(
+            container: Arc<Mutex<LocalContainer>>,
+            script: &ResourceId,
+        ) -> Result {
+            let mut container = container.lock().expect("could not lock `Container`");
+            container.scripts.remove(script);
+            container.save()?;
+
+            for child in container.children.values() {
+                let ResourceValue::Resource(child) = child else { 
+                    return Err(CoreError::ResourceError(ResourceError::DoesNotExist("child `Container` does not exist".to_string())).into())};
+                remove_recursively_script_association(child.clone(), script)?;
+            }
+            Ok(())
+        }
+
+        // Get root container
+        let Some(project) = self.store.get_project(pid) else { 
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist".to_string())).into()) };
+        let Some(data_root) = project.data_root.as_ref() else { 
+            return Err(CoreError::ProjectError(ProjectError::Misconfigured("`data_root` not set".to_string())).into())};
+        let Some(root_container) = self.store.get_path_container(&data_root) else { 
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist".to_string())).into())};
+        let Some(root_container) = self.store.get_container(root_container) else { 
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist".to_string())).into())};
+
+        // Remove script associations
+        remove_recursively_script_association(root_container.clone(), script)?;
+
+        // Remove project script
+        self.store.remove_script(pid, script)?;
 
         Ok(())
     }

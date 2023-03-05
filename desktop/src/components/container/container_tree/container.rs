@@ -62,7 +62,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let script_names = projects_state
         .project_scripts
         .get(&canvas_state.project)
-        .expect("project's state not found")
+        .expect("`Project`'s `Scripts` not found")
         .iter()
         .map(|(rid, script)| {
             let mut name = script.name.clone().unwrap_or(

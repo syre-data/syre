@@ -45,7 +45,6 @@ pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceI
         serde_json::from_value(res).expect("could not convert `RemoveScript` result to `Result`");
 
     res.expect("error removing `Script`");
-    dbg!("0");
     Ok(())
 }
 

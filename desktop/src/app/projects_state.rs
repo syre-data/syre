@@ -41,13 +41,6 @@ pub enum ProjectsStateAction {
     /// 1. `Project`'s id.
     /// 2. `Project`'s `Script`s.
     InsertProjectScripts(ResourceId, ProjectScripts),
-
-    /// Update a `Project` `Script`s.
-    ///
-    /// # Fields
-    /// 1. `Project`'s id.
-    /// 2. `Project`'s `Script`s.
-    UpdateProjectScripts(ResourceId, ProjectScripts),
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -100,10 +93,6 @@ impl Reducible for ProjectsState {
             }
 
             ProjectsStateAction::InsertProjectScripts(project, scripts) => {
-                current.project_scripts.insert(project.clone(), scripts);
-            }
-
-            ProjectsStateAction::UpdateProjectScripts(project, scripts) => {
                 current.project_scripts.insert(project.clone(), scripts);
             }
 

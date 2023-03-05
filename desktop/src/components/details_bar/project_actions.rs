@@ -1,9 +1,14 @@
 //! Project actions detail widget bar.
 use super::project_scripts::ProjectScripts;
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
+use crate::commands::container::{
+    UpdateScriptAssociationsArgs, UpdateScriptAssociationsStringArgs,
+};
 use crate::commands::script::{AddScriptArgs, RemoveScriptArgs};
 use crate::common::invoke;
-use crate::components::canvas::CanvasStateReducer;
+use crate::components::canvas::{
+    CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
+};
 use crate::hooks::{use_project, use_project_scripts};
 use crate::Result;
 use serde_wasm_bindgen as swb;
@@ -21,6 +26,9 @@ pub fn project_actions() -> Html {
 
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
+
+    let tree_state = use_context::<ContainerTreeStateReducer>()
+        .expect("`ContainerTreeStateReducer` context not found");
 
     let project = use_project(&canvas_state.project);
     let Some(project) = project.as_ref() else {
@@ -70,11 +78,13 @@ pub fn project_actions() -> Html {
 
     let onremove_script = {
         let projects_state = projects_state.clone();
+        let tree_state = tree_state.clone();
         let project_scripts = project_scripts.clone();
         let project = project.rid.clone();
 
         Callback::from(move |rid: ResourceId| {
             let projects_state = projects_state.clone();
+            let tree_state = tree_state.clone();
             let project_scripts = project_scripts.clone();
             let project = project.clone();
 
@@ -98,10 +108,34 @@ pub fn project_actions() -> Html {
                 // let res: Result = swb::from_value(res)
                 //     .expect("could not convert result of `remove_script` to `Result`");
 
+                // Remove from containers
+                for container in tree_state.containers.values() {
+                    let Some(container) = container else { panic!("`Container` not loaded") };
+                    let container = container.lock().expect("could not lock `Container`");
+                    let rid = container.rid.clone();
+                    let mut associations = container.scripts.clone();
+                    web_sys::console::log_1(&format!("{:#?}", associations).into());
+                    drop(container);
+                    associations.remove(&rid);
+                    tree_state.dispatch(
+                        ContainerTreeStateAction::UpdateContainerScriptAssociations(
+                            UpdateScriptAssociationsArgs {
+                                rid: rid.clone(),
+                                associations,
+                            },
+                        ),
+                    );
+                    // @remove
+                    let containers = tree_state.containers.get(&rid).unwrap().clone().unwrap();
+                    let containers = containers.lock().unwrap();
+                    web_sys::console::log_1(&format!("{:#?}", containers.scripts).into());
+                }
+
+                // Remove from scripts
                 scripts.remove(&rid);
 
                 projects_state
-                    .dispatch(ProjectsStateAction::UpdateProjectScripts(project, scripts));
+                    .dispatch(ProjectsStateAction::InsertProjectScripts(project, scripts));
             });
         })
     };

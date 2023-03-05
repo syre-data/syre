@@ -118,8 +118,8 @@ pub fn script_by_path(path: &Path) -> Result<Script> {
 //     }
 // }
 
-// @todo
-// /// Returns if the path is registered as a script with the given project.
+// @todo 
+// /// Returns `true` if the path is registered as a script with the given project.
 // /// If project path is not given, searches in ancestors for project root.
 // pub fn path_is_registered(path: &Path, project: Option<&Path>) -> Result<bool> {
 //     // get project

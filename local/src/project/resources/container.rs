@@ -154,7 +154,7 @@ impl Container {
     // ----------------
 
     /// Registers a Container as a child.
-    /// Returns if the child was unregistered, i.e. newly added.
+    /// Returns `true` if the child was unregistered, i.e. newly added.
     ///
     /// # See also
     /// + `add_child`
@@ -168,7 +168,7 @@ impl Container {
     }
 
     /// Deregisters a child.
-    /// Returns if the child was previously registered.
+    /// Returns `true` if the child was previously registered.
     pub fn deregister_child(&mut self, rid: &ResourceId) -> bool {
         if !self.children.contains_key(rid) {
             return false;

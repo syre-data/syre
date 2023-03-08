@@ -39,6 +39,9 @@ pub enum ContainerTreeStateAction {
     /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
 
+    /// Remove all associations with `Script` from [`Container`](CoreContainer)'s
+    RemoveContainerScriptAssociations(ResourceId),
+
     /// Update an [`Asset`](CoreAsset).
     UpdateAsset(CoreAsset),
 
@@ -174,6 +177,19 @@ impl Reducible for ContainerTreeState {
                 current
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
+            }
+
+            ContainerTreeStateAction::RemoveContainerScriptAssociations(rid) => {
+                for container in current.containers.values() {
+                    let Some(container) = container else { panic!("`Container` not loaded") };
+                    let mut container = container.lock().expect("could not lock `Container`");
+                    container.scripts.remove(&rid);
+
+                    // @remove
+                    // let containers = current.containers.get(&rid).unwrap().clone().unwrap();
+                    // let containers = containers.lock().unwrap();
+                    // web_sys::console::log_1(&format!("{:#?}", containers.scripts).into());
+                }
             }
 
             ContainerTreeStateAction::InsertChildContainer(parent, child) => {

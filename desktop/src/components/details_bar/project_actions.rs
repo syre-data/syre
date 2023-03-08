@@ -108,34 +108,21 @@ pub fn project_actions() -> Html {
                 // let res: Result = swb::from_value(res)
                 //     .expect("could not convert result of `remove_script` to `Result`");
 
-                // Remove from containers
-                for container in tree_state.containers.values() {
-                    let Some(container) = container else { panic!("`Container` not loaded") };
-                    let container = container.lock().expect("could not lock `Container`");
-                    let rid = container.rid.clone();
-                    let mut associations = container.scripts.clone();
-                    web_sys::console::log_1(&format!("{:#?}", associations).into());
-                    drop(container);
-                    associations.remove(&rid);
-                    tree_state.dispatch(
-                        ContainerTreeStateAction::UpdateContainerScriptAssociations(
-                            UpdateScriptAssociationsArgs {
-                                rid: rid.clone(),
-                                associations,
-                            },
-                        ),
-                    );
-                    // @remove
-                    let containers = tree_state.containers.get(&rid).unwrap().clone().unwrap();
-                    let containers = containers.lock().unwrap();
-                    web_sys::console::log_1(&format!("{:#?}", containers.scripts).into());
-                }
+                // @note: Program order does not follow logical order, should first remove from
+                // containers and then projects, else containers might contain stale scripts.
+                // however doing the right order makes the program crash due to `Script` not
+                // found error.
 
                 // Remove from scripts
                 scripts.remove(&rid);
 
                 projects_state
                     .dispatch(ProjectsStateAction::InsertProjectScripts(project, scripts));
+
+                // Remove from containers
+                tree_state.dispatch(ContainerTreeStateAction::RemoveContainerScriptAssociations(
+                    rid.clone(),
+                ));
             });
         })
     };

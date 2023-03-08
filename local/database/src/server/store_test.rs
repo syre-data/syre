@@ -396,6 +396,15 @@ fn remove_script_should_work() {
         .insert_script(script)
         .expect("could not insert `Script`");
 
+    // add other script that is not to be removed
+    let other_script =
+        CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
+    let other_sid = other_script.rid.clone();
+
+    scripts
+        .insert_script(other_script)
+        .expect("could not insert other `Script`");
+
     let mut store = Datastore::new();
 
     store.insert_project_scripts(pid.clone(), scripts);
@@ -417,5 +426,15 @@ fn remove_script_should_work() {
     assert!(
         !store.script_projects.contains_key(&sid),
         "project map for removed script should not exist"
+    );
+
+    assert!(
+        scripts.contains_key(&other_sid),
+        "non removed script should be there"
+    );
+
+    assert!(
+        store.script_projects.contains_key(&other_sid),
+        "project map for not removed script should exist"
     );
 }

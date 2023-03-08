@@ -9,42 +9,83 @@ use thot_local::project::{container, project};
 fn remove_script_should_work() {
     // setup
 
-    let _dir = TempDir::new().expect("could not create new `TempDir`");
+    let mut _dir = TempDir::new().expect("could not create new `TempDir`");
+    let child_dir = _dir.mkdir().expect("could not create new child directory");
 
     // initialize project
     project::init(_dir.path()).expect("could not init `Project`");
     let mut project = LocalProject::load(_dir.path()).expect("could not load `Project`");
 
     let cid = container::init(_dir.path()).expect("could not init `Container`");
+
+    let child_cid = container::init(&child_dir).expect("could not init child `Container`");
+
     let mut container = LocalContainer::load(_dir.path()).expect("could not load `Container`");
+
+    let mut child_container =
+        LocalContainer::load(&child_dir).expect("could not load child `Container`");
+
+    container.register_child(child_cid.clone());
 
     project.data_root = Some(_dir.path().to_path_buf());
     let pid = project.rid.clone();
 
     // initialize scripts
 
-    let mut scripts = LocalScripts::load(_dir.path()).expect("could not load `Scripts`");
-
-    let script =
+    let script_0 =
         Script::new(resource_path::resource_path(Some("py"))).expect("could not create `script`");
 
-    let sid = script.rid.clone();
+    let script_1 =
+        Script::new(resource_path::resource_path(Some("py"))).expect("could not create `script` 1");
+
+    let sid_0 = script_0.rid.clone();
+    let sid_1 = script_1.rid.clone();
+
+    let mut scripts = LocalScripts::load(_dir.path()).expect("could not load `Scripts`");
 
     scripts
-        .insert_script(script)
+        .insert_script(script_0)
         .expect("could not insert `Script`");
+
+    scripts
+        .insert_script(script_1)
+        .expect("could not insert `Script` 1");
 
     // add script association
 
-    let script_association = ScriptAssociation::new(sid.clone());
+    let assoc_root_0 = ScriptAssociation::new(sid_0.clone());
+    let assoc_root_1 = ScriptAssociation::new(sid_1.clone());
+    let assoc_child_0 = ScriptAssociation::new(sid_0.clone());
+    let assoc_child_1 = ScriptAssociation::new(sid_1.clone());
+
     container
-        .add_script_association(script_association)
+        .add_script_association(assoc_root_0.clone())
+        .expect("could not add `ScriptAssociation`");
+
+    container
+        .add_script_association(assoc_root_1.clone())
+        .expect("could not add `ScriptAssociation`");
+
+    child_container
+        .add_script_association(assoc_child_0.clone())
+        .expect("could not add `ScriptAssociation`");
+
+    child_container
+        .add_script_association(assoc_child_1.clone())
         .expect("could not add `ScriptAssociation`");
 
     project.save().expect("could not save `Project`");
     scripts.save().expect("could not save `Scripts`");
 
+    container.save().expect("could not save root `Container`");
+    child_container
+        .save()
+        .expect("could not save child `Container`");
+
     // database setup
+
+    drop(child_container);
+    container.load_children(true).expect("could not load child");
 
     let mut db = Database::new();
     db.store
@@ -59,7 +100,7 @@ fn remove_script_should_work() {
 
     // test
 
-    db.remove_script(&pid, &sid)
+    db.remove_script(&pid, &sid_0)
         .expect("could not remove `Script`");
 
     let scripts = db
@@ -67,17 +108,40 @@ fn remove_script_should_work() {
         .get_project_scripts(&pid)
         .expect("could not get `Project`");
 
-    // scripts are removed from project
-    assert!(!scripts.contains_key(&sid));
+    // scripts are properly removed from project
+    assert!(!scripts.contains_key(&sid_0));
+
+    assert!(scripts.contains_key(&sid_1));
 
     let container = db
         .store
         .get_container(&cid)
         .expect("could not get `Container`");
 
-    let container = container.lock().expect("could not lock `Container`");
+    let child_container = db
+        .store
+        .get_container(&child_cid)
+        .expect("could not get `Container`");
 
-    // scripts are removed from container
-    assert!(!container.scripts.contains_key(&sid));
+    let container = container.lock().expect("could not lock `Container`");
+    let child_container = child_container.lock().expect("could not lock `Container`");
+
+    // scripts are properly removed from container
+    assert!(
+        !container.scripts.contains_key(&sid_0),
+        "root container should not contain removed script"
+    );
+    assert!(
+        container.scripts.contains_key(&sid_1),
+        "root container should contain unremoved script"
+    );
+    assert!(
+        !child_container.scripts.contains_key(&sid_0),
+        "child container should not contain removed script"
+    );
+    assert!(
+        child_container.scripts.contains_key(&sid_1),
+        "child container should contain unremoved script"
+    );
     // @todo[3]: ensure changes save to disk
 }

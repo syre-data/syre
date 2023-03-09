@@ -8,7 +8,6 @@ use crate::common::invoke;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
 };
-use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
 use std::str::FromStr;
 use thot_core::project::Container as CoreContainer;
@@ -104,7 +103,6 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeReducer` context not found");
 
-    let container = use_container(props.root.clone());
     let show_add_child_form = use_state(|| false);
     let new_child_parent = use_state(|| None);
     let root_ref = use_node_ref();
@@ -266,21 +264,19 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     {onadd_child} />
 
                 <div ref={children_ref} class={classes!("children")}>
-                    { container
-                        .children
+                    { tree_state.tree
+                        .children(&props.root)
+                        .expect("`Container` children not found")
                         .iter()
-                        .map(|(rid, child)| html! {
-                            if canvas_state.is_visible(&rid) {
+                        .map(|rid| html! {
+                            if canvas_state.is_visible(rid) {
                                 <ContainerTree root={rid.clone()} />
                             } else {
                                 <div class={classes!("child-node-marker")}
                                     data-rid={rid.clone()}>
 
-                                    { match child
-                                        .clone()
-                                        .expect("child `Container` not loaded")
-                                        .lock()
-                                        .expect("could not lock child `Container`")
+                                    { match tree_state.tree.get(&rid)
+                                        .expect("child `Container` not found")
                                         .properties
                                         .name
                                         .clone() {
@@ -595,3 +591,4 @@ fn create_visibility_control_element(
 #[cfg(test)]
 #[path = "./container_tree_test.rs"]
 mod container_tree_test;
+==== BASE ====

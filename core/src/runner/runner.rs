@@ -1,7 +1,8 @@
 //! Thot project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
 use super::ThotEnv;
-use crate::error::RunnerError;
+use crate::error::{ResourceError, RunnerError};
+use crate::graph::ResourceTree;
 use crate::project::{Container, Script};
 use crate::types::ResourceId;
 use crate::{Error, Result};
@@ -104,6 +105,8 @@ impl RunnerHooks {
 // *** Runner ***
 // **************
 
+type ContainerTree = ResourceTree<Container>;
+
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// ```mermaid
 ///
@@ -117,44 +120,92 @@ impl Runner {
         Self { hooks }
     }
 
-    /// Analyze a tree
+    /// Analyze a tree.
     ///
     /// # Arguments
-    /// + `root`: Root of the `Container` tree to evaluate.
-    /// + `max_tasks`: Maximum number of analysis tasks to run at once.
-    ///     If `None` runs as many as possible.
-    pub fn run(&self, root: Container, max_tasks: Option<usize>) -> Result {
-        self.evaluate_tree(root)
+    /// 1. Container tree to evaluate.
+    pub fn run(&self, tree: &mut ContainerTree) -> Result {
+        self.evaluate_tree(tree, &tree.root().clone(), None)
+    }
+
+    /// Analyze a tree using restricted parallelization.
+    ///
+    /// # Arguments
+    /// 1. Container tree to evaluate.
+    /// 2. Maximum number of analysis tasks to run at once.
+    pub fn run_with_tasks(&self, tree: &mut ContainerTree, tasks: usize) -> Result {
+        self.evaluate_tree(tree, &tree.root().clone(), Some(tasks))
+    }
+
+    /// Analyze a subtree.
+    ///
+    /// # Arguments
+    /// 1. Container tree to evaluate.
+    /// 2. Root of subtree.
+    pub fn run_from(&self, tree: &mut ContainerTree, root: &ResourceId) -> Result {
+        self.evaluate_tree(tree, root, None)
+    }
+
+    /// Analyze a subtree using restricted parallelization.
+    ///
+    /// # Arguments
+    /// 1. Container tree to evaluate.
+    /// 2. Root of subtree.
+    /// 3. Maximum number of analysis tasks to run at once.
+    pub fn run_from_with_tasks(
+        &self,
+        tree: &mut ContainerTree,
+        root: &ResourceId,
+        tasks: usize,
+    ) -> Result {
+        self.evaluate_tree(tree, root, Some(tasks))
     }
 
     /// Evaluates a `Container` tree.
-    fn evaluate_tree(&self, root: Container) -> Result {
+    ///
+    /// # Arguments
+    /// 1. Container tree to evaluate.
+    /// 2. Root of subtree.
+    /// 3. Maximum number of analysis tasks to run at once.
+    fn evaluate_tree(
+        &self,
+        tree: &mut ContainerTree,
+        root: &ResourceId,
+        tasks: Option<usize>,
+    ) -> Result {
         // recurse on children
-        let children = root.children.values().filter_map(|c| c.clone());
+        let Some(children) = tree.children(root).cloned() else {
+            return Err(ResourceError::DoesNotExist("`Node` children not found".to_string()).into());
+        };
+
         for child in children {
-            // @todo: Handle error.
-            let child = child.lock().expect("could not lock child `Container`");
-            self.evaluate_tree((*child).clone())?;
+            self.evaluate_tree(tree, &child, tasks)?;
         }
 
-        self.evaluate_container(root, None, false, false)
+        self.evaluate_container(tree, root, None, false, false)
     }
 
     /// Evaluates a single container.
     ///
     /// # Arguments
-    /// + `container`: The [`Container`] to evaluate.
-    /// + `scripts_filter`: `None` to run all scripts set to `autorun`.
+    /// 1. The [`ContainerTree`].
+    /// 1. The [`Container`] to evaluate.
+    /// 2. `None` to run all scripts set to `autorun`.
     ///     Otherwise a [`HashSet`] of the scripts to run.
     /// + `ignore_errors`: Whether to continue running on a script error.
     /// + `verbose`: Output state.
     fn evaluate_container(
         &self,
-        container: Container,
+        tree: &mut ContainerTree,
+        container: &ResourceId,
         script_filter: Option<HashSet<ResourceId>>,
         ignore_errors: bool,
         verbose: bool,
     ) -> Result {
+        let Some(container) = tree.get(container) else {
+            return Err(ResourceError::DoesNotExist("`Node` not found".to_string()).into());
+        };
+
         let mut scripts = container.scripts.clone();
         if let Some(filter) = script_filter {
             // filter scripts
@@ -223,7 +274,7 @@ impl Runner {
             let run_res = self.run_script(script, &container);
 
             if let Some(assets_added) = self.hooks.assets_added {
-                let assets = HashSet::new(); // @todo: Collect `ResourceId`s of `Assets`.
+                let assets = HashSet::new(); // @todo[1]: Collect `ResourceId`s of `Assets`.
                 assets_added(exec_ctx.clone(), assets, verbose);
             }
 
@@ -295,3 +346,4 @@ impl Runner {
 #[cfg(test)]
 #[path = "./runner_test.rs"]
 mod runner_test;
+==== BASE ====

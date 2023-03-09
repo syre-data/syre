@@ -30,7 +30,6 @@ pub struct Container {
     #[id]
     pub rid: ResourceId,
     pub properties: StandardProperties,
-    pub parent: Option<ResourceId>,
     pub assets: AssetMap,
     pub scripts: ScriptMap,
 }
@@ -40,7 +39,6 @@ impl Default for Container {
         Container {
             rid: ResourceId::new(),
             properties: StandardProperties::default(),
-            parent: None,
             assets: AssetMap::default(),
             scripts: ScriptMap::default(),
         }

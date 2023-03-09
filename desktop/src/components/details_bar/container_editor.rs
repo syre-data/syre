@@ -4,7 +4,6 @@ use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
-use crate::hooks::use_container;
 use std::sync::{Arc, Mutex};
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
@@ -27,7 +26,11 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeReducer` context not found");
 
-    let container = use_container(props.rid.clone());
+    let container = tree_state
+        .tree
+        .get(&props.rid)
+        .expect("`Container` not found");
+
     let properties = use_state(|| container.properties.clone());
     {
         let container = container.clone();

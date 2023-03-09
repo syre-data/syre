@@ -2,7 +2,6 @@
 use super::ContainerTree as ContainerTreeUi;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
-use crate::commands::container::LoadContainerTreeArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
 use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
@@ -11,7 +10,7 @@ use futures::stream::StreamExt;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
@@ -51,40 +50,9 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
     let tree_state = use_context::<ContainerTreeStateReducer>()
         .expect("`ContainerTreeStateReducer` context not found");
 
-    let root = use_state(|| None);
     let analysis_state = use_state(|| AnalysisState::Standby);
     let node_ref = use_node_ref(); // @todo: Remove in favor of `tree_state.dragover_container`
                                    // See https://github.com/yewstack/yew/issues/3125.
-
-    {
-        // load container
-        let tree_state = tree_state.clone();
-        let root = root.clone();
-        let root_path = props.root.clone();
-
-        use_effect_with_deps(
-            move |_| {
-                spawn_local(async move {
-                    let container = invoke(
-                        "load_container_tree",
-                        LoadContainerTreeArgs { root: root_path },
-                    )
-                    .await
-                    .expect("could not invoke `load_container_tree`");
-
-                    let container: CoreContainer = swb::from_value(container)
-                        .expect("could not convert result of `load_container_tree` to JsValue");
-
-                    let rid = container.rid.clone();
-                    let container = Arc::new(Mutex::new(container));
-                    tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(container));
-
-                    root.set(Some(rid));
-                });
-            },
-            (),
-        );
-    }
 
     // listen for file drop events
     {
@@ -101,8 +69,6 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                         .expect("could not create `tauri://file-drop` listener");
 
                     while let Some(event) = events.next().await {
-                        web_sys::console::log_1(&format!("{event:#?}").into());
-
                         // get active container id
                         let node = node_ref
                             .cast::<web_sys::HtmlElement>()
@@ -225,19 +191,15 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
         let app_state = app_state.clone();
         let tree_state = tree_state.clone();
         let analysis_state = analysis_state.clone();
-        let root = root.clone();
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
             let tree_state = tree_state.clone();
             let analysis_state = analysis_state.clone();
 
-            let Some(root) = (*root).clone() else {
-                panic!("root `Container` not set");
-            };
-
             spawn_local(async move {
                 // analyze
+                let root = tree_state.tree.root();
                 let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
@@ -257,16 +219,14 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                 .await;
 
                 // update tree
-                let update = invoke("get_container", &ResourceIdArgs { rid: root })
+                let update = invoke("get_container", &ResourceIdArgs { rid: root.clone() })
                     .await
                     .expect("could not `get_container`");
 
-                let update: CoreContainer = swb::from_value(update)
+                let update: ResourceTree<CoreContainer> = swb::from_value(update)
                     .expect("could not convert result of `get_container` to `Container`");
 
-                tree_state.dispatch(ContainerTreeStateAction::InsertContainerTree(Arc::new(
-                    Mutex::new(update),
-                )));
+                tree_state.dispatch(ContainerTreeStateAction::SetTree(update));
 
                 analysis_state.set(AnalysisState::Complete);
                 app_state.dispatch(AppStateAction::AddMessage(Message::success(
@@ -282,26 +242,20 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
         <div ref={node_ref}
             class={classes!("container-tree-controller")}>
 
-            if root.is_some() {
-                <div class={classes!("container-tree-controls")}>
-                    <ContainerPreviewSelect onchange={set_preview} />
-                    <button
-                        onclick={analyze}
-                        disabled={*analysis_state == AnalysisState::Analyzing}>
+            <div class={classes!("container-tree-controls")}>
+                <ContainerPreviewSelect onchange={set_preview} />
+                <button
+                    onclick={analyze}
+                    disabled={*analysis_state == AnalysisState::Analyzing}>
 
-                        { "Analyze" }
-                    </button>
-                </div>
-            }
+                    { "Analyze" }
+                </button>
+            </div>
 
             <div class={classes!("container-tree")}>
-                if let Some(root) = (*root).clone() {
-                    <Suspense fallback={container_tree_fallback}>
-                        <ContainerTreeUi {root} />
-                    </Suspense>
-                } else {
-                    { container_tree_fallback }
-                }
+                <Suspense fallback={container_tree_fallback}>
+                    <ContainerTreeUi root={tree_state.tree.root().clone()} />
+                </Suspense>
             </div>
         </div>
     }

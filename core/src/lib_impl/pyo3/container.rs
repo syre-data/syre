@@ -57,19 +57,9 @@ impl Container {
     }
 
     // others
-    #[getter(children)]
-    fn py_children(&self) -> HashSet<ResourceId> {
-        self.children.clone().into_keys().collect()
-    }
-
     #[getter(assets)]
     fn py_assets(&self) -> HashSet<ResourceId> {
         self.assets.clone().into_keys().collect()
-    }
-
-    #[getter(parent)]
-    fn py_parent(&self) -> Option<ResourceId> {
-        self.parent.clone()
     }
 }
 

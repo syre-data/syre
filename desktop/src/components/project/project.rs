@@ -5,7 +5,6 @@ use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::container::ContainerTreeController;
 use crate::hooks::use_project;
 use thot_core::types::ResourceId;
-use wasm_bindgen::JsCast;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -47,22 +46,8 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
 
     let clear_selection = {
         let canvas_state = canvas_state.clone();
-        // let project_ref = project_ref.clone();
 
         Callback::from(move |_: MouseEvent| {
-            // @remove
-            // let project_elm = project_ref
-            //     .cast::<web_sys::HtmlElement>()
-            //     .expect("could not cast node to element");
-
-            // let Some(target) = e.target() else {
-            //     return;
-            // };
-
-            // let target = target
-            //     .dyn_ref::<web_sys::HtmlElement>()
-            //     .expect("could not cast target to element");
-
             canvas_state.dispatch(CanvasStateAction::ClearSelected);
         })
     };
@@ -91,7 +76,6 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
             </div>
         </div>
 
-        // @todo: Make portal.
         if *select_data_root_visible {
             <ShadowBox title={"Set data root"} onclose={show_select_data_root(false)}>
                 <SetDataRoot

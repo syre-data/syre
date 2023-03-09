@@ -11,10 +11,13 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
 use std::{env, fs};
+use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::runner::{common as thot_runner, ThotEnv};
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local_database::{AssetCommand, Client as DbClient, ContainerCommand, Result as DbResult};
+
+type ContainerTree = ResourceTree<CoreContainer>;
 
 // ***************
 // *** Project ***
@@ -26,7 +29,7 @@ use thot_local_database::{AssetCommand, Client as DbClient, ContainerCommand, Re
 pub struct Database {
     #[pyo3(get)]
     root_path: PathBuf,
-    root_id: ResourceId,
+    tree: ContainerTree,
     db: DbClient,
 }
 
@@ -55,7 +58,7 @@ impl Database {
 
             dev_root
         } else {
-            // @todo: Pass Container path instead of id.
+            // @todo: Pass Container path instead of id
             let Ok(root_id) = env::var(ThotEnv::container_id_key()) else {
                 return Err(PyValueError::new_err(
                     "could not get `THOT_CONTAINER_ID`"
@@ -80,17 +83,17 @@ impl Database {
         env::set_current_dir(&root_path).expect("could not move to root path");
 
         // load tree
-        let root_container = db.send(ContainerCommand::LoadTree(root_path.clone()).into());
-        let root_container: DbResult<CoreContainer> = serde_json::from_value(root_container)
-            .expect("could not convert result of `LoadContainerTree` to `Container`");
+        let tree = db.send(ContainerCommand::LoadTree(root_path.clone()).into());
+        let tree: DbResult<ContainerTree> = serde_json::from_value(tree)
+            .expect("could not convert result of `LoadContainerTree` to `ContainerTree`");
 
-        let Ok(root_container) = root_container else {
+        let Ok(tree) = tree else {
             return Err(PyRuntimeError::new_err("Could not load `Container` tree"));
         };
 
         Ok(Self {
             root_path,
-            root_id: root_container.rid.clone(),
+            tree,
             db,
         })
     }
@@ -106,7 +109,7 @@ impl Database {
     fn root(&self) -> PyResult<CoreContainer> {
         let root = self
             .db
-            .send(ContainerCommand::Get(self.root_id.clone()).into());
+            .send(ContainerCommand::Get(self.tree.root().clone()).into());
 
         let root: Option<CoreContainer> = serde_json::from_value(root)
             .expect("could not convert result of `GetContainer` to `Container`");
@@ -137,7 +140,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let containers = self
             .db
-            .send(ContainerCommand::FindWithinTree(self.root_id.clone(), filter).into());
+            .send(ContainerCommand::FindWithinTree(self.tree.root().clone(), filter).into());
 
         let containers: HashSet<CoreContainer> = serde_json::from_value(containers)
             .expect("could not convert result of `Find` to `HashSet<Container>`");
@@ -156,7 +159,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let assets = self
             .db
-            .send(AssetCommand::FindWithinTree(self.root_id.clone(), filter).into());
+            .send(AssetCommand::FindWithinTree(self.tree.root().clone(), filter).into());
 
         let assets: HashSet<CoreAsset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");
@@ -186,7 +189,7 @@ impl Database {
 
         let root = self
             .db
-            .send(ContainerCommand::Get(self.root_id.clone()).into());
+            .send(ContainerCommand::Get(self.tree.root().clone()).into());
 
         let root: CoreContainer =
             serde_json::from_value(root).expect("could not convert result of `Get` to `Container`");

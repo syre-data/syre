@@ -1,13 +1,11 @@
 //! High level functionality related to Containers.
 use super::project;
-use super::resources::container::{Container, ContainerSettings, ContainerWrapper};
+use super::resources::container::{Container, ContainerSettings};
 use crate::common::{container_file_of, thot_dir_of};
 use crate::error::ContainerError;
-use crate::types::ResourceValue;
 use crate::{Error, Result};
 use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::{fs, io};
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
@@ -183,7 +181,6 @@ pub fn init_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> 
     // init and register
     let rid = init(child)?;
     let mut cont = Container::load(container)?;
-    cont.register_child(rid.clone());
     cont.save()?;
 
     Ok(rid)
@@ -220,7 +217,7 @@ pub fn new_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> {
 /// # Arguments
 /// 1. Base path to the root of the tree.
 pub fn duplicate_tree(path: &Path) -> Result<Container> {
-    let mut root = Container::load(&path)?;
+    let root = Container::load(&path)?;
     root.duplicate()
 }
 

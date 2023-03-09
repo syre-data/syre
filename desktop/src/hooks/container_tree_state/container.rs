@@ -12,14 +12,10 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<CoreContainer> {
 
     let container = use_state(|| {
         tree_state
-            .containers
+            .tree
             .get(&rid)
             .cloned()
-            .flatten()
-            .expect("`Container` not loaded")
-            .lock()
-            .expect("could not lock container")
-            .clone()
+            .expect("`Container` not found")
     });
 
     // tree_state updates
@@ -31,14 +27,10 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<CoreContainer> {
             move |(rid, tree_state)| {
                 container.set(
                     tree_state
-                        .containers
+                        .tree
                         .get(&rid)
                         .cloned()
-                        .flatten()
-                        .expect("`Container` not loaded")
-                        .lock()
-                        .expect("could not lock container")
-                        .clone(),
+                        .expect("`Container` not found"),
                 )
             },
             (rid, tree_state),

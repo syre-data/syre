@@ -28,13 +28,9 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         .expect("`Asset`'s `Container` not found");
 
     let container = tree_state
-        .containers
+        .tree
         .get(container)
-        .expect("`Container` not found")
-        .as_ref()
-        .expect("`Container` not set")
-        .lock()
-        .expect("could not lock `Container`");
+        .expect("`Container` not found");
 
     let asset = container.assets.get(&props.rid).expect("`Asset` not found");
     let onsave = {
@@ -79,3 +75,4 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
 #[cfg(test)]
 #[path = "./asset_editor_test.rs"]
 mod asset_editor_test;
+==== BASE ====

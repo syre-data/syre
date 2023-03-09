@@ -6,16 +6,11 @@
 # Accepts a relative path to the folder containing the signing files as the first argument.
 
 # collect info
-base_path=$1
-key_path=$(realpath $(pwd)/$base_path/tauri.key)
-key_pwd_path=$base_path/tauri.key.pwd
-key_pwd=$(cat $key_pwd_path)
+env_path=$1
 target=$(rustc -Vv | grep host | cut -f2 -d' ')
 
 # build app
-export TAURI_PRIVATE_KEY=$key_path
-export TAURI_KEY_PASSWORD=$key_pwd
-
+export $(cat env_path | xargs)
 res=$(cargo tauri build 2>&1)
 echo $res > ~/Downloads/tauri_build.log
 

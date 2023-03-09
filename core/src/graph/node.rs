@@ -3,10 +3,15 @@ use crate::types::ResourceId;
 use has_id::HasId;
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+// @todo[2]: Clean up serde.
 /// A graph node for a resource.
 /// The id of the node matches the id of the resource.
 /// Contains data.
-#[derive(HasId)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(HasId, Clone, PartialEq)]
 pub struct ResourceNode<D>
 where
     D: HasId<Id = ResourceId>,

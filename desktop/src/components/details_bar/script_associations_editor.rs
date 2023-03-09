@@ -6,7 +6,7 @@ use crate::common::invoke;
 use crate::components::canvas::{
     CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
 };
-use crate::hooks::{use_container, use_project_scripts};
+use crate::hooks::use_project_scripts;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{RunParameters, Script as CoreScript};
 use thot_core::types::ResourceId;
@@ -35,7 +35,11 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .expect("`ContainerTreeStateReducer` context not found");
 
     let project_scripts = use_project_scripts(canvas_state.project.clone());
-    let container = use_container(props.container.clone());
+    let container = tree_state
+        .tree
+        .get(&props.container)
+        .expect("`Container not found");
+
     let associations = use_state(|| container.scripts.clone());
 
     let remaining_scripts = use_state(|| {

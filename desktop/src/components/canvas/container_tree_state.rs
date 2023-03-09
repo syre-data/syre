@@ -3,12 +3,13 @@ use crate::commands::common::UpdatePropertiesArgs;
 use crate::commands::container::UpdateScriptAssociationsArgs;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use thot_core::project::container::ContainerStore;
+use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::ResourceId;
 use thot_ui::types::ContainerPreview;
 use yew::prelude::*;
+
+type ContainerTree = ResourceTree<CoreContainer>;
 
 pub type AssetContainerMap = HashMap<ResourceId, ResourceId>;
 
@@ -16,11 +17,8 @@ pub enum ContainerTreeStateAction {
     /// Set the preview state.
     SetPreview(ContainerPreview),
 
-    /// Insert a [`Container`](CoreContainer) into the state.
-    InsertContainer(CoreContainer),
-
-    /// Insert a [`Container`](CoreContainer) tree into the state.
-    InsertContainerTree(Arc<Mutex<CoreContainer>>),
+    ///  Sets the [`ContainerTree`].
+    SetTree(ContainerTree),
 
     /// Update a [`Container`](CoreContainer)'s [`StandardProperties`](thot_core::project::StandardProperties).
     UpdateContainerProperties(UpdatePropertiesArgs),
@@ -46,10 +44,10 @@ pub enum ContainerTreeStateAction {
     ClearDragOverContainer,
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub struct ContainerTreeState {
+    pub tree: ContainerTree,
     pub preview: ContainerPreview,
-    pub containers: ContainerStore, // @todo: `Container`s should not be wrapped in a `Mutex`, but currently `thot_core::project::Container` requires this.
 
     /// Map from an [`Asset`](CoreAsset)'s id to its [`Container`](CoreContainer)'s.
     pub asset_map: AssetContainerMap,
@@ -60,57 +58,33 @@ pub struct ContainerTreeState {
 }
 
 impl ContainerTreeState {
-    pub fn new() -> Self {
+    pub fn new(tree: ContainerTree) -> Self {
         ContainerTreeState {
+            tree,
             preview: ContainerPreview::None,
-            containers: ContainerStore::new(),
             asset_map: HashMap::new(),
             dragover_container: None,
         }
     }
 }
 
-impl PartialEq for ContainerTreeState {
-    fn eq(&self, other: &Self) -> bool {
-        if self.preview != other.preview {
-            return false;
-        }
+// @remove
+// impl PartialEq for ContainerTreeState {
+//     fn eq(&self, other: &Self) -> bool {
+//         if self.preview != other.preview {
+//             return false;
+//         }
 
-        // asset map
-        if self.asset_map != other.asset_map {
-            return false;
-        }
+//         // asset map
+//         if self.asset_map != other.asset_map {
+//             return false;
+//         }
 
-        // containers
-        if self.containers.len() != other.containers.len() {
-            return false;
-        }
-
-        for rid in self.containers.keys() {
-            if !other.containers.contains_key(rid) {
-                return false;
-            }
-        }
-
-        for (rid, container) in self.containers.iter() {
-            let Some(o_container) = other.containers.get(rid) else {
-                return false;
-            };
-
-            match (container, o_container) {
-                (None, None) => continue,
-                (Some(c), Some(oc)) => {
-                    if Arc::as_ptr(c) != Arc::as_ptr(oc) {
-                        return false;
-                    }
-                }
-                _ => return false,
-            }
-        }
-
-        true
-    }
-}
+//         // containers
+//         if self.tree != other.preview
+//         true
+//     }
+// }
 
 impl Reducible for ContainerTreeState {
     type Action = ContainerTreeStateAction;
@@ -127,93 +101,43 @@ impl Reducible for ContainerTreeState {
                 current.preview = preview;
             }
 
-            ContainerTreeStateAction::InsertContainer(container) => {
-                // map assets
-                for rid in container.assets.keys() {
-                    current.asset_map.insert(rid.clone(), container.rid.clone());
-                }
-
-                current
-                    .containers
-                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
-            }
-
-            ContainerTreeStateAction::InsertContainerTree(root) => {
-                flatten_container_tree(root, &mut current.containers, &mut current.asset_map);
+            ContainerTreeStateAction::SetTree(tree) => {
+                current.tree = tree;
             }
 
             ContainerTreeStateAction::UpdateContainerProperties(update) => {
-                let mut container = current
-                    .containers
-                    .get(&update.rid)
-                    .expect("`Container` not stored")
-                    .as_ref()
-                    .expect("`Container` not loaded")
-                    .lock()
-                    .expect("could not lock `Container`")
-                    .clone();
+                let container = current
+                    .tree
+                    .get_mut(&update.rid)
+                    .expect("`Container` not found");
 
                 container.properties = update.properties;
-                current
-                    .containers
-                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
 
             ContainerTreeStateAction::UpdateContainerScriptAssociations(update) => {
                 let mut container = current
-                    .containers
-                    .get(&update.rid)
-                    .expect("`Container` not stored")
-                    .as_ref()
-                    .expect("`Container` not loaded")
-                    .lock()
-                    .expect("could not lock `Container`")
-                    .clone();
+                    .tree
+                    .get_mut(&update.rid)
+                    .expect("`Container` not found");
 
                 container.scripts = update.associations;
-                current
-                    .containers
-                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
 
             ContainerTreeStateAction::InsertChildContainer(parent, child) => {
-                // @todo: Set creator to user.
-                let parent = current
-                    .containers
-                    .get(&parent)
-                    .expect("parent id not found as key in store")
-                    .as_ref()
-                    .expect("parent container not loaded")
-                    .clone();
-
                 // map assets
                 for rid in child.assets.keys() {
                     current.asset_map.insert(rid.clone(), child.rid.clone());
                 }
 
                 // insert child into store
-                let c_rid = child.rid.clone();
-                let child = Some(Arc::new(Mutex::new(child)));
-                current.containers.insert(c_rid.clone(), child.clone());
-
-                // add child to parent
-                parent
-                    .lock()
-                    .expect("could not lock parent container")
-                    .children
-                    .insert(c_rid, child);
+                current.tree.insert(parent, child);
             }
 
             ContainerTreeStateAction::InsertContainerAssets(container, assets) => {
                 let mut container = current
-                    .containers
-                    .get(&container)
-                    .expect("`Container` not found")
-                    .as_ref()
-                    .expect("`Container` not loaded")
-                    .lock()
-                    .expect("could not lock `Container`")
-                    .clone();
+                    .tree
+                    .get_mut(&container)
+                    .expect("`Container` not found");
 
                 for asset in assets {
                     current
@@ -222,10 +146,6 @@ impl Reducible for ContainerTreeState {
 
                     container.assets.insert(asset.rid.clone(), asset);
                 }
-
-                current
-                    .containers
-                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
 
             ContainerTreeStateAction::UpdateAsset(asset) => {
@@ -235,21 +155,12 @@ impl Reducible for ContainerTreeState {
                     .expect("`Asset` `Container` not found");
 
                 let mut container = current
-                    .containers
-                    .get(&container)
-                    .expect("`Container` not found")
-                    .as_ref()
-                    .expect("`Container` not loaded")
-                    .lock()
-                    .expect("could not lock `Container`")
-                    .clone();
+                    .tree
+                    .get_mut(&container)
+                    .expect("`Container` not found");
 
                 // @todo: Ensure `Asset` exists in `Container` before update.
                 container.assets.insert(asset.rid.clone(), asset.clone());
-
-                current
-                    .containers
-                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
 
             ContainerTreeStateAction::SetDragOverContainer(rid) => {
@@ -266,36 +177,6 @@ impl Reducible for ContainerTreeState {
 }
 
 pub type ContainerTreeStateReducer = UseReducerHandle<ContainerTreeState>;
-
-/// Flattens all the nodes of a `Container` tree,
-/// inserting the nodes into the store and
-/// their `Asset`s into the given `Asset` map.
-///
-/// # Arguments
-/// 1. Root [`Container`](CoreContainer) of the tree.
-/// 2. [`ContainerStore`] to store all [`Container`](CoreContainer) nodes of the tree.
-/// 3. [`AssetContainerMap`].
-fn flatten_container_tree(
-    root: Arc<Mutex<CoreContainer>>,
-    containers: &mut ContainerStore,
-    asset_map: &mut AssetContainerMap,
-) {
-    let root_c = root.lock().expect("could not obtain lock for container");
-    for (rid, child) in root_c.children.iter() {
-        if let Some(child) = child {
-            flatten_container_tree(child.clone(), containers, asset_map);
-        } else {
-            containers.insert(rid.clone(), None);
-        }
-    }
-
-    // map assets
-    for rid in root_c.assets.keys() {
-        asset_map.insert(rid.clone(), root_c.rid.clone());
-    }
-
-    containers.insert(root_c.rid.clone(), Some(root.clone()));
-}
 
 #[cfg(test)]
 #[path = "./container_tree_state_test.rs"]

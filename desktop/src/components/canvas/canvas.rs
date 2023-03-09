@@ -8,14 +8,18 @@ use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use crate::components::details_bar::DetailsBar;
 use crate::components::project::Project as ProjectUi;
+use crate::hooks::use_container_tree;
 use crate::hooks::use_project_scripts;
 use serde_wasm_bindgen as swb;
-use thot_core::project::Scripts as ProjectScripts;
+use thot_core::graph::ResourceTree;
+use thot_core::project::{Container as CoreContainer, Scripts as ProjectScripts};
 use thot_core::types::ResourceId;
 use thot_ui::components::{Drawer, DrawerPosition};
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+
+type ContainerTree = ResourceTree<CoreContainer>;
 
 #[derive(Properties, PartialEq)]
 pub struct ProjectCanvasProps {
@@ -26,15 +30,18 @@ pub struct ProjectCanvasProps {
 }
 
 #[function_component(ProjectCanvas)]
-pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
+pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let show_side_bars = use_state(|| true);
     let canvas_state =
         use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
 
-    let tree_state = use_reducer(|| ContainerTreeState::new());
-
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+
+    let project = projects_state.projects.get(&props.project);
+    if let Some(project) = project {}
+    let tree = use_container_tree(root_path)?;
+    let tree_state = use_reducer(|| ContainerTreeState::new(tree));
 
     let scripts = use_project_scripts(props.project.clone());
     if scripts.is_none() {
@@ -60,7 +67,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
     }
 
     let fallback = html! { <Loading text={"Loading project"} /> };
-    html! {
+    Ok(html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<ContainerTreeStateReducer> context={tree_state}>
         <div class={classes!("project-canvas", props.class.clone())}>
@@ -80,9 +87,10 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
         </div>
         </ContextProvider<ContainerTreeStateReducer>>
         </ContextProvider<CanvasStateReducer>>
-    }
+    })
 }
 
 #[cfg(test)]
 #[path = "./canvas_test.rs"]
 mod canvas_test;
+==== BASE ====

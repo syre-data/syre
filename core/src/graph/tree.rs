@@ -6,6 +6,9 @@ use crate::Result;
 use has_id::HasId;
 use indexmap::IndexSet;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Map from node id to node.
 type NodeMap<D> = ResourceMap<ResourceNode<D>>;
 
@@ -13,6 +16,8 @@ type NodeMap<D> = ResourceMap<ResourceNode<D>>;
 type EdgeMap = ResourceMap<IndexSet<ResourceId>>;
 
 /// A tree graph.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, PartialEq)]
 pub struct ResourceTree<D>
 where
     D: HasId<Id = ResourceId>,
@@ -253,3 +258,4 @@ where
 #[cfg(test)]
 #[path = "./tree_test.rs"]
 mod tree_test;
+==== BASE ====

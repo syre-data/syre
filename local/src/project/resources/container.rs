@@ -3,8 +3,7 @@ use super::asset::{Asset as LocalAsset, Assets as LocalAssets};
 use super::standard_properties::StandardProperties;
 use crate::common::{container_file_of, container_settings_file_of};
 use crate::error::{Error, Result};
-use crate::project::container::path_is_container;
-use crate::types::{ResourceStore, ResourceValue};
+use crate::types::ResourceStore;
 use cluFlock::FlockLock;
 use has_id::HasId;
 use serde::{Deserialize, Serialize};
@@ -14,11 +13,11 @@ use settings_manager::error::{
 use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
 use settings_manager::settings::{self, Settings};
 use settings_manager::types::Priority as SettingsPriority;
-use std::fs::{self, File};
+use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use thot_core::error::{ContainerError, Error as CoreError, ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::{ContainerStore as CoreContainerStore, ScriptMap};
 use thot_core::project::{
     Asset as CoreAsset, Container as CoreContainer, ScriptAssociation,
@@ -48,8 +47,6 @@ pub struct Container {
     #[id]
     pub rid: ResourceId,
     pub properties: CoreStandardProperties,
-    pub parent: Option<ResourceId>,
-    pub children: ContainerMap,
 
     #[serde(skip)]
     pub assets: LocalAssets,
@@ -70,42 +67,18 @@ impl Container {
 
             rid,
             properties: props,
-            parent: None,
-            children: ContainerMap::new(),
             assets: LocalAssets::new(),
             scripts: ScriptMap::new(),
         })
     }
 
-    /// Duplicates the tree.
-    /// Copies the structure of the tree,
-    /// along with `properties`, and `scripts`,
-    /// into a new tree.
-    ///
-    /// # Note
-    /// + Children should be loaded prior to call.
-    /// See `load_children`.
+    /// Duplicates the [`Container`].
     pub fn duplicate(&self) -> Result<Self> {
         let mut dup = Self::new()?;
         dup.properties = self.properties.clone();
         dup.scripts = self.scripts.clone();
-        dup.parent = self.parent.clone();
         if let Ok(base_path) = self.base_path() {
             dup.set_base_path(base_path)?;
-        }
-
-        for child in self.children.clone().values() {
-            let ResourceValue::Resource(child) = child else {
-            // @todo: Return `Err`.
-            panic!("child `Container` not loaded");
-        };
-
-            let child = child.lock().expect("could not lock child `Container`");
-            let mut dup_child = child.duplicate()?;
-
-            dup_child.parent = Some(dup.rid.clone());
-            dup.children
-                .insert_resource(dup_child.rid.clone(), dup_child);
         }
 
         Ok(dup)
@@ -147,163 +120,6 @@ impl Container {
     /// or `None` otherwise.
     pub fn remove_asset(&mut self, rid: &ResourceId) -> Option<CoreAsset> {
         self.assets.remove(rid)
-    }
-
-    // ----------------
-    // --- children ---
-    // ----------------
-
-    /// Registers a Container as a child.
-    /// Returns if the child was unregistered, i.e. newly added.
-    ///
-    /// # See also
-    /// + `add_child`
-    pub fn register_child(&mut self, rid: ResourceId) -> bool {
-        if self.children.contains_key(&rid) {
-            return false;
-        }
-
-        self.children.insert_id(rid);
-        true
-    }
-
-    /// Deregisters a child.
-    /// Returns if the child was previously registered.
-    pub fn deregister_child(&mut self, rid: &ResourceId) -> bool {
-        if !self.children.contains_key(rid) {
-            return false;
-        }
-
-        self.children.remove(rid);
-        true
-    }
-
-    /// Gets the child with the given [`ResourceId`].
-    ///
-    /// # Agruments
-    /// + `rid`: [`ResourceId`] of the child.
-    ///
-    /// # Returns
-    /// The child `Container` if found, or `None`.
-    ///
-    /// # Errors
-    /// + [`ProjectError::NotRegistered`]: If the given `ResourceId` is
-    ///     not registered as a child.
-    /// + [`ContainerError::MissingChild`]: If a child could not be found
-    ///     with the given `ResourceId`.
-    pub fn get_child(&self, rid: &ResourceId) -> Result<Container> {
-        if !self.children.contains_key(rid) {
-            return Err(Error::CoreError(CoreError::ProjectError(
-                ProjectError::NotRegistered(Some(rid.clone()), None),
-            )));
-        }
-
-        // iterate over children directories
-        let r_path = self.base_path()?;
-        for entry in fs::read_dir(&r_path)? {
-            let entry = entry?;
-            let e_type = entry.file_type()?;
-            if e_type.is_dir() {
-                // if child is a directory, check if it is a Container
-                let p = entry.path();
-                if !path_is_container(&p) {
-                    continue;
-                }
-
-                let child = Self::load(&p)?;
-                if &child.rid == rid {
-                    return Ok(child);
-                }
-            }
-        }
-
-        // child not found in directories
-        Err(Error::CoreError(CoreError::ContainerError(
-            ContainerError::MissingChild(rid.clone()),
-        )))
-    }
-
-    /// Gets the `Container`'s children without loading them into the `Container`s `children`.
-    ///
-    /// # Notes
-    /// + Retrieves all `Containers` that are directly accessible,
-    /// ignoring whether the child is registered or not.
-    pub fn get_children(&self) -> Result<Vec<Container>> {
-        let r_path = self.base_path()?;
-        let mut children = Vec::new();
-
-        // iterate over children directories
-        for entry in fs::read_dir(&r_path)? {
-            let entry = entry?;
-            let e_type = entry.file_type()?;
-            if e_type.is_dir() {
-                // if child is a directory, check if it is a Container
-                let p = entry.path();
-                if !path_is_container(&p) {
-                    continue;
-                }
-
-                let child = Self::load(&p)?;
-
-                // add child path if path registered as child
-                if self.children.contains_key(&child.rid) {
-                    children.push(child);
-                }
-            }
-        }
-
-        Ok(children)
-    }
-
-    /// Loads the `Container`'s children.
-    /// Overwrites any currently loaded value.
-    ///
-    /// # Arguments
-    /// + `recurse`: Recurse down child tree.
-    pub fn load_children(&mut self, recurse: bool) -> Result {
-        let children = self.get_children()?;
-        for mut child in children.into_iter() {
-            if recurse {
-                child.load_children(recurse)?
-            }
-
-            child.parent = Some(self.rid.clone());
-            self.children.insert_resource(child.rid.clone(), child);
-        }
-
-        Ok(())
-    }
-
-    /// Sets the base path of children based on the root's base path.
-    /// If a child's base path is unset, it remains unset.
-    ///
-    /// # Errors
-    pub fn update_tree_base_paths(&mut self) -> Result {
-        for child in self.children.clone().values() {
-            let ResourceValue::Resource(child) = child else {
-            // @todo: Return `Err`.
-            panic!("child `Container` not loaded");
-        };
-
-            let mut child = child.lock().expect("could not lock child `Container`");
-            let Ok(c_file_name) = child.base_path() else {
-                continue;
-            };
-
-            let c_file_name = c_file_name
-                .file_name()
-                .expect("could not get file name of child `Container`");
-
-            let mut c_path = self.base_path().expect("root base path not set");
-            c_path.push(c_file_name);
-            child
-                .set_base_path(c_path)
-                .expect("could not set base path");
-
-            child.update_tree_base_paths()?;
-        }
-
-        Ok(())
     }
 
     // ---------------
@@ -362,10 +178,8 @@ impl Default for Container {
 
             rid: ResourceId::new(),
             properties: CoreStandardProperties::default(),
-            children: ContainerMap::new(),
             assets: LocalAssets::new(),
             scripts: ScriptMap::new(),
-            parent: None,
         }
     }
 }
@@ -383,33 +197,15 @@ impl Clone for Container {
 
             rid: self.rid.clone(),
             properties: self.properties.clone(),
-            children: self.children.clone(),
             assets,
             scripts: self.scripts.clone(),
-            parent: self.parent.clone(),
         }
     }
 }
 
 impl PartialEq for Container {
     fn eq(&self, other: &Self) -> bool {
-        if !(self.rid == other.rid
-            && self.properties == other.properties
-            && self.parent == other.parent)
-        {
-            return false;
-        }
-
-        // children
-        if self.children.len() != other.children.len() {
-            return false;
-        }
-
-        if !self
-            .children
-            .keys()
-            .all(|rid| other.children.contains_key(rid))
-        {
+        if !(self.rid == other.rid && self.properties == other.properties) {
             return false;
         }
 
@@ -540,35 +336,14 @@ impl From<CoreContainer> for Container {
         let mut assets = LocalAssets::new();
         *assets = container.assets;
 
-        // children
-        let mut children = ContainerMap::new();
-        for (rid, child) in container.children.into_iter() {
-            if let Some(child) = child {
-                let child = child
-                    .lock()
-                    .expect("Container Mutex poisoned")
-                    .clone()
-                    .into();
-
-                children.insert(
-                    rid.clone(),
-                    ResourceValue::Resource(Arc::new(Mutex::new(child))),
-                );
-            } else {
-                children.insert_id(rid.clone());
-            }
-        }
-
         Container {
             _file_lock: None,
             _base_path: None,
 
             rid: container.rid,
             properties: container.properties,
-            children,
             assets,
             scripts: container.scripts,
-            parent: None,
         }
     }
 }
@@ -578,25 +353,10 @@ impl Into<CoreContainer> for Container {
     /// Clones and converts inner value of children, if a [`ResourceValue::Resource`].
     fn into(self) -> CoreContainer {
         let mut children = CoreContainerStore::new();
-        for (rid, child) in self.children.into_iter() {
-            if let ResourceValue::Resource(child) = child {
-                let child: CoreContainer = child
-                    .lock()
-                    .expect("Container Mutex poisoned")
-                    .clone()
-                    .into();
-
-                children.insert(rid.clone(), Some(Arc::new(Mutex::new(child))));
-            } else {
-                children.insert(rid.clone(), None);
-            }
-        }
 
         CoreContainer {
             rid: self.rid,
             properties: self.properties,
-            parent: self.parent,
-            children,
             assets: (*self.assets).clone(),
             scripts: self.scripts,
         }

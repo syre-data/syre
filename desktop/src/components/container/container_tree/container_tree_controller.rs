@@ -101,6 +101,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                         .expect("could not create `tauri://file-drop` listener");
 
                     while let Some(event) = events.next().await {
+                        web_sys::console::log_1(&format!("{event:#?}").into());
+
                         // get active container id
                         let node = node_ref
                             .cast::<web_sys::HtmlElement>()

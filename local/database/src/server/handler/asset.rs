@@ -96,9 +96,17 @@ impl Database {
         };
 
         let mut container = container.lock().expect("could not lock `Container`");
-        container.assets.remove(rid);
+        let asset = container.assets.remove(rid);
 
         container.save()?;
+        if let Some(asset) = asset {
+            let mut path = container
+                .base_path()
+                .expect("could not get `Container` path");
+            path.push(asset.path.as_path());
+            dbg!(&path);
+            trash::delete(path)?;
+        };
         Ok(())
     }
 }

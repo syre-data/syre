@@ -49,6 +49,11 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
+            AssetCommand::Remove(rid) => {
+                let res = self.remove_asset(&rid);
+                serde_json::to_value(res).expect("could not convert result to JSON")
+            }
+
             AssetCommand::UpdateProperties(rid, properties) => {
                 let res = self.update_asset_properties(&rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
@@ -72,7 +77,7 @@ impl Database {
         properties: StandardProperties,
     ) -> Result {
         let Some(container) = self.store.get_asset_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` map does not exist".to_string())).into());
         };
 
         let mut container = container.lock().expect("could not lock `Container`");
@@ -81,6 +86,18 @@ impl Database {
         };
 
         asset.properties = properties;
+        container.save()?;
+        Ok(())
+    }
+
+    fn remove_asset(&mut self, rid: &ResourceId) -> Result {
+        let Some(container) = self.store.get_asset_container(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` map does not exist".to_string())).into());
+        };
+
+        let mut container = container.lock().expect("could not lock `Container`");
+        container.assets.remove(rid);
+
         container.save()?;
         Ok(())
     }

@@ -4,11 +4,11 @@ use crate::commands::container::UpdateScriptAssociationsArgs;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use thot_core::project::container::ContainerStore;
+use thot_core::project::container::{AssetMap, ContainerStore};
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::ResourceId;
 use thot_ui::types::ContainerPreview;
-use yew::prelude::*;
+use yew::{prelude::*, set_custom_panic_hook};
 
 pub type AssetContainerMap = HashMap<ResourceId, ResourceId>;
 
@@ -34,6 +34,9 @@ pub enum ContainerTreeStateAction {
 
     /// Insert [`Asset`](CoreAsset)s into a [`Container`](CoreContainer).
     InsertContainerAssets(ResourceId, Vec<CoreAsset>),
+
+    /// Update [`Asset`](CoreAsset)s of a [`Container`](CoreContainer).
+    UpdateContainerAssets(ResourceId, AssetMap),
 
     /// Update a [`Container`](CoreContainer)'s
     /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
@@ -139,6 +142,18 @@ impl Reducible for ContainerTreeState {
                 current
                     .containers
                     .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
+            }
+
+            ContainerTreeStateAction::UpdateContainerAssets(container_rid, assets) => {
+                let Some(container) = current
+                    .containers
+                    .get(&container_rid)
+                    .cloned() else {
+                        panic!("`Container` not found")
+                    };
+                let container = container.expect("`Container` not loaded");
+                let mut container = container.lock().expect("could not lock `Container`");
+                container.assets = assets;
             }
 
             ContainerTreeStateAction::InsertContainerTree(root) => {

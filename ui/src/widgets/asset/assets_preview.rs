@@ -21,6 +21,10 @@ pub struct AssetsPreviewProps {
     /// Callback when an [`Asset`](CoreAsset) is double clicked.
     #[prop_or_default]
     pub ondblclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
+
+    /// Callback when an [`Asset`](CoreAsset) is to be deleted.
+    #[prop_or_default]
+    pub onclick_asset_remove: Option<Callback<ResourceId>>,
 }
 
 #[function_component(AssetsPreview)]
@@ -37,19 +41,27 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                             class.push("active");
                         }
 
-                        html! {
+                       html! {
                             <li key={asset.rid.clone()}
                                 {class}
-                                onclick={delegate_callback(
+                                onclick={delegate_callback_with_event(
                                     asset.rid.clone(),
                                     props.onclick_asset.clone()
                                 )}
-                                ondblclick={delegate_callback(
+                                ondblclick={delegate_callback_with_event(
                                     asset.rid.clone(),
                                     props.ondblclick_asset.clone()
                                 )} >
 
                                 { asset_display_name(&asset) }
+                                if props.onclick_asset_remove.is_some() {
+                                    <button onclick={delegate_callback(
+                                        asset.rid.clone(),
+                                        props.onclick_asset_remove.clone()
+                                    )}>
+                                        { "X" }
+                                    </button>
+                                }
                             </li>
                         }
                     }).collect::<Html>() }
@@ -83,6 +95,19 @@ fn asset_display_name(asset: &CoreAsset) -> String {
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
 fn delegate_callback<In: 'static + Clone>(
+    input: In,
+    cb: Option<Callback<In>>,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        if let Some(cb) = cb.as_ref() {
+            e.stop_propagation();
+            cb.emit(input.clone());
+        }
+    })
+}
+
+/// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
+fn delegate_callback_with_event<In: 'static + Clone>(
     input: In,
     cb: Option<Callback<(In, MouseEvent)>>,
 ) -> Callback<MouseEvent> {

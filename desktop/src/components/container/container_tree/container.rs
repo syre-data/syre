@@ -14,6 +14,7 @@ use crate::hooks::use_container;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::thread::spawn;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::Message;
@@ -261,6 +262,39 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         })
     };
 
+    let onclick_asset_remove = {
+        let tree_state = tree_state.clone();
+        let container_id = props.rid.clone();
+
+        Callback::from(move |rid: ResourceId| {
+            let tree_state = tree_state.clone();
+            let container_id = container_id.clone();
+
+            spawn_local(async move {
+                let _ = invoke("remove_asset", ResourceIdArgs { rid: rid.clone() })
+                    .await
+                    .expect("could not remove `Asset`");
+
+                let Some(container) = tree_state
+                    .containers
+                    .get(&container_id)
+                    .cloned() else {
+                        panic!("could not find `Container`")
+                    };
+
+                let container = container.expect("container not loaded");
+                let container = container.lock().expect("could not lock `Container`");
+                let mut assets = container.assets.clone();
+                drop(container);
+                assets.retain(|asset, _| asset != &rid);
+                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerAssets(
+                    container_id.clone(),
+                    assets,
+                ));
+            });
+        })
+    };
+
     let onadd_assets = {
         let show_create_assets = show_create_assets.clone();
 
@@ -350,6 +384,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
+                onclick_asset_remove,
                 onadd_child: props.onadd_child.clone(),
                 on_menu_event,
                 ondragenter,

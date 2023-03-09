@@ -71,6 +71,7 @@ fn main() {
             // asset
             get_assets,
             update_asset_properties,
+            remove_asset,
             // script
             get_project_scripts,
             add_script,

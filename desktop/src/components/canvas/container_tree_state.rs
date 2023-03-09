@@ -152,8 +152,12 @@ impl Reducible for ContainerTreeState {
                         panic!("`Container` not found")
                     };
                 let container = container.expect("`Container` not loaded");
-                let mut container = container.lock().expect("could not lock `Container`");
+                let container = container.lock().expect("could not lock `Container`");
+                let mut container = (*container).clone();
                 container.assets = assets;
+                current
+                    .containers
+                    .insert(container.rid.clone(), Some(Arc::new(Mutex::new(container))));
             }
 
             ContainerTreeStateAction::InsertContainerTree(root) => {

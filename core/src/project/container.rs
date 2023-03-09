@@ -88,16 +88,6 @@ impl PartialEq for Container {
             return false;
         }
 
-        // check assets
-        if self.assets.len() != other.assets.len() {
-            return false;
-        }
-        for asset in self.assets.keys() {
-            if !other.assets.contains_key(asset) {
-                return false;
-            }
-        }
-
         true
     }
 }

@@ -14,6 +14,7 @@ $control-button-size: 25px;
     background-color: t.$background-accent-color;
 
     min-width: t.$card-min-width;
+
     padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
     border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
@@ -129,6 +130,10 @@ $control-button-size: 25px;
   }
 
   .container-preview {
+
+    height: t.$card-height;
+    overflow: auto;
+
     .thot-ui-metadata-preview {
       text-align: left;
       list-style: none;

@@ -62,7 +62,9 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                         <Icon icon_id={ asset_icon_id(&asset) } width={"15px".to_owned()} height={"15px".to_owned()}/>
                                     </div>
 
-                                    { asset_display_name(&asset) }
+                                    <div class={classes!("thot-ui-asset-name")}>
+                                        { asset_display_name(&asset) }
+                                    </div>
                                     if props.onclick_asset_remove.is_some() {
                                         <button onclick={delegate_callback(
                                             asset.rid.clone(),

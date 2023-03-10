@@ -176,6 +176,10 @@ $control-button-size: 25px;
          &:hover .thot-ui-asset-remove {
              opacity: 1;
          }
+
+         &:hover .thot-ui-asset-name {
+           color: t.$hover-text-color;
+         }
  
         .thot-ui-asset-remove {
           opacity: 0;
@@ -261,6 +265,17 @@ $control-button-size: 25px;
       &:hover {
         opacity: 1;
       }
+    }
+  }
+}
+
+.container-tree-controller {
+  .container-tree-controls {
+    .container-tree-controller-analyze-button {
+      background-color: t.$primary-button-color;
+        &:hover {
+          background-color: t.$primary-button-hover-color;
+        }
     }
   }
 }

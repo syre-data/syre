@@ -284,6 +284,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                 <div class={classes!("container-tree-controls")}>
                     <ContainerPreviewSelect onchange={set_preview} />
                     <button
+                        class={classes!("container-tree-controller-analyze-button")}
                         onclick={analyze}
                         disabled={*analysis_state == AnalysisState::Analyzing}>
 

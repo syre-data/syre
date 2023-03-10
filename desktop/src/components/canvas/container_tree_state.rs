@@ -68,7 +68,7 @@ pub struct ContainerTreeState {
 impl ContainerTreeState {
     pub fn new() -> Self {
         ContainerTreeState {
-            preview: ContainerPreview::None,
+            preview: ContainerPreview::Assets,
             containers: ContainerStore::new(),
             asset_map: HashMap::new(),
             dragover_container: None,

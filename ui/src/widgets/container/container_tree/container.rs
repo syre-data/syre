@@ -101,7 +101,7 @@ pub struct ContainerProps {
     #[prop_or(true)]
     pub visible: bool,
 
-    #[prop_or(ContainerPreview::None)]
+    #[prop_or(ContainerPreview::Assets)]
     pub preview: ContainerPreview,
 
     #[prop_or_default]

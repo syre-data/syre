@@ -161,13 +161,19 @@ $control-button-size: 25px;
         }
       }
 
+
       .thot-ui-asset {
         display: grid;
         grid-template-columns: 15px 100px 20px;
         align-items: center;
         gap: 4px;
 
+         &:hover .thot-ui-asset-remove {
+             opacity: 1;
+         }
+ 
         .thot-ui-asset-remove {
+          opacity: 0;
           display: flex;
           justify-content: center; 
           align-items: center; 
@@ -175,6 +181,7 @@ $control-button-size: 25px;
           height: 20px;
           font-size: 10px;      
         }
+
       }
     }
 

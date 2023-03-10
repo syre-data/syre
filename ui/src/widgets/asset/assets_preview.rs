@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
 pub struct AssetsPreviewProps {
@@ -53,6 +54,8 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                     props.ondblclick_asset.clone()
                                 )} >
 
+                                <Icon icon_id={ asset_icon_id(&asset) } width={"15px".to_owned()} height={"15px".to_owned()}/>
+
                                 { asset_display_name(&asset) }
                                 if props.onclick_asset_remove.is_some() {
                                     <button onclick={delegate_callback(
@@ -91,6 +94,47 @@ fn asset_display_name(asset: &CoreAsset) -> String {
         let name = name.to_str().expect("could not convert path to str");
         name.to_string()
     }
+}
+
+/// Gets the icon id to display for an [`Asset`](CoreAsset).
+///
+/// # Returns
+/// The `IconId`.
+fn asset_icon_id(asset: &CoreAsset) -> IconId {
+    fn get_icon_id(extension: &str) -> IconId {
+        match extension {
+            "mp3" | "m4a" | "flac" | "wav" => IconId::FontAwesomeRegularFileAudio,
+            "py" | "r" | "m" | "js" | "ts" | "cpp" | "c" | "rs" => {
+                IconId::FontAwesomeRegularFileCode
+            }
+            "csv" | "xlsx" | "xlsm" | "xml" | "odf" => IconId::FontAwesomeRegularFileExcel,
+            "png" | "svg" | "jpg" | "jpeg" | "tiff" | "bmp" => IconId::FontAwesomeRegularFileImage,
+            "txt" => IconId::FontAwesomeRegularFileLines,
+            "pdf" => IconId::FontAwesomeRegularFilePdf,
+            "pptx" | "pptm" | "ppt" => IconId::FontAwesomeRegularFilePowerpoint,
+            "doc" | "docm" | "docx" | "dot" => IconId::FontAwesomeRegularFileWord,
+            "mp4" | "mov" | "wmv" | "avi" => IconId::FontAwesomeRegularFileVideo,
+            "zip" | "zipx" | "rar" | "7z" | "gz" => IconId::FontAwesomeRegularFileZipper,
+            _ => IconId::FontAwesomeRegularFile,
+        }
+    }
+
+    let file_name = if let Some(name) = asset.properties.name.as_ref() {
+        name.clone()
+    } else {
+        let path = Into::<PathBuf>::into(asset.path.clone());
+        let name = path
+            .file_name()
+            .expect("`Asset.path` could not get file name");
+
+        name.to_str()
+            .expect("could not convert path to str")
+            .to_owned()
+    };
+    let parts: Vec<&str> = file_name.split(".").collect();
+    let extension = parts.last().unwrap_or(&"");
+    let lower_case_extension = extension.to_lowercase();
+    get_icon_id(&lower_case_extension)
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.

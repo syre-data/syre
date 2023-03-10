@@ -91,6 +91,18 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 /// # Returns
 /// The `name` if set, otherwise the `path`'s file name.
 fn asset_display_name(asset: &CoreAsset) -> String {
+    fn shorten_file_name(file_name: &str) -> String {
+        let max_file_name_length = 11;
+        if file_name.len() <= max_file_name_length {
+            return file_name.to_string();
+        }
+        let mut shortened = file_name
+            .chars()
+            .take(max_file_name_length)
+            .collect::<String>();
+        shortened.push_str("...");
+        shortened
+    }
     if let Some(name) = asset.properties.name.as_ref() {
         name.clone()
     } else {
@@ -100,7 +112,7 @@ fn asset_display_name(asset: &CoreAsset) -> String {
             .expect("`Asset.path` could not get file name");
 
         let name = name.to_str().expect("could not convert path to str");
-        name.to_string()
+        shorten_file_name(name).to_owned()
     }
 }
 

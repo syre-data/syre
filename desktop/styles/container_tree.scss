@@ -160,6 +160,22 @@ $control-button-size: 25px;
           }
         }
       }
+
+      .thot-ui-asset {
+        display: grid;
+        grid-template-columns: 15px 100px 20px;
+        align-items: center;
+        gap: 4px;
+
+        .thot-ui-asset-remove {
+          display: flex;
+          justify-content: center; 
+          align-items: center; 
+          width: 20px;
+          height: 20px;
+          font-size: 10px;      
+        }
+      }
     }
 
     .thot-ui-script-associations-preview {

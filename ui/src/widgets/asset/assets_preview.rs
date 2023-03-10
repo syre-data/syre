@@ -28,6 +28,8 @@ pub struct AssetsPreviewProps {
     pub onclick_asset_remove: Option<Callback<ResourceId>>,
 }
 
+type Color = String;
+
 #[function_component(AssetsPreview)]
 pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
     html! {
@@ -54,17 +56,23 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                     props.ondblclick_asset.clone()
                                 )} >
 
-                                <Icon icon_id={ asset_icon_id(&asset) } width={"15px".to_owned()} height={"15px".to_owned()}/>
+                                <div class={classes!("thot-ui-asset")}>
 
-                                { asset_display_name(&asset) }
-                                if props.onclick_asset_remove.is_some() {
-                                    <button onclick={delegate_callback(
-                                        asset.rid.clone(),
-                                        props.onclick_asset_remove.clone()
-                                    )}>
-                                        { "X" }
-                                    </button>
-                                }
+                                    <div style={ asset_icon_color(&asset) }>
+                                        <Icon icon_id={ asset_icon_id(&asset) } width={"15px".to_owned()} height={"15px".to_owned()}/>
+                                    </div>
+
+                                    { asset_display_name(&asset) }
+                                    if props.onclick_asset_remove.is_some() {
+                                        <button onclick={delegate_callback(
+                                            asset.rid.clone(),
+                                            props.onclick_asset_remove.clone()
+                                        )} class={classes!("thot-ui-asset-remove")}>
+                                            { "X" }
+                                        </button>
+                                    }
+
+                                </div>
                             </li>
                         }
                     }).collect::<Html>() }
@@ -135,6 +143,28 @@ fn asset_icon_id(asset: &CoreAsset) -> IconId {
     let extension = parts.last().unwrap_or(&"");
     let lower_case_extension = extension.to_lowercase();
     get_icon_id(&lower_case_extension)
+}
+
+/// Gets the icon color to display for an [`Asset`](CoreAsset).
+///
+/// # Returns
+/// The `Color`.
+fn asset_icon_color(asset: &CoreAsset) -> Color {
+    let icon_id = asset_icon_id(asset);
+    let color = match icon_id {
+        IconId::FontAwesomeRegularFileAudio => "#FFCC67",
+        IconId::FontAwesomeRegularFileCode => "#B4DCE1",
+        IconId::FontAwesomeRegularFileExcel => "#A8C764",
+        IconId::FontAwesomeRegularFileImage => "#FFB800",
+        IconId::FontAwesomeRegularFileLines => "#E0E2E8",
+        IconId::FontAwesomeRegularFilePdf => "#E05C2B",
+        IconId::FontAwesomeRegularFilePowerpoint => "#E97D55",
+        IconId::FontAwesomeRegularFileWord => "#77B9CE",
+        IconId::FontAwesomeRegularFileVideo => "#FFDC82",
+        IconId::FontAwesomeRegularFileZipper => "#C8CCD4",
+        _ => "#F3F4F7",
+    };
+    format!("color: {}", color)
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.

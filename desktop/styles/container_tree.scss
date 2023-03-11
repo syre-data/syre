@@ -105,6 +105,18 @@ $control-button-size: 25px;
 
       opacity: 0;
       transition: opacity t.$transition-fast;
+      button {
+        width: $control-button-size;
+        height: $control-button-size;
+        padding: 0;
+        border-radius: 50%;
+        color: t.$primary-button-color;
+        background-color: t.$primary-button-background-color;
+
+        &:hover {
+          background-color: t.$primary-button-hover-background-color;
+        }
+      }
     }
   }
 

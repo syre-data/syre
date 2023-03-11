@@ -24,6 +24,9 @@ $background-contrast-color: vars.$secondary-color-300;
 $frame-background-color: vars.$secondary-color-900;
 $frame-border-color: $background-accent-color;
 
+$card-background-color: vars.$secondary-color-700;
+$card-hover-background-color: vars.$secondary-color-600;
+
 $body-text-color: vars.$secondary-color-50;
 $title-text-color: vars.$secondary-color-50;
 $link-text-color: vars.$secondary-color-200;
@@ -88,6 +91,10 @@ $margin-s: 3px;
 $margin-m: 5px;
 $margin-l: 8px;
 $margin-xl: 12px;
+$margin-3xl: 36px;
+
+$gap-l: 20px;
+$gap-xl: 30px;
 
 $card-min-width: 10rem;
 $card-height: 6.5rem;

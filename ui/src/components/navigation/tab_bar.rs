@@ -101,17 +101,19 @@ pub fn tab_bar<K: TabKey + Clone + 'static>(props: &TabBarProps<K>) -> Html {
                     html! {
                         <li key={k.clone()} {class}
                             onclick={onclick_tab.clone()(k.clone())}>
-                            <span class={classes!("tab-name")}>{
-                                &v
-                            }</span>
+                            <div class={classes!("tab-container")}>
+                                <span class={classes!("tab-name")}>{
+                                    &v
+                                }</span>
 
-                            if let Some(onclick_tab_close) = onclick_tab_close.clone() {
-                                <button class={classes!("btn-tab-close")}
-                                    onclick={onclick_tab_close(k.clone())}>{
+                                if let Some(onclick_tab_close) = onclick_tab_close.clone() {
+                                    <button class={classes!("btn-tab-close")}
+                                        onclick={onclick_tab_close(k.clone())}>{
 
-                                    "x"
-                                }</button>
-                            }
+                                        "x"
+                                    }</button>
+                                }
+                            </div>
                         </li>
                     }
                 })

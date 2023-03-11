@@ -18,6 +18,19 @@
   background-color: t.$frame-background-color;
   border-bottom: solid t.$border-width-s t.$frame-border-color;
 
+
+  .logo-tab-container {
+    padding: 6px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .tab-container {
+    padding: 4px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
   #home-navigation {
     img {
       height: 1rem;

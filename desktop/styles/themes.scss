@@ -39,7 +39,8 @@ $interactive-element-active-background-color: vars.$secondary-color-600;
 
 $primary-button-color: vars.$secondary-color-900;
 $primary-button-background-color: vars.$primary-color-300;
-$primary-button-hover-background-color: vars.$primary-color-500;
+$primary-button-hover-color: black;
+$primary-button-hover-background-color: vars.$primary-color-200;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;

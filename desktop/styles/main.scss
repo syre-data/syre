@@ -111,10 +111,12 @@ button {
   }
 
   &.btn-primary {
-    background-color: t.$primary-button-color;
+    padding: t.$padding-xl;
+    color: t.$primary-button-color;
+    background-color: t.$primary-button-background-color;
 
     &:hover {
-      background-color: t.$primary-button-hover-color;
+      background-color: t.$primary-button-hover-background-color;
     }
   }
 }

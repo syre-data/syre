@@ -36,8 +36,10 @@ $hover-text-color: vars.$secondary-color-200;
 
 $interactive-element-background-color: vars.$secondary-color-700;
 $interactive-element-active-background-color: vars.$secondary-color-600;
-$primary-button-color: vars.$primary-color-700;
-$primary-button-hover-color: vars.$primary-color-600;
+
+$primary-button-color: vars.$secondary-color-900;
+$primary-button-background-color: vars.$primary-color-300;
+$primary-button-hover-background-color: vars.$primary-color-500;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
@@ -78,6 +80,7 @@ $padding-s: 3px;
 $padding-m: 5px;
 $padding-l: 8px;
 $padding-xl: 12px;
+$padding-xxl: 16px;
 
 $border-radius-s: 3px;
 $border-radius-m: 5px;

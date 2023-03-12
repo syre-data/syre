@@ -2,10 +2,9 @@
 use super::standard_properties::StandardProperties;
 use super::{Asset, RunParameters};
 use crate::db::{Resource, StandardResource};
-use crate::types::{ResourceId, ResourceMap, ResourceStore};
+use crate::types::{ResourceId, ResourceMap};
 use has_id::HasId;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -14,8 +13,6 @@ use serde::{Deserialize, Serialize};
 // *** types ***
 // *************
 
-pub type ContainerWrapper = Arc<Mutex<Container>>;
-pub type ContainerStore = ResourceStore<ContainerWrapper>;
 pub type AssetMap = ResourceMap<Asset>;
 pub type ScriptMap = ResourceMap<RunParameters>;
 

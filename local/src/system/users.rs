@@ -48,7 +48,9 @@ pub fn add_user(user: User) -> Result {
     let user_count = user_count_by_email(&user.email, &users);
     if user_count > 0 {
         // same email already exists
-        return Err(Error::UsersError(UsersError::DuplicateEmail(user.email)));
+        return Err(Error::UsersError(UsersError::DuplicateEmail(
+            user.email.to_string(),
+        )));
     }
 
     // add user
@@ -135,7 +137,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
     let user = user_by_email(email)?;
     let Some(user) = user else {
         return Err(Error::CoreError(CoreError::ResourceError(
-            ResourceError::DoesNotExist(email.to_string()),
+            ResourceError::DoesNotExist("email does not exist"),
         )));
     };
 
@@ -171,13 +173,10 @@ fn user_count_by_email(email: &str, users: &Users) -> usize {
 fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -> Result {
     // validate id
     if !store.contains_key(&rid) {
-        return Err(
-            CoreError::ResourceError(ResourceError::DoesNotExist(format!(
-                "`User` with {} does not exist.",
-                &rid
-            )))
-            .into(),
-        );
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            "`User` does not exist.",
+        ))
+        .into());
     }
 
     Ok(())

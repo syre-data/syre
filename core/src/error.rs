@@ -17,9 +17,9 @@ use serde::{self, Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub enum ResourceError {
-    DoesNotExist(String),
+    DoesNotExist(&'static str),
     DuplicateId(ResourceId),
-    AlreadyExists(String),
+    AlreadyExists(&'static str),
 }
 
 // **********************
@@ -30,7 +30,17 @@ pub enum ResourceError {
 #[derive(Debug)]
 pub enum ProjectError {
     NotRegistered(Option<ResourceId>, Option<PathBuf>),
-    Misconfigured(String),
+    Misconfigured(&'static str),
+}
+
+// ******************
+// *** GraphError ***
+// ******************
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug)]
+pub enum GraphError {
+    InvalidGraph(&'static str),
 }
 
 // ***********************
@@ -71,7 +81,7 @@ pub enum ScriptError {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub enum ResourcePathError {
-    CouldNotParseMetalevel(String),
+    CouldNotParseMetalevel(&'static str),
 }
 
 // ********************
@@ -95,6 +105,7 @@ pub enum RunnerError {
 // *** Thot Error ***
 // ******************
 
+// @todo[3]: Put behind correct features.
 #[derive(Debug)]
 pub enum Error {
     AssetError(AssetError),
@@ -103,13 +114,14 @@ pub enum Error {
     IoError(io::Error),
     ProjectError(ProjectError),
     ResourceError(ResourceError),
+    GraphError(GraphError),
     ResourcePathError(ResourcePathError),
     RunnerError(RunnerError),
     ScriptError(ScriptError),
     SerdeError(serde_json::Error),
 
     /// Invalid value encountered.
-    ValueError(String),
+    ValueError(&'static str),
 }
 
 impl From<io::Error> for Error {
@@ -133,6 +145,12 @@ impl From<ResourceError> for Error {
 impl From<RunnerError> for Error {
     fn from(err: RunnerError) -> Self {
         Self::RunnerError(err)
+    }
+}
+
+impl From<GraphError> for Error {
+    fn from(err: GraphError) -> Self {
+        Self::GraphError(err)
     }
 }
 

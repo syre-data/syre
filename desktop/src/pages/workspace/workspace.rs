@@ -1,6 +1,7 @@
 //! Project workspace.
 use crate::components::canvas::ProjectCanvas;
 use crate::hooks::{use_active_project, use_open_projects};
+use thot_ui::widgets::suspense::Loading;
 use yew::prelude::*;
 
 /// Project workspace.
@@ -15,6 +16,8 @@ pub fn workspace() -> Html {
         };
     }
 
+    let fallback = html! { <Loading text={"Loading project"} /> };
+
     html! {
         <div id={"workspace"}>
             { open_projects.iter().map(|rid| {
@@ -26,10 +29,12 @@ pub fn workspace() -> Html {
                 }
 
                 html! {
-                    <ProjectCanvas
-                        key={rid.clone()}
-                        project={rid.clone()}
-                        {class} />
+                    <Suspense fallback={fallback.clone()}>
+                        <ProjectCanvas
+                            key={rid.clone()}
+                            project={rid.clone()}
+                            {class} />
+                    </Suspense>
                 }
             }).collect::<Html>() }
         </div>

@@ -175,7 +175,7 @@ impl Runner {
     ) -> Result {
         // recurse on children
         let Some(children) = tree.children(root).cloned() else {
-            return Err(ResourceError::DoesNotExist("`Node` children not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` children not found").into());
         };
 
         for child in children {
@@ -203,7 +203,7 @@ impl Runner {
         verbose: bool,
     ) -> Result {
         let Some(container) = tree.get(container) else {
-            return Err(ResourceError::DoesNotExist("`Node` not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` not found").into());
         };
 
         let mut scripts = container.scripts.clone();

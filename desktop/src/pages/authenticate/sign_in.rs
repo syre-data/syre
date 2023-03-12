@@ -46,7 +46,7 @@ pub fn sign_in() -> Html {
                     UserCredentials { email }
                 )
                 .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.".to_string())));
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
                     return;
                 };
 

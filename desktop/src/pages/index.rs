@@ -28,17 +28,17 @@ pub fn index() -> Html {
             |auth_state| {
                 let auth_state = auth_state.clone();
                 spawn_local(async move {
-                    let Ok(active_user) = invoke("get_active_user", EmptyArgs {}).await else {
+                    let Ok(active_user) = invoke::<Option<User>>("get_active_user", EmptyArgs {}).await else {
                         navigator.push(&Route::SignIn);
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.".to_string())));
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
                         return;
                     };
 
-                    let Ok(active_user): Result<Option<User>, swb::Error> = swb::from_value(active_user) else {
-                        navigator.push(&Route::SignIn);
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not read user.".to_string())));
-                        return;
-                    };
+                    //                     let Ok(active_user): Result<Option<User>, swb::Error> = swb::from_value(active_user) else {
+                    //                         navigator.push(&Route::SignIn);
+                    //                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not read user.")));
+                    //                         return;
+                    //                     };
 
                     match active_user {
                         None => navigator.push(&Route::SignIn),

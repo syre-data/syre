@@ -44,9 +44,7 @@ impl ResourcePath {
             let path_str = path.to_str();
             if path_str.is_none() {
                 return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel(String::from(
-                        "could not convert path to string",
-                    )),
+                    ResourcePathError::CouldNotParseMetalevel("could not convert path to string"),
                 ));
             }
 
@@ -54,9 +52,7 @@ impl ResourcePath {
             let caps = rd_pattern.captures(path_str.unwrap());
             if caps.is_none() {
                 return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel(String::from(
-                        "path did not match root pattern",
-                    )),
+                    ResourcePathError::CouldNotParseMetalevel("path did not match root pattern"),
                 ));
             }
 
@@ -66,9 +62,9 @@ impl ResourcePath {
                 Some(m) => match m.as_str().parse::<usize>() {
                     Err(_) => {
                         return Err(Error::ResourcePathError(
-                            ResourcePathError::CouldNotParseMetalevel(String::from(
+                            ResourcePathError::CouldNotParseMetalevel(
                                 "invalid metalevel, could not parse as integer",
-                            )),
+                            ),
                         ))
                     }
                     Ok(ml) => ml,
@@ -80,9 +76,9 @@ impl ResourcePath {
             let rel_path = path.strip_prefix(prefix);
             if rel_path.is_err() {
                 return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel(String::from(
+                    ResourcePathError::CouldNotParseMetalevel(
                         "could not remove root drive from path",
-                    )),
+                    ),
                 ));
             }
 

@@ -17,17 +17,17 @@ pub enum AppWidget {
 }
 
 /// Actions available to modify the [`AppState`].
-pub enum AppStateAction {
+pub enum AppStateAction<'a> {
     /// Sets the active widget.
     SetActiveWidget(Option<AppWidget>),
 
     /// Add a message to display.
-    AddMessage(Message),
+    AddMessage(Message<'a>),
 
     // @todo: Remove requirement to pass `AppStateReducer`.
     /// Adda a message to display,
     /// disappering after some time.
-    AddMessageWithTimeout(Message, u32, AppStateReducer),
+    AddMessageWithTimeout(Message<'a>, u32, AppStateReducer<'static>),
 
     /// Removes a message.
     RemoveMessage(Uuid),
@@ -47,13 +47,13 @@ pub enum AppStateAction {
 
 /// Application state.
 #[derive(Default, Debug, Clone, PartialEq)]
-pub struct AppState {
+pub struct AppState<'a> {
     /// Active widget
     pub app_widget: Option<AppWidget>,
 
     /// Messages for the user.
     /// `([Message], timeout).
-    pub messages: Vec<Rc<Message>>,
+    pub messages: Vec<Rc<Message<'a>>>,
 
     /// User's application state.
     pub user_app_state: Option<UserAppState>,
@@ -62,8 +62,8 @@ pub struct AppState {
     pub user_settings: Option<UserSettings>,
 }
 
-impl Reducible for AppState {
-    type Action = AppStateAction;
+impl Reducible for AppState<'static> {
+    type Action = AppStateAction<'static>;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
@@ -113,7 +113,7 @@ impl Reducible for AppState {
     }
 }
 
-pub type AppStateReducer = UseReducerHandle<AppState>;
+pub type AppStateReducer<'a> = UseReducerHandle<AppState<'a>>;
 
 #[cfg(test)]
 #[path = "./app_state_test.rs"]

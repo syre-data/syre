@@ -1,7 +1,17 @@
 //! Indicates an object has a unique id.
-use std::hash::Hash;
+pub mod has_id;
+pub mod has_id_mut;
+
+#[cfg(feature = "serde")]
+pub mod has_id_serde;
 
 // Re-exports
+pub use has_id::HasId;
+pub use has_id_mut::HasIdMut;
+
+#[cfg(feature = "serde")]
+pub use has_id_serde::HasIdSerde;
+
 #[cfg(feature = "derive")]
 use has_id_derive;
 
@@ -10,26 +20,6 @@ pub use has_id_derive::HasId;
 
 #[cfg(all(feature = "derive", feature = "serde"))]
 pub use has_id_derive::HasIdSerde;
-
-/// Indicates an object has a unique id.
-pub trait HasId {
-    type Id: Hash + Eq;
-
-    fn id(&self) -> &Self::Id;
-}
-
-/// Indicates an object has a unique id.
-#[cfg(feature = "serde")]
-pub trait HasIdSerde<'de> {
-    type Id: Hash + Eq + Clone + serde::Serialize + serde::Deserialize<'de>;
-
-    fn id(&self) -> &Self::Id;
-}
-
-/// Indicates that the id can be mutated.
-pub trait HasIdMut: HasId {
-    fn id_mut(&mut self) -> &mut Self::Id;
-}
 
 #[cfg(test)]
 #[path = "./lib_test.rs"]

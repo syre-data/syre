@@ -14,6 +14,60 @@ fn new_should_work() {
 }
 
 #[test]
+fn from_components_should_work() {
+    // setup
+    let tree = create_tree();
+    let root = tree.root().clone();
+    let root_children = tree
+        .children(tree.root())
+        .expect("could not get root children")
+        .clone();
+
+    let c1 = root_children
+        .get_index(0)
+        .expect("could not get root child");
+
+    let c2 = root_children
+        .get_index(1)
+        .expect("could not get root child");
+
+    let c1_children = tree.children(&c1).expect("could not get children").clone();
+    let c2_children = tree.children(&c2).expect("could not get children").clone();
+    let (nodes, edges) = tree.into_components();
+
+    // test
+    let tree =
+        ResourceTree::from_components(nodes, edges).expect("could not create tree from components");
+
+    assert_eq!(&root, tree.root(), "incorrect root found");
+    assert!(
+        tree.parent(tree.root())
+            .expect("root `Node` not in graph")
+            .is_none(),
+        "root should not have parent"
+    );
+
+    assert_eq!(
+        &root_children,
+        tree.children(tree.root())
+            .expect("could not get root children"),
+        "incorrect root children"
+    );
+
+    assert_eq!(
+        &c1_children,
+        tree.children(&c1).expect("could not get children"),
+        "incorrect root children"
+    );
+
+    assert_eq!(
+        &c2_children,
+        tree.children(&c2).expect("could not get children"),
+        "incorrect root children"
+    );
+}
+
+#[test]
 fn insert_should_work() {
     // setup
     let root = Data::new();
@@ -110,6 +164,84 @@ fn root_should_work() {
     let root_id = tree.root();
     let f_root = tree.get(root_id).expect("root `Node` should exist");
     assert_eq!(&data_0, f_root.inner(), "root data incorrect");
+}
+
+#[test]
+fn descendants_should_work() {
+    // setup
+    let root = Data::new();
+    let mut tree = ResourceTree::new(root);
+
+    let c1 = Data::new();
+    let c2 = Data::new();
+    let c11 = Data::new();
+
+    let c1_id = c1.id().clone();
+    let c2_id = c2.id().clone();
+    let c11_id = c11.id().clone();
+
+    tree.insert(tree.root().clone(), c1)
+        .expect("could not insert root child `Node`");
+
+    tree.insert(tree.root().clone(), c2)
+        .expect("could not insert root child `Node`");
+
+    tree.insert(c1_id.clone(), c11)
+        .expect("could not insert `Node`");
+
+    // test
+    let root_decs = tree
+        .descendants(tree.root())
+        .expect("could not get root descendants");
+
+    assert_eq!(4, root_decs.len(), "incorrect number of descendants");
+    assert!(
+        root_decs.contains(tree.root()),
+        "descendants should include self"
+    );
+
+    assert!(
+        root_decs.contains(&c1_id),
+        "descendants should include child"
+    );
+
+    assert!(
+        root_decs.contains(&c2_id),
+        "descendants should include child"
+    );
+
+    assert!(
+        root_decs.contains(&c11_id),
+        "descendants should include grandchild"
+    );
+
+    let c1_decs = tree
+        .descendants(&c1_id)
+        .expect("could not get child descendants");
+
+    assert_eq!(2, c1_decs.len(), "incorrect number of descendants");
+    assert!(c1_decs.contains(&c1_id), "descendants should include self");
+    assert!(
+        c1_decs.contains(&c11_id),
+        "descendants should include child"
+    );
+
+    let c2_decs = tree
+        .descendants(&c2_id)
+        .expect("could not get child descendants");
+
+    assert_eq!(1, c2_decs.len(), "incorrect number of descendants");
+    assert!(c2_decs.contains(&c2_id), "descendants should include self");
+
+    let c11_decs = tree
+        .descendants(&c11_id)
+        .expect("could not get grandchild descendants");
+
+    assert_eq!(1, c11_decs.len(), "incorrect number of descendants");
+    assert!(
+        c11_decs.contains(&c11_id),
+        "descendants should include self"
+    );
 }
 
 #[test]
@@ -303,7 +435,7 @@ fn move_index_should_work() {
 // *** Mock Data ***
 // *****************
 
-#[derive(HasId)]
+#[derive(HasId, Clone)]
 struct Data {
     #[id]
     id: ResourceId,

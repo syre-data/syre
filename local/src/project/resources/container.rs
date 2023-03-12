@@ -3,7 +3,6 @@ use super::asset::{Asset as LocalAsset, Assets as LocalAssets};
 use super::standard_properties::StandardProperties;
 use crate::common::{container_file_of, container_settings_file_of};
 use crate::error::{Error, Result};
-use crate::types::ResourceStore;
 use cluFlock::FlockLock;
 use has_id::HasId;
 use serde::{Deserialize, Serialize};
@@ -16,21 +15,13 @@ use settings_manager::types::Priority as SettingsPriority;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::container::{ContainerStore as CoreContainerStore, ScriptMap};
+use thot_core::project::container::ScriptMap;
 use thot_core::project::{
     Asset as CoreAsset, Container as CoreContainer, ScriptAssociation,
     StandardProperties as CoreStandardProperties,
 };
 use thot_core::types::{ResourceId, ResourcePath, UserPermissions};
-
-// *************
-// *** Types ***
-// *************
-
-pub type ContainerMap = ResourceStore<Container>;
-pub type ContainerWrapper = Arc<Mutex<Container>>;
 
 // *****************
 // *** Container ***
@@ -56,7 +47,6 @@ pub struct Container {
 }
 
 impl Container {
-    // @todo: Change to Default.
     pub fn new() -> Result<Self> {
         let rid = ResourceId::new();
         let props = StandardProperties::new()?;
@@ -73,13 +63,32 @@ impl Container {
     }
 
     /// Duplicates the [`Container`].
+    /// Copies the `properties` and `scripts` of the `Container`.
+    ///
+    /// # Notes
+    /// + Does not copy the base path.
+    ///
+    /// # See also
+    /// + [`duplicate_with_path`]
     pub fn duplicate(&self) -> Result<Self> {
         let mut dup = Self::new()?;
         dup.properties = self.properties.clone();
         dup.scripts = self.scripts.clone();
-        if let Ok(base_path) = self.base_path() {
-            dup.set_base_path(base_path)?;
-        }
+
+        Ok(dup)
+    }
+
+    /// Duplicates the [`Container`].
+    /// Copies the `properties` and `scripts` of the `Container`.
+    /// Copies the base path.
+    ///
+    /// # See also
+    /// + [`duplicate`]
+    pub fn duplicate_with_path(&self) -> Result<Self> {
+        let mut dup = Self::new()?;
+        dup.set_base_path(self.base_path()?)?;
+        dup.properties = self.properties.clone();
+        dup.scripts = self.scripts.clone();
 
         Ok(dup)
     }
@@ -140,9 +149,7 @@ impl Container {
     pub fn add_script_association(&mut self, assoc: ScriptAssociation) -> Result {
         if self.contains_script_association(&assoc.script) {
             return Err(Error::CoreError(CoreError::ResourceError(
-                ResourceError::AlreadyExists(String::from(
-                    "Association with script already exists",
-                )),
+                ResourceError::AlreadyExists("Association with script already exists"),
             )));
         }
 
@@ -352,8 +359,6 @@ impl Into<CoreContainer> for Container {
     /// Converts a `Container` into a [`thot_core::project::Container`].
     /// Clones and converts inner value of children, if a [`ResourceValue::Resource`].
     fn into(self) -> CoreContainer {
-        let mut children = CoreContainerStore::new();
-
         CoreContainer {
             rid: self.rid,
             properties: self.properties,

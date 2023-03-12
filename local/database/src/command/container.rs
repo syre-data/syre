@@ -10,12 +10,6 @@ use thot_local::types::AssetFileAction;
 /// Container related commands.
 #[derive(Serialize, Deserialize)]
 pub enum ContainerCommand {
-    /// Load a [`Container`](crate::project::resources::Container) tree from its root path.
-    LoadTree(PathBuf),
-
-    /// Load a single [`Container`](crate::project::resources::Container) from a path.
-    Load(PathBuf),
-
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
     Get(ResourceId),
 
@@ -32,7 +26,7 @@ pub enum ContainerCommand {
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
-    FindWithinTree(ResourceId, StandardSearchFilter),
+    FindWithMetadata(ResourceId, StandardSearchFilter),
 
     /// Updates a [`Container`](CoreContainer)'s properties.
     UpdateProperties(UpdatePropertiesArgs),
@@ -48,12 +42,6 @@ pub enum ContainerCommand {
     /// changed to be unique.
     AddAssets(AddAssetsArgs),
 
-    /// Creates a new child `Container`.
-    NewChild(NewChildArgs),
-
-    /// Inserts a new child tree and saves it.
-    DuplicateTree(ResourceId),
-
     /// Gets the path of a [`Container`](thot_local::project::resources::Container).
     GetPath(ResourceId),
 }
@@ -61,13 +49,6 @@ pub enum ContainerCommand {
 // *****************
 // *** Arguments ***
 // *****************
-
-/// Arguments for [`Command::NewChild`].
-#[derive(Serialize, Deserialize)]
-pub struct NewChildArgs {
-    pub name: String,
-    pub parent: ResourceId,
-}
 
 /// Arguments for updating a resource's [`StandardProperties`].
 #[derive(Serialize, Deserialize)]

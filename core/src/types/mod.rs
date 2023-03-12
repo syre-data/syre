@@ -11,7 +11,7 @@ pub mod user_permissions;
 pub use creator::Creator;
 pub use local_id::LocalId;
 pub use resource_id::ResourceId;
-pub use resource_map::{ResourceMap, ResourceStore};
+pub use resource_map::ResourceMap;
 pub use resource_path::ResourcePath;
 pub use user_id::UserId;
 pub use user_permissions::UserPermissions;

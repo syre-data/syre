@@ -2,22 +2,22 @@
 // use crate::commands::settings::UserAppStateArgs;
 use indexmap::IndexSet;
 use std::rc::Rc;
-use thot_core::project::{Project as CoreProject, Scripts as ProjectScripts};
+use thot_core::project::{Project, Scripts};
 use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 
-pub type ProjectMap = ResourceMap<CoreProject>;
+pub type ProjectMap = ResourceMap<Project>;
 
 /// Map from a `Project` to its `Scripts`.
-pub type ProjectScriptsMap = ResourceMap<ProjectScripts>;
+pub type ProjectScriptsMap = ResourceMap<Scripts>;
 
 /// Actions for [`ProjectsState`].
 pub enum ProjectsStateAction {
     /// Insert a project.
-    InsertProject(CoreProject),
+    InsertProject(Project),
 
     /// Inserts multiple projects.
-    InsertProjects(Vec<CoreProject>),
+    InsertProjects(Vec<Project>),
 
     /// Add an open project.
     AddOpenProject(ResourceId),
@@ -33,14 +33,14 @@ pub enum ProjectsStateAction {
     SetActiveProject(ResourceId),
 
     /// Update the project
-    UpdateProject(CoreProject),
+    UpdateProject(Project),
 
     /// Insert a Script.
     ///
     /// # Fields
     /// 1. `Project`'s id.
     /// 2. `Project`'s `Script`s.
-    InsertProjectScripts(ResourceId, ProjectScripts),
+    InsertProjectScripts(ResourceId, Scripts),
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -93,7 +93,7 @@ impl Reducible for ProjectsState {
             }
 
             ProjectsStateAction::InsertProjectScripts(project, scripts) => {
-                current.project_scripts.insert(project.clone(), scripts);
+                current.project_scripts.insert(project, scripts);
             }
 
             ProjectsStateAction::UpdateProject(project) => {

@@ -49,7 +49,7 @@ impl Database {
 
         let projects = Projects::load()?;
         let Some(project) = projects.get(&rid).clone() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
         };
 
         let scripts = ProjectScripts::load(&project.path)?;
@@ -70,7 +70,7 @@ impl Database {
     /// Update a `Script`.
     fn update_script(&mut self, script: CoreScript) -> Result {
         let Some(project) = self.store.get_script_project(&script.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
         self.store.insert_script(project.clone(), script)?;

@@ -26,7 +26,7 @@ pub fn home_component() -> HtmlResult {
 
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.".to_string())));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
         return Ok(html! {});
     };
 
@@ -71,7 +71,7 @@ pub fn home() -> Html {
     let user = use_user();
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.".to_string())));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
         return html! {};
     };
 
@@ -82,7 +82,7 @@ pub fn home() -> Html {
 
         spawn_local(async move {
             let Ok(user_settings) = invoke("load_user_settings", ResourceIdArgs { rid }).await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.".to_string())));
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.")));
                         return;
             };
 
@@ -106,7 +106,7 @@ pub fn home() -> Html {
             )
             .await else {
                 navigator.push(&Route::SignIn);
-                app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.".to_string())));
+                app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.")));
                 return;
             };
 

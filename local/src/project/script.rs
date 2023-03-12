@@ -18,7 +18,7 @@ use thot_core::types::{ResourceId, ResourcePath};
 pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
     let projects = Projects::load()?;
     let Some(project) = projects.get(&project) else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist".to_string())).into());
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
     };
 
     let mut scripts = ProjectScripts::load(&project.path)?;

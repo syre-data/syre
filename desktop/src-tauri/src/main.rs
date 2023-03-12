@@ -58,12 +58,13 @@ fn main() {
             // new_project, @todo: Possibly remove.
             update_project,
             analyze,
+            // graph
+            init_project_graph,
+            load_project_graph,
             // container
             add_assets,
             get_container,
             get_container_path,
-            init_container,
-            load_container_tree,
             new_child,
             update_container_properties,
             update_container_script_associations,

@@ -16,19 +16,19 @@ pub enum MessageType {
 
 /// A Message.
 #[derive(Clone, PartialEq, Debug)]
-pub struct Message {
+pub struct Message<'a> {
     id: Uuid,
 
     /// Message to display.
-    pub message: String,
+    pub message: &'a str,
 
     /// Type of message.
     pub kind: MessageType,
 }
 
-impl Message {
+impl<'a> Message<'a> {
     /// Create a `Message` with a `kind` of [`MessageType::Info`].
-    pub fn info(message: String) -> Self {
+    pub fn info(message: &'a str) -> Self {
         Self {
             id: Uuid::new_v4(),
             message,
@@ -37,7 +37,7 @@ impl Message {
     }
 
     /// Create a `Message` with a `kind` of [`MessageType::Success`].
-    pub fn success(message: String) -> Self {
+    pub fn success(message: &'a str) -> Self {
         Self {
             id: Uuid::new_v4(),
             message,
@@ -46,7 +46,7 @@ impl Message {
     }
 
     /// Create a `Message` with a `kind` of [`MessageType::Error`].
-    pub fn error(message: String) -> Self {
+    pub fn error(message: &'a str) -> Self {
         Self {
             id: Uuid::new_v4(),
             message,

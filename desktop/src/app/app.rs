@@ -59,7 +59,7 @@ pub fn app() -> Html {
                         LoadUserProjectsArgs { user: user_id }
                     )
                     .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load user projects".to_string())));
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load user projects")));
                             return;
                     };
 

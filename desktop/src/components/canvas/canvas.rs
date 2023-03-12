@@ -1,25 +1,18 @@
 //! Project canvas.
 use super::{
-    canvas_state::CanvasState, container_tree_state::ContainerTreeState, CanvasStateReducer,
-    ContainerTreeStateReducer,
+    canvas_state::CanvasState, graph_state::GraphState, CanvasStateReducer, GraphStateReducer,
 };
-use crate::app::{ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::ResourceIdArgs;
-use crate::common::invoke;
+use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::components::details_bar::DetailsBar;
 use crate::components::project::Project as ProjectUi;
-use crate::hooks::use_container_tree;
-use crate::hooks::use_project_scripts;
-use serde_wasm_bindgen as swb;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Container as CoreContainer, Scripts as ProjectScripts};
+use crate::hooks::{use_load_project_scripts, use_project_graph};
+use crate::routes::Route;
 use thot_core::types::ResourceId;
 use thot_ui::components::{Drawer, DrawerPosition};
+use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
-use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-
-type ContainerTree = ResourceTree<CoreContainer>;
+use yew_router::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct ProjectCanvasProps {
@@ -32,6 +25,9 @@ pub struct ProjectCanvasProps {
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let show_side_bars = use_state(|| true);
+    let navigator = use_navigator().expect("could not get navigator");
+
+    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
 
@@ -39,37 +35,20 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
     let project = projects_state.projects.get(&props.project);
-    if let Some(project) = project {}
-    let tree = use_container_tree(root_path)?;
-    let tree_state = use_reducer(|| ContainerTreeState::new(tree));
+    let Some(project) = project else {
+        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load project")));
+        navigator.push(&Route::Dashboard);
+        return Ok(html! {{ "Could not load project" }});
+    };
 
-    let scripts = use_project_scripts(props.project.clone());
-    if scripts.is_none() {
-        // get project scripts
-        let project = props.project.clone();
-        let projects_state = projects_state.clone();
-
-        spawn_local(async move {
-            let prj_scripts = invoke(
-                "get_project_scripts",
-                ResourceIdArgs {
-                    rid: project.clone(),
-                },
-            )
-            .await
-            .expect("could not invoke `get_project_scripts`");
-
-            let scripts: ProjectScripts = swb::from_value(prj_scripts)
-                .expect("could not convert result of `get_project_scripts` to `Scripts`");
-
-            projects_state.dispatch(ProjectsStateAction::InsertProjectScripts(project, scripts));
-        })
-    }
+    use_load_project_scripts(&project.rid)?;
+    let graph = use_project_graph(&project.rid)?;
+    let graph_state = use_reducer(|| GraphState::new(graph));
 
     let fallback = html! { <Loading text={"Loading project"} /> };
     Ok(html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
-        <ContextProvider<ContainerTreeStateReducer> context={tree_state}>
+        <ContextProvider<GraphStateReducer> context={graph_state}>
         <div class={classes!("project-canvas", props.class.clone())}>
             // <NavBar />
             <div class={classes!("project-canvas-content")} >
@@ -85,7 +64,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                 <DetailsBar />
             </Drawer>
         </div>
-        </ContextProvider<ContainerTreeStateReducer>>
+        </ContextProvider<GraphStateReducer>>
         </ContextProvider<CanvasStateReducer>>
     })
 }
@@ -93,4 +72,3 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 #[cfg(test)]
 #[path = "./canvas_test.rs"]
 mod canvas_test;
-==== BASE ====

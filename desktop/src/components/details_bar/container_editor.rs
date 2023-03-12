@@ -2,11 +2,13 @@
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
-use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
+use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
+use serde_wasm_bindgen as swb;
 use std::sync::{Arc, Mutex};
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::Result as LibResult;
 use thot_ui::types::Message;
 use thot_ui::widgets::StandardPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
@@ -23,11 +25,10 @@ pub struct ContainerEditorProps {
 #[function_component(ContainerEditor)]
 pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeReducer` context not found");
+    let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
 
-    let container = tree_state
-        .tree
+    let container = graph_state
+        .graph
         .get(&props.rid)
         .expect("`Container` not found");
 
@@ -55,14 +56,14 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let onsave = {
         let rid = props.rid.clone();
         let onsave = props.onsave.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let properties = properties.clone();
 
         Callback::from(move |_: MouseEvent| {
             let rid = rid.clone();
             let onsave = onsave.clone();
             let app_state = app_state.clone();
-            let tree_state = tree_state.clone();
+            let graph_state = graph_state.clone();
             let properties = (*properties).clone();
 
             spawn_local(async move {
@@ -77,17 +78,34 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 };
 
                 let update = UpdatePropertiesArgs { rid, properties };
-                let _res = invoke("update_container_properties", update_str)
+                web_sys::console::log_1(&2.into());
+                let res = invoke("update_container_properties", update_str)
                     .await
                     .expect("could not invoke `update_container_properties`");
 
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(update));
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::success("Resource saved".to_string()),
-                    MESSAGE_TIMEOUT,
-                    app_state.clone(),
-                ));
-                onsave.emit(());
+                web_sys::console::log_1(&0.into());
+                let res: LibResult =
+                    swb::from_value(res).expect("could not convert result for JsValue");
+
+                web_sys::console::log_1(&1.into());
+                match res {
+                    Err(err) => {
+                        web_sys::console::debug_1(&format!("{err:?}").into());
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Could not save resource",
+                        )));
+                    }
+
+                    Ok(_) => {
+                        graph_state.dispatch(GraphStateAction::UpdateContainerProperties(update));
+                        app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                            Message::success("Resource saved"),
+                            MESSAGE_TIMEOUT,
+                            app_state.clone(),
+                        ));
+                        onsave.emit(());
+                    }
+                }
             });
         })
     };

@@ -112,6 +112,12 @@ impl DerefMut for Scripts {
     }
 }
 
+impl From<ResourceMap<Script>> for Scripts {
+    fn from(scripts: ResourceMap<Script>) -> Self {
+        Self(scripts)
+    }
+}
+
 // ******************
 // *** Script Env ***
 // ******************

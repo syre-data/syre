@@ -102,7 +102,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
     let mut projects = Projects::load()?;
     let Some(project) = projects.get_mut(rid) else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(format!("`Project` with {:?} is not registered", rid).to_string())).into());
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` is not registered")).into());
     };
 
     // move folder
@@ -187,12 +187,7 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
         }
     }
 
-    Err(
-        CoreError::ProjectError(CoreProjectError::Misconfigured(String::from(
-            "project has no root.",
-        )))
-        .into(),
-    )
+    Err(CoreError::ProjectError(CoreProjectError::Misconfigured("project has no root.")).into())
 }
 
 /// Returns registration info on the project root of the given path.

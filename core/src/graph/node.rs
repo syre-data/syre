@@ -31,6 +31,10 @@ where
         Self { id, data }
     }
 
+    pub fn data(&self) -> &D {
+        &self.data
+    }
+
     /// Consumes self, returning the data.
     pub fn into_data(self) -> D {
         self.data

@@ -1,4 +1,4 @@
-//! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
+//! UI for a `Container` preview within a [`Graph`](super::Graph).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
@@ -6,7 +6,7 @@ use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::common::invoke;
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
-    CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
+    CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
 use crate::components::details_bar::DetailsBarWidget;
 use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
@@ -24,7 +24,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
 
-type ContainerTree = ResourceTree<CoreContainer>;
+type Graph = ResourceTree<CoreContainer>;
 
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
@@ -44,24 +44,24 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- setup ---
     // -------------
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeReducer` context not found");
+    let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
 
     let show_create_assets = use_state(|| false);
     let selected = canvas_state.selected.contains(&props.rid);
 
     let multiple_selected = canvas_state.selected.len() > 1;
-    let script_names = projects_state
-        .project_scripts
-        .get(&canvas_state.project)
-        .expect("project's state not found")
+
+    let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
+        panic!("`Project`'s `Scripts` not loaded");
+    };
+
+    let script_names = project_scripts
         .iter()
         .map(|(rid, script)| {
             let mut name = script.name.clone().unwrap_or(
@@ -88,7 +88,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let onclick = {
         let rid = props.rid.clone();
         let canvas_state = canvas_state.clone();
-        let tree_state = tree_state.clone();
         let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
@@ -118,9 +117,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------------
 
     let on_menu_event = {
-        let container_id = props.rid.clone();
         let app_state = app_state.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let rid = props.rid.clone();
         let show_create_assets = show_create_assets.clone();
 
@@ -147,7 +145,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                 ContainerMenuEvent::DuplicateTree => {
                     let app_state = app_state.clone();
-                    let tree_state = tree_state.clone();
+                    let graph_state = graph_state.clone();
 
                     spawn_local(async move {
                         let root = invoke(
@@ -157,18 +155,25 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         .await
                         .expect("could not invoke `duplicate_container_tree`");
 
-                        let dup: ContainerTree = swb::from_value(root).expect(
-                        "could not convert result of `duplicate_container_tree` to `ContainerTree`",
-                    );
+                        let dup: Graph = swb::from_value(root).expect(
+                            "could not convert result of `duplicate_container_tree` to `Graph`",
+                        );
 
-                        let mut tree = tree_state.tree.clone();
-                        let parent = tree
+                        let mut graph = graph_state.graph.clone();
+                        let parent = graph
                             .parent(&rid)
-                            .expect("`Container` not found")
-                            .expect("could not get `Container` parent");
+                            .expect("parent `Container` not found")
+                            .expect("could not get `Container` parent")
+                            .clone();
 
-                        tree.insert_tree(&parent, dup);
-                        tree_state.dispatch(ContainerTreeStateAction::SetTree(tree));
+                        match graph.insert_tree(&parent, dup) {
+                            Ok(_) => graph_state.dispatch(GraphStateAction::SetGraph(graph)),
+                            Err(_) => {
+                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                    "Could not duplicate tree",
+                                )));
+                            }
+                        }
                     });
                 }
             }
@@ -190,13 +195,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let onclick_asset = {
         let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
-            let Some(asset) = get_asset(&asset, tree_state.clone()) else {
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+            let Some(asset) = get_asset(&asset, graph_state.clone()) else {
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));
                 return;
             };
 
@@ -220,15 +225,15 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let ondblclick_asset = {
         let app_state = app_state.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let rid = props.rid.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
             e.stop_propagation();
 
             let rid = rid.clone();
-            let Some(asset) = get_asset(&asset, tree_state.clone()) else {
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset".to_string()), MESSAGE_TIMEOUT, app_state.clone()));
+            let Some(asset) = get_asset(&asset, graph_state.clone()) else {
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));
                 return;
             };
 
@@ -272,7 +277,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 Callback::from(move |_: ()| {
                     canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
                     app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                        Message::success("Resource saved".to_string()),
+                        Message::success("Resource saved"),
                         MESSAGE_TIMEOUT,
                         app_state.clone(),
                     ));
@@ -294,21 +299,19 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // ----------------------
 
     let ondragenter = {
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let container_id = props.rid.clone();
 
         Callback::from(move |_: web_sys::DragEvent| {
-            tree_state.dispatch(ContainerTreeStateAction::SetDragOverContainer(
-                container_id.clone(),
-            ));
+            graph_state.dispatch(GraphStateAction::SetDragOverContainer(container_id.clone()));
         })
     };
 
     let ondragleave = {
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
 
         Callback::from(move |_: web_sys::DragEvent| {
-            tree_state.dispatch(ContainerTreeStateAction::ClearDragOverContainer);
+            graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
         })
     };
 
@@ -317,8 +320,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // ----------
 
     // props
-    let container = tree_state
-        .tree
+    let container = graph_state
+        .graph
         .get(&props.rid)
         .expect("`Container` not found");
 
@@ -338,7 +341,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 active_assets: canvas_state.selected.clone(),
                 scripts: container.scripts.clone(),
                 script_names,
-                preview: tree_state.preview.clone(),
+                preview: canvas_state.preview.clone(),
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
@@ -413,15 +416,15 @@ fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionA
 /// # Arguments
 /// 1. `Asset`'s `ResourceId`.
 /// 2. Tree state.
-fn get_asset(rid: &ResourceId, tree_state: ContainerTreeStateReducer) -> Option<CoreAsset> {
-    let Some(container) = tree_state
+fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<CoreAsset> {
+    let Some(container) = graph_state
                 .asset_map
                 .get(&rid) else {
                     return None;
                 };
 
-    let container = tree_state
-        .tree
+    let container = graph_state
+        .graph
         .get(&container)
         .expect("`Container` not found");
 

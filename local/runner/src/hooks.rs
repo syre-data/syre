@@ -13,7 +13,7 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
         serde_json::from_value(script).expect("could not convert result of `Get` to `Script`");
 
     let Some(script) = script else {
-        return Err(ResourceError::DoesNotExist("`Script` not loaded".to_string()).into());
+        return Err(ResourceError::DoesNotExist("`Script` not loaded").into());
     };
 
     Ok(script)

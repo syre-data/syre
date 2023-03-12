@@ -1,12 +1,10 @@
 //! Edit a [`Container`]'s [`ScriptAssociation`]s.
+use crate::app::ProjectsStateReducer;
 use crate::commands::container::{
     UpdateScriptAssociationsArgs, UpdateScriptAssociationsStringArgs,
 };
 use crate::common::invoke;
-use crate::components::canvas::{
-    CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
-};
-use crate::hooks::use_project_scripts;
+use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{RunParameters, Script as CoreScript};
 use thot_core::types::ResourceId;
@@ -27,36 +25,38 @@ pub struct ScriptAssociationsEditorProps {
 }
 
 #[function_component(ScriptAssociationsEditor)]
-pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html {
+pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> HtmlResult {
+    let projects_state =
+        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeStateReducer` context not found");
+    let graph_state =
+        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
 
-    let project_scripts = use_project_scripts(canvas_state.project.clone());
-    let container = tree_state
-        .tree
+    let container = graph_state
+        .graph
         .get(&props.container)
         .expect("`Container not found");
 
     let associations = use_state(|| container.scripts.clone());
 
+    let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
+        panic!("`Project`'s `Scripts` not loaded");
+    };
+
     let remaining_scripts = use_state(|| {
-        if let Some(project_scripts) = project_scripts.as_ref() {
-            project_scripts
-                .values()
-                .filter_map(|script| {
-                    if associations.contains_key(&script.rid) {
-                        None
-                    } else {
-                        Some(script.clone())
-                    }
-                })
-                .collect::<Vec<CoreScript>>()
-        } else {
-            Vec::new()
-        }
+        project_scripts
+            .values()
+            .filter_map(|script| {
+                if associations.contains_key(&script.rid) {
+                    None
+                } else {
+                    Some(script.clone())
+                }
+            })
+            .collect::<Vec<CoreScript>>()
     });
 
     {
@@ -78,10 +78,6 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
         use_effect_with_deps(
             move |associations| {
-                let Some(project_scripts) = project_scripts.as_ref() else {
-                    panic!("`Project` `Script`s not loaded");
-                };
-
                 let scripts = project_scripts
                     .values()
                     .filter_map(|script| {
@@ -103,10 +99,6 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .clone()
         .into_keys()
         .map(|assoc| {
-            let Some(project_scripts) = project_scripts.as_ref() else {
-                panic!("`Project` `Script`s not loaded");
-            };
-
             let script = project_scripts.get(&assoc).expect("`Script` not found");
             let name = match script.name.clone() {
                 Some(name) => name,
@@ -147,13 +139,13 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
     let onsave = {
         let container = props.container.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let associations = associations.clone();
         let onsave = props.onsave.clone();
 
         Callback::from(move |_: MouseEvent| {
             let container = container.clone();
-            let tree_state = tree_state.clone();
+            let graph_state = graph_state.clone();
             let associations = associations.clone();
             let onsave = onsave.clone();
 
@@ -177,9 +169,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                     associations: (*associations).clone(),
                 };
 
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerScriptAssociations(
-                    update,
-                ));
+                graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
 
                 if let Some(onsave) = onsave {
                     onsave.emit(());
@@ -188,7 +178,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         })
     };
 
-    html! {
+    Ok(html! {
         <div class={classes!("script-associations-editor-widget")}>
             <AddScriptAssociation
                 scripts={(*remaining_scripts).clone()}
@@ -201,7 +191,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
             <button onclick={onsave}>{ "Save" }</button>
         </div>
-    }
+    })
 }
 
 #[cfg(test)]

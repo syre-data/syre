@@ -4,52 +4,47 @@ use crate::commands::container::UpdateScriptAssociationsArgs;
 use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
+use thot_core::project::{Asset, Container};
 use thot_core::types::ResourceId;
-use thot_ui::types::ContainerPreview;
 use yew::prelude::*;
 
-type ContainerTree = ResourceTree<CoreContainer>;
+type ContainerTree = ResourceTree<Container>;
 
 pub type AssetContainerMap = HashMap<ResourceId, ResourceId>;
 
-pub enum ContainerTreeStateAction {
-    /// Set the preview state.
-    SetPreview(ContainerPreview),
-
+pub enum GraphStateAction {
     ///  Sets the [`ContainerTree`].
-    SetTree(ContainerTree),
+    SetGraph(ContainerTree),
 
-    /// Update a [`Container`](CoreContainer)'s [`StandardProperties`](thot_core::project::StandardProperties).
+    /// Update a [`Container`](Container)'s [`StandardProperties`](thot_::project::StandardProperties).
     UpdateContainerProperties(UpdatePropertiesArgs),
 
-    /// Add a [`Container`](CoreContainer) as a child.
+    /// Add a [`Container`](Container) as a child.
     ///
     /// # Fields
     /// #. `parent`: `ResourceId` of the parent.
     /// #. `child`: Child `Container`.
-    InsertChildContainer(ResourceId, CoreContainer),
+    InsertChildContainer(ResourceId, Container),
 
-    /// Insert [`Asset`](CoreAsset)s into a [`Container`](CoreContainer).
-    InsertContainerAssets(ResourceId, Vec<CoreAsset>),
+    /// Insert [`Asset`](Asset)s into a [`Container`](Container).
+    InsertContainerAssets(ResourceId, Vec<Asset>),
 
-    /// Update a [`Container`](CoreContainer)'s
-    /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
+    /// Update a [`Container`](Container)'s
+    /// [`ScriptAssociation`](thot_::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
 
-    /// Update an [`Asset`](CoreAsset).
-    UpdateAsset(CoreAsset),
+    /// Update an [`Asset`](Asset).
+    UpdateAsset(Asset),
 
     SetDragOverContainer(ResourceId),
     ClearDragOverContainer,
 }
 
 #[derive(PartialEq, Clone)]
-pub struct ContainerTreeState {
-    pub tree: ContainerTree,
-    pub preview: ContainerPreview,
+pub struct GraphState {
+    pub graph: ContainerTree,
 
-    /// Map from an [`Asset`](CoreAsset)'s id to its [`Container`](CoreContainer)'s.
+    /// Map from an [`Asset`](Asset)'s id to its [`Container`](Container)'s.
     pub asset_map: AssetContainerMap,
 
     /// Indicates the `Container` which currently has something dragged over it.
@@ -57,37 +52,18 @@ pub struct ContainerTreeState {
     pub dragover_container: Option<ResourceId>,
 }
 
-impl ContainerTreeState {
-    pub fn new(tree: ContainerTree) -> Self {
-        ContainerTreeState {
-            tree,
-            preview: ContainerPreview::None,
+impl GraphState {
+    pub fn new(graph: ContainerTree) -> Self {
+        Self {
+            graph,
             asset_map: HashMap::new(),
             dragover_container: None,
         }
     }
 }
 
-// @remove
-// impl PartialEq for ContainerTreeState {
-//     fn eq(&self, other: &Self) -> bool {
-//         if self.preview != other.preview {
-//             return false;
-//         }
-
-//         // asset map
-//         if self.asset_map != other.asset_map {
-//             return false;
-//         }
-
-//         // containers
-//         if self.tree != other.preview
-//         true
-//     }
-// }
-
-impl Reducible for ContainerTreeState {
-    type Action = ContainerTreeStateAction;
+impl Reducible for GraphState {
+    type Action = GraphStateAction;
 
     // @note: Actions that change a `Container` must first `clone`
     // the `Container` then re-`insert` it into the state's `Container` store
@@ -97,45 +73,41 @@ impl Reducible for ContainerTreeState {
         let mut current = (*self).clone();
 
         match action {
-            ContainerTreeStateAction::SetPreview(preview) => {
-                current.preview = preview;
+            GraphStateAction::SetGraph(graph) => {
+                current.graph = graph;
             }
 
-            ContainerTreeStateAction::SetTree(tree) => {
-                current.tree = tree;
-            }
-
-            ContainerTreeStateAction::UpdateContainerProperties(update) => {
+            GraphStateAction::UpdateContainerProperties(update) => {
                 let container = current
-                    .tree
+                    .graph
                     .get_mut(&update.rid)
                     .expect("`Container` not found");
 
                 container.properties = update.properties;
             }
 
-            ContainerTreeStateAction::UpdateContainerScriptAssociations(update) => {
+            GraphStateAction::UpdateContainerScriptAssociations(update) => {
                 let mut container = current
-                    .tree
+                    .graph
                     .get_mut(&update.rid)
                     .expect("`Container` not found");
 
                 container.scripts = update.associations;
             }
 
-            ContainerTreeStateAction::InsertChildContainer(parent, child) => {
+            GraphStateAction::InsertChildContainer(parent, child) => {
                 // map assets
                 for rid in child.assets.keys() {
                     current.asset_map.insert(rid.clone(), child.rid.clone());
                 }
 
                 // insert child into store
-                current.tree.insert(parent, child);
+                current.graph.insert(parent, child);
             }
 
-            ContainerTreeStateAction::InsertContainerAssets(container, assets) => {
+            GraphStateAction::InsertContainerAssets(container, assets) => {
                 let mut container = current
-                    .tree
+                    .graph
                     .get_mut(&container)
                     .expect("`Container` not found");
 
@@ -148,14 +120,14 @@ impl Reducible for ContainerTreeState {
                 }
             }
 
-            ContainerTreeStateAction::UpdateAsset(asset) => {
+            GraphStateAction::UpdateAsset(asset) => {
                 let container = current
                     .asset_map
                     .get(&asset.rid)
                     .expect("`Asset` `Container` not found");
 
                 let mut container = current
-                    .tree
+                    .graph
                     .get_mut(&container)
                     .expect("`Container` not found");
 
@@ -163,11 +135,11 @@ impl Reducible for ContainerTreeState {
                 container.assets.insert(asset.rid.clone(), asset.clone());
             }
 
-            ContainerTreeStateAction::SetDragOverContainer(rid) => {
+            GraphStateAction::SetDragOverContainer(rid) => {
                 current.dragover_container = Some(rid);
             }
 
-            ContainerTreeStateAction::ClearDragOverContainer => {
+            GraphStateAction::ClearDragOverContainer => {
                 current.dragover_container = None;
             }
         };
@@ -176,8 +148,8 @@ impl Reducible for ContainerTreeState {
     }
 }
 
-pub type ContainerTreeStateReducer = UseReducerHandle<ContainerTreeState>;
+pub type GraphStateReducer = UseReducerHandle<GraphState>;
 
 #[cfg(test)]
-#[path = "./container_tree_state_test.rs"]
-mod container_tree_state_test;
+#[path = "./graph_state_test.rs"]
+mod graph_state_test;

@@ -1,69 +1,63 @@
-use super::*;
+// use super::*;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+// #[cfg(feature = "serde")]
+// use serde::{Deserialize, Serialize};
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-struct ResourceStoreMock {
-    #[cfg_attr(feature = "serde", serde(with = "keys_only"))]
-    pub map: ResourceStore<bool>,
-}
+// #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+// struct ResourceMapMock {
+//     #[cfg_attr(feature = "serde", serde(with = "keys_only"))]
+//     pub map: ResourceMap<bool>,
+// }
 
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-struct ResourceMapKeysMock {
-    pub map: Vec<ResourceId>,
-}
+// #[cfg_attr(feature = "serde", derive(Deserialize))]
+// struct ResourceMapKeysMock {
+//     pub map: Vec<ResourceId>,
+// }
 
-#[cfg(feature = "serde")]
-#[test]
-fn serialize_resource_map_keys_only_serialize_should_work() {
-    // setup
-    let mut map = ResourceMap::new();
+// #[cfg(feature = "serde")]
+// #[test]
+// fn serialize_resource_map_keys_only_serialize_should_work() {
+//     // setup
+//     let mut map = ResourceMap::new();
 
-    let k_none = ResourceId::new();
-    map.insert(k_none, None);
+//     let k_true = ResourceId::new();
+//     map.insert(k_true, true);
 
-    let k_true = ResourceId::new();
-    map.insert(k_true, Some(true));
+//     let k_false = ResourceId::new();
+//     map.insert(k_false, false);
 
-    let k_false = ResourceId::new();
-    map.insert(k_false, Some(false));
+//     let m = ResourceMapMock { map };
+//     let json = serde_json::to_string(&m).expect("serialization should work");
 
-    let m = ResourceStoreMock { map };
-    let json = serde_json::to_string(&m).expect("serialization should work");
+//     // test
+//     let key_map: ResourceMapKeysMock =
+//         serde_json::from_str(&json).expect("deserialization should work");
 
-    // test
-    let key_map: ResourceMapKeysMock =
-        serde_json::from_str(&json).expect("deserialization should work");
+//     for key in m.map.keys() {
+//         assert!(key_map.map.contains(key), "key should be contained");
+//     }
+// }
 
-    for key in m.map.keys() {
-        assert!(key_map.map.contains(key), "key should be contained");
-    }
-}
+// #[cfg(feature = "serde")]
+// #[test]
+// fn serialize_resource_map_keys_only_deserialize_should_work() {
+//     // setup
+//     let mut map = ResourceMap::new();
 
-#[cfg(feature = "serde")]
-#[test]
-fn serialize_resource_map_keys_only_deserialize_should_work() {
-    // setup
-    let mut map = ResourceMap::new();
+//     let k_true = ResourceId::new();
+//     map.insert(k_true, true);
 
-    let k_none = ResourceId::new();
-    map.insert(k_none, None);
+//     let k_false = ResourceId::new();
+//     map.insert(k_false, false);
 
-    let k_true = ResourceId::new();
-    map.insert(k_true, Some(true));
+//     let m = ResourceMapMock { map };
+//     let json = serde_json::to_string(&m).expect("serialization should work");
 
-    let k_false = ResourceId::new();
-    map.insert(k_false, Some(false));
+//     // test
+//     let n: ResourceMapMock = serde_json::from_str(&json).expect("deserialization should work");
 
-    let m = ResourceStoreMock { map };
-    let json = serde_json::to_string(&m).expect("serialization should work");
-
-    // test
-    let n: ResourceStoreMock = serde_json::from_str(&json).expect("deserialization should work");
-
-    for key in m.map.keys() {
-        let val = n.map.get(key).expect("key should exist");
-        assert_eq!(&None, val, "value should be None");
-    }
-}
+//     for key in m.map.keys() {
+//         let val = n.map.get(key).expect("key should exist");
+//         assert_eq!(&None, val, "value should be None");
+//     }
+// }

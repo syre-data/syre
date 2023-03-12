@@ -63,6 +63,7 @@ impl Database {
             Command::ContainerCommand(cmd) => self.handle_command_container(cmd),
             Command::DatabaseCommand(cmd) => self.handle_command_database(cmd),
             Command::ProjectCommand(cmd) => self.handle_command_project(cmd),
+            Command::GraphCommand(cmd) => self.handle_command_graph(cmd),
             Command::ScriptCommand(cmd) => self.handle_command_script(cmd),
         }
     }

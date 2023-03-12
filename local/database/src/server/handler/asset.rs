@@ -14,7 +14,6 @@ impl Database {
             AssetCommand::Get(rid) => {
                 let asset: Option<CoreAsset> = {
                     if let Some(container) = self.store.get_asset_container(&rid) {
-                        let container = container.lock().expect("could not lock `Container`");
                         container.assets.get(&rid).cloned().into()
                     } else {
                         None
@@ -32,7 +31,6 @@ impl Database {
                             return None;
                         };
 
-                        let container = container.lock().expect("could not lock `Container`");
                         let Some(asset) = container.assets.get(&rid) else {
                             return None;
                         };
@@ -60,7 +58,7 @@ impl Database {
             }
 
             AssetCommand::FindWithinTree(root, filter) => {
-                let assets = self.store.find_assets_within_tree(&root, filter);
+                let assets = self.store.find_assets_with_metadata(&root, filter);
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }
         }
@@ -71,13 +69,16 @@ impl Database {
         rid: &ResourceId,
         properties: StandardProperties,
     ) -> Result {
-        let Some(container) = self.store.get_asset_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist".to_string())).into());
+        let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
         };
 
-        let mut container = container.lock().expect("could not lock `Container`");
+        let Some(container) = self.store.get_container_mut(&container) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+        };
+
         let Some(asset) = container.assets.get_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
         };
 
         asset.properties = properties;

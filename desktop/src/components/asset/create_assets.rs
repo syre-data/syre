@@ -1,7 +1,7 @@
 //! Create an [`Asset`](thot_core::project::Asset).
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
-use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
+use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_container_path;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
@@ -25,8 +25,8 @@ pub struct CreateAssetsProps {
 // @todo: Alert users for conflicting file paths or already created assets.
 #[function_component(CreateAssets)]
 pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeReducer` context not found");
+    let graph_state =
+        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
 
     let paths: UseStateHandle<Vec<PathBuf>> = use_state(|| Vec::new());
     let file_action = use_state(|| AssetFileAction::Copy);
@@ -35,7 +35,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
     let container_path = use_container_path(props.container.clone())?;
 
     let onsubmit = {
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let container_id = props.container.clone();
         let paths = paths.clone();
         let file_action = file_action.clone();
@@ -55,7 +55,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
                 })
                 .collect::<Vec<AddAssetInfo>>();
 
-            let tree_state = tree_state.clone();
+            let graph_state = graph_state.clone();
             let container_id = container_id.clone();
             spawn_local(async move {
                 // create assets
@@ -92,7 +92,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
                     .collect();
 
                 // update container
-                tree_state.dispatch(ContainerTreeStateAction::InsertContainerAssets(
+                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                     container_id,
                     assets,
                 ));

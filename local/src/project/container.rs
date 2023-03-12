@@ -200,27 +200,6 @@ pub fn new_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> {
     init_child(child, container)
 }
 
-// /// Get the paths of a Container's children.
-// pub fn children_paths(path: &Path) -> Result<Vec<PathBuf>> {
-//     if !path_is_container(path) {
-//         return Err(Error::ContainerError(ContainerError::PathNotAContainer(
-//             PathBuf::from(path),
-//         )));
-//     }
-
-//     let container = Container::load(path)?;
-//     container.children_paths()
-// }
-
-/// Duplicates a tree.
-///
-/// # Arguments
-/// 1. Base path to the root of the tree.
-pub fn duplicate_tree(path: &Path) -> Result<Container> {
-    let root = Container::load(&path)?;
-    root.duplicate()
-}
-
 #[cfg(test)]
 #[path = "./container_test.rs"]
 mod container_test;

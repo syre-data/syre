@@ -1,27 +1,26 @@
 //! Database for storing resources.
 use crate::error::Result;
+use has_id::HasId;
 use settings_manager::LocalSettings;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
+use thot_core::graph::ResourceTree as CoreResourceTree;
 use thot_core::project::{
     Asset as CoreAsset, Container as CoreContainer, Metadata, Script as CoreScript,
 };
-use thot_core::types::ResourcePath;
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_local::graph::ResourceTree;
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
 };
-use thot_local::types::resource_store::ResourceWrapper;
-use thot_local::types::ResourceValue;
 
 // *************
 // *** Types ***
 // *************
 
-pub type ContainerWrapper = ResourceWrapper<LocalContainer>;
+pub type ContainerTree = ResourceTree<LocalContainer>;
 
 pub type IdMap = HashMap<ResourceId, ResourceId>;
 
@@ -31,18 +30,16 @@ pub type PathMap = HashMap<PathBuf, ResourceId>;
 /// Map of [`ResourceId`] to [`Project`](LocalProject).
 pub type ProjectMap = ResourceMap<LocalProject>;
 
-/// Map of [`ResourceId`] to [`Container`](LocalContainer).
-pub type ContainerMap = ResourceMap<ContainerWrapper>;
-
 /// Map from [`Project`](LocalProject)s to their [`Script`](CoreScript)s.
 pub type ProjectScriptsMap = HashMap<ResourceId, ProjectScripts>;
+
+/// Map from a `Project`'s id to its [`ContainerTree`]
+pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 
 // *****************
 // *** Datastore ***
 // *****************
 
-// @todo: Datastore should only store data.
-// Move functionality into Database.
 /// A store for [`Container`](LocalContainer)s.
 /// Assets can be referenced as well.
 ///
@@ -58,11 +55,14 @@ pub struct Datastore {
     /// Map from a [`Project`](LocalProject)'s path to its [`ResourceId`].
     project_paths: PathMap,
 
-    /// [`Container`](LocalContainer) store.
-    containers: ContainerMap,
+    /// Map from [`Project`] to its graph.
+    graphs: ProjectGraphMap,
 
     /// Map from a [`Container`](LocalContainer)'s path to its [`ResourceId`].
     container_paths: PathMap,
+
+    /// Map from a `Container`'s id to its `Project`.
+    container_projects: IdMap,
 
     /// Map from an [`Asset`]'s [`ResourceId`] to its [`Container`]'s.
     assets: IdMap,
@@ -79,8 +79,9 @@ impl Datastore {
         Datastore {
             projects: ProjectMap::new(),
             project_paths: PathMap::new(),
-            containers: ContainerMap::new(),
+            graphs: ProjectGraphMap::new(),
             container_paths: PathMap::new(),
+            container_projects: IdMap::new(),
             assets: IdMap::new(),
             script_projects: IdMap::new(),
             scripts: ProjectScriptsMap::new(),
@@ -100,11 +101,11 @@ impl Datastore {
     /// # Panics
     /// + If `project.path()` returns an error.
     pub fn insert_project(&mut self, project: LocalProject) -> Result {
-        let cid = project.rid.clone();
+        let pid = project.rid.clone();
         let base_path = project.base_path().expect("invalid `Project` base path");
 
-        self.projects.insert(cid.clone(), project);
-        self.project_paths.insert(base_path, cid);
+        self.projects.insert(pid.clone(), project);
+        self.project_paths.insert(base_path, pid);
 
         Ok(())
     }
@@ -119,161 +120,234 @@ impl Datastore {
         self.projects.get_mut(&rid)
     }
 
-    pub fn get_path_project(&self, path: &PathBuf) -> Option<&ResourceId> {
+    /// Gets the `Project` associated to the given path.
+    pub fn get_path_project(&self, path: &Path) -> Option<&ResourceId> {
         self.project_paths.get(path)
+    }
+
+    /// Gets the `Project` the `Container` belongs to.
+    pub fn get_container_project(&self, container: &ResourceId) -> Option<&ResourceId> {
+        self.container_projects.get(container)
+    }
+
+    // *************
+    // *** graph ***
+    // *************
+
+    /// Gets a [`Project`](LocalProjet)'s [`ContainerTree`].
+    ///
+    /// # Arguments
+    /// 1. [`ResourceId`] of the [`Project`](LocalProjet).
+    pub fn get_project_graph(&self, rid: &ResourceId) -> Option<&ContainerTree> {
+        self.graphs.get(&rid)
+    }
+
+    /// Gets the graph of a `Container`.
+    ///
+    /// # Arguments
+    /// 1. [`ResourceId`] of the [`Container`](LocalContainer).
+    pub fn get_container_graph(&self, container: &ResourceId) -> Option<&ContainerTree> {
+        let Some(project) = self.container_projects.get(&container) else {
+            return None;
+        };
+
+        let graph = self
+            .graphs
+            .get(project)
+            .expect("`Project` present without graph");
+
+        Some(graph)
+    }
+
+    /// Gets the `mut`able graph of a `Container`.
+    ///
+    /// # Arguments
+    /// 1. [`ResourceId`] of the [`Container`](LocalContainer).
+    fn get_container_graph_mut(&mut self, container: &ResourceId) -> Option<&mut ContainerTree> {
+        let Some(project) = self.container_projects.get(&container) else {
+            return None;
+        };
+
+        let graph = self
+            .graphs
+            .get_mut(project)
+            .expect("`Project` present without graph");
+
+        Some(graph)
+    }
+
+    /// Inserts a [`Project`](LocalProjet)'s [`ContainerTree`].
+    ///
+    /// # Arguments
+    /// 1. [`ResourceId`] of the [`Project`](LocalProjet).
+    /// 2. The [`ContainerTree`].
+    ///
+    /// # Returns
+    /// The old [`ContainerTree`].
+    pub fn insert_project_graph(
+        &mut self,
+        rid: ResourceId,
+        graph: ContainerTree,
+    ) -> Option<ContainerTree> {
+        self.graphs.insert(rid, graph)
+    }
+
+    /// Insert a graph into another.
+    pub fn insert_subgraph(
+        &mut self,
+        parent: &ResourceId,
+        graph: CoreResourceTree<LocalContainer>,
+    ) -> Result {
+        let Some(project) = self.get_container_project(parent).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
+        };
+
+        let p_graph = self
+            .graphs
+            .get_mut(&project)
+            .expect("`Project` graph not found");
+
+        for (cid, container) in graph.nodes() {
+            // map container to project
+            self.container_projects.insert(cid.clone(), project.clone());
+
+            // map path to container
+            self.container_paths.insert(
+                container.base_path().expect("`Container` path not set"),
+                cid.clone(),
+            );
+
+            // map assets to containers
+            for aid in container.assets.keys() {
+                self.assets.insert(aid.clone(), cid.clone());
+            }
+        }
+
+        p_graph.insert_tree(parent, graph);
+        Ok(())
     }
 
     // *****************
     // *** container ***
     // *****************
 
-    // @todo: Ensure the `Container` controls the settings file.
-    /// Inserts a [`Container`](LocalContainer) into the database.
-    /// Creates mappings for the [`Container`](LocalContainer)'s [`Assets`].
-    ///
-    /// # Returns
-    /// Old [`Container`](LocalContainer) or `None`.
-    ///
-    /// # Panics
-    /// + If `container.path()` returns an error.
-    ///
-    /// # Notes
-    /// + Does not insert children.
-    pub fn insert_container(
-        &mut self,
-        container: LocalContainer,
-    ) -> Result<Option<ContainerWrapper>> {
-        let cid = container.rid.clone();
-        let base_path = container.base_path()?;
-
-        for (rid, _asset) in container.assets.iter() {
-            self.assets.insert(rid.clone(), cid.clone());
-        }
-
-        let o_container = self
-            .containers
-            .insert(cid.clone(), Arc::new(Mutex::new(container)));
-
-        self.container_paths.insert(base_path, cid);
-        Ok(o_container)
-    }
-
-    // @todo: Ensure the `Container` controls the settings file.
-    /// Inserts a [`Container`](LocalContainer) into the database,
-    /// recursing on its children to insret the entire tree.
-    /// Creates mappings for the [`Container`](LocalContainer)'s [`Assets`].
-    pub fn insert_container_tree(&mut self, container: ContainerWrapper) -> Result {
-        let (cid, base_path) = {
-            let container = container.lock().expect("could not lock `Container`");
-
-            // recurse on children
-            for child in container.children.values().clone() {
-                let ResourceValue::Resource(child) = child.clone() else {
-                    // @todo: Handle `ResourceValue::Path` variant.
-                    panic!("child `Container` not loaded");
-                };
-
-                self.insert_container_tree(child)?;
-            }
-
-            // insest assets
-            for (rid, _asset) in container.assets.iter() {
-                self.assets.insert(rid.clone(), container.rid.clone());
-            }
-
-            // get container info while unwrapped
-            (container.rid.clone(), container.base_path()?)
-        };
-
-        // path map
-        self.container_paths.insert(base_path, cid.clone());
-
-        // insert self
-        self.containers.insert(cid.clone(), container);
-        Ok(())
-    }
-
-    /// Gets a [`Container`](LocalContainer) from the database if it exists,
-    /// otherwise `None`.
-    pub fn get_container(&self, rid: &ResourceId) -> Option<ContainerWrapper> {
-        let Some(container) = self.containers.get(rid) else {
+    /// Gets a [`Container`](LocalContainer).
+    pub fn get_container(&self, container: &ResourceId) -> Option<&LocalContainer> {
+        let Some(graph) = self.get_container_graph(container) else {
             return None;
         };
 
-        Some(container.clone())
+        let Some(node) = graph.get(container) else {
+            return None;
+        };
+
+        Some(node.data())
     }
 
-    pub fn find_containers(&self, root: &ResourceId, filter: StdFilter) -> ContainerMap {
-        let mut found = HashMap::new();
-        let Some(root) = self.containers.get(root) else {
+    /// Gets a `mut`able [`Container`](LocalContainer).
+    pub fn get_container_mut(&mut self, container: &ResourceId) -> Option<&mut LocalContainer> {
+        let Some(graph) = self.get_container_graph_mut(container) else {
+            return None;
+        };
+
+        let Some(node) = graph.get_mut(container) else {
+            return None;
+        };
+
+        Some(node)
+    }
+
+    /// Finds `Container`'s that match the filter.
+    ///
+    /// # Note
+    /// + `Metadata` is not inherited.
+    ///
+    /// # See also
+    /// + [`find_containers_with_metadata`]
+    pub fn find_containers(
+        &self,
+        root: &ResourceId,
+        filter: StdFilter,
+    ) -> HashSet<&LocalContainer> {
+        let mut found = HashSet::new();
+        let Some(graph) = self.get_container_graph(root) else {
             return found;
         };
 
-        let root_val = root.lock().expect("could not lock `Container`");
-        for cid in root_val.children.keys() {
-            let matches = self.find_containers(&cid, filter.clone());
-            for (mid, m) in matches.clone().into_iter() {
-                found.insert(mid, m);
-            }
-        }
+        let nodes = graph
+            .descendants(&root)
+            .expect("`Container` not found in graph");
 
-        let root_val: CoreContainer = root_val.clone().into();
-        if filter.matches(&root_val) {
-            found.insert(root_val.rid, root.clone());
+        for node in nodes {
+            let node = graph.get(&node).expect("`Container` not found in graph");
+
+            // @todo[4]: Implement for `LocalContainer`.
+            let container: CoreContainer = node.data().clone().into();
+            if filter.matches(&container) {
+                found.insert(node.data());
+            }
         }
 
         found
     }
 
-    pub fn find_containers_within_tree(
+    /// Finds `Container`'s that match the filter with inherited `Metadata`.
+    ///
+    /// # See also
+    /// + [`find_containers`]
+    pub fn find_containers_with_metadata(
         &self,
         root: &ResourceId,
         filter: StdFilter,
-    ) -> ContainerMap {
-        self.find_containers_within_tree_recursive(&root, filter, Metadata::default())
-    }
+    ) -> HashSet<&LocalContainer> {
+        /// Recursively finds mathcing `Containers`, inheriting metadata.
+        fn find_containers_with_metadata_recursive<'a>(
+            root: &ResourceId,
+            graph: &'a ContainerTree,
+            filter: StdFilter,
+            mut metadata: Metadata,
+        ) -> HashSet<&'a LocalContainer> {
+            let mut found = HashSet::new();
+            let root = graph.get(root).expect("`Container` not in graph");
 
-    fn find_containers_within_tree_recursive(
-        &self,
-        root: &ResourceId,
-        filter: StdFilter,
-        metadata: Metadata,
-    ) -> ContainerMap {
-        let mut found = HashMap::new();
-        let Some(root) = self.containers.get(root) else {
-            return found;
+            let children = graph.children(root.id()).expect("`Container` not in graph");
+            for (key, value) in root.data().properties.metadata.clone().into_iter() {
+                metadata.insert(key, value);
+            }
+
+            for child in children {
+                let node = graph.get(&child).expect("child `Container` not in graph");
+                for matching in find_containers_with_metadata_recursive(
+                    node.id(),
+                    &graph,
+                    filter.clone(),
+                    metadata.clone(),
+                )
+                .into_iter()
+                {
+                    found.insert(matching);
+                }
+            }
+
+            let mut container: CoreContainer = root.data().clone().into();
+            container.properties.metadata = metadata;
+            if filter.matches(&container) {
+                found.insert(root.data());
+            }
+
+            found
+        }
+
+        // find mathing containers
+        let Some(graph) = self.get_container_graph(root) else {
+            return HashSet::new();
         };
 
-        let mut metadata = metadata.clone();
-        let root_val = root.lock().expect("could not lock `Container`");
-        for (key, value) in root_val.properties.metadata.clone().into_iter() {
-            metadata.insert(key, value);
-        }
-
-        for cid in root_val.children.keys() {
-            let matches =
-                self.find_containers_within_tree_recursive(&cid, filter.clone(), metadata.clone());
-            for (mid, m) in matches.clone().into_iter() {
-                found.insert(mid, m);
-            }
-        }
-
-        let mut root_val: CoreContainer = root_val.clone().into();
-        root_val.properties.metadata = metadata;
-        if filter.matches(&root_val) {
-            found.insert(root_val.rid, root.clone());
-        }
-
-        found
+        find_containers_with_metadata_recursive(root, graph, filter, Metadata::new())
     }
 
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
-    }
-
-    /// Removes a [`Container`](LocalContainer) from the database.
-    pub fn remove_container(&mut self, rid: &ResourceId) -> Option<ContainerWrapper> {
-        self.containers.remove(rid)
     }
 
     // *************
@@ -288,12 +362,16 @@ impl Datastore {
 
     /// Gets an [`Asset`](LocalAsset)'s [`Container`](LocalContainer)
     /// from the database if it exists, otherwise `None`.
-    pub fn get_asset_container(&self, rid: &ResourceId) -> Option<ContainerWrapper> {
+    pub fn get_asset_container(&self, rid: &ResourceId) -> Option<&LocalContainer> {
         let Some(container) = self.assets.get(rid) else {
             return None;
         };
 
-        self.containers.get(container).cloned()
+        let container = self
+            .get_container(container)
+            .expect("`Container` not found in graph");
+
+        Some(container)
     }
 
     /// Inserts a map from the `Asset` to its `Container`.
@@ -307,98 +385,116 @@ impl Datastore {
         asset: CoreAsset,
         container: ResourceId,
     ) -> Result<Option<CoreAsset>> {
-        let Some(container) = self.containers.get(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded".to_string())).into());
+        let Some(project) = self.container_projects.get(&container) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
         };
 
-        let mut container = container.lock().expect("could not lock `Container`");
+        let graph = self
+            .graphs
+            .get_mut(project)
+            .expect("`Project` present without graph");
+
+        let Some(container) = graph.get_mut(&container) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
+        };
+
         let aid = asset.rid.clone();
         let cid = container.rid.clone();
         let o_asset = container.assets.insert(aid.clone(), asset);
         container.save()?;
-        drop(container); // needed to end immutable borrow of `self` for `insert_asset`
 
         self.insert_asset(aid, cid);
         Ok(o_asset)
     }
 
+    /// Finds `Asset`'s that match the filter.
+    ///
+    /// # Note
+    /// + `Metadata` is not inherited.
+    ///
+    /// # See also
+    /// + [`find_assets_with_metadata`]
     pub fn find_assets(&self, root: &ResourceId, filter: StdFilter) -> HashSet<CoreAsset> {
         let mut found = HashSet::new();
-        let Some(root) = self.containers.get(root) else {
+        let Some(graph) = self.get_container_graph(root) else {
             return found;
         };
 
-        let root_val = root.lock().expect("could not lock `Container`");
-        for cid in root_val.children.keys() {
-            let matches = self.find_assets(&cid, filter.clone());
-            for asset in matches.into_iter() {
-                found.insert(asset);
-            }
-        }
+        let nodes = graph
+            .descendants(root)
+            .expect("`Container` not found in graph");
 
-        for asset in root_val.assets.values() {
-            if filter.matches(asset) {
-                found.insert(asset.clone());
+        for node in nodes {
+            let container = graph.get(&node).expect("`Container` not found in graph");
+
+            for asset in container.data().assets.values() {
+                if filter.matches(asset) {
+                    found.insert(asset.clone());
+                }
             }
         }
 
         found
     }
 
-    pub fn find_assets_within_tree(
+    /// Finds `Asset`'s that match the filter with inherited `Metadata`.
+    ///
+    /// # See also
+    /// + [`find_assets`]
+    pub fn find_assets_with_metadata(
         &self,
         root: &ResourceId,
         filter: StdFilter,
-    ) -> HashSet<CoreAsset> {
-        self.find_assets_within_tree_recursive(&root, filter, Metadata::default())
-    }
+    ) -> HashSet<&CoreAsset> {
+        /// Recursively finds mathcing `Containers`, inheriting metadata.
+        fn find_assets_with_metadata_recursive<'a>(
+            root: &ResourceId,
+            graph: &'a ContainerTree,
+            filter: StdFilter,
+            mut metadata: Metadata,
+        ) -> HashSet<&'a CoreAsset> {
+            let mut found = HashSet::new();
+            let root = graph.get(root).expect("`Container` not in graph");
 
-    fn find_assets_within_tree_recursive(
-        &self,
-        root: &ResourceId,
-        filter: StdFilter,
-        metadata: Metadata,
-    ) -> HashSet<CoreAsset> {
-        let mut found = HashSet::new();
-        let Some(root) = self.containers.get(root) else {
-            return found;
-        };
-
-        let mut metadata = metadata.clone();
-        let root_val = root.lock().expect("could not lock `Container`");
-        for (key, value) in root_val.properties.metadata.clone().into_iter() {
-            metadata.insert(key, value);
-        }
-
-        for cid in root_val.children.keys() {
-            let matches =
-                self.find_assets_within_tree_recursive(&cid, filter.clone(), metadata.clone());
-
-            for asset in matches.into_iter() {
-                found.insert(asset);
-            }
-        }
-
-        for asset in root_val.assets.values() {
-            let mut asset = asset.clone();
-            let mut metadata = metadata.clone();
-            for (key, value) in asset.properties.metadata.clone().into_iter() {
+            let children = graph.children(root.id()).expect("`Container` not in graph");
+            for (key, value) in root.data().properties.metadata.clone().into_iter() {
                 metadata.insert(key, value);
             }
 
-            asset.properties.metadata = metadata;
-            if filter.matches(&asset) {
-                let mut abs_path = root_val.base_path().expect("`Container` path not set");
-                abs_path.push(asset.path.clone().as_path());
-                let abs_path = ResourcePath::new(abs_path)
-                    .expect("could not convert `Asset` path to `ResourcePath`");
-
-                asset.path = abs_path;
-                found.insert(asset);
+            for child in children {
+                let node = graph.get(&child).expect("child `Container` not in graph");
+                for matching in find_assets_with_metadata_recursive(
+                    node.id(),
+                    &graph,
+                    filter.clone(),
+                    metadata.clone(),
+                )
+                .into_iter()
+                {
+                    found.insert(matching);
+                }
             }
+
+            for asset in root.data().assets.values() {
+                let mut asset_val = asset.clone();
+                for (key, value) in metadata.clone().into_iter() {
+                    asset_val.properties.metadata.insert(key, value);
+                }
+
+                if filter.matches(&asset_val) {
+                    found.insert(&asset);
+                }
+            }
+
+            found
         }
 
-        found
+        // find mathing containers
+        let Some(graph) = self.get_container_graph(root) else {
+            return HashSet::new();
+        };
+
+        find_assets_with_metadata_recursive(root, graph, filter, Metadata::new())
     }
 
     // **************
@@ -433,7 +529,7 @@ impl Datastore {
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
             // project does not exist
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
         };
 
         let sid = script.rid.clone();

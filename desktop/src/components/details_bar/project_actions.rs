@@ -4,7 +4,7 @@ use crate::app::{ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::script::AddScriptArgs;
 use crate::common::invoke;
 use crate::components::canvas::CanvasStateReducer;
-use crate::hooks::{use_project, use_project_scripts};
+use crate::hooks::use_project;
 use serde_wasm_bindgen as swb;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 #[function_component(ProjectActions)]
-pub fn project_actions() -> Html {
+pub fn project_actions() -> HtmlResult {
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
@@ -25,23 +25,18 @@ pub fn project_actions() -> Html {
         panic!("`Project` not loaded");
     };
 
-    let project_scripts = use_project_scripts(canvas_state.project.clone());
-
     let onadd_scripts = {
         let projects_state = projects_state.clone();
-        let project_scripts = project_scripts.clone();
         let project = project.rid.clone();
 
         Callback::from(move |paths: HashSet<PathBuf>| {
-            let projects_state = projects_state.clone();
-            let project_scripts = project_scripts.clone();
             let project = project.clone();
+            let projects_state = projects_state.clone();
+            let Some(mut project_scripts) = projects_state.project_scripts.get(&project).cloned() else {
+                panic!("`Project`'s `Scripts` not loaded");
+            };
 
             spawn_local(async move {
-                let Some(mut scripts) = (*project_scripts).clone() else {
-                    panic!("`Project` `Script`s not loaded");
-                };
-
                 for path in paths {
                     let project = project.clone();
                     let script = invoke(
@@ -57,20 +52,22 @@ pub fn project_actions() -> Html {
                     let script: CoreScript = swb::from_value(script)
                         .expect("could not convert result of `add_script` to `Script`");
 
-                    scripts.insert(script.rid.clone(), script);
+                    project_scripts.insert(script.rid.clone(), script);
                 }
 
-                projects_state
-                    .dispatch(ProjectsStateAction::InsertProjectScripts(project, scripts));
+                projects_state.dispatch(ProjectsStateAction::InsertProjectScripts(
+                    project,
+                    project_scripts,
+                ));
             });
         })
     };
 
-    html! {
+    Ok(html! {
         <div>
             <ProjectScripts onadd={onadd_scripts} />
         </div>
-    }
+    })
 }
 
 #[cfg(test)]

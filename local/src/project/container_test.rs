@@ -49,7 +49,6 @@ fn init_on_non_resource_should_work() {
         serde_json::from_str(container_json.as_str()).expect("container should be valid json");
 
     assert_eq!(0, container.assets.len(), "assets should be empty");
-    assert_eq!(0, container.children.len(), "children should be equal");
     assert_eq!(0, container.scripts.len(), "scripts should be empty");
 }
 

@@ -1,17 +1,21 @@
 //! Set the data root of a project.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::PathBufArgs;
+use crate::commands::graph::InitProjectGraphArgs;
 use crate::commands::project::{GetProjectPathArgs, UpdateProjectArgs};
 use crate::common::invoke;
 use crate::hooks::use_project;
 use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
+use thot_core::graph::ResourceTree;
+use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_ui::components::file_selector::FileSelectorProps;
 use thot_ui::components::{FileSelector, FileSelectorAction};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
+
+type ContainerTree = ResourceTree<Container>;
 
 #[derive(Properties, PartialEq)]
 pub struct SetDataRootProps {
@@ -72,14 +76,15 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
 
             {
                 // initialize data root as container
+                let project = project.rid.clone();
                 let path = path.clone();
                 spawn_local(async move {
-                    let rid = invoke("init_container", PathBufArgs { path })
+                    let rid = invoke("init_project_graph", InitProjectGraphArgs { path, project })
                         .await
-                        .expect("could not invoke `init_container`");
+                        .expect("could not invoke `init_graph`");
 
-                    let _rid: ResourceId = swb::from_value(rid)
-                        .expect("could not convert `init_container` result from JsValue");
+                    let _rid: ContainerTree = swb::from_value(rid)
+                        .expect("could not convert `init_graph` result from JsValue");
                 });
             }
 

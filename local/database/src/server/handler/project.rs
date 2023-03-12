@@ -91,7 +91,7 @@ impl Database {
 
     fn update_project(&mut self, update: CoreProject) -> Result {
         let Some(project) = self.store.get_project_mut(&update.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist".to_string())).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
         **project = update;

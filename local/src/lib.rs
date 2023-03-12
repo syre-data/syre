@@ -12,6 +12,9 @@ pub mod types;
 #[cfg(feature = "fs")]
 pub mod project;
 
+#[cfg(feature = "fs")]
+pub mod graph;
+
 #[cfg(test)]
 #[path = "./lib_test.rs"]
 mod lib_test;

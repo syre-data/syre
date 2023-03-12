@@ -1,22 +1,32 @@
 //! Common functionality
-use crate::Result;
+use crate::error::{Error, Result};
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_wasm_bindgen as swb;
-use wasm_bindgen::JsValue;
+use thot_desktop_lib::error::Error as LibError;
 
 // @todo: Deserialize result.
-pub async fn invoke(command: &str, args: impl Serialize) -> Result<JsValue> {
-    let res = inner::invoke(command, swb::to_value(&args)?).await;
-    Ok(res)
+pub async fn invoke<T>(command: &str, args: impl Serialize) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    inner::invoke(command, swb::to_value(&args)?)
+        .await
+        .map(|val| swb::from_value(val).expect("could not convert result"))
+        .map_err(|err| {
+            let err: LibError = swb::from_value(err).expect("could not convert error");
+            Error::Binding(format!("{err:?}"))
+        })
 }
 
 mod inner {
     use wasm_bindgen::prelude::*;
+    use wasm_bindgen::JsValue;
 
     #[wasm_bindgen]
     extern "C" {
-        #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "tauri"])]
-        pub async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+        #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "tauri"], catch)]
+        pub async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
     }
 }
 

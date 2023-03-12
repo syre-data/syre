@@ -3,6 +3,7 @@ use crate::components::details_bar::DetailsBarWidget;
 use std::collections::HashSet;
 use std::rc::Rc;
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_ui::types::ContainerPreview;
 use yew::prelude::*;
 
 #[derive(PartialEq, Clone)]
@@ -12,6 +13,9 @@ enum ResourceType {
 }
 
 pub enum CanvasStateAction {
+    /// Set the preview state.
+    SetPreview(ContainerPreview),
+
     /// Set the active widget in the details bar.
     SetDetailsBarWidget(DetailsBarWidget),
 
@@ -45,6 +49,9 @@ pub struct CanvasState {
     /// Selected resources.
     pub selected: HashSet<ResourceId>,
 
+    /// Current preview view.
+    pub preview: ContainerPreview,
+
     /// `Container` tree visibility state.
     /// Key indicates the root of the hidden tree.
     visible: ResourceMap<bool>,
@@ -57,6 +64,7 @@ pub struct CanvasState {
 impl CanvasState {
     pub fn new(project: ResourceId, show_side_bars: UseStateHandle<bool>) -> Self {
         Self {
+            preview: ContainerPreview::Assets,
             project,
             details_bar_widget: None,
             selected: HashSet::default(),
@@ -105,6 +113,10 @@ impl Reducible for CanvasState {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
+            CanvasStateAction::SetPreview(preview) => {
+                current.preview = preview;
+            }
+
             CanvasStateAction::SetDetailsBarWidget(widget) => {
                 current.details_bar_widget = Some(widget);
                 current.show_side_bars.set(true);

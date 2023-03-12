@@ -6,7 +6,7 @@ use crate::commands::common::UpdatePropertiesArgs;
 use crate::commands::container::NewChildArgs;
 use crate::common::invoke;
 use crate::components::canvas::{
-    CanvasStateAction, CanvasStateReducer, ContainerTreeStateAction, ContainerTreeStateReducer,
+    CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
 use serde_wasm_bindgen as swb;
 use std::str::FromStr;
@@ -100,8 +100,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeReducer` context not found");
+    let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
 
     let show_add_child_form = use_state(|| false);
     let new_child_parent = use_state(|| None);
@@ -132,7 +131,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     };
 
     let add_child = {
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let new_child_parent = new_child_parent.clone();
         let show_add_child_form = show_add_child_form.clone();
         let uid = auth_state
@@ -144,7 +143,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
         Callback::from(move |name: String| {
             show_add_child_form.set(false);
-            let tree_state = tree_state.clone();
+            let graph_state = graph_state.clone();
             let uid = uid.clone();
 
             let parent = (*new_child_parent)
@@ -166,7 +165,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 let mut child: CoreContainer = swb::from_value(child)
                     .expect("could not convert result of `new_child` from JsValue");
 
-                tree_state.dispatch(ContainerTreeStateAction::InsertChildContainer(
+                graph_state.dispatch(GraphStateAction::InsertChildContainer(
                     parent,
                     child.clone(),
                 ));
@@ -174,7 +173,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 // set creator
                 child.properties.creator = Creator::User(Some(UserId::Id(uid)));
 
-                tree_state.dispatch(ContainerTreeStateAction::UpdateContainerProperties(
+                graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
                     UpdatePropertiesArgs {
                         rid: child.rid,
                         properties: child.properties,
@@ -264,7 +263,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     {onadd_child} />
 
                 <div ref={children_ref} class={classes!("children")}>
-                    { tree_state.tree
+                    { graph_state.graph
                         .children(&props.root)
                         .expect("`Container` children not found")
                         .iter()
@@ -275,7 +274,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                                 <div class={classes!("child-node-marker")}
                                     data-rid={rid.clone()}>
 
-                                    { match tree_state.tree.get(&rid)
+                                    { match graph_state.graph.get(&rid)
                                         .expect("child `Container` not found")
                                         .properties
                                         .name
@@ -312,6 +311,11 @@ fn create_connectors(
     connectors: NodeRef,
     canvas_state: CanvasStateReducer,
 ) {
+    if root.get().is_none() || children.get().is_none() || connectors.get().is_none() {
+        // element not loaded
+        return;
+    }
+
     let root_elm = root
         .cast::<web_sys::HtmlElement>()
         .expect("could not cast root node to element");
@@ -591,4 +595,3 @@ fn create_visibility_control_element(
 #[cfg(test)]
 #[path = "./container_tree_test.rs"]
 mod container_tree_test;
-==== BASE ====

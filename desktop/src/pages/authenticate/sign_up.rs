@@ -59,7 +59,7 @@ pub fn sign_up() -> Html {
                     CreateUserArgs { email, name }
                 )
                 .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create user.".to_string())));
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create user.")));
                     return;
                 };
 
@@ -71,7 +71,7 @@ pub fn sign_up() -> Html {
                     UserCredentials { email: user.email }
                 )
                 .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.".to_string())));
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
                     return;
                 };
 

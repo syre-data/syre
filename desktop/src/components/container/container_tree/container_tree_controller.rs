@@ -1,10 +1,11 @@
 //! A container tree.
-use super::ContainerTree as ContainerTreeUi;
+use super::ContainerTree;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
-use crate::components::canvas::{ContainerTreeStateAction, ContainerTreeStateReducer};
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
+use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
 use serde_wasm_bindgen as swb;
@@ -37,27 +38,29 @@ enum AnalysisState {
 // *****************
 
 #[derive(Properties, PartialEq)]
-pub struct ContainerTreeControllerProps {
+pub struct GraphControllerProps {
     /// Path to the container.
     pub root: PathBuf,
 }
 
 /// Container tree with controls.
 #[function_component(ContainerTreeController)]
-pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
+pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
+    let canvas_state =
+        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
-    let tree_state = use_context::<ContainerTreeStateReducer>()
-        .expect("`ContainerTreeStateReducer` context not found");
+    let graph_state =
+        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
 
     let analysis_state = use_state(|| AnalysisState::Standby);
-    let node_ref = use_node_ref(); // @todo: Remove in favor of `tree_state.dragover_container`
+    let node_ref = use_node_ref(); // @todo: Remove in favor of `graph_state.dragover_container`
                                    // See https://github.com/yewstack/yew/issues/3125.
 
     // listen for file drop events
     {
         let app_state = app_state.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let node_ref = node_ref.clone();
 
         use_effect_with_deps(
@@ -153,18 +156,19 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                         let num_assets = assets.len();
 
                         // update container
-                        tree_state.dispatch(ContainerTreeStateAction::InsertContainerAssets(
+                        graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                             container_id.clone(),
                             assets,
                         ));
 
                         // notify user
                         let num_assets_msg = if num_assets == 0 {
-                            "No assets added".to_string()
+                            "No assets added"
                         } else if num_assets == 1 {
-                            "1 asset added".to_string()
+                            "1 asset added"
                         } else {
-                            format!("{} assets added", num_assets)
+                            // todo[3]: Display number of assets added.
+                            "Assets added"
                         };
 
                         app_state.dispatch(AppStateAction::AddMessageWithTimeout(
@@ -180,30 +184,30 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
     }
 
     let set_preview = {
-        let tree_state = tree_state.clone();
+        let canvas_state = canvas_state.clone();
 
         Callback::from(move |preview: ContainerPreview| {
-            tree_state.dispatch(ContainerTreeStateAction::SetPreview(preview));
+            canvas_state.dispatch(CanvasStateAction::SetPreview(preview));
         })
     };
 
     let analyze = {
         let app_state = app_state.clone();
-        let tree_state = tree_state.clone();
+        let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
-            let tree_state = tree_state.clone();
+            let graph_state = graph_state.clone();
             let analysis_state = analysis_state.clone();
 
             spawn_local(async move {
                 // analyze
-                let root = tree_state.tree.root();
+                let root = graph_state.graph.root();
                 let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::info("Running analysis".to_string()),
+                    Message::info("Running analysis"),
                     MESSAGE_TIMEOUT,
                     app_state.clone(),
                 ));
@@ -226,11 +230,11 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                 let update: ResourceTree<CoreContainer> = swb::from_value(update)
                     .expect("could not convert result of `get_container` to `Container`");
 
-                tree_state.dispatch(ContainerTreeStateAction::SetTree(update));
+                graph_state.dispatch(GraphStateAction::SetGraph(update));
 
                 analysis_state.set(AnalysisState::Complete);
                 app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                    "Analysis complete".to_string(),
+                    "Analysis complete",
                 )));
             })
         })
@@ -254,7 +258,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
 
             <div class={classes!("container-tree")}>
                 <Suspense fallback={container_tree_fallback}>
-                    <ContainerTreeUi root={tree_state.tree.root().clone()} />
+                    <ContainerTree root={graph_state.graph.root().clone()} />
                 </Suspense>
             </div>
         </div>

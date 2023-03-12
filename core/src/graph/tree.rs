@@ -1,19 +1,28 @@
 //! A tree graph
 use super::ResourceNode;
-use crate::error::ResourceError;
+use crate::error::{GraphError, ResourceError};
 use crate::types::{ResourceId, ResourceMap};
 use crate::Result;
 use has_id::HasId;
 use indexmap::IndexSet;
+use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+// *************
+// *** types ***
+// *************
+
 /// Map from node id to node.
-type NodeMap<D> = ResourceMap<ResourceNode<D>>;
+pub type NodeMap<D> = ResourceMap<ResourceNode<D>>;
 
 /// Map from parent node to children.
-type EdgeMap = ResourceMap<IndexSet<ResourceId>>;
+pub type EdgeMap = ResourceMap<IndexSet<ResourceId>>;
+
+// *********************
+// *** resource tree ***
+// *********************
 
 /// A tree graph.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -54,9 +63,50 @@ where
         }
     }
 
+    pub fn from_components(nodes: NodeMap<D>, edges: EdgeMap) -> Result<Self> {
+        let mut parents = ResourceMap::new();
+        let mut root = nodes
+            .keys()
+            .map(|id| id.clone())
+            .collect::<HashSet<ResourceId>>();
+
+        // compute parents, find root.
+        for (id, node) in nodes.iter() {
+            let Some(children) = edges.get(&id) else {
+                return Err(GraphError::InvalidGraph("node does not have edge map").into());
+            };
+
+            for child in children {
+                parents.insert(child.clone(), Some(node.id().clone()));
+                root.remove(child);
+            }
+        }
+
+        if root.len() != 1 {
+            return Err(GraphError::InvalidGraph("root `Node` not found").into());
+        }
+
+        let Some(root) = root.into_iter().next() else {
+            return Err(GraphError::InvalidGraph("could not get root").into());
+        };
+
+        parents.insert(root.clone(), None);
+
+        Ok(Self {
+            root,
+            nodes,
+            edges,
+            parents,
+        })
+    }
+
     /// Get the id of the root of the tree.
     pub fn root(&self) -> &ResourceId {
         &self.root
+    }
+
+    pub fn nodes(&self) -> &NodeMap<D> {
+        &self.nodes
     }
 
     /// Get a [`Node`] by its id.
@@ -80,11 +130,11 @@ where
     pub fn insert(&mut self, parent: ResourceId, data: D) -> Result {
         // check parent exists
         if !self.nodes.contains_key(&parent) {
-            return Err(ResourceError::DoesNotExist("parent `Node` not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("parent `Node` not found").into());
         }
 
         let Some(children) = self.edges.get_mut(&parent) else {
-            return Err(ResourceError::DoesNotExist("parent `Node` not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("parent `Node` not found").into());
         };
 
         let node = ResourceNode::new(data);
@@ -103,23 +153,51 @@ where
         self.edges.get(&parent).to_owned()
     }
 
-    /// Returns the parent of the child.
+    /// Returns the parent of a `Node`.
     ///
     /// # Errors
     /// + If the child does not exist.
     pub fn parent(&self, child: &ResourceId) -> Result<Option<&ResourceId>> {
         let Some(parent) = self.parents.get(&child) else {
-            return Err(ResourceError::DoesNotExist("`Node` not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` not found").into());
         };
 
         Ok(parent.as_ref())
+    }
+
+    /// Returns all the descendants of the root.
+    ///
+    /// # Returns
+    /// + `None` if the root `Node` does not exist.
+    /// + Descendant Ids, otherwise.
+    pub fn descendants(&self, root: &ResourceId) -> Option<HashSet<ResourceId>> {
+        let mut descendants = HashSet::new();
+        if !self.get(&root).is_some() {
+            return None;
+        }
+
+        descendants.insert(root.clone());
+
+        let Some(children) = self.children(root) else {
+            return Some(descendants);
+        };
+
+        for child in children {
+            if let Some(c_descendants) = self.descendants(child) {
+                for did in c_descendants {
+                    descendants.insert(did);
+                }
+            }
+        }
+
+        return Some(descendants);
     }
 
     /// Inserts a [`Tree`] as a subtree.
     pub fn insert_tree(&mut self, parent: &ResourceId, tree: Self) -> Result {
         // insert root
         let Some(p_edges) = self.edges.get_mut(&parent) else {
-            return Err(ResourceError::DoesNotExist("parent edges not found".to_string()).into());
+            return Err(ResourceError::DoesNotExist("parent edges not found").into());
         };
 
         let root = tree.root().clone();
@@ -173,18 +251,18 @@ where
     pub fn mv(&mut self, root: &ResourceId, parent: &ResourceId) -> Result {
         // remove from original parent
         let Some(Some(o_parent)) = self.parents.get(&root) else {
-            return Err(ResourceError::DoesNotExist("parent `Node` does not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("parent `Node` does not exist").into());
         };
 
         let Some(op_edges) = self.edges.get_mut(o_parent) else {
-            return Err(ResourceError::DoesNotExist("`Node` edges do not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` edges do not exist").into());
         };
 
         op_edges.remove(root);
 
         // add to new parent
         let Some(np_edges) = self.edges.get_mut(parent) else {
-            return Err(ResourceError::DoesNotExist("`Node` edges do not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` edges do not exist").into());
         };
 
         np_edges.insert(root.clone());
@@ -199,15 +277,15 @@ where
     /// + Follows the rules of [`indexset::IndexSet::move_index`].
     pub fn move_index(&mut self, node: &ResourceId, index: usize) -> Result {
         let Some(Some(parent)) = self.parents.get(&node) else {
-            return Err(ResourceError::DoesNotExist("`Node` parent does not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` parent does not exist").into());
         };
 
         let Some(edges) = self.edges.get_mut(parent) else {
-            return Err(ResourceError::DoesNotExist("`Node` edges do not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` edges do not exist").into());
         };
 
         let Some(curr_index) = edges.get_index_of(node) else {
-            return Err(ResourceError::DoesNotExist("`Node` edges do not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` edges do not exist").into());
         };
 
         edges.move_index(curr_index, index);
@@ -215,7 +293,7 @@ where
     }
 
     /// Consumes self, returning the graph's nodes and edges.
-    fn into_components(self) -> (NodeMap<D>, EdgeMap) {
+    pub fn into_components(self) -> (NodeMap<D>, EdgeMap) {
         (self.nodes, self.edges)
     }
 
@@ -226,7 +304,7 @@ where
 
         // remove root node
         let Some(node) = self.nodes.remove(root) else {
-            return Err(ResourceError::DoesNotExist("`Node` does not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` does not exist").into());
         };
 
         self.parents.remove(node.id());
@@ -234,7 +312,7 @@ where
 
         // remove children
         let Some(children) = self.edges.remove(&root) else {
-            return Err(ResourceError::DoesNotExist("`Node` edges do not exist".to_string()).into());
+            return Err(ResourceError::DoesNotExist("`Node` edges do not exist").into());
         };
 
         for child in children.iter() {

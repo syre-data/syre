@@ -2,45 +2,27 @@
 use super::super::Database;
 use crate::command::container::AddAssetInfo;
 use crate::command::container::{
-    AddAssetsArgs, NewChildArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
-use settings_manager::local_settings::LockSettingsFile;
 use settings_manager::LocalSettings;
 use std::collections::HashSet;
-use std::path::Path;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
-use thot_local::common::unique_file_name;
 use thot_local::project::asset::AssetBuilder;
-use thot_local::project::container;
-use thot_local::project::resources::Container as LocalContainer;
-use thot_local::types::ResourceValue;
 
 impl Database {
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
         match cmd {
-            ContainerCommand::LoadTree(root) => {
-                let container = self.load_container_tree(&root);
-                serde_json::to_value(container).expect("could not convert `Container` into JsValue")
-            }
-
-            ContainerCommand::Load(path) => {
-                let container = self.load_container(&path);
-                serde_json::to_value(container).expect("could not convert `Container` to JsValue")
-            }
-
             ContainerCommand::Get(rid) => {
                 let container: Option<CoreContainer> = {
                     if let Some(container) = self.store.get_container(&rid) {
-                        let container = container.lock().expect("could not lock `Container`");
                         Some(container.clone().into())
                     } else {
                         None
@@ -55,8 +37,8 @@ impl Database {
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
-            ContainerCommand::FindWithinTree(root, filter) => {
-                let containers = self.find_containers_within_tree(&root, filter);
+            ContainerCommand::FindWithMetadata(root, filter) => {
+                let containers = self.find_containers_with_metadata(&root, filter);
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
             }
 
@@ -79,67 +61,12 @@ impl Database {
                     .expect("could not convert `Asset` `ResourceId`s to JSON")
             }
 
-            ContainerCommand::NewChild(NewChildArgs { name, parent }) => {
-                let child = self.container_new_child(&parent, name);
-                serde_json::to_value(child).expect("could not convert child `Container` to JsValue")
-            }
-
-            ContainerCommand::DuplicateTree(root) => {
-                let res = self.duplicate_container_tree(root);
-                serde_json::to_value(res).expect("could not convert `Result` to JsValue")
-            }
-
             // @todo: Handle errors.
             ContainerCommand::GetPath(rid) => {
                 let path = self.get_container_path(&rid);
                 serde_json::to_value(path).expect("could not convert path to JsValue")
             }
         }
-    }
-
-    /// Loads a [`Container`](LocalContainer) tree from settings.
-    ///
-    /// # Returns
-    /// Reference to the root [`Container`](LocalContainer).
-    fn load_container_tree(&mut self, path: &Path) -> Result<CoreContainer> {
-        if let Some(cid) = self.store.get_path_container(path) {
-            if let Some(container) = self.store.get_container(cid) {
-                // already loaded
-                let container = container.lock().expect("could not lock `Container`");
-                return Ok(container.clone().into());
-            }
-        }
-
-        let mut container = LocalContainer::load(path)?;
-        container
-            .load_children(true)
-            .expect("could not load children");
-
-        let container_val = container.clone().into();
-
-        self.store
-            .insert_container_tree(Arc::new(Mutex::new(container)))?;
-
-        Ok(container_val)
-    }
-
-    /// Loads a single [`Container`](LocalContainer) from settings.
-    ///
-    /// # Returns
-    /// Reference to the loaded [`Container`](LocalContainer).
-    fn load_container(&mut self, path: &Path) -> Result<CoreContainer> {
-        if let Some(cid) = self.store.get_path_container(&path) {
-            // already loaded
-            if let Some(container) = self.store.get_container(&cid) {
-                let container = container.lock().expect("could not lock `Container`");
-                return Ok(container.clone().into());
-            }
-        }
-
-        let container = LocalContainer::load(path)?;
-        let container_val = container.clone().into();
-        self.store.insert_container(container)?;
-        Ok(container_val)
     }
 
     /// # Arguments
@@ -150,36 +77,26 @@ impl Database {
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        let containers = self.store.find_containers(&root, filter);
-        let containers = containers
-            .values()
-            .map(|container| {
-                let container = container.lock().expect("could not lock `Container`");
-                container.clone().into()
-            })
-            .collect();
-
-        containers
+        self.store
+            .find_containers(&root, filter)
+            .into_iter()
+            .map(|container| container.clone().into())
+            .collect()
     }
 
     /// # Arguments
     /// 1. Root `Container`.
     /// 2. Search filter.
-    fn find_containers_within_tree(
+    fn find_containers_with_metadata(
         &self,
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        let containers = self.store.find_containers_within_tree(&root, filter);
-        let containers = containers
-            .values()
-            .map(|container| {
-                let container = container.lock().expect("could not lock `Container`");
-                container.clone().into()
-            })
-            .collect();
-
-        containers
+        self.store
+            .find_containers_with_metadata(&root, filter)
+            .into_iter()
+            .map(|container| container.clone().into())
+            .collect()
     }
 
     fn update_container_properties(
@@ -187,11 +104,10 @@ impl Database {
         rid: ResourceId,
         properties: StandardProperties,
     ) -> Result {
-        let Some(container) = self.store.get_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist".to_string())).into());
+        let Some(container) = self.store.get_container_mut(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
         };
 
-        let mut container = container.lock().expect("could not lock `Container`");
         container.properties = properties;
         container.save()?;
         Ok(())
@@ -202,11 +118,10 @@ impl Database {
         rid: ResourceId,
         associations: ScriptMap,
     ) -> Result {
-        let Some(container) = self.store.get_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist".to_string())).into());
+        let Some(container) = self.store.get_container_mut(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
-        let mut container = container.lock().expect("could not lock `Container`");
         container.scripts = associations;
         container.save()?;
         Ok(())
@@ -216,16 +131,14 @@ impl Database {
         &mut self,
         container: &ResourceId,
         assets: Vec<AddAssetInfo>,
-    ) -> Result<Vec<ResourceId>> {
-        let Some(container) = self.store.get_container(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist".to_string())).into());
+    ) -> Result<HashSet<ResourceId>> {
+        let Some(container) = self.store.get_container_mut(&container) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
-        let mut container = container.lock().expect("could not lock `Container`");
-        let container_path = container.base_path()?;
-
         // @todo: Ensure file is not an Asset with the Container already.
-        let mut asset_rids: Vec<thot_core::types::ResourceId> = Vec::with_capacity(assets.len());
+        let container_path = container.base_path()?;
+        let mut asset_ids = HashSet::with_capacity(assets.len());
         for AddAssetInfo {
             path,
             action,
@@ -240,102 +153,19 @@ impl Database {
             }
 
             let asset = asset.create(action)?;
-            asset_rids.push(asset.rid.clone());
-
-            let aid = asset.rid.clone();
+            asset_ids.insert(asset.rid.clone());
             container.insert_asset(asset)?;
-            container.save()?;
-
-            self.store.insert_asset(aid, container.rid.clone());
         }
 
-        Ok(asset_rids)
-    }
+        container.save()?;
+        let cid = container.rid.clone();
+        drop(container); // free mutable borrow of store
 
-    fn container_new_child(&mut self, parent: &ResourceId, name: String) -> Result<CoreContainer> {
-        let Some(parent) = self.store.get_container(&parent) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist".to_string())).into());
-        };
-
-        let mut parent = parent.lock().expect("could not lock `Container`");
-
-        // create child
-        // @todo: Ensure unique and valid path.
-        let child_path = parent.base_path()?.join(&name);
-        let cid = container::new(&child_path)?;
-
-        parent.register_child(cid.clone());
-        parent.save()?;
-
-        // insert into store
-        self.load_container(&child_path)?;
-        let Some(child) = self.store.get_container(&cid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("child `Container` could not load".to_string())).into());
-        };
-
-        let mut child = child.lock().expect("could not lock `Container`");
-        child.properties.name = Some(name);
-        child.save()?;
-
-        Ok(child.clone().into())
-    }
-
-    fn duplicate_container_tree(&mut self, rid: ResourceId) -> Result<CoreContainer> {
-        /// Saves a `Container` tree.
-        fn save_tree(root: Arc<Mutex<LocalContainer>>) -> Result {
-            let mut root = root.lock().expect("could not lock `Container`");
-
-            root.acquire_lock()?;
-            root.save()?;
-
-            for child in root.children.values() {
-                let ResourceValue::Resource(child) = child else {
-                    return Err(CoreError::ResourceError(ResourceError::DoesNotExist("child `Container` not loaded".to_string())).into());
-                };
-
-                save_tree(child.clone())?;
-            }
-
-            Ok(())
+        for aid in asset_ids.iter() {
+            self.store.insert_asset(aid.clone(), cid.clone());
         }
 
-        let Some(root) = self.store.get_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded".to_string())).into());
-        };
-
-        let root = root.lock().expect("could not lock root `Container`");
-        let mut dup = root.duplicate()?;
-        dup.set_base_path(unique_file_name(root.base_path()?)?)?;
-        Mutex::unlock(root);
-
-        dup.update_tree_base_paths()?;
-        let dup_val = dup.clone().into();
-        let dup = Arc::new(Mutex::new(dup));
-        self.insert_child_container(dup.clone())?;
-
-        save_tree(dup)?;
-        Ok(dup_val)
-    }
-
-    fn insert_child_container(&mut self, root: Arc<Mutex<LocalContainer>>) -> Result {
-        let root_val = root.lock().expect("could not lock root `Container`");
-        let Some(parent) = root_val.parent.as_ref() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` does not have a parent".to_string())).into());
-        };
-
-        let Some(parent) = self.store.get_container(&parent) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("parent `Container` not loaded".to_string())).into());
-        };
-
-        let rid = root_val.rid.clone();
-        Mutex::unlock(root_val);
-        self.store.insert_container_tree(root.clone())?;
-
-        let mut parent = parent.lock().expect("could not lock parent `Container`");
-        parent.register_child(rid);
-        parent.save()?;
-
-        Ok(())
+        Ok(asset_ids)
     }
 
     fn get_container_path(&self, container: &ResourceId) -> Result<Option<PathBuf>> {
@@ -343,7 +173,6 @@ impl Database {
             return Ok(None);
         };
 
-        let container = container.lock().expect("could not lock `Container`");
         let path = container.base_path()?;
         Ok(Some(path))
     }

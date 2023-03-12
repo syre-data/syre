@@ -25,6 +25,9 @@ pub enum AssetCommand {
     /// 2. `Container`.
     Add(CoreAsset, ResourceId),
 
+    /// Removes an [`Asset`](CoreAsset).
+    Remove(ResourceId),
+
     /// Updates an [`Asset`](CoreAsset).
     UpdateProperties(ResourceId, StandardProperties),
 

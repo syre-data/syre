@@ -37,14 +37,11 @@ enum AnalysisState {
 // *****************
 
 #[derive(Properties, PartialEq)]
-pub struct GraphControllerProps {
-    /// Path to the container.
-    pub root: PathBuf,
-}
+pub struct ContainerTreeControllerProps {}
 
 /// Container tree with controls.
 #[function_component(ContainerTreeController)]
-pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
+pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
@@ -214,9 +211,10 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
                 )
                 .await
                 {
-                    Err(err) => app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                    Err(_err) => app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Error while analyzing",
                     ))),
+
                     Ok(()) => {}
                 }
 
@@ -244,6 +242,7 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
             <div class={classes!("container-tree-controls")}>
                 <ContainerPreviewSelect onchange={set_preview} />
                 <button
+                    class={classes!("btn-primary")}
                     onclick={analyze}
                     disabled={*analysis_state == AnalysisState::Analyzing}>
 

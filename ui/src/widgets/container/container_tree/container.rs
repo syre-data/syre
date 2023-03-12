@@ -101,7 +101,7 @@ pub struct ContainerProps {
     #[prop_or(true)]
     pub visible: bool,
 
-    #[prop_or(ContainerPreview::None)]
+    #[prop_or(ContainerPreview::Assets)]
     pub preview: ContainerPreview,
 
     #[prop_or_default]
@@ -122,6 +122,10 @@ pub struct ContainerProps {
     /// Callback to run when an Asset is double cilcked.
     #[prop_or_default]
     pub ondblclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
+
+    /// Callback when an [`Asset`](CoreAsset) is to be deleted.
+    #[prop_or_default]
+    pub onclick_asset_remove: Option<Callback<ResourceId>>,
 
     /// Callback to run when Assets are added to the Container.
     #[prop_or_default]
@@ -309,7 +313,9 @@ pub fn container(props: &ContainerProps) -> Html {
                             {assets}
                             active={props.active_assets.clone()}
                             onclick_asset={&props.onclick_asset}
-                            ondblclick_asset={&props.ondblclick_asset} />
+                            ondblclick_asset={&props.ondblclick_asset}
+                            onclick_asset_remove={&props.onclick_asset_remove}
+                            />
                     }},
 
                     ContainerPreview::Scripts => { html! {

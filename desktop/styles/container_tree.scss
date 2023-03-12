@@ -14,6 +14,7 @@ $control-button-size: 25px;
     background-color: t.$background-accent-color;
 
     min-width: t.$card-min-width;
+
     padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
     border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
@@ -104,16 +105,16 @@ $control-button-size: 25px;
 
       opacity: 0;
       transition: opacity t.$transition-fast;
-      
       button {
         width: $control-button-size;
         height: $control-button-size;
         padding: 0;
         border-radius: 50%;
-        background-color: t.$primary-button-color;
+        color: t.$primary-button-color;
+        background-color: t.$primary-button-background-color;
 
         &:hover {
-          background-color: t.$primary-button-hover-color;
+          background-color: t.$primary-button-hover-background-color;
         }
       }
     }
@@ -129,6 +130,9 @@ $control-button-size: 25px;
   }
 
   .container-preview {
+    height: t.$card-height;
+    overflow: auto;
+
     .thot-ui-metadata-preview {
       text-align: left;
       list-style: none;
@@ -159,6 +163,33 @@ $control-button-size: 25px;
             background-color: t.$primary-color;
           }
         }
+      }
+
+
+      .thot-ui-asset {
+        display: grid;
+        grid-template-columns: 15px 100px 20px;
+        align-items: center;
+        gap: 4px;
+
+         &:hover .thot-ui-asset-remove {
+             opacity: 1;
+         }
+
+         &:hover .thot-ui-asset-name {
+           color: t.$hover-text-color;
+         }
+ 
+        .thot-ui-asset-remove {
+          opacity: 0;
+          display: flex;
+          justify-content: center; 
+          align-items: center; 
+          width: 20px;
+          height: 20px;
+          font-size: 10px;      
+        }
+
       }
     }
 

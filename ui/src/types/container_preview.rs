@@ -23,7 +23,7 @@ impl Into<String> for ContainerPreview {
             ContainerPreview::Description => "Description".to_string(),
             ContainerPreview::Tags => "Tags".to_string(),
             ContainerPreview::Metadata => "Metadata".to_string(),
-            ContainerPreview::Assets => "Assets".to_string(),
+            ContainerPreview::Assets => "Data".to_string(),
             ContainerPreview::Scripts => "Scripts".to_string(),
         }
     }
@@ -48,7 +48,7 @@ impl From<String> for ContainerPreview {
             "Description" => ContainerPreview::Description,
             "Tags" => ContainerPreview::Tags,
             "Metadata" => ContainerPreview::Metadata,
-            "Assets" => ContainerPreview::Assets,
+            "Data" => ContainerPreview::Assets,
             "Scripts" => ContainerPreview::Scripts,
             _ => ContainerPreview::None,
         }

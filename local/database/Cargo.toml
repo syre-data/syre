@@ -17,6 +17,7 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+trash = { version = "3.0.1", optional =true }
 zmq = { version = "0.10", optional = true }
 
 has_id = { path = "../../has_id", optional = true }
@@ -32,5 +33,5 @@ lazy_static = "1.4"
 dev_utils = { path = "../../dev_utils" }
 
 [features]
-server = ["dep:zmq", "dep:settings_manager", "thot-local/fs", "dep:has_id"]
+server = ["dep:zmq", "dep:settings_manager", "thot-local/fs", "dep:has_id", "dep:trash"]
 client = ["dep:zmq"]

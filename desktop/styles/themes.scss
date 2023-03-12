@@ -24,15 +24,23 @@ $background-contrast-color: vars.$secondary-color-300;
 $frame-background-color: vars.$secondary-color-900;
 $frame-border-color: $background-accent-color;
 
+$card-background-color: vars.$secondary-color-700;
+$card-hover-background-color: vars.$secondary-color-600;
+
 $body-text-color: vars.$secondary-color-50;
 $title-text-color: vars.$secondary-color-50;
 $link-text-color: vars.$secondary-color-200;
 $link-hover-text-color: vars.$secondary-color-100;
 
+$hover-text-color: vars.$secondary-color-200;
+
 $interactive-element-background-color: vars.$secondary-color-700;
 $interactive-element-active-background-color: vars.$secondary-color-600;
-$primary-button-color: vars.$primary-color-700;
-$primary-button-hover-color: vars.$primary-color-600;
+
+$primary-button-color: vars.$secondary-color-900;
+$primary-button-background-color: vars.$primary-color-300;
+$primary-button-hover-color: black;
+$primary-button-hover-background-color: vars.$primary-color-200;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
@@ -73,6 +81,7 @@ $padding-s: 3px;
 $padding-m: 5px;
 $padding-l: 8px;
 $padding-xl: 12px;
+$padding-xxl: 16px;
 
 $border-radius-s: 3px;
 $border-radius-m: 5px;
@@ -86,8 +95,13 @@ $margin-s: 3px;
 $margin-m: 5px;
 $margin-l: 8px;
 $margin-xl: 12px;
+$margin-3xl: 36px;
+
+$gap-l: 20px;
+$gap-xl: 30px;
 
 $card-min-width: 10rem;
+$card-height: 6.5rem;
 
 // **************
 // *** events ***

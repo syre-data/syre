@@ -2,6 +2,7 @@
 
 .project-canvas {
   height: 100%;
+  margin-left: t.$margin-3xl;
 
   &:not(.active) {
     display: none;
@@ -57,4 +58,5 @@
       flex-grow: 1;
     }
   }
+
 }

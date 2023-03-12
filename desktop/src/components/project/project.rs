@@ -1,13 +1,9 @@
 //! Project component with suspense.
-use crate::app::{AppStateAction, AppStateReducer};
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::container::ContainerTreeController;
 use crate::hooks::use_project;
-use crate::routes::Route;
 use thot_core::types::ResourceId;
-use thot_ui::types::Message;
 use yew::prelude::*;
-use yew_router::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct ProjectProps {
@@ -16,22 +12,13 @@ pub struct ProjectProps {
 
 #[function_component(Project)]
 pub fn project(props: &ProjectProps) -> HtmlResult {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
-    let navigator = use_navigator().expect("`navigator` not found");
     let project_ref = use_node_ref();
     let project = use_project(&props.rid);
     let Some(project) = project.as_ref() else {
         panic!("`Project` not loaded");
-    };
-
-    let Some(root) = project.data_root.clone() else {
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Data root of project not set")));
-        navigator.push(&Route::Dashboard);
-        return Ok(html! {{ "Could not load project" }});
     };
 
     let clear_selection = {
@@ -54,7 +41,7 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
                 <span>{ "\u{2699}" }</span>
             </div>
             <div class={classes!("content")}>
-                <ContainerTreeController {root} />
+                <ContainerTreeController />
             </div>
         </div>
 

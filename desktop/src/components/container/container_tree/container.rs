@@ -249,9 +249,46 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     };
 
                 path.push(asset.path.clone());
-                invoke::<()>("open_file", PathBufArgs { path })
-                    .await
-                    .expect("could not open file");
+                let Ok(_) = invoke::<()>("open_file", PathBufArgs { path })
+                    .await else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not open file")));
+                        return;
+                    };
+            });
+        })
+    };
+
+    let onclick_asset_remove = {
+        let app_state = app_state.clone();
+        let graph_state = graph_state.clone();
+        let container_id = props.rid.clone();
+
+        Callback::from(move |rid: ResourceId| {
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+            let container_id = container_id.clone();
+
+            spawn_local(async move {
+                let Ok(_) = invoke::<()>("remove_asset", ResourceIdArgs { rid: rid.clone() })
+                    .await else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not remove asset")));
+                        return;
+                    };
+
+                let Some(container) = graph_state
+                    .graph
+                    .get(&container_id)
+                    .cloned() else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not update container")));
+                        return;
+                    };
+
+                let mut assets = container.assets.clone();
+                assets.retain(|asset, _| asset != &rid);
+                graph_state.dispatch(GraphStateAction::UpdateContainerAssets(
+                    container_id.clone(),
+                    assets,
+                ));
             });
         })
     };
@@ -348,6 +385,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
+                onclick_asset_remove,
                 onadd_child: props.onadd_child.clone(),
                 on_menu_event,
                 ondragenter,

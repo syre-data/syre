@@ -7,9 +7,7 @@ use std::path::{Path, PathBuf};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree as CoreResourceTree;
-use thot_core::project::{
-    Asset as CoreAsset, Container as CoreContainer, Metadata, Script as CoreScript,
-};
+use thot_core::project::{Asset, Container as CoreContainer, Metadata, Script as CoreScript};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::graph::ResourceTree;
 use thot_local::project::resources::{
@@ -359,6 +357,12 @@ impl Datastore {
         self.container_paths.get(path)
     }
 
+    // @todo
+    // /// Removes a [`Container`](LocalContainer) from the database.
+    // pub fn remove_container(&mut self, rid: &ResourceId) -> Option<ContainerWrapper> {
+    //     self.containers.remove(rid)
+    // }
+
     // *************
     // *** asset ***
     // *************
@@ -389,11 +393,7 @@ impl Datastore {
     }
 
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
-    pub fn add_asset(
-        &mut self,
-        asset: CoreAsset,
-        container: ResourceId,
-    ) -> Result<Option<CoreAsset>> {
+    pub fn add_asset(&mut self, asset: Asset, container: ResourceId) -> Result<Option<Asset>> {
         let Some(project) = self.container_projects.get(&container) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
         };
@@ -416,6 +416,27 @@ impl Datastore {
         Ok(o_asset)
     }
 
+    /// Removes an `Asset` from its `Container`.
+    pub fn remove_asset(&mut self, rid: &ResourceId) -> Result<Option<Asset>> {
+        let Some(cid) = self.assets.get(rid).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
+        };
+
+        let Some(graph) = self.get_container_graph_mut(&cid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container`'s graph is not loaded")).into());
+        };
+
+        let Some(container) = graph.get_mut(&cid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` not in graph")).into());
+        };
+
+        let asset = container.assets.remove(rid);
+        container.save()?;
+
+        self.assets.remove(rid);
+        Ok(asset)
+    }
+
     /// Finds `Asset`'s that match the filter.
     ///
     /// # Note
@@ -423,7 +444,7 @@ impl Datastore {
     ///
     /// # See also
     /// + [`find_assets_with_metadata`]
-    pub fn find_assets(&self, root: &ResourceId, filter: StdFilter) -> HashSet<CoreAsset> {
+    pub fn find_assets(&self, root: &ResourceId, filter: StdFilter) -> HashSet<Asset> {
         let mut found = HashSet::new();
         let Some(graph) = self.get_container_graph(root) else {
             return found;
@@ -454,14 +475,14 @@ impl Datastore {
         &self,
         root: &ResourceId,
         filter: StdFilter,
-    ) -> HashSet<&CoreAsset> {
+    ) -> HashSet<&Asset> {
         /// Recursively finds mathcing `Containers`, inheriting metadata.
         fn find_assets_with_metadata_recursive<'a>(
             root: &ResourceId,
             graph: &'a ContainerTree,
             filter: StdFilter,
             mut metadata: Metadata,
-        ) -> HashSet<&'a CoreAsset> {
+        ) -> HashSet<&'a Asset> {
             let mut found = HashSet::new();
             let root = graph.get(root).expect("`Container` not in graph");
 
@@ -547,6 +568,36 @@ impl Datastore {
 
         // map script
         self.script_projects.insert(sid, project);
+
+        Ok(o_script)
+    }
+    pub fn remove_project_script(
+        &mut self,
+        project: &ResourceId,
+        script: &ResourceId,
+    ) -> Result<Option<CoreScript>> {
+        let Some(scripts) = self.scripts.get_mut(&project) else {
+            // project does not exist
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project`'s `Scripts` does not exist")).into());
+        };
+
+        // remove association from contiainers
+        let Some(graph) = self.graphs.get_mut(project) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project`'s graph does not exist")).into());
+        };
+
+        for cid in graph.nodes().clone().into_keys() {
+            let container = graph.get_mut(&cid).expect("`Container` not in graph");
+            container.scripts.remove(script);
+            container.save()?;
+        }
+
+        // remove from project
+        let o_script = scripts.remove(script);
+        scripts.save()?;
+
+        // remove map script
+        self.script_projects.remove(script);
 
         Ok(o_script)
     }

@@ -33,6 +33,13 @@ pub fn update_asset_properties(
     Ok(())
 }
 
+/// Remove an [`Asset`](CoreAsset).
+#[tauri::command]
+pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> Result {
+    db.send(AssetCommand::Remove(rid).into());
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "./asset_test.rs"]
 mod asset_test;

@@ -47,6 +47,11 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
+            AssetCommand::Remove(rid) => {
+                let res = self.remove_asset(&rid);
+                serde_json::to_value(res).expect("could not convert result to JSON")
+            }
+
             AssetCommand::UpdateProperties(rid, properties) => {
                 let res = self.update_asset_properties(&rid, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
@@ -83,6 +88,11 @@ impl Database {
 
         asset.properties = properties;
         container.save()?;
+        Ok(())
+    }
+
+    fn remove_asset(&mut self, rid: &ResourceId) -> Result {
+        self.store.remove_asset(rid)?;
         Ok(())
     }
 }

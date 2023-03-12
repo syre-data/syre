@@ -4,7 +4,7 @@ use crate::commands::container::UpdateScriptAssociationsArgs;
 use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset, Container};
+use thot_core::project::{container::AssetMap, Asset, Container};
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
@@ -26,12 +26,18 @@ pub enum GraphStateAction {
     /// #. `child`: Child `Container`.
     InsertChildContainer(ResourceId, Container),
 
+    /// Update [`Asset`](CoreAsset)s of a [`Container`](CoreContainer).
+    UpdateContainerAssets(ResourceId, AssetMap),
+
     /// Insert [`Asset`](Asset)s into a [`Container`](Container).
     InsertContainerAssets(ResourceId, Vec<Asset>),
 
     /// Update a [`Container`](Container)'s
     /// [`ScriptAssociation`](thot_::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
+
+    /// Remove all associations with `Script` from [`Container`](CoreContainer)'s
+    RemoveContainerScriptAssociations(ResourceId),
 
     /// Update an [`Asset`](Asset).
     UpdateAsset(Asset),
@@ -95,6 +101,16 @@ impl Reducible for GraphState {
                 container.scripts = update.associations;
             }
 
+            GraphStateAction::RemoveContainerScriptAssociations(rid) => {
+                for cid in current.graph.nodes().clone().into_keys() {
+                    let container = current
+                        .graph
+                        .get_mut(&cid)
+                        .expect("`Container` not found in graph");
+                    container.scripts.remove(&rid);
+                }
+            }
+
             GraphStateAction::InsertChildContainer(parent, child) => {
                 // map assets
                 for rid in child.assets.keys() {
@@ -102,7 +118,10 @@ impl Reducible for GraphState {
                 }
 
                 // insert child into store
-                current.graph.insert(parent, child);
+                current
+                    .graph
+                    .insert(parent, child)
+                    .expect("could not insert child node");
             }
 
             GraphStateAction::InsertContainerAssets(container, assets) => {
@@ -118,6 +137,17 @@ impl Reducible for GraphState {
 
                     container.assets.insert(asset.rid.clone(), asset);
                 }
+            }
+
+            GraphStateAction::UpdateContainerAssets(container_rid, assets) => {
+                let Some(container) = current
+                    .graph
+                    .get_mut(&container_rid)
+                     else {
+                        panic!("`Container` not found")
+                    };
+
+                container.assets = assets;
             }
 
             GraphStateAction::UpdateAsset(asset) => {

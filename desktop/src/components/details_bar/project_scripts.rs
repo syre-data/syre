@@ -3,6 +3,7 @@ use crate::app::ProjectsStateReducer;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use thot_core::types::ResourceId;
 use thot_ui::widgets::script::CreateScript;
 use yew::prelude::*;
 
@@ -11,6 +12,10 @@ pub struct ProjectScriptsProps {
     /// Called when a user adds `Script`s to the `Project`.
     #[prop_or_default]
     pub onadd: Option<Callback<HashSet<PathBuf>>>,
+
+    /// Called when a user removes a `Script`.
+    #[prop_or_default]
+    pub onremove: Option<Callback<ResourceId>>,
 }
 
 #[function_component(ProjectScripts)]
@@ -21,6 +26,20 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
     let project = use_canvas_project();
     let Some(project_scripts) = projects_state.project_scripts.get(&*project) else {
         panic!("`Project`'s `Scripts` not loaded");
+    };
+
+    let onclick_remove = {
+        let onremove = props.onremove.clone();
+        move |rid: ResourceId| {
+            let onremove = onremove.clone();
+            Callback::from(move |e: MouseEvent| {
+                e.stop_propagation();
+                let onremove = onremove.clone();
+                if let Some(onremove) = onremove {
+                    onremove.emit(rid.clone());
+                }
+            })
+        }
     };
 
     Ok(html! {
@@ -45,6 +64,9 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                     html! {
                         <li key={script.rid.clone()}>
                             { name }
+                            if props.onremove.is_some() {
+                                <button onclick={onclick_remove(script.rid.clone())}>{ "x" }</button>
+                            }
                         </li>
                     }
                 }).collect::<Html>() }

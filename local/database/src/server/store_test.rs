@@ -5,10 +5,11 @@ use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
 use fake::Fake;
 use std::sync::{Arc, Mutex};
-use thot_core::db::StandardSearchFilter as StdFilter;
 use thot_core::types::ResourceId;
+use thot_core::{db::StandardSearchFilter as StdFilter, project::Scripts as CoreScripts};
 use thot_local::project::resources::{
     Asset as LocalAsset, Container as LocalContainer, Project as LocalProject,
+    Script as LocalScript, Scripts as LocalScripts,
 };
 
 #[test]
@@ -378,4 +379,62 @@ fn insert_project_scripts_should_work() {
 
     // test
     todo!();
+}
+
+#[test]
+fn remove_script_should_work() {
+    // setup
+    let _dir = TempDir::new().expect("could not create temporary directory");
+
+    let pid = ResourceId::new();
+
+    let mut scripts = LocalScripts::load(_dir.path()).expect("could not load `Scripts`");
+    let script = CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
+    let sid = script.rid.clone();
+
+    scripts
+        .insert_script(script)
+        .expect("could not insert `Script`");
+
+    // add other script that is not to be removed
+    let other_script =
+        CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
+    let other_sid = other_script.rid.clone();
+
+    scripts
+        .insert_script(other_script)
+        .expect("could not insert other `Script`");
+
+    let mut store = Datastore::new();
+
+    store.insert_project_scripts(pid.clone(), scripts);
+
+    // test
+    store
+        .remove_script(&pid, &sid)
+        .expect("could not remove `Script`");
+
+    let scripts = store
+        .get_project_scripts(&pid)
+        .expect("could not get `Scripts`");
+
+    assert!(
+        !scripts.contains_key(&sid),
+        "removed script should not be there"
+    );
+
+    assert!(
+        !store.script_projects.contains_key(&sid),
+        "project map for removed script should not exist"
+    );
+
+    assert!(
+        scripts.contains_key(&other_sid),
+        "non removed script should be there"
+    );
+
+    assert!(
+        store.script_projects.contains_key(&other_sid),
+        "project map for not removed script should exist"
+    );
 }

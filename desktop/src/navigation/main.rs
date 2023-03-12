@@ -88,7 +88,7 @@ pub fn main_navigation() -> Html {
                 class={classes!("inline-block")}>
 
                 <Link<Route> to={Route::Dashboard}>
-                    <img src="/public/logos/logo-white-icon.svg" />
+                    <img class={classes!("logo-tab-container")} src="/public/logos/logo-white-icon.svg" />
                 </Link<Route>>
             </span>
 

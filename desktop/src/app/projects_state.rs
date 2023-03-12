@@ -29,13 +29,13 @@ pub enum ProjectsStateAction {
     /// 2. New project to set as active, if needed.
     RemoveOpenProject(ResourceId, Option<ResourceId>),
 
-    /// Set the active project.
+    /// Set the active `Project`.
     SetActiveProject(ResourceId),
 
-    /// Update the project
+    /// Update the [`Project`].
     UpdateProject(Project),
 
-    /// Insert a Script.
+    /// Insert a `Script`.
     ///
     /// # Fields
     /// 1. `Project`'s id.

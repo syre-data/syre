@@ -49,6 +49,17 @@ features=[
 version = "0.7"
 features=[
     "FontAwesomeSolidCode",
+    "FontAwesomeRegularFileAudio",
+    "FontAwesomeRegularFileCode",
+    "FontAwesomeRegularFileExcel",
+    "FontAwesomeRegularFileImage",
+    "FontAwesomeRegularFileLines",
+    "FontAwesomeRegularFilePdf",
+    "FontAwesomeRegularFilePowerpoint",
+    "FontAwesomeRegularFileVideo",
+    "FontAwesomeRegularFileWord",
+    "FontAwesomeRegularFileZipper",
+    "FontAwesomeRegularFile",
 ]
 
 [dev-dependencies]

@@ -65,6 +65,12 @@ impl From<LocalError> for Error {
     }
 }
 
+impl From<trash::Error> for Error {
+    fn from(err: trash::Error) -> Self {
+        Error::LocalError(format!("{err:?}"))
+    }
+}
+
 pub type Result<T = ()> = StdResult<T, Error>;
 
 #[cfg(test)]

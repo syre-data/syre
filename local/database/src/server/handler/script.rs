@@ -24,6 +24,11 @@ impl Database {
                 serde_json::to_value(script).expect("could not convert `Script` to JsValue")
             }
 
+            ScriptCommand::Remove(project, script) => {
+                let res = self.remove_script(&project, &script);
+                serde_json::to_value(res).expect("could not convert to JsValue")
+            }
+
             ScriptCommand::Update(script) => {
                 let res = self.update_script(script);
                 serde_json::to_value(res).expect("could not convert result to JsValue")
@@ -67,13 +72,19 @@ impl Database {
         Ok(script)
     }
 
+    /// Remove `Script` from `Project`.
+    fn remove_script(&mut self, pid: &ResourceId, script: &ResourceId) -> Result {
+        self.store.remove_project_script(pid, script)?;
+        Ok(())
+    }
+
     /// Update a `Script`.
     fn update_script(&mut self, script: CoreScript) -> Result {
         let Some(project) = self.store.get_script_project(&script.rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
-        self.store.insert_script(project.clone(), script)?;
+        self.store.insert_script(project.clone(), script);
         Ok(())
     }
 }

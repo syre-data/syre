@@ -4,7 +4,6 @@ use crate::commands::graph::InitProjectGraphArgs;
 use crate::commands::project::{GetProjectPathArgs, UpdateProjectArgs};
 use crate::common::invoke;
 use crate::hooks::use_project;
-use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::Container;
@@ -50,12 +49,10 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         use_effect_with_deps(
             move |_| {
                 spawn_local(async move {
-                    let path = invoke("get_project_path", GetProjectPathArgs { id: pid })
-                        .await
-                        .expect("could not invoke `get_project_path`");
-
-                    let path: PathBuf = swb::from_value(path)
-                        .expect("could not convert `get_project_path` result from JsValue");
+                    let path =
+                        invoke::<PathBuf>("get_project_path", GetProjectPathArgs { id: pid })
+                            .await
+                            .expect("could not invoke `get_project_path`");
 
                     project_path.set(Some(path));
                 })
@@ -79,12 +76,12 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let project = project.rid.clone();
                 let path = path.clone();
                 spawn_local(async move {
-                    let rid = invoke("init_project_graph", InitProjectGraphArgs { path, project })
-                        .await
-                        .expect("could not invoke `init_graph`");
-
-                    let _rid: ContainerTree = swb::from_value(rid)
-                        .expect("could not convert `init_graph` result from JsValue");
+                    let rid = invoke::<ContainerTree>(
+                        "init_project_graph",
+                        InitProjectGraphArgs { path, project },
+                    )
+                    .await
+                    .expect("could not invoke `init_graph`");
                 });
             }
 
@@ -96,7 +93,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let res = invoke(
+                    let res = invoke::<()>(
                         "update_project",
                         UpdateProjectArgs {
                             project: project.clone(),
@@ -104,9 +101,6 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                     )
                     .await
                     .expect("could not invoke `update_project`");
-
-                    let _res: () = swb::from_value(res)
-                        .expect("could not convert `update_project` result from JsValue");
 
                     projects_state.dispatch(ProjectsStateAction::UpdateProject(project));
                     onsuccess.emit(());

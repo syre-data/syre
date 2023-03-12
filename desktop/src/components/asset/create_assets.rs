@@ -3,10 +3,9 @@ use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_container_path;
-use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use tauri_sys::dialog::FileDialogBuilder;
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
 use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
@@ -59,7 +58,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
             let container_id = container_id.clone();
             spawn_local(async move {
                 // create assets
-                let assets = invoke(
+                let assets = invoke::<Vec<ResourceId>>(
                     "add_assets",
                     AddAssetsArgs {
                         container: container_id.clone(),
@@ -69,11 +68,8 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
                 .await
                 .expect("could not invoke `add_assets`");
 
-                let assets: Vec<ResourceId> = swb::from_value(assets)
-                    .expect("could not convert result of `add_assets` to `Vec<ResourceId>`");
-
                 // update container
-                let container = invoke(
+                let container = invoke::<Container>(
                     "get_container",
                     ResourceIdArgs {
                         rid: container_id.clone(),
@@ -81,9 +77,6 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
                 )
                 .await
                 .expect("could not invoke `add_assets`");
-
-                let container: CoreContainer = swb::from_value(container)
-                    .expect("could not convert result of `get_container` to `Container`");
 
                 let assets = container
                     .assets

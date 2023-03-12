@@ -2,7 +2,6 @@
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
-use serde_wasm_bindgen as swb;
 use thot_core::project::Script;
 use thot_core::types::{ResourceId, ResourceMap};
 use wasm_bindgen_futures::spawn_local;
@@ -21,7 +20,7 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
             let (s, handle) = Suspension::new();
 
             spawn_local(async move {
-                let prj_scripts = invoke(
+                let prj_scripts = invoke::<Vec<Script>>(
                     "get_project_scripts",
                     ResourceIdArgs {
                         rid: project.clone(),
@@ -29,9 +28,6 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
                 )
                 .await
                 .expect("could not invoke `get_project_scripts`");
-
-                let prj_scripts: Vec<Script> = swb::from_value(prj_scripts)
-                    .expect("could not convert result of `get_project_scripts` to `Scripts`");
 
                 let prj_scripts = prj_scripts
                     .into_iter()

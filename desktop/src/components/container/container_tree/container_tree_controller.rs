@@ -8,11 +8,10 @@ use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
-use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use std::str::FromStr;
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
+use thot_core::project::{Asset, Container};
 use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
 use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
@@ -120,7 +119,7 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
                             })
                             .collect::<Vec<AddAssetInfo>>();
 
-                        let assets = invoke(
+                        let assets: Vec<ResourceId> = invoke(
                             "add_assets",
                             AddAssetsArgs {
                                 container: container_id.clone(),
@@ -130,12 +129,8 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
                         .await
                         .expect("could not invoke `add_assets`");
 
-                        let assets: Vec<ResourceId> = swb::from_value(assets).expect(
-                            "could not convert result of `add_assets` to `Vec<ResourceId>`",
-                        );
-
                         // update container
-                        let container = invoke(
+                        let container: Container = invoke(
                             "get_container",
                             ResourceIdArgs {
                                 rid: container_id.clone(),
@@ -144,14 +139,11 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
                         .await
                         .expect("could not invoke `add_assets`");
 
-                        let container: CoreContainer = swb::from_value(container)
-                            .expect("could not convert result of `get_container` to `Container`");
-
                         let assets = container
                             .assets
                             .into_values()
                             .filter(|asset| assets.contains(&asset.rid))
-                            .collect::<Vec<CoreAsset>>();
+                            .collect::<Vec<Asset>>();
 
                         let num_assets = assets.len();
 
@@ -213,25 +205,28 @@ pub fn container_tree_controller(props: &GraphControllerProps) -> Html {
                 ));
 
                 // @todo: Handle analysis error.
-                let res = invoke(
+                match invoke(
                     "analyze",
                     &AnalyzeArgs {
                         root: root.clone(),
                         max_tasks,
                     },
                 )
-                .await;
+                .await
+                {
+                    Err(err) => app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Error while analyzing",
+                    ))),
+                    Ok(()) => {}
+                }
 
                 // update tree
-                let update = invoke("get_container", &ResourceIdArgs { rid: root.clone() })
-                    .await
-                    .expect("could not `get_container`");
-
-                let update: ResourceTree<CoreContainer> = swb::from_value(update)
-                    .expect("could not convert result of `get_container` to `Container`");
+                let update: ResourceTree<Container> =
+                    invoke("get_container", &ResourceIdArgs { rid: root.clone() })
+                        .await
+                        .expect("could not `get_container`");
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
-
                 analysis_state.set(AnalysisState::Complete);
                 app_state.dispatch(AppStateAction::AddMessage(Message::success(
                     "Analysis complete",

@@ -4,7 +4,6 @@ use crate::commands::authenticate::UserCredentials;
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use crate::routes::Route;
-use serde_wasm_bindgen as swb;
 use thot_core::system::User;
 use thot_ui::components::Message as MessageUi;
 use thot_ui::types::Message;
@@ -41,7 +40,7 @@ pub fn sign_in() -> Html {
             let invalid_credentials = invalid_credentials.clone();
 
             spawn_local(async move {
-                let Ok(user) = invoke(
+                let Ok(user) = invoke::<Option<User>>(
                     "authenticate_user",
                     UserCredentials { email }
                 )
@@ -49,9 +48,6 @@ pub fn sign_in() -> Html {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
                     return;
                 };
-
-                let user: Option<User> = swb::from_value(user)
-                    .expect("could not convert result of `authenticate_user` from JsValue");
 
                 if user.is_none() {
                     // @todo[0]: Alert user.
@@ -62,9 +58,14 @@ pub fn sign_in() -> Html {
                     navigator.push(&Route::Home);
                     auth_state.dispatch(AuthStateAction::SetUser(user.clone()));
                     if let Some(user) = user {
-                        // @todo[1]: Handle error.
-                        let _active_res =
-                            invoke("set_active_user", ResourceIdArgs { rid: user.rid }).await;
+                        let active_res =
+                            invoke::<()>("set_active_user", ResourceIdArgs { rid: user.rid }).await;
+
+                        if active_res.is_err() {
+                            app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                "Could not set active user.",
+                            )));
+                        }
                     }
                 }
             });

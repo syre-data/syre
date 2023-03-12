@@ -42,7 +42,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
             let graph_state = graph_state.clone();
 
             spawn_local(async move {
-                let Ok(res) = invoke(
+                let Ok(_) = invoke::<()>(
                             "update_asset_properties",
                             &UpdatePropertiesArgs {
                                 rid: asset.rid.clone(),

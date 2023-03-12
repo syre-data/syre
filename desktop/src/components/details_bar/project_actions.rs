@@ -5,10 +5,9 @@ use crate::commands::script::AddScriptArgs;
 use crate::common::invoke;
 use crate::components::canvas::CanvasStateReducer;
 use crate::hooks::use_project;
-use serde_wasm_bindgen as swb;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use thot_core::project::Script as CoreScript;
+use thot_core::project::Script;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -39,7 +38,7 @@ pub fn project_actions() -> HtmlResult {
             spawn_local(async move {
                 for path in paths {
                     let project = project.clone();
-                    let script = invoke(
+                    let script = invoke::<Script>(
                         "add_script",
                         AddScriptArgs {
                             project: project.clone(),
@@ -48,9 +47,6 @@ pub fn project_actions() -> HtmlResult {
                     )
                     .await
                     .expect("could not invoke `add_script`");
-
-                    let script: CoreScript = swb::from_value(script)
-                        .expect("could not convert result of `add_script` to `Script`");
 
                     project_scripts.insert(script.rid.clone(), script);
                 }

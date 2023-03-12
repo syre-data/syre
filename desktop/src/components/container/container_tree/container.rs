@@ -10,7 +10,6 @@ use crate::components::canvas::{
 };
 use crate::components::details_bar::DetailsBarWidget;
 use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
-use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
@@ -128,18 +127,26 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 ContainerMenuEvent::AddAssets => show_create_assets.set(true),
 
                 ContainerMenuEvent::OpenFolder => {
+                    let app_state = app_state.clone();
+
                     spawn_local(async move {
-                        let path = invoke("get_container_path", ResourceIdArgs { rid })
-                            .await
-                            .expect("could not get `Container` path");
+                        match invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid }).await
+                        {
+                            Ok(path) => {
+                                match invoke::<()>("open_file", PathBufArgs { path }).await {
+                                    Ok(_) => {}
+                                    Err(_err) => app_state.dispatch(AppStateAction::AddMessage(
+                                        Message::error("Could not open file"),
+                                    )),
+                                }
+                            }
 
-                        let path: PathBuf = swb::from_value(path).expect(
-                            "could not convert result of `get_container_path` to `PathBuf`",
-                        );
-
-                        invoke("open_file", PathBufArgs { path })
-                            .await
-                            .expect("could not open file");
+                            Err(_err) => {
+                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                    "Could not get file path",
+                                )));
+                            }
+                        }
                     });
                 }
 
@@ -148,16 +155,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let graph_state = graph_state.clone();
 
                     spawn_local(async move {
-                        let root = invoke(
+                        let dup = invoke::<Graph>(
                             "duplicate_container_tree",
                             ResourceIdArgs { rid: rid.clone() },
                         )
                         .await
                         .expect("could not invoke `duplicate_container_tree`");
-
-                        let dup: Graph = swb::from_value(root).expect(
-                            "could not convert result of `duplicate_container_tree` to `Graph`",
-                        );
 
                         let mut graph = graph_state.graph.clone();
                         let parent = graph
@@ -237,16 +240,16 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 return;
             };
 
+            let app_state = app_state.clone();
             spawn_local(async move {
-                let path = invoke("get_container_path", ResourceIdArgs { rid })
-                    .await
-                    .expect("could not get `Container` path");
-
-                let mut path: PathBuf = swb::from_value(path)
-                    .expect("could not convert result of `get_container_path` to `PathBuf`");
+                let Ok(mut path) = invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid })
+                    .await else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get container path")));
+                        return;
+                    };
 
                 path.push(asset.path.clone());
-                invoke("open_file", PathBufArgs { path })
+                invoke::<()>("open_file", PathBufArgs { path })
                     .await
                     .expect("could not open file");
             });

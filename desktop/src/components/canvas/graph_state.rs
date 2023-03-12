@@ -87,7 +87,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::UpdateContainerScriptAssociations(update) => {
-                let mut container = current
+                let container = current
                     .graph
                     .get_mut(&update.rid)
                     .expect("`Container` not found");
@@ -106,7 +106,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::InsertContainerAssets(container, assets) => {
-                let mut container = current
+                let container = current
                     .graph
                     .get_mut(&container)
                     .expect("`Container` not found");
@@ -126,7 +126,7 @@ impl Reducible for GraphState {
                     .get(&asset.rid)
                     .expect("`Asset` `Container` not found");
 
-                let mut container = current
+                let container = current
                     .graph
                     .get_mut(&container)
                     .expect("`Container` not found");

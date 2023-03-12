@@ -189,6 +189,15 @@ impl Datastore {
         rid: ResourceId,
         graph: ContainerTree,
     ) -> Option<ContainerTree> {
+        // map containers
+        for (cid, node) in graph.nodes().iter() {
+            self.container_projects.insert(cid.clone(), rid.clone());
+            self.container_paths.insert(
+                node.base_path().expect("`Container` base path not set"),
+                cid.clone(),
+            );
+        }
+
         self.graphs.insert(rid, graph)
     }
 

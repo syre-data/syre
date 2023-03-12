@@ -4,7 +4,6 @@ use crate::commands::authenticate::{CreateUserArgs, UserCredentials};
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use crate::routes::Route;
-use serde_wasm_bindgen as swb;
 use thot_core::system::User;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -54,7 +53,7 @@ pub fn sign_up() -> Html {
                 };
 
                 // create user account
-                let Ok(user) = invoke(
+                let Ok(user) = invoke::<User>(
                     "create_user",
                     CreateUserArgs { email, name }
                 )
@@ -63,10 +62,8 @@ pub fn sign_up() -> Html {
                     return;
                 };
 
-                let user: User = swb::from_value(user).expect("from JsValue should work");
-
                 // authenticate user
-                let Ok(user) = invoke(
+                let Ok(user) = invoke::<Option<User>>(
                     "authenticate_user",
                     UserCredentials { email: user.email }
                 )
@@ -75,7 +72,6 @@ pub fn sign_up() -> Html {
                     return;
                 };
 
-                let user: Option<User> = swb::from_value(user).expect("from JsValue should work");
                 auth_state.dispatch(AuthStateAction::SetUser(user.clone()));
 
                 if let Some(user) = user {
@@ -84,7 +80,7 @@ pub fn sign_up() -> Html {
 
                     // @todo[1]: Handle error from set_active_user.
                     let _active_res =
-                        invoke("set_active_user", ResourceIdArgs { rid: user.rid }).await;
+                        invoke::<()>("set_active_user", ResourceIdArgs { rid: user.rid }).await;
                 }
             });
         })

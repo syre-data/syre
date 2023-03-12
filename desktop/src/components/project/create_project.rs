@@ -5,7 +5,6 @@ use crate::commands::graph::InitProjectGraphArgs;
 use crate::commands::project::UpdateProjectArgs;
 use crate::common::invoke;
 use crate::routes::Route;
-use serde_wasm_bindgen as swb;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
@@ -52,25 +51,20 @@ pub fn create_project() -> Html {
                 // todo: Validate path is not already a project.
                 // todo: Set project creator.
                 // init project
-                let rid = invoke("init_project", PathBufArgs { path: path.clone() })
+                let rid = invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() })
                     .await
                     .expect("could not invoke `init_project`");
 
-                let _rid: ResourceId = swb::from_value(rid)
-                    .expect("could not convert result of `init_project` to `ResourceId`");
-
-                let project = invoke("load_project", PathBufArgs { path: path.clone() })
-                    .await
-                    .expect("could not invoke `load_project`");
-
-                let mut project: Project = swb::from_value(project)
-                    .expect("could not convert result of `load_project` to `Project`");
+                let mut project =
+                    invoke::<Project>("load_project", PathBufArgs { path: path.clone() })
+                        .await
+                        .expect("could not invoke `load_project`");
 
                 // initialize data root as container
                 let mut data_root = path.clone();
                 data_root.push("data");
 
-                let rid = invoke(
+                let rid = invoke::<ResourceId>(
                     "init_project_graph",
                     InitProjectGraphArgs {
                         path: data_root.clone(),
@@ -80,12 +74,9 @@ pub fn create_project() -> Html {
                 .await
                 .expect("could not invoke `init_project_graph`");
 
-                let _rid: ContainerTree = swb::from_value(rid)
-                    .expect("could not convert `init_project_graph` result from JsValue");
-
                 // save project
                 project.data_root = Some(data_root);
-                let res = invoke(
+                let res = invoke::<()>(
                     "update_project",
                     UpdateProjectArgs {
                         project: project.clone(),
@@ -93,9 +84,6 @@ pub fn create_project() -> Html {
                 )
                 .await
                 .expect("could not invoke `update_project`");
-
-                let _res: () = swb::from_value(res)
-                    .expect("could not convert `update_project` result from JsValue");
 
                 // update ui
                 let rid = project.rid.clone();

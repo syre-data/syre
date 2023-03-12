@@ -160,7 +160,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                     associations: associations_str,
                 };
 
-                let _res = invoke("update_container_script_associations", update)
+                let _res = invoke::<()>("update_container_script_associations", update)
                     .await
                     .expect("could not invoke `update_container_script_associations`");
 

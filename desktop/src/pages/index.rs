@@ -3,7 +3,6 @@ use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateRedu
 use crate::commands::common::{EmptyArgs, ResourceIdArgs};
 use crate::common::invoke;
 use crate::routes::Route;
-use serde_wasm_bindgen as swb;
 use thot_core::system::User;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -34,17 +33,11 @@ pub fn index() -> Html {
                         return;
                     };
 
-                    //                     let Ok(active_user): Result<Option<User>, swb::Error> = swb::from_value(active_user) else {
-                    //                         navigator.push(&Route::SignIn);
-                    //                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not read user.")));
-                    //                         return;
-                    //                     };
-
                     match active_user {
                         None => navigator.push(&Route::SignIn),
                         Some(user) => {
                             // set acitve user on backend
-                            let _active_res = invoke(
+                            let _active_res = invoke::<()>(
                                 "set_active_user",
                                 ResourceIdArgs {
                                     rid: user.rid.clone(),

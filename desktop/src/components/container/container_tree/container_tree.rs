@@ -1,5 +1,5 @@
 //! Container tree UI.
-use super::Container;
+use super::Container as ContainerUi;
 use crate::app::AuthStateReducer;
 use crate::app::ShadowBox;
 use crate::commands::common::UpdatePropertiesArgs;
@@ -8,9 +8,8 @@ use crate::common::invoke;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
-use serde_wasm_bindgen as swb;
 use std::str::FromStr;
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::Container;
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::prelude::Closure;
@@ -152,7 +151,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
             spawn_local(async move {
                 // create child
-                let child = invoke(
+                let mut child: Container = invoke(
                     "new_child",
                     NewChildArgs {
                         name,
@@ -161,9 +160,6 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 )
                 .await
                 .expect("could not invoke `new_child`");
-
-                let mut child: CoreContainer = swb::from_value(child)
-                    .expect("could not convert result of `new_child` from JsValue");
 
                 graph_state.dispatch(GraphStateAction::InsertChildContainer(
                     parent,
@@ -257,7 +253,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     </defs>
                 </svg>
 
-                <Container
+                <ContainerUi
                     r#ref={root_ref}
                     rid={props.root.clone()}
                     {onadd_child} />

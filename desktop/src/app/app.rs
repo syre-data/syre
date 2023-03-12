@@ -8,8 +8,7 @@ use crate::common::invoke;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
-use serde_wasm_bindgen as swb;
-use thot_core::project::Project as CoreProject;
+use thot_core::project::Project;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -54,7 +53,7 @@ pub fn app() -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let Ok(projects) = invoke(
+                    let Ok(projects) = invoke::<Vec<Project>>(
                         "load_user_projects",
                         LoadUserProjectsArgs { user: user_id }
                     )
@@ -62,10 +61,6 @@ pub fn app() -> Html {
                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load user projects")));
                             return;
                     };
-
-                    let projects: Vec<CoreProject> = swb::from_value(projects).expect(
-                        "could not convert result of `load_user_projects` to `Vec<Project>`",
-                    );
 
                     projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
                 });

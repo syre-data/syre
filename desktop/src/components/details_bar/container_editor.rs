@@ -4,11 +4,9 @@ use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
-use serde_wasm_bindgen as swb;
 use std::sync::{Arc, Mutex};
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::Result as LibResult;
 use thot_ui::types::Message;
 use thot_ui::widgets::StandardPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
@@ -78,17 +76,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 };
 
                 let update = UpdatePropertiesArgs { rid, properties };
-                web_sys::console::log_1(&2.into());
-                let res = invoke("update_container_properties", update_str)
-                    .await
-                    .expect("could not invoke `update_container_properties`");
-
-                web_sys::console::log_1(&0.into());
-                let res: LibResult =
-                    swb::from_value(res).expect("could not convert result for JsValue");
-
-                web_sys::console::log_1(&1.into());
-                match res {
+                match invoke::<()>("update_container_properties", update_str).await {
                     Err(err) => {
                         web_sys::console::debug_1(&format!("{err:?}").into());
                         app_state.dispatch(AppStateAction::AddMessage(Message::error(

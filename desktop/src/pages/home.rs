@@ -5,7 +5,6 @@ use crate::common::invoke;
 use crate::hooks::{use_user, use_user_projects};
 use crate::navigation::MainNavigation;
 use crate::routes::Route;
-use serde_wasm_bindgen as swb;
 use thot_desktop_lib::settings::{UserAppState, UserSettings};
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
@@ -81,13 +80,10 @@ pub fn home() -> Html {
         let rid = user.rid.clone();
 
         spawn_local(async move {
-            let Ok(user_settings) = invoke("load_user_settings", ResourceIdArgs { rid }).await else {
+            let Ok(user_settings) = invoke::<UserSettings>("load_user_settings", ResourceIdArgs { rid }).await else {
                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.")));
                         return;
             };
-
-            let user_settings: UserSettings = swb::from_value(user_settings)
-                .expect("could not convert reuslt of `load_user_settings` to `UserSettings`");
 
             app_state.dispatch(AppStateAction::SetUserSettings(Some(user_settings)));
         });
@@ -100,7 +96,7 @@ pub fn home() -> Html {
         let rid = user.rid.clone();
 
         spawn_local(async move {
-            let Ok(user_app_state) = invoke(
+            let Ok(user_app_state) = invoke::<UserAppState>(
                 "load_user_app_state",
                 ResourceIdArgs { rid }
             )
@@ -109,9 +105,6 @@ pub fn home() -> Html {
                 app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.")));
                 return;
             };
-
-            let user_app_state: UserAppState = swb::from_value(user_app_state)
-                .expect("could not convert reuslt of `load_user_app_state` to `UserAppState`");
 
             app_state.dispatch(AppStateAction::SetUserAppState(Some(user_app_state)));
         });

@@ -3,6 +3,7 @@ use crate::app::{AppStateAction, AppStateReducer, AppWidget, AuthStateAction, Au
 use crate::commands::common::EmptyArgs;
 use crate::common::invoke;
 use crate::routes::Route;
+use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -18,16 +19,22 @@ pub fn commands() -> Html {
 
     let logout = {
         let auth_state = auth_state.clone();
+        let app_state = app_state.clone();
         let navigator = navigator.clone();
 
         Callback::from(move |_| {
+            let app_state = app_state.clone();
             navigator.push(&Route::SignIn);
             auth_state.dispatch(AuthStateAction::UnsetUser);
+
             spawn_local(async move {
-                let _res = invoke("unset_active_user", EmptyArgs {})
-                    .await
-                    .expect("could not invoke `unset_active_user`");
-                // @todo[1]: Handle error.
+                let res = invoke::<()>("unset_active_user", EmptyArgs {}).await;
+
+                if res.is_err() {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not log out",
+                    )));
+                }
             });
         })
     };

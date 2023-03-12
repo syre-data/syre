@@ -16,13 +16,15 @@ use yew_router::prelude::*;
 #[function_component(Dashboard)]
 pub fn dashboard() -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
+    let navigator = use_navigator().expect("navigator not found");
 
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
     let user = use_user();
     let Some(user) = user.as_ref() else {
-        panic!("user not set"); // @todo: Redirect to login.
+        navigator.push(&Route::SignIn);
+        return Ok(html! {{ "Redirecting to login" }});
     };
 
     let projects = use_user_projects(&user.rid);

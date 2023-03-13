@@ -62,7 +62,7 @@ impl Database {
 
                 };
 
-                let child: CoreContainer = child.clone().into();
+                let child: Result<CoreContainer> = Ok(child.clone().into());
                 serde_json::to_value(child).expect("could not convert child `Container` to JsValue")
             }
 

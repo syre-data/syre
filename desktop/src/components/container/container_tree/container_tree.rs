@@ -1,7 +1,6 @@
 //! Container tree UI.
 use super::Container as ContainerUi;
-use crate::app::AuthStateReducer;
-use crate::app::ShadowBox;
+use crate::app::{AppStateAction, AppStateReducer, AuthStateReducer, ShadowBox};
 use crate::commands::common::UpdatePropertiesArgs;
 use crate::commands::container::NewChildArgs;
 use crate::common::invoke;
@@ -11,6 +10,7 @@ use crate::components::canvas::{
 use std::str::FromStr;
 use thot_core::project::Container;
 use thot_core::types::{Creator, ResourceId, UserId};
+use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -96,6 +96,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let auth_state =
         use_context::<AuthStateReducer>().expect("`AuthStateReducer` context not found");
 
+    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
@@ -130,6 +131,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     };
 
     let add_child = {
+        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let new_child_parent = new_child_parent.clone();
         let show_add_child_form = show_add_child_form.clone();
@@ -141,25 +143,28 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
             .clone();
 
         Callback::from(move |name: String| {
-            show_add_child_form.set(false);
+            let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let uid = uid.clone();
 
+            show_add_child_form.set(false);
             let parent = (*new_child_parent)
                 .clone()
                 .expect("new child parent not set");
 
             spawn_local(async move {
                 // create child
-                let mut child: Container = invoke(
+                let Ok(mut child) = invoke::<Container>(
                     "new_child",
                     NewChildArgs {
                         name,
                         parent: parent.clone(),
                     },
                 )
-                .await
-                .expect("could not invoke `new_child`");
+                .await else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create child")));
+                    return;
+                };
 
                 graph_state.dispatch(GraphStateAction::InsertChildContainer(
                     parent,

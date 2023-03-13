@@ -10,6 +10,7 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
+use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
@@ -51,39 +52,46 @@ pub fn create_project() -> Html {
                 // todo: Validate path is not already a project.
                 // todo: Set project creator.
                 // init project
-                let rid = invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() })
-                    .await
-                    .expect("could not invoke `init_project`");
+                let Ok(rid) = invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() })
+                    .await else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create project")));
+                        return;
+                    };
 
-                let mut project =
+                let Ok(mut project) =
                     invoke::<Project>("load_project", PathBufArgs { path: path.clone() })
-                        .await
-                        .expect("could not invoke `load_project`");
+                        .await else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load project")));
+                        return;
+                    };
 
                 // initialize data root as container
                 let mut data_root = path.clone();
                 data_root.push("data");
 
-                let rid = invoke::<ResourceId>(
+                let Ok(_graph) = invoke::<ContainerTree>(
                     "init_project_graph",
                     InitProjectGraphArgs {
                         path: data_root.clone(),
                         project: project.rid.clone(),
                     },
-                )
-                .await
-                .expect("could not invoke `init_project_graph`");
+                ).await else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create project graph.")));
+                    return;
+                };
 
                 // save project
                 project.data_root = Some(data_root);
-                let res = invoke::<()>(
+                let Ok(_) = invoke::<()>(
                     "update_project",
                     UpdateProjectArgs {
                         project: project.clone(),
                     },
                 )
-                .await
-                .expect("could not invoke `update_project`");
+                .await else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not update project")));
+                    return;
+                };
 
                 // update ui
                 let rid = project.rid.clone();

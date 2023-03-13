@@ -5,7 +5,6 @@ use serde::Serialize;
 use serde_wasm_bindgen as swb;
 use thot_desktop_lib::error::Error as LibError;
 
-// @todo: Deserialize result.
 pub async fn invoke<T>(command: &str, args: impl Serialize) -> Result<T>
 where
     T: DeserializeOwned,
@@ -14,6 +13,7 @@ where
         .await
         .map(|val| swb::from_value(val).expect("could not convert result"))
         .map_err(|err| {
+            // @todo[2]: Unify errors.
             let err: LibError = swb::from_value(err).expect("could not convert error");
             Error::Binding(format!("{err:?}"))
         })

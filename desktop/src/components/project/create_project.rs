@@ -69,6 +69,7 @@ pub fn create_project() -> Html {
                 let mut data_root = path.clone();
                 data_root.push("data");
 
+                // @todo[4]: Could load graph here.
                 let Ok(_graph) = invoke::<ContainerTree>(
                     "init_project_graph",
                     InitProjectGraphArgs {

@@ -90,5 +90,5 @@ impl From<JsValue> for Error {
 pub type Result<T = ()> = StdResult<T, Error>;
 
 #[cfg(test)]
-#[path = "./result_test.rs"]
-mod result_test;
+#[path = "./error_test.rs"]
+mod error_test;

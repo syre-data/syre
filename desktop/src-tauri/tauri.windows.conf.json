@@ -1,0 +1,22 @@
+{
+    "tauri": {
+      "windows": [
+        {
+          "fullscreen": false,
+          "height": 600,
+          "resizable": true,
+          "title": "Thot",
+          "width": 800,
+          "visible": false,
+          "fileDropEnabled": false
+        },
+        {
+            "width": 400,
+            "height": 200,
+            "decorations": false,
+            "url": "public/splashscreen.html",
+            "label": "splashscreen"
+        }
+      ]
+    }
+}

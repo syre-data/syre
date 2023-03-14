@@ -19,6 +19,7 @@ use thot_ui::types::ContainerPreview;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::ContainerPreviewSelect;
 use thot_ui::widgets::suspense::Loading;
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -63,6 +64,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
             move |_| {
                 spawn_local(async move {
                     // @todo: Listen to window events.
+                    // @note: Used for *nix and macOS machines.
+                    //      For Windows machine, look in the `Container` component. 
                     let mut events = tauri_sys::event::listen::<Vec<PathBuf>>("tauri://file-drop")
                         .await
                         .expect("could not create `tauri://file-drop` listener");
@@ -78,7 +81,10 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                             .expect("could not query node");
 
                         if active_nodes.length() > 1 {
-                            panic!("more than one node is `dragover-active`");
+                            web_sys::console::error_1(&"more than one node is dragover active".into());
+                            graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
+                            app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not add files")));
+                            return;
                         }
 
                         let Some(active_node) = active_nodes.get(0) else {

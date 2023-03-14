@@ -78,7 +78,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 let update = UpdatePropertiesArgs { rid, properties };
                 match invoke::<()>("update_container_properties", update_str).await {
                     Err(err) => {
-                        web_sys::console::debug_1(&format!("{err:?}").into());
+                        web_sys::console::error_1(&format!("{err:?}").into());
                         app_state.dispatch(AppStateAction::AddMessage(Message::error(
                             "Could not save resource",
                         )));

@@ -200,6 +200,18 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     };
 
+    let ondrop = {
+        let dragover_counter = dragover_counter.clone();
+        let ondrop = props.ondrop.clone();
+
+        Callback::from(move |e: DragEvent| {
+            e.prevent_default();
+            dragover_counter.set(0);
+
+            // web_sys::console::log_1(&"a".into());
+        })
+    };
+
     let onclick_menu = {
         let show_menu = show_menu.clone();
 
@@ -255,7 +267,7 @@ pub fn container(props: &ContainerProps) -> Html {
             ondblclick={props.ondblclick.clone()}
             {ondragenter}
             {ondragleave}
-            ondrop={props.ondrop.clone()}
+            {ondrop}
             data-rid={props.rid.clone()} >
 
             if let Some(on_menu_event) = on_menu_event {

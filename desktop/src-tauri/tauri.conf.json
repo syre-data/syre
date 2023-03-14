@@ -78,9 +78,10 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "thot_desktop",
+        "title": "Thot",
         "width": 800,
-        "visible": false
+        "visible": false,
+        "fileDropEnabled": true
       },
       {
           "width": 400,

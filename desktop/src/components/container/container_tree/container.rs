@@ -22,6 +22,8 @@ use thot_ui::widgets::container::container_tree::{
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
+use yew_router::prelude::*;
+use crate::routes::Route;
 
 type Graph = ResourceTree<CoreContainer>;
 
@@ -51,13 +53,16 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
 
+    let navigator = use_navigator().expect("navigator not found");
     let show_create_assets = use_state(|| false);
     let selected = canvas_state.selected.contains(&props.rid);
 
     let multiple_selected = canvas_state.selected.len() > 1;
 
     let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
-        panic!("`Project`'s `Scripts` not loaded");
+        app_state.dispatch(AppStateAction::AddMessage(Message::error("Project scripts not loaded")));
+        navigator.push(&Route::Dashboard);
+        return Ok(html! {{ "Project scripts not loaded. Redirecting to home." }});
     };
 
     let script_names = project_scripts
@@ -338,6 +343,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
+    // @note: Used for Windows machines.
+    //      For *nix and macOS machine, look in the `ContainerTreeController` component.
+
     let ondragenter = {
         let graph_state = graph_state.clone();
         let container_id = props.rid.clone();
@@ -352,6 +360,18 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |_: web_sys::DragEvent| {
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
+        })
+    };
+
+    let ondrop = {
+        let graph_state = graph_state.clone();
+
+        Callback::from(move |e: web_sys::DragEvent| {
+            e.prevent_default();
+            graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
+
+            // web_sys::console::log_1(&format!("{e:#?}").into());
+            // graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
         })
     };
 
@@ -390,6 +410,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 on_menu_event,
                 ondragenter,
                 ondragleave,
+                ondrop,
                 onclick_edit_scripts,
             }
     };

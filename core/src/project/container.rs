@@ -22,7 +22,7 @@ pub type ScriptMap = ResourceMap<RunParameters>;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "pyo3", pyo3::pyclass)]
-#[derive(Clone, Debug, HasId)]
+#[derive(PartialEq, Eq, Clone, Debug, HasId)]
 pub struct Container {
     #[id]
     pub rid: ResourceId,
@@ -41,22 +41,6 @@ impl Default for Container {
         }
     }
 }
-
-impl PartialEq for Container {
-    fn eq(&self, other: &Self) -> bool {
-        if self.rid != other.rid {
-            return false;
-        }
-
-        if self.properties != other.properties {
-            return false;
-        }
-
-        true
-    }
-}
-
-impl Eq for Container {}
 
 impl Hash for Container {
     fn hash<H: Hasher>(&self, state: &mut H) {

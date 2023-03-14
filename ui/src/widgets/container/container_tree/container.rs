@@ -68,7 +68,7 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
 
                 <li class={classes!("clickable")}
                     onclick={onclick(ContainerMenuEvent::AddAssets)}>
-                    { "Add assets" }
+                    { "Add data" }
                 </li>
 
                 <li class={classes!("clickable")}

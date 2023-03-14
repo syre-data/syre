@@ -10,6 +10,7 @@ use crate::components::canvas::{
 };
 use crate::components::details_bar::DetailsBarWidget;
 use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
+use crate::routes::Route;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
@@ -23,7 +24,6 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
 use yew_router::prelude::*;
-use crate::routes::Route;
 
 type Graph = ResourceTree<CoreContainer>;
 
@@ -289,7 +289,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     };
 
                 let mut assets = container.assets.clone();
+                let initial_size = assets.len().clone();
+                web_sys::console::debug_1(&initial_size.into());
                 assets.retain(|asset, _| asset != &rid);
+
+                let after_size = assets.len().clone();
+                web_sys::console::debug_1(&after_size.into());
+
                 graph_state.dispatch(GraphStateAction::UpdateContainerAssets(
                     container_id.clone(),
                     assets,

@@ -48,7 +48,7 @@ pub fn home_component() -> HtmlResult {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
                     <div>
-                        <button onclick={create_project.clone()}>{ "Create your first project" }</button>
+                        <button class={classes!("btn-primary")} onclick={create_project.clone()}>{ "Create your first project" }</button>
                     </div>
                 </div>
             } else {

@@ -433,7 +433,17 @@ impl Datastore {
         let asset = container.assets.remove(rid);
         container.save()?;
 
+        let mut path = container
+            .base_path()
+            .expect("could not get `Container` base path");
+
         self.assets.remove(rid);
+
+        if let Some(asset) = asset.as_ref() {
+            path.push(asset.path.as_path());
+            trash::delete(path)?;
+        };
+
         Ok(asset)
     }
 

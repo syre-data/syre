@@ -236,7 +236,6 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     }
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };
-
     Ok(html! {
         <div class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>

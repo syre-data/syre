@@ -50,6 +50,11 @@ impl Database {
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
 
+            GraphCommand::Remove(root) => {
+                let res = self.store.remove_subgraph(&root);
+                serde_json::to_value(res).expect("could not convert `Result` to JsValue")
+            }
+
             GraphCommand::NewChild(NewChildArgs { name, parent }) => {
                 let res = self.new_child(&parent, name);
                 let Ok(cid) = res else {

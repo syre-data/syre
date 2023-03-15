@@ -184,6 +184,28 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         }
                     });
                 }
+
+                ContainerMenuEvent::Remove => {
+                    let app_state = app_state.clone();
+                    let graph_state = graph_state.clone();
+
+                    spawn_local(async move {
+                        invoke::<()>("remove_container_tree", ResourceIdArgs { rid: rid.clone() })
+                            .await
+                            .expect("could not invoke `remove_container_tree`");
+
+                        let mut graph = graph_state.graph.clone();
+
+                        match graph.remove(&rid) {
+                            Ok(_) => graph_state.dispatch(GraphStateAction::SetGraph(graph)),
+                            Err(_) => {
+                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                    "Could not remove tree",
+                                )));
+                            }
+                        }
+                    });
+                }
             }
         })
     };
@@ -375,9 +397,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         Callback::from(move |e: web_sys::DragEvent| {
             e.prevent_default();
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
-
-            // web_sys::console::log_1(&format!("{e:#?}").into());
-            // graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
         })
     };
 

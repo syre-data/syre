@@ -62,7 +62,7 @@ impl GraphState {
     pub fn new(graph: ContainerTree) -> Self {
         Self {
             graph,
-            asset_map: HashMap::new(),
+            asset_map: AssetContainerMap::new(),
             dragover_container: None,
         }
     }
@@ -80,7 +80,15 @@ impl Reducible for GraphState {
 
         match action {
             GraphStateAction::SetGraph(graph) => {
+                let mut asset_map = AssetContainerMap::new();
+                for container in graph.nodes().values() {
+                    for aid in container.assets.keys() {
+                        asset_map.insert(aid.clone(), container.rid.clone());
+                    }
+                }
+
                 current.graph = graph;
+                current.asset_map = asset_map;
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {

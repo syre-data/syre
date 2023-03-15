@@ -148,6 +148,18 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> Result<
     Ok(dup)
 }
 
+/// Removes a [`Container`](LocalContainer) tree.
+///
+/// # Arguments
+/// 1. Id of the root of the `Container` tree to remove.
+#[tauri::command]
+pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
+    let res = db.send(GraphCommand::Remove(rid).into());
+    let res: DbResult = serde_json::from_value(res)
+        .expect("could not convert result of `Remove` to `Container` tree");
+    res.map_err(|err| err.into())
+}
+
 #[cfg(test)]
 #[path = "./graph_test.rs"]
 mod graph_test;

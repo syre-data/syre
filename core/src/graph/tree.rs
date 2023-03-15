@@ -227,7 +227,21 @@ where
     /// # Returns
     /// The removed subtree.
     pub fn remove(&mut self, root: &ResourceId) -> Result<Self> {
+        let parent = self
+            .parent(root)
+            .expect("root `Node` not found")
+            .expect("root `Node` can not be removed")
+            .clone();
+
         let (nodes, edges) = self.remove_components(root)?;
+
+        let p_edges = self
+            .edges
+            .get_mut(&parent)
+            .expect("parent `Node` edges not found");
+
+        p_edges.remove(root);
+
         let mut parents = ResourceMap::new();
         for (parent, children) in edges.clone() {
             for child in children {

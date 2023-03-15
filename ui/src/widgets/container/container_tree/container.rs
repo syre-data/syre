@@ -28,6 +28,9 @@ pub enum ContainerMenuEvent {
 
     /// Duplicate the `Contiainer` tree.
     DuplicateTree,
+
+    /// Remove the `Contiainer` tree.
+    Remove,
 }
 
 /// Properties for [`ContainerMenu`].
@@ -74,6 +77,10 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
                 <li class={classes!("clickable")}
                     onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
                     { "Duplicate Tree" }
+                </li>
+                <li class={classes!("clickable")}
+                    onclick={onclick(ContainerMenuEvent::Remove)}>
+                    { "Remove Tree" }
                 </li>
             </ul>
         </div>
@@ -207,8 +214,6 @@ pub fn container(props: &ContainerProps) -> Html {
         Callback::from(move |e: DragEvent| {
             e.prevent_default();
             dragover_counter.set(0);
-
-            // web_sys::console::log_1(&"a".into());
         })
     };
 

@@ -69,6 +69,7 @@ fn main() {
             update_container_properties,
             update_container_script_associations,
             duplicate_container_tree,
+            remove_container_tree,
             // asset
             get_assets,
             update_asset_properties,

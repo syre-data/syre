@@ -234,6 +234,43 @@ impl Datastore {
         Ok(())
     }
 
+    /// Insert a graph into another.
+    pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result {
+        let Some(project) = self.get_container_project(root).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
+        };
+
+        let p_graph = self
+            .graphs
+            .get_mut(&project)
+            .expect("`Project` graph not found");
+
+        let sub_graph = p_graph.remove(root)?;
+
+        let root_path = sub_graph
+            .get(sub_graph.root())
+            .expect("`Graph` root not found")
+            .base_path()
+            .expect("root base path not set");
+
+        for (cid, container) in sub_graph.nodes() {
+            // map container to project
+            self.container_projects.remove(cid);
+
+            // map path to container
+            self.container_paths
+                .remove(&container.base_path().expect("`Container` path not set"));
+
+            // map assets to containers
+            for aid in container.assets.keys() {
+                self.assets.remove(aid);
+            }
+        }
+
+        trash::delete(root_path)?;
+        Ok(())
+    }
+
     // *****************
     // *** container ***
     // *****************
@@ -356,12 +393,6 @@ impl Datastore {
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
     }
-
-    // @todo
-    // /// Removes a [`Container`](LocalContainer) from the database.
-    // pub fn remove_container(&mut self, rid: &ResourceId) -> Option<ContainerWrapper> {
-    //     self.containers.remove(rid)
-    // }
 
     // *************
     // *** asset ***

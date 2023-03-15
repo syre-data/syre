@@ -164,8 +164,18 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             "duplicate_container_tree",
                             ResourceIdArgs { rid: rid.clone() },
                         )
-                        .await
-                        .expect("could not invoke `duplicate_container_tree`");
+                        .await;
+
+                        let dup = match dup {
+                            Ok(dup) => dup,
+                            Err(err) => {
+                                web_sys::console::error_1(&format!("{err:?}").into());
+                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                    "Could not duplicate tree",
+                                )));
+                                return;
+                            }
+                        };
 
                         let mut graph = graph_state.graph.clone();
                         let parent = graph

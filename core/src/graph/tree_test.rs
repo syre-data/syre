@@ -245,6 +245,31 @@ fn descendants_should_work() {
 }
 
 #[test]
+fn clone_tree_should_work() {
+    // setup
+    let tree = create_tree();
+    let c1 = tree
+        .children(tree.root())
+        .expect("could not get root children")
+        .get_index(0)
+        .expect("root `Node` has no children");
+
+    let children = tree.children(c1).expect("could not get children of `Node`");
+
+    // test
+    let c_tree = tree.clone_tree(c1).expect("could not clone tree");
+    assert_eq!(c1, c_tree.root(), "root `Node`s not equal");
+
+    let c_children = c_tree
+        .children(c_tree.root())
+        .expect("could not get children of root in cloned tree");
+    assert_eq!(children.len(), c_children.len(), "children are not equal");
+    for child in children {
+        assert!(c_children.contains(child), "children are not equal");
+    }
+}
+
+#[test]
 fn insert_tree_should_work() {
     // setup
     let mut tree = create_tree();

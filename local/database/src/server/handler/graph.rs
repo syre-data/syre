@@ -6,9 +6,9 @@ use crate::server::store::ContainerTree;
 use crate::Error;
 use crate::Result;
 use serde_json::Value as JsValue;
-use settings_manager::LocalSettings;
+use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
 use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
-use thot_core::graph::ResourceTree as CoreResourceTree;
+use thot_core::graph::{tree::NodeMap, ResourceNode, ResourceTree as CoreResourceTree};
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 use thot_local::common::unique_file_name;
@@ -72,23 +72,42 @@ impl Database {
             }
 
             GraphCommand::Duplicate(root) => {
+                // duplicate tree
                 let res = self.duplicate_container_tree(&root);
                 let Ok(rid) = res else {
                     return serde_json::to_value(res).expect("could not convert `Result` to JsValue");
                 };
 
+                // get duplicated tree
                 let Some(graph) = self.store.get_container_graph(&rid) else {
-                    let err: Error =  CoreError::ResourceError(ResourceError::DoesNotExist("graph not found")).into();
+                    let err: Result = Err(CoreError::ResourceError(ResourceError::DoesNotExist("graph not found")).into());
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                let dup = graph.duplicate(&rid);
-                let Ok(dup) = dup else {
-                    let err = Error::LocalError("could not duplicate tree".into());
-                    return serde_json::to_value(err).expect("could not convert error to JsValue");
+                // copy duplicated tree for return
+                let dup = match graph.clone_tree(&rid) {
+                    Ok(dup) => dup,
+                    Err(err) => {
+                        return serde_json::to_value(err)
+                            .expect("could not convert error to JsValue");
+                    }
                 };
 
-                let dup: CoreResourceTree<CoreContainer> = dup.into();
+                // convert local containers to core containers
+                let (nodes, edges) = dup.into_components();
+                let nodes = nodes
+                    .into_iter()
+                    .map(|(id, node)| {
+                        let container = node.into_data();
+                        let container: CoreContainer = container.into();
+                        (id, ResourceNode::new(container))
+                    })
+                    .collect::<NodeMap<CoreContainer>>();
+
+                let dup: Result<CoreContainerTree> =
+                    Ok(CoreResourceTree::from_components(nodes, edges)
+                        .expect("could not convert tree"));
+
                 serde_json::to_value(dup).expect("could not convert `Result` to JsValue")
             }
         }
@@ -133,20 +152,28 @@ impl Database {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not have parent")).into());
         };
 
+        // duplicate tree
         let mut dup = graph.duplicate(rid)?;
         let dup_id = dup.root().clone();
-        drop(graph);
+        drop(graph); // required for mutable borrow later
 
+        // persist new tree to file
         dup.set_base_path(&dup_id, unique_file_name(root.base_path()?)?)?;
+        for cid in dup.nodes().clone().keys() {
+            let container = dup.get_mut(cid).expect("`Node` not in graph");
+            container.acquire_lock()?;
+            container.save()?;
+        }
+
+        // insert duplicate
         let res = self
             .store
             .insert_subgraph(&parent.clone(), dup.into_inner());
 
-        if let Err(err) = res {
-            return Err(err);
+        match res {
+            Ok(_) => Ok(dup_id),
+            Err(err) => Err(err),
         }
-
-        Ok(dup_id)
     }
 
     fn new_child(&mut self, parent: &ResourceId, name: String) -> Result<ResourceId> {

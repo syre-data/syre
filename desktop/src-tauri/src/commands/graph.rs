@@ -8,6 +8,7 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
+use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local::project::container;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::UpdatePropertiesArgs;
@@ -110,13 +111,14 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 /// # Arguments
 /// 1. Id of the root of the `Container` tree to duplicate.
 #[tauri::command]
-pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> Result<ContainerTree> {
+pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
     let dup = db.send(GraphCommand::Duplicate(rid).into());
+    dbg!(&dup);
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");
 
     // Update name
-    let mut dup = dup?;
+    let mut dup = dup.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
     let root_id = dup.root().clone();
     let root = dup
         .get_mut(&root_id)
@@ -143,7 +145,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> Result<
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
 
-    res?;
+    res.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
 
     Ok(dup)
 }

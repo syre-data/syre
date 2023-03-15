@@ -41,6 +41,8 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 /// A store for [`Container`](LocalContainer)s.
 /// Assets can be referenced as well.
 ///
+///
+///
 /// # Notes
 /// + Because local Thot resources can only be controlled by a single process
 /// a `Datastore` operates as a single repository for all processes requiring access
@@ -59,7 +61,7 @@ pub struct Datastore {
     /// Map from a [`Container`](LocalContainer)'s path to its [`ResourceId`].
     container_paths: PathMap,
 
-    /// Map from a `Container`'s id to its `Project`.
+    /// Map from a `Container`'s id to its `Project`'s.
     container_projects: IdMap,
 
     /// Map from an [`Asset`]'s [`ResourceId`] to its [`Container`]'s.
@@ -230,7 +232,7 @@ impl Datastore {
             }
         }
 
-        p_graph.insert_tree(parent, graph);
+        p_graph.insert_tree(parent, graph)?;
         Ok(())
     }
 

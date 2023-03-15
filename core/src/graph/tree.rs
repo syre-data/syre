@@ -347,6 +347,25 @@ where
     }
 }
 
+impl<D> ResourceTree<D>
+where
+    D: HasId<Id = ResourceId> + Clone,
+{
+    /// Clones a subtree.
+    pub fn clone_tree(&self, root: &ResourceId) -> Result<Self> {
+        let Some(root_node) = self.nodes.get(&root) else {
+            return Err(ResourceError::DoesNotExist("root `Node` not found").into());
+        };
+
+        let mut tree = Self::new(root_node.clone().into_data());
+        for child in self.children(root).expect("children not found") {
+            tree.insert_tree(root, self.clone_tree(child)?)?;
+        }
+
+        Ok(tree)
+    }
+}
+
 #[cfg(test)]
 #[path = "./tree_test.rs"]
 mod tree_test;

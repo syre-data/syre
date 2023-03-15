@@ -74,6 +74,8 @@ impl ResourceTree<Container> {
         Ok(Self(graph))
     }
 
+    /// Duplicates a subtree.
+    /// Base paths of the [`Containers`] are maintained.
     pub fn duplicate(&self, root: &ResourceId) -> Result<Self> {
         let Some(node) = self.get(root) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
@@ -81,7 +83,7 @@ impl ResourceTree<Container> {
 
         let node = node.duplicate_with_path()?;
         let mut graph = Self(CoreResourceTree::new(node));
-        let Some(children) =  self.children(root) else {
+        let Some(children) = self.children(root) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
         };
 

@@ -343,6 +343,15 @@ fn remove_should_work() {
             "removed `Node` should not have parent"
         );
     }
+
+    let p_children = tree
+        .children(&tree.root())
+        .expect("could not get children of parent");
+
+    assert!(
+        !p_children.contains(&c1),
+        "parent should not contain removed root"
+    );
 }
 
 #[test]

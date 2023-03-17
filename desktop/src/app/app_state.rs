@@ -12,6 +12,9 @@ pub enum AppWidget {
     /// Create a new project.
     CreateProject,
 
+    /// Import a project.
+    ImportProject,
+
     /// User settings.
     UserSettings,
 }

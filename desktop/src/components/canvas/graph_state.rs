@@ -60,9 +60,16 @@ pub struct GraphState {
 
 impl GraphState {
     pub fn new(graph: ContainerTree) -> Self {
+        let mut asset_map = AssetContainerMap::new();
+        for container in graph.nodes().values() {
+            for aid in container.assets.keys() {
+                asset_map.insert(aid.clone(), container.rid.clone());
+            }
+        }
+
         Self {
             graph,
-            asset_map: AssetContainerMap::new(),
+            asset_map,
             dragover_container: None,
         }
     }

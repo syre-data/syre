@@ -10,6 +10,13 @@ pub enum ProjectCommand {
     /// Load a [`Project`](crate::project::resources::Project) from a path.
     Load(PathBuf),
 
+    /// Adds a [`Project`](crate::project::resources::Project) for a user from a path.
+    ///
+    /// # Fields
+    /// 1. Path to the project.
+    /// 2. User.
+    Add(PathBuf, ResourceId),
+
     /// Loads the user's projects.
     ///
     /// # Fields

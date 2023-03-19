@@ -137,26 +137,20 @@ fn asset_icon_id(asset: &CoreAsset) -> IconId {
             "doc" | "docm" | "docx" | "dot" => IconId::FontAwesomeRegularFileWord,
             "mp4" | "mov" | "wmv" | "avi" => IconId::FontAwesomeRegularFileVideo,
             "zip" | "zipx" | "rar" | "7z" | "gz" => IconId::FontAwesomeRegularFileZipper,
+            "dat" | "pkl" | "bin" | "exe" => IconId::OcticonsFileBinary24,
             _ => IconId::FontAwesomeRegularFile,
         }
     }
 
-    let file_name = if let Some(name) = asset.properties.name.as_ref() {
-        name.clone()
-    } else {
-        let path = Into::<PathBuf>::into(asset.path.clone());
-        let name = path
-            .file_name()
-            .expect("`Asset.path` could not get file name");
-
-        name.to_str()
-            .expect("could not convert path to str")
-            .to_owned()
+    let Some(extension) = asset.path.as_path().extension() else {
+        return IconId::FontAwesomeRegularFile;
     };
-    let parts: Vec<&str> = file_name.split(".").collect();
-    let extension = parts.last().unwrap_or(&"");
-    let lower_case_extension = extension.to_lowercase();
-    get_icon_id(&lower_case_extension)
+
+    let Some(extension) = extension.to_str() else {
+        return IconId::FontAwesomeRegularFile;
+    };
+
+    get_icon_id(&extension.to_lowercase())
 }
 
 /// Gets the icon color to display for an [`Asset`](CoreAsset).
@@ -176,6 +170,7 @@ fn asset_icon_color(asset: &CoreAsset) -> Color {
         IconId::FontAwesomeRegularFileWord => "#77B9CE",
         IconId::FontAwesomeRegularFileVideo => "#FFDC82",
         IconId::FontAwesomeRegularFileZipper => "#C8CCD4",
+        IconId::OcticonsFileBinary24 => "#51A1C3",
         _ => "#F3F4F7",
     };
     format!("color: {}", color)

@@ -1,6 +1,7 @@
 //! Project and project settings.
-use crate::types::{Creator, ResourceId};
+use crate::types::{Creator, ResourceId, UserPermissions};
 use chrono::prelude::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[cfg(feature = "serde")]
@@ -17,6 +18,10 @@ pub struct Project {
     pub rid: ResourceId,
     pub creator: Creator,
     pub created: DateTime<Utc>,
+
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub permissions: HashMap<ResourceId, UserPermissions>,
+
     pub name: String,
     pub description: Option<String>,
     pub data_root: Option<PathBuf>,
@@ -33,6 +38,7 @@ impl Project {
             name: String::from(name),
             creator: Creator::User(None),
             created: Utc::now(),
+            permissions: HashMap::new(),
             description: None,
             data_root: None,
             universal_root: None,
@@ -49,6 +55,7 @@ impl Default for Project {
             name: String::from(""),
             creator: Creator::User(None),
             created: Utc::now(),
+            permissions: HashMap::new(),
             description: None,
             data_root: None,
             universal_root: None,

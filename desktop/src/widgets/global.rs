@@ -1,7 +1,7 @@
 //! Collection of widgetst available from anywhere in the app.
 //! Activation of the widgets is determined by the [`AppState`].
 use crate::app::{AppStateAction, AppStateReducer, AppWidget, ShadowBox};
-use crate::components::project::CreateProject;
+use crate::components::project::{CreateProject, ImportProject};
 use crate::components::settings::Settings;
 use yew::prelude::*;
 
@@ -20,6 +20,7 @@ pub fn global_widgets() -> Html {
     let (title, widget) = if let Some(wgt) = &app_state.app_widget {
         match wgt {
             AppWidget::CreateProject => ("Create a project", html! { <CreateProject /> }),
+            AppWidget::ImportProject => ("Import project", html! { <ImportProject /> }),
             AppWidget::UserSettings => ("Settings", html! { <Settings /> }),
         }
     } else {

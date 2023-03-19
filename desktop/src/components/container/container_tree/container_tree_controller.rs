@@ -13,13 +13,13 @@ use std::str::FromStr;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset, Container};
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::Result as LibResult;
 use thot_local::types::AssetFileAction;
 use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
 use thot_ui::types::ContainerPreview;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::ContainerPreviewSelect;
 use thot_ui::widgets::suspense::Loading;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -65,7 +65,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                 spawn_local(async move {
                     // @todo: Listen to window events.
                     // @note: Used for *nix and macOS machines.
-                    //      For Windows machine, look in the `Container` component. 
+                    //      For Windows machine, look in the `Container` component.
                     let mut events = tauri_sys::event::listen::<Vec<PathBuf>>("tauri://file-drop")
                         .await
                         .expect("could not create `tauri://file-drop` listener");
@@ -81,9 +81,13 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                             .expect("could not query node");
 
                         if active_nodes.length() > 1 {
-                            web_sys::console::error_1(&"more than one node is dragover active".into());
+                            web_sys::console::error_1(
+                                &"more than one node is dragover active".into(),
+                            );
                             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
-                            app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not add files")));
+                            app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                "Could not add files",
+                            )));
                             return;
                         }
 
@@ -195,6 +199,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let analysis_state = analysis_state.clone();
+            let project_id = canvas_state.project.clone();
 
             spawn_local(async move {
                 // analyze
@@ -217,18 +222,21 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                 )
                 .await
                 {
-                    Err(_err) => app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Error while analyzing",
-                    ))),
+                    Err(err) => {
+                        web_sys::console::error_1(&format!("{err:?}").into());
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Error while analyzing",
+                        )))
+                    }
 
                     Ok(()) => {}
                 }
 
                 // update tree
                 let update: ResourceTree<Container> =
-                    invoke("get_container", &ResourceIdArgs { rid: root.clone() })
+                    invoke("load_project_graph", &ResourceIdArgs { rid: project_id })
                         .await
-                        .expect("could not `get_container`");
+                        .expect("could not `load_project_graph");
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
                 analysis_state.set(AnalysisState::Complete);

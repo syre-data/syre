@@ -49,6 +49,7 @@ fn main() {
             get_active_user,
             unset_active_user,
             // project
+            add_project,
             get_project_path,
             init_project,
             set_active_project,

@@ -42,14 +42,29 @@ pub fn home_component() -> HtmlResult {
         })
     };
 
+    // import project
+    let import_project = {
+        let app_state = app_state.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
+                AppWidget::ImportProject,
+            )));
+        })
+    };
+
     Ok(html! {
         <div>
             if (*projects).len() == 0 {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
                     <div>
-                        <button class={classes!("btn-primary")} onclick={create_project.clone()}>{ "Create your first project" }</button>
+                        <button class={classes!("btn-primary")} onclick={create_project}>{ "Create your first project" }</button>
                     </div>
+                    <div>
+                        <button class={classes!("btn-secondary")} onclick={import_project}>{ "Import project" }</button>
+                    </div>
+
                 </div>
             } else {
                 <Redirect<Route> to={Route::Dashboard} />

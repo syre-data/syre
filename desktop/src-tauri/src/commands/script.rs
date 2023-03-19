@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tauri::State;
 use thot_core::project::Script;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::ScriptCommand;
 use thot_local_database::Result as DbResult;
@@ -13,12 +14,12 @@ use thot_local_database::Result as DbResult;
 // ***********************
 
 #[tauri::command]
-pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<Script>> {
+pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> LibResult<Vec<Script>> {
     let scripts = db.send(ScriptCommand::LoadProject(rid).into());
     let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts)
         .expect("could not convert `LoadProject` result to `Scripts`");
 
-    Ok(scripts?)
+    Ok(scripts.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?)
 }
 
 // ******************

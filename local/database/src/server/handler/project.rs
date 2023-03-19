@@ -11,7 +11,10 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
 use thot_local::project::resources::Project as LocalProject;
-use thot_local::system::collections;
+use thot_local::system::{
+    collections::{self, Projects},
+    resources::Project as ProjectMap,
+};
 
 impl Database {
     /// Directs the command to the correct handler.
@@ -56,6 +59,22 @@ impl Database {
                 if res.is_err() {
                     return serde_json::to_value(res).expect("could not convert error to JsValue");
                 }
+
+                // add project to collection
+                let res = Projects::load();
+                let Ok(mut projects) = res else {
+                    let error = Error::SettingsError(format!("{res:?}"));
+                    return serde_json::to_value(error).expect("could not convert error to JsValue");
+                };
+                let project_map = ProjectMap::new(project.rid.clone(), path.to_path_buf());
+                projects.insert(project.rid.clone(), project_map);
+
+                let res = projects.save();
+                if res.is_err() {
+                    let error = Error::SettingsError(format!("{res:?}"));
+                    return serde_json::to_value(error)
+                        .expect("could not convert error to JsValue");
+                };
 
                 let project: Result<CoreProject> = Ok(project);
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")

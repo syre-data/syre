@@ -3,6 +3,8 @@
 .project-canvas {
   height: 100%;
   margin-left: t.$margin-3xl;
+  display: flex;
+  justify-content: space-between;
 
   &:not(.active) {
     display: none;
@@ -19,11 +21,7 @@
   }
 
   .details-bar-drawer {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-
+    width: 200px;
     background-color: t.$frame-background-color;
 
     .drawer-toggle {
@@ -51,6 +49,10 @@
   }
 
   .project-canvas-content {
+    flex: 1; /* This allows the content to fill the remaining space */
+    overflow: auto; /* This adds a scrollbar when the content overflows vertically */
+    width: 400px;
+    height: 300px;
     min-height: 100%;
     display: flex;
 

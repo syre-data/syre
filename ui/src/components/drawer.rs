@@ -57,15 +57,15 @@ pub fn drawer(props: &DrawerProps) -> Html {
 
     html! {
         <div {class} {style}>
-            <div class={classes!("drawer-toggle")}
-                onclick={toggle_open}>
+            // <div class={classes!("drawer-toggle")}
+            //     onclick={toggle_open}>
 
-                { if *props.open {
-                    { open_symbol }
-                } else {
-                    { close_symbol }
-                }}
-            </div>
+            //     { if *props.open {
+            //         { open_symbol }
+            //     } else {
+            //         { close_symbol }
+            //     }}
+            // </div>
             <div class={classes!("drawer-contents")}
                 style={contents_style} >
 

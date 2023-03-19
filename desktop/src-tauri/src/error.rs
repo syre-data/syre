@@ -16,6 +16,9 @@ use thot_local_database::error::Error as DbError;
 pub enum DesktopSettingsError {
     /// The desired update can not be performed.
     InvalidUpdate(String),
+
+    /// An active user is not set.
+    NoUser,
 }
 
 // *************

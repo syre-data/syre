@@ -29,12 +29,11 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<CoreProject>> 
 }
 
 fn filter_user_projects(user: &ResourceId, projects: ProjectMap) -> Vec<CoreProject> {
+    let creator = Creator::User(Some(UserId::Id(user.clone())));
+
     projects
         .into_values()
-        .filter(|prj| match &prj.creator {
-            Creator::User(Some(UserId::Id(creator))) => creator == user,
-            _ => false,
-        })
+        .filter(|prj| prj.creator == creator || prj.permissions.contains_key(user))
         .collect::<Vec<CoreProject>>()
 }
 

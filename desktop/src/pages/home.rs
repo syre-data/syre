@@ -59,10 +59,10 @@ pub fn home_component() -> HtmlResult {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
                     <div>
-                        <button class={classes!("btn-primary")} onclick={create_project.clone()}>{ "Create your first project" }</button>
+                        <button class={classes!("btn-primary")} onclick={create_project}>{ "Create your first project" }</button>
                     </div>
                     <div>
-                        <button class={classes!("btn-secondary")} onclick={import_project.clone()}>{ "Import project" }</button>
+                        <button class={classes!("btn-secondary")} onclick={import_project}>{ "Import project" }</button>
                     </div>
 
                 </div>

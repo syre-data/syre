@@ -37,6 +37,9 @@ pub enum Error {
 
     // @todo: Serialize correctly.
     LocalError(String),
+
+    /// Issue with the database.
+    DatabaseError(String),
 }
 
 #[cfg(feature = "server")]

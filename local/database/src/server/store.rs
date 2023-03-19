@@ -4,6 +4,8 @@ use has_id::HasId;
 use settings_manager::LocalSettings;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use std::sync::Mutex;
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree as CoreResourceTree;
@@ -26,7 +28,7 @@ pub type IdMap = HashMap<ResourceId, ResourceId>;
 pub type PathMap = HashMap<PathBuf, ResourceId>;
 
 /// Map of [`ResourceId`] to [`Project`](LocalProject).
-pub type ProjectMap = ResourceMap<LocalProject>;
+pub type ProjectMap = ResourceMap<Rc<Mutex<LocalProject>>>;
 
 /// Map from [`Project`](LocalProject)s to their [`Script`](CoreScript)s.
 pub type ProjectScriptsMap = HashMap<ResourceId, ProjectScripts>;
@@ -104,7 +106,7 @@ impl Datastore {
         let pid = project.rid.clone();
         let base_path = project.base_path().expect("invalid `Project` base path");
 
-        self.projects.insert(pid.clone(), project);
+        self.projects.insert(pid.clone(), Rc::new(project.into()));
         self.project_paths.insert(base_path, pid);
 
         Ok(())
@@ -112,12 +114,8 @@ impl Datastore {
 
     /// Gets a [`Project`](LocalProject) from the database if it exists,
     /// otherwise `None`.
-    pub fn get_project(&self, rid: &ResourceId) -> Option<&LocalProject> {
-        self.projects.get(rid)
-    }
-
-    pub fn get_project_mut(&mut self, rid: &ResourceId) -> Option<&mut LocalProject> {
-        self.projects.get_mut(&rid)
+    pub fn get_project(&self, rid: &ResourceId) -> Option<Rc<Mutex<LocalProject>>> {
+        self.projects.get(rid).cloned()
     }
 
     /// Gets the `Project` associated to the given path.

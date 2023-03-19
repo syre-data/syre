@@ -29,6 +29,7 @@ pub fn dashboard() -> HtmlResult {
 
     let projects = use_user_projects(&user.rid);
 
+    // create project
     let create_project = {
         let app_state = app_state.clone();
 
@@ -36,6 +37,17 @@ pub fn dashboard() -> HtmlResult {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::CreateProject,
             )))
+        })
+    };
+
+    // import project
+    let import_project = {
+        let app_state = app_state.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
+                AppWidget::ImportProject,
+            )));
         })
     };
 
@@ -63,6 +75,9 @@ pub fn dashboard() -> HtmlResult {
                         <div>
                             <button onclick={create_project.clone()}>{ "Create your first project" }</button>
                         </div>
+                        <div>
+                            <button class={classes!("btn-secondary")} onclick={import_project.clone()}>{ "Import project" }</button>
+                        </div>
                     </div>
                 } else {
                     <div id={"dashboard-container"}>
@@ -73,9 +88,17 @@ pub fn dashboard() -> HtmlResult {
                             <div class={classes!("new-project")}>
                                 <button
                                     class={classes!("btn-primary")}
-                                    onclick={create_project.clone()}>
+                                    onclick={create_project}>
 
-                                    { "New project" }
+                                    { "New" }
+                                </button>
+                            </div>
+                            <div class={classes!("import-project")}>
+                                <button
+                                    class={classes!("btn-secondary")}
+                                    onclick={import_project}>
+
+                                    { "Import" }
                                 </button>
                             </div>
                         </div>

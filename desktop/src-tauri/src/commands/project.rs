@@ -1,13 +1,14 @@
 //! Commands related to projects.
-use crate::error::Result;
+use crate::error::{DesktopSettingsError, Error, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
-use thot_core::error::{Error, ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local::project::project;
 use thot_local::system::projects as sys_projects;
 use thot_local::system::resources::Project as SystemProject;
@@ -38,10 +39,37 @@ pub fn load_user_projects(db: State<DbClient>, user: ResourceId) -> Result<Vec<P
 #[tauri::command]
 pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<Project> {
     let project = db.send(ProjectCommand::Load(path).into());
-    let project: DbResult<Project> = serde_json::from_value(project)
-        .expect("could not convert `LoadProject` result to `Project`");
+    let project: DbResult<Project> =
+        serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
 
     Ok(project?)
+}
+
+// *******************
+// *** add project ***
+// *******************
+
+/// Adds a [`Project`].
+#[tauri::command]
+pub fn add_project(
+    app_state: State<AppState>,
+    db: State<DbClient>,
+    path: PathBuf,
+) -> LibResult<Project> {
+    let user = app_state
+        .user
+        .lock()
+        .expect("could not lock app state `User`");
+
+    let Some(user) = user.as_ref() else {
+        return Err(LibError::DatabaseError(format!("{:?}", Error::DesktopSettingsError(DesktopSettingsError::NoUser))));
+    };
+
+    let project = db.send(ProjectCommand::Add(path, user.rid.clone()).into());
+    let project: DbResult<Project> =
+        serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
+
+    project.map_err(|err| LibError::DatabaseError(format!("{:?}", err)))
 }
 
 // *******************
@@ -154,7 +182,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
         serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
 
     let Some(mut graph) = graph else {
-        return Err(Error::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded")).into());
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded")).into());
     };
 
     let runner = Runner::new();
@@ -177,7 +205,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
 fn project_info(id: &ResourceId) -> Result<SystemProject> {
     let prj_info = sys_projects::project_by_id(id)?;
     if prj_info.is_none() {
-        return Err(Error::ProjectError(ProjectError::NotRegistered(
+        return Err(CoreError::ProjectError(ProjectError::NotRegistered(
             Some(ResourceId::from(id.clone())),
             None,
         ))

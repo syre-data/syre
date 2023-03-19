@@ -119,12 +119,16 @@ impl Database {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
         };
 
+        let project = project.lock().expect("could not lock `Project`");
         let Some(data_root) = project.data_root.as_ref() else {
             return Err(CoreError::ProjectError(ProjectError::Misconfigured("data root not set")).into());
         };
 
         if self.store.get_project_graph(pid).is_none() {
-            let graph = ContainerTree::load(data_root)?;
+            let mut path = project.base_path().expect("`Project` base path not set");
+            path.push(data_root);
+
+            let graph = ContainerTree::load(&path)?;
             self.store.insert_project_graph(pid.clone(), graph);
         }
 

@@ -35,15 +35,24 @@
     }
 
     .project-canvas-details-bar {
-      padding: t.$padding-m t.$padding-l;
+      padding: t.$padding-m 10%;
+
+      // .form-field {
+      //   margin: 0 10% t.$margin-m;
+      // }
 
       &.hidden {
         display: none;
       }
 
+      // form {
+      //   margin: t.$margin-m 10%;
+      // }
+
       label input,
       label textarea {
         display: block;
+        width: 80%;
       }
     }
   }

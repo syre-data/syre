@@ -82,6 +82,7 @@ impl ResourceTree<Container> {
         };
 
         let node = node.duplicate_with_path()?;
+        let dup_root = node.rid.clone();
         let mut graph = Self(CoreResourceTree::new(node));
         let Some(children) = self.children(root) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
@@ -89,7 +90,7 @@ impl ResourceTree<Container> {
 
         for child in children {
             let c_tree = self.duplicate(child)?;
-            graph.insert_tree(root, c_tree.into_inner())?;
+            graph.insert_tree(&dup_root, c_tree.into_inner())?;
         }
 
         Ok(graph)

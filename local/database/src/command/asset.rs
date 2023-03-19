@@ -44,7 +44,7 @@ pub enum AssetCommand {
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
-    FindWithinTree(ResourceId, StandardSearchFilter),
+    FindWithMetadata(ResourceId, StandardSearchFilter),
 }
 
 #[cfg(test)]

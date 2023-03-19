@@ -32,6 +32,23 @@ impl Database {
                 serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }
 
+            ContainerCommand::ByPath(path) => {
+                let Some(rid) = self.store.get_path_container(&path) else {
+                    let value: Option<CoreContainer> = None;
+                    return serde_json::to_value(value).expect("could not convert `None` to JSON");
+                };
+
+                let container: Option<CoreContainer> = {
+                    if let Some(container) = self.store.get_container(&rid) {
+                        Some(container.clone().into())
+                    } else {
+                        None
+                    }
+                };
+
+                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+            }
+
             ContainerCommand::Find(root, filter) => {
                 let containers = self.find_containers(&root, filter);
                 serde_json::to_value(containers).expect("could not convert `Container`s to JSON")

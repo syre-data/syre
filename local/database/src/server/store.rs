@@ -8,7 +8,7 @@ use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree as CoreResourceTree;
 use thot_core::project::{Asset, Container as CoreContainer, Metadata, Script as CoreScript};
-use thot_core::types::{ResourceId, ResourceMap};
+use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
 use thot_local::graph::ResourceTree;
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
@@ -305,6 +305,10 @@ impl Datastore {
 
     /// Finds `Container`'s that match the filter.
     ///
+    /// # Arguments
+    /// 1. Root of subtree to search within.
+    /// 2. Filter.
+    ///
     /// # Note
     /// + `Metadata` is not inherited.
     ///
@@ -338,6 +342,10 @@ impl Datastore {
     }
 
     /// Finds `Container`'s that match the filter with inherited `Metadata`.
+    ///
+    /// # Arguments
+    /// 1. Root of subtree to search within.
+    /// 2. Filter.
     ///
     /// # See also
     /// + [`find_containers`]
@@ -392,6 +400,7 @@ impl Datastore {
         find_containers_with_metadata_recursive(root, graph, filter, Metadata::new())
     }
 
+    /// Gets a `Container`'s id by path.
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
     }
@@ -482,6 +491,10 @@ impl Datastore {
 
     /// Finds `Asset`'s that match the filter.
     ///
+    /// # Arguments
+    /// 1. Root of subtree to search within.
+    /// 2. Filter.
+    ///
     /// # Note
     /// + `Metadata` is not inherited.
     ///
@@ -502,7 +515,16 @@ impl Datastore {
 
             for asset in container.data().assets.values() {
                 if filter.matches(asset) {
-                    found.insert(asset.clone());
+                    // set path to absolute
+                    let mut asset = asset.clone();
+                    let mut path = container
+                        .base_path()
+                        .expect("could not get `Container` base path.");
+
+                    path.push(asset.path.as_path());
+                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+
+                    found.insert(asset);
                 }
             }
         }
@@ -512,20 +534,24 @@ impl Datastore {
 
     /// Finds `Asset`'s that match the filter with inherited `Metadata`.
     ///
+    /// # Arguments
+    /// 1. Root of subtree to search within.
+    /// 2. Filter.
+    ///
     /// # See also
     /// + [`find_assets`]
     pub fn find_assets_with_metadata(
         &self,
         root: &ResourceId,
         filter: StdFilter,
-    ) -> HashSet<&Asset> {
+    ) -> HashSet<Asset> {
         /// Recursively finds mathcing `Containers`, inheriting metadata.
         fn find_assets_with_metadata_recursive<'a>(
             root: &ResourceId,
             graph: &'a ContainerTree,
             filter: StdFilter,
             mut metadata: Metadata,
-        ) -> HashSet<&'a Asset> {
+        ) -> HashSet<Asset> {
             let mut found = HashSet::new();
             let root = graph.get(root).expect("`Container` not in graph");
 
@@ -555,7 +581,16 @@ impl Datastore {
                 }
 
                 if filter.matches(&asset_val) {
-                    found.insert(&asset);
+                    // set path to absolute
+                    let mut asset = asset.clone();
+                    let mut path = root
+                        .base_path()
+                        .expect("could not get `Container` base path.");
+
+                    path.push(asset.path.as_path());
+                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+
+                    found.insert(asset);
                 }
             }
 

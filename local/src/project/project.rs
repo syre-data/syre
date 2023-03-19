@@ -132,7 +132,7 @@ pub fn path_is_project_root(path: &Path) -> bool {
 /// Returns path to the project root.
 ///
 /// # See also
-/// + `project_root_path`
+/// + [`project_resource_root_path`]
 pub fn project_root_path(path: &Path) -> Result<PathBuf> {
     let o_path = PathBuf::from(path);
     let mut path = path.join("tmp"); // false join to pop off in loop
@@ -156,7 +156,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
 /// as a Container, an error will be returned.
 ///
 /// # See also
-/// + `project_root_path`
+/// + [`project_root_path`]
 pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
     if !path_is_resource(path) {
         return Err(Error::ProjectError(ProjectError::PathNotInProject(

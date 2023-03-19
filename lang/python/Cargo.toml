@@ -18,4 +18,6 @@ uuid = { version = "0.8", features = ["v4"] }
 
 settings_manager = { path = "../../settings_manager", version = "*" }
 thot-core = { path = "../../core", features = ["pyo3"] }
+thot-local = { path = "../../local" }
 thot-local-database = { path = "../../local/database", features = ["client"] }
+current_platform = "0.2.0"

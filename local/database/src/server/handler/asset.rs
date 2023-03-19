@@ -62,7 +62,7 @@ impl Database {
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }
 
-            AssetCommand::FindWithinTree(root, filter) => {
+            AssetCommand::FindWithMetadata(root, filter) => {
                 let assets = self.store.find_assets_with_metadata(&root, filter);
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }

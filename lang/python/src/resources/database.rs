@@ -2,6 +2,7 @@
 use super::search_filter::dict_map_to_filter;
 use super::Asset;
 use crate::types::DictMap;
+use current_platform::CURRENT_PLATFORM;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -12,10 +13,14 @@ use std::process::Command;
 use std::str::FromStr;
 use std::{env, fs};
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Project};
 use thot_core::runner::{common as thot_runner, ThotEnv};
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local_database::{AssetCommand, Client as DbClient, ContainerCommand, Result as DbResult};
+use thot_local::project::project::project_resource_root_path;
+use thot_local_database::{
+    AssetCommand, Client as DbClient, ContainerCommand, GraphCommand, ProjectCommand,
+    Result as DbResult,
+};
 
 type ContainerTree = ResourceTree<CoreContainer>;
 
@@ -27,9 +32,11 @@ type ContainerTree = ResourceTree<CoreContainer>;
 /// A Thot Database.
 #[pyclass]
 pub struct Database {
+    root: ResourceId,
+
     #[pyo3(get)]
     root_path: PathBuf,
-    tree: ContainerTree,
+
     db: DbClient,
 }
 
@@ -40,10 +47,10 @@ impl Database {
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
-            let _server =
-                Command::new("./thot.data/data/thot-local-database-x86_64-unknown-linux-gnu")
-                    .spawn()
-                    .expect("could not start database server");
+            let exe = format!("./thot.data/data/thot-local-database-{CURRENT_PLATFORM:}");
+            let _server = Command::new(exe)
+                .spawn()
+                .expect("could not start database server");
         }
 
         let db = DbClient::new();
@@ -82,18 +89,40 @@ impl Database {
         // move to root directory, so relative paths are correct
         env::set_current_dir(&root_path).expect("could not move to root path");
 
-        // load tree
-        let tree = db.send(ContainerCommand::LoadTree(root_path.clone()).into());
-        let tree: DbResult<ContainerTree> = serde_json::from_value(tree)
-            .expect("could not convert result of `LoadContainerTree` to `ContainerTree`");
+        // get project id
+        let Ok(project_path) = project_resource_root_path(&root_path) else {
+                return Err(PyRuntimeError::new_err("Root path is not a resource in a Thot project"));
+        };
 
-        let Ok(tree) = tree else {
+        let project = db.send(ProjectCommand::Load(project_path).into());
+        let project: DbResult<Project> = serde_json::from_value(project)
+            .expect("could not convert result of `Load` to `Project`");
+
+        let Ok(project) = project else {
+            return Err(PyRuntimeError::new_err("Could not load `Project`"));
+        };
+
+        // load tree
+        let graph = db.send(GraphCommand::Load(project.rid.clone()).into());
+        let graph: DbResult<ContainerTree> =
+            serde_json::from_value(graph).expect("could not convert result of `Load` to graph");
+
+        let Ok(_graph) = graph else {
             return Err(PyRuntimeError::new_err("Could not load `Container` tree"));
         };
 
+        // get root container
+        let root = db.send(ContainerCommand::ByPath(root_path.clone()).into());
+        let root: Option<CoreContainer> = serde_json::from_value(root)
+            .expect("could not convert result of `ByPath` to `Container`");
+
+        let Some(root) = root else {
+            return Err(PyRuntimeError::new_err("Could not get root `Container`"));
+        };
+
         Ok(Self {
+            root: root.rid.clone(),
             root_path,
-            tree,
             db,
         })
     }
@@ -109,7 +138,7 @@ impl Database {
     fn root(&self) -> PyResult<CoreContainer> {
         let root = self
             .db
-            .send(ContainerCommand::Get(self.tree.root().clone()).into());
+            .send(ContainerCommand::Get(self.root.clone()).into());
 
         let root: Option<CoreContainer> = serde_json::from_value(root)
             .expect("could not convert result of `GetContainer` to `Container`");
@@ -140,7 +169,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let containers = self
             .db
-            .send(ContainerCommand::FindWithinTree(self.tree.root().clone(), filter).into());
+            .send(ContainerCommand::FindWithMetadata(self.root.clone(), filter).into());
 
         let containers: HashSet<CoreContainer> = serde_json::from_value(containers)
             .expect("could not convert result of `Find` to `HashSet<Container>`");
@@ -159,7 +188,7 @@ impl Database {
         let filter = dict_map_to_filter(py, search)?;
         let assets = self
             .db
-            .send(AssetCommand::FindWithinTree(self.tree.root().clone(), filter).into());
+            .send(AssetCommand::FindWithMetadata(self.root.clone(), filter).into());
 
         let assets: HashSet<CoreAsset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");
@@ -189,7 +218,7 @@ impl Database {
 
         let root = self
             .db
-            .send(ContainerCommand::Get(self.tree.root().clone()).into());
+            .send(ContainerCommand::Get(self.root.clone()).into());
 
         let root: CoreContainer =
             serde_json::from_value(root).expect("could not convert result of `Get` to `Container`");

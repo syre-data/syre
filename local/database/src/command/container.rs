@@ -13,6 +13,9 @@ pub enum ContainerCommand {
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
     Get(ResourceId),
 
+    /// Retrieves a [`Container`](CoreContainer) by its path.
+    ByPath(PathBuf),
+
     /// Retrieves [`Container`](CoreContainer)s based on a filter.
     ///
     /// # Fields

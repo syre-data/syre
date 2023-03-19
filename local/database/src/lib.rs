@@ -20,7 +20,8 @@ pub mod server;
 
 // Re-exports
 pub use command::{
-    AssetCommand, Command, ContainerCommand, DatabaseCommand, ProjectCommand, ScriptCommand,
+    AssetCommand, Command, ContainerCommand, DatabaseCommand, GraphCommand, ProjectCommand,
+    ScriptCommand,
 };
 
 #[cfg(any(feature = "client", feature = "server"))]

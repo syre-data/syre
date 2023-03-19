@@ -65,6 +65,7 @@ impl From<LocalError> for Error {
     }
 }
 
+#[cfg(feature = "server")]
 impl From<trash::Error> for Error {
     fn from(err: trash::Error) -> Self {
         Error::LocalError(format!("{err:?}"))

@@ -1,52 +1,41 @@
-//! Asset
+//! Container
 use crate::types::DictMap;
-use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pythonize::depythonize;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use thot_core::project::{Asset as CoreAsset, StandardProperties as StdProps};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::project::{
+    container::AssetMap, container::ScriptMap, Container as CoreContainer,
+    StandardProperties as StdProps,
+};
+use thot_core::types::ResourceId;
 // use thot_local_database::client as DbClient;
 
-// *************
-// *** Asset ***
-// *************
-
-/// Represents a user defined Asset.
+/// Represents a user defined Container.
 #[pyclass]
 #[derive(Clone, Debug, Default)]
-pub struct Asset {
+pub struct Container {
     // db: DbClient,
     pub name: Option<String>,
     pub kind: Option<String>,
     pub description: Option<String>,
     pub tags: Option<HashSet<String>>,
     pub metadata: Option<DictMap>,
-    pub path: Option<PathBuf>,
+    pub assets: AssetMap,
 }
 
-impl Asset {
+impl Container {
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Converts self into a [`thot_core::project::Asset`].
-    pub fn into_core_asset(self, py: Python<'_>, rid: Option<ResourceId>) -> PyResult<CoreAsset> {
+    pub fn into_core_container(
+        self,
+        py: Python<'_>,
+        rid: Option<ResourceId>,
+    ) -> PyResult<CoreContainer> {
         let rid = rid.unwrap_or_else(|| ResourceId::new());
-
-        // path
-        let path = derive_path(&self, rid.clone());
-        let Ok(path) = ResourcePath::new(path) else {
-            return Err(PyRuntimeError::new_err(
-                "Could not convert file to resource path",
-            ));
-        };
-
-        // ensure path is relative
-        if !matches!(path, ResourcePath::Relative(_)) {
-            return Err(PyValueError::new_err("Asset's file path must be relative"));
-        }
 
         // properties
         let mut props = StdProps::default();
@@ -78,15 +67,16 @@ impl Asset {
             }
         };
 
-        Ok(CoreAsset {
+        Ok(CoreContainer {
             rid,
             properties: props,
-            path,
+            assets: self.assets,
+            scripts: ScriptMap::new(),
         })
     }
 
-    pub fn from_dict_map(py: Python<'_>, map: DictMap) -> PyResult<Asset> {
-        let mut asset = Asset::new();
+    pub fn from_dict_map(py: Python<'_>, map: DictMap) -> PyResult<Container> {
+        let mut container = Container::new();
         for (k, v) in map {
             match k.as_str() {
                 "name" => {
@@ -95,7 +85,7 @@ impl Asset {
                         return Err(PyTypeError::new_err("Invalid value for `name`"));
                     }
 
-                    asset.name = name.unwrap();
+                    container.name = name.unwrap();
                 }
                 "type" => {
                     let kind = depythonize(v.as_ref(py));
@@ -103,7 +93,7 @@ impl Asset {
                         return Err(PyTypeError::new_err("Invalid value for `type`"));
                     }
 
-                    asset.kind = kind.unwrap();
+                    container.kind = kind.unwrap();
                 }
                 "description" => {
                     let desc = depythonize(v.as_ref(py));
@@ -111,46 +101,18 @@ impl Asset {
                         return Err(PyTypeError::new_err("Invalid value for `desc`"));
                     }
 
-                    asset.description = desc.unwrap();
+                    container.description = desc.unwrap();
                 }
                 "tags" => {}
                 "metadata" => {}
-                "file" => {
-                    let path = depythonize(v.as_ref(py));
-                    if path.is_err() {
-                        return Err(PyTypeError::new_err("Invalid value for `file`"));
-                    }
-
-                    asset.path = path.expect("could not unwrap path");
-                }
-                _ => {
-                    return Err(PyValueError::new_err(format!("Invalid key `{}`", k)));
-                }
+                _ => {}
             }
         }
 
-        Ok(asset)
+        Ok(container)
     }
-}
-
-// ************************
-// *** helper functions ***
-// ************************
-
-/// Derives a canonical file path for an [`Asset`].
-fn derive_path(asset: &Asset, rid: ResourceId) -> PathBuf {
-    if let Some(file) = asset.path.as_ref() {
-        return file.clone();
-    }
-
-    if let Some(name) = asset.name.as_ref() {
-        return PathBuf::from(name.clone());
-    }
-
-    // default to id
-    PathBuf::from(rid.to_string())
 }
 
 #[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;
+#[path = "./container_test.rs"]
+mod container_test;

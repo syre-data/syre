@@ -573,14 +573,13 @@ impl Datastore {
             }
 
             for asset in root.data().assets.values() {
-                let mut asset_val = asset.clone();
+                let mut asset = asset.clone();
                 for (key, value) in metadata.clone().into_iter() {
-                    asset_val.properties.metadata.insert(key, value);
+                    asset.properties.metadata.insert(key, value);
                 }
 
-                if filter.matches(&asset_val) {
+                if filter.matches(&asset) {
                     // set path to absolute
-                    let mut asset = asset.clone();
                     let mut path = root
                         .base_path()
                         .expect("could not get `Container` base path.");

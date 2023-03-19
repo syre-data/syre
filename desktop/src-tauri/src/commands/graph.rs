@@ -83,12 +83,13 @@ pub fn init_project_graph(
 /// # Argments
 /// 1. `Project` id.
 #[tauri::command]
-pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> Result<ContainerTree> {
+pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
     let graph = db.send(GraphCommand::Load(rid).into());
     let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
         .expect("could not convert `Load` result to a `ContainerTree`");
 
-    Ok(graph?)
+    let graph = graph.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
+    Ok(graph)
 }
 
 /// Creates a new child [`Container`](LocalContainer).

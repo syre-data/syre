@@ -176,20 +176,25 @@ pub fn update_project(db: State<DbClient>, project: Project) -> Result {
 // ***************
 
 #[tauri::command]
-pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> Result {
+pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> LibResult {
     let graph = db.send(GraphCommand::Get(root).into());
     let graph: Option<ResourceTree<Container>> =
         serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
 
     let Some(mut graph) = graph else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded")).into());
+        let error = CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
+        return Err(LibError::DatabaseError(format!("{error:?}")));
     };
 
     let runner = Runner::new();
-    match max_tasks {
-        None => runner.run(&mut graph)?,
-        Some(max_tasks) => runner.run_with_tasks(&mut graph, max_tasks)?,
+    let res = match max_tasks {
+        None => runner.run(&mut graph),
+        Some(max_tasks) => runner.run_with_tasks(&mut graph, max_tasks),
     };
+
+    if res.is_err() {
+        return Err(LibError::DatabaseError(format!("{res:?}")));
+    }
 
     Ok(())
 }

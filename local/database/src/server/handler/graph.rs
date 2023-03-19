@@ -40,13 +40,13 @@ impl Database {
                         .expect("could not convert to JsValue");
                 };
 
-                let dup = graph.duplicate(&root);
+                let dup = graph.clone_tree(&root);
                 let Ok(graph) = dup else {
                     let err = Error::LocalError("could not duplicate tree".into());
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                let graph: CoreResourceTree<CoreContainer> = graph.into();
+                let graph = cast_local_to_core(graph).expect("could not convert tree");
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
 
@@ -94,20 +94,7 @@ impl Database {
                 };
 
                 // convert local containers to core containers
-                let (nodes, edges) = dup.into_components();
-                let nodes = nodes
-                    .into_iter()
-                    .map(|(id, node)| {
-                        let container = node.into_data();
-                        let container: CoreContainer = container.into();
-                        (id, ResourceNode::new(container))
-                    })
-                    .collect::<NodeMap<CoreContainer>>();
-
-                let dup: Result<CoreContainerTree> =
-                    Ok(CoreResourceTree::from_components(nodes, edges)
-                        .expect("could not convert tree"));
-
+                let dup = cast_local_to_core(dup);
                 serde_json::to_value(dup).expect("could not convert `Result` to JsValue")
             }
         }
@@ -199,6 +186,21 @@ impl Database {
             .insert_subgraph(&parent.rid.clone(), child.into_inner())?;
         Ok(cid)
     }
+}
+
+fn cast_local_to_core(tree: CoreResourceTree<Container>) -> Result<CoreContainerTree> {
+    // convert local containers to core containers
+    let (nodes, edges) = tree.into_components();
+    let nodes = nodes
+        .into_iter()
+        .map(|(id, node)| {
+            let container = node.into_data();
+            let container: CoreContainer = container.into();
+            (id, ResourceNode::new(container))
+        })
+        .collect::<NodeMap<CoreContainer>>();
+
+    Ok(CoreResourceTree::from_components(nodes, edges).expect("could not convert tree"))
 }
 
 #[cfg(test)]

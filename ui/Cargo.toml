@@ -60,6 +60,7 @@ features=[
     "FontAwesomeRegularFileWord",
     "FontAwesomeRegularFileZipper",
     "FontAwesomeRegularFile",
+    "OcticonsFileBinary24",
 ]
 
 [dev-dependencies]

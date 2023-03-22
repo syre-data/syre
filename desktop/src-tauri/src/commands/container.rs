@@ -1,11 +1,14 @@
 //! Commands related to containers.
 use crate::error::Result;
+use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container, StandardProperties};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
+use thot_local::common::unique_file_name;
+use thot_local::types::AssetFileAction;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::{
     AddAssetInfo, AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
@@ -87,6 +90,41 @@ pub fn add_assets(
     container: ResourceId,
     assets: Vec<AddAssetInfo>,
 ) -> Result<Vec<ResourceId>> {
+    let asset_rids =
+        db.send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into());
+
+    let asset_rids: DbResult<Vec<ResourceId>> = serde_json::from_value(asset_rids)
+        .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");
+
+    Ok(asset_rids?)
+}
+
+#[tauri::command]
+pub fn add_asset_windows(
+    db: State<DbClient>,
+    container: ResourceId,
+    name: String,
+    contents: Vec<u8>,
+) -> Result<Vec<ResourceId>> {
+    // create file
+    let path = db.send(ContainerCommand::GetPath(container.clone()).into());
+    let path: DbResult<Option<PathBuf>> =
+        serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
+    let mut path = path
+        .expect("could not get `Container` path")
+        .expect("`Container` path not found");
+    path.push(name);
+    let path = unique_file_name(path).expect("could not create a unique file name");
+
+    fs::write(&path, contents).expect("could not write to file");
+
+    // add asset
+    let assets = vec![AddAssetInfo {
+        path,
+        action: AssetFileAction::Move,
+        bucket: None,
+    }];
+
     let asset_rids =
         db.send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into());
 

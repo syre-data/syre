@@ -35,6 +35,9 @@ pub enum ScriptCommand {
     /// 1. `Project`'s id.
     /// 2. `Script`'s id.
     Remove(ResourceId, ResourceId),
+
+    /// Gets the `Project` of a `Script`.
+    GetProject(ResourceId),
 }
 
 #[cfg(test)]

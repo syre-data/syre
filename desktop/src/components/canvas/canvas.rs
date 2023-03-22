@@ -2,7 +2,7 @@
 use super::{
     canvas_state::CanvasState, graph_state::GraphState, CanvasStateReducer, GraphStateReducer,
 };
-use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
+use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::components::details_bar::DetailsBar;
 use crate::components::project::Project as ProjectUi;
 use crate::hooks::{use_load_project_scripts, use_project_graph};

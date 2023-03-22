@@ -172,9 +172,13 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
             continue;
         }
 
-        let prj_json = match fs::read_to_string(prj_file) {
-            Ok(json) => json,
-            Err(err) => return Err(err.into()),
+
+        let Ok(prj_json) = fs::read_to_string(prj_file) else {
+            // @todo: Handle metalevel.
+            // Currently assumed that if project file can't be read, it is because
+            // the file is being controlled by another process, likely the database
+            // so just return the path.
+            return common::canonicalize_path(path);
         };
 
         let prj: Project = match serde_json::from_str(prj_json.as_str()) {

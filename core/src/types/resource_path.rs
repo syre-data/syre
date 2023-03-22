@@ -9,18 +9,20 @@ use serde::{Deserialize, Serialize};
 
 // @todo: Implement custom (de)serialization to interpret type by path.
 /// Path types to a given resource.
-///
-/// # Variants
-/// + **Absolute:** An absolute path.
-/// + **Relative:** A path relative to the given resource.
-/// + **Root:** A path relative to the project root.
-///   + First field is the path.
-///   + Second field is the `metalevel`.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Hash)]
 pub enum ResourcePath {
+    /// An absolute path.
     Absolute(PathBuf),
+
+    /// A path relative to the given resource.
     Relative(PathBuf),
+
+    /// A path relative to the project root.
+    ///
+    /// # Fields
+    /// 1. Path.
+    /// 2. Metalevel.
     Root(PathBuf, usize),
     // @todo: Url may be needed for remote scripts.
     // Url(url::Url),

@@ -1,6 +1,7 @@
 //! Commands related to projects.
 use crate::error::{DesktopSettingsError, Error, Result};
 use crate::state::AppState;
+use settings_manager::LocalSettings;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
@@ -9,7 +10,7 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
-use thot_local::project::project;
+use thot_local::project::{project, resources::Project as LocalProject};
 use thot_local::system::projects as sys_projects;
 use thot_local::system::resources::Project as SystemProject;
 use thot_local_database::client::Client as DbClient;
@@ -140,10 +141,16 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 pub fn init_project(path: &Path) -> Result<ResourceId> {
     let rid = project::init(path)?;
 
+    // @todo: Move to frontend.
     // create analysis folder
+    let analysis_root = "analysis";
     let mut analysis = path.to_path_buf();
-    analysis.push("analysis");
+    analysis.push(analysis_root);
     fs::create_dir(&analysis).expect("could not create analysis directory");
+
+    let mut project = LocalProject::load(path).expect("Could not load `Project`");
+    project.analysis_root = Some(PathBuf::from(analysis_root));
+    project.save()?;
 
     Ok(rid)
 }

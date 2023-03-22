@@ -40,6 +40,8 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 // *** Datastore ***
 // *****************
 
+// @todo: Paths should always be canonicalized. 
+
 /// A store for [`Container`](LocalContainer)s.
 /// Assets can be referenced as well.
 ///
@@ -619,10 +621,12 @@ impl Datastore {
         self.scripts.insert(project, scripts)
     }
 
+    /// Gets a `Project`'s `Script`s.
     pub fn get_project_scripts(&self, project: &ResourceId) -> Option<&ProjectScripts> {
         self.scripts.get(&project)
     }
 
+    /// Gets the `Project` of a `Script`.
     pub fn get_script_project(&self, script: &ResourceId) -> Option<&ResourceId> {
         self.script_projects.get(&script)
     }

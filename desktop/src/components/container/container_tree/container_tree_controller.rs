@@ -13,7 +13,6 @@ use std::str::FromStr;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset, Container};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::Result as LibResult;
 use thot_local::types::AssetFileAction;
 use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
 use thot_ui::types::ContainerPreview;
@@ -144,7 +143,7 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                             },
                         )
                         .await
-                        .expect("could not invoke `add_assets`");
+                        .expect("could not invoke `get_container`");
 
                         let assets = container
                             .assets
@@ -152,9 +151,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
                             .filter(|asset| assets.contains(&asset.rid))
                             .collect::<Vec<Asset>>();
 
-                        let num_assets = assets.len();
-
                         // update container
+                        let num_assets = assets.len();
                         graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                             container_id.clone(),
                             assets,

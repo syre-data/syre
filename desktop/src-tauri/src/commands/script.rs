@@ -1,12 +1,14 @@
 //! Commands related to `Script`s.
 use crate::error::Result;
+use std::fs;
 use std::path::PathBuf;
 use tauri::State;
-use thot_core::project::Script;
+use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
+use thot_core::project::{Project, Script};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::ScriptCommand;
+use thot_local_database::command::{ProjectCommand, ScriptCommand};
 use thot_local_database::Result as DbResult;
 
 // ***********************
@@ -28,7 +30,40 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> LibResult<Ve
 
 #[tauri::command]
 pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Result<Script> {
-    let script = db.send(ScriptCommand::Add(project, path).into());
+    // copy script to analysis root
+    let project = db.send(ProjectCommand::Get(project.clone()).into());
+    let project: Option<Project> =
+        serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
+
+    let Some(project) = project else {
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
+    };
+
+    let project_path = db.send(ProjectCommand::GetPath(project.rid.clone()).into());
+    let project_path: Option<PathBuf> =
+        serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
+
+    let Some(project_path) = project_path else {
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
+    };
+
+    let Some(analysis_root) = project.analysis_root.clone() else {
+        return Err(CoreError::ProjectError(ProjectError::Misconfigured("`Project` does not have an analysis root set")).into());
+    };
+
+    let script_name = path.file_name().expect("invalid `Script` file");
+    let script_name = PathBuf::from(script_name);
+
+    let mut to_path = project_path;
+    to_path.push(analysis_root);
+    to_path.push(script_name.clone());
+
+    if to_path != path {
+        fs::copy(&path, to_path)?;
+    }
+
+    // add script to project
+    let script = db.send(ScriptCommand::Add(project.rid.clone(), script_name).into());
     let script: DbResult<Script> =
         serde_json::from_value(script).expect("could not convert `AddScript` result to `Script`");
 

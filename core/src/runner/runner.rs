@@ -315,7 +315,16 @@ impl Runner {
     /// # Errors
     /// + [`RunnerError`]: The script returned a `status` other than `0`.
     fn run_script(&self, script: Script, container: &Container) -> Result<process::Output> {
-        let out = process::Command::new(&script.env.cmd)
+        #[cfg(target_os = "windows")]
+        let mut out = process::Command::new("cmd");
+
+        #[cfg(target_os = "windows")]
+        out.args(["/c", &script.env.cmd]);
+        
+        #[cfg(not(target_os = "windows"))]
+        let mut out = process::Command::new(&script.env.cmd);
+
+        let out = out
             .arg(script.path.as_path())
             .args(&script.env.args)
             .env(

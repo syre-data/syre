@@ -5,10 +5,14 @@ use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::{LocalSettings, SystemSettings};
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Mutex;
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::Script as CoreScript;
+use thot_core::project::{Project as CoreProject, Script as CoreScript};
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local::project::resources::{Script as LocalScript, Scripts as ProjectScripts};
+use thot_local::project::resources::{
+    Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
+};
 use thot_local::system::collections::Projects;
 
 impl Database {
@@ -37,6 +41,18 @@ impl Database {
             ScriptCommand::LoadProject(project) => {
                 let scripts = self.load_project_scripts(project);
                 serde_json::to_value(scripts).expect("could not convert result to JsValue")
+            }
+
+            ScriptCommand::GetProject(script) => {
+                let project = self.get_script_project(&script);
+                let Some(project) = project else {
+                    let val: Option<CoreProject> = None;
+                    return serde_json::to_value(val).expect("could not convert `CoreProject` to JsValue")
+                };
+
+                let project = project.lock().expect("could not lock `Project`");
+                let project: Option<CoreProject> = Some(project.clone().into());
+                serde_json::to_value(project).expect("could not convert `CoreProject` to JsValue")
             }
         }
     }
@@ -84,8 +100,22 @@ impl Database {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
-        self.store.insert_script(project.clone(), script);
+        self.store.insert_script(project.clone(), script)?;
         Ok(())
+    }
+
+    /// Get the `Project` of a `Script`.
+    fn get_script_project(&self, script: &ResourceId) -> Option<Rc<Mutex<LocalProject>>> {
+        let Some(project) = self.store.get_script_project(script) else {
+            return None;
+        };
+
+        let project = self
+            .store
+            .get_project(project)
+            .expect("`Project` not loaded");
+
+        Some(project.clone())
     }
 }
 

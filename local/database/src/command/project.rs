@@ -31,6 +31,9 @@ pub enum ProjectCommand {
 
     /// Update a [`Project`](CoreProject).
     Update(CoreProject),
+
+    /// Gets the path to the `Project`.
+    GetPath(ResourceId),
 }
 
 #[cfg(test)]

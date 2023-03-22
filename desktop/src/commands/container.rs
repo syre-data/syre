@@ -70,6 +70,19 @@ pub struct AddAssetsArgs {
     pub assets: Vec<AddAssetInfo>,
 }
 
+/// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows). 
+#[derive(Serialize)]
+pub struct AddAssetWindowsArgs {
+    /// [`ResourceId`] of the [`Container`](CoreContainer).
+    pub container: ResourceId,
+
+    /// Name of the file.
+    pub name: String,
+
+    /// File contents.
+    pub contents: Vec<u8>,
+}
+
 #[cfg(test)]
 #[path = "./container_test.rs"]
 mod container_test;

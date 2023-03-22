@@ -64,6 +64,7 @@ fn main() {
             load_project_graph,
             // container
             add_assets,
+            add_asset_windows,
             get_container,
             get_container_path,
             new_child,

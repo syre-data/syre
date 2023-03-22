@@ -4,7 +4,7 @@ use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
 use serde_json::Value as JsValue;
 use settings_manager::{LocalSettings, SystemSettings};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Mutex;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -101,8 +101,14 @@ impl Database {
                 serde_json::to_value(res)
                     .expect("could not convert `update_project` result to JsValue")
             }
+
+            ProjectCommand::GetPath(rid) => {
+                let path = self.get_project_path(&rid);
+                serde_json::to_value(path).expect("could not convert `PathBuf` to JsValue")
+            }
         }
     }
+
     // *****************
     // *** functions ***
     // *****************
@@ -138,6 +144,16 @@ impl Database {
         }
 
         None
+    }
+
+    fn get_project_path(&self, rid: &ResourceId) -> Option<PathBuf> {
+        let Some(project) = self.store.get_project(rid) else {
+            return None;
+        };
+
+        let project = project.lock().expect("could not lock `Project`");
+        let path = project.base_path().expect("base path not set");
+        Some(path)
     }
 
     fn load_user_projects(&mut self, user: &ResourceId) -> Result<Vec<CoreProject>> {

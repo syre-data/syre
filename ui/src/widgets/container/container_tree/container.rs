@@ -155,15 +155,18 @@ pub struct ContainerProps {
     /// Callback when container script edit button is clicked.
     #[prop_or_default]
     pub onclick_edit_scripts: Option<Callback<ResourceId>>,
+    
+    #[prop_or_default]
+    pub ondragenter: Callback<DragEvent>,
 
     #[prop_or_default]
-    pub ondragenter: Callback<web_sys::DragEvent>,
+    pub ondragover: Callback<DragEvent>,
 
     #[prop_or_default]
-    pub ondragleave: Callback<web_sys::DragEvent>,
+    pub ondragleave: Callback<DragEvent>,
 
     #[prop_or_default]
-    pub ondrop: Callback<web_sys::DragEvent>,
+    pub ondrop: Callback<DragEvent>,
 }
 
 /// A Container node within a Container tree.
@@ -184,6 +187,8 @@ pub fn container(props: &ContainerProps) -> Html {
         let dragover_counter = dragover_counter.clone();
 
         Callback::from(move |e: DragEvent| {
+            e.prevent_default();
+
             if *dragover_counter == 0 {
                 ondragenter.emit(e);
             }
@@ -192,11 +197,21 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     };
 
+    let ondragover = {
+        let ondragover = props.ondragover.clone();
+
+        Callback::from(move |e: DragEvent| {
+            e.prevent_default();
+            ondragover.emit(e);
+        })
+    };
+
     let ondragleave = {
         let ondragleave = props.ondragleave.clone();
         let dragover_counter = dragover_counter.clone();
 
         Callback::from(move |e: DragEvent| {
+            e.prevent_default();
             dragover_counter.set(*dragover_counter - 1);
 
             // @todo: `UseStateHandle` value not updated until later.
@@ -214,6 +229,7 @@ pub fn container(props: &ContainerProps) -> Html {
         Callback::from(move |e: DragEvent| {
             e.prevent_default();
             dragover_counter.set(0);
+            ondrop.emit(e);
         })
     };
 
@@ -271,6 +287,7 @@ pub fn container(props: &ContainerProps) -> Html {
             onclick={props.onclick.clone()}
             ondblclick={props.ondblclick.clone()}
             {ondragenter}
+            {ondragover}
             {ondragleave}
             {ondrop}
             data-rid={props.rid.clone()} >

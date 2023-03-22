@@ -5,6 +5,7 @@ use crate::command::container::{
     AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::ContainerCommand;
+use std::fs;
 use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::LocalSettings;
@@ -34,6 +35,7 @@ impl Database {
             }
 
             ContainerCommand::ByPath(path) => {
+                let path = fs::canonicalize(&path).expect("could not canonicalize path");
                 let Some(rid) = self.store.get_path_container(&path) else {
                     let value: Option<CoreContainer> = None;
                     return serde_json::to_value(value).expect("could not convert `None` to JSON");

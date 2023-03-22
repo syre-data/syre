@@ -3,6 +3,7 @@
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
+use crate::commands::container::AddAssetWindowsArgs;
 use crate::common::invoke;
 use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
@@ -15,12 +16,16 @@ use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_local::types::AssetFileAction;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
     container::ContainerMenuEvent, container::ContainerProps as ContainerUiProps,
     Container as ContainerUi,
 };
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::FileReader;
 use yew::prelude::*;
 use yew::props;
 use yew_router::prelude::*;
@@ -321,13 +326,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     };
 
                 let mut assets = container.assets.clone();
-                let initial_size = assets.len().clone();
-                web_sys::console::debug_1(&initial_size.into());
                 assets.retain(|asset, _| asset != &rid);
-
-                let after_size = assets.len().clone();
-                web_sys::console::debug_1(&after_size.into());
-
                 graph_state.dispatch(GraphStateAction::UpdateContainerAssets(
                     container_id.clone(),
                     assets,
@@ -388,7 +387,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let graph_state = graph_state.clone();
         let container_id = props.rid.clone();
 
-        Callback::from(move |_: web_sys::DragEvent| {
+        Callback::from(move |_: DragEvent| {
             graph_state.dispatch(GraphStateAction::SetDragOverContainer(container_id.clone()));
         })
     };
@@ -396,17 +395,91 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let ondragleave = {
         let graph_state = graph_state.clone();
 
-        Callback::from(move |_: web_sys::DragEvent| {
+        Callback::from(move |_: DragEvent| {
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
         })
     };
 
     let ondrop = {
+        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let container_id = props.rid.clone();
 
-        Callback::from(move |e: web_sys::DragEvent| {
-            e.prevent_default();
+        Callback::from(move |e: DragEvent| {
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
+
+            // drag and drop on Windows
+            let drop_data = e.data_transfer().unwrap();
+            let files = drop_data.files().unwrap();
+            for index in 0..files.length() {
+                let file = files.item(index).expect("could not get `File`");
+                let name = file.name();
+
+                let file_reader = web_sys::FileReader::new().unwrap();
+                file_reader.read_as_array_buffer(&file).unwrap();
+
+                let app_state = app_state.clone();
+                let graph_state = graph_state.clone();
+                let container_id = container_id.clone();
+                let onload = Closure::<dyn FnMut(Event)>::new(move |e: Event| {
+                    let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
+                    let file = file_reader.result().unwrap();
+                    let file = js_sys::Uint8Array::new(&file);
+
+                    let mut contents = vec![0; file.length() as usize];
+                    file.copy_to(&mut contents);
+
+                    let app_state = app_state.clone();
+                    let graph_state = graph_state.clone();
+                    let name = name.clone();
+                    let container_id = container_id.clone();
+                    spawn_local(async move {
+                        // create assets
+                        // @todo: Handle buckets.
+                        let asset: Vec<ResourceId> = invoke(
+                            "add_asset_windows",
+                            AddAssetWindowsArgs {
+                                container: container_id.clone(),
+                                name,
+                                contents,
+                            },
+                        )
+                        .await
+                        .expect("could not invoke `add_asset_windows`");
+
+                        // update container
+                        let container: CoreContainer = invoke(
+                            "get_container",
+                            ResourceIdArgs {
+                                rid: container_id.clone(),
+                            },
+                        )
+                        .await
+                        .expect("could not invoke `get_container`");
+
+                        // update container
+                        let asset = container
+                            .assets
+                            .get(&asset[0])
+                            .expect("could not find `Asset`")
+                            .clone();
+                        graph_state.dispatch(GraphStateAction::InsertContainerAssets(
+                            container_id.clone(),
+                            vec![asset],
+                        ));
+
+                        // notify user
+                        app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                            Message::success("Added asset"),
+                            MESSAGE_TIMEOUT,
+                            app_state.clone(),
+                        ));
+                    });
+                });
+
+                file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+                onload.forget();
+            }
         })
     };
 

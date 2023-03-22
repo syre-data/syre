@@ -53,10 +53,10 @@ impl Client {
     /// Checks if a database is running.
     pub fn server_available() -> bool {
         // check if port is occupied
-        if port_is_free(REQ_REP_PORT) {
-            // port is open, no chance of a listener
-            return false;
-        }
+        // if dbg!(port_is_free(REQ_REP_PORT)) {
+        //     // port is open, no chance of a listener
+        //     return false;
+        // }
 
         let ctx = zmq::Context::new();
         let req_socket = ctx

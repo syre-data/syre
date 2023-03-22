@@ -47,7 +47,11 @@ impl Database {
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
-            let exe = format!("./thot.data/data/thot-local-database-{CURRENT_PLATFORM:}");
+            // @todo: Get executable path from package resources path.
+            let mut exe = format!("./thot.data/data/thot-local-database-{CURRENT_PLATFORM:}");
+            #[cfg(target_os = "windows")]
+            exe.push_str(".exe");
+
             let _server = Command::new(exe)
                 .spawn()
                 .expect("could not start database server");
@@ -87,7 +91,7 @@ impl Database {
         };
 
         // move to root directory, so relative paths are correct
-        env::set_current_dir(&root_path).expect("could not move to root path");
+        // env::set_current_dir(&root_path).expect("could not move to root path");
 
         // get project id
         let Ok(project_path) = project_resource_root_path(&root_path) else {

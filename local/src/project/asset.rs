@@ -149,23 +149,25 @@ impl AssetBuilder {
         Ok(())
     }
 
-    /// Calculaets the [`ResourcePath`] for the [`Asset`](CoreAsset)'s path.
+    /// Calculates the [`ResourcePath`] for the [`Asset`](CoreAsset)'s path.
     fn resource_path(&self) -> Result<ResourcePath> {
         let Some(action) = self.action.clone() else {
             return Err(AssetError::BuilderError("action not set".to_string()).into());
         };
 
         let container = self.container_path()?;
-
         let path = match action {
             AssetFileAction::Move | AssetFileAction::Copy => {
-                let Some(path) = self.moved_asset_path.clone() else {
-            return Err(AssetError::BuilderError("file has not been moved".to_string()).into());
-        };
+                let path = match self.moved_asset_path.as_ref() {
+                    Some(path) => path.clone(),
+                    None => self.path.clone(),
+                };
+
                 path.strip_prefix(&container)
                     .expect("could not calculate relative path for `Asset` file")
                     .to_path_buf()
             }
+
             AssetFileAction::Reference => self.path.clone(),
         };
 

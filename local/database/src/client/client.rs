@@ -18,9 +18,7 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Self {
-        Client {
-            zmq_context: zmq::Context::new(),
-        }
+        Self::default()
     }
 
     pub fn send(&self, cmd: Command) -> JsValue {
@@ -90,6 +88,14 @@ impl Client {
             serde_json::from_str(id_str).expect("could not convert `Message` to `String`");
 
         return id_str == DATABASE_ID;
+    }
+}
+
+impl Default for Client {
+    fn default() -> Self {
+        Self {
+            zmq_context: zmq::Context::new(),
+        }
     }
 }
 

@@ -12,11 +12,11 @@ impl ToPyObject for ResourceId {
     }
 }
 
-impl IntoPy<PyObject> for ResourceId {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
-    }
-}
+// impl IntoPy<PyObject> for ResourceId {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         self.to_object(py)
+//     }
+// }
 
 #[cfg(test)]
 #[path = "./types_test.rs"]

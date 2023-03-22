@@ -174,7 +174,7 @@ impl Database {
         let containers: HashSet<CoreContainer> = serde_json::from_value(containers)
             .expect("could not convert result of `Find` to `HashSet<Container>`");
 
-        return Ok(containers);
+        Ok(containers)
     }
 
     /// Finds a single Asset matching the search filter.
@@ -193,7 +193,7 @@ impl Database {
         let assets: HashSet<CoreAsset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");
 
-        return Ok(assets);
+        Ok(assets)
     }
 
     // @todo: Allow either an Asset object or dictionary.
@@ -280,6 +280,36 @@ impl Database {
         let mut path = self.root_path.clone();
         path.push(asset_path);
         Ok(path.into())
+    }
+
+    // @todo[3]: Move to getter of `Container` and `Asset`.
+    fn parent(&self, id: String) -> PyResult<Option<CoreContainer>> {
+        // convert string to id
+        let Ok(id) = ResourceId::from_str(&id) else {
+            return Err(PyValueError::new_err("Invalid id"));
+        };
+
+        // try as asset
+        let parent = self.db.send(AssetCommand::Parent(id.clone()).into());
+        let parent: Option<CoreContainer> = serde_json::from_value(parent)
+            .expect("could not convert result of `Parent` to `Container`");
+
+        if parent.is_some() {
+            return Ok(parent);
+        }
+
+        // try as container
+        let parent = self.db.send(ContainerCommand::Parent(id).into());
+        let parent: DbResult<Option<CoreContainer>> = serde_json::from_value(parent)
+            .expect("could not convert result of `Parent` to `Container`");
+
+        if parent.is_err() {
+            // could not get parent as Asset or Container
+            return Err(PyRuntimeError::new_err("Could not get parent"));
+        }
+
+        // @todo: Check that parent is in current subtree.
+        Ok(parent.unwrap())
     }
 }
 

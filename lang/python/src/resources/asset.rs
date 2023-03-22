@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use thot_core::project::{Asset as CoreAsset, StandardProperties as StdProps};
 use thot_core::types::{ResourceId, ResourcePath};
-// use thot_local_database::client as DbClient;
 
 // *************
 // *** Asset ***
@@ -15,9 +14,8 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 /// Represents a user defined Asset.
 #[pyclass]
-#[derive(Clone, Debug, Default)]
+#[derive(Default)]
 pub struct Asset {
-    // db: DbClient,
     pub name: Option<String>,
     pub kind: Option<String>,
     pub description: Option<String>,

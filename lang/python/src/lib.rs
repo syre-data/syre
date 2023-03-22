@@ -13,7 +13,7 @@ fn thot(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__version__", get_version())?;
     m.add_class::<Database>()?;
     m.add_function(wrap_pyfunction!(fcn::dev_mode, m)?)?;
-    // m.add_function(wrap_pyfunction!(fcn::filter, m)?)?; @todo: Implement.
+    m.add_function(wrap_pyfunction!(fcn::filter, m)?)?;
     Ok(())
 }
 

@@ -47,6 +47,9 @@ pub enum ContainerCommand {
 
     /// Gets the path of a [`Container`](thot_local::project::resources::Container).
     GetPath(ResourceId),
+
+    /// Gets the parent of a [`Container`](thot_core::project::Container).
+    Parent(ResourceId),
 }
 
 // *****************

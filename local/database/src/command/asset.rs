@@ -17,6 +17,12 @@ pub enum AssetCommand {
     /// are not included.
     GetMany(Vec<ResourceId>),
 
+    /// Gets an `Asset`'s `Container`.
+    ///
+    /// # Fields
+    /// 1. `Asset`'s `ResourceId`.
+    Parent(ResourceId),
+
     /// Insert's an [`Asset`](CoreAsset) into a
     /// [`Container`](thot_core::project::Container).
     ///  

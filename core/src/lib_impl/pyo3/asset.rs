@@ -57,16 +57,11 @@ impl Asset {
     }
 
     // others
+    /// Path of the `Asset`'s file.
     #[getter(file)]
     fn py_path(&self) -> PathBuf {
         PathBuf::from(self.path.as_path())
     }
-
-    // @todo: Unclear if needed.
-    // #[getter(parent)]
-    // fn py_parent(&self) -> Option<ResourceId> {
-    //     self.parent.clone()
-    // }
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@ use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::LocalSettings;
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset as CoreAsset, StandardProperties};
+use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
 
 impl Database {
@@ -40,6 +40,17 @@ impl Database {
                     .collect::<Vec<CoreAsset>>();
 
                 serde_json::to_value(assets).expect("could not convert `Vec<Asset>` to JSON")
+            }
+
+            AssetCommand::Parent(asset) => {
+                // @todo: Convert to result for homogeneity with `ContainerCommand::Parent`.
+                let container: Option<CoreContainer> = self
+                    .store
+                    .get_asset_container(&asset)
+                    .cloned()
+                    .map(|container| container.into());
+
+                serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }
 
             AssetCommand::Add(asset, container) => {

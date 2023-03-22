@@ -9,7 +9,6 @@ use thot_core::project::{
     StandardProperties as StdProps,
 };
 use thot_core::types::ResourceId;
-// use thot_local_database::client as DbClient;
 
 /// Represents a user defined Container.
 #[pyclass]

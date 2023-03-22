@@ -16,6 +16,7 @@ use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
 use thot_local::project::asset::AssetBuilder;
+use thot_local::project::resources::Container;
 
 impl Database {
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
@@ -82,6 +83,14 @@ impl Database {
             ContainerCommand::GetPath(rid) => {
                 let path = self.get_container_path(&rid);
                 serde_json::to_value(path).expect("could not convert path to JsValue")
+            }
+
+            ContainerCommand::Parent(rid) => {
+                let parent: Result<Option<CoreContainer>> = self
+                    .get_container_parent(&rid)
+                    .map(|opt| opt.cloned().map(|container| container.into()));
+
+                serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
         }
     }
@@ -192,6 +201,20 @@ impl Database {
 
         let path = container.base_path()?;
         Ok(Some(path))
+    }
+
+    fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {
+        let Some(graph) = self.store.get_container_graph(rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+        };
+
+        let parent = graph.parent(rid)?;
+        let Some(parent) = parent else {
+           return Ok(None);
+        };
+
+        let parent = graph.get(parent).expect("could not get parent `Container`");
+        Ok(Some(parent))
     }
 }
 

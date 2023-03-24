@@ -52,8 +52,6 @@ impl Client {
 
     /// Checks if a database is running.
     pub fn server_available() -> bool {
-        // check if port is occupied
-        #[cfg(not(target_os = "windows"))]
         if port_is_free(REQ_REP_PORT) {
             // port is open, no chance of a listener
             return false;
@@ -65,12 +63,18 @@ impl Client {
             .expect("could not create socket");
 
         // @note: On Windows, prevents hanging in case that server is not available.
-        req_socket.set_connect_timeout(1000).expect("could not set connection timeout");
-        req_socket.set_rcvtimeo(1000).expect("could not set socket timeout");
+        req_socket
+            .set_connect_timeout(1000)
+            .expect("could not set connection timeout");
+
+        req_socket
+            .set_rcvtimeo(1000)
+            .expect("could not set socket timeout");
+
         req_socket
             .connect(&format!("tcp://{LOOPBACK_ADDR}:{REQ_REP_PORT}"))
             .expect("socket could not connect");
-        
+
         req_socket
             .send(
                 &serde_json::to_string(&DbCommand::DatabaseCommand(DatabaseCommand::Id))
@@ -79,12 +83,12 @@ impl Client {
             )
             .expect("could not send `Id` command");
 
-        let mut msg = zmq::Message::new(); 
+        let mut msg = zmq::Message::new();
         let res = req_socket.recv(&mut msg, 0);
         if res.is_err() {
             // @todo: Check error type for timeout.
             return false;
-        }    
+        }
 
         let Some(id_str) = msg.as_str() else {
             panic!("invalid response");

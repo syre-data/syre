@@ -23,6 +23,8 @@ pub fn index() -> Html {
         let app_state = app_state.clone();
         let navigator = navigator.clone();
 
+        // @todo: Check if any users exist. If not redirect to sign up page
+        //  instead of sign in page.
         use_effect_with_deps(
             |auth_state| {
                 let auth_state = auth_state.clone();

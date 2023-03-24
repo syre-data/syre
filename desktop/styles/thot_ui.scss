@@ -32,9 +32,45 @@
   }
 }
 
+.thot-ui-drawer {
+  height: 100%;
+}
+
 .thot-ui-standard-properties-editor {
-  .form-field {
-    margin-bottom: t.$margin-l;
+    overflow: auto;
+    height: 100vh; // TODO[1] Not working properly
+
+    .form-field {
+      font-size: 0.85em;
+      font-weight: 400;
+
+      margin-bottom: t.$margin-l;
+
+      h3 {
+        font-size: 1em;
+        margin: 0;
+      }
+
+      input, textarea {
+          display: block;
+          width: 170px;
+          padding: 0.4em 0.9em;
+          font-size: 1em;
+          font-weight: 400;
+          border: #6B7280 t.$border-width-m solid;
+          background-color: t.$frame-background-color;
+          box-shadow: none;
+          overflow: auto;
+          outline: none;
+          resize: none; /*remove the resize handle on the bottom right*/
+      }
+
+
+  }
+
+
+  .metadata {
+    border-top: red;
   }
 
   .thot-ui-metadata-editor {

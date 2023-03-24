@@ -16,12 +16,12 @@
     border-right: solid t.$border-width-s t.$frame-border-color;
   }
 
-  .thot-ui-drawer {
-    width: 20vw;
-  }
-
   .details-bar-drawer {
-    width: 200px;
+    display: flex;
+    justify-content: center;
+    padding-top: 10px;
+    width: 240px;
+    height: 100%;
     background-color: t.$frame-background-color;
 
     .drawer-toggle {
@@ -35,24 +35,8 @@
     }
 
     .project-canvas-details-bar {
-      padding: t.$padding-m 10%;
-
-      // .form-field {
-      //   margin: 0 10% t.$margin-m;
-      // }
-
       &.hidden {
         display: none;
-      }
-
-      // form {
-      //   margin: t.$margin-m 10%;
-      // }
-
-      label input,
-      label textarea {
-        display: block;
-        width: 80%;
       }
     }
   }

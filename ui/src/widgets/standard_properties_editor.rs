@@ -232,7 +232,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
         <form class={classes!("thot-ui-standard-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
-                    { "Name" }
+                    <h3> { "Name" } </h3>
                     <input
                         ref={name_ref}
                         placeholder={"(no name)"}
@@ -243,7 +243,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
             <div class={classes!("form-field", "kind")}>
                 <label>
-                    { "Type" }
+                    <h3> { "Type" } </h3>
                     <input
                         ref={kind_ref}
                         placeholder={"(no type)"}
@@ -253,7 +253,8 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             </div>
 
             <div class={classes!("form-field", "description")}>
-                <label>{ "Description" }
+                <label>
+                    <h3> { "Description" } </h3>
                     <textarea
                         ref={description_ref}
                         placeholder={"(no description)"}
@@ -264,7 +265,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
             <div class={classes!("form-field", "tags")}>
                 <label>
-                    { "Tags" }
+                    <h3> { "Tags" } </h3>
                     <TagsEditor
                         value={properties_state.tags.clone()}
                         onchange={onchange_tags} />

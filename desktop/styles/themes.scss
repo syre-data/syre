@@ -6,6 +6,8 @@
 
 $title-font-family: vars.$font-family-primary;
 $body-font-family: vars.$font-family-secondary;
+
+$font-size-xs: vars.$font-size-xs;
 $font-size-base: vars.$font-size-base;
 $font-weight-base: vars.$font-weight-base;
 $line-height-base: vars.$line-height-base;
@@ -26,6 +28,9 @@ $frame-border-color: $background-accent-color;
 
 $card-background-color: vars.$secondary-color-700;
 $card-hover-background-color: vars.$secondary-color-600;
+
+$input-border-color: vars.$secondary-color-500;
+$input-background-color: vars.$secondary-color-900;
 
 $body-text-color: vars.$secondary-color-50;
 $title-text-color: vars.$secondary-color-50;
@@ -102,6 +107,14 @@ $gap-xl: 30px;
 
 $card-min-width: 10rem;
 $card-height: 6.5rem;
+
+$input-padding-y: 0.2em;
+$input-padding-x: 0.6em;
+$input-width:170px;
+$drawer-width: 240px;
+
+$canvas-width: 400px;
+$canvas-height: 300px;
 
 // **************
 // *** events ***

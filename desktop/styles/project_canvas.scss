@@ -12,15 +12,15 @@
 
   .project-canvas-navbar {
     background-color: t.$frame-background-color;
-    padding: 5px;
+    padding: t.$padding-m;
     border-right: solid t.$border-width-s t.$frame-border-color;
   }
 
   .details-bar-drawer {
     display: flex;
     justify-content: center;
-    padding-top: 10px;
-    width: 240px;
+    padding-top: t.$padding-l;
+    width: t.$drawer-width;
     height: 100%;
     background-color: t.$frame-background-color;
 
@@ -35,6 +35,14 @@
     }
 
     .project-canvas-details-bar {
+      overflow: auto;
+      height: 100%;
+      //TODO[1]: Could only make scroll work with absolute position
+      // hence the 24px is hardcoded to accommodate this. This ideally
+      // is just relative and has no hardcoded value to center it.
+      position: absolute;
+      right: 24px; // Hardcoded value due to the above comment!
+
       &.hidden {
         display: none;
       }
@@ -44,8 +52,8 @@
   .project-canvas-content {
     flex: 1; /* This allows the content to fill the remaining space */
     overflow: auto; /* This adds a scrollbar when the content overflows vertically */
-    width: 400px;
-    height: 300px;
+    width: t.$canvas-width;
+    height: t.$canvas-height;
     min-height: 100%;
     display: flex;
 

@@ -10,7 +10,7 @@ env_path=$1
 target=$(rustc -Vv | grep host | cut -f2 -d' ')
 
 # build app
-export $(cat env_path | xargs)
+export $(cat $env_path | xargs -L 1)
 res=$(cargo tauri build 2>&1)
 echo $res > ~/Downloads/tauri_build.log
 

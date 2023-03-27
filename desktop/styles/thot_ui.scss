@@ -44,8 +44,6 @@
 }
 
 .thot-ui-standard-properties-editor {
-
-
     .form-field {
       font-size: t.$font-size-xs;
       margin-bottom: t.$margin-l;
@@ -86,6 +84,20 @@
     button {
       padding: t.$padding-s;
       border-radius: t.$border-radius-s;
+    }
+  }
+}
+
+.thot-ui-script-associations-editor {
+  ol {
+    padding: 0;
+
+    .script-association {
+      white-space: nowrap;
+
+      div {
+        display: inline-block;
+      }
     }
   }
 }

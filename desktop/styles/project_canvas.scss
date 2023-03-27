@@ -34,17 +34,16 @@
       border-right: solid t.$border-width-s t.$frame-border-color;
     }
 
-    .project-canvas-details-bar {
+    .drawer-contents {
       overflow: auto;
-      height: 100%;
-      //TODO[1]: Could only make scroll work with absolute position
-      // hence the 24px is hardcoded to accommodate this. This ideally
-      // is just relative and has no hardcoded value to center it.
-      position: absolute;
-      right: 24px; // Hardcoded value due to the above comment!
 
-      &.hidden {
-        display: none;
+      .project-canvas-details-bar {
+        margin: 0 t.$margin-l;
+        height: 100%;
+
+        &.hidden {
+          display: none;
+        }
       }
     }
   }

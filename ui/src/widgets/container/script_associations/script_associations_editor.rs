@@ -46,7 +46,7 @@ pub struct ScriptAssociationEditorProps {
     pub run_parameters: RunParameters,
 
     #[prop_or_default]
-    pub onchange: Option<Callback<RunParameters>>,
+    pub onchange: Callback<RunParameters>,
 }
 
 #[function_component(ScriptAssociationEditor)]
@@ -57,8 +57,19 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     let priority_ref = use_node_ref();
     let autorun_ref = use_node_ref();
 
-    let onchange_priority = {
+    {
         let onchange = props.onchange.clone();
+        let association_state = association_state.clone();
+
+        use_effect_with_deps(
+            move |association_state| {
+                onchange.emit(association_state.run_parameters.clone());
+            },
+            association_state,
+        );
+    }
+
+    let onchange_priority = {
         let association_state = association_state.clone();
         let priority_ref = priority_ref.clone();
 
@@ -73,14 +84,10 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
                 .expect("could not parse input as number");
 
             association_state.dispatch(ScriptAssociationStateAction::SetPriority(priority));
-            if let Some(onchange) = onchange.as_ref() {
-                onchange.emit(association_state.run_parameters.clone());
-            }
         })
     };
 
     let onchange_autorun = {
-        let onchange = props.onchange.clone();
         let association_state = association_state.clone();
         let autorun_ref = autorun_ref.clone();
 
@@ -91,9 +98,6 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 
             let autorun = autorun_ref.checked();
             association_state.dispatch(ScriptAssociationStateAction::SetAutorun(autorun));
-            if let Some(onchange) = onchange.as_ref() {
-                onchange.emit(association_state.run_parameters.clone());
-            }
         })
     };
 

@@ -36,7 +36,15 @@
   height: 100%;
 }
 
+.thot-ui-asset-editor {
+    .thot-ui-asset-file_name {
+      overflow: auto;
+      max-width: t.$input-width;
+    }
+}
+
 .thot-ui-standard-properties-editor {
+
 
     .form-field {
       font-size: t.$font-size-xs;

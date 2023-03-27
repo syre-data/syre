@@ -56,7 +56,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
                 properties={asset.properties.clone()}
                 {onchange} />
 
-            <div>
+            <div class={classes!("thot-ui-asset-file_name")}>
                 { asset.path.as_path().to_str() }
             </div>
             <div>

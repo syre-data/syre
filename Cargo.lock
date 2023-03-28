@@ -902,6 +902,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "extendr-api"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e36d66fa307948c291a6fc5b09d8295dd58e88ab5e8d782d30e23670113e9ab"
+dependencies = [
+ "extendr-engine",
+ "extendr-macros",
+ "lazy_static",
+ "libR-sys",
+ "paste",
+]
+
+[[package]]
+name = "extendr-engine"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8298d5a2e38bb91820b92bbd7e5aaf1d3b95ed9f096fc66393c50af38ff8155d"
+dependencies = [
+ "libR-sys",
+]
+
+[[package]]
+name = "extendr-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09bf0849f0d48209be8163378248137fed5ccb5f464d171cf93a19f31a9e6c67"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "fake"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1935,6 +1968,12 @@ dependencies = [
  "thot-local-database",
  "uuid 0.8.2",
 ]
+
+[[package]]
+name = "libR-sys"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd728a97b9b0975f546bc865a7413e0ce6f98a8f6cea52e77dc5ee0bcea00adf"
 
 [[package]]
 name = "libappindicator"
@@ -3866,6 +3905,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "thot"
+version = "0.0.1"
+dependencies = [
+ "extendr-api",
 ]
 
 [[package]]

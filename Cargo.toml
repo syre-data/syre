@@ -10,6 +10,7 @@ members = [
     "has_id",
     "has_id/has_id_derive",
     "lang/python",
+    "lang/r/src/rust",
     "lang/rust",
     "local",
     "local/database",

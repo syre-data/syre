@@ -61,7 +61,7 @@ impl Database {
                 }
 
                 // add project to collection
-                let res = Projects::load();
+                let res = Projects::load_or_default();
                 let Ok(mut projects) = res else {
                     let error = Error::SettingsError(format!("{res:?}"));
                     return serde_json::to_value(error).expect("could not convert error to JsValue");
@@ -124,7 +124,7 @@ impl Database {
         }
 
         // load project
-        let project = LocalProject::load(&path)?;
+        let project = LocalProject::load_or_default(&path)?;
         let _o_project = self.store.insert_project(project)?;
         if let Some(project) = self.get_path_project(&path) {
             return Ok(project);
@@ -158,7 +158,7 @@ impl Database {
 
     fn load_user_projects(&mut self, user: &ResourceId) -> Result<Vec<CoreProject>> {
         // get project info
-        let projects_info = collections::Projects::load()?;
+        let projects_info = collections::Projects::load_or_default()?;
 
         // load projects
         let mut projects = Vec::new();

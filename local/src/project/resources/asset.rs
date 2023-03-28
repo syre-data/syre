@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use settings_manager::error::{
     Error as SettingsError, Result as SettingsResult, SettingsError as LocalSettingsError,
 };
-use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
+use settings_manager::local_settings::{self, LocalSettings, LockSettingsFile};
 use settings_manager::settings::Settings;
 use settings_manager::types::Priority as SettingsPriority;
 use std::fs::File;
@@ -102,6 +102,11 @@ impl Assets {
         }
 
         None
+    }
+
+    pub fn load_or_default(base_path: &Path) -> Result<Self> {
+        let sets = LocalSettings::load_or_default(base_path)?;
+        Ok(sets)
     }
 }
 

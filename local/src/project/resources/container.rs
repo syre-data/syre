@@ -292,21 +292,6 @@ impl LocalSettings for Container {
         Ok(())
     }
 
-    fn load(base_path: &Path) -> SettingsResult<Self> {
-        let rel_path = Self::rel_path()?;
-        let path = base_path.join(rel_path);
-
-        // load container
-        let mut container = settings::load::<Self>(&path)?;
-        container.set_base_path(base_path.to_path_buf())?;
-
-        // load assets
-        let assets = LocalAssets::load(base_path)?;
-        container.assets = assets;
-
-        Ok(container)
-    }
-
     fn save(&mut self) -> SettingsResult {
         settings::save::<Self>(self)?;
         self.assets.save()?;

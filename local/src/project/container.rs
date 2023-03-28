@@ -44,7 +44,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         if path_is_container(path) {
             // path is already a container
             // return resource id
-            let container = Container::load(path)?;
+            let container = Container::load_or_default(path)?;
             return Ok(container.rid.clone());
         }
     } else {
@@ -56,11 +56,11 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 
     // initialize container
     // assets included
-    let mut container = Container::load(path)?;
+    let mut container = Container::load_or_default(path)?;
     container.save()?;
 
     // initialize container settings
-    let mut settings = ContainerSettings::load(path)?;
+    let mut settings = ContainerSettings::load_or_default(path)?;
     settings.save()?;
 
     Ok(container.rid.clone())
@@ -180,7 +180,7 @@ pub fn init_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> 
 
     // init and register
     let rid = init(child)?;
-    let mut cont = Container::load(container)?;
+    let mut cont = Container::load_or_default(container)?;
     cont.save()?;
 
     Ok(rid)

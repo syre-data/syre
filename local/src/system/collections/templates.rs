@@ -12,10 +12,10 @@ use std::default::Default;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::system::template::Template;
+use thot_core::system::template::Project as ProjectTemplate;
 use thot_core::types::{resource_map::values_only, ResourceId};
 
-pub type TemplateMap = HashMap<ResourceId, Template>;
+pub type TemplateMap = HashMap<ResourceId, ProjectTemplate>;
 
 #[derive(Serialize, Deserialize, Derivative, Default)]
 #[derivative(Debug)]

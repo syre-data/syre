@@ -176,7 +176,7 @@ impl Database {
         // @todo: Ensure unique and valid path.
         let child_path = unique_file_name(parent.base_path()?.join(&name))?;
         let cid = container::new(&child_path)?;
-        let mut child = Container::load(&child_path)?;
+        let mut child = Container::load_or_default(&child_path)?;
         child.properties.name = Some(name);
         child.save()?;
 

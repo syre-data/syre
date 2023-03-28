@@ -68,12 +68,12 @@ impl Database {
             return Ok(scripts);
         }
 
-        let projects = Projects::load()?;
+        let projects = Projects::load_or_default()?;
         let Some(project) = projects.get(&rid).clone() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
         };
 
-        let scripts = ProjectScripts::load(&project.path)?;
+        let scripts = ProjectScripts::load_or_default(&project.path)?;
         let script_vals = (*scripts).clone().into_values().collect();
         self.store.insert_project_scripts(rid, scripts);
 

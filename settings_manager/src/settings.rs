@@ -12,7 +12,7 @@ use std::path::Path;
 /// Base traits for setting types.
 ///
 /// Settings lock their respective file while in existence.
-pub trait Settings: Serialize + DeserializeOwned + Default {
+pub trait Settings: Serialize + DeserializeOwned {
     /// Store the file lock of the settings file to prevent outside changes.
     fn store_lock(&mut self, lock: FlockLock<File>);
 
@@ -28,7 +28,7 @@ pub trait Settings: Serialize + DeserializeOwned + Default {
 
 /// Create a new settings object from a file.
 /// Creates a default object of the type if the file did not exist or is empty.
-pub fn load<T: Settings>(path: &Path) -> Result<T> {
+pub fn load_or_default<T: Settings + Default>(path: &Path) -> Result<T> {
     // get settings file and lock
     let settings_file = ensure_file(path)?;
     let file_lock = lock(settings_file)?;

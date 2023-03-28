@@ -16,12 +16,12 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 /// Initialize a file as a [`Script`](CoreScript).
 pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
-    let projects = Projects::load()?;
+    let projects = Projects::load_or_default()?;
     let Some(project) = projects.get(&project) else {
         return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
     };
 
-    let mut scripts = ProjectScripts::load(&project.path)?;
+    let mut scripts = ProjectScripts::load_or_default(&project.path)?;
     let path = ResourcePath::new(path)?;
     let script = ProjectScript::new(path)?;
 
@@ -52,7 +52,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result<Resource
     }
 
     // get script
-    let scripts = SystemScripts::load()?;
+    let scripts = SystemScripts::load_or_default()?;
     let Some(script) = scripts.get(script) else {
         return Err(CoreError::ProjectError(
             CoreProjectError::NotRegistered(Some(script.clone()), None)).into()
@@ -60,7 +60,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result<Resource
     };
 
     // add association
-    let mut container = Container::load(container)?;
+    let mut container = Container::load_or_default(container)?;
     let assoc = ScriptAssociation::new(script.rid.clone());
     container.add_script_association(assoc)?;
     container.save()?;

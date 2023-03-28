@@ -18,15 +18,18 @@ pub trait SystemSettings: settings::Settings {
     /// Returns the path to the settings file.
     fn path() -> Result<PathBuf>;
 
-    /// Loads the settings from the file given by path.
-    fn load() -> Result<Self> {
-        let path = Self::path()?;
-        settings::load::<Self>(path.as_path())
-    }
-
     /// Saves the settings to the file given by path.
     fn save(&mut self) -> Result {
         settings::save::<Self>(self)
+    }
+
+    /// Loads the settings from the file given by path.
+    fn load_or_default() -> Result<Self>
+    where
+        Self: Default,
+    {
+        let path = Self::path()?;
+        settings::load_or_default::<Self>(path.as_path())
     }
 }
 

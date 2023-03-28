@@ -37,7 +37,7 @@ impl Project {
     /// Creates a new Project.
     pub fn new(name: &str) -> Result<Self> {
         // get active user
-        let settings = UserSettings::load()?;
+        let settings = UserSettings::load_or_default()?;
         let creator = match settings.active_user {
             None => None,
             Some(uid) => Some(UserId::Id(uid.into())),

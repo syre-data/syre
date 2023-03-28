@@ -9,7 +9,7 @@ pub struct StandardProperties;
 impl StandardProperties {
     /// Creates a new [`StandardProperties`] with fields actively filled from system settings.
     pub fn new() -> Result<CoreStandardProperties> {
-        let settings = UserSettings::load()?;
+        let settings = UserSettings::load_or_default()?;
         let creator = match settings.active_user {
             Some(uid) => Some(UserId::Id(uid.into())),
             None => None,

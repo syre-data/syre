@@ -155,7 +155,7 @@ pub struct ContainerProps {
     /// Callback when container script edit button is clicked.
     #[prop_or_default]
     pub onclick_edit_scripts: Option<Callback<ResourceId>>,
-    
+
     #[prop_or_default]
     pub ondragenter: Callback<DragEvent>,
 
@@ -212,13 +212,11 @@ pub fn container(props: &ContainerProps) -> Html {
 
         Callback::from(move |e: DragEvent| {
             e.prevent_default();
-            dragover_counter.set(*dragover_counter - 1);
-
-            // @todo: `UseStateHandle` value not updated until later.
-            // See https://github.com/yewstack/yew/issues/3125
             if *dragover_counter == 1 {
                 ondragleave.emit(e);
             }
+
+            dragover_counter.set(*dragover_counter - 1);
         })
     };
 

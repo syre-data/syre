@@ -14,7 +14,7 @@ use thot_core::types::ResourceId;
 
 /// Adds a [`Project`] to the registry collection.
 pub fn register_project(project: Project) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = Projects::load_or_default()?;
     let rid = project.rid.clone();
 
     // check if project is already registered.
@@ -32,7 +32,7 @@ pub fn register_project(project: Project) -> Result {
 
 /// Deregister a [`Project`].
 pub fn deregister_project(id: &ResourceId) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = Projects::load_or_default()?;
     projects.remove(&id);
     projects.save()?;
     Ok(())
@@ -41,7 +41,7 @@ pub fn deregister_project(id: &ResourceId) -> Result {
 /// Retrieves a [`Project`] by its [`ResourceId`].
 /// Returns `None` if project is not found.
 pub fn project_by_id(id: &ResourceId) -> Result<Option<Project>> {
-    let projects = Projects::load()?;
+    let projects = Projects::load_or_default()?;
     let project = projects.get(id);
     Ok(project.map(|p| p.clone()))
 }
@@ -49,7 +49,7 @@ pub fn project_by_id(id: &ResourceId) -> Result<Option<Project>> {
 /// Returns a [`Project`] by its path.
 /// Returns None if project is not found.
 pub fn project_by_path(path: &Path) -> Result<Option<Project>> {
-    let projects = Projects::load()?;
+    let projects = Projects::load_or_default()?;
     let projects = &projects
         .values()
         .filter(|prj| prj.path == path)
@@ -67,7 +67,7 @@ pub fn project_by_path(path: &Path) -> Result<Option<Project>> {
 /// Updates a [`Project`].
 /// Replaces the project in the projects collection with the same id.
 pub fn update_project(project: Project) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = Projects::load_or_default()?;
     projects.insert(project.rid.clone(), project);
 
     projects.save()?;
@@ -82,7 +82,7 @@ pub fn set_active_project(id: &ResourceId) -> Result {
         ));
     };
 
-    let mut settings = UserSettings::load()?;
+    let mut settings = UserSettings::load_or_default()?;
     settings.active_project = Some((*id).clone().into());
     settings.save()?;
     Ok(())
@@ -98,14 +98,14 @@ pub fn set_active_project_by_path(path: &Path) -> Result {
         Some(p) => p,
     };
 
-    let mut settings = UserSettings::load()?;
+    let mut settings = UserSettings::load_or_default()?;
     settings.active_project = Some(project.rid);
     settings.save()?;
     Ok(())
 }
 
 pub fn unset_active_project() -> Result {
-    let mut settings = UserSettings::load()?;
+    let mut settings = UserSettings::load_or_default()?;
     settings.active_project = None;
     settings.save()?;
     Ok(())

@@ -33,7 +33,7 @@ pub fn make_script(file: &Path) -> Result<ResourceId> {
     let script = Script::new(abs_path)?;
     let rid = script.rid.clone();
 
-    let mut scripts = Scripts::load()?;
+    let mut scripts = Scripts::load_or_default()?;
     scripts.insert(rid.clone(), script);
     scripts.save()?;
 
@@ -118,7 +118,7 @@ pub fn script_by_path(path: &Path) -> Result<Script> {
 //     }
 // }
 
-// @todo 
+// @todo
 // /// Returns `true` if the path is registered as a script with the given project.
 // /// If project path is not given, searches in ancestors for project root.
 // pub fn path_is_registered(path: &Path, project: Option<&Path>) -> Result<bool> {

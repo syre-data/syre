@@ -59,7 +59,7 @@ where
 impl ResourceTree<Container> {
     /// Load a `Container` tree into a [`ResourceTree`](CoreTree).
     pub fn load(path: &Path) -> Result<Self> {
-        let root = Container::load(&path)?;
+        let root = Container::load_or_default(&path)?;
         let rid = root.id().clone();
         let mut graph = CoreResourceTree::new(root);
 

@@ -3,6 +3,7 @@
 /// as well as system settings.
 #[cfg(feature = "fs")]
 pub mod common;
+pub mod template;
 
 #[cfg(feature = "fs")]
 pub mod collections;

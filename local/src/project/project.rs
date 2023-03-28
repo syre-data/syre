@@ -100,7 +100,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 
 /// Move project to a new location.
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = Projects::load_or_default()?;
     let Some(project) = projects.get_mut(rid) else {
         return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` is not registered")).into());
     };
@@ -141,7 +141,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
             continue;
         }
 
-        let prj = Project::load(&path)?;
+        let prj = Project::load_or_default(&path)?;
         if prj.meta_level == 0 {
             return common::canonicalize_path(path);
         }
@@ -171,7 +171,6 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
             // folder is not root
             continue;
         }
-
 
         let Ok(prj_json) = fs::read_to_string(prj_file) else {
             // @todo: Handle metalevel.

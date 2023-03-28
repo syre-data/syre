@@ -1,7 +1,8 @@
-//! A template.
+//! A [`Project`](crate::project::Project) template.
 use crate::types::{ResourceId, ResourcePath};
 use chrono::prelude::*;
 use has_id::HasId;
+use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -9,19 +10,26 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
 use has_id::HasIdSerde;
 
-// @todo: Separate template for Project, Container, Asset, and Script?
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, HasIdSerde))]
 #[derive(HasId, Debug)]
-pub struct Template {
+pub struct Project {
     #[id]
     pub rid: ResourceId,
-    pub parent: Option<ResourceId>,
 
-    /// structure should be an abstract representation of the template
-    pub template: ResourcePath,
+    /// Projects derived from the template.
+    pub projects: HashSet<ResourceId>,
+
+    /// Path to the template directory.
+    /// The directory contains the project file and graph,
+    /// and scripts.
+    pub path: ResourcePath,
 
     pub name: String,
     pub description: String,
     pub created: DateTime<Utc>,
     pub creator: Option<ResourceId>,
 }
+
+#[cfg(test)]
+#[path = "./project_test.rs"]
+mod project_test;

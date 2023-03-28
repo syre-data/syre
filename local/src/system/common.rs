@@ -22,7 +22,7 @@ pub fn system_dirs() -> SettingsResult<ProjectDirs> {
     }
 }
 
-/// Returns the path to the users config directory for Thot.
+/// Returns the path to the user's config directory for Thot.
 pub fn config_dir_path() -> SettingsResult<PathBuf> {
     let dirs = system_dirs()?;
     let path = dirs.config_dir();

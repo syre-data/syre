@@ -7,12 +7,6 @@ use std::path::{Path, PathBuf};
 // *** User Settings ***
 // *********************
 
-/// Required functionality for user settings.
-///
-/// # Functions and Methods
-/// + **`rel_path`:** Relative path to the settings file.
-/// + **`load`:** Loads the settings file into an object.
-/// + **`save`:** Save an object to the settings file.
 pub trait UserSettings: settings::Settings {
     /// Returns the base path to the settings file.
     fn base_path() -> Result<PathBuf>;
@@ -32,10 +26,13 @@ pub trait UserSettings: settings::Settings {
     }
 
     /// Loads the settings from the file given by path.
-    fn load(rel_path: &Path) -> Result<Self> {
+    fn load_or_default(rel_path: &Path) -> Result<Self>
+    where
+        Self: Default,
+    {
         let base_path = Self::base_path()?;
         let path = base_path.join(rel_path);
-        let mut sets = settings::load::<Self>(path.as_path())?;
+        let mut sets = settings::load_or_default::<Self>(path.as_path())?;
         sets.set_rel_path(PathBuf::from(rel_path))?;
 
         Ok(sets)

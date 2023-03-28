@@ -35,7 +35,7 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
     html! {
         <div class={classes!("assets-preview")}>
             if props.assets.len() == 0 {
-             { "(no assets)" }
+             { "(no data)" }
             } else {
                 <ol class={classes!("thot-ui-assets-list")}>
                     { props.assets.iter().map(|asset| {

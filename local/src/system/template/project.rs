@@ -7,7 +7,9 @@ use settings_manager::{Priority as SettingsPriority, Settings, UserSettings};
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::system::template::Project as CoreProject;
+use thot_core::graph::ResourceTree;
+use thot_core::project::Project as CoreProject;
+use thot_core::system::template::{Project as ProjectTemplate, ResourceTree as TreeTemplate};
 
 #[derive(Serialize, Deserialize)]
 pub struct Project {
@@ -17,10 +19,24 @@ pub struct Project {
     #[serde(skip)]
     rel_path: Option<PathBuf>,
 
-    project: CoreProject,
+    project: ProjectTemplate,
 }
 
-impl Project {}
+impl Project {
+    /// Creates a new [`Project`](crate::project::Project) from the template.
+    pub fn create_project<T>(&self, path: PathBuf) -> SerdeResult<(CoreProject, ResourceTree<T>)>
+    where
+        T: HasId<Id = ResourceId>,
+    {
+        let mut project = PrjProject::new(&self.name);
+        project.description = self.project.description.clone();
+        project.data_root = self.project.data_root.clone();
+        project.universal_root = self.universal_root.clone();
+        project.analysis_root = self.project.analysis_root.clone();
+
+        let graph = ResourceTree::to_tree(graph);
+    }
+}
 
 impl Deref for Project {
     type Target = CoreProject;

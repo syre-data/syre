@@ -1,6 +1,8 @@
 //! System setting resources for Thot.
-pub mod template;
 pub mod user;
+
+#[cfg(feature = "serde")]
+pub mod template;
 
 // Reexports
 pub use user::User;

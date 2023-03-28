@@ -1,9 +1,10 @@
 //! Indicate an object has a serializable id.
+use serde::{de::Deserialize, Serialize};
 use std::hash::Hash;
 
 /// Indicates an object has a unique id.
 pub trait HasIdSerde<'de> {
-    type Id: Hash + Eq + Clone + serde::Serialize + serde::Deserialize<'de>;
+    type Id: Hash + Eq + Clone + Serialize + Deserialize<'de>;
 
     fn id(&self) -> &Self::Id;
 }

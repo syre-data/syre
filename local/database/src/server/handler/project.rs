@@ -41,20 +41,17 @@ impl Database {
                 let mut project = (**project_guard).clone();
                 Mutex::unlock(project_guard);
 
-                if user_has_project(&user, &project) {
-                    let project: Result<CoreProject> = Ok(project);
-                    return serde_json::to_value(project)
-                        .expect("could not convert `Project` to JsValue");
+                if !user_has_project(&user, &project) {
+                    // update user permissions
+                    let permissions = UserPermissions {
+                        read: true,
+                        write: true,
+                        execute: true,
+                    };
+
+                    project.permissions.insert(user, permissions);
                 }
 
-                // add user to project
-                let permissions = UserPermissions {
-                    read: true,
-                    write: true,
-                    execute: true,
-                };
-
-                project.permissions.insert(user, permissions);
                 let res = self.update_project(project.clone());
                 if res.is_err() {
                     return serde_json::to_value(res).expect("could not convert error to JsValue");

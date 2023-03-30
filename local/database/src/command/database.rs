@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Generic database commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DatabaseCommand {
     /// Used to kill the `Database`.
     Kill,

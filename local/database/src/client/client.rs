@@ -18,10 +18,19 @@ impl Client {
     }
 
     pub fn send(&self, cmd: Command) -> JsValue {
+        // TODO: May be able to move creation of `req_socket` to `#new`, but may run into `Sync` issues.
         let req_socket = self
             .zmq_context
             .socket(zmq::SocketType::REQ)
             .expect("could not create `REQ` socket");
+
+        req_socket
+            .set_connect_timeout(1000)
+            .expect("could not set connection timeout");
+
+        req_socket
+            .set_rcvtimeo(5_000)
+            .expect("could not set socket timeout");
 
         req_socket
             .connect(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
@@ -58,7 +67,6 @@ impl Client {
             .socket(zmq::SocketType::REQ)
             .expect("could not create socket");
 
-        // @note: On Windows, prevents hanging in case that server is not available.
         req_socket
             .set_connect_timeout(1000)
             .expect("could not set connection timeout");

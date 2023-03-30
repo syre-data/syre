@@ -5,7 +5,7 @@ use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::ResourceId;
 
 /// Asset realated commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum AssetCommand {
     /// Retrieves an [`Asset`](CoreAsset) by [`ResourceId`].
     Get(ResourceId),

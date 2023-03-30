@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use thot_core::types::ResourceId;
 
 /// Graph related commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum GraphCommand {
     /// Load a `Project`'s graph.
     Load(ResourceId),
@@ -22,7 +22,7 @@ pub enum GraphCommand {
 }
 
 /// Arguments for [`Command::NewChild`].
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NewChildArgs {
     pub name: String,
     pub parent: ResourceId,

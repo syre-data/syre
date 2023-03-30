@@ -5,7 +5,7 @@ use thot_core::project::Script as CoreScript;
 use thot_core::types::ResourceId;
 
 /// Script related commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ScriptCommand {
     /// Loads a `Project`'s `Scipt`s.
     ///

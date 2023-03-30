@@ -47,9 +47,12 @@ impl Database {
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
+            // TODO[h]: Neither path is working. It seems the executable is also not included with
+            // the wheel.
+
             // create path to database executable
             let mut exe = resources_path(py)?;
-            dbg!(&exe);
+            // let mut exe = PathBuf::from("./thot.data/data");
             exe.push(format!("thot-local-database-{CURRENT_PLATFORM:}"));
 
             #[cfg(target_os = "windows")]

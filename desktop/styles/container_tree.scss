@@ -172,6 +172,11 @@ $control-button-size: 25px;
         align-items: center;
         gap: 4px;
 
+        .thot-ui-asset-icon {
+          width: t.$icon-size;
+          height: t.$icon-size;
+        }
+
          &:hover .thot-ui-asset-remove {
              opacity: 1;
          }

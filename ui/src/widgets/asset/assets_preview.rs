@@ -59,7 +59,7 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                 <div class={classes!("thot-ui-asset")}>
 
                                     <div style={ asset_icon_color(&asset) }>
-                                        <Icon icon_id={ asset_icon_id(&asset) } width={"15px".to_owned()} height={"15px".to_owned()}/>
+                                        <Icon class={ classes!("thot-ui-asset-icon")} icon_id={ asset_icon_id(&asset) } />
                                     </div>
 
                                     <div class={classes!("thot-ui-asset-name")}>
@@ -94,6 +94,7 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 /// The `name` if set, otherwise the `path`'s file name.
 fn asset_display_name(asset: &CoreAsset) -> String {
     fn shorten_file_name(file_name: &str) -> String {
+        //TODO[2]: not sure if this is the right place to max file length, should be centralized
         let max_file_name_length = 11;
         if file_name.len() <= max_file_name_length {
             return file_name.to_string();

@@ -4,13 +4,9 @@ use crate::command::{Command as DbCommand, DatabaseCommand};
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::types::PortNumber;
 use serde_json::Value as JsValue;
-use std::net::TcpListener;
+use std::net::{Ipv4Addr, TcpListener};
 
-#[cfg(target_os = "windows")]
-static LOOPBACK_ADDR: &str = "localhost";
-
-#[cfg(not(target_os = "windows"))]
-static LOOPBACK_ADDR: &str = "0.0.0.0";
+static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
 
 pub struct Client {
     zmq_context: zmq::Context,
@@ -28,7 +24,7 @@ impl Client {
             .expect("could not create `REQ` socket");
 
         req_socket
-            .connect(&format!("tcp://{LOOPBACK_ADDR}:{REQ_REP_PORT}"))
+            .connect(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
             .expect("socket could not connect");
 
         req_socket
@@ -72,7 +68,7 @@ impl Client {
             .expect("could not set socket timeout");
 
         req_socket
-            .connect(&format!("tcp://{LOOPBACK_ADDR}:{REQ_REP_PORT}"))
+            .connect(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
             .expect("socket could not connect");
 
         req_socket
@@ -111,7 +107,7 @@ impl Default for Client {
 
 /// Checks if a given port on the loopback address is free.
 fn port_is_free(port: PortNumber) -> bool {
-    TcpListener::bind(format!("{LOOPBACK_ADDR}:{port}")).is_ok()
+    TcpListener::bind(format!("{LOCALHOST}:{port}")).is_ok()
 }
 
 #[cfg(test)]

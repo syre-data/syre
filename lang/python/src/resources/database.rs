@@ -47,10 +47,13 @@ impl Database {
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
-            // @todo: Get executable path from package data path.
-            let mut exe = format!("./thot.data/data/thot-local-database-{CURRENT_PLATFORM:}");
+            // create path to database executable
+            let mut exe = resources_path(py)?;
+            dbg!(&exe);
+            exe.push(format!("thot-local-database-{CURRENT_PLATFORM:}"));
+
             #[cfg(target_os = "windows")]
-            exe.push_str(".exe");
+            exe.push(".exe");
 
             let _server = Command::new(exe)
                 .spawn()
@@ -314,6 +317,33 @@ impl Database {
 
         // @todo: Check that parent is in current subtree.
         Ok(parent.unwrap())
+    }
+}
+
+// ***************
+// *** helpers ***
+// ***************
+
+// for docs see: https://pyo3.rs/v0.18.2/python_from_rust
+fn resources_path(py: Python<'_>) -> PyResult<PathBuf> {
+    let resources = py.import("importlib.resources")?;
+    let files = resources.call_method1("files", ("thot",))?;
+    let files = resources.call_method1("as_file", (files,))?;
+    let path = files.call_method0("__enter__")?; // enter python context manager
+    match path.extract() {
+        Ok(path) => {
+            let none = py.None();
+            files.call_method1("__exit__", (&none, &none, &none))?;
+            Ok(path)
+        }
+        Err(err) => {
+            files.call_method1(
+                "__exit__",
+                (err.get_type(py), err.value(py), err.traceback(py)),
+            )?;
+
+            Err(err)
+        }
     }
 }
 

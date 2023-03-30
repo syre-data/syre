@@ -47,7 +47,7 @@ impl Database {
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
         // start database
         if !DbClient::server_available() {
-            // @todo: Get executable path from package resources path.
+            // @todo: Get executable path from package data path.
             let mut exe = format!("./thot.data/data/thot-local-database-{CURRENT_PLATFORM:}");
             #[cfg(target_os = "windows")]
             exe.push_str(".exe");

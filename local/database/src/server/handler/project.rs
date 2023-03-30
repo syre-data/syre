@@ -5,8 +5,6 @@ use crate::error::{Error, Result};
 use serde_json::Value as JsValue;
 use settings_manager::{LocalSettings, SystemSettings};
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
-use std::sync::Mutex;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
@@ -21,12 +19,19 @@ impl Database {
     pub fn handle_command_project(&mut self, cmd: ProjectCommand) -> JsValue {
         match cmd {
             ProjectCommand::Load(path) => {
-                let project = self.load_project(&path);
-                let Ok(project) = project else {
-                    return serde_json::to_value(project).expect("could not convert `Project` to JsValue");
+                // check if project is already loaded
+                let project = match self.get_path_project(&path) {
+                    Some(project) => project,
+                    None => {
+                        let project = self.load_project(&path);
+                        let Ok(project) = project else {
+                            return serde_json::to_value(project).expect("could not convert `Project` to JsValue");
+                        };
+
+                        project
+                    }
                 };
 
-                let project = project.lock().expect("could not lock `Project`");
                 let project: Result<CoreProject> = Ok((**project).clone());
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
@@ -37,9 +42,7 @@ impl Database {
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                let project_guard = project.lock().expect("could not lock `Project`");
-                let mut project = (**project_guard).clone();
-                Mutex::unlock(project_guard);
+                let mut project = (**project).clone();
 
                 if !user_has_project(&user, &project) {
                     // update user permissions
@@ -88,7 +91,6 @@ impl Database {
                     return serde_json::to_value(value).expect("could not convert `None` to JsValue")
                 };
 
-                let project = project.lock().expect("could not lock `Project`");
                 let project = Some((**project).clone());
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
@@ -114,12 +116,7 @@ impl Database {
     ///
     /// # Returns
     /// Reference to the loaded [`Project`](LocalProject).
-    pub fn load_project(&mut self, path: &Path) -> Result<Rc<Mutex<LocalProject>>> {
-        // check if project is already loaded
-        if let Some(project) = self.get_path_project(&path) {
-            return Ok(project);
-        }
-
+    pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
         // load project
         let project = LocalProject::load_or_default(&path)?;
         let _o_project = self.store.insert_project(project)?;
@@ -132,7 +129,7 @@ impl Database {
         ))
     }
 
-    fn get_path_project(&self, path: &Path) -> Option<Rc<Mutex<LocalProject>>> {
+    fn get_path_project(&self, path: &Path) -> Option<&LocalProject> {
         if let Some(pid) = self.store.get_path_project(&path) {
             if let Some(project) = self.store.get_project(pid) {
                 // already loaded
@@ -148,7 +145,6 @@ impl Database {
             return None;
         };
 
-        let project = project.lock().expect("could not lock `Project`");
         let path = project.base_path().expect("base path not set");
         Some(path)
     }
@@ -159,12 +155,12 @@ impl Database {
 
         // load projects
         let mut projects = Vec::new();
-        for (_pid, project_info) in projects_info.clone().into_iter() {
-            let project = self
-                .load_project(&project_info.path)
-                .expect("could not load `Project`");
+        for (pid, project_info) in projects_info.clone().into_iter() {
+            let project = match self.store.get_project(&pid) {
+                Some(project) => project,
+                None => self.load_project(&project_info.path)?
+            };
 
-            let project = project.lock().expect("could not lock `Project`");
             if user_has_project(user, &project) {
                 projects.push((**project).clone());
             }
@@ -175,11 +171,10 @@ impl Database {
     }
 
     fn update_project(&mut self, update: CoreProject) -> Result {
-        let Some(project) = self.store.get_project(&update.rid) else {
+        let Some(project) = self.store.get_project_mut(&update.rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
         };
 
-        let mut project = project.lock().expect("could not lock `Project`");
         **project = update;
         project.save()?;
         Ok(())

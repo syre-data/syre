@@ -6,7 +6,7 @@ use super::{
 use serde::{Deserialize, Serialize};
 
 /// Commands that can be issued to the [`Database`](super::Database).
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Command {
     AssetCommand(AssetCommand),
     ContainerCommand(ContainerCommand),

@@ -5,8 +5,6 @@ use crate::Result;
 use serde_json::Value as JsValue;
 use settings_manager::{LocalSettings, SystemSettings};
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Mutex;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Project as CoreProject, Script as CoreScript};
 use thot_core::types::{ResourceId, ResourcePath};
@@ -50,8 +48,7 @@ impl Database {
                     return serde_json::to_value(val).expect("could not convert `CoreProject` to JsValue")
                 };
 
-                let project = project.lock().expect("could not lock `Project`");
-                let project: Option<CoreProject> = Some(project.clone().into());
+                let project: Option<CoreProject> = Some((**project).clone());
                 serde_json::to_value(project).expect("could not convert `CoreProject` to JsValue")
             }
         }
@@ -105,17 +102,12 @@ impl Database {
     }
 
     /// Get the `Project` of a `Script`.
-    fn get_script_project(&self, script: &ResourceId) -> Option<Rc<Mutex<LocalProject>>> {
+    fn get_script_project(&self, script: &ResourceId) -> Option<&LocalProject> {
         let Some(project) = self.store.get_script_project(script) else {
             return None;
         };
 
-        let project = self
-            .store
-            .get_project(project)
-            .expect("`Project` not loaded");
-
-        Some(project.clone())
+        self.store.get_project(project)
     }
 }
 

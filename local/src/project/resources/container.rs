@@ -27,6 +27,7 @@ use thot_core::types::{ResourceId, ResourcePath, UserPermissions};
 // *** Container ***
 // *****************
 
+// TODO[3]: Wrap core `Container` and `Deref`.
 #[derive(Serialize, Deserialize, HasId, Debug)]
 pub struct Container {
     #[serde(skip)]

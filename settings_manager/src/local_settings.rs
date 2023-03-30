@@ -35,13 +35,13 @@ pub trait LocalSettings: settings::Settings {
     }
 
     /// Loads the settings from the file given by path.
-    fn load_or_default(base_path: &Path) -> Result<Self>
+    fn load_or_create(base_path: &Path) -> Result<Self>
     where
         Self: Default,
     {
         let r_path = Self::rel_path()?;
         let path = base_path.join(r_path);
-        let mut sets = settings::load_or_default::<Self>(path.as_path())?;
+        let mut sets = settings::load_or_create::<Self>(path.as_path())?;
         sets.set_base_path(PathBuf::from(base_path))?;
 
         Ok(sets)

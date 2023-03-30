@@ -92,20 +92,6 @@ impl Project {
             children: HashSet::new(),
         })
     }
-
-    /// Creates a new [`Project`](crate::project::Project) from the template.
-    pub fn create_project<T>(&self, path: PathBuf) -> SerdeResult<(PrjProject, GraphTree<T>)>
-    where
-        T: HasId<Id = ResourceId>,
-    {
-        let mut project = PrjProject::new(&self.name);
-        project.description = self.project.description.clone();
-        project.data_root = self.project.data_root.clone();
-        project.universal_root = self.universal_root.clone();
-        project.analysis_root = self.project.analysis_root.clone();
-
-        let graph = ResourceTree::to_tree(graph);
-    }
 }
 
 #[cfg(test)]

@@ -28,7 +28,7 @@ pub trait Settings: Serialize + DeserializeOwned {
 
 /// Create a new settings object from a file.
 /// Creates a default object of the type if the file did not exist or is empty.
-pub fn load_or_default<T: Settings + Default>(path: &Path) -> Result<T> {
+pub fn load_or_create<T: Settings + Default>(path: &Path) -> Result<T> {
     // get settings file and lock
     let settings_file = ensure_file(path)?;
     let file_lock = lock(settings_file)?;
@@ -42,8 +42,9 @@ pub fn load_or_default<T: Settings + Default>(path: &Path) -> Result<T> {
 
     let mut settings: T;
     if settings_str.is_empty() {
-        // no content in file, create default object
+        // no content in file, create default
         settings = T::default();
+        save(&mut settings)?;
     } else {
         settings = match serde_json::from_str(&settings_str) {
             Ok(sets) => sets,

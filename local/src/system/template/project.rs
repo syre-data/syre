@@ -86,17 +86,13 @@ impl UserSettings for Project {
     }
 
     /// Returns the relative path for the settings.
-    fn rel_path(&self) -> SettingsResult<PathBuf> {
-        match self.rel_path.as_ref() {
-            Some(path) => Ok(path.clone()),
-            None => Err(SettingsMgrError::SettingsError(SettingsError::PathNotSet)),
-        }
-    }
+    fn rel_path(&self) -> SettingsResult<PathBuf> {}
 
-    /// Sets the relative path for the settings.
+    // TODO: Make better.
+    /// Do not use.
+    /// Relative path is set by the resource id.
     fn set_rel_path(&mut self, path: PathBuf) -> SettingsResult {
-        self.rel_path = Some(path);
-        Ok(())
+        Err(SettingsMgrError::SettingsError(SettingsError::StaticPath))
     }
 }
 

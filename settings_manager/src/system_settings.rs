@@ -24,12 +24,12 @@ pub trait SystemSettings: settings::Settings {
     }
 
     /// Loads the settings from the file given by path.
-    fn load_or_default() -> Result<Self>
+    fn load_or_create() -> Result<Self>
     where
         Self: Default,
     {
         let path = Self::path()?;
-        settings::load_or_default::<Self>(path.as_path())
+        settings::load_or_create::<Self>(path.as_path())
     }
 }
 

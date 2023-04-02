@@ -8,7 +8,7 @@ use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
 
 /// Container related commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ContainerCommand {
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
     Get(ResourceId),
@@ -57,7 +57,7 @@ pub enum ContainerCommand {
 // *****************
 
 /// Arguments for updating a resource's [`StandardProperties`].
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UpdatePropertiesArgs {
     pub rid: ResourceId,
     pub properties: StandardProperties,
@@ -65,14 +65,14 @@ pub struct UpdatePropertiesArgs {
 
 /// Arguments for updating a [`Container`](CoreContainer)'s
 /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateScriptAssociationsArgs {
     pub rid: ResourceId,
     pub associations: ScriptMap,
 }
 
 /// Arguments for adding [`Asset`](CoreAsset)s to a [`Container`](CoreContainer).
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AddAssetsArgs {
     pub container: ResourceId,
     pub assets: Vec<AddAssetInfo>,

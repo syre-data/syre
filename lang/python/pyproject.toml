@@ -19,3 +19,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "License :: OSI Approved :: MIT License",
 ]
+
+[tool.maturin]
+python-source = "python"

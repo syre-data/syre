@@ -5,7 +5,7 @@ use thot_core::project::Project as CoreProject;
 use thot_core::types::ResourceId;
 
 /// Project related commands.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ProjectCommand {
     /// Load a [`Project`](crate::project::resources::Project) from a path.
     Load(PathBuf),

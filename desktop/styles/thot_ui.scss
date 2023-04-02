@@ -68,7 +68,24 @@
   .thot-ui-metadata-editor {
 
     margin-top: t.$margin-l;
-    
+    input {
+      all:unset;
+      appearance: auto;
+      width: t.$input-width-s;
+      border: solid t.$border-width-s transparent;
+
+      &:focus {
+        outline: none;
+        border: solid t.$border-width-s t.$hover-border-color;
+      }
+      &:hover {
+        border: solid t.$border-width-s t.$hover-border-color;
+      }
+    }
+    .metadatum-key {
+      width: t.$input-width-s;
+    }
+
     button {
       all: unset;
       display: flex;
@@ -83,8 +100,6 @@
 
       &:hover {
         cursor: pointer;
-        border: none;
-        outline: t.$border-width-m solid t.$secondary-button-hover-outline-color;
         background-color: t.$secondary-button-hover-background-color;
       }
 
@@ -114,13 +129,24 @@
         display: flex;
         align-items: center;
         gap: t.$gap-s;
+      }
+    }
 
-        input {
-          all:unset;
-          appearance: auto;
-          width: t.$input-width-s;
-        }
+    .thot-ui-metadatum-builder {
 
+      .form-fields {
+        display: flex;
+        gap: t.$gap-s;
+      }
+
+      .form-controls {
+        display: flex;
+        gap: t.$gap-s;
+      }
+
+      .metadatum-value {
+        display: flex;
+        gap: t.$gap-s;
       }
     }
   }

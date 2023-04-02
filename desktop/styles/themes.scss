@@ -32,23 +32,30 @@ $card-hover-background-color: vars.$secondary-color-600;
 $input-border-color: vars.$secondary-color-500;
 $input-background-color: vars.$secondary-color-900;
 
+$select-background-color: vars.$secondary-color-900;
+
 $body-text-color: vars.$secondary-color-50;
 $title-text-color: vars.$secondary-color-50;
 $link-text-color: vars.$secondary-color-200;
 $link-hover-text-color: vars.$secondary-color-100;
 
 $hover-text-color: vars.$secondary-color-200;
+$hover-border-color: vars.$secondary-color-500;
 
-$interactive-element-background-color: vars.$secondary-color-700;
+$interactive-element-background-color: vars.$secondary-color-800;
 $interactive-element-active-background-color: vars.$secondary-color-600;
 
 $primary-button-color: vars.$secondary-color-900;
 $primary-button-background-color: vars.$primary-color-300;
-$primary-button-hover-color: black;
+$primary-button-hover-color: vars.$secondary-color-500;
 $primary-button-hover-background-color: vars.$primary-color-200;
 
+$secondary-button-background-color: vars.$secondary-color-800;
 $secondary-button-hover-background-color: vars.$secondary-color-800;
-$secondary-button-hover-outline-color: black;
+$secondary-button-hover-outline-color: vars.$secondary-color-500;
+
+$dashboard-secondary-button-background-color: vars.$secondary-color-700;
+$dashboard-secondary-button-hover-background-color: vars.$secondary-color-600;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;

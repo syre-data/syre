@@ -99,24 +99,26 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
 
     html! {
         <form class={classes!("thot-ui-metadatum-builder")} {onsubmit}>
-            <input
-                ref={key_ref}
-                placeholder="Name"
-                value={(*key).clone()}
-                minlength="1"
-                onchange={onchange_key}
-                required={true} />
+            <div class={classes!("form-fields")}>
+                <input
+                    ref={key_ref}
+                    placeholder="Name"
+                    value={(*key).clone()}
+                    minlength="1"
+                    onchange={onchange_key}
+                    required={true} />
 
-            <MetadatumValueEditor
-                class={classes!("metadatum-value")}
-                value={props.value.clone()}
-                onchange={onchange_value}
-                {onerror} />
+                <MetadatumValueEditor
+                    class={classes!("metadatum-value")}
+                    value={props.value.clone()}
+                    onchange={onchange_value}
+                    {onerror} />
 
-            <div class={classes!("error")}>
-                if let Some(msg) = error.as_ref() {
-                    { msg }
-                }
+                <div class={classes!("error")}>
+                    if let Some(msg) = error.as_ref() {
+                        { msg }
+                    }
+                </div>
             </div>
 
             <div class={classes!("form-controls")}>

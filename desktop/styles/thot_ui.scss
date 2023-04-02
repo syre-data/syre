@@ -66,6 +66,30 @@
   }
 
   .thot-ui-metadata-editor {
+
+    .metadata-header {
+      
+      display: flex;
+      justify-content: space-between;
+      button {
+        all: unset;
+        padding: 3px;
+        box-sizing: border-box;
+
+        .thot-ui-add-icon {
+          width: t.$icon-size;
+          height: t.$icon-size;
+        }
+
+        &:hover {
+          border: none;
+          outline: t.$border-width-m solid t.$secondary-button-hover-outline-color;
+          background-color: t.$secondary-button-hover-background-color;
+        }
+
+      }
+    }
+
     .metadata-editor {
       list-style: none;
       padding: 0;

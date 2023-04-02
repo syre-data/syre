@@ -67,32 +67,61 @@
 
   .thot-ui-metadata-editor {
 
+    margin-top: t.$margin-l;
+    
+    button {
+      all: unset;
+      display: flex;
+      align-items: center;
+      padding: t.$padding-s;
+      box-sizing: border-box;
+
+      .thot-ui-add-remove-icon {
+        width: t.$add-remove-icon-size;
+        height: t.$add-remove-icon-size;
+      }
+
+      &:hover {
+        cursor: pointer;
+        border: none;
+        outline: t.$border-width-m solid t.$secondary-button-hover-outline-color;
+        background-color: t.$secondary-button-hover-background-color;
+      }
+
+    }
+
+
     .metadata-header {
-      
       display: flex;
       justify-content: space-between;
-      button {
-        all: unset;
-        padding: 3px;
-        box-sizing: border-box;
-
-        .thot-ui-add-icon {
-          width: t.$icon-size;
-          height: t.$icon-size;
-        }
-
-        &:hover {
-          border: none;
-          outline: t.$border-width-m solid t.$secondary-button-hover-outline-color;
-          background-color: t.$secondary-button-hover-background-color;
-        }
-
-      }
     }
 
     .metadata-editor {
       list-style: none;
       padding: 0;
+      li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between; 
+      }
+      .metadatum {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+      }
+
+      .thot-ui-metadatum-value-editor {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+
+        input {
+          all:unset;
+          appearance: auto;
+          width: t.$input-width-s;
+        }
+
+      }
     }
   }
 }

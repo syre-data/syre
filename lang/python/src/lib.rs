@@ -1,4 +1,6 @@
 //! Python bindings for Thot.
+// TODO[l]: Include typing information.
+// https://www.maturin.rs/project_layout.html#adding-python-type-information
 mod functions;
 mod resources;
 pub mod types;

@@ -66,9 +66,88 @@
   }
 
   .thot-ui-metadata-editor {
+
+    margin-top: t.$margin-l;
+    input {
+      all:unset;
+      appearance: auto;
+      width: t.$input-width-s;
+      border: solid t.$border-width-s transparent;
+
+      &:focus {
+        outline: none;
+        border: solid t.$border-width-s t.$hover-border-color;
+      }
+      &:hover {
+        border: solid t.$border-width-s t.$hover-border-color;
+      }
+    }
+    .metadatum-key {
+      width: t.$input-width-s;
+    }
+
+    button {
+      all: unset;
+      display: flex;
+      align-items: center;
+      padding: t.$padding-s;
+      box-sizing: border-box;
+
+      .thot-ui-add-remove-icon {
+        width: t.$add-remove-icon-size;
+        height: t.$add-remove-icon-size;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: t.$secondary-button-hover-background-color;
+      }
+
+    }
+
+
+    .metadata-header {
+      display: flex;
+      justify-content: space-between;
+    }
+
     .metadata-editor {
       list-style: none;
       padding: 0;
+      li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between; 
+      }
+      .metadatum {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+      }
+
+      .thot-ui-metadatum-value-editor {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+      }
+    }
+
+    .thot-ui-metadatum-builder {
+
+      .form-fields {
+        display: flex;
+        gap: t.$gap-s;
+      }
+
+      .form-controls {
+        display: flex;
+        gap: t.$gap-s;
+      }
+
+      .metadatum-value {
+        display: flex;
+        gap: t.$gap-s;
+      }
     }
   }
 }

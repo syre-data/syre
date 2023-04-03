@@ -15,6 +15,12 @@
     button {
       vertical-align: bottom;
     }
+    .btn-secondary {
+      background-color: t.$dashboard-secondary-button-background-color;
+      &:hover {
+        background-color: t.$dashboard-secondary-button-hover-background-color;
+      }
+    }
   }
 
   .new-project {

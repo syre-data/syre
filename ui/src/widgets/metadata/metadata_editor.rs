@@ -3,6 +3,7 @@ use super::{MetadatumBuilder, MetadatumEditor};
 use std::collections::HashSet;
 use thot_core::project::Metadata;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
 pub struct MetadataEditorProps {
@@ -31,6 +32,8 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
 
     let show_add_metadatum = {
         let add_metadatum_visible = add_metadatum_visible.clone();
+        // Add console debug message to show that the callback is being called
+        web_sys::console::debug_1(&"show_add_metadatum".into());
 
         Callback::from(move |_: MouseEvent| {
             add_metadatum_visible.set(true);
@@ -91,14 +94,18 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
 
     html! {
         <div {class}>
+            <div class={classes!("metadata-header")}>
+                <h3>{ "Metadata" }</h3>
+                <button classes={ "add-button" } type="button" onclick={show_add_metadatum}>
+                    <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                </button>
+            </div>
             <div class={classes!("add-metadatum-controls")}>
                 if *add_metadatum_visible {
                     <MetadatumBuilder
                         {name_filter}
                         onsave={add_metadatum}
                         oncancel={oncancel_add_metadatum} />
-                } else {
-                    <button onclick={show_add_metadatum}>{ "+" }</button>
                 }
             </div>
             <ol class={classes!("metadata-editor")}>
@@ -109,7 +116,9 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                             {value}
                             onchange={onchange(name.clone())}/>
 
-                        <button onclick={remove_metadatum(name)}>{ "X" }</button>
+                        <button classes={ "add-button" } type="button" onclick={remove_metadatum(name)}>
+                            <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                        </button>
                     </li>
                 }).collect::<Html>() }
             </ol>

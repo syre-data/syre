@@ -61,6 +61,8 @@ features=[
     "FontAwesomeRegularFileZipper",
     "FontAwesomeRegularFile",
     "OcticonsFileBinary24",
+    "HeroiconsSolidMinus",
+    "HeroiconsSolidPlus"
 ]
 
 [dev-dependencies]

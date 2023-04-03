@@ -241,7 +241,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
-        let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
@@ -251,6 +250,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             };
 
             let rid = asset.rid.clone();
+            let selected = canvas_state.selected.contains(&rid);
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
                     canvas_state.dispatch(CanvasStateAction::ClearSelected);

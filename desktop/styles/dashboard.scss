@@ -10,6 +10,18 @@
 
   margin-left: t.$margin-3xl;
   margin-top: 8px;
+ 
+  #dashboard-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: t.$gap-m;
+
+    button {
+      height: t.$button-height;
+    }
+
+  }
 
   .new-project {
     display: flex;

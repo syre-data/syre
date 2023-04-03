@@ -43,27 +43,58 @@
     }
 }
 
-.thot-ui-standard-properties-editor {
-    .form-field {
-      font-size: t.$font-size-xs;
-      margin-bottom: t.$margin-l;
+.thot-ui-editor {
+  font-size: t.$font-size-xs;
+  margin-bottom: t.$margin-l;
 
-      h3 {
-        margin: 0;
-      }
-
-      input, textarea {
-          display: block;
-          width: t.$input-width; //Using % gives centering issues.
-          padding: t.$input-padding-y t.$input-padding-x;
-          border: t.$input-border-color t.$border-width-m solid;
-          background-color: t.$input-background-color;
-          box-shadow: none;
-          overflow: auto;
-          outline: none;
-          resize: none; /*remove the resize handle on the bottom right*/
-      }
+  h3 {
+    margin: 0;
   }
+
+  .metadata-header, .script-association-header {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  button {
+    all: unset;
+    display: flex;
+    align-items: center;
+    padding: t.$padding-s;
+    box-sizing: border-box;
+
+    .thot-ui-add-remove-icon {
+      width: t.$add-remove-icon-size;
+      height: t.$add-remove-icon-size;
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: t.$secondary-button-hover-background-color;
+    }
+
+  }
+  
+  input, textarea {
+      display: block;
+      width: t.$input-width; //Using % gives centering issues.
+      padding: t.$input-padding-y t.$input-padding-x;
+      border: t.$input-border-color t.$border-width-m solid;
+      background-color: t.$input-background-color;
+      box-shadow: none;
+      overflow: auto;
+      outline: none;
+      resize: none; /*remove the resize handle on the bottom right*/
+  }
+  
+  .script-add-cancel-buttons {
+    display: flex;
+    gap: t.$gap-s;
+    align-items: center;
+  }
+}
+
+.thot-ui-standard-properties-editor {
 
   .thot-ui-metadata-editor {
 
@@ -86,68 +117,26 @@
       width: t.$input-width-s;
     }
 
-    button {
-      all: unset;
-      display: flex;
-      align-items: center;
-      padding: t.$padding-s;
-      box-sizing: border-box;
-
-      .thot-ui-add-remove-icon {
-        width: t.$add-remove-icon-size;
-        height: t.$add-remove-icon-size;
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: t.$secondary-button-hover-background-color;
-      }
-
-    }
-
-
-    .metadata-header {
-      display: flex;
-      justify-content: space-between;
-    }
-
     .metadata-editor {
       list-style: none;
       padding: 0;
+
       li {
         display: flex;
         align-items: center;
         justify-content: space-between; 
       }
-      .metadatum {
-        display: flex;
-        align-items: center;
-        gap: t.$gap-s;
-      }
 
-      .thot-ui-metadatum-value-editor {
+      .metadatum, .thot-ui-metadatum-value-editor {
         display: flex;
         align-items: center;
         gap: t.$gap-s;
       }
     }
 
-    .thot-ui-metadatum-builder {
-
-      .form-fields {
-        display: flex;
-        gap: t.$gap-s;
-      }
-
-      .form-controls {
-        display: flex;
-        gap: t.$gap-s;
-      }
-
-      .metadatum-value {
-        display: flex;
-        gap: t.$gap-s;
-      }
+    .form-fields, .form-controls, .metadatum-value {
+      display: flex;
+      gap: t.$gap-s;
     }
   }
 }
@@ -168,15 +157,37 @@
 }
 
 .thot-ui-script-associations-editor {
+
+  .script-association {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  // NOTE! This is note the same as the associations editor.
+  .thot-ui-script-association-editor {
+    display: flex;
+    gap: t.$gap-m;
+    align-items: center;
+  }
+
   ol {
+    list-style: none;
     padding: 0;
+  }
 
-    .script-association {
-      white-space: nowrap;
+  input {
+    all:unset;
+    width: t.$input-number-width;
+    appearance: auto;
+    border: solid t.$border-width-s transparent;
 
-      div {
-        display: inline-block;
-      }
+    &:focus {
+      outline: none;
+      border: solid t.$border-width-s t.$hover-border-color;
+    }
+    &:hover {
+      border: solid t.$border-width-s t.$hover-border-color;
     }
   }
 }

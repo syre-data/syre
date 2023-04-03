@@ -189,7 +189,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                 {name_map}
                 {onchange} />
 
-            <button onclick={onsave}>{ "Save" }</button>
+            <button onclick={onsave}>{ "Save script" }</button>
         </div>
     })
 }

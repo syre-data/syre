@@ -1,19 +1,5 @@
 @use 'themes' as t;
 
-.script-associations-editor-widget {
-  .thot-ui-script-associations-editor {
-    ol {
-      list-style: none;
-    }
-
-    .thot-ui-script-association-editor {
-      .script-association-priority {
-        width: 5em;
-      }
-    }
-  }
-}
-
 .project-scripts-widget {
   ul {
     list-style: none;

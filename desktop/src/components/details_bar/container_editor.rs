@@ -1,8 +1,12 @@
 //! Container editor widget.
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
+use crate::commands::container::{
+    UpdateScriptAssociationsArgs, UpdateScriptAssociationsStringArgs,
+};
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
+use crate::components::details_bar::script_associations_editor::ScriptAssociationsEditor;
 use crate::constants::MESSAGE_TIMEOUT;
 use std::sync::{Arc, Mutex};
 use thot_core::project::{Container as CoreContainer, StandardProperties};
@@ -51,7 +55,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         })
     };
 
-    let onsave = {
+    let onsave_properties = {
         let rid = props.rid.clone();
         let onsave = props.onsave.clone();
         let graph_state = graph_state.clone();
@@ -98,14 +102,52 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         })
     };
 
+    let onsave_scripts = {
+        let cid = props.rid.clone();
+        let graph_state = graph_state.clone();
+        let associations = container.scripts.clone();
+        let onsave = props.onsave.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            let cid = cid.clone();
+            let graph_state = graph_state.clone();
+            let associations = associations.clone();
+            let onsave = onsave.clone();
+
+            spawn_local(async move {
+                // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
+                // See: https://github.com/tauri-apps/tauri/issues/6078
+                let associations_str =
+                    serde_json::to_string(&associations).expect("could not serialize `ScriptMap`");
+
+                let update = UpdateScriptAssociationsStringArgs {
+                    rid: cid.clone(),
+                    associations: associations_str,
+                };
+
+                let _res = invoke::<()>("update_container_script_associations", update)
+                    .await
+                    .expect("could not invoke `update_container_script_associations`");
+
+                let update = UpdateScriptAssociationsArgs {
+                    rid: cid,
+                    associations: (associations).clone(),
+                };
+
+                graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
+            });
+        })
+    };
+
     html! {
-        <div>
+        <div class={classes!("thot-ui-editor")}>
             <StandardPropertiesEditor
                 properties={(*properties).clone()}
                 onchange={onchange} />
 
+            <ScriptAssociationsEditor container={props.rid.clone()} />
             <div>
-                <button onclick={onsave}>{ "Save" }</button>
+                <button onclick={onsave_properties}>{ "Save" }</button>
             </div>
             // @todo: <AssetDropZone />
         </div>

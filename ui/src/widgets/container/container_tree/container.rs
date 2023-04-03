@@ -9,7 +9,6 @@ use thot_core::project::container::{AssetMap, ScriptMap};
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
-use yew_icons::{Icon, IconId};
 
 // ************
 // *** Menu ***
@@ -152,10 +151,6 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub on_menu_event: Option<Callback<ContainerMenuEvent>>,
 
-    /// Callback when container script edit button is clicked.
-    #[prop_or_default]
-    pub onclick_edit_scripts: Option<Callback<ResourceId>>,
-    
     #[prop_or_default]
     pub ondragenter: Callback<DragEvent>,
 
@@ -239,18 +234,6 @@ pub fn container(props: &ContainerProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
             show_menu.set(!*show_menu);
-        })
-    };
-
-    let onclick_edit_scripts = {
-        let onclick_edit_scripts = props.onclick_edit_scripts.clone();
-        let rid = props.rid.clone();
-
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            if let Some(onclick_edit_scripts) = onclick_edit_scripts.clone() {
-                onclick_edit_scripts.emit(rid.clone());
-            }
         })
     };
 
@@ -358,17 +341,6 @@ pub fn container(props: &ContainerProps) -> Html {
                             names={props.script_names.clone()} />
                     }},
                 }}
-            </div>
-
-            <div class={classes!("container-controls")}>
-                if props.onclick_edit_scripts.is_some() {
-                    <button
-                        class={classes!("container-control")}
-                        onclick={onclick_edit_scripts}>
-
-                        <Icon icon_id={IconId::FontAwesomeSolidCode} />
-                    </button>
-                }
             </div>
             <div class={classes!("add-child-container-control")}>
                 <button onclick={onadd_child}>{ "+" }</button>

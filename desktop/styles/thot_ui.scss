@@ -171,6 +171,11 @@
     align-items: center;
   }
 
+  .script-association-script {
+    overflow: auto;
+    width: t.$input-width-s;
+  }
+
   ol {
     list-style: none;
     padding: 0;

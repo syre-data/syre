@@ -2,7 +2,6 @@
 use super::asset_editor::AssetEditor;
 use super::container_editor::ContainerEditor;
 use super::project_actions::ProjectActions;
-use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::components::canvas::CanvasStateReducer;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
@@ -11,13 +10,6 @@ use yew::prelude::*;
 pub enum DetailsBarWidget {
     /// Asset editor.
     AssetEditor(ResourceId),
-
-    /// Script associations editor.
-    ///
-    /// # Fields
-    /// 1. `Container`.
-    /// 2. `onsave` callback.
-    ScriptsAssociationsEditor(ResourceId, Option<Callback<()>>),
 
     /// Container editor.
     ContainerEditor(ResourceId),
@@ -34,10 +26,6 @@ pub fn details_bar() -> Html {
                 { match widget {
                     DetailsBarWidget::AssetEditor(rid) => html! {
                         <AssetEditor {rid} />
-                    },
-
-                    DetailsBarWidget::ScriptsAssociationsEditor(container, onsave) => html! {
-                        <ScriptAssociationsEditor {container} {onsave} />
                     },
 
                     DetailsBarWidget::ContainerEditor(rid) => html! {

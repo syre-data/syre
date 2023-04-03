@@ -39,7 +39,7 @@
 .thot-ui-asset-editor {
     .thot-ui-asset-file_name {
       overflow: auto;
-      max-width: t.$input-width;
+      max-width: t.$drawer-content-width;
     }
 }
 
@@ -77,7 +77,7 @@
   
   input, textarea {
       display: block;
-      width: t.$input-width; //Using % gives centering issues.
+      width: t.$drawer-content-width; //Using % gives centering issues.
       padding: t.$input-padding-y t.$input-padding-x;
       border: t.$input-border-color t.$border-width-m solid;
       background-color: t.$input-background-color;
@@ -102,7 +102,7 @@
     input {
       all:unset;
       appearance: auto;
-      width: t.$input-width-s;
+      width: t.$drawer-content-width-1-4;
       border: solid t.$border-width-s transparent;
 
       &:focus {
@@ -114,7 +114,7 @@
       }
     }
     .metadatum-key {
-      width: t.$input-width-s;
+      width: t.$drawer-content-width-1-4;
     }
 
     .metadata-editor {
@@ -173,7 +173,7 @@
 
   .script-association-script {
     overflow: auto;
-    width: t.$input-width-s;
+    width: t.$drawer-content-width-1-4;
   }
 
   ol {

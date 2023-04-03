@@ -11,18 +11,6 @@
   margin-left: t.$margin-3xl;
   margin-top: 8px;
 
-  #dashboard-header {
-    button {
-      vertical-align: bottom;
-    }
-    .btn-secondary {
-      background-color: t.$dashboard-secondary-button-background-color;
-      &:hover {
-        background-color: t.$dashboard-secondary-button-hover-background-color;
-      }
-    }
-  }
-
   .new-project {
     display: flex;
     align-items: center;

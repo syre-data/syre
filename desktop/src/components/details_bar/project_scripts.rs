@@ -64,7 +64,9 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
 
                     html! {
                         <li key={script.rid.clone()}>
-                            { name }
+                            <span>
+                                { name }
+                            </span>
                             if props.onremove.is_some() {
                                 <button classes={ "btn-icon" } type="button" onclick={onclick_remove(script.rid.clone())}>
                                     <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>

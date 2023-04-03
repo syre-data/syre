@@ -2,6 +2,26 @@
 
 .project-scripts-widget {
 
+  button {
+    width: t.$drawer-content-width; 
+    background-color: t.$project-script-button-background-color;
+
+      &:hover {
+        background-color: t.$project-script-button-hover-background-color;
+      }
+  }
+
+  span {
+    width: 80%;
+    overflow: auto;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   ul {
     list-style: none;
     padding: 0 0 t.$padding-m 0;

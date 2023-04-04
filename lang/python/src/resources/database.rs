@@ -1,4 +1,4 @@
-//! Thot Project.
+//! Thot project database.
 use super::search_filter::dict_map_to_filter;
 use super::Asset;
 use crate::types::DictMap;
@@ -28,7 +28,6 @@ type ContainerTree = ResourceTree<CoreContainer>;
 // *** Project ***
 // ***************
 
-// @todo: Inject database so loading in init is not required.
 /// A Thot Database.
 #[pyclass]
 pub struct Database {

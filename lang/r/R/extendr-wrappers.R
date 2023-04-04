@@ -11,9 +11,29 @@
 #' @useDynLib thot, .registration = TRUE
 NULL
 
-#' Return string `"Hello world!"` to R.
+#' Return whether Thot is running in development mode.
 #' @export
-hello_world <- function() .Call(wrap__hello_world)
+dev_mode <- function() .Call(wrap__dev_mode)
+
+#' Return whether Thot is running in development mode.
+#' @export
+create_database <- function() .Call(wrap__create_database)
+
+#' Return whether Thot is running in development mode.
+#' @export
+find_containers <- function() .Call(wrap__find_containers)
+
+#' Return whether Thot is running in development mode.
+#' @export
+find_container <- function() .Call(wrap__find_container)
+
+#' Return whether Thot is running in development mode.
+#' @export
+find_assets <- function() .Call(wrap__find_assets)
+
+#' Return whether Thot is running in development mode.
+#' @export
+find_asset <- function() .Call(wrap__find_asset)
 
 
 # nolint end

@@ -10,6 +10,7 @@ name = "thot"
 crate-type = ["cdylib"]
 
 [dependencies]
+current_platform = "0.2.0"
 pyo3 = { version = "0.17", features = ["extension-module", "serde"] }
 pythonize = "0.17"
 serde = "1.0"
@@ -20,4 +21,3 @@ settings_manager = { path = "../../settings_manager", version = "*" }
 thot-core = { path = "../../core", features = ["pyo3"] }
 thot-local = { path = "../../local" }
 thot-local-database = { path = "../../local/database", features = ["client"] }
-current_platform = "0.2.0"

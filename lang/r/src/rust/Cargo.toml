@@ -9,3 +9,7 @@ name = 'thot'
 
 [dependencies]
 extendr-api = '*'
+
+thot-core = { path = "../../../../core" }
+# thot-local = { path = "../../../../local" }
+# thot-local-database = { path = "../../../../local/database", features = ["client"] }

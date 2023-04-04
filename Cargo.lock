@@ -3912,6 +3912,7 @@ name = "thot"
 version = "0.0.1"
 dependencies = [
  "extendr-api",
+ "thot-core",
 ]
 
 [[package]]

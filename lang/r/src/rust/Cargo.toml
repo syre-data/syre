@@ -11,5 +11,5 @@ name = 'thot'
 extendr-api = '*'
 
 thot-core = { path = "../../../../core" }
-# thot-local = { path = "../../../../local" }
+thot-local = { path = "../../../../local" }
 # thot-local-database = { path = "../../../../local/database", features = ["client"] }

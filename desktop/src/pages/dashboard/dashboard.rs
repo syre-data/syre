@@ -82,7 +82,7 @@ pub fn dashboard() -> HtmlResult {
                 } else {
                     <div id={"dashboard-container"}>
                         <div id={"dashboard-header"}>
-                            <h1 class={classes!("title", "inline-block")}>
+                            <h1 class={classes!("title")}>
                                 { "Dashboard" }
                             </h1>
                             <div class={classes!("new-project")}>

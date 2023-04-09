@@ -5,6 +5,7 @@ use thot_core::project::container::ScriptMap;
 use thot_core::project::RunParameters;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 pub type NameMap = HashMap<ResourceId, String>;
 
@@ -183,14 +184,9 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                                 run_parameters={run_parameters.clone()}
                                 onchange={onchange_association(script.clone())} />
 
-                            <div>
-                                <button
-                                    type="button"
-                                    onclick={remove_script(script.clone())}>
-
-                                    { "X" }
-                                </button>
-                            </div>
+                            <button classes={ "add-button" } type="button" onclick={remove_script(script.clone())}>
+                                <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                            </button>
                         </li>
                     }
                 }).collect::<Html>() }

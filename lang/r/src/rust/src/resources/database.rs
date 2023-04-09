@@ -1,19 +1,18 @@
 use extendr_api::prelude::*;
-use thot_core::types::ResourceId;
 use std::path::PathBuf;
+use thot_core::types::ResourceId;
 
 /// Return whether Thot is running in development mode.
 /// @export
 #[extendr]
-fn create_database(dev_root: Option<PathBuf>) -> Result<Datab {
-    true
-
+fn database(dev_root: String) -> Result<Database> {
+    let dev_root = PathBuf::from(dev_root);
+    let db = Database::new(dev_root)?;
+    Ok(db)
 }
-
 
 /// A Thot Database.
 /// @export
-#[pyclass]
 pub struct Database {
     root: ResourceId,
     root_path: PathBuf,
@@ -21,17 +20,29 @@ pub struct Database {
 }
 
 impl Database {
-
+    pub fn new(root_path: PathBuf) -> Result<Self> {
+        Ok(Self {
+            root: ResourceId::new(),
+            root_path,
+        })
+    }
 }
 
 #[extendr]
 impl Database {
+    pub fn root_path<'a>(&'a self) -> &'a str {
+        self.root_path
+            .to_str()
+            .expect("could not convert root path to str")
+    }
 
+    // pub fn root(&self) -> Container {
+    // }
 }
 
 extendr_module! {
     mod database;
-    fn create_database;
+    fn database;
     impl Database;
 }
 

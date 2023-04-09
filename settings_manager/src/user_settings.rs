@@ -2,50 +2,29 @@
 //! These settings have a fixed base path and variable relative path.
 use crate::settings::{self, Settings};
 use crate::Result;
+use cluFlock::FlockLock;
+use serde::{de::DeserializeOwned, Serialize};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
 // *********************
 // *** User Settings ***
 // *********************
 
-pub trait UserSettings<'a>: Settings {
-    fn new(base_path: PathBuf, rel_path: PathBuf);
-
+/// User settings have a fixed base path with a variable relative path.
+pub trait UserSettings<S>: Settings<S>
+where
+    S: Serialize + DeserializeOwned,
+{
     /// Returns the base path to the settings file.
     fn base_path() -> &'static Path;
 
     /// Returns the relative path for the settings.
-    fn rel_path(&self) -> &'a Path;
+    fn rel_path(&self) -> &Path;
 
     /// Returns the absolute path to the settings file.
     fn path(&self) -> PathBuf {
         Self::base_path().join(self.rel_path())
-    }
-
-    /// Saves the settings to the file given by path.
-    fn save(&mut self) -> Result {
-        settings::save::<Self>(self)
-    }
-}
-
-// **************************
-// *** Lock Settings File ***
-// **************************
-
-/// Standard way to lock settings file.
-pub trait LockSettingsFile<'a>: UserSettings<'a> {
-    fn acquire_lock(&mut self) -> Result {
-        // check lock is not already acquired
-        if self.file().is_some() {
-            // lock already acquired
-            return Ok(());
-        }
-
-        let file = settings::ensure_file(&self.path())?;
-        let file_lock = settings::lock(file)?;
-
-        self.store_lock(file_lock);
-        Ok(())
     }
 }
 
@@ -53,51 +32,59 @@ pub trait LockSettingsFile<'a>: UserSettings<'a> {
 // *** Loader ***
 // **************
 
-#[derive(Default, Clone)]
-struct NoPath;
-
-#[derive(Default, Clone)]
-struct RelPath(PathBuf);
-
-#[derive(Default, Clone)]
-pub struct Loader<P> {
-    base_path: PathBuf,
-    rel_path: P,
+pub struct Loader<S> {
+    data: S,
+    rel_path: PathBuf,
+    file_lock: FlockLock<File>,
 }
 
-impl Loader<NoPath> {
-    pub fn new(base_path: PathBuf) -> Self {
-        Self {
-            base_path,
-            rel_path: NoPath,
-        }
-    }
-
-    /// Sets the relative path for the settings.
-    pub fn set_rel_path(self, path: PathBuf) -> Loader<RelPath> {
-        Loader {
-            base_path: self.base_path,
-            rel_path: RelPath(path),
-        }
-    }
-}
-
-impl Loader<RelPath> {
+impl<S> Loader<S> {
     /// Loads the settings from the file given by path.
-    pub fn load_or_create<T>(self) -> Result<T>
+    pub fn load_or_create<T>(rel_path: PathBuf) -> Result<Loader<S>>
     where
-        T: Settings + Default,
+        T: UserSettings<S>,
+        S: Serialize + DeserializeOwned + Default,
     {
-        let base_path = self.base_path;
-        let rel_path = self.rel_path.0;
-        let mut path = base_path.clone();
-        path.push(self.rel_path.0);
+        let mut path = T::base_path().to_path_buf();
+        path.push(rel_path.clone());
 
-        let mut sets = settings::load_or_create::<T>(path.as_path())?;
-        sets.set_rel_path(PathBuf::from(rel_path))?;
-
-        Ok(sets)
+        let (data, file_lock) = settings::load_or_create::<S>(path.as_path())?;
+        Ok(Loader {
+            data,
+            rel_path,
+            file_lock,
+        })
     }
+}
+
+impl<S> Loader<S> {
+    pub fn rel_path(self) -> PathBuf {
+        self.rel_path
+    }
+
+    pub fn data(self) -> S {
+        self.data
+    }
+
+    pub fn file_lock(self) -> FlockLock<File> {
+        self.file_lock
+    }
+}
+
+impl<S> Into<Components<S>> for Loader<S> {
+    fn into(self) -> Components<S> {
+        Components {
+            data: self.data,
+            rel_path: self.rel_path,
+            file_lock: self.file_lock,
+        }
+    }
+}
+
+pub struct Components<S> {
+    pub data: S,
+    pub rel_path: PathBuf,
+    pub file_lock: FlockLock<File>,
 }
 
 #[cfg(test)]

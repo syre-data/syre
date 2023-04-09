@@ -2,7 +2,7 @@
 pub mod tree;
 
 // Re-exports
-pub use tree::ResourceTree;
+pub use tree::{ContainerTreeDuplicator, ContainerTreeLoader};
 
 #[cfg(test)]
 #[path = "./mod_test.rs"]

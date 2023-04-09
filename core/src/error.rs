@@ -1,5 +1,5 @@
 //! Common error types.
-use crate::db::error::Error as DbError;
+// use crate::db::error::Error as DbError;
 use crate::types::{ResourceId, ResourcePath};
 use std::convert::From;
 use std::ffi::OsString;
@@ -110,7 +110,7 @@ pub enum RunnerError {
 pub enum Error {
     AssetError(AssetError),
     ContainerError(ContainerError),
-    DbError(DbError),
+    // DbError(DbError),
     IoError(io::Error),
     ProjectError(ProjectError),
     ResourceError(ResourceError),

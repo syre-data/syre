@@ -1,78 +1,90 @@
 //! Settings meant for local use.
 //! Local settings all have the same realtive path, with a variable base path.
-use crate::{settings, Result};
+use crate::settings::{self, Settings};
+use crate::Result;
+use cluFlock::FlockLock;
+use serde::{de::DeserializeOwned, Serialize};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
 // **********************
 // *** Local Settings ***
 // **********************
 
-/// Functionality required for local settings.
-///
-/// # Function and Methods
-/// + **`set_base_path`:** Sets the base path for the specifc object.
-/// + **`base_path`:** Returns the base path of the specifc object.
-/// + **`rel_path`:** Relative path to the settings file from the base path.
-/// + **`path`:** Full path to the settings file.
-/// + **`load`:** Locks and loads the settings file.
-/// + **`save`:** Saves the object to its path.
-pub trait LocalSettings: settings::Settings {
+/// Local settings have a variable base path and fixed relative path.
+pub trait LocalSettings<S>: Settings<S>
+where
+    S: Serialize + DeserializeOwned,
+{
     /// Returns the relative path to the settings file.
-    fn rel_path() -> Result<PathBuf>;
+    fn rel_path() -> PathBuf;
 
     /// Returns the base path for the settings.
-    fn base_path(&self) -> Result<PathBuf>;
-
-    /// Sets the base path for the settings.
-    fn set_base_path(&mut self, path: PathBuf) -> Result;
+    fn base_path(&self) -> &Path;
 
     /// Returns the absolute path to the settings file.
-    fn path(&self) -> Result<PathBuf> {
-        let bp = self.base_path()?;
-        let rp = Self::rel_path()?;
-
-        Ok(bp.join(rp))
-    }
-
-    /// Loads the settings from the file given by path.
-    fn load_or_create(base_path: &Path) -> Result<Self>
-    where
-        Self: Default,
-    {
-        let r_path = Self::rel_path()?;
-        let path = base_path.join(r_path);
-        let mut sets = settings::load_or_create::<Self>(path.as_path())?;
-        sets.set_base_path(PathBuf::from(base_path))?;
-
-        Ok(sets)
-    }
-
-    /// Saves the settings to the file given by path.
-    fn save(&mut self) -> Result {
-        settings::save::<Self>(self)
+    fn path(&self) -> PathBuf {
+        self.base_path().join(Self::rel_path())
     }
 }
 
-// ************************
-// *** LockSettingsFile ***
-// ************************
+// **************
+// *** Loader ***
+// **************
 
-///  Standard way to acquire a file lock for the settings file.
-pub trait LockSettingsFile: LocalSettings {
-    fn acquire_lock(&mut self) -> Result {
-        // check lock is not already acquired
-        if self.file().is_some() {
-            // lock already acquired
-            return Ok(());
-        }
+pub struct Loader<S> {
+    data: S,
+    base_path: PathBuf,
+    file_lock: FlockLock<File>,
+}
 
-        let path = self.path()?;
-        let file = settings::ensure_file(path.as_path())?;
-        let file_lock = settings::lock(file)?;
+impl<S> Loader<S> {
+    /// Loads the settings from the file given by path.
+    pub fn load_or_create<T>(base_path: PathBuf) -> Result<Loader<S>>
+    where
+        T: LocalSettings<S>,
+        S: Serialize + DeserializeOwned + Default,
+    {
+        let mut path = base_path.clone();
+        path.push(T::rel_path());
 
-        self.store_lock(file_lock);
-        Ok(())
+        let (data, file_lock) = settings::load_or_create::<S>(path.as_path())?;
+        Ok(Loader {
+            data,
+            base_path,
+            file_lock,
+        })
     }
+}
+
+impl<S> Loader<S> {
+    pub fn base_path(self) -> PathBuf {
+        self.base_path
+    }
+
+    pub fn data(self) -> S {
+        self.data
+    }
+
+    pub fn file_lock(self) -> FlockLock<File> {
+        self.file_lock
+    }
+}
+
+impl<S> Into<Components<S>> for Loader<S> {
+    fn into(self) -> Components<S> {
+        Components {
+            data: self.data,
+            base_path: self.base_path,
+            file_lock: self.file_lock,
+        }
+    }
+}
+
+pub struct Components<S> {
+    pub data: S,
+    pub base_path: PathBuf,
+    pub file_lock: FlockLock<File>,
 }
 
 #[cfg(test)]

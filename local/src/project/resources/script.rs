@@ -1,15 +1,12 @@
 //! Local [`Script`].
-use crate::common::scripts_file_of;
+use crate::common::scripts_file;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
 use cluFlock::FlockLock;
-use serde::{Deserialize, Serialize};
-use settings_manager::error::{
-    Error as SettingsError, Result as SettingsResult, SettingsError as LocalSettingsError,
-};
-use settings_manager::local_settings::LockSettingsFile;
 use settings_manager::types::Priority as SettingsPriority;
-use settings_manager::{LocalSettings, Settings, SystemSettings};
+use settings_manager::{
+    local_settings::Loader, system_settings::Loader as SystemLoader, LocalSettings, Settings,
+};
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -25,8 +22,8 @@ pub struct Script;
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
     pub fn new(path: ResourcePath) -> Result<CoreScript> {
-        let settings = UserSettings::load_or_default()?;
-        let creator = settings.active_user.map(|c| c.into());
+        let settings: UserSettings = SystemLoader::load_or_create::<UserSettings>()?.into();
+        let creator = settings.active_user.clone().map(|c| c.into());
 
         let mut script = CoreScript::new(path)?;
         script.creator = creator;
@@ -38,22 +35,15 @@ impl Script {
 // *** Scripts ***
 // ***************
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Debug)]
 pub struct Scripts {
-    #[serde(skip)]
-    _file_lock: Option<FlockLock<File>>,
-
-    #[serde(skip)]
-    _base_path: Option<PathBuf>,
+    file_lock: FlockLock<File>,
+    base_path: PathBuf,
 
     pub scripts: CoreScripts,
 }
 
 impl Scripts {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Inserts a script.
     ///
     /// # Errors
@@ -92,23 +82,21 @@ impl Into<CoreScripts> for Scripts {
     }
 }
 
-impl Settings for Scripts {
-    fn store_lock(&mut self, lock: FlockLock<File>) {
-        self._file_lock = Some(lock);
+impl Settings<CoreScripts> for Scripts {
+    fn settings(&self) -> &CoreScripts {
+        &self.scripts
     }
 
-    fn file(&self) -> Option<&File> {
-        match self._file_lock.as_ref() {
-            None => None,
-            Some(lock) => Some(&*lock),
-        }
+    fn file(&self) -> &File {
+        &self.file_lock
     }
 
-    fn file_mut(&mut self) -> Option<&mut File> {
-        match self._file_lock.as_mut() {
-            None => None,
-            Some(lock) => Some(lock),
-        }
+    fn file_mut(&mut self) -> &mut File {
+        &mut *self.file_lock
+    }
+
+    fn file_lock(&self) -> &FlockLock<File> {
+        &self.file_lock
     }
 
     fn priority(&self) -> SettingsPriority {
@@ -116,24 +104,25 @@ impl Settings for Scripts {
     }
 }
 
-impl LocalSettings for Scripts {
-    fn rel_path() -> SettingsResult<PathBuf> {
-        Ok(scripts_file_of(Path::new("")))
+impl LocalSettings<CoreScripts> for Scripts {
+    fn rel_path() -> PathBuf {
+        scripts_file()
     }
 
-    fn base_path(&self) -> SettingsResult<PathBuf> {
-        self._base_path
-            .clone()
-            .ok_or(SettingsError::SettingsError(LocalSettingsError::PathNotSet))
-    }
-
-    fn set_base_path(&mut self, path: PathBuf) -> SettingsResult {
-        self._base_path = Some(path);
-        Ok(())
+    fn base_path(&self) -> &Path {
+        &self.base_path
     }
 }
 
-impl LockSettingsFile for Scripts {}
+impl From<Loader<CoreScripts>> for Scripts {
+    fn from(loader: Loader<CoreScripts>) -> Self {
+        Self {
+            file_lock: loader.file_lock(),
+            base_path: loader.base_path(),
+            scripts: loader.data(),
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "./script_test.rs"]

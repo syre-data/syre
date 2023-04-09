@@ -15,7 +15,7 @@ use std::path::PathBuf;
 // *** Project Info ***
 // ********************
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ProjectInfo {
     pub description: Option<String>,
     pub data_root: Option<PathBuf>,
@@ -76,9 +76,9 @@ impl Project {
         path: PathBuf,
     ) -> SerdeResult<Self>
     where
-        T: Serialize + HasId<Id = ResourceId>,
+        T: Serialize + HasId<Id = ResourceId> + HasIdSerde<'static, Id = ResourceId>,
     {
-        let graph = ResourceTree::to_value(graph)?;
+        let graph = ResourceTree::from_tree(graph)?;
 
         Ok(Self {
             rid: ResourceId::new(),

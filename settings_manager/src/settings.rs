@@ -1,34 +1,53 @@
 use crate::types::Priority;
 use crate::{Error, Result};
 use cluFlock::{ExclusiveFlock, FlockLock};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use serde_json;
+use serde::{de::DeserializeOwned, Serialize};
 use std::default::Default;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, Read, Seek};
 use std::path::Path;
 
-/// Base traits for setting types.
-///
 /// Settings lock their respective file while in existence.
-pub trait Settings: Serialize + DeserializeOwned {
-    /// Store the file lock of the settings file to prevent outside changes.
-    fn store_lock(&mut self, lock: FlockLock<File>);
+pub trait Settings<S>
+where
+    S: Serialize + DeserializeOwned,
+{
+    /// The settings.
+    fn settings(&self) -> &S;
 
-    /// Returns the settings file if it is controlled.
-    fn file(&self) -> Option<&File>;
+    /// The settings file if it is controlled.
+    fn file(&self) -> &File;
 
-    /// Returns a mutable reference to the settings file if it is controlled.
-    fn file_mut(&mut self) -> Option<&mut File>;
+    /// A mutable reference to the settings file if it is controlled.
+    fn file_mut(&mut self) -> &mut File;
 
-    /// Returns the priority of the settings object.
+    /// The file lock.
+    fn file_lock(&self) -> &FlockLock<File>;
+
+    /// The priority of the settings object.
     fn priority(&self) -> Priority;
+
+    /// Save the current object to a file.
+    fn save(&mut self) -> Result {
+        {
+            // delete all data
+            let file = self.file_mut();
+            file.set_len(0)?;
+            file.rewind()?;
+        }
+
+        serde_json::to_writer_pretty(self.file(), self.settings())
+            .map_err(|err| Error::SerdeError(err))?;
+
+        Ok(())
+    }
 }
 
 /// Create a new settings object from a file.
 /// Creates a default object of the type if the file did not exist or is empty.
-pub fn load_or_create<T: Settings + Default>(path: &Path) -> Result<T> {
+pub fn load_or_create<T: Serialize + DeserializeOwned + Default>(
+    path: &Path,
+) -> Result<(T, FlockLock<File>)> {
     // get settings file and lock
     let settings_file = ensure_file(path)?;
     let file_lock = lock(settings_file)?;
@@ -36,54 +55,18 @@ pub fn load_or_create<T: Settings + Default>(path: &Path) -> Result<T> {
     // get current settings
     let mut reader = BufReader::new(file_lock.as_ref());
     let mut settings_str = String::new();
-    if let Err(err) = reader.read_to_string(&mut settings_str) {
-        return Err(Error::IoError(err));
-    };
+    reader.read_to_string(&mut settings_str)?;
 
-    let mut settings: T;
-    if settings_str.is_empty() {
+    let settings: T = if settings_str.is_empty() {
         // no content in file, create default
-        settings = T::default();
-        save(&mut settings)?;
+        let default = T::default();
+        serde_json::to_writer_pretty(&*file_lock, &default)?;
+        default
     } else {
-        settings = match serde_json::from_str(&settings_str) {
-            Ok(sets) => sets,
-            Err(err) => return Err(Error::SerdeError(err)),
-        };
-    }
-
-    // transfer file and lock
-    settings.store_lock(file_lock);
-
-    // success
-    Ok(settings)
-}
-
-/// Save the current object to a file.
-pub fn save<T: Settings>(settings: &mut T) -> Result {
-    // delete all data
-    {
-        let Some(file) = settings.file_mut() else {
-            return Err(Error::IoError(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "object does not control the settings file",
-            )));
-        };
-
-        file.set_len(0)?;
-        file.rewind()?;
-    }
-
-    // write new data
-    let Some(file) = settings.file() else {
-        return Err(Error::IoError(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "object does not control the settings file",
-        )));
+        serde_json::from_str(&settings_str)?
     };
 
-    serde_json::to_writer_pretty(file, &settings).map_err(|err| Error::SerdeError(err))?;
-    Ok(())
+    Ok((settings, file_lock))
 }
 
 /// Obtain an exclusive file lock on the system settings file

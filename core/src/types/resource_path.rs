@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// @todo: Implement custom (de)serialization to interpret type by path.
+// TODO: Implement custom (de)serialization to interpret type by path.
+// TODO: Potentially make separate types. `Absolute` would always be canonicalized.
 /// Path types to a given resource.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Hash)]

@@ -1,6 +1,6 @@
 /// Asset.
 use super::standard_properties::StandardProperties;
-use crate::db::{Resource, StandardResource};
+// use crate::db::{Resource, StandardResource};
 use crate::types::{ResourceId, ResourcePath};
 use has_id::HasId;
 use std::hash::{Hash, Hasher};
@@ -58,17 +58,17 @@ impl Hash for Asset {
     }
 }
 
-impl Resource for Asset {}
+// impl Resource for Asset {}
 
-impl StandardResource for Asset {
-    fn properties(&self) -> &StandardProperties {
-        &self.properties
-    }
+// impl StandardResource for Asset {
+//     fn properties(&self) -> &StandardProperties {
+//         &self.properties
+//     }
 
-    fn properties_mut(&mut self) -> &mut StandardProperties {
-        &mut self.properties
-    }
-}
+//     fn properties_mut(&mut self) -> &mut StandardProperties {
+//         &mut self.properties
+//     }
+// }
 
 #[cfg(test)]
 #[path = "./asset_test.rs"]

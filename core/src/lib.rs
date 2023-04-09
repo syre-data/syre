@@ -6,7 +6,7 @@
 //! # Thot Core
 //!
 //! This package represents core functionality of the Thot software suite.
-pub mod api;
+// pub mod api;
 pub mod common;
 pub mod constants;
 pub mod error;
@@ -20,8 +20,8 @@ pub mod project;
 #[cfg(feature = "project")]
 pub mod graph;
 
-#[cfg(feature = "db")]
-pub mod db;
+// #[cfg(feature = "db")]
+// pub mod db;
 
 #[cfg(feature = "runner")]
 pub mod runner;

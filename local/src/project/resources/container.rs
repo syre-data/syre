@@ -34,9 +34,6 @@ pub struct Container {
     base_path: PathBuf,
     container: CoreContainer,
     settings: ContainerSettings,
-
-    /// Used to store `ContainerProperties`.
-    _properties: Box<ContainerProperties>,
 }
 
 impl Container {
@@ -140,9 +137,12 @@ impl HasId for Container {
 
 // --- Container Properties ---
 impl Settings<ContainerProperties> for Container {
-    fn settingss(&mut self) -> &ContainerProperties {
-        *self._properties = self.container.clone().into();
-        &*self._properties
+    fn settings(&self) -> &ContainerProperties {
+        &ContainerProperties {
+            rid: &self.rid,
+            properties: &self.properties,
+            scripts: &self.scripts,
+        }
     }
 
     fn file(&self) -> &File {
@@ -249,7 +249,6 @@ impl From<Loader> for Container {
             base_path: loader.base_path,
             container: loader.container.clone(),
             settings: loader.settings,
-            _properties: Box::new(loader.container.into()),
         }
     }
 }
@@ -257,7 +256,6 @@ impl From<Loader> for Container {
 // ****************************
 // *** Container Properties ***
 // ****************************
-
 /// Container properties for persistance.
 #[derive(Serialize, Deserialize)]
 pub struct ContainerProperties {
@@ -345,10 +343,11 @@ impl LocalSettings<ContainerProperties> for LocalContainerProperties {
 
 impl From<LocalLoader<ContainerProperties>> for LocalContainerProperties {
     fn from(loader: LocalLoader<ContainerProperties>) -> Self {
+        let loader: LocalComponents<ContainerProperties> = loader.into();
         Self {
-            file_lock: loader.file_lock(),
-            base_path: loader.base_path(),
-            properties: loader.data(),
+            file_lock: loader.file_lock,
+            base_path: loader.base_path,
+            properties: loader.data,
         }
     }
 }
@@ -442,7 +441,6 @@ impl Builder {
 
             container: self.container.clone(),
             settings: self.settings,
-            _properties: Box::new(self.container.into()),
         })
     }
 }

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// System settings have only one file for the entire system.
 pub trait SystemSettings<S>: Settings<S>
 where
-    S: Serialize + DeserializeOwned,
+    S: Serialize + DeserializeOwned + Clone,
 {
     /// Returns the path to the settings file.
     fn path() -> PathBuf;
@@ -34,7 +34,7 @@ impl<S> Loader<S> {
     pub fn load_or_create<T>() -> Result<Loader<S>>
     where
         T: SystemSettings<S>,
-        S: Serialize + DeserializeOwned + Default,
+        S: Serialize + DeserializeOwned + Clone + Default,
     {
         let (data, file_lock) = settings::load_or_create::<S>(&T::path())?;
 

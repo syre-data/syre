@@ -2,6 +2,7 @@ use crate::types::Priority;
 use crate::{Error, Result};
 use cluFlock::{ExclusiveFlock, FlockLock};
 use serde::{de::DeserializeOwned, Serialize};
+use std::borrow::Cow;
 use std::default::Default;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, Read, Seek};
@@ -10,10 +11,10 @@ use std::path::Path;
 /// Settings lock their respective file while in existence.
 pub trait Settings<S>
 where
-    S: Serialize + DeserializeOwned,
+    S: Serialize + DeserializeOwned + Clone,
 {
     /// The settings.
-    fn settings(&self) -> &S;
+    fn settings(&self) -> Cow<S>;
 
     /// The settings file if it is controlled.
     fn file(&self) -> &File;
@@ -36,7 +37,7 @@ where
             file.rewind()?;
         }
 
-        serde_json::to_writer_pretty(self.file(), self.settings())
+        serde_json::to_writer_pretty(self.file(), &*self.settings())
             .map_err(|err| Error::SerdeError(err))?;
 
         Ok(())

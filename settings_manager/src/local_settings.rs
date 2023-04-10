@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 /// Local settings have a variable base path and fixed relative path.
 pub trait LocalSettings<S>: Settings<S>
 where
-    S: Serialize + DeserializeOwned,
+    S: Serialize + DeserializeOwned + Clone,
 {
     /// Returns the relative path to the settings file.
     fn rel_path() -> PathBuf;
@@ -43,7 +43,7 @@ impl<S> Loader<S> {
     pub fn load_or_create<T>(base_path: PathBuf) -> Result<Loader<S>>
     where
         T: LocalSettings<S>,
-        S: Serialize + DeserializeOwned + Default,
+        S: Serialize + DeserializeOwned + Clone + Default,
     {
         let mut path = base_path.clone();
         path.push(T::rel_path());

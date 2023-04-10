@@ -1,4 +1,4 @@
-//! Derive the [`HasId`] trait.
+//! Derive the `HasId` trait.
 use crate::common;
 use proc_macro::TokenStream;
 use quote::quote;
@@ -37,14 +37,13 @@ pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
     }
 
     let id_field = id_fields[0];
-    let id_field_ident = &id_field
+    let id_field_ident = id_field
         .ident
         .as_ref()
         .expect("could not get ident of `id` field");
 
-    let id_type = match &id_field.ty {
-        Type::Path(path) => path,
-        _ => panic!("invalid `id` field type"),
+    let Type::Path(id_type) = &id_field.ty else {
+        panic!("invalid `id` field type");
     };
 
     let gen = quote! {

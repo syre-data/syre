@@ -2,9 +2,9 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::settings::Settings;
-use settings_manager::system_settings::{Loader, SystemSettings};
-use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::system_settings::{Components, Loader, SystemSettings};
+use settings_manager::Settings;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
@@ -18,11 +18,14 @@ pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 // *** Scripts ***
 // ****************
 
-#[derive(Derivative)]
+#[derive(Derivative, Settings)]
 #[derivative(Debug)]
 pub struct Scripts {
+    #[settings(file_lock = "ScriptMap")]
     file_lock: FlockLock<File>,
-    pub scripts: ScriptMap,
+
+    #[settings(priority = "User")]
+    scripts: ScriptMap,
 }
 
 impl Scripts {
@@ -53,28 +56,6 @@ impl DerefMut for Scripts {
     }
 }
 
-impl Settings<ScriptMap> for Scripts {
-    fn settings(&self) -> &ScriptMap {
-        &self.scripts
-    }
-
-    fn file(&self) -> &File {
-        &self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::User
-    }
-}
-
 impl SystemSettings<ScriptMap> for Scripts {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
@@ -85,9 +66,10 @@ impl SystemSettings<ScriptMap> for Scripts {
 
 impl From<Loader<ScriptMap>> for Scripts {
     fn from(loader: Loader<ScriptMap>) -> Self {
+        let loader: Components<ScriptMap> = loader.into();
         Self {
-            file_lock: loader.file_lock(),
-            scripts: loader.data(),
+            file_lock: loader.file_lock,
+            scripts: loader.data,
         }
     }
 }

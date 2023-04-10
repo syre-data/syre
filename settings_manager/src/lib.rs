@@ -22,6 +22,9 @@ pub mod system_settings;
 pub mod types;
 pub mod user_settings;
 
+#[cfg(feature = "derive")]
+use settings_manager_derive;
+
 // Re-exports
 pub use error::{Error, Result};
 pub use local_settings::LocalSettings;
@@ -29,6 +32,9 @@ pub use settings::Settings;
 pub use system_settings::SystemSettings;
 pub use types::Priority;
 pub use user_settings::UserSettings;
+
+#[cfg(feature = "derive")]
+pub use settings_manager_derive::Settings;
 
 #[cfg(test)]
 #[path = "./lib_test.rs"]

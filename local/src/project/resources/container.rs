@@ -9,8 +9,9 @@ use settings_manager::error::Result as SettingsResult;
 use settings_manager::local_settings::{
     Components as LocalComponents, Loader as LocalLoader, LocalSettings,
 };
-use settings_manager::settings::{self, Settings};
 use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::{settings, Settings};
+use std::borrow::Cow;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
@@ -26,13 +27,18 @@ use thot_core::types::{ResourceId, UserPermissions};
 // *** Container ***
 // *****************
 
+#[derive(Settings)]
 pub struct Container {
     container_file_lock: FlockLock<File>,
     assets_file_lock: FlockLock<File>,
+
+    #[settings(file_lock = "ContainerSettings")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
     container: CoreContainer,
+
+    #[settings(priority = "Local")]
     settings: ContainerSettings,
 }
 
@@ -137,12 +143,12 @@ impl HasId for Container {
 
 // --- Container Properties ---
 impl Settings<ContainerProperties> for Container {
-    fn settings(&self) -> &ContainerProperties {
-        &ContainerProperties {
-            rid: &self.rid,
-            properties: &self.properties,
-            scripts: &self.scripts,
-        }
+    fn settings(&self) -> Cow<ContainerProperties> {
+        Cow::Owned(ContainerProperties {
+            rid: self.rid.clone(),
+            properties: self.properties.clone(),
+            scripts: self.scripts.clone(),
+        })
     }
 
     fn file(&self) -> &File {
@@ -174,8 +180,8 @@ impl LocalSettings<ContainerProperties> for Container {
 
 // --- Assets ---
 impl Settings<AssetMap> for Container {
-    fn settings(&self) -> &AssetMap {
-        &self.assets
+    fn settings(&self) -> Cow<AssetMap> {
+        Cow::Borrowed(&self.assets)
     }
 
     fn file(&self) -> &File {
@@ -206,27 +212,6 @@ impl LocalSettings<AssetMap> for Container {
 }
 
 // --- Container Settings ---
-impl Settings<ContainerSettings> for Container {
-    fn settings(&self) -> &ContainerSettings {
-        &self.settings
-    }
-
-    fn file(&self) -> &File {
-        &*self.settings_file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.settings_file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.settings_file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
-}
 
 impl LocalSettings<ContainerSettings> for Container {
     fn rel_path() -> PathBuf {
@@ -257,7 +242,7 @@ impl From<Loader> for Container {
 // *** Container Properties ***
 // ****************************
 /// Container properties for persistance.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ContainerProperties {
     rid: ResourceId,
     properties: StandardProperties,
@@ -290,9 +275,13 @@ impl From<CoreContainer> for ContainerProperties {
     }
 }
 
+#[derive(Settings)]
 pub struct LocalContainerProperties {
+    #[settings(file_lock = "ContainerProperties")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
+
+    #[settings(priority = "Local")]
     properties: ContainerProperties,
 }
 
@@ -306,28 +295,6 @@ impl Deref for LocalContainerProperties {
 impl DerefMut for LocalContainerProperties {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.properties
-    }
-}
-
-impl Settings<ContainerProperties> for LocalContainerProperties {
-    fn settings(&self) -> &ContainerProperties {
-        &self.properties
-    }
-
-    fn file(&self) -> &File {
-        &self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
     }
 }
 
@@ -356,37 +323,19 @@ impl From<LocalLoader<ContainerProperties>> for LocalContainerProperties {
 // *** Container Settings ***
 // **************************
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ContainerSettings {
     permissions: Vec<UserPermissions>,
 }
 
+#[derive(Settings)]
 pub struct LocalContainerSettings {
+    #[settings(file_lock = "ContainerSettings")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
+
+    #[settings(priority = "Local")]
     settings: ContainerSettings,
-}
-
-impl Settings<ContainerSettings> for LocalContainerSettings {
-    fn settings(&self) -> &ContainerSettings {
-        &self.settings
-    }
-
-    fn file(&self) -> &File {
-        &self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
 }
 
 impl LocalSettings<ContainerSettings> for LocalContainerSettings {

@@ -4,8 +4,8 @@ use crate::common::assets_file;
 use crate::Result;
 use cluFlock::FlockLock;
 use settings_manager::local_settings::{Components, Loader, LocalSettings};
-use settings_manager::settings::Settings;
-use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::Settings;
+use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -42,9 +42,13 @@ impl Asset {
 /// + A [`Container`] may only reference a file in a single [`Asset`].
 /// This functionality is enforced in the `insert_asset` method, which
 /// should be prefered over `insert`.
+#[derive(Settings)]
 pub struct Assets {
+    #[settings(file_lock = "AssetMap")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
+
+    #[settings(priority = "Local")]
     assets: AssetMap,
 }
 
@@ -59,28 +63,6 @@ impl Deref for Assets {
 impl DerefMut for Assets {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.assets
-    }
-}
-
-impl Settings<AssetMap> for Assets {
-    fn settings(&self) -> &AssetMap {
-        &self.assets
-    }
-
-    fn file(&self) -> &File {
-        &self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
     }
 }
 

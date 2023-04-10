@@ -15,7 +15,7 @@ use std::path::PathBuf;
 // *** Project Info ***
 // ********************
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProjectInfo {
     pub description: Option<String>,
     pub data_root: Option<PathBuf>,
@@ -44,7 +44,7 @@ impl From<PrjProject> for ProjectInfo {
 // *** Project Template ***
 // ************************
 
-#[derive(HasId, Debug, Serialize, Deserialize, HasIdSerde)]
+#[derive(HasId, Debug, Clone, Serialize, Deserialize, HasIdSerde)]
 pub struct Project {
     #[id]
     pub rid: ResourceId,

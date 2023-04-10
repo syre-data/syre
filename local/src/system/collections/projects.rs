@@ -2,12 +2,12 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::settings::Settings;
 use settings_manager::system_settings::{Loader, SystemSettings};
-use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::Settings;
+use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thot_core::types::ResourceMap;
 
 /// Map from a [`Project`]'s id to its path.
@@ -17,10 +17,13 @@ pub type ProjectMap = ResourceMap<PathBuf>;
 // *** Projects ***
 // ****************
 
-#[derive(Derivative)]
+#[derive(Derivative, Settings)]
 #[derivative(Debug)]
 pub struct Projects {
+    #[settings(file_lock = "ProjectMap")]
     file_lock: FlockLock<File>,
+
+    #[settings(priority = "User")]
     projects: ProjectMap,
 }
 
@@ -35,28 +38,6 @@ impl Deref for Projects {
 impl DerefMut for Projects {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.projects
-    }
-}
-
-impl Settings<ProjectMap> for Projects {
-    fn settings(&self) -> &ProjectMap {
-        &self.projects
-    }
-
-    fn file(&self) -> &File {
-        &*self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::User
     }
 }
 

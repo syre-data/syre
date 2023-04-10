@@ -3,10 +3,9 @@ use crate::common::scripts_file;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
 use cluFlock::FlockLock;
-use settings_manager::types::Priority as SettingsPriority;
-use settings_manager::{
-    local_settings::Loader, system_settings::Loader as SystemLoader, LocalSettings, Settings,
-};
+use settings_manager::local_settings::{Components, Loader};
+use settings_manager::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
+use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -35,12 +34,14 @@ impl Script {
 // *** Scripts ***
 // ***************
 
-#[derive(Debug)]
+#[derive(Settings, Debug)]
 pub struct Scripts {
+    #[settings(file_lock = "CoreScripts")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    pub scripts: CoreScripts,
+    #[settings(priority = "Local")]
+    scripts: CoreScripts,
 }
 
 impl Scripts {
@@ -82,28 +83,6 @@ impl Into<CoreScripts> for Scripts {
     }
 }
 
-impl Settings<CoreScripts> for Scripts {
-    fn settings(&self) -> &CoreScripts {
-        &self.scripts
-    }
-
-    fn file(&self) -> &File {
-        &self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
-}
-
 impl LocalSettings<CoreScripts> for Scripts {
     fn rel_path() -> PathBuf {
         scripts_file()
@@ -116,10 +95,11 @@ impl LocalSettings<CoreScripts> for Scripts {
 
 impl From<Loader<CoreScripts>> for Scripts {
     fn from(loader: Loader<CoreScripts>) -> Self {
+        let loader: Components<CoreScripts> = loader.into();
         Self {
-            file_lock: loader.file_lock(),
-            base_path: loader.base_path(),
-            scripts: loader.data(),
+            file_lock: loader.file_lock,
+            base_path: loader.base_path,
+            scripts: loader.data,
         }
     }
 }

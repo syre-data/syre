@@ -4,9 +4,9 @@ use crate::Result;
 use cluFlock::FlockLock;
 use serde::{Deserialize, Serialize};
 use settings_manager::error::Result as SettingsResult;
-use settings_manager::local_settings::{Loader as LocalLoader, LocalSettings};
-use settings_manager::settings::Settings;
-use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::local_settings::{Components, Loader as LocalLoader, LocalSettings};
+use settings_manager::Settings;
+use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -18,13 +18,20 @@ use thot_core::types::UserPermissions;
 // ***************
 
 /// Represents a Thot project.
-#[derive(Debug)]
+#[derive(Settings, Debug)]
 pub struct Project {
+    #[settings(file_lock = "CoreProject")]
     project_file_lock: FlockLock<File>,
+
+    #[settings(file_lock = "ProjectSettings")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
+
+    #[settings(priority = "Local")]
     project: CoreProject,
+
+    #[settings(priority = "Local")]
     settings: ProjectSettings,
 }
 
@@ -62,27 +69,6 @@ impl Into<CoreProject> for Project {
 }
 
 // --- Core Project ---
-impl Settings<CoreProject> for Project {
-    fn settings(&self) -> &CoreProject {
-        &self.project
-    }
-
-    fn file(&self) -> &File {
-        &*self.project_file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.project_file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.project_file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
-}
 
 impl LocalSettings<CoreProject> for Project {
     fn rel_path() -> PathBuf {
@@ -95,27 +81,6 @@ impl LocalSettings<CoreProject> for Project {
 }
 
 // --- Project Settings ---
-impl Settings<ProjectSettings> for Project {
-    fn settings(&self) -> &ProjectSettings {
-        &self.settings
-    }
-
-    fn file(&self) -> &File {
-        &*self.settings_file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.settings_file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.settings_file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
-}
 
 impl LocalSettings<ProjectSettings> for Project {
     fn rel_path() -> PathBuf {
@@ -144,38 +109,20 @@ impl From<Loader> for Project {
 // *** Project Settings ***
 // ************************
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ProjectSettings {
     permissions: Vec<UserPermissions>,
 }
 
 /// Settings for a Thot project.
+#[derive(Settings)]
 pub struct LocalProjectSettings {
+    #[settings(file_lock = "ProjectSettings")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
+
+    #[settings(priority = "Local")]
     settings: ProjectSettings,
-}
-
-impl Settings<ProjectSettings> for LocalProjectSettings {
-    fn settings(&self) -> &ProjectSettings {
-        &self.settings
-    }
-
-    fn file(&self) -> &File {
-        &*self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
 }
 
 impl LocalSettings<ProjectSettings> for LocalProjectSettings {
@@ -206,13 +153,16 @@ impl Loader {
         let project_loader = LocalLoader::load_or_create::<Project>(path.clone())?;
         let settings_loader = LocalLoader::load_or_create::<LocalProjectSettings>(path)?;
 
-        Ok(Self {
-            project_file_lock: project_loader.file_lock(),
-            settings_file_lock: settings_loader.file_lock(),
+        let project_loader: Components<CoreProject> = project_loader.into();
+        let settings_loader: Components<ProjectSettings> = settings_loader.into();
 
-            base_path: project_loader.base_path(),
-            project: project_loader.data(),
-            settings: settings_loader.data(),
+        Ok(Self {
+            project_file_lock: project_loader.file_lock,
+            settings_file_lock: settings_loader.file_lock,
+
+            base_path: project_loader.base_path,
+            project: project_loader.data,
+            settings: settings_loader.data,
         })
     }
 }

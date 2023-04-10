@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 /// User settings have a fixed base path with a variable relative path.
 pub trait UserSettings<S>: Settings<S>
 where
-    S: Serialize + DeserializeOwned,
+    S: Serialize + DeserializeOwned + Clone,
 {
     /// Returns the base path to the settings file.
     fn base_path() -> &'static Path;
@@ -43,7 +43,7 @@ impl<S> Loader<S> {
     pub fn load_or_create<T>(rel_path: PathBuf) -> Result<Loader<S>>
     where
         T: UserSettings<S>,
-        S: Serialize + DeserializeOwned + Default,
+        S: Serialize + DeserializeOwned + Clone + Default,
     {
         let mut path = T::base_path().to_path_buf();
         path.push(rel_path.clone());

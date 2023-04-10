@@ -6,6 +6,7 @@ use settings_manager::settings::Settings;
 use settings_manager::system_settings::{Loader, SystemSettings};
 use settings_manager::types::Priority as SettingsPriority;
 use settings_manager::{Error as SettingsError, Result as SettingsResult};
+use std::borrow::Cow;
 use std::fs::File;
 use std::io;
 use std::ops::{Deref, DerefMut};
@@ -73,18 +74,18 @@ impl DerefMut for UserSettings {
 }
 
 /// User settings.
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct LocalUserSettings {
     pub active_user: Option<ResourceId>,
     pub active_project: Option<ResourceId>,
 }
 
 impl Settings<LocalUserSettings> for UserSettings {
-    fn settings(&self) -> &LocalUserSettings {
-        &LocalUserSettings {
+    fn settings(&self) -> Cow<LocalUserSettings> {
+        Cow::Borrowed(&LocalUserSettings {
             active_user: self.active_user,
             active_project: self.active_project,
-        }
+        })
     }
 
     fn file(&self) -> &File {

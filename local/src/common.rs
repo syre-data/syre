@@ -56,43 +56,85 @@ pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
 // *** file paths ***
 // ******************
 
-/// Returns the path to the Thot directory for a given path.
+// --- thot directory ---
+/// Returns the relative path to the Thot directory from a base path.
+pub fn thot_dir() -> &'static Path {
+    Path::new(THOT_DIR)
+}
+
+/// Path to the Thot directory for a given path.
 /// \<path\>/\<THOT_DIR\>.
 pub fn thot_dir_of(path: &Path) -> PathBuf {
     path.join(THOT_DIR)
 }
 
-/// Returns the path to the project file for a given path.
+// --- project ---
+/// Path to the project file for a given path.
+pub fn project_file() -> PathBuf {
+    thot_dir().join(PROJECT_FILE)
+}
+
+/// Path to the project file for a given path.
 /// thot_dir(path)/\<PROJECT_FILE\>
 pub fn project_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(PROJECT_FILE)
 }
 
-/// Returns the path to the project settings file for a given path.
+// --- project settings ---
+/// Path to the project settings file relative to a base path.
+pub fn project_settings_file() -> PathBuf {
+    thot_dir().join(PROJECT_SETTINGS_FILE)
+}
+
+/// Path to the project settings file for a given path.
 /// thot_dir(path)/\<PROJECT_SETTINGS_FILE\>
 pub fn project_settings_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(PROJECT_SETTINGS_FILE)
 }
 
-/// Returns the path to the Container file for a given path.
+// --- container ---
+/// Path to the Container file from a base path.
+pub fn container_file() -> PathBuf {
+    thot_dir().join(CONTAINER_FILE)
+}
+
+/// Path to the Container file for a given path.
 /// thot_dir(path)/\<CONTAINER_FILE\>
 pub fn container_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(CONTAINER_FILE)
 }
 
-/// Returns the path to the Container file for a given path.
+// --- container settings ---
+/// Path to the Container settings file from a base path.
+pub fn container_settings_file() -> PathBuf {
+    thot_dir().join(CONTAINER_SETTINGS_FILE)
+}
+
+/// Path to the Container settings file for a given path.
 /// thot_dir(path)/\<CONTAINER_SETTINGS_FILE\>
 pub fn container_settings_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(CONTAINER_SETTINGS_FILE)
 }
 
-/// Returns the path to the Container file for a given path.
+// --- assets ---
+/// Path to the Assets file from a base path.
+pub fn assets_file() -> PathBuf {
+    thot_dir().join(ASSETS_FILE)
+}
+
+/// Path to the Assets file for a given path.
 /// thot_dir(path)/\<ASSETS_FILE\>
 pub fn assets_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(ASSETS_FILE)
 }
 
-/// Returns the path to the Container file for a given path.
+// --- scirpts ---
+/// Path to the Assets file from a base path.
+pub fn scripts_file() -> PathBuf {
+    thot_dir().join(SCRIPTS_FILE)
+}
+
+/// Path to the Assets file for a given path.
 /// thot_dir(path)/\<SCRIPTS_FILE\>
 pub fn scripts_file_of(path: &Path) -> PathBuf {
     thot_dir_of(path).join(SCRIPTS_FILE)

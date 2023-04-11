@@ -6,47 +6,41 @@ use crate::server::store::ContainerTree;
 use crate::Error;
 use crate::Result;
 use serde_json::Value as JsValue;
-use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
 use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
-use thot_core::graph::{tree::NodeMap, ResourceNode, ResourceTree as CoreResourceTree};
+use thot_core::graph::ResourceTree;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 use thot_local::common::unique_file_name;
+use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeLoader, ContainerTreeTransformer};
 use thot_local::project::container;
-use thot_local::project::resources::Container;
-
-type CoreContainerTree = CoreResourceTree<CoreContainer>;
+use thot_local::project::resources::container::{Container, Loader as ContainerLoader};
 
 impl Database {
     pub fn handle_command_graph(&mut self, cmd: GraphCommand) -> JsValue {
         match cmd {
             GraphCommand::Load(project) => {
-                let res = self.load_project_graph(&project);
-                if let Err(err) = res {
-                    let err: Result = Err(err.into());
-                    return serde_json::to_value(err)
-                        .expect("could not convert `Result` to JsValue");
+                let graph = match self.load_project_graph(&project) {
+                    Ok(graph) => graph,
+                    Err(err) => {
+                        let err: Result<ResourceTree<CoreContainer>> = Err(err.into());
+                        return serde_json::to_value(err)
+                            .expect("could not convert `Result` to JsValue");
+                    }
                 };
 
-                let graph = res.expect("could not unwrap graph").clone();
-                let graph: Result<CoreContainerTree> = Ok(graph.into());
-                serde_json::to_value(graph).expect("could not convert graph into JsValue")
+                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let res: Result<ResourceTree<CoreContainer>> = Ok(graph);
+                serde_json::to_value(res).expect("could not convert graph into JsValue")
             }
 
             GraphCommand::Get(root) => {
                 let Some(graph) = self.store.get_container_graph(&root) else {
-                    let res: Result<Option<CoreResourceTree<CoreContainer>>> = Ok(None);
+                    let res: Result<Option<ResourceTree<CoreContainer>>> = Ok(None);
                     return serde_json::to_value(res)
                         .expect("could not convert to JsValue");
                 };
 
-                let dup = graph.clone_tree(&root);
-                let Ok(graph) = dup else {
-                    let err = Error::LocalError("could not duplicate tree".into());
-                    return serde_json::to_value(err).expect("could not convert error to JsValue");
-                };
-
-                let graph = cast_local_to_core(graph).expect("could not convert tree");
+                let graph = ContainerTreeTransformer::local_to_core(graph);
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
 
@@ -67,7 +61,7 @@ impl Database {
 
                 };
 
-                let child: Result<CoreContainer> = Ok(child.clone().into());
+                let child: Result<CoreContainer> = Ok((*child).clone());
                 serde_json::to_value(child).expect("could not convert child `Container` to JsValue")
             }
 
@@ -84,18 +78,8 @@ impl Database {
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                // copy duplicated tree for return
-                let dup = match graph.clone_tree(&rid) {
-                    Ok(dup) => dup,
-                    Err(err) => {
-                        return serde_json::to_value(err)
-                            .expect("could not convert error to JsValue");
-                    }
-                };
-
-                // convert local containers to core containers
-                let dup = cast_local_to_core(dup);
-                serde_json::to_value(dup).expect("could not convert `Result` to JsValue")
+                let graph = ContainerTreeTransformer::local_to_core(graph);
+                serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
         }
     }
@@ -111,10 +95,8 @@ impl Database {
         };
 
         if self.store.get_project_graph(pid).is_none() {
-            let mut path = project.base_path().expect("`Project` base path not set");
-            path.push(data_root);
-
-            let graph = ContainerTree::load(&path)?;
+            let path = project.base_path().join(data_root);
+            let graph: ContainerTree = ContainerTreeLoader::load(&path)?;
             self.store.insert_project_graph(pid.clone(), graph);
         }
 
@@ -138,30 +120,19 @@ impl Database {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
         };
 
-        let Some(parent) = graph.parent(rid)? else {
+        let Some(parent) = graph.parent(rid)?.cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not have parent")).into());
         };
 
         // duplicate tree
-        let mut dup = graph.duplicate(rid)?;
-        let dup_id = dup.root().clone();
-        drop(graph); // required for mutable borrow later
-
-        // persist new tree to file
-        dup.set_base_path(&dup_id, unique_file_name(root.base_path()?)?)?;
-        for cid in dup.nodes().clone().keys() {
-            let container = dup.get_mut(cid).expect("`Node` not in graph");
-            container.acquire_lock()?;
-            container.save()?;
-        }
+        let dup_path = unique_file_name(root.base_path().into())?;
+        let dup = ContainerTreeDuplicator::duplicate_to(&dup_path, graph, rid)?;
+        let dup_root = dup.root().clone();
 
         // insert duplicate
-        let res = self
-            .store
-            .insert_subgraph(&parent.clone(), dup.into_inner());
-
+        let res = self.store.insert_subgraph(&parent, dup);
         match res {
-            Ok(_) => Ok(dup_id),
+            Ok(_) => Ok(dup_root),
             Err(err) => Err(err),
         }
     }
@@ -173,33 +144,17 @@ impl Database {
 
         // create child
         // @todo: Ensure unique and valid path.
-        let child_path = unique_file_name(parent.base_path()?.join(&name))?;
+        let child_path = unique_file_name(parent.base_path().join(&name))?;
         let cid = container::new(&child_path)?;
-        let mut child = Container::load_or_default(&child_path)?;
+        let mut child: Container = ContainerLoader::load_or_create(child_path.into())?.into();
         child.properties.name = Some(name);
         child.save()?;
 
         // insert into graph
         let child = ContainerTree::new(child);
-        self.store
-            .insert_subgraph(&parent.rid.clone(), child.into_inner())?;
+        self.store.insert_subgraph(&parent.rid.clone(), child)?;
         Ok(cid)
     }
-}
-
-fn cast_local_to_core(tree: CoreResourceTree<Container>) -> Result<CoreContainerTree> {
-    // convert local containers to core containers
-    let (nodes, edges) = tree.into_components();
-    let nodes = nodes
-        .into_iter()
-        .map(|(id, node)| {
-            let container = node.into_data();
-            let container: CoreContainer = container.into();
-            (id, ResourceNode::new(container))
-        })
-        .collect::<NodeMap<CoreContainer>>();
-
-    Ok(CoreResourceTree::from_components(nodes, edges).expect("could not convert tree"))
 }
 
 #[cfg(test)]

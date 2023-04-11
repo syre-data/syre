@@ -1,7 +1,6 @@
 //! Standard properties associated with other resources.
 use super::Metadata;
 use crate::types::Creator;
-use crate::types::{ResourceId, UserPermissions};
 use chrono::prelude::*;
 use std::collections::HashMap;
 
@@ -20,9 +19,6 @@ pub struct StandardProperties {
     created: DateTime<Utc>,
     pub creator: Creator,
 
-    #[cfg_attr(feature = "serde", serde(default))]
-    pub permissions: HashMap<ResourceId, UserPermissions>,
-
     pub name: Option<String>,
     pub kind: Option<String>,
     pub description: Option<String>,
@@ -35,7 +31,6 @@ impl StandardProperties {
         Self {
             created: Utc::now(),
             creator: Creator::User(None),
-            permissions: HashMap::new(),
 
             name: None,
             kind: None,
@@ -55,7 +50,6 @@ impl Default for StandardProperties {
         StandardProperties {
             created: Utc::now(),
             creator: Creator::User(None),
-            permissions: HashMap::new(),
 
             name: None,
             kind: None,

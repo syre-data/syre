@@ -1,6 +1,7 @@
 //! Template of a [`ResourceTree`].
 use crate::graph::ResourceTree as GraphTree;
-use has_id::HasIdSerde;
+use crate::types::ResourceId;
+use has_id::{HasId, HasIdSerde};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{Result as SerdeResult, Value as JsValue};
 
@@ -10,7 +11,7 @@ impl ResourceTree {
     /// Creates a template from the tree.
     pub fn from_tree<T>(tree: GraphTree<T>) -> SerdeResult<JsValue>
     where
-        T: HasIdSerde<'static> + Clone + Serialize,
+        T: HasId<Id = ResourceId> + HasIdSerde<'static, Id = ResourceId> + Serialize,
     {
         serde_json::to_value(tree)
     }
@@ -18,7 +19,7 @@ impl ResourceTree {
     /// Creates a new tree from the template.
     pub fn to_tree<T>(template: JsValue) -> SerdeResult<GraphTree<T>>
     where
-        T: DeserializeOwned,
+        T: HasId<Id = ResourceId> + HasIdSerde<'static, Id = ResourceId> + DeserializeOwned,
     {
         serde_json::from_value(template)
     }

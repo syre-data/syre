@@ -1,10 +1,9 @@
 //! High level functionality related to Containers.
 use super::project;
-use super::resources::container::{Container, ContainerSettings};
+use super::resources::container::{Container, Loader};
 use crate::common::{container_file_of, thot_dir_of};
 use crate::error::ContainerError;
 use crate::{Error, Result};
-use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Container as CoreContainer;
@@ -44,7 +43,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         if path_is_container(path) {
             // path is already a container
             // return resource id
-            let container = Container::load_or_default(path)?;
+            let container: Container = Loader::load_or_create(path.to_path_buf())?.into();
             return Ok(container.rid.clone());
         }
     } else {
@@ -56,12 +55,8 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 
     // initialize container
     // assets included
-    let mut container = Container::load_or_default(path)?;
+    let mut container: Container = Loader::load_or_create(path.to_path_buf())?.into();
     container.save()?;
-
-    // initialize container settings
-    let mut settings = ContainerSettings::load_or_default(path)?;
-    settings.save()?;
 
     Ok(container.rid.clone())
 }
@@ -72,13 +67,11 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 /// # See also
 /// + [`init`]
 pub fn init_from(path: &Path, container: CoreContainer) -> Result {
-    let mut container: Container = container.into();
-    container.set_base_path(path.to_path_buf())?;
-
     init(path)?;
-    container.acquire_lock()?;
-    container.assets.acquire_lock()?; // @todo: Implement `acquire_lock` for `Container such that the `assets`' lock is also acquired.
-    container.save()?;
+    let mut cont: Container = Loader::load_or_create(path.into())?.into();
+
+    *cont = container;
+    cont.save()?;
 
     Ok(())
 }
@@ -180,8 +173,8 @@ pub fn init_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> 
 
     // init and register
     let rid = init(child)?;
-    let mut cont = Container::load_or_default(container)?;
-    cont.save()?;
+    let mut container: Container = Loader::load_or_create(container.to_path_buf())?.into();
+    container.save()?;
 
     Ok(rid)
 }

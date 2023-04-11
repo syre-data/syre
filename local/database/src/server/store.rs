@@ -1,16 +1,15 @@
 //! Database for storing resources.
 use crate::error::Result;
 use has_id::HasId;
-use settings_manager::LocalSettings;
+use settings_manager::Settings;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::ResourceTree as CoreResourceTree;
+use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset, Container as CoreContainer, Metadata, Script as CoreScript};
 use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
-use thot_local::graph::ResourceTree;
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
 };
@@ -19,7 +18,7 @@ use thot_local::project::resources::{
 // *** Types ***
 // *************
 
-// @TODO: Types don't need to be `pub`.
+// TODO[l]: Types don't need to be `pub`.
 pub struct PathMap<T>(HashMap<PathBuf, T>);
 impl<T> PathMap<T> {
     pub fn new() -> Self {
@@ -130,10 +129,10 @@ impl Datastore {
     /// + If `project.path()` returns an error.
     pub fn insert_project(&mut self, project: LocalProject) -> Result {
         let pid = project.rid.clone();
-        let base_path = project.base_path().expect("invalid `Project` base path");
+        let project_path = project.base_path().to_path_buf();
 
         self.projects.insert(pid.clone(), project);
-        self.project_paths.insert(base_path, pid);
+        self.project_paths.insert(project_path, pid);
 
         Ok(())
     }
@@ -223,10 +222,8 @@ impl Datastore {
         // map containers
         for (cid, node) in graph.nodes().iter() {
             self.container_projects.insert(cid.clone(), rid.clone());
-            self.container_paths.insert(
-                node.base_path().expect("`Container` base path not set"),
-                cid.clone(),
-            );
+            self.container_paths
+                .insert(node.base_path().into(), cid.clone());
 
             // map assets to containers
             for aid in node.data().assets.keys() {
@@ -241,7 +238,7 @@ impl Datastore {
     pub fn insert_subgraph(
         &mut self,
         parent: &ResourceId,
-        graph: CoreResourceTree<LocalContainer>,
+        graph: ResourceTree<LocalContainer>,
     ) -> Result {
         let Some(project) = self.get_container_project(parent).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
@@ -257,10 +254,8 @@ impl Datastore {
             self.container_projects.insert(cid.clone(), project.clone());
 
             // map path to container
-            self.container_paths.insert(
-                container.base_path().expect("`Container` path not set"),
-                cid.clone(),
-            );
+            self.container_paths
+                .insert(container.base_path().into(), cid.clone());
 
             // map assets to containers
             for aid in container.assets.keys() {
@@ -288,16 +283,14 @@ impl Datastore {
         let root_path = sub_graph
             .get(sub_graph.root())
             .expect("`Graph` root not found")
-            .base_path()
-            .expect("root base path not set");
+            .base_path();
 
         for (cid, container) in sub_graph.nodes() {
             // map container to project
             self.container_projects.remove(cid);
 
             // map path to container
-            self.container_paths
-                .remove(&container.base_path().expect("`Container` path not set"));
+            self.container_paths.remove(&container.base_path());
 
             // map assets to containers
             for aid in container.assets.keys() {
@@ -368,7 +361,7 @@ impl Datastore {
             let node = graph.get(&node).expect("`Container` not found in graph");
 
             // @todo[4]: Implement for `LocalContainer`.
-            let container: CoreContainer = node.data().clone().into();
+            let container: CoreContainer = (*node.data()).clone();
             if filter.matches(&container) {
                 found.insert(node.data());
             }
@@ -419,7 +412,7 @@ impl Datastore {
                 }
             }
 
-            let mut container: CoreContainer = root.data().clone().into();
+            let mut container: CoreContainer = (*root.data()).clone();
             container.properties.metadata = metadata;
             if filter.matches(&container) {
                 found.insert(root.data());
@@ -508,17 +501,13 @@ impl Datastore {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` not in graph")).into());
         };
 
+        let container_path = container.base_path().to_path_buf();
         let asset = container.assets.remove(rid);
         container.save()?;
 
-        let mut path = container
-            .base_path()
-            .expect("could not get `Container` base path");
-
         self.assets.remove(rid);
-
         if let Some(asset) = asset.as_ref() {
-            path.push(asset.path.as_path());
+            let path = container_path.join(asset.path.as_path());
             trash::delete(path)?;
         };
 
@@ -553,11 +542,7 @@ impl Datastore {
                 if filter.matches(asset) {
                     // set path to absolute
                     let mut asset = asset.clone();
-                    let mut path = container
-                        .base_path()
-                        .expect("could not get `Container` base path.");
-
-                    path.push(asset.path.as_path());
+                    let path = container.base_path().join(asset.path.as_path());
                     asset.path = ResourcePath::new(path).expect("could not set absolute path");
 
                     found.insert(asset);
@@ -618,11 +603,7 @@ impl Datastore {
 
                 if filter.matches(&asset) {
                     // set path to absolute
-                    let mut path = root
-                        .base_path()
-                        .expect("could not get `Container` base path.");
-
-                    path.push(asset.path.as_path());
+                    let mut path = root.base_path().join(asset.path.as_path());
                     asset.path = ResourcePath::new(path).expect("could not set absolute path");
 
                     found.insert(asset);
@@ -701,8 +682,7 @@ impl Datastore {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project`'s graph does not exist")).into());
         };
 
-        for cid in graph.nodes().clone().into_keys() {
-            let container = graph.get_mut(&cid).expect("`Container` not in graph");
+        for (_cid, container) in graph.iter_nodes_mut() {
             container.scripts.remove(script);
             container.save()?;
         }

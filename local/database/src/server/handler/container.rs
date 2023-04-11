@@ -5,11 +5,10 @@ use crate::command::container::{
     AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::ContainerCommand;
-use std::fs;
 use crate::Result;
 use serde_json::Value as JsValue;
-use settings_manager::LocalSettings;
 use std::collections::HashSet;
+use std::fs;
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -25,7 +24,7 @@ impl Database {
             ContainerCommand::Get(rid) => {
                 let container: Option<CoreContainer> = {
                     if let Some(container) = self.store.get_container(&rid) {
-                        Some(container.clone().into())
+                        Some((*container).clone().into())
                     } else {
                         None
                     }
@@ -42,7 +41,7 @@ impl Database {
 
                 let container: Option<CoreContainer> = {
                     if let Some(container) = self.store.get_container(&rid) {
-                        Some(container.clone().into())
+                        Some((*container).clone().into())
                     } else {
                         None
                     }
@@ -87,9 +86,11 @@ impl Database {
             }
 
             ContainerCommand::Parent(rid) => {
-                let parent: Result<Option<CoreContainer>> = self
-                    .get_container_parent(&rid)
-                    .map(|opt| opt.cloned().map(|container| container.into()));
+                let parent: Result<Option<CoreContainer>> =
+                    self.get_container_parent(&rid).map(|opt| match opt {
+                        Some(container) => Some((*container).clone()),
+                        None => None,
+                    });
 
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
@@ -107,7 +108,7 @@ impl Database {
         self.store
             .find_containers(&root, filter)
             .into_iter()
-            .map(|container| container.clone().into())
+            .map(|container| (*container).clone())
             .collect()
     }
 
@@ -122,7 +123,7 @@ impl Database {
         self.store
             .find_containers_with_metadata(&root, filter)
             .into_iter()
-            .map(|container| container.clone().into())
+            .map(|container| (*container).clone())
             .collect()
     }
 
@@ -164,7 +165,6 @@ impl Database {
         };
 
         // @todo: Ensure file is not an Asset with the Container already.
-        let container_path = container.base_path()?;
         let mut asset_ids = HashSet::with_capacity(assets.len());
         for AddAssetInfo {
             path,
@@ -174,14 +174,14 @@ impl Database {
         {
             // create asset
             let mut asset = AssetBuilder::new(path);
-            asset.set_container(container_path.clone());
+            asset.set_container(container.base_path().into());
             if let Some(bucket) = bucket {
                 asset.set_bucket(bucket);
             }
 
             let asset = asset.create(action)?;
             asset_ids.insert(asset.rid.clone());
-            container.insert_asset(asset)?;
+            container.insert_asset(asset);
         }
 
         container.save()?;
@@ -195,13 +195,12 @@ impl Database {
         Ok(asset_ids)
     }
 
-    fn get_container_path(&self, container: &ResourceId) -> Result<Option<PathBuf>> {
+    fn get_container_path(&self, container: &ResourceId) -> Option<PathBuf> {
         let Some(container) = self.store.get_container(&container) else {
-            return Ok(None);
+            return None;
         };
 
-        let path = container.base_path()?;
-        Ok(Some(path))
+        Some(container.base_path().into())
     }
 
     fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {

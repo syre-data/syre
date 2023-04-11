@@ -6,19 +6,10 @@ use serde::{Deserialize, Serialize};
 // *** User Preferences ***
 // ************************
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct UserPreferences {
     project: ProjectUserPreferences,
     analysis: AnalysisUserPreferences,
-}
-
-impl UserPreferences {
-    pub fn new() -> Self {
-        UserPreferences {
-            project: ProjectUserPreferences::new(),
-            analysis: AnalysisUserPreferences::new(),
-        }
-    }
 }
 
 // ********************************
@@ -27,23 +18,25 @@ impl UserPreferences {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectUserPreferences {
-    asset_file_action: AssetFileAction, // how asset files should be manipulated when changed into an asset
-    rename_folder_on_name_change: bool, // rename container flder when name is changed
-    delete_on_exclude: bool,            // delete folder and files when a subtree is excluded
-    format_metdata_objects: bool,       // pretty print and validate metadata objects in the editor
-    show_inherited_metadata: bool,      // show inherited metadata when viewing object details
+    /// How asset files should be manipulated when changed into an asset
+    asset_file_action: AssetFileAction,
+
+    /// Rename container flder when name is changed
+    rename_folder_on_name_change: bool,
+
+    /// Delete folder and files when a subtree is excluded
+    delete_on_exclude: bool,
+
+    /// Pretty print and validate metadata objects in the editor
+    format_metdata_objects: bool,
+
+    /// Show inherited metadata when viewing object details
+    show_inherited_metadata: bool,
 }
 
-impl ProjectUserPreferences {
-    /// Create a new project preferences with default values.
-    ///
-    /// + **asset_file_action:** AssetFileAction::Move
-    /// + **rename_folder_on_name_change:** true
-    /// + **delete_on_exclude:** false
-    /// + **format_metdata_objects:** true
-    /// + **show_inherited_metadata:** false
-    pub fn new() -> Self {
-        ProjectUserPreferences {
+impl Default for ProjectUserPreferences {
+    fn default() -> Self {
+        Self {
             asset_file_action: AssetFileAction::Move,
             rename_folder_on_name_change: true,
             delete_on_exclude: false,
@@ -60,9 +53,9 @@ impl ProjectUserPreferences {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnalysisUserPreferences {}
 
-impl AnalysisUserPreferences {
-    pub fn new() -> Self {
-        AnalysisUserPreferences {}
+impl Default for AnalysisUserPreferences {
+    fn default() -> Self {
+        Self {}
     }
 }
 

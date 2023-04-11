@@ -1,10 +1,10 @@
 //! High level functionality for `Assets` and `Buckets`.
 use super::container::path_is_container;
-use super::resources::asset::{Asset as LocalAsset, Assets as LocalAssets};
+use super::resources::asset::{Asset as LocalAsset, Assets};
 use crate::error::AssetError;
 use crate::types::AssetFileAction;
 use crate::{common, Error, Result};
-use settings_manager::local_settings::LocalSettings;
+use settings_manager::{local_settings::Loader, Settings};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Asset as CoreAsset;
@@ -198,8 +198,8 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets = LocalAssets::load_or_default(&container)?;
-        assets.insert_asset(asset)?;
+        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+        assets.insert(asset.rid.clone(), asset);
         assets.save()?;
         Ok(rid)
     }
@@ -262,8 +262,8 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets = LocalAssets::load_or_default(&container)?;
-        assets.insert_asset(asset.clone())?;
+        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+        assets.insert(asset.rid.clone(), asset.clone());
         assets.save()?;
 
         Ok(asset)
@@ -319,8 +319,8 @@ pub fn init(path: &Path, container: Option<&Path>) -> Result<ResourceId> {
     let rid = asset.rid.clone();
 
     // insert asset
-    let mut assets = LocalAssets::load_or_default(&container)?;
-    assets.insert_asset(asset)?;
+    let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+    assets.insert(asset.rid.clone(), asset);
     assets.save()?;
     Ok(rid)
 }

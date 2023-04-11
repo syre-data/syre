@@ -3,7 +3,6 @@ use super::super::Database;
 use crate::command::AssetCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
-use settings_manager::LocalSettings;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, StandardProperties};
 use thot_core::types::ResourceId;
@@ -47,8 +46,7 @@ impl Database {
                 let container: Option<CoreContainer> = self
                     .store
                     .get_asset_container(&asset)
-                    .cloned()
-                    .map(|container| container.into());
+                    .map(|container| (*container).clone().into());
 
                 serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }

@@ -5,6 +5,7 @@ use crate::types::{ResourceId, ResourceMap};
 use crate::Result;
 use has_id::HasId;
 use indexmap::IndexSet;
+use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
@@ -107,6 +108,20 @@ where
 
     pub fn nodes(&self) -> &NodeMap<D> {
         &self.nodes
+    }
+
+    pub fn edges(&self) -> &EdgeMap {
+        &self.edges
+    }
+
+    /// Returns an iterator over the graph's nodes.
+    pub fn iter_nodes(&self) -> Iter<ResourceId, ResourceNode<D>> {
+        self.nodes.iter()
+    }
+
+    /// Returns a `mut`able iterator over the graph's nodes.
+    pub fn iter_nodes_mut(&mut self) -> IterMut<ResourceId, ResourceNode<D>> {
+        self.nodes.iter_mut()
     }
 
     /// Get a [`Node`] by its id.

@@ -1,10 +1,9 @@
 //! High level functionality related to Containers.
 use super::project;
-use super::resources::container::{Container, ContainerSettings, Loader};
+use super::resources::container::{Container, Loader};
 use crate::common::{container_file_of, thot_dir_of};
 use crate::error::ContainerError;
 use crate::{Error, Result};
-use settings_manager::Settings;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Container as CoreContainer;
@@ -69,8 +68,10 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 /// + [`init`]
 pub fn init_from(path: &Path, container: CoreContainer) -> Result {
     init(path)?;
-    let container: Container = Loader::load_or_create(path.into())?.into();
-    container.save()?;
+    let mut cont: Container = Loader::load_or_create(path.into())?.into();
+
+    *cont = container;
+    cont.save()?;
 
     Ok(())
 }

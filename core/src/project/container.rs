@@ -1,7 +1,7 @@
 //! Container.
 use super::standard_properties::StandardProperties;
 use super::{Asset, RunParameters};
-// use crate::db::{Resource, StandardResource};
+use crate::db::{Resource, StandardResource};
 use crate::types::{ResourceId, ResourceMap};
 use has_id::HasId;
 use std::hash::{Hash, Hasher};
@@ -31,6 +31,13 @@ pub struct Container {
     pub scripts: ScriptMap,
 }
 
+impl Container {
+    /// Inserts an [`Asset`] into the [`Container`].
+    pub fn insert_asset(&mut self, asset: Asset) -> Option<Asset> {
+        self.assets.insert(asset.rid.clone(), asset)
+    }
+}
+
 impl Default for Container {
     fn default() -> Container {
         Container {
@@ -48,17 +55,17 @@ impl Hash for Container {
     }
 }
 
-// impl Resource for Container {}
+impl Resource for Container {}
 
-// impl StandardResource for Container {
-//     fn properties(&self) -> &StandardProperties {
-//         &self.properties
-//     }
+impl StandardResource for Container {
+    fn properties(&self) -> &StandardProperties {
+        &self.properties
+    }
 
-//     fn properties_mut(&mut self) -> &mut StandardProperties {
-//         &mut self.properties
-//     }
-// }
+    fn properties_mut(&mut self) -> &mut StandardProperties {
+        &mut self.properties
+    }
+}
 
 #[cfg(test)]
 #[path = "./container_test.rs"]

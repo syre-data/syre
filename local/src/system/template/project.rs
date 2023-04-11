@@ -59,11 +59,11 @@ impl DerefMut for Project {
 
 impl UserSettings<ProjectTemplate> for Project {
     /// Returns the base path to the settings file.
-    fn base_path() -> Cow<Path> {
+    fn base_path() -> PathBuf {
         let mut path = config_dir_path().expect("could not get config path");
         path.push("templates");
 
-        Cow::Owned(path)
+        path
     }
 
     /// Returns the relative path for the settings.

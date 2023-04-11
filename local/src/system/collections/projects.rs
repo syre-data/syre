@@ -2,7 +2,7 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::system_settings::{Loader, SystemSettings};
+use settings_manager::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::Settings;
 use std::borrow::Cow;
 use std::fs::File;
@@ -51,9 +51,10 @@ impl SystemSettings<ProjectMap> for Projects {
 
 impl From<Loader<ProjectMap>> for Projects {
     fn from(loader: Loader<ProjectMap>) -> Projects {
+        let loader: Components<ProjectMap> = loader.into();
         Projects {
-            file_lock: loader.file_lock(),
-            projects: loader.data(),
+            file_lock: loader.file_lock,
+            projects: loader.data,
         }
     }
 }

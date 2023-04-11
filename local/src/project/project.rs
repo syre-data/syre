@@ -69,7 +69,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
     project.save()?;
 
     // add project to collection registry
-    projects::register_project(project.rid, project.base_path().into())?;
+    projects::register_project(project.rid.clone(), project.base_path().into())?;
 
     // success
     Ok(project.rid.clone().into())
@@ -131,7 +131,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
             continue;
         }
 
-        let prj: Project = Loader::load_or_create(path.into())?.into();
+        let prj: Project = Loader::load_or_create(path.clone().into())?.into();
         if prj.meta_level == 0 {
             return common::canonicalize_path(path);
         }

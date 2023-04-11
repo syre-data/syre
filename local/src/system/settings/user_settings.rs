@@ -3,7 +3,7 @@ use cluFlock::FlockLock;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use settings_manager::settings::Settings;
-use settings_manager::system_settings::{Loader, SystemSettings};
+use settings_manager::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::types::Priority as SettingsPriority;
 use settings_manager::{Error as SettingsError, Result as SettingsResult};
 use std::borrow::Cow;
@@ -82,9 +82,9 @@ pub struct LocalUserSettings {
 
 impl Settings<LocalUserSettings> for UserSettings {
     fn settings(&self) -> Cow<LocalUserSettings> {
-        Cow::Borrowed(&LocalUserSettings {
-            active_user: self.active_user,
-            active_project: self.active_project,
+        Cow::Owned(LocalUserSettings {
+            active_user: self.active_user.clone(),
+            active_project: self.active_project.clone(),
         })
     }
 
@@ -115,9 +115,10 @@ impl SystemSettings<LocalUserSettings> for UserSettings {
 
 impl From<Loader<LocalUserSettings>> for UserSettings {
     fn from(loader: Loader<LocalUserSettings>) -> Self {
+        let loader: Components<LocalUserSettings> = loader.into();
         Self {
-            file_lock: loader.file_lock(),
-            settings: loader.data(),
+            file_lock: loader.file_lock,
+            settings: loader.data,
         }
     }
 }

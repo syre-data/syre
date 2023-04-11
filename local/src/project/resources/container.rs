@@ -113,6 +113,14 @@ impl Container {
     }
 }
 
+impl PartialEq for Container {
+    fn eq(&self, other: &Container) -> bool {
+        self.container == other.container
+    }
+}
+
+impl Eq for Container {}
+
 impl Deref for Container {
     type Target = CoreContainer;
 

@@ -11,7 +11,7 @@ use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
-use thot_core::types::UserPermissions;
+use thot_core::types::{ResourceMap, UserPermissions};
 
 // ***************
 // *** Project ***
@@ -36,6 +36,14 @@ pub struct Project {
 }
 
 impl Project {
+    pub fn settings(&self) -> &ProjectSettings {
+        &self.settings
+    }
+
+    pub fn settings_mut(&mut self) -> &mut ProjectSettings {
+        &mut self.settings
+    }
+
     pub fn base_path(&self) -> &Path {
         self.base_path.as_path()
     }
@@ -69,7 +77,6 @@ impl Into<CoreProject> for Project {
 }
 
 // --- Core Project ---
-
 impl LocalSettings<CoreProject> for Project {
     fn rel_path() -> PathBuf {
         project_file()
@@ -111,7 +118,7 @@ impl From<Loader> for Project {
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ProjectSettings {
-    permissions: Vec<UserPermissions>,
+    pub permissions: ResourceMap<UserPermissions>,
 }
 
 /// Settings for a Thot project.

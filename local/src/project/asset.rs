@@ -263,7 +263,7 @@ impl AssetBuilder {
         // insert asset
         let container = self.container_path()?;
         let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
-        assets.insert(asset.rid.clone(), asset);
+        assets.insert(asset.rid.clone(), asset.clone());
         assets.save()?;
 
         Ok(asset)

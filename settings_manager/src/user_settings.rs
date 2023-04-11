@@ -17,7 +17,7 @@ where
     S: Serialize + DeserializeOwned + Clone,
 {
     /// Returns the base path to the settings file.
-    fn base_path() -> &'static Path;
+    fn base_path() -> PathBuf;
 
     /// Returns the relative path for the settings.
     fn rel_path(&self) -> &Path;

@@ -2,7 +2,7 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::system_settings::{Loader, SystemSettings};
+use settings_manager::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::Settings;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -48,9 +48,10 @@ impl SystemSettings<UserMap> for Users {
 
 impl From<Loader<UserMap>> for Users {
     fn from(loader: Loader<UserMap>) -> Self {
+        let loader: Components<UserMap> = loader.into();
         Self {
-            file_lock: loader.file_lock(),
-            users: loader.data(),
+            file_lock: loader.file_lock,
+            users: loader.data,
         }
     }
 }

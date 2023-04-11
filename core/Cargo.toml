@@ -43,7 +43,7 @@ dev_utils = { path = "../dev_utils" }
 lazy_static = "1.4"
 
 [features]
-default = ["project", "runner", "system"]
+default = ["project", "runner", "system", "db"]
 db = ["project"]
 project = []
 runner = ["project"]

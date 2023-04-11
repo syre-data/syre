@@ -5,14 +5,29 @@ use crate::project::resources::container::{
 };
 use crate::Result;
 use has_id::HasId;
-use settings_manager::LocalSettings;
 use std::fs;
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::ResourceTree;
+use thot_core::graph::{tree::NodeMap, ResourceNode, ResourceTree};
+use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 
 type ContainerTree = ResourceTree<Container>;
+
+pub struct ContainerTreeTransformer;
+impl ContainerTreeTransformer {
+    /// Convert a Container tree to a Core Container tree.
+    pub fn local_to_core(tree: &ContainerTree) -> ResourceTree<CoreContainer> {
+        let core_nodes = tree
+            .nodes()
+            .iter()
+            .map(|(rid, node)| (rid.clone(), ResourceNode::new((*node.data()).clone())))
+            .collect::<NodeMap<CoreContainer>>();
+
+        ResourceTree::from_components(core_nodes, tree.edges().clone())
+            .expect("could not build tree from components")
+    }
+}
 
 // **************
 // *** Loader ***

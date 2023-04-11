@@ -21,6 +21,7 @@ clap = { version = "3.1", optional = true }
 cluFlock = "1.2"
 derivative = "2.2"
 directories = "4.0"
+extendr-api = { version = "*", optional = true }
 indexmap = { version = "1.9.2", features = ["serde"] }
 pyo3 = { version = "0.17", features = ["extension-module", "macros", "serde"], optional = true }
 pythonize = { version = "0.17", optional = true}
@@ -51,6 +52,7 @@ system = []
 
 serde = ["dep:serde", "serde/rc", "has_id/serde"]
 clap = ["dep:clap"]
+extendr = ["dep:extendr-api"]
 js = ["uuid/js"]
 pyo3 = ["dep:pyo3", "dep:pythonize"]
 yew = ["dep:yew", "chrono/wasmbind", "chrono/clock"]

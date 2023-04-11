@@ -8,8 +8,10 @@ crate-type = [ 'staticlib' ]
 name = 'thot'
 
 [dependencies]
-extendr-api = '*'
+current_platform = "0.2"
+extendr-api = '0.4'
 
-thot-core = { path = "../../../../core" }
+thot-core = { path = "../../../../core", features = ["extendr"] }
+thot-lang = { path = "../../.." }
 thot-local = { path = "../../../../local" }
-# thot-local-database = { path = "../../../../local/database", features = ["client"] }
+thot-local-database = { path = "../../../../local/database", features = ["client"] }

@@ -4,7 +4,7 @@
 \alias{database}
 \title{Return whether Thot is running in development mode.}
 \usage{
-database(dev_root)
+database(dev_root = NULL)
 }
 \description{
 Return whether Thot is running in development mode.

@@ -17,17 +17,27 @@ dev_mode <- function() .Call(wrap__dev_mode)
 
 #' Return whether Thot is running in development mode.
 #' @export
-database <- function(dev_root) .Call(wrap__database, dev_root)
+database <- function(dev_root = NULL) .Call(wrap__database, dev_root)
 
 Database <- new.env(parent = emptyenv())
 
-Database$root_path <- function() .Call(wrap__Database__root_path, self)
+Database$temp <- function() .Call(wrap__Database__temp, self)
 
 #' @export
 `$.Database` <- function (self, name) { func <- Database[[name]]; environment(func) <- environment(); func }
 
 #' @export
 `[[.Database` <- `$.Database`
+
+Container <- new.env(parent = emptyenv())
+
+Container$name <- function() .Call(wrap__Container__name, self)
+
+#' @export
+`$.Container` <- function (self, name) { func <- Container[[name]]; environment(func) <- environment(); func }
+
+#' @export
+`[[.Container` <- `$.Container`
 
 
 # nolint end

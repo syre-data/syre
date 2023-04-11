@@ -5,8 +5,6 @@ use crate::types::DictMap;
 use current_platform::CURRENT_PLATFORM;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyType;
-use pyo3::PyTypeInfo;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::Command;
@@ -44,7 +42,6 @@ impl Database {
     /// Initialize a new Thot Project.
     #[new]
     fn py_new(py: Python<'_>, dev_root: Option<PathBuf>) -> PyResult<Self> {
-        // start database
         if !DbClient::server_available() {
             // create path to database executable
             let mut exe = resources_path(py)?;
@@ -62,7 +59,7 @@ impl Database {
         let db = DbClient::new();
 
         // resolve root
-        let root_path = if Self::dev_mode(Self::type_object(py)) {
+        let root_path = if thot_runner::dev_mode() {
             let Some(dev_root) = dev_root else {
                 return Err(PyValueError::new_err(
                     "`dev_root` must be specified",
@@ -128,12 +125,6 @@ impl Database {
             root_path,
             db,
         })
-    }
-
-    /// Returns whether the script is being run in developement mode.
-    #[classmethod]
-    fn dev_mode(_cls: &PyType) -> bool {
-        thot_runner::dev_mode()
     }
 
     /// Returns the root Container of the project.
@@ -209,7 +200,7 @@ impl Database {
     /// # Returns
     /// The Asset's file path.
     fn add_asset(
-        &mut self,
+        &self,
         py: Python<'_>,
         asset: Option<DictMap>,
         overwrite: Option<bool>,

@@ -2,6 +2,9 @@
 #[cfg(feature = "clap")]
 pub mod clap;
 
+#[cfg(feature = "extendr")]
+pub mod extendr;
+
 #[cfg(feature = "pyo3")]
 pub mod pyo3;
 

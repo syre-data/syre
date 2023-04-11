@@ -1,13 +1,11 @@
 //! Serach filter functionality.
 use crate::types::DictMap;
-use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use pythonize::depythonize;
 use std::collections::HashSet;
 use std::str::FromStr;
 use thot_core::db::StandardSearchFilter as StdFilter;
-use thot_core::project::Metadata;
 use thot_core::types::ResourceId;
 
 /// Convert a raw search map to a StandardPropertiesSearchFilter.

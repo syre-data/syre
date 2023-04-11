@@ -9,6 +9,7 @@ members = [
     "dev_utils",
     "has_id",
     "has_id/has_id_derive",
+    "lang",
     "lang/python",
     "lang/r/src/rust",
     "lang/rust",

@@ -1,14 +1,12 @@
 //! Import [`Project`].
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::common::PathBufArgs;
-use crate::commands::graph::InitProjectGraphArgs;
-use crate::commands::project::UpdateProjectArgs;
 use crate::common::invoke;
 use crate::routes::Route;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
-use thot_core::types::ResourceId;
+use thot_local::project::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -44,7 +42,7 @@ pub fn import_project() -> Html {
 
             // import and go to project
             spawn_local(async move {
-                let Ok(project) = invoke::<Project>("add_project", PathBufArgs { path: path.clone() })
+                let Ok(project) = invoke::<(Project, ProjectSettings)>("add_project", PathBufArgs { path: path.clone() })
                     .await else {
                         web_sys::console::error_1(&"could not add project".into());
                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not import project")));
@@ -52,7 +50,7 @@ pub fn import_project() -> Html {
                     };
 
                 // update ui
-                let rid = project.rid.clone();
+                let rid = project.0.rid.clone();
                 projects_state.dispatch(ProjectsStateAction::InsertProject(project));
                 projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
                 projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid));

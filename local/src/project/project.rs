@@ -64,7 +64,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         }
     };
 
-    let mut project: Project = Loader::load_or_create(path.into())?.into();
+    let mut project: Project = Loader::load_or_create(path)?.into();
     project.name = name;
     project.save()?;
 
@@ -131,7 +131,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
             continue;
         }
 
-        let prj: Project = Loader::load_or_create(path.clone().into())?.into();
+        let prj: Project = Loader::load_or_create(path.clone())?.into();
         if prj.meta_level == 0 {
             return common::canonicalize_path(path);
         }
@@ -186,7 +186,7 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
 /// Returns the [`ResourceId`] of the containing [`Project`] if it exists..
 pub fn project_id(path: &Path) -> Result<Option<ResourceId>> {
     let root = project_resource_root_path(path)?;
-    projects::project_by_path(root.as_path())
+    projects::get_id(root.as_path())
 }
 
 #[cfg(test)]

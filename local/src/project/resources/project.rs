@@ -1,17 +1,15 @@
 //! Project and project settings.
+use super::super::types::ProjectSettings as PrjSettings;
 use crate::common::{project_file, project_settings_file};
 use crate::Result;
 use cluFlock::FlockLock;
-use serde::{Deserialize, Serialize};
 use settings_manager::error::Result as SettingsResult;
 use settings_manager::local_settings::{Components, Loader as LocalLoader, LocalSettings};
 use settings_manager::Settings;
-use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
-use thot_core::types::{ResourceMap, UserPermissions};
 
 // ***************
 // *** Project ***
@@ -23,7 +21,7 @@ pub struct Project {
     #[settings(file_lock = "CoreProject")]
     project_file_lock: FlockLock<File>,
 
-    #[settings(file_lock = "ProjectSettings")]
+    #[settings(file_lock = "PrjSettings")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
@@ -32,15 +30,15 @@ pub struct Project {
     project: CoreProject,
 
     #[settings(priority = "Local")]
-    settings: ProjectSettings,
+    settings: PrjSettings,
 }
 
 impl Project {
-    pub fn settings(&self) -> &ProjectSettings {
+    pub fn settings(&self) -> &PrjSettings {
         &self.settings
     }
 
-    pub fn settings_mut(&mut self) -> &mut ProjectSettings {
+    pub fn settings_mut(&mut self) -> &mut PrjSettings {
         &mut self.settings
     }
 
@@ -51,7 +49,7 @@ impl Project {
     /// Save all data.
     pub fn save(&mut self) -> Result {
         <Project as Settings<CoreProject>>::save(self)?;
-        <Project as Settings<ProjectSettings>>::save(self)?;
+        <Project as Settings<PrjSettings>>::save(self)?;
         Ok(())
     }
 }
@@ -89,7 +87,7 @@ impl LocalSettings<CoreProject> for Project {
 
 // --- Project Settings ---
 
-impl LocalSettings<ProjectSettings> for Project {
+impl LocalSettings<PrjSettings> for Project {
     fn rel_path() -> PathBuf {
         project_settings_file()
     }
@@ -116,23 +114,18 @@ impl From<Loader> for Project {
 // *** Project Settings ***
 // ************************
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct ProjectSettings {
-    pub permissions: ResourceMap<UserPermissions>,
-}
-
 /// Settings for a Thot project.
 #[derive(Settings)]
-pub struct LocalProjectSettings {
-    #[settings(file_lock = "ProjectSettings")]
+pub struct ProjectSettings {
+    #[settings(file_lock = "PrjSettings")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
     #[settings(priority = "Local")]
-    settings: ProjectSettings,
+    settings: PrjSettings,
 }
 
-impl LocalSettings<ProjectSettings> for LocalProjectSettings {
+impl LocalSettings<PrjSettings> for ProjectSettings {
     fn rel_path() -> PathBuf {
         project_settings_file()
     }
@@ -152,16 +145,17 @@ pub struct Loader {
 
     base_path: PathBuf,
     project: CoreProject,
-    settings: ProjectSettings,
+    settings: PrjSettings,
 }
 
 impl Loader {
-    pub fn load_or_create(path: PathBuf) -> SettingsResult<Self> {
+    pub fn load_or_create(path: impl Into<PathBuf>) -> SettingsResult<Self> {
+        let path = path.into();
         let project_loader = LocalLoader::load_or_create::<Project>(path.clone())?;
-        let settings_loader = LocalLoader::load_or_create::<LocalProjectSettings>(path)?;
+        let settings_loader = LocalLoader::load_or_create::<ProjectSettings>(path)?;
 
         let project_loader: Components<CoreProject> = project_loader.into();
-        let settings_loader: Components<ProjectSettings> = settings_loader.into();
+        let settings_loader: Components<PrjSettings> = settings_loader.into();
 
         Ok(Self {
             project_file_lock: project_loader.file_lock,

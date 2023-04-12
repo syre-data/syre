@@ -2,7 +2,7 @@ use crate::app::{ProjectsStateAction, ProjectsStateReducer};
 use crate::hooks::{use_active_project, use_open_projects, use_user, use_user_projects};
 use crate::routes::Route;
 use indexmap::IndexMap;
-use thot_core::project::Project as CoreProject;
+use thot_core::project::Project;
 use thot_core::types::ResourceId;
 use thot_ui::components::navigation::{TabBar, TabCloseInfo};
 use yew::prelude::*;
@@ -23,11 +23,10 @@ pub fn main_navigation() -> Html {
     let user_projects = use_user_projects(&user.rid);
     let active_project = use_active_project();
     let tabs = use_state(|| {
-        let projects = (*user_projects)
-            .clone()
-            .into_iter()
+        let projects = user_projects
+            .iter()
             .filter(|prj| open_projects.contains(&prj.rid))
-            .collect::<Vec<CoreProject>>();
+            .collect::<Vec<&Project>>();
 
         projects_to_tabs(projects)
     });
@@ -40,11 +39,10 @@ pub fn main_navigation() -> Html {
 
         use_effect_with_deps(
             move |open_projects| {
-                let projects = (*user_projects)
-                    .clone()
-                    .into_iter()
+                let projects = user_projects
+                    .iter()
                     .filter(|prj| open_projects.contains(&prj.rid))
-                    .collect::<Vec<CoreProject>>();
+                    .collect::<Vec<&Project>>();
 
                 tabs.set(projects_to_tabs(projects));
             },
@@ -108,9 +106,9 @@ pub fn main_navigation() -> Html {
 // ***************
 
 /// Converts [`Project`]s to tabs for display.
-fn projects_to_tabs(projects: Vec<CoreProject>) -> IndexMap<ResourceId, String> {
+fn projects_to_tabs(projects: Vec<&Project>) -> IndexMap<ResourceId, String> {
     projects
-        .iter()
+        .into_iter()
         .map(|p| (p.rid.clone(), p.name.clone()))
         .collect::<IndexMap<ResourceId, String>>()
 }

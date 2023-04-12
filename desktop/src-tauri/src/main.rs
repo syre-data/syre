@@ -4,6 +4,7 @@
 )]
 #![feature(path_file_prefix)]
 mod commands;
+mod common;
 mod db;
 mod error;
 mod settings;

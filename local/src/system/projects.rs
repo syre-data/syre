@@ -45,14 +45,14 @@ pub fn deregister_project(id: &ResourceId) -> Result {
 
 /// Retrieves a [`Project`] by its [`ResourceId`].
 /// Returns `None` if project is not found.
-pub fn project_by_id(id: &ResourceId) -> Result<Option<PathBuf>> {
+pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
     let projects: Projects = Loader::load_or_create::<Projects>()?.into();
     Ok(projects.get(id).cloned())
 }
 
 /// Returns a [`Project`] by its path.
 /// Returns None if project is not found.
-pub fn project_by_path(path: &Path) -> Result<Option<ResourceId>> {
+pub fn get_id(path: &Path) -> Result<Option<ResourceId>> {
     let projects: Projects = Loader::load_or_create::<Projects>()?.into();
     let projects = &projects
         .iter()
@@ -101,7 +101,7 @@ pub fn set_active_project(id: &ResourceId) -> Result {
 }
 
 pub fn set_active_project_by_path(path: &Path) -> Result {
-    let project = match project_by_path(path)? {
+    let project = match get_id(path)? {
         None => {
             return Err(Error::ProjectError(ProjectError::PathNotAProjectRoot(
                 PathBuf::from(path),

@@ -1,7 +1,7 @@
 //! High level functionality for handling `Scripts`.
 use super::container;
 use super::resources::{
-    container::LocalContainerProperties, Script as ProjectScript, Scripts as ProjectScripts,
+    container::ContainerProperties, Script as ProjectScript, Scripts as ProjectScripts,
 };
 use crate::error::{ContainerError, Result};
 use crate::system::collections::Projects;
@@ -66,8 +66,8 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
     };
 
     // add association
-    let mut container: LocalContainerProperties =
-        LocalLoader::load_or_create::<LocalContainerProperties>(container.into())?.into();
+    let mut container: ContainerProperties =
+        LocalLoader::load_or_create::<ContainerProperties>(container.into())?.into();
     container
         .scripts_mut()
         .insert(script.rid.clone(), RunParameters::new());

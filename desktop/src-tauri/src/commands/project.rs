@@ -1,7 +1,6 @@
 //! Commands related to projects.
 use crate::error::{DesktopSettingsError, Error, Result};
 use crate::state::AppState;
-use settings_manager::LocalSettings;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
@@ -10,24 +9,28 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
-use thot_local::project::{project, resources::Project as LocalProject};
+use thot_local::project::project;
+use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
+use thot_local::project::types::ProjectSettings;
 use thot_local::system::projects as sys_projects;
-use thot_local::system::resources::Project as SystemProject;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;
 use thot_local_runner::Runner;
 
+// **************************
+// *** load user projects ***
+// **************************
+
 /// Loads all the active user's projects.
-///
-/// # Returns
-/// A tuple of loaded projects and projects that errored while loading,
-/// with the associated error.
 #[tauri::command]
-pub fn load_user_projects(db: State<DbClient>, user: ResourceId) -> Result<Vec<Project>> {
+pub fn load_user_projects(
+    db: State<DbClient>,
+    user: ResourceId,
+) -> Result<Vec<(Project, ProjectSettings)>> {
     let projects = db.send(ProjectCommand::LoadUser(user).into());
-    let projects: DbResult<Vec<Project>> = serde_json::from_value(projects)
-        .expect("could not convert `GetUserProjects` result to `Vec<Project>`");
+    let projects: DbResult<Vec<(Project, ProjectSettings)>> = serde_json::from_value(projects)
+        .expect("could not convert `GetUserProjects` result to `Vec<(Project, ProjectSettings)>`");
 
     Ok(projects?)
 }
@@ -38,9 +41,9 @@ pub fn load_user_projects(db: State<DbClient>, user: ResourceId) -> Result<Vec<P
 
 /// Loads a [`Project`].
 #[tauri::command]
-pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<Project> {
+pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, ProjectSettings)> {
     let project = db.send(ProjectCommand::Load(path).into());
-    let project: DbResult<Project> =
+    let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
 
     Ok(project?)
@@ -148,7 +151,10 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
     analysis.push(analysis_root);
     fs::create_dir(&analysis).expect("could not create analysis directory");
 
-    let mut project = LocalProject::load(path).expect("Could not load `Project`");
+    let mut project: LocalProject = ProjectLoader::load_or_create(path)
+        .expect("Could not load `Project`")
+        .into();
+
     project.analysis_root = Some(PathBuf::from(analysis_root));
     project.save()?;
 
@@ -161,8 +167,15 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 
 #[tauri::command]
 pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
-    let prj_info = project_info(&id)?;
-    Ok(prj_info.path)
+    let Some(path) = sys_projects::get_path(&id)? else {
+        return Err(CoreError::ProjectError(ProjectError::NotRegistered(
+            Some(ResourceId::from(id.clone())),
+            None,
+        ))
+        .into());
+    };
+
+    Ok(path)
 }
 
 // **********************
@@ -204,28 +217,6 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
     }
 
     Ok(())
-}
-
-// ---------------
-// --- helpers ---
-// ---------------
-
-// ********************
-// *** project info ***
-// ********************
-
-fn project_info(id: &ResourceId) -> Result<SystemProject> {
-    let prj_info = sys_projects::project_by_id(id)?;
-    if prj_info.is_none() {
-        return Err(CoreError::ProjectError(ProjectError::NotRegistered(
-            Some(ResourceId::from(id.clone())),
-            None,
-        ))
-        .into());
-    }
-
-    let prj_info = prj_info.expect("project should be some");
-    Ok(prj_info)
 }
 
 #[cfg(test)]

@@ -52,10 +52,10 @@ pub fn home_component() -> HtmlResult {
             )));
         })
     };
-
+    web_sys::console::log_1(&projects.len().into());
     Ok(html! {
         <div>
-            if (*projects).len() == 0 {
+            if projects.len() == 0 {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
                     <div>

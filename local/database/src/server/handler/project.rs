@@ -8,9 +8,8 @@ use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
-use thot_local::project::resources::project::{
-    Loader as ProjectLoader, Project as LocalProject, ProjectSettings,
-};
+use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
+use thot_local::project::types::ProjectSettings;
 use thot_local::system::collections::projects::Projects;
 
 impl Database {
@@ -35,7 +34,9 @@ impl Database {
                     }
                 };
 
-                let project: Result<CoreProject> = Ok((**project).clone());
+                let project: Result<(CoreProject, ProjectSettings)> =
+                    Ok(((**project).clone(), project.settings().clone()));
+
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
@@ -123,7 +124,7 @@ impl Database {
     /// Reference to the loaded [`Project`](LocalProject).
     pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
         // load project
-        let project: LocalProject = ProjectLoader::load_or_create(path.into())?.into();
+        let project: LocalProject = ProjectLoader::load_or_create(path)?.into();
         let _o_project = self.store.insert_project(project)?;
         if let Some(project) = self.get_path_project(&path) {
             return Ok(project);
@@ -153,7 +154,10 @@ impl Database {
         Some(project.base_path())
     }
 
-    fn load_user_projects(&mut self, user: &ResourceId) -> Result<Vec<CoreProject>> {
+    fn load_user_projects(
+        &mut self,
+        user: &ResourceId,
+    ) -> Result<Vec<(CoreProject, ProjectSettings)>> {
         let projects_info: Projects = SystemLoader::load_or_create::<Projects>()?.into();
 
         // load projects
@@ -165,7 +169,7 @@ impl Database {
             };
 
             if user_has_project(user, &project) {
-                projects.push((**project).clone());
+                projects.push(((*project).clone(), project.settings().clone()));
             }
         }
 

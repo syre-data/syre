@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
+use thot_local::project::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -58,8 +59,8 @@ pub fn create_project() -> Html {
                         return;
                     };
 
-                let Ok(mut project) =
-                    invoke::<Project>("load_project", PathBufArgs { path: path.clone() })
+                let Ok((mut project, settings)) =
+                    invoke::<(Project, ProjectSettings)>("load_project", PathBufArgs { path: path.clone() })
                         .await else {
                         app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load project")));
                         return;
@@ -97,7 +98,7 @@ pub fn create_project() -> Html {
 
                 // update ui
                 let rid = project.rid.clone();
-                projects_state.dispatch(ProjectsStateAction::InsertProject(project));
+                projects_state.dispatch(ProjectsStateAction::InsertProject((project, settings)));
                 projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
                 projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid));
 

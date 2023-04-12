@@ -1,8 +1,8 @@
 //! Functionality to interact with [`UserAppState`] settings.
 use crate::error::{DesktopSettingsError, Result};
-use crate::settings::UserAppState;
+use crate::settings::{loader::Loader, UserAppState};
 use crate::state::AppState;
-use settings_manager::UserSettings;
+use settings_manager::Settings;
 use tauri::State;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::UserAppState as DesktopUserAppState;
@@ -23,12 +23,11 @@ pub fn load_user_app_state(
         // user state loaded
         if state.user == rid {
             // user state for user already loaded
-            let desktop_state: DesktopUserAppState = state.clone().into();
-            return Ok(desktop_state);
+            return Ok((*state).clone());
         }
     }
 
-    let user_state = UserAppState::load_user(rid)?;
+    let user_state: UserAppState = Loader::load_or_create::<UserAppState>(&rid)?.into();
     let desktop_state = user_state.clone().into();
     *state = Some(user_state);
 
@@ -43,7 +42,7 @@ pub fn get_user_app_state(app_state: State<AppState>) -> Option<DesktopUserAppSt
         .lock()
         .expect("could not lock `UserAppState`");
 
-    (*state).clone().map(|s| s.into())
+    state.as_ref().map(|settings| (*settings).clone())
 }
 
 /// Updates a user's [`UserAppState`](DesktopUserAppState) settings.

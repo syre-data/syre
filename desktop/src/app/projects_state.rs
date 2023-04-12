@@ -4,9 +4,11 @@ use indexmap::IndexSet;
 use std::rc::Rc;
 use thot_core::project::{Project, Scripts};
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_local::project::types::ProjectSettings;
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;
+pub type SettingsMap = ResourceMap<ProjectSettings>;
 
 /// Map from a `Project` to its `Scripts`.
 pub type ProjectScriptsMap = ResourceMap<Scripts>;
@@ -14,10 +16,10 @@ pub type ProjectScriptsMap = ResourceMap<Scripts>;
 /// Actions for [`ProjectsState`].
 pub enum ProjectsStateAction {
     /// Insert a project.
-    InsertProject(Project),
+    InsertProject((Project, ProjectSettings)),
 
     /// Inserts multiple projects.
-    InsertProjects(Vec<Project>),
+    InsertProjects(Vec<(Project, ProjectSettings)>),
 
     /// Add an open project.
     AddOpenProject(ResourceId),
@@ -49,6 +51,9 @@ pub struct ProjectsState {
     /// All user [`Projects`].
     pub projects: ProjectMap,
 
+    /// Project settings.
+    pub settings: SettingsMap,
+
     /// `Project` `Script`s.
     pub project_scripts: ProjectScriptsMap,
 
@@ -65,12 +70,14 @@ impl Reducible for ProjectsState {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
-            ProjectsStateAction::InsertProject(project) => {
+            ProjectsStateAction::InsertProject((project, settings)) => {
+                current.settings.insert(project.rid.clone(), settings);
                 current.projects.insert(project.rid.clone(), project);
             }
 
             ProjectsStateAction::InsertProjects(projects) => {
-                for project in projects {
+                for (project, settings) in projects {
+                    current.settings.insert(project.rid.clone(), settings);
                     current.projects.insert(project.rid.clone(), project);
                 }
             }

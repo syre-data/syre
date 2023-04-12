@@ -1,10 +1,12 @@
 //! Container and container settings.
+use super::super::types::{
+    ContainerProperties as ContainerProps, ContainerSettings as ContainerSets,
+};
 use super::asset::Assets;
 use crate::common::{assets_file, container_file, container_settings_file};
 use crate::error::{Error, Result};
 use cluFlock::FlockLock;
 use has_id::HasId;
-use serde::{Deserialize, Serialize};
 use settings_manager::error::Result as SettingsResult;
 use settings_manager::local_settings::{
     Components as LocalComponents, Loader as LocalLoader, LocalSettings,
@@ -17,11 +19,9 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::container::{AssetMap, ScriptMap};
-use thot_core::project::{
-    Asset, Container as CoreContainer, ScriptAssociation, StandardProperties,
-};
-use thot_core::types::{ResourceId, UserPermissions};
+use thot_core::project::container::AssetMap;
+use thot_core::project::{Asset, Container as CoreContainer, ScriptAssociation};
+use thot_core::types::ResourceId;
 
 // *****************
 // *** Container ***
@@ -32,14 +32,14 @@ pub struct Container {
     container_file_lock: FlockLock<File>,
     assets_file_lock: FlockLock<File>,
 
-    #[settings(file_lock = "ContainerSettings")]
+    #[settings(file_lock = "ContainerSets")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
     container: CoreContainer,
 
     #[settings(priority = "Local")]
-    settings: ContainerSettings,
+    settings: ContainerSets,
 }
 
 impl Container {
@@ -106,9 +106,9 @@ impl Container {
 
     /// Save all data.
     pub fn save(&mut self) -> Result {
-        <Container as Settings<ContainerProperties>>::save(self)?;
+        <Container as Settings<ContainerProps>>::save(self)?;
         <Container as Settings<AssetMap>>::save(self)?;
-        <Container as Settings<ContainerSettings>>::save(self)?;
+        <Container as Settings<ContainerSets>>::save(self)?;
         Ok(())
     }
 }
@@ -150,9 +150,9 @@ impl HasId for Container {
 }
 
 // --- Container Properties ---
-impl Settings<ContainerProperties> for Container {
-    fn settings(&self) -> Cow<ContainerProperties> {
-        Cow::Owned(ContainerProperties {
+impl Settings<ContainerProps> for Container {
+    fn settings(&self) -> Cow<ContainerProps> {
+        Cow::Owned(ContainerProps {
             rid: self.rid.clone(),
             properties: self.properties.clone(),
             scripts: self.scripts.clone(),
@@ -176,7 +176,7 @@ impl Settings<ContainerProperties> for Container {
     }
 }
 
-impl LocalSettings<ContainerProperties> for Container {
+impl LocalSettings<ContainerProps> for Container {
     fn rel_path() -> PathBuf {
         container_file()
     }
@@ -221,7 +221,7 @@ impl LocalSettings<AssetMap> for Container {
 
 // --- Container Settings ---
 
-impl LocalSettings<ContainerSettings> for Container {
+impl LocalSettings<ContainerSets> for Container {
     fn rel_path() -> PathBuf {
         container_settings_file()
     }
@@ -249,64 +249,31 @@ impl From<Loader> for Container {
 // ****************************
 // *** Container Properties ***
 // ****************************
-/// Container properties for persistance.
-#[derive(Serialize, Deserialize, Clone)]
-pub struct ContainerProperties {
-    rid: ResourceId,
-    properties: StandardProperties,
-    scripts: ScriptMap,
-}
-
-impl ContainerProperties {
-    pub fn scripts_mut(&mut self) -> &mut ScriptMap {
-        &mut self.scripts
-    }
-}
-
-impl Default for ContainerProperties {
-    fn default() -> Self {
-        Self {
-            rid: ResourceId::new(),
-            properties: StandardProperties::default(),
-            scripts: ScriptMap::default(),
-        }
-    }
-}
-
-impl From<CoreContainer> for ContainerProperties {
-    fn from(container: CoreContainer) -> Self {
-        Self {
-            rid: container.rid,
-            properties: container.properties,
-            scripts: container.scripts,
-        }
-    }
-}
 
 #[derive(Settings)]
-pub struct LocalContainerProperties {
-    #[settings(file_lock = "ContainerProperties")]
+pub struct ContainerProperties {
+    #[settings(file_lock = "ContainerProps")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
     #[settings(priority = "Local")]
-    properties: ContainerProperties,
+    properties: ContainerProps,
 }
 
-impl Deref for LocalContainerProperties {
-    type Target = ContainerProperties;
+impl Deref for ContainerProperties {
+    type Target = ContainerProps;
     fn deref(&self) -> &Self::Target {
         &self.properties
     }
 }
 
-impl DerefMut for LocalContainerProperties {
+impl DerefMut for ContainerProperties {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.properties
     }
 }
 
-impl LocalSettings<ContainerProperties> for LocalContainerProperties {
+impl LocalSettings<ContainerProps> for ContainerProperties {
     fn rel_path() -> PathBuf {
         container_file()
     }
@@ -316,9 +283,9 @@ impl LocalSettings<ContainerProperties> for LocalContainerProperties {
     }
 }
 
-impl From<LocalLoader<ContainerProperties>> for LocalContainerProperties {
-    fn from(loader: LocalLoader<ContainerProperties>) -> Self {
-        let loader: LocalComponents<ContainerProperties> = loader.into();
+impl From<LocalLoader<ContainerProps>> for ContainerProperties {
+    fn from(loader: LocalLoader<ContainerProps>) -> Self {
+        let loader: LocalComponents<ContainerProps> = loader.into();
         Self {
             file_lock: loader.file_lock,
             base_path: loader.base_path,
@@ -331,22 +298,17 @@ impl From<LocalLoader<ContainerProperties>> for LocalContainerProperties {
 // *** Container Settings ***
 // **************************
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct ContainerSettings {
-    permissions: Vec<UserPermissions>,
-}
-
 #[derive(Settings)]
-pub struct LocalContainerSettings {
-    #[settings(file_lock = "ContainerSettings")]
+pub struct ContainerSettings {
+    #[settings(file_lock = "ContainerSets")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
     #[settings(priority = "Local")]
-    settings: ContainerSettings,
+    settings: ContainerSets,
 }
 
-impl LocalSettings<ContainerSettings> for LocalContainerSettings {
+impl LocalSettings<ContainerSets> for ContainerSettings {
     fn rel_path() -> PathBuf {
         container_settings_file()
     }
@@ -363,7 +325,7 @@ impl LocalSettings<ContainerSettings> for LocalContainerSettings {
 #[derive(Default)]
 pub struct Builder {
     container: CoreContainer,
-    settings: ContainerSettings,
+    settings: ContainerSets,
 }
 
 impl Builder {
@@ -371,16 +333,16 @@ impl Builder {
         &mut self.container
     }
 
-    pub fn settings_mut(&mut self) -> &mut ContainerSettings {
+    pub fn settings_mut(&mut self) -> &mut ContainerSets {
         &mut self.settings
     }
 
     /// Convert to a [`Container`], creating files if needed.
     pub fn save(self, base_path: PathBuf) -> Result<Container> {
         settings::ensure_file(&base_path)?;
-        let container_path = base_path.join(LocalContainerProperties::rel_path());
+        let container_path = base_path.join(ContainerProperties::rel_path());
         let assets_path = base_path.join(Assets::rel_path());
-        let settings_path = base_path.join(LocalContainerSettings::rel_path());
+        let settings_path = base_path.join(ContainerSettings::rel_path());
 
         let container_file = File::create(container_path)?;
         let assets_file = File::create(assets_path)?;
@@ -413,19 +375,19 @@ pub struct Loader {
 
     base_path: PathBuf,
     container: CoreContainer,
-    settings: ContainerSettings,
+    settings: ContainerSets,
 }
 
 impl Loader {
     pub fn load_or_create(base_path: PathBuf) -> SettingsResult<Self> {
         let properties_loader =
-            LocalLoader::load_or_create::<LocalContainerProperties>(base_path.clone())?;
+            LocalLoader::load_or_create::<ContainerProperties>(base_path.clone())?;
         let assets_loader = LocalLoader::load_or_create::<Assets>(base_path.clone())?;
-        let settings_loader = LocalLoader::load_or_create::<LocalContainerSettings>(base_path)?;
+        let settings_loader = LocalLoader::load_or_create::<ContainerSettings>(base_path)?;
 
-        let properties_loader: LocalComponents<ContainerProperties> = properties_loader.into();
+        let properties_loader: LocalComponents<ContainerProps> = properties_loader.into();
         let assets_loader: LocalComponents<AssetMap> = assets_loader.into();
-        let settings_loader: LocalComponents<ContainerSettings> = settings_loader.into();
+        let settings_loader: LocalComponents<ContainerSets> = settings_loader.into();
 
         let local_properties = properties_loader.data;
         let container = CoreContainer {
@@ -468,7 +430,7 @@ pub struct Components {
 
     pub base_path: PathBuf,
     pub container: CoreContainer,
-    pub settings: ContainerSettings,
+    pub settings: ContainerSets,
 }
 
 #[cfg(test)]

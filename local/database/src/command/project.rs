@@ -10,8 +10,14 @@ pub enum ProjectCommand {
     /// Load a [`Project`](thot_local::project::resources::Project) from a path.
     ///
     /// # Returns
-    /// Tuples of ([`Project`](thot_local::project::resources::Project), [`ProjectSettings`][`Project`](thot_local::project::resources::ProjectSettings)).
+    /// [`Project`](thot_local::project::resources::Project).
     Load(PathBuf),
+
+    /// Load a [`Project`](thot_local::project::resources::Project) from a path.
+    ///
+    /// # Returns
+    /// Tuples of ([`Project`](thot_local::project::resources::Project), [`ProjectSettings`][`Project`](thot_local::project::resources::ProjectSettings)).
+    LoadWithSettings(PathBuf),
 
     /// Adds a [`Project`](thot_local::project::resources::Project) for a user from a path.
     ///

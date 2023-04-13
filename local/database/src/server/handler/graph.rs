@@ -74,11 +74,14 @@ impl Database {
 
                 // get duplicated tree
                 let Some(graph) = self.store.get_container_graph(&rid) else {
-                    let err: Result = Err(CoreError::ResourceError(ResourceError::DoesNotExist("graph not found")).into());
+                    let err: Result<ResourceTree<CoreContainer>> = Err(CoreError::ResourceError(ResourceError::DoesNotExist("graph not found")).into());
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let graph = ContainerTreeTransformer::subtree_to_core(graph, &rid)
+                    .expect("could not convert graph");
+
+                let graph: Result<ResourceTree<CoreContainer>> = Ok(graph);
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
         }
@@ -107,6 +110,9 @@ impl Database {
         Ok(graph)
     }
 
+    /// Duplicates a tree in its parent.
+    /// Returns the id of the duplicated tree's root node.
+    #[tracing::instrument(skip(self))]
     fn duplicate_container_tree(&mut self, rid: &ResourceId) -> Result<ResourceId> {
         let Some(project) = self.store.get_container_project(rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not loaded")).into());

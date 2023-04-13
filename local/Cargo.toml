@@ -27,6 +27,7 @@ validator = "0.14"
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
 settings_manager = { path = "../settings_manager", optional = true }
 thot-core = { path = "../core", features = ["serde"] }
+tracing = "0.1.37"
 
 [dev-dependencies]
 rand = "0.8"

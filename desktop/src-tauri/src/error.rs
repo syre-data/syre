@@ -1,4 +1,5 @@
 //! `Error`s and `Result`s
+use serde::{Deserialize, Serialize};
 use settings_manager::Error as SettingsError;
 use std::error::Error as StdErrorTrait;
 use std::result::Result as StdResult;
@@ -12,7 +13,7 @@ use thot_local_database::error::Error as DbError;
 // *** Desktop Settings Error ***
 // ******************************
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DesktopSettingsError {
     /// The desired update can not be performed.
     InvalidUpdate(String),

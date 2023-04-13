@@ -9,12 +9,11 @@ use thot_core::types::ResourceId;
 // *****************
 
 /// App wide state.
+#[derive(Default)]
 pub struct AppState {
     /// Active user.
     pub user: Mutex<Option<User>>,
 
-    // /// Loaded projects.
-    // pub projects: Mutex<ProjectStore>,
     /// Active project.
     pub active_project: Mutex<Option<ResourceId>>,
 
@@ -27,13 +26,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        Self {
-            user: Default::default(),
-            // projects: Mutex::new(ProjectStore::new()),
-            active_project: Mutex::new(None),
-            user_settings: Mutex::new(None),
-            user_app_state: Mutex::new(None),
-        }
+        Self::default()
     }
 }
 

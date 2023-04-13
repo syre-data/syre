@@ -21,7 +21,7 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> LibResult<Ve
     let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts)
         .expect("could not convert `LoadProject` result to `Scripts`");
 
-    Ok(scripts.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?)
+    Ok(scripts.map_err(|err| LibError::Database(format!("{err:?}")))?)
 }
 
 // ******************

@@ -70,6 +70,32 @@ pub fn load_or_create<T: Serialize + DeserializeOwned + Default>(
     Ok((settings, file_lock))
 }
 
+/// Create a new settings object from a file.
+/// Creates a new object if the file did not exist or is empty.
+pub fn load_or_create_with<T: Serialize + DeserializeOwned>(
+    path: &Path,
+    default: T,
+) -> Result<(T, FlockLock<File>)> {
+    // get settings file and lock
+    let settings_file = ensure_file(path)?;
+    let file_lock = lock(settings_file)?;
+
+    // get current settings
+    let mut reader = BufReader::new(file_lock.as_ref());
+    let mut settings_str = String::new();
+    reader.read_to_string(&mut settings_str)?;
+
+    let settings: T = if settings_str.is_empty() {
+        // no content in file, create default
+        serde_json::to_writer_pretty(&*file_lock, &default)?;
+        default
+    } else {
+        serde_json::from_str(&settings_str)?
+    };
+
+    Ok((settings, file_lock))
+}
+
 /// Obtain an exclusive file lock on the system settings file
 /// to prevent other programs from accessing it.
 pub fn lock(file: File) -> Result<FlockLock<File>> {

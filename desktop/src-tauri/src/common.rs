@@ -7,7 +7,7 @@ use thot_local::system::common;
 /// Path to user config directory.
 pub fn users_config_dir() -> Result<PathBuf> {
     let mut path = common::config_dir_path()?;
-    path.push("user_config");
+    path.push("users");
     Ok(path)
 }
 

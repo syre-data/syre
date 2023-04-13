@@ -65,7 +65,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
             let properties = (*properties).clone();
 
             spawn_local(async move {
-                // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+                // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
                 // See: https://github.com/tauri-apps/tauri/issues/6078
                 let properties_str = serde_json::to_string(&properties)
                     .expect("could not serialize `StandardProperties`");
@@ -118,8 +118,8 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
 
 fn container_properties(container: Option<&Arc<Mutex<CoreContainer>>>) -> StandardProperties {
     let Some(container) = container else {
-            panic!("`Container` not loaded");
-        };
+        panic!("`Container` not loaded");
+    };
 
     let container = container.lock().expect("could not lock `Container`");
     container.properties.clone()

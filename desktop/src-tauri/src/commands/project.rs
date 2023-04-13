@@ -1,5 +1,5 @@
 //! Commands related to projects.
-use crate::error::{DesktopSettingsError, Error, Result};
+use crate::error::Result;
 use crate::state::AppState;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,7 +8,9 @@ use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
+use thot_desktop_lib::error::{
+    DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
+};
 use thot_local::project::project;
 use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
 use thot_local::project::types::ProjectSettings;
@@ -66,14 +68,14 @@ pub fn add_project(
         .expect("could not lock app state `User`");
 
     let Some(user) = user.as_ref() else {
-        return Err(LibError::DatabaseError(format!("{:?}", Error::DesktopSettingsError(DesktopSettingsError::NoUser))));
+        return Err(DesktopSettingsError::NoUser.into());
     };
 
     let project = db.send(ProjectCommand::Add(path, user.rid.clone()).into());
     let project: DbResult<Project> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 
-    project.map_err(|err| LibError::DatabaseError(format!("{:?}", err)))
+    project.map_err(|err| LibError::Database(format!("{:?}", err)))
 }
 
 // *******************
@@ -183,6 +185,7 @@ pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
 // **********************
 
 /// Updates a project.
+#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn update_project(db: State<DbClient>, project: Project) -> Result {
     let res = db.send(ProjectCommand::Update(project).into());
@@ -203,7 +206,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
 
     let Some(mut graph) = graph else {
         let error = CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
-        return Err(LibError::DatabaseError(format!("{error:?}")));
+        return Err(LibError::Database(format!("{error:?}")));
     };
 
     let runner = Runner::new();
@@ -213,7 +216,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
     };
 
     if res.is_err() {
-        return Err(LibError::DatabaseError(format!("{res:?}")));
+        return Err(LibError::Database(format!("{res:?}")));
     }
 
     Ok(())

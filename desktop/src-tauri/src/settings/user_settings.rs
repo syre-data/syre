@@ -1,5 +1,4 @@
 //! All settings.
-use super::loader::UserSettingsFile;
 use crate::common;
 use crate::error::{DesktopSettingsError, Result};
 use cluFlock::FlockLock;
@@ -10,7 +9,8 @@ use settings_manager::Settings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use thot_desktop_lib::settings::UserSettings as DesktopUserSettings;
+use thot_desktop_lib::settings::UserSettingsFile;
+use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
 
 #[derive(Settings)]
 pub struct UserSettings {
@@ -27,7 +27,7 @@ impl UserSettings {
     /// Updates the app state.
     pub fn update(&mut self, settings: DesktopUserSettings) -> Result {
         // verify correct user
-        if settings.user != self.settings.user {
+        if settings.user() != self.settings.user() {
             return Err(
                 DesktopSettingsError::InvalidUpdate("users do not match".to_string()).into(),
             );

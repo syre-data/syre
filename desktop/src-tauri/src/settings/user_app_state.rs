@@ -1,5 +1,4 @@
 //! Application state for startup.
-use super::loader::UserSettingsFile;
 use crate::common;
 use crate::error::{DesktopSettingsError, Result};
 use cluFlock::FlockLock;
@@ -10,7 +9,8 @@ use settings_manager::Settings;
 use std::fs::File;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use thot_desktop_lib::settings::UserAppState as DesktopUserAppState;
+use thot_desktop_lib::settings::UserSettingsFile;
+use thot_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
 
 #[derive(Settings)]
 pub struct UserAppState {
@@ -27,7 +27,7 @@ impl UserAppState {
     /// Updates the app state.
     pub fn update(&mut self, app_state: DesktopUserAppState) -> Result {
         // verify correct user
-        if app_state.user != self.app_state.user {
+        if app_state.user() != self.app_state.user() {
             return Err(
                 DesktopSettingsError::InvalidUpdate("users do not match".to_string()).into(),
             );

@@ -4,6 +4,8 @@ use std::rc::Rc;
 use thot_core::system::User;
 use yew::prelude::*;
 
+// TODO[h]: App state and auth state should be split in two
+// so user is always guaranteed in components.
 pub enum AuthStateAction {
     /// Set the active user.
     SetUser(Option<User>),

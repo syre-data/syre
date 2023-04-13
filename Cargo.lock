@@ -3957,6 +3957,10 @@ dependencies = [
  "thot-local",
  "thot-local-database",
  "thot-ui",
+ "time 0.3.20",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-web",
  "uuid 1.3.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3993,6 +3997,7 @@ dependencies = [
  "thot-local",
  "thot-local-database",
  "thot-local-runner",
+ "tracing",
  "uuid 1.3.0",
  "zmq",
 ]
@@ -4095,6 +4100,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd0cbfecb4d19b5ea75bb31ad904eb5b9fa13f21079c3b92017ebdf4999a5890"
 dependencies = [
  "itoa 1.0.6",
+ "js-sys",
  "serde",
  "time-core",
  "time-macros",
@@ -4238,9 +4244,23 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "time 0.3.20",
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "tracing-web"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ff5efc53ed5a7c4b99b3dd24fd10f41e7aa1b284a4e64ae9167d97e31afe124"
+dependencies = [
+ "js-sys",
+ "tracing-core",
+ "tracing-subscriber",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

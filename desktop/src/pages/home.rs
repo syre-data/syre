@@ -17,8 +17,10 @@ use yew_router::prelude::*;
 // **********************
 
 /// Home page for authenticated users.
+#[tracing::instrument]
 #[function_component(HomeComponent)]
 pub fn home_component() -> HtmlResult {
+    tracing::debug!("home");
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let navigator = use_navigator().expect("navigator not found");
     let user = use_user();
@@ -52,7 +54,7 @@ pub fn home_component() -> HtmlResult {
             )));
         })
     };
-    web_sys::console::log_1(&projects.len().into());
+
     Ok(html! {
         <div>
             if projects.len() == 0 {

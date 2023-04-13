@@ -3,6 +3,7 @@ use std::str::FromStr;
 use thot_core::project::Script as CoreScript;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
 pub struct AddScriptAssociationProps {
@@ -48,28 +49,36 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
     };
 
     html! {
-        if *active {
-            <div>
-                <select ref={script_ref}>
-                    { props.scripts.iter().map(|script| {
-                        let name = match script.name.clone() {
-                            Some(name) => name,
-                            None => script.path.as_path().to_str().expect("could not convrt `path` to `str`").to_string()
-                        };
-
-                        html! {
-                            <option value={script.rid.clone()}>{ &name }</option>
-                        }
-                    }).collect::<Html>() }
-                </select>
-                <div>
-                    <button onclick={add_association}>{ "Add" }</button>
-                    <button onclick={set_active(false)}>{ "X" }</button>
-                </div>
+        <>
+            <div class={classes!("script-association-header")}>
+                <h3>
+                    { "Scripts" }
+                </h3>
+                <button classes={ "add-button" } type="button" onclick={set_active(true)}>
+                    <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                </button>
             </div>
-        } else {
-            <button onclick={set_active(true)}>{ "+" }</button>
-        }
+            if *active {
+                <div>
+                    <select ref={script_ref}>
+                        { props.scripts.iter().map(|script| {
+                            let name = match script.name.clone() {
+                                Some(name) => name,
+                                None => script.path.as_path().to_str().expect("could not convrt `path` to `str`").to_string()
+                            };
+
+                            html! {
+                                <option value={script.rid.clone()}>{ &name }</option>
+                            }
+                        }).collect::<Html>() }
+                    </select>
+                    <div class={classes!("script-add-cancel-buttons")}>
+                        <button onclick={add_association}>{ "Add" }</button>
+                        <button onclick={set_active(false)}>{ "Cancel" }</button>
+                    </div>
+                </div>
+            }
+        </>
     }
 }
 

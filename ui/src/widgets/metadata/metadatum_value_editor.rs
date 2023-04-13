@@ -130,6 +130,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <input
                         ref={value_ref}
                         {value}
+                        placeholder="Value"
                         onchange={onchange_value.clone()} />
                 },
 

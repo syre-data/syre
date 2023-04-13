@@ -273,7 +273,6 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             </div>
 
             <div class={classes!("form-field", "metadata")}>
-                <h4>{ "Metadata" }</h4>
                 <MetadataEditor
                     value={properties_state.metadata.clone()}
                     onchange={onchange_metadata} />

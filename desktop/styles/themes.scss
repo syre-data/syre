@@ -32,20 +32,30 @@ $card-hover-background-color: vars.$secondary-color-600;
 $input-border-color: vars.$secondary-color-500;
 $input-background-color: vars.$secondary-color-900;
 
+$select-background-color: vars.$secondary-color-900;
+
 $body-text-color: vars.$secondary-color-50;
 $title-text-color: vars.$secondary-color-50;
 $link-text-color: vars.$secondary-color-200;
 $link-hover-text-color: vars.$secondary-color-100;
 
 $hover-text-color: vars.$secondary-color-200;
+$hover-border-color: vars.$secondary-color-500;
 
-$interactive-element-background-color: vars.$secondary-color-700;
+$interactive-element-background-color: vars.$secondary-color-800;
 $interactive-element-active-background-color: vars.$secondary-color-600;
 
 $primary-button-color: vars.$secondary-color-900;
 $primary-button-background-color: vars.$primary-color-300;
-$primary-button-hover-color: black;
+$primary-button-hover-color: vars.$secondary-color-500;
 $primary-button-hover-background-color: vars.$primary-color-200;
+
+$secondary-button-background-color: vars.$secondary-color-700;
+$secondary-button-hover-background-color: vars.$secondary-color-800;
+$secondary-button-hover-outline-color: vars.$secondary-color-500;
+
+$project-script-button-background-color: vars.$secondary-color-800;
+$project-script-button-hover-background-color: vars.$secondary-color-700;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
@@ -96,23 +106,31 @@ $border-width-s: 1px;
 $border-width-m: 2px;
 $border-width-l: 4px;
 
+$button-height: 40px;
+
 $margin-s: 3px;
 $margin-m: 5px;
 $margin-l: 8px;
 $margin-xl: 12px;
 $margin-3xl: 36px;
 
+$gap-s: 5px;
+$gap-m: 10px;
 $gap-l: 20px;
 $gap-xl: 30px;
 
 $card-min-width: 10rem;
 $card-height: 6.5rem;
 
-$icon-size: 15px;
+$asset-icon-size: 15px;
+$add-remove-icon-size: 15px;
 
 $input-padding-y: 0.2em;
 $input-padding-x: 0.6em;
-$input-width:170px;
+$input-number-width: 3em;
+
+$drawer-content-width-1-4:40px;
+$drawer-content-width:170px;
 $drawer-width: 240px;
 
 $canvas-width: 400px;

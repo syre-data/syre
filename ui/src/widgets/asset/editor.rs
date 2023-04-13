@@ -1,6 +1,6 @@
 //! [`Asset`](thot_core::project::Asset) editor.
 use crate::widgets::StandardPropertiesEditor;
-use thot_core::project::Asset as CoreAsset;
+use thot_core::project::{Asset as CoreAsset, StandardProperties};
 use yew::prelude::*;
 
 /// Properties for [`AssetEditor`].
@@ -11,56 +11,21 @@ pub struct AssetEditorProps {
 
     pub asset: CoreAsset,
 
-    #[prop_or_default]
-    pub onsave: Callback<CoreAsset>,
+    pub onchange_properties: Callback<StandardProperties>,
 }
 
 /// [`Asset`](thot_core::project::Asset)s editor.
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
-    let asset = use_state(|| props.asset.clone());
-    {
-        let asset = asset.clone();
-
-        use_effect_with_deps(
-            move |a| {
-                asset.set(a.clone());
-            },
-            props.asset.clone(),
-        );
-    }
-
-    let onchange = {
-        let asset = asset.clone();
-
-        Callback::from(move |properties| {
-            let mut update = (*asset).clone();
-            update.properties = properties;
-            asset.set(update);
-        })
-    };
-
-    let onsave = {
-        let asset = asset.clone();
-        let onsave = props.onsave.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            onsave.emit((*asset).clone());
-        })
-    };
-
     let class = classes!("thot-ui-asset-editor", props.class.clone());
     html! {
-        <div key={asset.rid.clone()} {class}>
+        <div key={props.asset.rid.clone()} {class}>
             <StandardPropertiesEditor
-                properties={asset.properties.clone()}
-                {onchange} />
+                properties={props.asset.properties.clone()}
+                onchange={props.onchange_properties.clone()}/>
 
             <div class={classes!("thot-ui-asset-file_name")}>
-                { asset.path.as_path().to_str() }
-            </div>
-            <div>
-                <button onclick={onsave}>{ "Save" }</button>
+                { props.asset.path.as_path().to_str() }
             </div>
         </div>
     }

@@ -9,14 +9,12 @@ use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
-use crate::components::details_bar::DetailsBarWidget;
 use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
 use crate::routes::Route;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
 use thot_core::types::{ResourceId, ResourceMap};
-use thot_local::types::AssetFileAction;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::{
     container::ContainerMenuEvent, container::ContainerProps as ContainerUiProps,
@@ -241,7 +239,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
-        let selected = selected.clone();
         let multiple_selected = multiple_selected.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
@@ -251,6 +248,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             };
 
             let rid = asset.rid.clone();
+            let selected = canvas_state.selected.contains(&rid);
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
                     canvas_state.dispatch(CanvasStateAction::ClearSelected);
@@ -340,35 +338,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |_: ()| {
             show_create_assets.set(false);
-        })
-    };
-
-    // ---------------
-    // --- scripts ---
-    // ---------------
-
-    let onclick_edit_scripts = {
-        let app_state = app_state.clone();
-        let canvas_state = canvas_state.clone();
-
-        Callback::from(move |container: ResourceId| {
-            let onsave = {
-                let app_state = app_state.clone();
-                let canvas_state = canvas_state.clone();
-
-                Callback::from(move |_: ()| {
-                    canvas_state.dispatch(CanvasStateAction::ClearDetailsBar);
-                    app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                        Message::success("Resource saved"),
-                        MESSAGE_TIMEOUT,
-                        app_state.clone(),
-                    ));
-                })
-            };
-
-            canvas_state.dispatch(CanvasStateAction::SetDetailsBarWidget(
-                DetailsBarWidget::ScriptsAssociationsEditor(container.clone(), Some(onsave)),
-            ));
         })
     };
 
@@ -519,7 +488,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 ondragenter,
                 ondragleave,
                 ondrop,
-                onclick_edit_scripts,
             }
     };
 

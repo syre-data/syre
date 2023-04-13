@@ -173,8 +173,8 @@ $control-button-size: 25px;
         gap: 4px;
 
         .thot-ui-asset-icon {
-          width: t.$icon-size;
-          height: t.$icon-size;
+          width: t.$asset-icon-size;
+          height: t.$asset-icon-size;
         }
 
          &:hover .thot-ui-asset-remove {
@@ -190,6 +190,7 @@ $control-button-size: 25px;
           display: flex;
           justify-content: center; 
           align-items: center; 
+          //TODO: Will be gone once we change from remove to menu
           width: 20px;
           height: 20px;
           font-size: 10px;      

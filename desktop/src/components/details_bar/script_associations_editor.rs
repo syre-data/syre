@@ -60,6 +60,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     });
 
     {
+        // Update associations based on container
         let container = container.clone();
         let associations = associations.clone();
 
@@ -72,6 +73,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     }
 
     {
+        // Update remaining scripts based on associations
         let project_scripts = project_scripts.clone();
         let associations = associations.clone();
         let remaining_scripts = remaining_scripts.clone();
@@ -90,6 +92,46 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                     .collect::<Vec<CoreScript>>();
 
                 remaining_scripts.set(scripts);
+            },
+            associations,
+        );
+    }
+
+    {
+        // Save associations on change
+        let container = props.container.clone();
+        let graph_state = graph_state.clone();
+        let associations = associations.clone();
+
+        use_effect_with_deps(
+            move |associations| {
+                let container = container.clone();
+                let graph_state = graph_state.clone();
+                let associations = associations.clone();
+
+                spawn_local(async move {
+                    // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
+                    // See: https://github.com/tauri-apps/tauri/issues/6078
+                    let associations_str = serde_json::to_string(&*associations)
+                        .expect("could not serialize `ScriptMap`");
+
+                    let update = UpdateScriptAssociationsStringArgs {
+                        rid: container.clone(),
+                        associations: associations_str,
+                    };
+
+                    let _res = invoke::<()>("update_container_script_associations", update)
+                        .await
+                        .expect("could not invoke `update_container_script_associations`");
+
+                    let update = UpdateScriptAssociationsArgs {
+                        rid: container,
+                        associations: (*associations).clone(),
+                    };
+
+                    graph_state
+                        .dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
+                });
             },
             associations,
         );
@@ -137,47 +179,6 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         })
     };
 
-    let onsave = {
-        let container = props.container.clone();
-        let graph_state = graph_state.clone();
-        let associations = associations.clone();
-        let onsave = props.onsave.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            let container = container.clone();
-            let graph_state = graph_state.clone();
-            let associations = associations.clone();
-            let onsave = onsave.clone();
-
-            spawn_local(async move {
-                // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
-                // See: https://github.com/tauri-apps/tauri/issues/6078
-                let associations_str =
-                    serde_json::to_string(&*associations).expect("could not serialize `ScriptMap`");
-
-                let update = UpdateScriptAssociationsStringArgs {
-                    rid: container.clone(),
-                    associations: associations_str,
-                };
-
-                let _res = invoke::<()>("update_container_script_associations", update)
-                    .await
-                    .expect("could not invoke `update_container_script_associations`");
-
-                let update = UpdateScriptAssociationsArgs {
-                    rid: container,
-                    associations: (*associations).clone(),
-                };
-
-                graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
-
-                if let Some(onsave) = onsave {
-                    onsave.emit(());
-                }
-            });
-        })
-    };
-
     Ok(html! {
         <div class={classes!("script-associations-editor-widget")}>
             <AddScriptAssociation
@@ -188,8 +189,6 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                 associations={(*associations).clone()}
                 {name_map}
                 {onchange} />
-
-            <button onclick={onsave}>{ "Save" }</button>
         </div>
     })
 }

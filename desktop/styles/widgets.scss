@@ -1,22 +1,49 @@
 @use 'themes' as t;
 
-.script-associations-editor-widget {
-  .thot-ui-script-associations-editor {
-    ol {
-      list-style: none;
-    }
-
-    .thot-ui-script-association-editor {
-      .script-association-priority {
-        width: 5em;
-      }
-    }
-  }
-}
-
 .project-scripts-widget {
+
+  button {
+    width: t.$drawer-content-width; 
+    background-color: t.$project-script-button-background-color;
+
+      &:hover {
+        background-color: t.$project-script-button-hover-background-color;
+      }
+  }
+
+  span {
+    width: 80%;
+    overflow: auto;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   ul {
     list-style: none;
     padding: 0 0 t.$padding-m 0;
+
+    button {
+      all: unset;
+      display: flex;
+      align-items: center;
+      padding: t.$padding-s;
+      box-sizing: border-box;
+
+      .thot-ui-add-remove-icon {
+        width: t.$add-remove-icon-size;
+        height: t.$add-remove-icon-size;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: t.$secondary-button-hover-background-color;
+      }
+
+    }
+
   }
 }

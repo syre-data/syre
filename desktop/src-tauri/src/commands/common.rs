@@ -53,6 +53,7 @@ pub fn get_directory(title: Option<String>, dir: Option<PathBuf>) -> Option<Path
 
 #[tauri::command]
 pub fn open_file(path: PathBuf) -> Result {
+    let path = path.canonicalize()?;
     open::that(path).map_err(|err| err.into())
 }
 

@@ -1,16 +1,23 @@
 //! Retrieves a user's projects.
-use crate::app::{projects_state::ProjectMap, ProjectsStateReducer};
-use thot_core::project::Project as CoreProject;
+use crate::app::projects_state::{ProjectMap, SettingsMap};
+use crate::app::ProjectsStateReducer;
+use thot_core::project::Project;
 use thot_core::types::{Creator, ResourceId, UserId};
 use yew::prelude::*;
 
 /// Retrieve a user's projects.
 #[hook]
-pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<CoreProject>> {
+pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<Project>> {
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
-    let user_projects = use_state(|| filter_user_projects(&user, projects_state.projects.clone()));
+    let user_projects: UseStateHandle<Vec<Project>> = use_state(|| {
+        filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
+            .clone()
+            .into_iter()
+            .map(|project| project.clone())
+            .collect()
+    });
 
     {
         let user = user.clone();
@@ -18,7 +25,13 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<CoreProject>> 
 
         use_effect_with_deps(
             move |projects_state| {
-                let projects = filter_user_projects(&user, projects_state.projects.clone());
+                let projects =
+                    filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
+                        .clone()
+                        .into_iter()
+                        .map(|project| project.clone())
+                        .collect();
+
                 user_projects.set(projects);
             },
             projects_state,
@@ -28,13 +41,27 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<CoreProject>> 
     user_projects
 }
 
-fn filter_user_projects(user: &ResourceId, projects: ProjectMap) -> Vec<CoreProject> {
+fn filter_user_projects<'a>(
+    user: &ResourceId,
+    projects: &'a ProjectMap,
+    settings: &SettingsMap,
+) -> Vec<&'a Project> {
     let creator = Creator::User(Some(UserId::Id(user.clone())));
 
     projects
-        .into_values()
-        .filter(|prj| prj.creator == creator || prj.permissions.contains_key(user))
-        .collect::<Vec<CoreProject>>()
+        .values()
+        .filter(|prj| {
+            if prj.creator == creator {
+                return true;
+            }
+
+            let Some(prj_settings) = settings.get(&prj.rid) else {
+                return false;
+            };
+
+            prj_settings.permissions.contains_key(user)
+        })
+        .collect::<Vec<&Project>>()
 }
 
 #[cfg(test)]

@@ -1,9 +1,9 @@
 //! High level functions associated to the projects list.
 use super::collections::projects::Projects;
-use super::resources::project::Project;
 use crate::error::{Error, ProjectError, Result, SettingsValidationError};
-use crate::system::settings::UserSettings;
-use settings_manager::SystemSettings;
+use crate::system::settings::user_settings::UserSettings;
+use settings_manager::system_settings::Loader;
+use settings_manager::Settings;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::ResourceId;
@@ -13,18 +13,23 @@ use thot_core::types::ResourceId;
 // ****************
 
 /// Adds a [`Project`] to the registry collection.
-pub fn register_project(project: Project) -> Result {
-    let mut projects = Projects::load()?;
-    let rid = project.rid.clone();
+///
+/// # Errors
+/// + [`ResourceError::DuplicateId`] if the `Project` is already registered.
+///
+/// # See also
+/// + `insert_project`
+pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
+    let mut projects: Projects = Loader::load_or_create::<Projects>()?.into();
 
     // check if project is already registered.
     if projects.contains_key(&rid) {
         return Err(Error::CoreError(CoreError::ResourceError(
-            ResourceError::DuplicateId(project.rid.into()),
+            ResourceError::DuplicateId(rid.into()),
         )));
     }
 
-    projects.insert(rid, project);
+    projects.insert(rid, path);
     projects.save()?;
 
     Ok(())
@@ -32,7 +37,7 @@ pub fn register_project(project: Project) -> Result {
 
 /// Deregister a [`Project`].
 pub fn deregister_project(id: &ResourceId) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects: Projects = Loader::load_or_create::<Projects>()?.into();
     projects.remove(&id);
     projects.save()?;
     Ok(())
@@ -40,20 +45,27 @@ pub fn deregister_project(id: &ResourceId) -> Result {
 
 /// Retrieves a [`Project`] by its [`ResourceId`].
 /// Returns `None` if project is not found.
-pub fn project_by_id(id: &ResourceId) -> Result<Option<Project>> {
-    let projects = Projects::load()?;
-    let project = projects.get(id);
-    Ok(project.map(|p| p.clone()))
+pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
+    let projects: Projects = Loader::load_or_create::<Projects>()?.into();
+    Ok(projects.get(id).cloned())
 }
 
 /// Returns a [`Project`] by its path.
 /// Returns None if project is not found.
-pub fn project_by_path(path: &Path) -> Result<Option<Project>> {
-    let projects = Projects::load()?;
+pub fn get_id(path: &Path) -> Result<Option<ResourceId>> {
+    let projects: Projects = Loader::load_or_create::<Projects>()?.into();
     let projects = &projects
-        .values()
-        .filter(|prj| prj.path == path)
-        .collect::<Vec<&Project>>();
+        .iter()
+        .filter_map(
+            |(rid, p_path)| {
+                if p_path == path {
+                    Some(rid)
+                } else {
+                    None
+                }
+            },
+        )
+        .collect::<Vec<&ResourceId>>();
 
     match projects.len() {
         0 => Ok(None),
@@ -66,9 +78,9 @@ pub fn project_by_path(path: &Path) -> Result<Option<Project>> {
 
 /// Updates a [`Project`].
 /// Replaces the project in the projects collection with the same id.
-pub fn update_project(project: Project) -> Result {
-    let mut projects = Projects::load()?;
-    projects.insert(project.rid.clone(), project);
+pub fn insert_project(rid: ResourceId, path: PathBuf) -> Result {
+    let mut projects: Projects = Loader::load_or_create::<Projects>()?.into();
+    projects.insert(rid, path);
 
     projects.save()?;
     Ok(())
@@ -82,14 +94,14 @@ pub fn set_active_project(id: &ResourceId) -> Result {
         ));
     };
 
-    let mut settings = UserSettings::load()?;
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     settings.active_project = Some((*id).clone().into());
     settings.save()?;
     Ok(())
 }
 
 pub fn set_active_project_by_path(path: &Path) -> Result {
-    let project = match project_by_path(path)? {
+    let project = match get_id(path)? {
         None => {
             return Err(Error::ProjectError(ProjectError::PathNotAProjectRoot(
                 PathBuf::from(path),
@@ -98,14 +110,14 @@ pub fn set_active_project_by_path(path: &Path) -> Result {
         Some(p) => p,
     };
 
-    let mut settings = UserSettings::load()?;
-    settings.active_project = Some(project.rid);
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+    settings.active_project = Some(project);
     settings.save()?;
     Ok(())
 }
 
 pub fn unset_active_project() -> Result {
-    let mut settings = UserSettings::load()?;
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     settings.active_project = None;
     settings.save()?;
     Ok(())

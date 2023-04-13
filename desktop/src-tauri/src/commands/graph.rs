@@ -1,5 +1,5 @@
 //! Graph commands.
-use crate::error::Result;
+use crate::error::{DesktopSettingsError, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::PathBuf;
@@ -38,15 +38,18 @@ pub fn init_project_graph(
     path: PathBuf,
 ) -> Result<ContainerTree> {
     // create container
-    let mut container = Container::default();
     let user = app_state
         .user
         .lock()
-        .expect("could not lock `AppState.user`")
-        .clone();
+        .expect("could not lock `AppState.user`");
 
-    let user = user.map(|user| UserId::Id(user.rid));
-    container.properties.creator = Creator::User(user);
+    let Some(user) = user.as_ref() else {
+        return Err(DesktopSettingsError::NoUser.into());
+    };
+
+    let user = UserId::Id(user.rid.clone());
+    let mut container = Container::default();
+    container.properties.creator = Creator::User(Some(user));
 
     // create data folder
     fs::create_dir(&path).expect("could not create data root directory");
@@ -88,7 +91,7 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
     let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
         .expect("could not convert `Load` result to a `ContainerTree`");
 
-    let graph = graph.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
+    let graph = graph.map_err(|err| LibError::Database(format!("{err:?}")))?;
     Ok(graph)
 }
 
@@ -118,7 +121,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
         .expect("could not convert result of `Dupilcate` to `Container` tree");
 
     // Update name
-    let mut dup = dup.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
+    let mut dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
     let root_id = dup.root().clone();
     let root = dup
         .get_mut(&root_id)
@@ -145,7 +148,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
 
-    res.map_err(|err| LibError::DatabaseError(format!("{err:?}")))?;
+    res.map_err(|err| LibError::Database(format!("{err:?}")))?;
 
     Ok(dup)
 }

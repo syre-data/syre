@@ -1,88 +1,56 @@
 //! Project and project settings.
-use crate::common::{project_file_of, project_settings_file_of};
-use crate::system::settings::user_settings::UserSettings;
+use super::super::types::ProjectSettings as PrjSettings;
+use crate::common::{project_file, project_settings_file};
 use crate::Result;
 use cluFlock::FlockLock;
-use serde::{Deserialize, Serialize};
-use settings_manager::error::{
-    Error as SettingsError, Result as SettingsResult, SettingsError as LocalSettingsError,
-};
-use settings_manager::local_settings::{LocalSettings, LockSettingsFile};
-use settings_manager::settings::Settings;
-use settings_manager::system_settings::SystemSettings;
-use settings_manager::types::Priority as SettingsPriority;
+use settings_manager::error::Result as SettingsResult;
+use settings_manager::local_settings::{Components, Loader as LocalLoader, LocalSettings};
+use settings_manager::Settings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
-use thot_core::types::{Creator, UserId, UserPermissions};
 
 // ***************
 // *** Project ***
 // ***************
 
 /// Represents a Thot project.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Settings, Debug)]
 pub struct Project {
-    #[serde(skip)]
-    _file_lock: Option<FlockLock<File>>,
+    #[settings(file_lock = "CoreProject")]
+    project_file_lock: FlockLock<File>,
 
-    #[serde(skip)]
-    _base_path: Option<PathBuf>,
+    #[settings(file_lock = "PrjSettings")]
+    settings_file_lock: FlockLock<File>,
 
-    pub project: CoreProject,
+    base_path: PathBuf,
+
+    #[settings(priority = "Local")]
+    project: CoreProject,
+
+    #[settings(priority = "Local")]
+    settings: PrjSettings,
 }
 
 impl Project {
-    /// Creates a new Project.
-    pub fn new(name: &str) -> Result<Self> {
-        // get active user
-        let settings = UserSettings::load()?;
-        let creator = match settings.active_user {
-            None => None,
-            Some(uid) => Some(UserId::Id(uid.into())),
-        };
-        let creator = Creator::User(creator);
-
-        let mut project = CoreProject::new(name);
-        project.creator = creator;
-
-        Ok(Project {
-            _file_lock: None,
-            _base_path: None,
-            project,
-        })
+    pub fn settings(&self) -> &PrjSettings {
+        &self.settings
     }
-}
 
-impl Clone for Project {
-    /// Clones the `Project`'s `project` and `base_path`.
-    /// `base_path` of the cloned `Project` is set to `None`
-    ///     if an `Err` is retuned when calculating it from the original `Project`.
-    /// Sets the cloned object's `file_lock` to `None`.
-    fn clone(&self) -> Self {
-        Self {
-            _file_lock: None,
-            _base_path: self.base_path().ok(),
-            project: self.project.clone(),
-        }
+    pub fn settings_mut(&mut self) -> &mut PrjSettings {
+        &mut self.settings
     }
-}
 
-impl Default for Project {
-    fn default() -> Self {
-        // attempt to create new project
-        let new_prj = Project::new("");
-        if let Ok(prj) = new_prj {
-            return prj;
-        }
+    pub fn base_path(&self) -> &Path {
+        self.base_path.as_path()
+    }
 
-        // if fail, create manually
-        Project {
-            _file_lock: None,
-            _base_path: None,
-            project: CoreProject::default(),
-        }
+    /// Save all data.
+    pub fn save(&mut self) -> Result {
+        <Project as Settings<CoreProject>>::save(self)?;
+        <Project as Settings<PrjSettings>>::save(self)?;
+        Ok(())
     }
 }
 
@@ -106,122 +74,99 @@ impl Into<CoreProject> for Project {
     }
 }
 
-impl Settings for Project {
-    fn store_lock(&mut self, lock: FlockLock<File>) {
-        self._file_lock = Some(lock);
+// --- Core Project ---
+impl LocalSettings<CoreProject> for Project {
+    fn rel_path() -> PathBuf {
+        project_file()
     }
 
-    fn file(&self) -> Option<&File> {
-        match self._file_lock.as_ref() {
-            None => None,
-            Some(lock) => Some(&*lock),
-        }
-    }
-
-    fn file_mut(&mut self) -> Option<&mut File> {
-        match self._file_lock.as_mut() {
-            None => None,
-            Some(lock) => Some(lock),
-        }
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
+    fn base_path(&self) -> &Path {
+        &self.base_path
     }
 }
 
-impl LocalSettings for Project {
-    fn rel_path() -> SettingsResult<PathBuf> {
-        Ok(project_file_of(Path::new("")))
+// --- Project Settings ---
+
+impl LocalSettings<PrjSettings> for Project {
+    fn rel_path() -> PathBuf {
+        project_settings_file()
     }
 
-    fn base_path(&self) -> SettingsResult<PathBuf> {
-        self._base_path
-            .clone()
-            .ok_or(SettingsError::SettingsError(LocalSettingsError::PathNotSet))
-    }
-
-    fn set_base_path(&mut self, path: PathBuf) -> SettingsResult {
-        self._base_path = Some(path);
-        Ok(())
+    fn base_path(&self) -> &Path {
+        &self.base_path
     }
 }
 
-impl LockSettingsFile for Project {}
+impl From<Loader> for Project {
+    fn from(loader: Loader) -> Self {
+        Self {
+            project_file_lock: loader.project_file_lock,
+            settings_file_lock: loader.settings_file_lock,
+
+            base_path: loader.base_path,
+            project: loader.project,
+            settings: loader.settings,
+        }
+    }
+}
 
 // ************************
 // *** Project Settings ***
 // ************************
 
 /// Settings for a Thot project.
-///
-/// # Fields
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Settings)]
 pub struct ProjectSettings {
-    #[serde(skip)]
-    _file_lock: Option<FlockLock<File>>,
+    #[settings(file_lock = "PrjSettings")]
+    file_lock: FlockLock<File>,
+    base_path: PathBuf,
 
-    #[serde(skip)]
-    _base_path: Option<PathBuf>,
-
-    permissions: Vec<UserPermissions>,
+    #[settings(priority = "Local")]
+    settings: PrjSettings,
 }
 
-impl ProjectSettings {
-    /// Creates a new project settings.
-    pub fn new() -> Self {
-        ProjectSettings {
-            _file_lock: None,
-            _base_path: None,
+impl LocalSettings<PrjSettings> for ProjectSettings {
+    fn rel_path() -> PathBuf {
+        project_settings_file()
+    }
 
-            permissions: Vec::new(),
-        }
+    fn base_path(&self) -> &Path {
+        &self.base_path
     }
 }
 
-impl Settings for ProjectSettings {
-    fn store_lock(&mut self, lock: FlockLock<File>) {
-        self._file_lock = Some(lock);
-    }
+// **************
+// *** Loader ***
+// **************
 
-    fn file(&self) -> Option<&File> {
-        match self._file_lock.as_ref() {
-            None => None,
-            Some(lock) => Some(&*lock),
-        }
-    }
+pub struct Loader {
+    project_file_lock: FlockLock<File>,
+    settings_file_lock: FlockLock<File>,
 
-    fn file_mut(&mut self) -> Option<&mut File> {
-        match self._file_lock.as_mut() {
-            None => None,
-            Some(lock) => Some(lock),
-        }
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::Local
-    }
+    base_path: PathBuf,
+    project: CoreProject,
+    settings: PrjSettings,
 }
 
-impl LocalSettings for ProjectSettings {
-    fn rel_path() -> SettingsResult<PathBuf> {
-        Ok(project_settings_file_of(Path::new("")))
-    }
+impl Loader {
+    pub fn load_or_create(path: impl Into<PathBuf>) -> SettingsResult<Self> {
+        let path = path.into();
+        let project_loader = LocalLoader::load_or_create::<Project>(path.clone())?;
+        let settings_loader = LocalLoader::load_or_create::<ProjectSettings>(path)?;
 
-    fn base_path(&self) -> SettingsResult<PathBuf> {
-        match self._base_path.clone() {
-            Some(path) => Ok(path),
-            None => Err(SettingsError::SettingsError(LocalSettingsError::PathNotSet)),
-        }
-    }
+        let project_loader: Components<CoreProject> = project_loader.into();
+        let settings_loader: Components<PrjSettings> = settings_loader.into();
 
-    fn set_base_path(&mut self, path: PathBuf) -> SettingsResult {
-        self._base_path = Some(path);
-        Ok(())
+        Ok(Self {
+            project_file_lock: project_loader.file_lock,
+            settings_file_lock: settings_loader.file_lock,
+
+            base_path: project_loader.base_path,
+            project: project_loader.data,
+            settings: settings_loader.data,
+        })
     }
 }
-
-impl LockSettingsFile for ProjectSettings {}
 
 #[cfg(test)]
 #[path = "./project_test.rs"]

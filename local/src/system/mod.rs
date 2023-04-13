@@ -5,6 +5,9 @@
 pub mod common;
 
 #[cfg(feature = "fs")]
+pub mod template;
+
+#[cfg(feature = "fs")]
 pub mod collections;
 
 #[cfg(feature = "fs")]

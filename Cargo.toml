@@ -15,6 +15,7 @@ members = [
     "local/database",
     "local/runner",
     "settings_manager",
+    "settings_manager/settings_manager_derive",
     "settings_manager/settings_manager_change_path",
     "ui",
 ]

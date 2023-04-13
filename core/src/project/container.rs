@@ -31,6 +31,13 @@ pub struct Container {
     pub scripts: ScriptMap,
 }
 
+impl Container {
+    /// Inserts an [`Asset`] into the [`Container`].
+    pub fn insert_asset(&mut self, asset: Asset) -> Option<Asset> {
+        self.assets.insert(asset.rid.clone(), asset)
+    }
+}
+
 impl Default for Container {
     fn default() -> Container {
         Container {

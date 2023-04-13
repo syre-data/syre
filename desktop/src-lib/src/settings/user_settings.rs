@@ -1,27 +1,25 @@
 //! User settings.
-use super::GeneralSettings;
+use super::{GeneralSettings, HasUser};
 use serde::{Deserialize, Serialize};
 use thot_core::types::ResourceId;
 
 /// A user's settings.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct UserSettings {
-    pub user: ResourceId,
+    user: ResourceId,
     pub general: GeneralSettings,
 }
 
-impl UserSettings {
-    pub fn new(user: ResourceId) -> Self {
+impl HasUser for UserSettings {
+    fn new(user: ResourceId) -> Self {
         Self {
             user,
             general: GeneralSettings::new(),
         }
     }
-}
 
-impl Default for UserSettings {
-    fn default() -> Self {
-        Self::new(ResourceId::new())
+    fn user(&self) -> &ResourceId {
+        &self.user
     }
 }
 

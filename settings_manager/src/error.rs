@@ -16,6 +16,9 @@ pub enum SettingsError {
 
     /// A required path has not yet been set.
     PathNotSet,
+
+    /// The path should not be set or changed.
+    StaticPath,
 }
 
 #[derive(Debug)]

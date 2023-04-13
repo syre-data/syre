@@ -10,11 +10,7 @@ pub fn attrs_with_ident<'a>(attrs: &'a Vec<Attribute>, ident: &str) -> Vec<&'a A
                 return false;
             };
 
-            let Some(a_ident) = path.get_ident() else {
-                return false;
-            };
-
-            a_ident == ident
+            path.is_ident(ident)
         })
         .collect::<Vec<&Attribute>>()
 }

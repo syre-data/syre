@@ -53,7 +53,7 @@ impl Database {
             exe.push(format!("thot-local-database-{CURRENT_PLATFORM:}"));
 
             #[cfg(target_os = "windows")]
-            exe.push(".exe");
+            exe.set_extension("exe");
 
             let _server = Command::new(exe)
                 .spawn()
@@ -92,9 +92,6 @@ impl Database {
 
             PathBuf::from(root_path)
         };
-
-        // move to root directory, so relative paths are correct
-        // env::set_current_dir(&root_path).expect("could not move to root path");
 
         // get project id
         let Ok(project_path) = project_resource_root_path(&root_path) else {

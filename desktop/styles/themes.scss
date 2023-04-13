@@ -50,12 +50,12 @@ $primary-button-background-color: vars.$primary-color-300;
 $primary-button-hover-color: vars.$secondary-color-500;
 $primary-button-hover-background-color: vars.$primary-color-200;
 
-$secondary-button-background-color: vars.$secondary-color-800;
+$secondary-button-background-color: vars.$secondary-color-700;
 $secondary-button-hover-background-color: vars.$secondary-color-800;
 $secondary-button-hover-outline-color: vars.$secondary-color-500;
 
-$dashboard-secondary-button-background-color: vars.$secondary-color-700;
-$dashboard-secondary-button-hover-background-color: vars.$secondary-color-600;
+$project-script-button-background-color: vars.$secondary-color-800;
+$project-script-button-hover-background-color: vars.$secondary-color-700;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
@@ -106,6 +106,8 @@ $border-width-s: 1px;
 $border-width-m: 2px;
 $border-width-l: 4px;
 
+$button-height: 40px;
+
 $margin-s: 3px;
 $margin-m: 5px;
 $margin-l: 8px;
@@ -113,6 +115,7 @@ $margin-xl: 12px;
 $margin-3xl: 36px;
 
 $gap-s: 5px;
+$gap-m: 10px;
 $gap-l: 20px;
 $gap-xl: 30px;
 
@@ -124,8 +127,10 @@ $add-remove-icon-size: 15px;
 
 $input-padding-y: 0.2em;
 $input-padding-x: 0.6em;
-$input-width-s:40px;
-$input-width:170px;
+$input-number-width: 3em;
+
+$drawer-content-width-1-4:40px;
+$drawer-content-width:170px;
 $drawer-width: 240px;
 
 $canvas-width: 400px;

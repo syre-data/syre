@@ -1,53 +1,33 @@
 //! All settings.
+use crate::common;
 use crate::error::{DesktopSettingsError, Result};
 use cluFlock::FlockLock;
-use core::str::FromStr;
-use directories::ProjectDirs;
-use serde::{Deserialize, Serialize};
-use settings_manager::error::SettingsError as UserSettingsError;
-use settings_manager::{
-    Error as SettingsError, Priority as SettingsPriority, Result as SettingsResult, Settings,
-    UserSettings as UserSettingsInterface,
+use settings_manager::user_settings::{
+    Components, Loader as UserLoader, UserSettings as UserSettingsInterface,
 };
+use settings_manager::Settings;
 use std::fs::File;
-use std::io;
 use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
-use thot_core::identifier::Identifier;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::UserSettings as DesktopUserSettings;
+use std::path::{Path, PathBuf};
+use thot_desktop_lib::settings::UserSettingsFile;
+use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Settings)]
 pub struct UserSettings {
-    #[serde(skip)]
-    _file_lock: Option<FlockLock<File>>,
+    #[settings(file_lock = "DesktopUserSettings")]
+    file_lock: FlockLock<File>,
 
-    #[serde(skip)]
-    _user: Option<ResourceId>,
+    rel_path: PathBuf,
 
-    pub settings: DesktopUserSettings,
+    #[settings(priority = "User")]
+    settings: DesktopUserSettings,
 }
 
 impl UserSettings {
-    pub fn new(user: ResourceId) -> Self {
-        Self {
-            _file_lock: None,
-            _user: None,
-            settings: DesktopUserSettings::new(user),
-        }
-    }
-
-    pub fn load_user(user: ResourceId) -> SettingsResult<Self> {
-        // @todo: Verify loaded user and user in file name match.
-        let mut settings = Self::load(&Self::user_path(user.clone()))?;
-        settings.user = user;
-        Ok(settings)
-    }
-
     /// Updates the app state.
     pub fn update(&mut self, settings: DesktopUserSettings) -> Result {
         // verify correct user
-        if settings.user != self.user {
+        if settings.user() != self.settings.user() {
             return Err(
                 DesktopSettingsError::InvalidUpdate("users do not match".to_string()).into(),
             );
@@ -55,47 +35,6 @@ impl UserSettings {
 
         self.settings = settings;
         Ok(())
-    }
-
-    fn user_path(user: ResourceId) -> PathBuf {
-        let mut path = PathBuf::from(user.to_string());
-        path.set_extension("json");
-        path
-    }
-
-    /// Returns directories for the user's Thot.
-    fn dirs() -> SettingsResult<ProjectDirs> {
-        let dirs_opt = ProjectDirs::from(
-            &Identifier::qualifier(),
-            &Identifier::organization(),
-            &Identifier::application(),
-        );
-
-        match dirs_opt {
-            Some(dirs) => Ok(dirs),
-            None => Err(SettingsError::IoError(io::Error::new(
-                io::ErrorKind::NotFound,
-                "system settings directory not found",
-            ))),
-        }
-    }
-
-    /// Returns the path to the users config directory for Thot.
-    fn dir_path() -> SettingsResult<PathBuf> {
-        let dirs = Self::dirs()?;
-        let mut path = dirs.config_dir().to_path_buf();
-        path.push("user_settings");
-        Ok(path.to_path_buf())
-    }
-}
-
-impl Clone for UserSettings {
-    fn clone(&self) -> Self {
-        Self {
-            _file_lock: None,
-            _user: self._user.clone(),
-            settings: self.settings.clone(),
-        }
     }
 }
 
@@ -119,56 +58,30 @@ impl Into<DesktopUserSettings> for UserSettings {
     }
 }
 
-impl Settings for UserSettings {
-    fn store_lock(&mut self, lock: FlockLock<File>) {
-        self._file_lock = Some(lock);
+impl UserSettingsInterface<DesktopUserSettings> for UserSettings {
+    fn base_path() -> PathBuf {
+        common::users_config_dir().expect("could not get config path")
     }
 
-    fn file(&self) -> Option<&File> {
-        match self._file_lock.as_ref() {
-            None => None,
-            Some(lock) => Some(&*lock),
-        }
-    }
-
-    fn file_mut(&mut self) -> Option<&mut File> {
-        match self._file_lock.as_mut() {
-            None => None,
-            Some(lock) => Some(lock),
-        }
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::User
+    fn rel_path(&self) -> &Path {
+        &self.rel_path
     }
 }
 
-impl UserSettingsInterface for UserSettings {
-    fn base_path() -> SettingsResult<PathBuf> {
-        let d = Self::dir_path()?;
-        Ok(d)
+impl UserSettingsFile for UserSettings {
+    fn settings_file() -> PathBuf {
+        PathBuf::from("desktop_settings.json")
     }
+}
 
-    fn rel_path(&self) -> SettingsResult<PathBuf> {
-        Ok(Self::user_path(self.user.clone()))
-    }
-
-    fn set_rel_path(&mut self, path: PathBuf) -> SettingsResult {
-        // get user id from path
-        let Some(rid) = path.file_prefix() else {
-            return Err(SettingsError::SettingsError(UserSettingsError::InvalidPath(path)));
-        };
-
-        let Some(rid) = rid.to_str() else {
-            return Err(SettingsError::SettingsError(UserSettingsError::InvalidPath(path)));
-        };
-
-        let Ok(rid) = ResourceId::from_str(rid) else {
-            return Err(SettingsError::SettingsError(UserSettingsError::InvalidPath(path)));
-        };
-
-        self._user = Some(rid);
-        Ok(())
+impl From<UserLoader<DesktopUserSettings>> for UserSettings {
+    fn from(loader: UserLoader<DesktopUserSettings>) -> Self {
+        let loader: Components<DesktopUserSettings> = loader.into();
+        Self {
+            file_lock: loader.file_lock,
+            rel_path: loader.rel_path,
+            settings: loader.data,
+        }
     }
 }
 

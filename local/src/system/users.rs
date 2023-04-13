@@ -1,7 +1,7 @@
 use super::collections::users::Users;
 use super::settings::user_settings::UserSettings;
 use crate::error::{Error, Result, UsersError};
-use settings_manager::SystemSettings;
+use settings_manager::{system_settings::Loader, Settings};
 use std::collections::HashMap;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::system::User;
@@ -14,7 +14,7 @@ use validator;
 
 /// Returns a user by the given id if it exists, otherwise returns an error.
 pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
-    let users = Users::load()?;
+    let users: Users = Loader::load_or_create::<Users>()?.into();
     Ok(users.get(&rid).cloned())
 }
 
@@ -23,7 +23,7 @@ pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
 /// # Errors
 /// + [`UsersError::DuplicateEmail`]: If multiple users are registered with the given email.
 pub fn user_by_email(email: &str) -> Result<Option<User>> {
-    let users = Users::load()?;
+    let users: Users = Loader::load_or_create::<Users>()?.into();
     let users: Vec<&User> = users.values().filter(|user| user.email == email).collect();
 
     match users.len() {
@@ -42,7 +42,7 @@ pub fn add_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users = Users::load()?;
+    let mut users: Users = Loader::load_or_create::<Users>()?.into();
 
     // check if email already exists
     let user_count = user_count_by_email(&user.email, &users);
@@ -61,8 +61,8 @@ pub fn add_user(user: User) -> Result {
 
 /// Delete a user by id.
 pub fn delete_user(rid: &ResourceId) -> Result {
-    let mut users = Users::load()?;
-    let mut settings = UserSettings::load()?;
+    let mut users: Users = Loader::load_or_create::<Users>()?.into();
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
 
     users.remove(&rid);
 
@@ -95,7 +95,7 @@ pub fn update_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users = Users::load()?;
+    let mut users: Users = Loader::load_or_create::<Users>()?.into();
     validate_id_is_present(&user.rid, &users)?;
 
     users.insert(user.rid.clone(), user);
@@ -105,7 +105,7 @@ pub fn update_user(user: User) -> Result {
 
 /// Gets the active user.
 pub fn get_active_user() -> Result<Option<User>> {
-    let user_settings = UserSettings::load()?;
+    let user_settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     let Some(active_user) = user_settings.active_user.as_ref() else {
         return Ok(None);
     };
@@ -119,11 +119,11 @@ pub fn get_active_user() -> Result<Option<User>> {
 /// + If the user represented by the id is not registered.
 pub fn set_active_user(rid: &ResourceId) -> Result {
     // ensure valid users
-    let users = Users::load()?;
+    let users: Users = Loader::load_or_create::<Users>()?.into();
     validate_id_is_present(&rid, &users)?;
 
     // set active user
-    let mut settings = UserSettings::load()?;
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     settings.active_user = Some((*rid).clone().into());
     settings.save()?;
     Ok(())
@@ -141,7 +141,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
         )));
     };
 
-    let mut settings = UserSettings::load()?;
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     settings.active_user = Some(user.rid.into());
     settings.save()?;
     Ok(())
@@ -149,7 +149,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
 
 /// Unsets the active user.
 pub fn unset_active_user() -> Result {
-    let mut settings = UserSettings::load()?;
+    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
     settings.active_user = None;
     settings.save()?;
     Ok(())

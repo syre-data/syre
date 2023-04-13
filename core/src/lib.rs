@@ -1,12 +1,12 @@
 #![feature(io_error_more)]
 #![feature(assert_matches)]
-// @todo: `is_sorted` only needed for testing.
+// TODO: `is_sorted` only needed for testing.
 #![feature(is_sorted)]
 
 //! # Thot Core
 //!
 //! This package represents core functionality of the Thot software suite.
-pub mod api;
+// pub mod api; // REMOVE
 pub mod common;
 pub mod constants;
 pub mod error;

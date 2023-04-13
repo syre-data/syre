@@ -1,5 +1,7 @@
 //! Indicates an object has a unique id.
 pub mod has_id;
+
+// TODO: Remove.
 pub mod has_id_mut;
 
 #[cfg(feature = "serde")]

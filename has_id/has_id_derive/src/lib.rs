@@ -10,7 +10,6 @@ use proc_macro::TokenStream;
 #[proc_macro_derive(HasId, attributes(id))]
 pub fn has_id_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("could not parse input");
-
     derive::impl_has_id(&ast)
 }
 

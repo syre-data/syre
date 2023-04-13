@@ -11,9 +11,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     // run init in new task
     tauri::async_runtime::spawn(async move {
-        // @todo: Load user settings.
-        // @todo: Load user projects.
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        // TODO: Load user settings.
+        // TODO: Load user projects.
         w_splashscreen
             .close()
             .expect("could not close splashscreen");

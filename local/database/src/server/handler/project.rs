@@ -3,16 +3,14 @@ use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
 use serde_json::Value as JsValue;
-use settings_manager::{LocalSettings, SystemSettings};
-use std::path::{Path, PathBuf};
+use settings_manager::{system_settings::Loader as SystemLoader, Settings};
+use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
-use thot_local::project::resources::Project as LocalProject;
-use thot_local::system::{
-    collections::{self, Projects},
-    resources::Project as ProjectMap,
-};
+use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
+use thot_local::project::types::ProjectSettings;
+use thot_local::system::collections::projects::Projects;
 
 impl Database {
     /// Directs the command to the correct handler.
@@ -23,51 +21,60 @@ impl Database {
                 let project = match self.get_path_project(&path) {
                     Some(project) => project,
                     None => {
-                        let project = self.load_project(&path);
-                        let Ok(project) = project else {
-                            return serde_json::to_value(project).expect("could not convert `Project` to JsValue");
+                        let project = match self.load_project(&path) {
+                            Ok(project) => project,
+                            Err(err) => {
+                                let err: Result<CoreProject> = Err(err);
+                                return serde_json::to_value(err)
+                                    .expect("could not convert `Project` to JsValue");
+                            }
                         };
 
                         project
                     }
                 };
 
-                let project: Result<CoreProject> = Ok((**project).clone());
+                let project: Result<(CoreProject, ProjectSettings)> =
+                    Ok(((**project).clone(), project.settings().clone()));
+
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
             ProjectCommand::Add(path, user) => {
-                let Ok(project) = self.load_project(&path) else {
+                let Ok(local_project) = self.load_project(&path) else {
                     let err: Result<CoreProject> = Err(Error::SettingsError("could not load project".to_string()));
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
-                let mut project = (**project).clone();
-
-                if !user_has_project(&user, &project) {
-                    // update user permissions
+                let project = (*local_project).clone();
+                if !user_has_project(&user, &local_project) {
+                    let mut settings = local_project.settings().clone();
                     let permissions = UserPermissions {
                         read: true,
                         write: true,
                         execute: true,
                     };
 
-                    project.permissions.insert(user, permissions);
-                }
-
-                let res = self.update_project(project.clone());
-                if res.is_err() {
-                    return serde_json::to_value(res).expect("could not convert error to JsValue");
+                    settings.permissions.insert(user, permissions);
+                    let res = self.update_project_settings(&project.rid, settings);
+                    if res.is_err() {
+                        return serde_json::to_value(res)
+                            .expect("could not convert error to JsValue");
+                    }
                 }
 
                 // add project to collection
-                let res = Projects::load();
-                let Ok(mut projects) = res else {
-                    let error = Error::SettingsError(format!("{res:?}"));
-                    return serde_json::to_value(error).expect("could not convert error to JsValue");
-                };
-                let project_map = ProjectMap::new(project.rid.clone(), path.to_path_buf());
-                projects.insert(project.rid.clone(), project_map);
+                let mut projects: Projects = match SystemLoader::load_or_create::<Projects>() {
+                    Ok(projects) => projects,
+                    Err(err) => {
+                        let err = Error::SettingsError(format!("{err:?}"));
+                        return serde_json::to_value(err)
+                            .expect("could not convert error to JsValue");
+                    }
+                }
+                .into();
+
+                projects.insert(project.rid.clone(), path.to_path_buf());
 
                 let res = projects.save();
                 if res.is_err() {
@@ -76,7 +83,6 @@ impl Database {
                         .expect("could not convert error to JsValue");
                 };
 
-                let project: Result<CoreProject> = Ok(project);
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
@@ -118,7 +124,7 @@ impl Database {
     /// Reference to the loaded [`Project`](LocalProject).
     pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
         // load project
-        let project = LocalProject::load(&path)?;
+        let project: LocalProject = ProjectLoader::load_or_create(path)?.into();
         let _o_project = self.store.insert_project(project)?;
         if let Some(project) = self.get_path_project(&path) {
             return Ok(project);
@@ -140,29 +146,30 @@ impl Database {
         None
     }
 
-    fn get_project_path(&self, rid: &ResourceId) -> Option<PathBuf> {
+    fn get_project_path(&self, rid: &ResourceId) -> Option<&Path> {
         let Some(project) = self.store.get_project(rid) else {
             return None;
         };
 
-        let path = project.base_path().expect("base path not set");
-        Some(path)
+        Some(project.base_path())
     }
 
-    fn load_user_projects(&mut self, user: &ResourceId) -> Result<Vec<CoreProject>> {
-        // get project info
-        let projects_info = collections::Projects::load()?;
+    fn load_user_projects(
+        &mut self,
+        user: &ResourceId,
+    ) -> Result<Vec<(CoreProject, ProjectSettings)>> {
+        let projects_info: Projects = SystemLoader::load_or_create::<Projects>()?.into();
 
         // load projects
         let mut projects = Vec::new();
-        for (pid, project_info) in projects_info.clone().into_iter() {
+        for (pid, path) in projects_info.iter() {
             let project = match self.store.get_project(&pid) {
                 Some(project) => project,
-                None => self.load_project(&project_info.path)?
+                None => self.load_project(&path)?,
             };
 
             if user_has_project(user, &project) {
-                projects.push((**project).clone());
+                projects.push(((*project).clone(), project.settings().clone()));
             }
         }
 
@@ -179,6 +186,16 @@ impl Database {
         project.save()?;
         Ok(())
     }
+
+    fn update_project_settings(&mut self, rid: &ResourceId, settings: ProjectSettings) -> Result {
+        let Some(project) = self.store.get_project_mut(rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+        };
+
+        *project.settings_mut() = settings;
+        project.save()?;
+        Ok(())
+    }
 }
 
 // ************************
@@ -186,9 +203,9 @@ impl Database {
 // ************************
 
 /// Returns if the user has any permissions on the project.
-fn user_has_project(user: &ResourceId, project: &CoreProject) -> bool {
+fn user_has_project(user: &ResourceId, project: &LocalProject) -> bool {
     let creator = Creator::User(Some(user.clone().into()));
-    project.creator == creator || project.permissions.contains_key(user)
+    project.creator == creator || project.settings().permissions.contains_key(user)
 }
 
 #[cfg(test)]

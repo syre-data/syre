@@ -1,55 +1,78 @@
 //! Settings meant for system wide use.
 //! These settings have a fixed path.
-use crate::{settings, Result};
+use crate::settings::{self, Settings};
+use crate::Result;
+use cluFlock::FlockLock;
+use serde::{de::DeserializeOwned, Serialize};
+use std::fs::File;
 use std::path::PathBuf;
 
 // ***********************
 // *** System Settings ***
 // ***********************
 
-/// Required functionality for system settings.
 /// System settings have only one file for the entire system.
-///
-/// # Functions and Methods
-/// + **`path`:** Path to the settings file.
-/// + **`load`:** Loads the settings file into an object.
-/// + **`save`:** Save an object to the settings file.
-pub trait SystemSettings: settings::Settings {
+pub trait SystemSettings<S>: Settings<S>
+where
+    S: Serialize + DeserializeOwned + Clone,
+{
     /// Returns the path to the settings file.
-    fn path() -> Result<PathBuf>;
+    fn path() -> PathBuf;
+}
 
+// **************
+// *** Loader ***
+// **************
+
+pub struct Loader<S> {
+    data: S,
+    file_lock: FlockLock<File>,
+}
+
+impl<S> Loader<S> {
     /// Loads the settings from the file given by path.
-    fn load() -> Result<Self> {
-        let path = Self::path()?;
-        settings::load::<Self>(path.as_path())
+    pub fn load_or_create<T>() -> Result<Loader<S>>
+    where
+        T: SystemSettings<S>,
+        S: Serialize + DeserializeOwned + Clone + Default,
+    {
+        let (data, file_lock) = settings::load_or_create::<S>(&T::path())?;
+        Ok(Loader { data, file_lock })
     }
 
-    /// Saves the settings to the file given by path.
-    fn save(&mut self) -> Result {
-        settings::save::<Self>(self)
+    /// Loads the settings from the file given by path.
+    pub fn load_or_create_with<T>(default: S) -> Result<Loader<S>>
+    where
+        T: SystemSettings<S>,
+        S: Serialize + DeserializeOwned + Clone + Default,
+    {
+        let (data, file_lock) = settings::load_or_create_with::<S>(&T::path(), default)?;
+        Ok(Loader { data, file_lock })
     }
 }
 
-// **************************
-// *** Lock Settings File ***
-// **************************
-
-/// Standard way to lock settings file.
-pub trait LockSettingsFile: SystemSettings {
-    fn acquire_lock(&mut self) -> Result {
-        // check lock is not already acquired
-        if self.file().is_some() {
-            // lock already acquired
-            return Ok(());
-        }
-
-        let path = Self::path()?;
-        let file = settings::ensure_file(path.as_path())?;
-        let file_lock = settings::lock(file)?;
-
-        self.store_lock(file_lock);
-        Ok(())
+impl<S> Loader<S> {
+    pub fn data(self) -> S {
+        self.data
     }
+
+    pub fn file_lock(self) -> FlockLock<File> {
+        self.file_lock
+    }
+}
+
+impl<S> Into<Components<S>> for Loader<S> {
+    fn into(self) -> Components<S> {
+        Components {
+            data: self.data,
+            file_lock: self.file_lock,
+        }
+    }
+}
+
+pub struct Components<S> {
+    pub data: S,
+    pub file_lock: FlockLock<File>,
 }
 
 #[cfg(test)]

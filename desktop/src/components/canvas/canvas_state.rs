@@ -96,8 +96,6 @@ impl CanvasState {
                     ResourceType::Container => Some(DetailsBarWidget::ContainerEditor(rid.clone())),
                     ResourceType::Asset => Some(DetailsBarWidget::AssetEditor(rid.clone())),
                 }
-                // @todo: Editors for other resources.
-                // DetailsBarWidget::ScriptsAssociationsEditor(ResourceId, Option<Callback<()>>),
             }
             _ => {
                 // @todo: Bulk editing.

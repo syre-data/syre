@@ -9,6 +9,7 @@ use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
 use thot_core::project::Project;
+use thot_local::project::types::ProjectSettings;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -53,7 +54,7 @@ pub fn app() -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let Ok(projects) = invoke::<Vec<Project>>(
+                    let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
                         "load_user_projects",
                         LoadUserProjectsArgs { user: user_id }
                     )

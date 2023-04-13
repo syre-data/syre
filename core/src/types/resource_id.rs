@@ -1,5 +1,5 @@
 //! Resource ids.
-use std::convert::{From, Into};
+use std::ffi::OsStr;
 use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::result::Result as StdResult;

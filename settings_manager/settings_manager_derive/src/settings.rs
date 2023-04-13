@@ -227,8 +227,8 @@ pub(crate) fn impl_settings(ast: &syn::DeriveInput) -> TokenStream {
     {
         let gen = quote! {
             impl #impl_generics Settings<#data_type> for #name #ty_generics #where_clause {
-                fn settings(&self) -> Cow<#data_type> {
-                    Cow::Borrowed(&self.#data_field_ident)
+                fn settings(&self) -> std::borrow::Cow<#data_type> {
+                    std::borrow::Cow::Borrowed(&self.#data_field_ident)
                 }
 
                 fn file(&self) -> &File {

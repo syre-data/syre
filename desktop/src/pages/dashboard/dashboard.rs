@@ -12,7 +12,7 @@ use yew::prelude::*;
 use yew::virtual_dom::Key;
 use yew_router::prelude::*;
 
-/// Dashboard for user's [`Project`](CoreProject)s.
+/// Dashboard for user's [`Project`]s.
 #[function_component(Dashboard)]
 pub fn dashboard() -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");

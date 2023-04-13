@@ -7,10 +7,13 @@ use thot_core::types::ResourceId;
 /// Project related commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ProjectCommand {
-    /// Load a [`Project`](crate::project::resources::Project) from a path.
+    /// Load a [`Project`](thot_local::project::resources::Project) from a path.
+    ///
+    /// # Returns
+    /// Tuples of ([`Project`](thot_local::project::resources::Project), [`ProjectSettings`][`Project`](thot_local::project::resources::ProjectSettings)).
     Load(PathBuf),
 
-    /// Adds a [`Project`](crate::project::resources::Project) for a user from a path.
+    /// Adds a [`Project`](thot_local::project::resources::Project) for a user from a path.
     ///
     /// # Fields
     /// 1. Path to the project.

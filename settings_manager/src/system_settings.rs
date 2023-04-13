@@ -37,7 +37,16 @@ impl<S> Loader<S> {
         S: Serialize + DeserializeOwned + Clone + Default,
     {
         let (data, file_lock) = settings::load_or_create::<S>(&T::path())?;
+        Ok(Loader { data, file_lock })
+    }
 
+    /// Loads the settings from the file given by path.
+    pub fn load_or_create_with<T>(default: S) -> Result<Loader<S>>
+    where
+        T: SystemSettings<S>,
+        S: Serialize + DeserializeOwned + Clone + Default,
+    {
+        let (data, file_lock) = settings::load_or_create_with::<S>(&T::path(), default)?;
         Ok(Loader { data, file_lock })
     }
 }

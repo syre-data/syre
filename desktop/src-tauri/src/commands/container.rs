@@ -42,7 +42,7 @@ pub fn update_container_properties(
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
 
-    res.map_err(|err| LibError::DatabaseError(format!("{err:?}")))
+    res.map_err(|err| LibError::Database(format!("{err:?}")))
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s script associations and persists changes to disk.

@@ -10,6 +10,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
+#[tracing::instrument]
 #[function_component(SignUp)]
 pub fn sign_up() -> Html {
     let auth_state = use_context::<AuthStateReducer>().expect("`AuthStateReducer` not found");
@@ -92,7 +93,7 @@ pub fn sign_up() -> Html {
         <div>
             <form class={classes!("align-center")} {onsubmit}>
                 <div>
-                    <input ref={email} type={"email"} placeholder={"Email"} />
+                    <input ref={email} type={"email"} placeholder={"Email"} required={true} />
                     <input ref={name} type={"text"} placeholder={"Name"} />
                 </div>
                 <div style={ "margin-top: 1em" }>

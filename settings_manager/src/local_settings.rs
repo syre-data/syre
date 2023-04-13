@@ -55,6 +55,23 @@ impl<S> Loader<S> {
             file_lock,
         })
     }
+
+    /// Loads the settings from the file given by path.
+    pub fn load_or_create_with<T>(base_path: PathBuf, default: S) -> Result<Loader<S>>
+    where
+        T: LocalSettings<S>,
+        S: Serialize + DeserializeOwned + Clone + Default,
+    {
+        let mut path = base_path.clone();
+        path.push(T::rel_path());
+
+        let (data, file_lock) = settings::load_or_create_with::<S>(path.as_path(), default)?;
+        Ok(Loader {
+            data,
+            base_path,
+            file_lock,
+        })
+    }
 }
 
 impl<S> Loader<S> {

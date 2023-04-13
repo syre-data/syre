@@ -5,9 +5,10 @@ use crate::state::AppState;
 use settings_manager::Settings;
 use tauri::State;
 use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::UserSettings as DesktopUserSettings;
+use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
 
 /// Loads a user's [`UserSettings`](DesktopUserSettings) from file and stores them.
+#[tracing::instrument(skip(app_state))]
 #[tauri::command]
 pub fn load_user_settings(
     app_state: State<AppState>,
@@ -20,14 +21,15 @@ pub fn load_user_settings(
 
     if let Some(settings) = settings.as_ref() {
         // user settings loaded
-        if settings.user == rid {
+        if settings.user() == &rid {
             // user settings for user already loaded
             let desktop_settings: DesktopUserSettings = (*settings).clone();
             return Ok(desktop_settings);
         }
     }
 
-    let user_settings: AppUserSettings = Loader::load_or_create::<AppUserSettings>(&rid)?.into();
+    let user_settings: AppUserSettings =
+        Loader::load_or_create_with::<AppUserSettings>(&rid)?.into();
     let desktop_settings: DesktopUserSettings = user_settings.clone().into();
     *settings = Some(user_settings);
 

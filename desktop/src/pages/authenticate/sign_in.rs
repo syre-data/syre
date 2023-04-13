@@ -8,11 +8,13 @@ use thot_core::system::User;
 use thot_ui::components::Message as MessageUi;
 use thot_ui::types::Message;
 use thot_ui::types::MessageType;
+use tracing::debug;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
+#[tracing::instrument]
 #[function_component(SignIn)]
 pub fn sign_in() -> Html {
     let auth_state =
@@ -40,6 +42,7 @@ pub fn sign_in() -> Html {
             let invalid_credentials = invalid_credentials.clone();
 
             spawn_local(async move {
+                debug!(email);
                 let Ok(user) = invoke::<Option<User>>(
                     "authenticate_user",
                     UserCredentials { email }

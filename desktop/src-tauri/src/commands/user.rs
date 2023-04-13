@@ -20,6 +20,7 @@ pub fn get_active_user() -> Result<Option<User>> {
 /// Sets the active user on the [system settings](users::set_active_user).
 /// Sets the active user on the [`AppState`].
 /// Loads the user's [`UserAppState`] and [`UserSettings`].
+#[tracing::instrument(skip(app_state))]
 #[tauri::command]
 pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
     // settings user
@@ -33,13 +34,13 @@ pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
         .expect("could not lock `AppState.user`") = user;
 
     // settings
-    let user_app_state: UserAppState = Loader::load_or_create::<UserAppState>(&rid)?.into();
+    let user_app_state: UserAppState = Loader::load_or_create_with::<UserAppState>(&rid)?.into();
     *app_state
         .user_app_state
         .lock()
         .expect("could not lock `AppState.user_app_state`") = Some(user_app_state);
 
-    let user_settings: UserSettings = Loader::load_or_create::<UserSettings>(&rid)?.into();
+    let user_settings: UserSettings = Loader::load_or_create_with::<UserSettings>(&rid)?.into();
     *app_state
         .user_settings
         .lock()

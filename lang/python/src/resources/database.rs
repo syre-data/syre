@@ -83,10 +83,10 @@ impl Database {
                 .expect("could not convert `THOT_CONTAINER_ID` to `ResourceId`");
 
             let root_path = db.send(ContainerCommand::GetPath(root_id).into());
-            let root_path: DbResult<Option<PathBuf>> = serde_json::from_value(root_path)
+            let root_path: Option<PathBuf> = serde_json::from_value(root_path)
                 .expect("could not convert result of `GetPath` to `PathBuf`");
 
-            let Ok(Some(root_path)) = root_path else {
+            let Some(root_path) = root_path else {
                 return Err(PyRuntimeError::new_err("Could not get root `Container` path"));
             };
 

@@ -338,21 +338,21 @@ impl Builder {
     }
 
     /// Convert to a [`Container`], creating files if needed.
+    #[tracing::instrument(skip(self))]
     pub fn save(self, base_path: PathBuf) -> Result<Container> {
-        settings::ensure_file(&base_path)?;
         let container_path = base_path.join(ContainerProperties::rel_path());
         let assets_path = base_path.join(Assets::rel_path());
         let settings_path = base_path.join(ContainerSettings::rel_path());
 
-        let container_file = File::create(container_path)?;
-        let assets_file = File::create(assets_path)?;
-        let settings_file = File::create(settings_path)?;
+        let container_file = settings::ensure_file(&container_path)?;
+        let assets_file = settings::ensure_file(&assets_path)?;
+        let settings_file = settings::ensure_file(&settings_path)?;
 
         let container_file_lock = settings::lock(container_file)?;
         let assets_file_lock = settings::lock(assets_file)?;
         let settings_file_lock = settings::lock(settings_file)?;
 
-        Ok(Container {
+        let mut container = Container {
             container_file_lock,
             assets_file_lock,
             settings_file_lock,
@@ -360,7 +360,10 @@ impl Builder {
 
             container: self.container.clone(),
             settings: self.settings,
-        })
+        };
+
+        container.save()?;
+        Ok(container)
     }
 }
 

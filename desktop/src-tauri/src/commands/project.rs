@@ -44,7 +44,7 @@ pub fn load_user_projects(
 /// Loads a [`Project`].
 #[tauri::command]
 pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, ProjectSettings)> {
-    let project = db.send(ProjectCommand::Load(path).into());
+    let project = db.send(ProjectCommand::LoadWithSettings(path).into());
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
 

@@ -34,6 +34,28 @@ impl Database {
                     }
                 };
 
+                let project: Result<CoreProject> = Ok((**project).clone());
+                serde_json::to_value(project).expect("could not convert `Project` to JsValue")
+            }
+
+            ProjectCommand::LoadWithSettings(path) => {
+                // check if project is already loaded
+                let project = match self.get_path_project(&path) {
+                    Some(project) => project,
+                    None => {
+                        let project = match self.load_project(&path) {
+                            Ok(project) => project,
+                            Err(err) => {
+                                let err: Result<CoreProject> = Err(err);
+                                return serde_json::to_value(err)
+                                    .expect("could not convert `Project` to JsValue");
+                            }
+                        };
+
+                        project
+                    }
+                };
+
                 let project: Result<(CoreProject, ProjectSettings)> =
                     Ok(((**project).clone(), project.settings().clone()));
 

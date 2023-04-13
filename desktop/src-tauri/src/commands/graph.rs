@@ -114,8 +114,10 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 ///
 /// # Arguments
 /// 1. Id of the root of the `Container` tree to duplicate.
+#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
+    dbg!(&rid);
     let dup = db.send(GraphCommand::Duplicate(rid).into());
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");
@@ -130,6 +132,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
     let name = match root.properties.name.clone() {
         None => "Copy".to_string(),
         Some(mut name) => {
+            // TODO[m]: Add index to copy, instead of new "(Copy)" every time.
             name.push_str(" (Copy)");
             name
         }
@@ -149,7 +152,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
 
     res.map_err(|err| LibError::Database(format!("{err:?}")))?;
-
+    dbg!("updated");
     Ok(dup)
 }
 

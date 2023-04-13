@@ -8,7 +8,6 @@ use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};

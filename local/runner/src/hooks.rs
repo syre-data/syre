@@ -7,6 +7,7 @@ use thot_core::types::{ResourceId, ResourcePath};
 use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
+#[tracing::instrument]
 pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
     let db = DbClient::new();
     let script = db.send(ScriptCommand::Get(rid.clone()).into());

@@ -13,6 +13,12 @@ pub enum Creator {
     Script(ResourceId),
 }
 
+impl Default for Creator {
+    fn default() -> Self {
+        Creator::User(None)
+    }
+}
+
 impl PartialEq for Creator {
     fn eq(&self, other: &Creator) -> bool {
         match (self, other) {

@@ -19,9 +19,19 @@ dev_mode <- function() .Call(wrap__dev_mode)
 #' @export
 database <- function(dev_root = NULL) .Call(wrap__database, dev_root)
 
+find_container <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_container, db, `_id`, name, kind, tags, metadata)
+
+find_containers <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_containers, db, `_id`, name, kind, tags, metadata)
+
+find_asset <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_asset, db, `_id`, name, kind, tags, metadata)
+
+find_assets <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_assets, db, `_id`, name, kind, tags, metadata)
+
+add_asset <- function(db, file, name = NULL, kind = NULL, description = NULL, tags = NULL, metadata = NULL) .Call(wrap__add_asset, db, file, name, kind, description, tags, metadata)
+
 Database <- new.env(parent = emptyenv())
 
-Database$temp <- function() .Call(wrap__Database__temp, self)
+Database$root <- function() .Call(wrap__Database__root, self)
 
 #' @export
 `$.Database` <- function (self, name) { func <- Database[[name]]; environment(func) <- environment(); func }
@@ -33,11 +43,29 @@ Container <- new.env(parent = emptyenv())
 
 Container$name <- function() .Call(wrap__Container__name, self)
 
+Container$kind <- function() .Call(wrap__Container__kind, self)
+
+Container$tags <- function() .Call(wrap__Container__tags, self)
+
 #' @export
 `$.Container` <- function (self, name) { func <- Container[[name]]; environment(func) <- environment(); func }
 
 #' @export
 `[[.Container` <- `$.Container`
+
+Asset <- new.env(parent = emptyenv())
+
+Asset$name <- function() .Call(wrap__Asset__name, self)
+
+Asset$kind <- function() .Call(wrap__Asset__kind, self)
+
+Asset$tags <- function() .Call(wrap__Asset__tags, self)
+
+#' @export
+`$.Asset` <- function (self, name) { func <- Asset[[name]]; environment(func) <- environment(); func }
+
+#' @export
+`[[.Asset` <- `$.Asset`
 
 
 # nolint end

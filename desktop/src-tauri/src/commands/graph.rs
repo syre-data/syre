@@ -152,7 +152,6 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
 
     res.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    dbg!("updated");
     Ok(dup)
 }
 

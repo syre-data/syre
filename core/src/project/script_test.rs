@@ -12,7 +12,13 @@ use std::path::PathBuf;
 
 #[test]
 fn script_new_should_work() {
+    // py
     let path = script_path(Some(String::from("py")));
+    let script = Script::new(path.clone()).expect("creating script should work");
+    assert_eq!(&path, &script.path, "script's path should be correct");
+
+    // r
+    let path = script_path(Some(String::from("R")));
     let script = Script::new(path.clone()).expect("creating script should work");
     assert_eq!(&path, &script.path, "script's path should be correct");
 }
@@ -124,7 +130,7 @@ fn script_lang_from_extension_should_work() {
     assert_eq!(ScriptLang::Python, py_lang, "language should be correct");
 
     // r
-    let r_lang = ScriptLang::from_extension(&OsStr::new("r"));
+    let r_lang = ScriptLang::from_extension(&OsStr::new("R"));
     assert_ne!(None, r_lang, "language should be found");
     let r_lang = r_lang.unwrap();
     assert_eq!(ScriptLang::R, r_lang, "language should be correct");
@@ -136,7 +142,7 @@ fn script_lang_from_extension_should_work() {
 
 /// Selects a random path extension from a set of valid ones.
 fn random_path_ext() -> String {
-    let valid_ext = ["py", "r"];
+    let valid_ext = ["py", "R"];
 
     let mut rng = rand::thread_rng();
     let index = rng.gen_range(0..valid_ext.len());

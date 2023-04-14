@@ -194,13 +194,15 @@ pub enum ScriptLang {
 impl ScriptLang {
     /// Returns the language type from a file extension
     /// or `None` if none match.
+    #[tracing::instrument]
     pub fn from_extension(ext: &OsStr) -> Option<Self> {
-        let ext = ext.to_str();
-        if ext.is_none() {
+        let ext = ext.to_ascii_lowercase();
+        let Some(ext) = ext.as_os_str().to_str() else {
+            tracing::debug!("0");
             return None;
-        }
+        };
 
-        match ext.unwrap() {
+        match ext {
             "py" => Some(Self::Python),
             "r" => Some(Self::R),
             _ => None,

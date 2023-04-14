@@ -33,6 +33,7 @@ validator = "0.14"
 yew = { version = "0.20", optional = true }
 
 has_id = { path = "../has_id", features = ["derive"] }
+tracing = "0.1.37"
 
 [dev-dependencies]
 rand = "0.8"

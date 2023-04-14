@@ -26,8 +26,8 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
             spawn_local(async move {
                 let mut path = FileDialogBuilder::new();
                 path.set_title("Script files")
-                    .add_filter("Scripts", &["py"]); // @todo: Pull valid extensions from `Script`.
-                                                     // @todo: Set default path.
+                    .add_filter("Scripts", &["py", "R"]); // @todo: Pull valid extensions from `Script`.
+                                                          // @todo: Set default path.
 
                 let paths = path
                     .pick_files()

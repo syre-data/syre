@@ -19,15 +19,15 @@ dev_mode <- function() .Call(wrap__dev_mode)
 #' @export
 database <- function(dev_root = NULL) .Call(wrap__database, dev_root)
 
-find_container <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_container, db, `_id`, name, kind, tags, metadata)
+find_container <- function(db, `_id` = NULL, name = NULL, type = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_container, db, `_id`, name, type, tags, metadata)
 
-find_containers <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_containers, db, `_id`, name, kind, tags, metadata)
+find_containers <- function(db, `_id` = NULL, name = NULL, type = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_containers, db, `_id`, name, type, tags, metadata)
 
-find_asset <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_asset, db, `_id`, name, kind, tags, metadata)
+find_asset <- function(db, `_id` = NULL, name = NULL, type = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_asset, db, `_id`, name, type, tags, metadata)
 
-find_assets <- function(db, `_id` = NULL, name = NULL, kind = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_assets, db, `_id`, name, kind, tags, metadata)
+find_assets <- function(db, `_id` = NULL, name = NULL, type = NULL, tags = NULL, metadata = NULL) .Call(wrap__find_assets, db, `_id`, name, type, tags, metadata)
 
-add_asset <- function(db, file, name = NULL, kind = NULL, description = NULL, tags = NULL, metadata = NULL) .Call(wrap__add_asset, db, file, name, kind, description, tags, metadata)
+add_asset <- function(db, file, name = NULL, type = NULL, description = NULL, tags = NULL, metadata = NULL) .Call(wrap__add_asset, db, file, name, type, description, tags, metadata)
 
 Database <- new.env(parent = emptyenv())
 

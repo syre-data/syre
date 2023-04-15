@@ -60,21 +60,19 @@ fn database(#[default = "NULL"] dev_root: Nullable<String>) -> Database {
 // *** find_ ***
 // *************
 
-// TODO[h]: Change `kind` to `r#type`.
-// See https://github.com/extendr/extendr/issues/528 for more info.
 #[extendr]
 fn find_container(
     db: &mut Database,
     #[default = "NULL"] _id: Nullable<String>,
     #[default = "NULL"] name: Nullable<String>,
-    #[default = "NULL"] kind: Nullable<String>,
+    #[default = "NULL"] r#type: Nullable<String>,
     #[default = "NULL"] tags: Nullable<List>,
     #[default = "NULL"] metadata: Nullable<List>,
 ) -> Nullable<Container> {
     let filter = FilterArgs::default()
         .set_rid(_id)
         .set_name(name)
-        .set_kind(kind)
+        .set_kind(r#type)
         .set_tags(tags)
         .set_metadata(metadata);
 
@@ -87,21 +85,19 @@ fn find_container(
     }
 }
 
-// TODO[h]: Change `kind` to `r#type`.
-// See https://github.com/extendr/extendr/issues/528 for more info.
 #[extendr]
 fn find_containers(
     db: &mut Database,
     #[default = "NULL"] _id: Nullable<String>,
     #[default = "NULL"] name: Nullable<String>,
-    #[default = "NULL"] kind: Nullable<String>,
+    #[default = "NULL"] r#type: Nullable<String>,
     #[default = "NULL"] tags: Nullable<List>,
     #[default = "NULL"] metadata: Nullable<List>,
 ) -> List {
     let filter = FilterArgs::default()
         .set_rid(_id)
         .set_name(name)
-        .set_kind(kind)
+        .set_kind(r#type)
         .set_tags(tags)
         .set_metadata(metadata);
 
@@ -112,21 +108,19 @@ fn find_containers(
     containers.into_iter().collect()
 }
 
-// TODO[h]: Change `kind` to `r#type`.
-// See https://github.com/extendr/extendr/issues/528 for more info.
 #[extendr]
 fn find_asset(
     db: &mut Database,
     #[default = "NULL"] _id: Nullable<String>,
     #[default = "NULL"] name: Nullable<String>,
-    #[default = "NULL"] kind: Nullable<String>,
+    #[default = "NULL"] r#type: Nullable<String>,
     #[default = "NULL"] tags: Nullable<List>,
     #[default = "NULL"] metadata: Nullable<List>,
 ) -> Nullable<Asset> {
     let filter = FilterArgs::default()
         .set_rid(_id)
         .set_name(name)
-        .set_kind(kind)
+        .set_kind(r#type)
         .set_tags(tags)
         .set_metadata(metadata);
 
@@ -139,21 +133,19 @@ fn find_asset(
     }
 }
 
-// TODO[h]: Change `kind` to `r#type`.
-// See https://github.com/extendr/extendr/issues/528 for more info.
 #[extendr]
 fn find_assets(
     db: &mut Database,
     #[default = "NULL"] _id: Nullable<String>,
     #[default = "NULL"] name: Nullable<String>,
-    #[default = "NULL"] kind: Nullable<String>,
+    #[default = "NULL"] r#type: Nullable<String>,
     #[default = "NULL"] tags: Nullable<List>,
     #[default = "NULL"] metadata: Nullable<List>,
 ) -> List {
     let filter = FilterArgs::default()
         .set_rid(_id)
         .set_name(name)
-        .set_kind(kind)
+        .set_kind(r#type)
         .set_tags(tags)
         .set_metadata(metadata);
 
@@ -164,14 +156,12 @@ fn find_assets(
     assets.into_iter().collect()
 }
 
-// TODO[h]: Change `kind` to `r#type`.
-// See https://github.com/extendr/extendr/issues/528 for more info.
 #[extendr]
 fn add_asset(
     db: &mut Database,
     file: String,
     #[default = "NULL"] name: Nullable<String>,
-    #[default = "NULL"] kind: Nullable<String>,
+    #[default = "NULL"] r#type: Nullable<String>,
     #[default = "NULL"] description: Nullable<String>,
     #[default = "NULL"] tags: Nullable<List>,
     #[default = "NULL"] metadata: Nullable<List>,
@@ -183,7 +173,7 @@ fn add_asset(
         asset.set_name(value);
     }
 
-    if let Nullable::NotNull(value) = kind {
+    if let Nullable::NotNull(value) = r#type {
         asset.set_kind(value);
     }
 

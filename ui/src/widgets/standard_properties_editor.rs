@@ -116,10 +116,13 @@ pub struct StandardPropertiesEditorProps {
 }
 
 /// [`StandardProperties`] editor.
+#[tracing::instrument(skip(props))]
 #[function_component(StandardPropertiesEditor)]
 pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html {
     let properties_state =
         use_reducer(|| Into::<StandardPropertiesState>::into(props.properties.clone()));
+
+    let dirty_state = use_state(|| false);
 
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
@@ -127,9 +130,11 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
     {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
 
         use_effect_with_deps(
             move |properties| {
+                dirty_state.set(false);
                 properties_state
                     .dispatch(StandardPropertiesStateAction::Update(properties.clone()));
             },
@@ -139,6 +144,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
     let onchange_name = {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
         let elm = name_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -155,11 +161,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             };
 
             properties_state.dispatch(action);
+            dirty_state.set(true);
         })
     };
 
     let onchange_kind = {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
         let elm = kind_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -176,11 +184,13 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             };
 
             properties_state.dispatch(action);
+            dirty_state.set(true);
         })
     };
 
     let onchange_description = {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
         let elm = description_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -197,34 +207,43 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             };
 
             properties_state.dispatch(action);
+            dirty_state.set(true);
         })
     };
 
     let onchange_tags = {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
 
         Callback::from(move |value: Vec<String>| {
             properties_state.dispatch(StandardPropertiesStateAction::SetTags(value));
+            dirty_state.set(true);
         })
     };
 
     let onchange_metadata = {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
 
         Callback::from(move |value: Metadata| {
             properties_state.dispatch(StandardPropertiesStateAction::SetMetadata(value));
+            dirty_state.set(true);
         })
     };
 
     {
         let properties_state = properties_state.clone();
+        let dirty_state = dirty_state.clone();
         let onchange = props.onchange.clone();
 
         use_effect_with_deps(
-            move |properties_state| {
+            move |(properties_state, dirty_state)| {
+                if !(**dirty_state) {
+                    return;
+                }
                 onchange.emit((**properties_state).clone().into());
             },
-            properties_state,
+            (properties_state, dirty_state),
         );
     }
 

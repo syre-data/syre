@@ -32,8 +32,6 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
 
     let show_add_metadatum = {
         let add_metadatum_visible = add_metadatum_visible.clone();
-        // Add console debug message to show that the callback is being called
-        web_sys::console::debug_1(&"show_add_metadatum".into());
 
         Callback::from(move |_: MouseEvent| {
             add_metadatum_visible.set(true);

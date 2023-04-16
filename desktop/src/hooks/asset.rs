@@ -1,8 +1,9 @@
 use thot_core::{project::Asset, types::ResourceId};
 use yew::prelude::*;
 
-use crate::{app::AppStateReducer, components::canvas::GraphStateReducer};
+use crate::components::canvas::GraphStateReducer;
 
+#[tracing::instrument]
 #[hook]
 pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
     let graph_state =
@@ -31,7 +32,7 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
         let asset = asset.clone();
         let graph_state = graph_state.clone();
         use_effect_with_deps(
-            move |rid| {
+            move |(rid, graph_state)| {
                 let container = graph_state
                     .asset_map
                     .get(rid)
@@ -50,7 +51,7 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
                         .clone(),
                 );
             },
-            rid,
+            (rid, graph_state)
         )
     }
     asset

@@ -15,6 +15,7 @@ pub struct AssetEditorProps {
 }
 
 /// [`Asset`](thot_core::project::Asset)s editor.
+#[tracing::instrument(skip(props))]
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let class = classes!("thot-ui-asset-editor", props.class.clone());

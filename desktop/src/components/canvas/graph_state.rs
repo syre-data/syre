@@ -163,8 +163,6 @@ impl Reducible for GraphState {
                     };
 
                 container.assets = assets;
-                let o_container = self.graph.get(&container_rid).unwrap();
-                web_sys::console::debug_1(&(o_container == container).into());
             }
 
             GraphStateAction::UpdateAsset(asset) => {

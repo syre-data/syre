@@ -25,6 +25,7 @@ yew = "0.20"
 yew-router = "0.17"
 
 thot-core = { path = "../core", features = ["js", "yew"] }
+tracing = "0.1.37"
 
 [dependencies.web-sys]
 version = "0.3"

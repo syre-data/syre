@@ -21,7 +21,8 @@ clap = { version = "3.1", optional = true }
 cluFlock = "1.2"
 derivative = "2.2"
 directories = "4.0"
-extendr-api = { version = "*", optional = true }
+extendr-api = { git = "https://github.com/bicarlsen/extendr", branch = "bug-raw_identifiers", optional = true }
+# extendr-api = { version = "*", optional = true }
 indexmap = { version = "1.9.2", features = ["serde"] }
 pyo3 = { version = "0.17", features = ["extension-module", "macros", "serde"], optional = true }
 pythonize = { version = "0.17", optional = true}

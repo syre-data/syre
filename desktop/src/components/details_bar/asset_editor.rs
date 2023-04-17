@@ -16,44 +16,13 @@ pub struct AssetEditorProps {
     pub rid: ResourceId,
 }
 
+#[tracing::instrument(skip(props))]
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let graph_state =
         use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
     let asset = use_asset(&props.rid);
-
-    {
-        // Save changes on change
-        let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
-        let asset = asset.clone();
-
-        use_effect_with_deps(
-            move |asset| {
-                let asset = asset.clone();
-                spawn_local(async move {
-                    let Ok(_) = invoke::<()>(
-                            "update_asset_properties",
-                            &UpdatePropertiesArgs {
-                                rid: asset.rid.clone(),
-                                properties: asset.properties.clone(),
-                            },
-                        )
-                        .await else {
-                            app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                                "Could not save resource",
-                            )));
-
-                            return;
-                        };
-
-                    graph_state.dispatch(GraphStateAction::UpdateAsset((*asset).clone()));
-                });
-            },
-            asset,
-        );
-    }
 
     let onchange_properties = {
         let asset = asset.clone();
@@ -80,10 +49,9 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
                             return;
                         };
 
-                graph_state.dispatch(GraphStateAction::UpdateAsset((*asset).clone()));
-                let mut update = (*asset).clone();
-                update.properties = properties;
-                asset.set(update);
+                let mut asset = (*asset).clone();
+                asset.properties = properties;
+                graph_state.dispatch(GraphStateAction::UpdateAsset(asset));
             });
         })
     };

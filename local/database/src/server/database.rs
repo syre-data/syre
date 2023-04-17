@@ -7,6 +7,9 @@ use crate::command::Command;
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::Result;
 use serde_json::Value as JsValue;
+use std::net::Ipv4Addr;
+
+static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
 
 /// Database.
 pub struct Database {
@@ -30,7 +33,10 @@ impl Database {
 
     pub fn listen_for_commands(&mut self) -> Result {
         let rep_socket = self.zmq_context.socket(zmq::SocketType::REP)?;
-        rep_socket.bind(&format!("tcp://*:{REQ_REP_PORT}"))?;
+        // @NOTE: Listening on broadcast interface results in TCP listener bind
+        // to return true even when port is open. For this reason we changed to
+        // listen on localhost.
+        rep_socket.bind(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))?;
 
         loop {
             if self.kill {

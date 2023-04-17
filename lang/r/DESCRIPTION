@@ -7,6 +7,7 @@ Description: R bindings for the Thot data management and analysis suite.
 License: MIT + file LICENSE
 Suggests: 
     testthat (>= 3.0.0)
+SystemRequirements: inst/thot-local-database-aarch64-apple-darwin, inst/thot-local-database-x86_64-pc-windows-msvc.exe, inst/thot-local-database-x86_64-unknown-linux-gnu
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

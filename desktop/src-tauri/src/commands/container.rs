@@ -75,12 +75,12 @@ pub fn update_container_script_associations(
 
 /// Gets the current location of a [`Container`](LocalContainer).
 #[tauri::command]
-pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Result<Option<PathBuf>> {
+pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
     let path = db.send(ContainerCommand::GetPath(rid).into());
-    let path: DbResult<Option<PathBuf>> = serde_json::from_value(path)
+    let path: Option<PathBuf> = serde_json::from_value(path)
         .expect("could not convert `GetContainerPath` result to `PathBuf`");
 
-    Ok(path?)
+    Some(path?)
 }
 
 /// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).

@@ -5,7 +5,7 @@ mod handler;
 use super::store::Datastore;
 use crate::command::Command;
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
-use crate::Result;
+use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::net::Ipv4Addr;
 
@@ -31,11 +31,9 @@ impl Database {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn listen_for_commands(&mut self) -> Result {
         let rep_socket = self.zmq_context.socket(zmq::SocketType::REP)?;
-        // @NOTE: Listening on broadcast interface results in TCP listener bind
-        // to return true even when port is open. For this reason we changed to
-        // listen on localhost.
         rep_socket.bind(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))?;
 
         loop {
@@ -48,10 +46,27 @@ impl Database {
                 .recv(&mut msg, 0)
                 .expect("could not recieve request");
 
-            let msg_str = msg.as_str().expect("could not convert `Message` to srting");
-            let cmd: Command =
-                serde_json::from_str(msg_str).expect("could not convert `Message` to JSON");
+            let Some(msg_str) = msg.as_str() else {
+                let res: Result<JsValue> = Err(Error::ZMQ("invalid message: could not convert to string".to_string()));
+                let res = serde_json::to_value(res).expect("could not convert error to JsValue");
+                rep_socket
+                    .send(&res.to_string(), 0)
+                    .expect("could not send response");
 
+                continue;
+            };
+
+            let Ok(cmd) = serde_json::from_str(msg_str) else {
+                let res: Result<JsValue> = Err(Error::ZMQ("invalid message: could not convert `Message` to JSON".to_string()));
+                let res = serde_json::to_value(res).expect("could not convert error to JsValue");
+                rep_socket
+                    .send(&res.to_string(), 0)
+                    .expect("could not send response");
+
+                continue;
+            };
+
+            tracing::debug!(?cmd);
             let res = self.handle_command(cmd);
             rep_socket
                 .send(&res.to_string(), 0)

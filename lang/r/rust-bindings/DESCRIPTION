@@ -1,0 +1,15 @@
+Package: thot
+Title: R bindings for Thot.
+Version: 0.0.1
+Authors@R: 
+    person("Brian", "Carlsen", , "carlsen.bri@gmail.com", role = c("aut", "cre"))
+Description: R bindings for the Thot data management and analysis suite.
+License: MIT + file LICENSE
+Suggests: 
+    testthat (>= 3.0.0)
+SystemRequirements: inst/thot-local-database-aarch64-apple-darwin, inst/thot-local-database-x86_64-pc-windows-msvc.exe, inst/thot-local-database-x86_64-unknown-linux-gnu
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Config/rextendr/version: 0.2.0.9000

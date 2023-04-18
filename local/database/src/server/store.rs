@@ -370,6 +370,7 @@ impl Datastore {
         found
     }
 
+    // TODO[h] Assets should have paths canonicalized and made absolute.
     /// Finds `Container`'s that match the filter with inherited `Metadata`.
     ///
     /// # Arguments

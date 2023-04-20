@@ -17,6 +17,8 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.16", features = ["time"] }
 trash = { version = "3.0.1", optional = true }
 zmq = { version = "0.10", optional = true }
 
@@ -24,7 +26,6 @@ has_id = { path = "../../has_id", optional = true }
 settings_manager = { path = "../../settings_manager", optional = true }
 thot-core = { path = "../../core" }
 thot-local = { path = "..", default-features = false }
-tracing = "0.1.37"
 
 [dev-dependencies]
 rand = "0.8"

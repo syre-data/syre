@@ -8,7 +8,7 @@ use std::{env, fs};
 use thot_core::db::StandardSearchFilter as StdFilter;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset, Container, Project};
-use thot_core::runner::{common as thot_runner, ThotEnv};
+use thot_core::runner::{common as thot_runner, CONTAINER_ID_KEY};
 use thot_core::types::ResourceId;
 use thot_local::project::project::project_resource_root_path;
 use thot_local_database::{
@@ -51,10 +51,10 @@ impl Database {
 
             dev_root
         } else {
-            // TODO: Pass Container path instead of id
-            let Ok(root_id) = env::var(ThotEnv::container_id_key()) else {
+            // TODO: Pass Container path instead of id?
+            let Ok(root_id) = env::var(CONTAINER_ID_KEY) else {
                 return Err(Error::Runtime(
-                    "could not get `THOT_CONTAINER_ID`".into()
+                    format!("could not get `{:}`", CONTAINER_ID_KEY)
                 ));
             };
 

@@ -5,7 +5,6 @@ use crate::Result;
 use cluFlock::FlockLock;
 use settings_manager::local_settings::{Components, Loader, LocalSettings};
 use settings_manager::Settings;
-use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};

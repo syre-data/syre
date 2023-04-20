@@ -1,16 +1,31 @@
-library(jsonlite)
-library(rzmq)
-
 #' Send a command to the database.
 #'
 #' @param socket ZMQ socket.
 #' @param cmd Command to send.
 #' @param result Handle response as a Result.
 send_cmd <- function(socket, cmd, result = TRUE) {
-  send.raw.string(socket, cmd)
+  sent <- send.raw.string(socket, cmd)
+  if (!sent) {
+    stop("could not send message")
+  }
+
+  # wait for message
+  # for (x in 1:THOT_RCV_ATTEMPTS) {
+  #   res <- receive.socket(socket, unserialize = FALSE, dont.wait = TRUE)
+  #   if(!is.null(res)) {
+  #     res <- rawToChar(res)
+  #     break
+  #   }
+  #
+  #   Sys.sleep(THOT_RCV_SLEEP)
+  # }
+  #
+  # if (is.null(res)) {
+  #   # no message received
+  #   stop("could not receive message")
+  # }
   res <- receive.string(socket)
   res <- fromJSON(res, simplifyVector = FALSE)
-
   if (result) {
     res <- res$Ok
     err <- res$Err
@@ -25,7 +40,20 @@ send_cmd <- function(socket, cmd, result = TRUE) {
 #' Checks if a Thot database is available.
 #'
 #' @param socket ZMQ socket.
-database_available <- function(socket) {
+database_available <- function() {
+  server_up <- tryCatch( {
+      socketConnection(port = THOT_PORT)
+      TRUE
+    },
+    error = function(cond) { FALSE }, # port not open, no chance for server
+    warning = function(cond) { FALSE }
+  )
+  if (!server_up) {
+    return(FALSE)
+  }
+
+  # check if database is responsive
+  socket <- zmq_socket()
   cmd <- '{"DatabaseCommand": "Id"}'
   id <- send_cmd(socket, cmd, result = FALSE)
   id == "thot local database"
@@ -49,6 +77,15 @@ load_graph <- function(socket, project) {
   send_cmd(socket, cmd)
 }
 
+#' Gets a Thot Container's path.
+#'
+#' @param socket ZMQ socket.
+#' @param id Container id.
+container_path <- function(socket, it) {
+  cmd <- sprintf('{"ContainerCommand": {"GetPath": "%s"}}', id)
+  send_cmd(socket, cmd, result = FALSE)
+}
+
 #' Gets a Thot Container from its path.
 #'
 #' @param socket ZMQ socket.
@@ -56,11 +93,4 @@ load_graph <- function(socket, project) {
 container_by_path <- function(socket, path) {
   cmd <- sprintf('{"ContainerCommand": {"ByPath": "%s"}}', path)
   send_cmd(socket, cmd, result = FALSE)
-}
-
-#' Convert an object into JSON.
-#'
-#' @param obj The object to convert.
-to_json <- function(obj) {
-  toJSON(obj, auto_unbox = TRUE, null = "null")
 }

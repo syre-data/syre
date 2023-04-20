@@ -465,7 +465,7 @@ impl Datastore {
     }
 
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
-    pub fn add_asset(&mut self, asset: Asset, container: ResourceId) -> Result<Option<Asset>> {
+    pub fn add_asset(&mut self, mut asset: Asset, container: ResourceId) -> Result<Option<Asset>> {
         let Some(project) = self.container_projects.get(&container) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
         };
@@ -478,6 +478,14 @@ impl Datastore {
         let Some(container) = graph.get_mut(&container) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
         };
+
+        // check if asset with same path already extists
+        for c_asset in container.assets.values() {
+            if asset.path == c_asset.path {
+                asset.rid = c_asset.rid.clone();
+                break;
+            }
+        }
 
         let aid = asset.rid.clone();
         let cid = container.rid.clone();

@@ -1,6 +1,6 @@
 //! Thot project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
-use super::ThotEnv;
+use super::CONTAINER_ID_KEY;
 use crate::error::{ResourceError, RunnerError};
 use crate::graph::ResourceTree;
 use crate::project::{Container, Script};
@@ -320,17 +320,14 @@ impl Runner {
 
         #[cfg(target_os = "windows")]
         out.args(["/c", &script.env.cmd]);
-        
+
         #[cfg(not(target_os = "windows"))]
         let mut out = process::Command::new(&script.env.cmd);
 
         let out = out
             .arg(script.path.as_path())
             .args(&script.env.args)
-            .env(
-                ThotEnv::container_id_key(),
-                container.rid.clone().to_string(),
-            )
+            .env(CONTAINER_ID_KEY, container.rid.clone().to_string())
             .envs(&script.env.env)
             .output()
             .expect("failed to execute command");

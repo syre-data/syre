@@ -4,7 +4,7 @@
 \alias{database_available}
 \title{Checks if a Thot database is available.}
 \usage{
-database_available(socket)
+database_available()
 }
 \arguments{
 \item{socket}{ZMQ socket.}

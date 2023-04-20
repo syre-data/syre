@@ -68,6 +68,7 @@ impl Database {
 
             tracing::debug!(?cmd);
             let res = self.handle_command(cmd);
+
             rep_socket
                 .send(&res.to_string(), 0)
                 .expect("could not send response");

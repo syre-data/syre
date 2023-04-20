@@ -5,5 +5,5 @@ pub mod resources;
 pub mod runner;
 
 // Re-exports
-pub use env::ThotEnv;
+pub use env::CONTAINER_ID_KEY;
 pub use runner::{Runner, RunnerHooks, ScriptExecutionContext};

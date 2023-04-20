@@ -1,11 +1,11 @@
 //! Common functionality related to the Thot runner.
-use super::env::ThotEnv;
+use super::CONTAINER_ID_KEY;
 use std::env;
 
 /// Returns whether the script is being run in developement mode.
 pub fn dev_mode() -> bool {
     // return true if a container id is not set
-    env::var(ThotEnv::container_id_key()).is_err()
+    env::var(CONTAINER_ID_KEY).is_err()
 }
 
 #[cfg(test)]

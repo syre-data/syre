@@ -4,7 +4,6 @@ use cluFlock::FlockLock;
 use derivative::{self, Derivative};
 use settings_manager::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::Settings;
-use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;

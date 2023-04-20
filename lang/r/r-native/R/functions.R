@@ -1,28 +1,29 @@
-library(rzmq)
-library(purrr)
-
 #' Create a new Thot database connection.
 #'
 #' @param dev_root Path to the root Container for use in developement mode.
 #' @export
 database <- function(dev_root = NULL) {
-  context <- init.context()
-  socket <- init.socket(context, "ZMQ_REQ")
-  connect.socket(socket, "tcp://127.0.0.1:7047")
+  if (!database_available()) {
+    # TODO: Launch database server if needed.
+    stop("database not available")
+  }
 
+  socket <- zmq_socket()
   root_id <- Sys.getenv("THOT_CONTAINER_ID", unset = NA)
   if (is.na(root_id)) {
     # dev mode
     stopifnot(!is.null(dev_root))
     root_path <- dev_root
   } else {
-    stop("TODO: not in dev mode")
+    root_path <- container_path(socket, root_id)
   }
 
+  stopifnot(!is.null(root_path))
   project_path <- project_resource_root_path(root_path)
   project <- load_project(socket, project_path)
   graph <- load_graph(socket, project$rid)
   root <- container_by_path(socket, root_path)
+
 
   db <- new("Database", root = root$rid, root_path = root_path, socket = socket)
 }
@@ -154,6 +155,10 @@ add_asset <- function(db, file, name = NULL, type = NULL, tags = list(), metadat
   }
 
   cmd <- sprintf('{"AssetCommand": {"Add": %s}}', args)
-  path <- send_cmd(db@socket, cmd, result = FALSE)
+  send_cmd(db@socket, cmd)
+  path <- file.path(db@root_path, asset$path)
+
+  # ensure bucket is created
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   path
 }

@@ -4184,6 +4184,7 @@ dependencies = [
  "thot-core",
  "thot-local",
  "tracing",
+ "tracing-subscriber",
  "trash",
  "zmq",
 ]

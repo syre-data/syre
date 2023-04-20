@@ -36,7 +36,10 @@ This is a basic example which shows you how to solve a common problem:
 
 ```{r example}
 library(thot)
-## basic example code
+
+db <- database(dev_root = "/path/to/my/thot/project/container")
+asset <- find_asset(db, type = "raw_data")
+
 ```
 
 What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:

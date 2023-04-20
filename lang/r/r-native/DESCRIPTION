@@ -1,13 +1,16 @@
 Package: thot
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Thot data management and analysis bindings for R.
+Version: 0.10.0
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+    person("Brian", "Carlsen", , "carlsen.bri@gmail.com", role = c("aut", "cre"))
+Description: R bindings to interact with the Thot data management and analysis tool suite.
 License: MIT + file LICENSE
 Suggests: 
     testthat (>= 3.0.0)
+Imports:
+    jsonlite,
+    purrr (>= 1.0.1),
+    rzmq (>= 0.9.8)
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

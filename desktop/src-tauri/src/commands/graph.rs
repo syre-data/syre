@@ -117,7 +117,6 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 #[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
-    dbg!(&rid);
     let dup = db.send(GraphCommand::Duplicate(rid).into());
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");

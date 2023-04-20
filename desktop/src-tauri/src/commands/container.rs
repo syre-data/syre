@@ -77,8 +77,10 @@ pub fn update_container_script_associations(
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
     let path = db.send(ContainerCommand::GetPath(rid).into());
-    serde_json::from_value(path)
-        .expect("could not convert `GetContainerPath` result to `PathBuf`")
+    let path: Option<PathBuf> = serde_json::from_value(path)
+        .expect("could not convert `GetContainerPath` result to `PathBuf`");
+
+    Some(path?)
 }
 
 /// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).

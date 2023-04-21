@@ -9,21 +9,6 @@ send_cmd <- function(socket, cmd, result = TRUE) {
     stop("could not send message")
   }
 
-  # wait for message
-  # for (x in 1:THOT_RCV_ATTEMPTS) {
-  #   res <- receive.socket(socket, unserialize = FALSE, dont.wait = TRUE)
-  #   if(!is.null(res)) {
-  #     res <- rawToChar(res)
-  #     break
-  #   }
-  #
-  #   Sys.sleep(THOT_RCV_SLEEP)
-  # }
-  #
-  # if (is.null(res)) {
-  #   # no message received
-  #   stop("could not receive message")
-  # }
   res <- receive.string(socket)
   res <- fromJSON(res, simplifyVector = FALSE)
   if (result) {

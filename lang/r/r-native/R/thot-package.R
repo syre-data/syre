@@ -6,6 +6,7 @@
 #' @importFrom jsonlite toJSON
 #' @importFrom purrr map
 #' @importFrom rzmq connect.socket
+#' @importFrom rzmq disconnect.socket
 #' @importFrom rzmq init.context
 #' @importFrom rzmq init.socket
 #' @importFrom rzmq receive.socket

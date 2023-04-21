@@ -5,7 +5,6 @@
 database <- function(dev_root = NULL) {
   if (!database_available()) {
     # TODO: Launch database server if needed.
-    stop("database not available")
   }
 
   socket <- zmq_socket()
@@ -23,7 +22,6 @@ database <- function(dev_root = NULL) {
   project <- load_project(socket, project_path)
   graph <- load_graph(socket, project$rid)
   root <- container_by_path(socket, root_path)
-
 
   db <- new("Database", root = root$rid, root_path = root_path, socket = socket)
 }

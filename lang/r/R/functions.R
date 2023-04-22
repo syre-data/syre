@@ -9,9 +9,8 @@
 #' db <- database(dev_root = "/path/to/my/thot/project/container")
 database <- function(dev_root = NULL) {
   if (!database_available()) {
-    # TODO: Launch database server.
-    stop("Database server not running.")
-    # exe_path <- database_server_path()
+    exe_path <- database_server_path()
+    system(exe_path, wait = FALSE)
   }
 
   socket <- zmq_socket()

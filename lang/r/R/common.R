@@ -28,14 +28,14 @@ to_json <- function(obj) {
 #'
 #' @returns Path to the local database executable for the current system.
 database_server_path <- function() {
-  exe <- switch(SYSNAME,
-         "Linux" = "x86_64-unknown-linux-gnu",
-         "Darwin" = "aarch64-apple-darwin",
-         "Windows" = "x86_64-pc-windows-msvc.exe"
+  exe <- switch(Sys.info()["sysname"],
+    "Linux" = "x86_64-unknown-linux-gnu",
+    "Darwin" = "aarch64-apple-darwin",
+    "Windows" = "x86_64-pc-windows-msvc.exe"
   )
 
-  exe <- paste("thot-local-database-", exe)
-  system.file({{ exe }}, package = "thot", mustWork = TRUE)
+  exe <- paste("thot-local-database-", exe, sep = "")
+  system.file(exe, package = "thot", mustWork = TRUE)
 }
 
 #' Escape special string characters.

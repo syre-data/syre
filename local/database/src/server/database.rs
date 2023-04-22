@@ -72,9 +72,6 @@ impl Database {
             rep_socket
                 .send(&res.to_string(), 0)
                 .expect("could not send response");
-
-            let res = res.to_string().chars().take(10).collect::<String>();
-            tracing::debug!(res = res);
         }
 
         Ok(())

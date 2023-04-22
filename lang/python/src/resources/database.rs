@@ -12,7 +12,7 @@ use std::str::FromStr;
 use std::{env, fs};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Project};
-use thot_core::runner::{common as thot_runner, ThotEnv};
+use thot_core::runner::{common as thot_runner, CONTAINER_ID_KEY};
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::project::project::project_resource_root_path;
 use thot_local_database::{
@@ -25,6 +25,8 @@ type ContainerTree = ResourceTree<CoreContainer>;
 // ***************
 // *** Project ***
 // ***************
+
+// TODO[m]: Convert to using `lang/database`.
 
 /// A Thot Database.
 #[pyclass]
@@ -69,7 +71,7 @@ impl Database {
             dev_root
         } else {
             // @todo: Pass Container path instead of id
-            let Ok(root_id) = env::var(ThotEnv::container_id_key()) else {
+            let Ok(root_id) = env::var(CONTAINER_ID_KEY) else {
                 return Err(PyValueError::new_err(
                     "could not get `THOT_CONTAINER_ID`"
                 ));

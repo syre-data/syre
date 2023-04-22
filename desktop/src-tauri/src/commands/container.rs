@@ -108,11 +108,9 @@ pub fn add_asset_windows(
 ) -> Result<Vec<ResourceId>> {
     // create file
     let path = db.send(ContainerCommand::GetPath(container.clone()).into());
-    let path: DbResult<Option<PathBuf>> =
+    let path: Option<PathBuf> =
         serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
-    let mut path = path
-        .expect("could not get `Container` path")
-        .expect("`Container` path not found");
+    let mut path = path.expect("could not get `Container` path");
     path.push(name);
     let path = unique_file_name(path).expect("could not create a unique file name");
 

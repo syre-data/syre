@@ -22,5 +22,5 @@ pub mod resources;
 #[cfg(feature = "fs")]
 pub mod script;
 
-/// Current project format standard.
-pub static PROJECT_FORMAT: &str = "0.10.0";
+/// Current project format version.
+pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";

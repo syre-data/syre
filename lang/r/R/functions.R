@@ -26,10 +26,15 @@ database <- function(dev_root = NULL) {
 
   stopifnot(!is.null(root_path))
   project_path <- project_resource_root_path(root_path)
-  project <- load_project(socket, project_path)
-  graph <- load_graph(socket, project$rid)
-  root <- container_by_path(socket, root_path)
 
+  stopifnot(!is.null(project_path))
+  project <- load_project(socket, escape_str(project_path))
+
+  stopifnot(!is.null(project))
+  graph <- load_graph(socket, project$rid)
+  root <- container_by_path(socket, escape_str(root_path))
+
+  stopifnot(!is.null(root))
   db <- new("Database", root = root$rid, root_path = root_path, socket = socket)
 }
 
@@ -178,7 +183,11 @@ add_asset <- function(db, file, name = NULL, type = NULL, tags = list(), metadat
 
   cmd <- sprintf('{"AssetCommand": {"Add": %s}}', args)
   send_cmd(db@socket, cmd)
-  path <- file.path(db@root_path, asset$path)
+  if (SYSNAME == "Windows") {
+    path <- join_path_windows(db@root_path, asset$path[[1]])
+  } else {
+    path <- normalizePath(file.path(db@root_path, asset$path))
+  }
 
   # ensure bucket is created
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)

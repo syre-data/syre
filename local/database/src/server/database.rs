@@ -47,7 +47,9 @@ impl Database {
                 .expect("could not recieve request");
 
             let Some(msg_str) = msg.as_str() else {
-                let res: Result<JsValue> = Err(Error::ZMQ("invalid message: could not convert to string".to_string()));
+                let err_msg = "invalid message: could not convert to string".to_string();
+                tracing::debug!(err = err_msg.clone());
+                let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
                 let res = serde_json::to_value(res).expect("could not convert error to JsValue");
                 rep_socket
                     .send(&res.to_string(), 0)
@@ -57,7 +59,9 @@ impl Database {
             };
 
             let Ok(cmd) = serde_json::from_str(msg_str) else {
-                let res: Result<JsValue> = Err(Error::ZMQ("invalid message: could not convert `Message` to JSON".to_string()));
+                let err_msg = "invalid message: could not convert `Message` to `Command".to_string();
+                tracing::debug!(err = err_msg, msg = msg_str);
+                let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
                 let res = serde_json::to_value(res).expect("could not convert error to JsValue");
                 rep_socket
                     .send(&res.to_string(), 0)

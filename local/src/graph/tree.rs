@@ -110,9 +110,8 @@ impl ContainerTreeDuplicator {
 
         // duplicate container to new location
         let mut container = ContainerBuilder::default();
-        let container_props = container.container_mut();
-        *container_props = (*node).clone();
-        container_props.rid = ResourceId::new();
+        container.container_mut().properties = node.properties.clone();
+        container.container_mut().scripts = node.scripts.clone();
         let container = container.save(path.into())?;
 
         let dup_root = container.rid.clone();

@@ -1,4 +1,3 @@
-// @todo: Possibly uneeded.
 //! Sidebar
 pub mod commands;
 pub mod project_list;

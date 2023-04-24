@@ -1,5 +1,5 @@
 //! State for th eproject workspace;
-use crate::components::details_bar::DetailsBarWidget;
+use super::details_bar::DetailsBarWidget;
 use std::collections::HashSet;
 use std::rc::Rc;
 use thot_core::types::{ResourceId, ResourceMap};

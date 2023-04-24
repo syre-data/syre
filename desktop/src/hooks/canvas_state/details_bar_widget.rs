@@ -1,6 +1,6 @@
 //! Gets the details bar widget.
+use crate::components::canvas::details_bar::DetailsBarWidget;
 use crate::components::canvas::CanvasStateReducer;
-use crate::components::details_bar::DetailsBarWidget;
 use yew::prelude::*;
 
 #[hook]

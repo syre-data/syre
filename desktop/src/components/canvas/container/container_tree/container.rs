@@ -1,11 +1,11 @@
 //! UI for a `Container` preview within a [`Graph`](super::Graph).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
+use super::super::super::asset::CreateAssets;
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::commands::container::AddAssetWindowsArgs;
 use crate::common::invoke;
-use crate::components::asset::CreateAssets;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };

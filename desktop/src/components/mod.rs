@@ -1,12 +1,7 @@
 //! App components.
-pub mod asset;
 pub mod canvas;
-pub mod container;
-pub mod dashboard_sidebar;
-pub mod details_bar;
+pub mod dashboard;
 pub mod messages;
-pub mod project;
-pub mod script;
 pub mod settings;
 
 #[cfg(test)]

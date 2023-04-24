@@ -1,7 +1,7 @@
 //! Collection of widgetst available from anywhere in the app.
 //! Activation of the widgets is determined by the [`AppState`].
 use crate::app::{AppStateAction, AppStateReducer, AppWidget, ShadowBox};
-use crate::components::project::{CreateProject, ImportProject};
+use crate::components::dashboard::project::{CreateProject, ImportProject};
 use crate::components::settings::Settings;
 use yew::prelude::*;
 

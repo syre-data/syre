@@ -1,9 +1,9 @@
 //! Container editor widget.
+use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
-use crate::components::details_bar::script_associations_editor::ScriptAssociationsEditor;
 use thot_core::project::StandardProperties;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;

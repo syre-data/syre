@@ -1,6 +1,6 @@
 //! Project component with suspense.
+use super::super::container::ContainerTreeController;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
-use crate::components::container::ContainerTreeController;
 use crate::hooks::use_project;
 use thot_core::types::ResourceId;
 use yew::prelude::*;

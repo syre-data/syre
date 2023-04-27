@@ -61,7 +61,7 @@ pub fn add_project(
     app_state: State<AppState>,
     db: State<DbClient>,
     path: PathBuf,
-) -> LibResult<Project> {
+) -> LibResult<(Project, ProjectSettings)> {
     let user = app_state
         .user
         .lock()
@@ -72,7 +72,7 @@ pub fn add_project(
     };
 
     let project = db.send(ProjectCommand::Add(path, user.rid.clone()).into());
-    let project: DbResult<Project> =
+    let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 
     project.map_err(|err| LibError::Database(format!("{:?}", err)))

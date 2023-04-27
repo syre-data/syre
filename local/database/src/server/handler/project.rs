@@ -9,7 +9,7 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
 use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
-use thot_local::project::types::ProjectSettings;
+use thot_local::project::types::{project_settings, ProjectSettings};
 use thot_local::system::collections::projects::Projects;
 
 impl Database {
@@ -69,8 +69,9 @@ impl Database {
                 };
 
                 let project = (*local_project).clone();
+                let settings = local_project.settings().clone();
                 if !user_has_project(&user, &local_project) {
-                    let mut settings = local_project.settings().clone();
+                    let mut settings = settings.clone();
                     let permissions = UserPermissions {
                         read: true,
                         write: true,
@@ -104,6 +105,8 @@ impl Database {
                     return serde_json::to_value(error)
                         .expect("could not convert error to JsValue");
                 };
+
+                let project: Result<(CoreProject, ProjectSettings)> = Ok((project, settings));
 
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }

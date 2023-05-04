@@ -6,6 +6,9 @@
 \usage{
 zmq_socket()
 }
+\value{
+ZMQ socket.
+}
 \description{
 Create a ZMQ socket.
 }

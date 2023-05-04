@@ -8,7 +8,13 @@ Characters escaped:
 \item Backslash (\)
 }}
 \usage{
-escape_str(path)
+escape_str(val)
+}
+\arguments{
+\item{val}{Sring to escape.}
+}
+\value{
+Escaped string.
 }
 \description{
 Escape special string characters.

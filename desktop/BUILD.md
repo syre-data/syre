@@ -20,9 +20,15 @@ If you haven't already, go back to the root path `cd ../../`.
 
 ### On Bash / Zsh
 
-- `set -o allexport && .github/act/source secrets && set +o allexport`
+- `set -o allexport && source .github/act/secrets && set +o allexport`
 
 ## Build application
 
 - `cd desktop`
 - `cargo tauri build`
+
+## Build errors
+
+`Error:error running bundle_dmg.sh`
+
+Make sure no `Thot` process is running and that Thot is not mounted as a volume.

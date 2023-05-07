@@ -1,9 +1,12 @@
 //! Local runner hooks.
+// use settings_manager::system_settings::Loader as SystemLoader;
+use settings_manager::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
 use std::path::PathBuf;
 use thot_core::error::{ResourceError, Result as CoreResult};
 use thot_core::project::{Project, Script as CoreScript};
 use thot_core::runner::RunnerHooks as CoreRunnerHooks;
 use thot_core::types::{ResourceId, ResourcePath};
+use thot_local::system::settings::RunnerSettings;
 use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
@@ -51,6 +54,27 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
             todo!("root paths for `Script`s");
         }
     }
+
+    // Get runner settings and override script's cmd if necessary
+    let runner_settings = SystemLoader::load_or_create::<RunnerSettings>();
+    if let Ok(runner_settings) = runner_settings {
+        let runner_settings: RunnerSettings = runner_settings.into();
+        //@todo[l] Is this the right way to check for python/rscript?
+        let cmd_str = script.env.cmd.as_str().to_lowercase();
+        match cmd_str {
+            _ if cmd_str.contains("python") => {
+                if let Some(python_path) = runner_settings.python_path.clone() {
+                    script.env.cmd = python_path;
+                }
+            }
+            _ if cmd_str.contains("rscript") => {
+                if let Some(r_path) = runner_settings.r_path.clone() {
+                    script.env.cmd = r_path;
+                }
+            }
+            _ => {}
+        }
+    };
 
     Ok(script)
 }

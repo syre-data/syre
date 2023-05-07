@@ -4194,6 +4194,7 @@ name = "thot-local-runner"
 version = "0.0.1"
 dependencies = [
  "serde_json",
+ "settings_manager",
  "thot-core",
  "thot-local",
  "thot-local-database",

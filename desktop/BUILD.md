@@ -10,6 +10,8 @@ Make sure to start at the root of the thot folder.
 
 - `./build.sh`
 
+> When building from m1 to intel: `./build_from_m1_to_intel.sh`
+
 ### On Windows
 
 - `./build.bat`
@@ -26,6 +28,8 @@ If you haven't already, go back to the root path `cd ../../`.
 
 - `cd desktop`
 - `cargo tauri build`
+
+> When building from m1 to intel: `cargo tauri build --target x86_64-apple-darwin`
 
 ## Build errors
 

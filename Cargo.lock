@@ -907,20 +907,8 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e36d66fa307948c291a6fc5b09d8295dd58e88ab5e8d782d30e23670113e9ab"
 dependencies = [
- "extendr-engine 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "extendr-macros 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static",
- "libR-sys",
- "paste",
-]
-
-[[package]]
-name = "extendr-api"
-version = "0.4.0"
-source = "git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers#6f7e53a887b8c3e0c346e3e56f2f398c30367304"
-dependencies = [
- "extendr-engine 0.4.0 (git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers)",
- "extendr-macros 0.4.0 (git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers)",
+ "extendr-engine",
+ "extendr-macros",
  "lazy_static",
  "libR-sys",
  "paste",
@@ -936,28 +924,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "extendr-engine"
-version = "0.4.0"
-source = "git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers#6f7e53a887b8c3e0c346e3e56f2f398c30367304"
-dependencies = [
- "libR-sys",
-]
-
-[[package]]
 name = "extendr-macros"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09bf0849f0d48209be8163378248137fed5ccb5f464d171cf93a19f31a9e6c67"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "extendr-macros"
-version = "0.4.0"
-source = "git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers#6f7e53a887b8c3e0c346e3e56f2f398c30367304"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4013,7 +3983,7 @@ dependencies = [
 name = "thot"
 version = "0.1.0"
 dependencies = [
- "extendr-api 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "extendr-api",
  "serde",
  "serde_json",
  "thot-core",
@@ -4047,7 +4017,7 @@ dependencies = [
  "derivative",
  "dev_utils",
  "directories",
- "extendr-api 0.4.0 (git+https://github.com/bicarlsen/extendr?branch=bug-raw_identifiers)",
+ "extendr-api",
  "fake",
  "has_id",
  "indexmap",

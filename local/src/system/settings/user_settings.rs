@@ -1,17 +1,15 @@
 /// User settings.
+use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use settings_manager::settings::Settings;
 use settings_manager::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::types::Priority as SettingsPriority;
-use settings_manager::{Error as SettingsError, Result as SettingsResult};
+use settings_manager::Result as SettingsResult;
 use std::borrow::Cow;
 use std::fs::File;
-use std::io;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::identifier::Identifier;
 use thot_core::types::ResourceId;
 
 // *********************
@@ -34,27 +32,9 @@ pub struct UserSettings {
 }
 
 impl UserSettings {
-    /// Returns directories for the user's Thot.
-    pub fn dirs() -> SettingsResult<ProjectDirs> {
-        let dirs_opt = ProjectDirs::from(
-            &Identifier::qualifier(),
-            &Identifier::organization(),
-            &Identifier::application(),
-        );
-
-        match dirs_opt {
-            Some(dirs) => Ok(dirs),
-            None => Err(SettingsError::IoError(io::Error::new(
-                io::ErrorKind::NotFound,
-                "system settings directory not found",
-            ))),
-        }
-    }
-
     /// Returns the path to the users config directory for Thot.
     pub fn dir_path() -> SettingsResult<PathBuf> {
-        let dirs = Self::dirs()?;
-        let path = dirs.config_dir();
+        let path = config_dir_path()?;
         Ok(path.to_path_buf())
     }
 }

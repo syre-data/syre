@@ -17,6 +17,7 @@ impl Client {
         Self::default()
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn send(&self, cmd: Command) -> JsValue {
         // TODO: May be able to move creation of `req_socket` to `#new`, but may run into `Sync` issues.
         let req_socket = self

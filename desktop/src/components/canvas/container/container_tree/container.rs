@@ -273,8 +273,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let rid = props.rid.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
-            e.stop_propagation();
-
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));

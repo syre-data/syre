@@ -6,7 +6,7 @@ use thot_core::types::ResourceId;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct AssetsPreviewProps {
     /// [`Asset`](CoreAsset)s to display.
     pub assets: Vec<CoreAsset>,
@@ -31,7 +31,12 @@ pub struct AssetsPreviewProps {
 type Color = String;
 
 #[function_component(AssetsPreview)]
+#[tracing::instrument(level = "debug")]
 pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
+    // NOTE: Check double click was for same asset,
+    // otherwise removing an asset may trigger double click.
+    let clicked_asset = use_state(|| None);
+
     html! {
         <div class={classes!("assets-preview")}>
             if props.assets.len() == 0 {
@@ -47,13 +52,15 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                        html! {
                             <li key={asset.rid.clone()}
                                 {class}
-                                onclick={delegate_callback_with_event(
+                                onclick={onclick_asset(
                                     asset.rid.clone(),
-                                    props.onclick_asset.clone()
+                                    props.onclick_asset.clone(),
+                                    clicked_asset.clone()
                                 )}
-                                ondblclick={delegate_callback_with_event(
+                                ondblclick={ondblclick_asset(
                                     asset.rid.clone(),
-                                    props.ondblclick_asset.clone()
+                                    props.ondblclick_asset.clone(),
+                                    clicked_asset.clone(),
                                 )} >
 
                                 <div class={classes!("thot-ui-asset")}>
@@ -66,9 +73,10 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                         { asset_display_name(&asset) }
                                     </div>
                                     if props.onclick_asset_remove.is_some() {
-                                        <button onclick={delegate_callback(
+                                        <button onclick={onclick_asset_remove(
                                             asset.rid.clone(),
-                                            props.onclick_asset_remove.clone()
+                                            props.onclick_asset_remove.clone(),
+                                            clicked_asset.clone(),
                                         )} class={classes!("thot-ui-asset-remove")}>
                                             { "X" }
                                         </button>
@@ -160,6 +168,7 @@ fn asset_icon_id(asset: &CoreAsset) -> IconId {
 /// The `Color`.
 fn asset_icon_color(asset: &CoreAsset) -> Color {
     let icon_id = asset_icon_id(asset);
+    // TODO[l] Pull from stylesheet.
     let color = match icon_id {
         IconId::FontAwesomeRegularFileAudio => "#FFCC67",
         IconId::FontAwesomeRegularFileCode => "#B4DCE1",
@@ -177,28 +186,69 @@ fn asset_icon_color(asset: &CoreAsset) -> Color {
     format!("color: {}", color)
 }
 
-/// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
-fn delegate_callback<In: 'static + Clone>(
-    input: In,
-    cb: Option<Callback<In>>,
+/// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter, and sets
+/// the asset click state.
+#[tracing::instrument(level = "debug")]
+fn onclick_asset(
+    rid: ResourceId,
+    cb: Option<Callback<(ResourceId, MouseEvent)>>,
+    clicked_asset_state: UseStateHandle<Option<ResourceId>>,
 ) -> Callback<MouseEvent> {
     Callback::from(move |e: MouseEvent| {
+        if e.detail() == 1 {
+            // only set on first click
+            clicked_asset_state.set(Some(rid.clone()));
+        }
+
         if let Some(cb) = cb.as_ref() {
             e.stop_propagation();
-            cb.emit(input.clone());
+            cb.emit((rid.clone(), e));
         }
     })
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
-fn delegate_callback_with_event<In: 'static + Clone>(
-    input: In,
-    cb: Option<Callback<(In, MouseEvent)>>,
+/// Reads the asset click state to ensure the same asset is being clicked.
+#[tracing::instrument(level = "debug")]
+fn ondblclick_asset(
+    rid: ResourceId,
+    cb: Option<Callback<(ResourceId, MouseEvent)>>,
+    clicked_asset_state: UseStateHandle<Option<ResourceId>>,
 ) -> Callback<MouseEvent> {
     Callback::from(move |e: MouseEvent| {
+        if let Some(prev_rid) = clicked_asset_state.as_ref() {
+            clicked_asset_state.set(Some(rid.clone()));
+
+            if prev_rid != &rid {
+                return;
+            }
+        } else {
+            panic!("double click triggered without asset click state set");
+        }
+
         if let Some(cb) = cb.as_ref() {
             e.stop_propagation();
-            cb.emit((input.clone(), e));
+            cb.emit((rid.clone(), e));
+        }
+    })
+}
+
+/// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
+#[tracing::instrument(level = "debug")]
+fn onclick_asset_remove(
+    rid: ResourceId,
+    cb: Option<Callback<ResourceId>>,
+    clicked_asset_state: UseStateHandle<Option<ResourceId>>,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        if e.detail() == 1 {
+            // only set on first click
+            clicked_asset_state.set(Some(rid.clone()));
+        }
+
+        if let Some(cb) = cb.as_ref() {
+            e.stop_propagation();
+            cb.emit(rid.clone());
         }
     })
 }

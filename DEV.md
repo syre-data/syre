@@ -18,7 +18,7 @@ These are the kind of questions this guide aims to answer.
 
 We use the following tags to mark TODOs in comments:
 
-`@todo[l]: Message`
+`TODO[l] Message.`
 
 Priority is denoted by the letter in the brackets l, m, h, which
 respectively stand for low, medium and high priority.
@@ -27,7 +27,7 @@ For example:
 
 ```rs
 pub fn main() {
-    //@todo[l]: Message should not be hardcoded
+    //TODO[l] Message should not be hardcoded.
     println!("Hello, world!");
 }
 ```

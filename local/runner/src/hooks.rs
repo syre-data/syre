@@ -55,11 +55,11 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
         }
     }
 
+    //TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
     // Get runner settings and override script's cmd if necessary
     let runner_settings = SystemLoader::load_or_create::<RunnerSettings>();
     if let Ok(runner_settings) = runner_settings {
         let runner_settings: RunnerSettings = runner_settings.into();
-        //@todo[l] Is this the right way to check for python/rscript?
         let cmd_str = script.env.cmd.as_str().to_lowercase();
         match cmd_str {
             _ if cmd_str.contains("python") => {

@@ -30,7 +30,11 @@ pub fn load_user_projects(
     db: State<DbClient>,
     user: ResourceId,
 ) -> Result<Vec<(Project, ProjectSettings)>> {
-    let projects = db.send(ProjectCommand::LoadUser(user).into());
+    let projects = db
+        .send(ProjectCommand::LoadUser(user).into())
+        .expect("could not load user `Project`s");
+
+    tracing::debug!(?projects);
     let projects: DbResult<Vec<(Project, ProjectSettings)>> = serde_json::from_value(projects)
         .expect("could not convert `GetUserProjects` result to `Vec<(Project, ProjectSettings)>`");
 
@@ -44,7 +48,10 @@ pub fn load_user_projects(
 /// Loads a [`Project`].
 #[tauri::command]
 pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, ProjectSettings)> {
-    let project = db.send(ProjectCommand::LoadWithSettings(path).into());
+    let project = db
+        .send(ProjectCommand::LoadWithSettings(path).into())
+        .expect("could not load `Project`");
+
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
 
@@ -71,7 +78,9 @@ pub fn add_project(
         return Err(DesktopSettingsError::NoUser.into());
     };
 
-    let project = db.send(ProjectCommand::Add(path, user.rid.clone()).into());
+    let project = db
+        .send(ProjectCommand::Add(path, user.rid.clone()).into())
+        .expect("could not add `Project`");
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 
@@ -84,7 +93,10 @@ pub fn add_project(
 /// Gets a [`Project`].
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
-    let project = db.send(ProjectCommand::Get(rid).into());
+    let project = db
+        .send(ProjectCommand::Get(rid).into())
+        .expect("could not get `Project`");
+
     let project: Option<Project> = serde_json::from_value(project)
         .expect("could not convert `GetProject` result to `Project`");
 
@@ -188,7 +200,10 @@ pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
 #[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn update_project(db: State<DbClient>, project: Project) -> Result {
-    let res = db.send(ProjectCommand::Update(project).into());
+    let res = db
+        .send(ProjectCommand::Update(project).into())
+        .expect("could not update `Project`");
+
     let res: DbResult = serde_json::from_value(res).expect("could not convert from `Update`");
 
     Ok(res?)
@@ -200,7 +215,10 @@ pub fn update_project(db: State<DbClient>, project: Project) -> Result {
 
 #[tauri::command]
 pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> LibResult {
-    let graph = db.send(GraphCommand::Get(root).into());
+    let graph = db
+        .send(GraphCommand::Get(root).into())
+        .expect("could not get graph");
+
     let graph: Option<ResourceTree<Container>> =
         serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
 

@@ -300,11 +300,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let onclick_asset_remove = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let canvas_state = canvas_state.clone();
         let container_id = props.rid.clone();
 
         Callback::from(move |rid: ResourceId| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
+            let canvas_state = canvas_state.clone();
             let container_id = container_id.clone();
 
             spawn_local(async move {
@@ -328,6 +330,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     container_id.clone(),
                     assets,
                 ));
+
+                canvas_state.dispatch(CanvasStateAction::Unselect(rid.clone()));
             });
         })
     };

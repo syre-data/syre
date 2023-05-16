@@ -1,4 +1,4 @@
-/// User settings.
+/// Runner settings.
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use serde::{Deserialize, Serialize};
@@ -10,28 +10,28 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
 
 // *********************
-// *** User Settings ***
+// *** Runner Settings ***
 // *********************
 
-/// Represents Thot user settings.
+/// Represents Thot runner settings.
 ///
 /// # Default
-/// UserSettings::default is derived so does not automatically obtain a file lock.
+/// RunnerSettings::default is derived so does not automatically obtain a file lock.
 /// This is done intentionally as it may not reflect the current state of the persisted settings.
-/// To obtain the file lock use the `UserSettings#acquire_lock` method.
+/// To obtain the file lock use the `RunnerSettings#acquire_lock` method.
 ///
 /// # Fields
-/// + **active_user:** Option of the active User id.
-/// + **active_project:** Option of the active Project id.
-pub struct UserSettings {
+/// + **python_path:** Option for the python binary path.
+/// + **r_path:** Option for the r binary path.
+pub struct RunnerSettings {
     file_lock: FlockLock<File>,
-    settings: LocalUserSettings,
+    settings: LocalRunnerSettings,
 }
 
-impl UserSettings {
+//@todo[m]: Code duplication from user_settings.rs
+impl RunnerSettings {
     /// Returns the path to the users config directory for Thot.
     pub fn dir_path() -> SettingsResult<PathBuf> {
         let path = config_dir_path()?;
@@ -39,32 +39,32 @@ impl UserSettings {
     }
 }
 
-impl Deref for UserSettings {
-    type Target = LocalUserSettings;
+impl Deref for RunnerSettings {
+    type Target = LocalRunnerSettings;
 
     fn deref(&self) -> &Self::Target {
         &self.settings
     }
 }
 
-impl DerefMut for UserSettings {
+impl DerefMut for RunnerSettings {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.settings
     }
 }
 
-/// User settings.
+/// Runner settings.
 #[derive(Serialize, Deserialize, Clone, Default)]
-pub struct LocalUserSettings {
-    pub active_user: Option<ResourceId>,
-    pub active_project: Option<ResourceId>,
+pub struct LocalRunnerSettings {
+    pub python_path: Option<String>,
+    pub r_path: Option<String>,
 }
 
-impl Settings<LocalUserSettings> for UserSettings {
-    fn settings(&self) -> Cow<LocalUserSettings> {
-        Cow::Owned(LocalUserSettings {
-            active_user: self.active_user.clone(),
-            active_project: self.active_project.clone(),
+impl Settings<LocalRunnerSettings> for RunnerSettings {
+    fn settings(&self) -> Cow<LocalRunnerSettings> {
+        Cow::Owned(LocalRunnerSettings {
+            python_path: self.python_path.clone(),
+            r_path: self.r_path.clone(),
         })
     }
 
@@ -85,17 +85,17 @@ impl Settings<LocalUserSettings> for UserSettings {
     }
 }
 
-impl SystemSettings<LocalUserSettings> for UserSettings {
+impl SystemSettings<LocalRunnerSettings> for RunnerSettings {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = Self::dir_path().expect("could not get settings directory");
-        settings_dir.join("settings.json")
+        settings_dir.join("runner_settings.json")
     }
 }
 
-impl From<Loader<LocalUserSettings>> for UserSettings {
-    fn from(loader: Loader<LocalUserSettings>) -> Self {
-        let loader: Components<LocalUserSettings> = loader.into();
+impl From<Loader<LocalRunnerSettings>> for RunnerSettings {
+    fn from(loader: Loader<LocalRunnerSettings>) -> Self {
+        let loader: Components<LocalRunnerSettings> = loader.into();
         Self {
             file_lock: loader.file_lock,
             settings: loader.data,
@@ -103,6 +103,7 @@ impl From<Loader<LocalUserSettings>> for UserSettings {
     }
 }
 
-#[cfg(test)]
-#[path = "./user_settings_test.rs"]
-mod user_settings_test;
+//@todo[l]: Add tests, not urgent since code logic similar to user_settings.rs
+// #[cfg(test)]
+// #[path = "./runner_settings_test.rs"]
+// mod runner_settings_test;

@@ -13,13 +13,26 @@ mod state;
 mod ui;
 
 use commands::*;
+use std::io;
 use tauri::RunEvent;
 use thot_local_database::client::Client as DbClient;
+use tracing_subscriber::fmt::time::UtcTime;
+use tracing_subscriber::fmt::Subscriber;
 use ui::{handle_menu_event, handle_system_tray_event, main_menu, system_tray};
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
 fn main() {
+    // setup tracing
+    let logger = Subscriber::builder()
+        .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
+        .with_max_level(tracing::Level::DEBUG)
+        .with_writer(io::stdout) // write events to the console
+        .pretty()
+        .finish();
+
+    tracing::subscriber::set_global_default(logger).expect("could not create logger");
+
     // check for database, create if needed
     let _db_handler = db::functions::verify_database();
 

@@ -23,4 +23,6 @@ Based on this [guide](https://support.posit.co/hc/en-us/articles/115000239587-Sh
 
 - Click on the `build` menu on the right hand side menu.
 - Click on `More`
-- Click on `Build Source Package`
+- Click on `Build binary Package` 
+
+> Once we move to full R w/o Rust dependencies we can then do source package and avoid the need of building for every system.

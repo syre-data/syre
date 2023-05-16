@@ -14,6 +14,7 @@ pub type SettingsMap = ResourceMap<ProjectSettings>;
 pub type ProjectScriptsMap = ResourceMap<Scripts>;
 
 /// Actions for [`ProjectsState`].
+#[derive(Debug)]
 pub enum ProjectsStateAction {
     /// Insert a project.
     InsertProject((Project, ProjectSettings)),
@@ -67,6 +68,7 @@ pub struct ProjectsState {
 impl Reducible for ProjectsState {
     type Action = ProjectsStateAction;
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
@@ -108,6 +110,7 @@ impl Reducible for ProjectsState {
             }
         }
 
+        tracing::debug!(projects_state = ?current);
         current.into()
     }
 }

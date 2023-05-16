@@ -497,6 +497,8 @@ impl Datastore {
     }
 
     /// Removes an `Asset` from its `Container`.
+    /// Deletes the related file if it exists.
+    #[tracing::instrument(level = "debug", skip(self))]
     pub fn remove_asset(&mut self, rid: &ResourceId) -> Result<Option<Asset>> {
         let Some(cid) = self.assets.get(rid).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());

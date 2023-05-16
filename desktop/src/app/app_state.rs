@@ -20,6 +20,7 @@ pub enum AppWidget {
 }
 
 /// Actions available to modify the [`AppState`].
+#[derive(Debug)]
 pub enum AppStateAction<'a> {
     /// Sets the active widget.
     SetActiveWidget(Option<AppWidget>),
@@ -68,6 +69,7 @@ pub struct AppState<'a> {
 impl Reducible for AppState<'static> {
     type Action = AppStateAction<'static>;
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
@@ -112,6 +114,7 @@ impl Reducible for AppState<'static> {
             }
         };
 
+        tracing::debug!(app_state = ?current);
         current.into()
     }
 }

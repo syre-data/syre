@@ -6,6 +6,7 @@ use yew::prelude::*;
 
 // TODO[h]: App state and auth state should be split in two
 // so user is always guaranteed in components.
+#[derive(Debug)]
 pub enum AuthStateAction {
     /// Set the active user.
     SetUser(Option<User>),
@@ -30,6 +31,7 @@ impl AuthState {
 impl Reducible for AuthState {
     type Action = AuthStateAction;
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
 
@@ -58,6 +60,7 @@ impl Reducible for AuthState {
             }
         };
 
+        tracing::debug!(auth_state = ?current);
         current.into()
     }
 }

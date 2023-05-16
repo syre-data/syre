@@ -8,6 +8,7 @@ use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, Standar
 use thot_core::types::ResourceId;
 
 impl Database {
+    #[tracing::instrument(level = "debug", skip(self))]
     pub fn handle_command_asset(&mut self, cmd: AssetCommand) -> JsValue {
         match cmd {
             AssetCommand::Get(rid) => {
@@ -100,6 +101,7 @@ impl Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     fn remove_asset(&mut self, rid: &ResourceId) -> Result {
         self.store.remove_asset(rid)?;
         Ok(())

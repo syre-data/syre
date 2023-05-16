@@ -3,7 +3,7 @@ use yew::prelude::*;
 
 use crate::components::canvas::GraphStateReducer;
 
-#[tracing::instrument]
+#[tracing::instrument(level = "debug")]
 #[hook]
 pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
     let graph_state =
@@ -26,6 +26,7 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
             .expect("`Asset` not found")
             .clone()
     });
+    tracing::debug!(?asset);
 
     {
         let rid = rid.clone();
@@ -50,8 +51,10 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
                         .expect("`Asset` not found")
                         .clone(),
                 );
+
+                tracing::debug!("Asset updated via use effect {:?}", asset);
             },
-            (rid, graph_state)
+            (rid, graph_state),
         )
     }
     asset

@@ -6,7 +6,7 @@ use serde_wasm_bindgen as swb;
 use thot_desktop_lib::error::Error as LibError;
 use tracing::debug;
 
-#[tracing::instrument(skip(args))]
+#[tracing::instrument(level = "debug", skip(args))]
 pub async fn invoke<T>(command: &str, args: impl Serialize) -> Result<T>
 where
     T: DeserializeOwned,

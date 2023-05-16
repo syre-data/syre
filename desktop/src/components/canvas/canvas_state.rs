@@ -29,7 +29,12 @@ pub enum CanvasStateAction {
     SelectAsset(ResourceId),
 
     /// Mark a resource as unselected.
+    /// Updates the details bar as needed.
     Unselect(ResourceId),
+
+    /// Mark multilpe resources unselected.
+    /// Updates the details bar as needed.
+    UnselectMany(Vec<ResourceId>),
 
     /// Clear selection state.
     ClearSelected,
@@ -138,6 +143,14 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::Unselect(rid) => {
                 current.selected.remove(&rid);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::UnselectMany(rids) => {
+                for rid in rids {
+                    current.selected.remove(&rid);
+                }
+
                 current.details_bar_widget = current.details_bar_widget_from_selected();
             }
 

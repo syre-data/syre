@@ -126,6 +126,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let on_menu_event = {
         let app_state = app_state.clone();
+        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let rid = props.rid.clone();
         let show_create_assets = show_create_assets.clone();
@@ -201,6 +202,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                 ContainerMenuEvent::Remove => {
                     let app_state = app_state.clone();
+                    let canvas_state = canvas_state.clone();
                     let graph_state = graph_state.clone();
 
                     spawn_local(async move {
@@ -211,7 +213,23 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         let mut graph = graph_state.graph.clone();
 
                         match graph.remove(&rid) {
-                            Ok(_) => graph_state.dispatch(GraphStateAction::SetGraph(graph)),
+                            Ok(removed) => {
+                                // unselect removed elements
+                                let mut rids = Vec::with_capacity(removed.nodes().len());
+                                for (cid, container) in removed.nodes() {
+                                    rids.push(cid.clone());
+                                    let mut aids = container
+                                        .assets
+                                        .keys()
+                                        .map(|rid| rid.clone())
+                                        .collect::<Vec<ResourceId>>();
+
+                                    rids.append(&mut aids);
+                                }
+
+                                canvas_state.dispatch(CanvasStateAction::UnselectMany(rids));
+                                graph_state.dispatch(GraphStateAction::SetGraph(graph));
+                            }
                             Err(_) => {
                                 app_state.dispatch(AppStateAction::AddMessage(Message::error(
                                     "Could not remove tree",

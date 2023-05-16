@@ -1,6 +1,5 @@
 //! Local runner hooks.
-// use settings_manager::system_settings::Loader as SystemLoader;
-use settings_manager::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
+use settings_manager::system_settings::Loader as SystemLoader;
 use std::path::PathBuf;
 use thot_core::error::{ResourceError, Result as CoreResult};
 use thot_core::project::{Project, Script as CoreScript};
@@ -13,7 +12,10 @@ use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 #[tracing::instrument]
 pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
     let db = DbClient::new();
-    let script = db.send(ScriptCommand::Get(rid.clone()).into());
+    let script = db
+        .send(ScriptCommand::Get(rid.clone()).into())
+        .expect("could not retrieve `Script`");
+
     let script: Option<CoreScript> =
         serde_json::from_value(script).expect("could not convert result of `Get` to `Script`");
 
@@ -25,7 +27,10 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
     match script.path {
         ResourcePath::Absolute(_) => {}
         ResourcePath::Relative(path) => {
-            let project = db.send(ScriptCommand::GetProject(script.rid.clone()).into());
+            let project = db
+                .send(ScriptCommand::GetProject(script.rid.clone()).into())
+                .expect("could not retrieve `Project`");
+
             let project: Option<Project> = serde_json::from_value(project)
                 .expect("could not convert `GetProject` result to `ResourceId`");
 
@@ -36,7 +41,10 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
                 .expect("`Project`'s analysis root not set")
                 .clone();
 
-            let project_path = db.send(ProjectCommand::GetPath(project.rid.clone()).into());
+            let project_path = db
+                .send(ProjectCommand::GetPath(project.rid.clone()).into())
+                .expect("could not retrieve `Project` path");
+
             let project_path: Option<PathBuf> = serde_json::from_value(project_path)
                 .expect("could not convert result of `GetPath` to `PathBuf`");
 

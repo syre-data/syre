@@ -56,7 +56,10 @@ pub fn init_project_graph(
     let _rid = container::init_from(&path, container)?;
 
     // set project data root
-    let project = db.send(ProjectCommand::Get(project).into());
+    let project = db
+        .send(ProjectCommand::Get(project).into())
+        .expect("could not get `Project`");
+
     let project: Option<Project> =
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
@@ -66,14 +69,20 @@ pub fn init_project_graph(
 
     project.data_root = Some(path.clone());
     let pid = project.rid.clone();
-    let res = db.send(ProjectCommand::Update(project).into());
+    let res = db
+        .send(ProjectCommand::Update(project).into())
+        .expect("could not update `Project`");
+
     let res: DbResult =
         serde_json::from_value(res).expect("could not convert `Update` result to `Result");
 
     res?;
 
     // load and store container
-    let graph = db.send(GraphCommand::Load(pid).into());
+    let graph = db
+        .send(GraphCommand::Load(pid).into())
+        .expect("could not load graph");
+
     let graph: DbResult<ContainerTree> =
         serde_json::from_value(graph).expect("could not convert `Load` result to `Container` tree");
 
@@ -87,7 +96,10 @@ pub fn init_project_graph(
 /// 1. `Project` id.
 #[tauri::command]
 pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
-    let graph = db.send(GraphCommand::Load(rid).into());
+    let graph = db
+        .send(GraphCommand::Load(rid).into())
+        .expect("could not load graph");
+
     let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
         .expect("could not convert `Load` result to a `ContainerTree`");
 
@@ -103,7 +115,10 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
 #[tauri::command]
 pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result<Container> {
-    let child = db.send(GraphCommand::NewChild(NewChildArgs { name, parent }).into());
+    let child = db
+        .send(GraphCommand::NewChild(NewChildArgs { name, parent }).into())
+        .expect("could not create child `Container`");
+
     let child: DbResult<Container> = serde_json::from_value(child)
         .expect("could not convert `NewChild` result to a `Container`");
 
@@ -117,7 +132,10 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 #[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
-    let dup = db.send(GraphCommand::Duplicate(rid).into());
+    let dup = db
+        .send(GraphCommand::Duplicate(rid).into())
+        .expect("could not duplicate graph");
+
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");
 
@@ -139,13 +157,15 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
 
     root.properties.name = Some(name);
 
-    let res = db.send(
-        ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
-            rid: root_id,
-            properties: root.properties.clone(),
-        })
-        .into(),
-    );
+    let res = db
+        .send(
+            ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
+                rid: root_id,
+                properties: root.properties.clone(),
+            })
+            .into(),
+        )
+        .expect("could not update root `Container`");
 
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
@@ -160,7 +180,9 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
 /// 1. Id of the root of the `Container` tree to remove.
 #[tauri::command]
 pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
-    let res = db.send(GraphCommand::Remove(rid).into());
+    let res = db
+        .send(GraphCommand::Remove(rid).into())
+        .expect("could not remove `Container` tree");
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `Remove` to `Container` tree");
     res.map_err(|err| err.into())

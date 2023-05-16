@@ -34,7 +34,6 @@ pub fn load_user_projects(
         .send(ProjectCommand::LoadUser(user).into())
         .expect("could not load user `Project`s");
 
-    tracing::debug!(?projects);
     let projects: DbResult<Vec<(Project, ProjectSettings)>> = serde_json::from_value(projects)
         .expect("could not convert `GetUserProjects` result to `Vec<(Project, ProjectSettings)>`");
 

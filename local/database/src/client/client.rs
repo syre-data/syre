@@ -8,6 +8,8 @@ use serde_json::Value as JsValue;
 use std::net::{Ipv4Addr, TcpListener};
 
 static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
+static CONNECT_TIMEOUT: i32 = 5000;
+static RECV_TIMEOUT: i32 = 5000;
 
 pub struct Client {
     zmq_context: zmq::Context,
@@ -27,11 +29,11 @@ impl Client {
             .expect("could not create `REQ` socket");
 
         req_socket
-            .set_connect_timeout(1000)
+            .set_connect_timeout(CONNECT_TIMEOUT)
             .expect("could not set connection timeout");
 
         req_socket
-            .set_rcvtimeo(5000)
+            .set_rcvtimeo(RECV_TIMEOUT)
             .expect("could not set socket timeout");
 
         req_socket
@@ -68,11 +70,11 @@ impl Client {
             .expect("could not create socket");
 
         req_socket
-            .set_connect_timeout(1000)
+            .set_connect_timeout(CONNECT_TIMEOUT)
             .expect("could not set connection timeout");
 
         req_socket
-            .set_rcvtimeo(1000)
+            .set_rcvtimeo(RECV_TIMEOUT)
             .expect("could not set socket timeout");
 
         req_socket

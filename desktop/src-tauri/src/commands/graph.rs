@@ -94,6 +94,7 @@ pub fn init_project_graph(
 ///
 /// # Argments
 /// 1. `Project` id.
+#[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
 pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
     let graph = db
@@ -113,6 +114,7 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
 /// # Arguments
 /// 1. `name`: Name of the child.
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
+#[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
 pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result<Container> {
     let child = db

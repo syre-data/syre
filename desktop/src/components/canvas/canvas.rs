@@ -14,7 +14,7 @@ use thot_ui::widgets::suspense::Loading;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct ProjectCanvasProps {
     pub project: ResourceId,
 
@@ -22,6 +22,7 @@ pub struct ProjectCanvasProps {
     pub class: Option<Classes>,
 }
 
+#[tracing::instrument(level = "debug")]
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let show_side_bars = use_state(|| true);
@@ -50,9 +51,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<GraphStateReducer> context={graph_state}>
         <div class={classes!("project-canvas", props.class.clone())}>
-            // <NavBar />
             <div class={classes!("project-canvas-content")} >
-
                 <Suspense {fallback}>
                     <ProjectUi rid={props.project.clone()} />
                 </Suspense>

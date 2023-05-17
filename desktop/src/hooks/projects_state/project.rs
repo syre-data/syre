@@ -1,11 +1,13 @@
 //! Project hook with suspense.
 use crate::app::ProjectsStateReducer;
-use thot_core::project::Project as CoreProject;
+use thot_core::project::Project;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
+/// Get the [`Project`] with the given id.
+#[tracing::instrument(level = "debug")]
 #[hook]
-pub fn use_project(rid: &ResourceId) -> UseStateHandle<Option<CoreProject>> {
+pub fn use_project(rid: &ResourceId) -> UseStateHandle<Option<Project>> {
     let projects_state =
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 

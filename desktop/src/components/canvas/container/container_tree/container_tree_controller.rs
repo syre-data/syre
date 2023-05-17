@@ -36,12 +36,10 @@ enum AnalysisState {
 // *** Component ***
 // *****************
 
-#[derive(Properties, PartialEq)]
-pub struct ContainerTreeControllerProps {}
-
 /// Container tree with controls.
+#[tracing::instrument(level = "debug")]
 #[function_component(ContainerTreeController)]
-pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
+pub fn container_tree_controller() -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
@@ -62,8 +60,8 @@ pub fn container_tree_controller(props: &ContainerTreeControllerProps) -> Html {
         use_effect_with_deps(
             move |_| {
                 spawn_local(async move {
-                    // @todo: Listen to window events.
-                    // @note: Used for *nix and macOS machines.
+                    // TODO Listen to window events.
+                    // NOTE Used for *nix and macOS machines.
                     //      For Windows machine, look in the `Container` component.
                     let mut events = tauri_sys::event::listen::<Vec<PathBuf>>("tauri://file-drop")
                         .await

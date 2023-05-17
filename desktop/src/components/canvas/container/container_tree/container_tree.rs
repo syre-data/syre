@@ -31,6 +31,7 @@ struct NewChildNameProps {
 }
 
 /// Component to get name for a new child.
+#[tracing::instrument(level = "debug", skip(props))]
 #[function_component(NewChildName)]
 fn new_child_name(props: &NewChildNameProps) -> Html {
     let input_ref = use_node_ref();
@@ -84,13 +85,14 @@ static VISIBILITY_CONTROL_SIZE: u8 = 20;
 static EYE_ICON_SIZE: u8 = 16;
 
 /// Properties for a [`ContainerTree`].
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct ContainerTreeProps {
     /// The root `Container`.
     pub root: ResourceId,
 }
 
 /// Container tree component.
+#[tracing::instrument(level = "debug")]
 #[function_component(ContainerTree)]
 pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let auth_state =

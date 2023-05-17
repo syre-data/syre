@@ -42,7 +42,7 @@ pub struct ContainerProps {
     pub onadd_child: Option<Callback<ResourceId>>,
 }
 
-#[tracing::instrument(skip(props))]
+#[tracing::instrument(level = "debug", skip(props), fields(?props.rid))]
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------

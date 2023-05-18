@@ -3,8 +3,7 @@ use super::super::Database;
 use crate::command::graph::NewChildArgs;
 use crate::command::GraphCommand;
 use crate::server::store::ContainerTree;
-use crate::Error;
-use crate::Result;
+use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
@@ -45,7 +44,30 @@ impl Database {
             }
 
             GraphCommand::Remove(root) => {
-                let res = self.store.remove_subgraph(&root);
+                let sub_graph = match self.store.remove_subgraph(&root) {
+                    Ok(path) => path,
+                    Err(err) => {
+                        let err: Result = Err(err);
+                        return serde_json::to_value(err).expect("could not convert `Result` to JsValue");
+                    }
+                };
+
+                let root_path = sub_graph
+                    .get(sub_graph.root())
+                    .expect("`Graph` root not found")
+                    .base_path();
+                    
+                #[cfg(target_os = "windows")]
+                let root_path = root_path
+                    .canonicalize()
+                    .expect("could not canonicalize path");
+
+                if let Err(err) = trash::delete(root_path) {
+                    let err: Error = err.into();
+                    return serde_json::to_value(err).expect("could not convert `Result` to JsValue")
+                }
+       
+                let res: Result = Ok(());
                 serde_json::to_value(res).expect("could not convert `Result` to JsValue")
             }
 

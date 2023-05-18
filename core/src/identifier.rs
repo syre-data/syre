@@ -3,15 +3,15 @@ pub struct Identifier;
 
 impl Identifier {
     pub fn qualifier() -> String {
-        String::from("com")
+        String::from("so")
     }
 
     pub fn organization() -> String {
-        String::from("Thot")
+        String::from("thot")
     }
 
     pub fn application() -> String {
-        String::from("Thot Core")
+        String::from("core")
     }
 }
 

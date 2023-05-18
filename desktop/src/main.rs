@@ -20,18 +20,19 @@ use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_web::{performance_layer, MakeConsoleWriter};
 
+const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;
+
 fn main() {
     // logging setup
-    let max_log_level = LevelFilter::DEBUG;
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false) // Only partially supported across browsers
         .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
         .with_writer(MakeConsoleWriter) // write events to the console
-        .with_filter(max_log_level);
+        .with_filter(MAX_LOG_LEVEL);
 
     let perf_layer = performance_layer()
         .with_details_from_fields(Pretty::default())
-        .with_filter(max_log_level);
+        .with_filter(MAX_LOG_LEVEL);
 
     tracing_subscriber::registry()
         .with(fmt_layer)

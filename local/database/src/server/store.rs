@@ -267,8 +267,12 @@ impl Datastore {
         Ok(())
     }
 
-    /// Insert a graph into another.
-    pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result {
+    /// Remove the subgraph with the given root.
+    /// 
+    /// # Returns
+    /// Removed subgraph root.
+    #[tracing::instrument(skip(self))]
+    pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result<ContainerTree> {
         let Some(project) = self.get_container_project(root).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
         };
@@ -279,12 +283,6 @@ impl Datastore {
             .expect("`Project` graph not found");
 
         let sub_graph = p_graph.remove(root)?;
-
-        let root_path = sub_graph
-            .get(sub_graph.root())
-            .expect("`Graph` root not found")
-            .base_path();
-
         for (cid, container) in sub_graph.nodes() {
             // map container to project
             self.container_projects.remove(cid);
@@ -298,8 +296,8 @@ impl Datastore {
             }
         }
 
-        trash::delete(root_path)?;
-        Ok(())
+
+        Ok(sub_graph)
     }
 
     // *****************

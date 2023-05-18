@@ -40,6 +40,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .get(&props.container)
         .expect("`Container not found");
 
+    let dirty_state = use_state(|| false); // track if changes come from user or are internal
     let associations = use_state(|| container.scripts.clone());
 
     let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
@@ -62,11 +63,13 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     {
         // Update associations based on container
         let container = container.clone();
+        let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
         use_effect_with_deps(
             move |container| {
                 associations.set(container.scripts.clone());
+                dirty_state.set(false);
             },
             container,
         );
@@ -101,17 +104,22 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         // Save associations on change
         let container = props.container.clone();
         let graph_state = graph_state.clone();
+        let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
         use_effect_with_deps(
             move |associations| {
+                if !*dirty_state {
+                    return;
+                }
+
                 let container = container.clone();
                 let graph_state = graph_state.clone();
                 let associations = associations.clone();
 
                 spawn_local(async move {
-                    // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
-                    // See: https://github.com/tauri-apps/tauri/issues/6078
+                    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
+                    // See https://github.com/tauri-apps/tauri/issues/6078
                     let associations_str = serde_json::to_string(&*associations)
                         .expect("could not serialize `ScriptMap`");
 
@@ -162,20 +170,24 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .collect::<NameMap>();
 
     let onadd = {
+        let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
         Callback::from(move |script: ResourceId| {
             let mut assocs = (*associations).clone();
             assocs.insert(script, RunParameters::new());
             associations.set(assocs);
+            dirty_state.set(true);
         })
     };
 
     let onchange = {
+        let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
         Callback::from(move |assocs: ScriptMap| {
             associations.set(assocs);
+            dirty_state.set(true);
         })
     };
 

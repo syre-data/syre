@@ -19,6 +19,7 @@ pub struct ContainerEditorProps {
     pub onsave: Callback<()>,
 }
 
+#[tracing::instrument(level = "debug", skip(props), fields(?props.rid))]
 #[function_component(ContainerEditor)]
 pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
@@ -29,14 +30,18 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         .get(&props.rid)
         .expect("`Container` not found");
 
+    let dirty_state = use_state(|| false); // track if property changes come from user updates or
+                                           // internal changes
     let properties = use_state(|| container.properties.clone());
     {
         let container = container.clone();
+        let dirty_state = dirty_state.clone();
         let properties = properties.clone();
 
         use_effect_with_deps(
             move |container| {
                 properties.set(container.properties.clone());
+                dirty_state.set(false);
             },
             container.clone(),
         );
@@ -47,14 +52,19 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         let rid = props.rid.clone();
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let dirty_state = dirty_state.clone();
         let properties = properties.clone();
 
         use_effect_with_deps(
             move |properties| {
+                if !*dirty_state {
+                    return;
+                }
+
                 let properties = properties.clone();
                 spawn_local(async move {
-                    // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
-                    // See: https://github.com/tauri-apps/tauri/issues/6078
+                    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+                    // See https://github.com/tauri-apps/tauri/issues/6078
                     let properties_str = serde_json::to_string(&*properties)
                         .expect("could not serialize `StandardProperties`");
 
@@ -69,7 +79,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                     };
                     match invoke::<()>("update_container_properties", update_str).await {
                         Err(err) => {
-                            web_sys::console::error_1(&format!("{err:?}").into());
+                            tracing::debug!(?err);
                             app_state.dispatch(AppStateAction::AddMessage(Message::error(
                                 "Could not save resource",
                             )));
@@ -90,6 +100,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
 
         Callback::from(move |update: StandardProperties| {
             properties.set(update);
+            dirty_state.set(true);
         })
     };
 
@@ -100,7 +111,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 onchange={onchange} />
 
             <ScriptAssociationsEditor container={props.rid.clone()} />
-            // @todo: <AssetDropZone />
+            // TODO <AssetDropZone />
         </div>
     }
 }

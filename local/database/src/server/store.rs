@@ -676,6 +676,12 @@ impl Datastore {
 
         Ok(o_script)
     }
+
+    /// Remove a `Script` from a `Project`.
+    /// Removes all `Container` script associations.
+    /// 
+    /// # Returns
+    /// Removed `Script`.
     pub fn remove_project_script(
         &mut self,
         project: &ResourceId,

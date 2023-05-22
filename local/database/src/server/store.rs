@@ -268,7 +268,7 @@ impl Datastore {
     }
 
     /// Remove the subgraph with the given root.
-    /// 
+    ///
     /// # Returns
     /// Removed subgraph root.
     #[tracing::instrument(skip(self))]
@@ -295,7 +295,6 @@ impl Datastore {
                 self.assets.remove(aid);
             }
         }
-
 
         Ok(sub_graph)
     }
@@ -679,7 +678,7 @@ impl Datastore {
 
     /// Remove a `Script` from a `Project`.
     /// Removes all `Container` script associations.
-    /// 
+    ///
     /// # Returns
     /// Removed `Script`.
     pub fn remove_project_script(

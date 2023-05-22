@@ -5,6 +5,9 @@ use crate::command::GraphCommand;
 use crate::server::store::ContainerTree;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
+use std::fs;
+use std::path::Path;
+use std::result::Result as StdResult;
 use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::Container as CoreContainer;
@@ -15,6 +18,7 @@ use thot_local::project::container;
 use thot_local::project::resources::container::{Container, Loader as ContainerLoader};
 
 impl Database {
+    #[tracing::instrument(skip(self))]
     pub fn handle_command_graph(&mut self, cmd: GraphCommand) -> JsValue {
         match cmd {
             GraphCommand::Load(project) => {
@@ -48,25 +52,24 @@ impl Database {
                     Ok(path) => path,
                     Err(err) => {
                         let err: Result = Err(err);
-                        return serde_json::to_value(err).expect("could not convert `Result` to JsValue");
+                        return serde_json::to_value(err)
+                            .expect("could not convert `Result` to JsValue");
                     }
                 };
 
                 let root_path = sub_graph
                     .get(sub_graph.root())
                     .expect("`Graph` root not found")
-                    .base_path();
-                    
-                #[cfg(target_os = "windows")]
-                let root_path = root_path
+                    .base_path()
                     .canonicalize()
                     .expect("could not canonicalize path");
 
-                if let Err(err) = trash::delete(root_path) {
+                if let Err(err) = delete_folder(&root_path) {
                     let err: Error = err.into();
-                    return serde_json::to_value(err).expect("could not convert `Result` to JsValue")
+                    return serde_json::to_value(err)
+                        .expect("could not convert `Result` to JsValue");
                 }
-       
+
                 let res: Result = Ok(());
                 serde_json::to_value(res).expect("could not convert `Result` to JsValue")
             }
@@ -183,6 +186,31 @@ impl Database {
         self.store.insert_subgraph(&parent.rid.clone(), child)?;
         Ok(cid)
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
+    trash::delete(root_path)
+}
+
+#[cfg(target_os = "windows")]
+#[tracing::instrument]
+fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
+    for entry in fs::read_dir(root_path).expect("could not read dir") {
+        let entry = entry.expect("could not get dir entry");
+        let path = root_path.join(entry.file_name());
+        if entry
+            .file_type()
+            .expect("could not read file type")
+            .is_dir()
+        {
+            delete_folder(&path)?;
+        } else {
+            trash::delete(path)?;
+        }
+    }
+
+    trash::delete(root_path)
 }
 
 #[cfg(test)]

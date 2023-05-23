@@ -6,6 +6,9 @@
 \usage{
 database_server_path()
 }
+\value{
+Path to the local database executable for the current system.
+}
 \description{
 Get the path to the correct database server.
 }

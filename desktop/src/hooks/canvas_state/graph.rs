@@ -3,16 +3,17 @@ use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use thot_core::graph::ResourceTree;
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::suspense::{Suspension, SuspensionResult};
 
-type ContainerTree = ResourceTree<CoreContainer>;
+type ContainerTree = ResourceTree<Container>;
 
 /// Gets a `Project`'s graph.
+#[tracing::instrument(level = "debug")]
 #[hook]
 pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree> {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");

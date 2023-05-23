@@ -19,7 +19,10 @@ use thot_local_database::Result as DbResult;
 /// Retrieves a [`Container`](Container), or `None` if it is not loaded.
 #[tauri::command]
 pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<Container> {
-    let container = db.send(ContainerCommand::Get(rid).into());
+    let container = db
+        .send(ContainerCommand::Get(rid).into())
+        .expect("could not retrieve `Container`");
+
     serde_json::from_value(container)
         .expect("could not convert `GetContainer` result to `Container`")
 }
@@ -37,7 +40,8 @@ pub fn update_container_properties(
         serde_json::from_str(&properties).expect("could not deserialize into `StandardProperties`");
 
     let res = db
-        .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into());
+        .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
+        .expect("could not update `Container` properties");
 
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerProperties` from JsValue");
@@ -59,13 +63,15 @@ pub fn update_container_script_associations(
     let associations: ScriptMap =
         serde_json::from_str(&associations).expect("could not deserialize into `ScriptMap`");
 
-    let res = db.send(
-        ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
-            rid,
-            associations,
-        })
-        .into(),
-    );
+    let res = db
+        .send(
+            ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
+                rid,
+                associations,
+            })
+            .into(),
+        )
+        .expect("could not update `Script` associations");
 
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `UpdateContainerScriptAssociations` from JsValue");
@@ -76,7 +82,10 @@ pub fn update_container_script_associations(
 /// Gets the current location of a [`Container`](LocalContainer).
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
-    let path = db.send(ContainerCommand::GetPath(rid).into());
+    let path = db
+        .send(ContainerCommand::GetPath(rid).into())
+        .expect("could not get `Container` path");
+
     let path: Option<PathBuf> = serde_json::from_value(path)
         .expect("could not convert `GetContainerPath` result to `PathBuf`");
 
@@ -90,8 +99,9 @@ pub fn add_assets(
     container: ResourceId,
     assets: Vec<AddAssetInfo>,
 ) -> Result<Vec<ResourceId>> {
-    let asset_rids =
-        db.send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into());
+    let asset_rids = db
+        .send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into())
+        .expect("could not add `Asset`s to `Container`");
 
     let asset_rids: DbResult<Vec<ResourceId>> = serde_json::from_value(asset_rids)
         .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");
@@ -107,7 +117,10 @@ pub fn add_asset_windows(
     contents: Vec<u8>,
 ) -> Result<Vec<ResourceId>> {
     // create file
-    let path = db.send(ContainerCommand::GetPath(container.clone()).into());
+    let path = db
+        .send(ContainerCommand::GetPath(container.clone()).into())
+        .expect("could not get `Container` path");
+
     let path: Option<PathBuf> =
         serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
     let mut path = path.expect("could not get `Container` path");
@@ -123,8 +136,9 @@ pub fn add_asset_windows(
         bucket: None,
     }];
 
-    let asset_rids =
-        db.send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into());
+    let asset_rids = db
+        .send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into())
+        .expect("could not add `Asset`s");
 
     let asset_rids: DbResult<Vec<ResourceId>> = serde_json::from_value(asset_rids)
         .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");

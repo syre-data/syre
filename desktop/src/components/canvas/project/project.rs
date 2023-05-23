@@ -5,11 +5,12 @@ use crate::hooks::use_project;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct ProjectProps {
     pub rid: ResourceId,
 }
 
+#[tracing::instrument(level = "debug")]
 #[function_component(Project)]
 pub fn project(props: &ProjectProps) -> HtmlResult {
     let canvas_state =

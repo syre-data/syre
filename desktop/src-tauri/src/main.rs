@@ -7,6 +7,7 @@ mod commands;
 mod common;
 mod db;
 mod error;
+mod identifier;
 mod settings;
 mod setup;
 mod state;
@@ -16,25 +17,44 @@ use commands::*;
 use std::io;
 use tauri::RunEvent;
 use thot_local_database::client::Client as DbClient;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::fmt::Subscriber;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{Layer, Registry};
+
 use ui::{handle_menu_event, handle_system_tray_event, main_menu, system_tray};
+
+const LOG_PREFIX: &str = "desktop.log";
+const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 
 fn main() {
-    // setup tracing
-    let logger = Subscriber::builder()
-        .with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
-        .with_max_level(tracing::Level::DEBUG)
-        .with_writer(io::stdout) // write events to the console
-        .pretty()
-        .finish();
+    // logging setup
+    let config_dir = common::config_dir_path().expect("could not get config dir path");
+    let file_logger = tracing_appender::rolling::daily(config_dir, LOG_PREFIX);
+    let (file_logger, _log_guard) = tracing_appender::non_blocking(file_logger);
+    let file_logger = fmt::layer()
+        .with_writer(file_logger)
+        .with_timer(UtcTime::rfc_3339())
+        .json()
+        // .pretty()
+        .with_filter(MAX_LOG_LEVEL);
 
-    tracing::subscriber::set_global_default(logger).expect("could not create logger");
+    let console_logger = fmt::layer()
+        .with_writer(io::stdout)
+        .with_timer(UtcTime::rfc_3339())
+        .pretty()
+        .with_filter(MAX_LOG_LEVEL);
+
+    let subscriber = Registry::default().with(console_logger).with(file_logger);
+
+    tracing::subscriber::set_global_default(subscriber).expect("could not create logger");
 
     // check for database, create if needed
-    let _db_handler = db::functions::verify_database();
+    db::functions::verify_database().unwrap();
 
     // create app
     let app = tauri::Builder::default()

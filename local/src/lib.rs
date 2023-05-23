@@ -9,6 +9,7 @@ pub mod error;
 pub mod project;
 pub mod system;
 pub mod types;
+pub mod identifier;
 
 #[cfg(feature = "fs")]
 pub mod graph;

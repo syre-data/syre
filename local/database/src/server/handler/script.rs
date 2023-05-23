@@ -1,7 +1,7 @@
 //! Handle `Script` related functionality.
 use super::super::Database;
 use crate::command::ScriptCommand;
-use crate::Result;
+use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use settings_manager::local_settings::Loader as LocalLoader;
 use settings_manager::system_settings::Loader as SystemLoader;
@@ -90,7 +90,29 @@ impl Database {
 
     /// Remove `Script` from `Project`.
     fn remove_script(&mut self, pid: &ResourceId, script: &ResourceId) -> Result {
-        self.store.remove_project_script(pid, script)?;
+        let script = self.store.remove_project_script(pid, script)?;
+        
+        if let Some(script) = script {
+            let path = match script.path {
+                ResourcePath::Absolute(path) => path.clone(),
+                ResourcePath::Relative(script_path) => {
+                    let Some(project) = self.store.get_project(&pid) else {
+                        return Err(Error::DatabaseError(String::from("could not get `Project` path")));
+                    };
+
+                    let path = project.base_path();
+                    path
+                        .join(project.analysis_root.as_ref().expect("`Project`'s analysis root not set").clone())
+                        .join(script_path)
+                },
+                ResourcePath::Root(_path, _level) => {
+                    todo!("root paths not handled");
+                }
+            };
+
+            trash::delete(path)?;
+        }
+
         Ok(())
     }
 

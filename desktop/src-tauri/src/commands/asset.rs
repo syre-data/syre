@@ -18,7 +18,10 @@ pub fn get_assets(
     db: State<DbClient>,
     assets: Vec<ResourceId>,
 ) -> HashMap<ResourceId, Option<PathBuf>> {
-    let assets = db.send(AssetCommand::GetMany(assets).into());
+    let assets = db
+        .send(AssetCommand::GetMany(assets).into())
+        .expect("could not retrieve `Asset`s");
+
     serde_json::from_value(assets).expect("could not convert result of `GetAssets` to `Vec<Asset>`")
 }
 

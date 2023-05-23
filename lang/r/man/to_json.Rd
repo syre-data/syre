@@ -7,7 +7,10 @@
 to_json(obj)
 }
 \arguments{
-\item{obj}{The object to convert.}
+\item{obj}{Object to convert.}
+}
+\value{
+JSON encoding of the object.
 }
 \description{
 Convert an object into JSON.

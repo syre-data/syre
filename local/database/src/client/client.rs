@@ -3,10 +3,13 @@ use crate::command::Command;
 use crate::command::{Command as DbCommand, DatabaseCommand};
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::types::PortNumber;
+use crate::Result;
 use serde_json::Value as JsValue;
 use std::net::{Ipv4Addr, TcpListener};
 
 static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
+static CONNECT_TIMEOUT: i32 = 5000;
+static RECV_TIMEOUT: i32 = 5000;
 
 pub struct Client {
     zmq_context: zmq::Context,
@@ -18,7 +21,7 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn send(&self, cmd: Command) -> JsValue {
+    pub fn send(&self, cmd: Command) -> Result<JsValue> {
         // TODO: May be able to move creation of `req_socket` to `#new`, but may run into `Sync` issues.
         let req_socket = self
             .zmq_context
@@ -26,11 +29,11 @@ impl Client {
             .expect("could not create `REQ` socket");
 
         req_socket
-            .set_connect_timeout(1000)
+            .set_connect_timeout(CONNECT_TIMEOUT)
             .expect("could not set connection timeout");
 
         req_socket
-            .set_rcvtimeo(5_000)
+            .set_rcvtimeo(RECV_TIMEOUT)
             .expect("could not set socket timeout");
 
         req_socket
@@ -45,15 +48,13 @@ impl Client {
             .expect("socket could not send message");
 
         let mut msg = zmq::Message::new();
-        req_socket
-            .recv(&mut msg, 0)
-            .expect("socket could not recieve `Message`");
+        req_socket.recv(&mut msg, 0)?;
 
-        serde_json::from_str(
+        Ok(serde_json::from_str(
             msg.as_str()
                 .expect("could not interpret `Message` as string"),
         )
-        .expect("could not convert `Message` to JsValue")
+        .expect("could not convert `Message` to JsValue"))
     }
 
     /// Checks if a database is running.
@@ -69,11 +70,11 @@ impl Client {
             .expect("could not create socket");
 
         req_socket
-            .set_connect_timeout(1000)
+            .set_connect_timeout(CONNECT_TIMEOUT)
             .expect("could not set connection timeout");
 
         req_socket
-            .set_rcvtimeo(1000)
+            .set_rcvtimeo(RECV_TIMEOUT)
             .expect("could not set socket timeout");
 
         req_socket

@@ -3,13 +3,14 @@ use directories::ProjectDirs;
 use settings_manager::{Error as SettingsError, Result as SettingsResult};
 use std::io;
 use std::path::PathBuf;
-use thot_core::identifier::Identifier;
+use thot_core::identifier::Identifier as CoreIdentifier;
+use crate::identifier::Identifier;
 
 /// Returns directories for the user's Thot.
 pub fn system_dirs() -> SettingsResult<ProjectDirs> {
     let dirs_opt = ProjectDirs::from(
-        &Identifier::qualifier(),
-        &Identifier::organization(),
+        &CoreIdentifier::qualifier(),
+        &CoreIdentifier::organization(),
         &Identifier::application(),
     );
 

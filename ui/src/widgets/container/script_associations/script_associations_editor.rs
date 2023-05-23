@@ -52,6 +52,7 @@ pub struct ScriptAssociationEditorProps {
 
 #[function_component(ScriptAssociationEditor)]
 pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
+    let dirty_state = use_state(|| false); // track if changes are from user interaction
     let association_state = use_reducer(|| ScriptAssociationState {
         run_parameters: props.run_parameters.clone(),
     });
@@ -60,17 +61,24 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 
     {
         let onchange = props.onchange.clone();
+        let dirty_state = dirty_state.clone();
         let association_state = association_state.clone();
 
         use_effect_with_deps(
             move |association_state| {
+                if !*dirty_state {
+                    return;
+                }
+
                 onchange.emit(association_state.run_parameters.clone());
+                dirty_state.set(false);
             },
             association_state,
         );
     }
 
     let onchange_priority = {
+        let dirty_state = dirty_state.clone();
         let association_state = association_state.clone();
         let priority_ref = priority_ref.clone();
 
@@ -85,10 +93,12 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
                 .expect("could not parse input as number");
 
             association_state.dispatch(ScriptAssociationStateAction::SetPriority(priority));
+            dirty_state.set(true);
         })
     };
 
     let onchange_autorun = {
+        let dirty_state = dirty_state.clone();
         let association_state = association_state.clone();
         let autorun_ref = autorun_ref.clone();
 
@@ -99,6 +109,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 
             let autorun = autorun_ref.checked();
             association_state.dispatch(ScriptAssociationStateAction::SetAutorun(autorun));
+            dirty_state.set(true);
         })
     };
 

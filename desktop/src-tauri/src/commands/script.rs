@@ -17,7 +17,10 @@ use thot_local_database::Result as DbResult;
 
 #[tauri::command]
 pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> LibResult<Vec<Script>> {
-    let scripts = db.send(ScriptCommand::LoadProject(rid).into());
+    let scripts = db
+        .send(ScriptCommand::LoadProject(rid).into())
+        .expect("could not load `Project` `Script`s");
+
     let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts)
         .expect("could not convert `LoadProject` result to `Scripts`");
 
@@ -31,7 +34,10 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> LibResult<Ve
 #[tauri::command]
 pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Result<Script> {
     // copy script to analysis root
-    let project = db.send(ProjectCommand::Get(project.clone()).into());
+    let project = db
+        .send(ProjectCommand::Get(project.clone()).into())
+        .expect("could not get `Project`");
+
     let project: Option<Project> =
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
@@ -39,7 +45,9 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
         return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
     };
 
-    let project_path = db.send(ProjectCommand::GetPath(project.rid.clone()).into());
+    let project_path = db
+        .send(ProjectCommand::GetPath(project.rid.clone()).into())
+        .expect("could not get `Project` path");
     let project_path: Option<PathBuf> =
         serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
 
@@ -63,7 +71,9 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
     }
 
     // add script to project
-    let script = db.send(ScriptCommand::Add(project.rid.clone(), script_name).into());
+    let script = db
+        .send(ScriptCommand::Add(project.rid.clone(), script_name).into())
+        .expect("could not add `Script`");
     let script: DbResult<Script> =
         serde_json::from_value(script).expect("could not convert `AddScript` result to `Script`");
 
@@ -76,7 +86,10 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
 
 #[tauri::command]
 pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceId) -> Result {
-    let res = db.send(ScriptCommand::Remove(project, script).into());
+    let res = db
+        .send(ScriptCommand::Remove(project, script).into())
+        .expect("could not remove `Script`");
+
     let res: DbResult =
         serde_json::from_value(res).expect("could not convert `RemoveScript` result to `Result`");
 

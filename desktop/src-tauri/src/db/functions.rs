@@ -15,6 +15,7 @@ pub fn verify_database() -> Option<(Receiver<CommandEvent>, CommandChild)> {
     Some(handler)
 }
 
+// Important On macOS m1, not dropping the `Receiver` (part of the _db_handler), causes ZMQ issues.
 /// Initializes a [`Database`] as a sidecar process.
 fn init_database() -> (Receiver<CommandEvent>, CommandChild) {
     Command::new_sidecar("thot-local-database")

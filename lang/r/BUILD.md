@@ -15,7 +15,7 @@ To install Thot globally (default path is ./)
 
 ## Creating a zipped R library for sharing
 
-- Open th `RStudio` application
+- Open the `RStudio` application
 - On the top menu, click on `File/Open project ...`
 - Select `PATH-TO-THOT/lang/r/thot.Rproj`
 

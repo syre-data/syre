@@ -131,6 +131,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
             continue;
         }
 
+        // TODO[h] Should not create.
         let prj: Project = Loader::load_or_create(path.clone())?.into();
         if prj.meta_level == 0 {
             return common::canonicalize_path(path);

@@ -8,6 +8,7 @@ License: MIT + file LICENSE
 Suggests: 
     testthat (>= 3.0.0)
 Imports:
+    R.utils,
     base,
     devtools,
     jsonlite,

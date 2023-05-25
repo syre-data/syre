@@ -8,6 +8,7 @@ use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
+use thot_local::project::project::project_resource_root_path;
 use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
 use thot_local::project::types::{project_settings, ProjectSettings};
 use thot_local::system::collections::projects::Projects;
@@ -134,6 +135,11 @@ impl Database {
 
             ProjectCommand::GetPath(rid) => {
                 let path = self.get_project_path(&rid);
+                serde_json::to_value(path).expect("could not convert `PathBuf` to JsValue")
+            }
+
+            ProjectCommand::ResourceRootPath(path) => {
+                let path = project_resource_root_path(&path);
                 serde_json::to_value(path).expect("could not convert `PathBuf` to JsValue")
             }
         }

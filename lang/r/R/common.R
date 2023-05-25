@@ -60,7 +60,7 @@ escape_str <- function(val) {
 join_path_windows <- function(p1, p2) {
   len <- nchar(p1) + nchar(p2)
   if (len < 256) {
-    return(normalizePath(file.path(p1, p2)))
+    return(normalizePath(file.path(p1, p2), mustWork = FALSE))
   }
 
   PATH_PREFIX <- "\\\\?\\"
@@ -83,4 +83,33 @@ join_path_windows <- function(p1, p2) {
   }
 
   paste(p1, p2)
+}
+
+#' Datetime in ISO 8601 format.
+utc_now <- function() {
+  now <- as.POSIXlt(Sys.time(), tz = "UTC")
+  strftime(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+#' Converts an empty object (`[]`) in JSON to an empty object (`{}`)
+#'
+#' @param keys List of or singular object key(s) to convert.
+#' @param json JSON in which to convert.
+#' @returns JSON with key replaced as empty object if it was an empty list.
+#'
+#' @examples
+#' my_json <- '{"my_obj": [], "my_num": 4}'
+#' json_empty_list_to_obj("my_obj", my_json)
+json_empty_list_to_obj <- function(keys, json) {
+  if (!is.list(keys)) {
+    keys <- list(keys)
+  }
+
+  for (key in keys) {
+    search <- sprintf('"%s":\\s*\\[\\]', key)
+    replace <- sprintf('"%s":{}', key)
+    json <- gsub(search, replace, json)
+  }
+
+  json
 }

@@ -5,6 +5,7 @@
 #' @importFrom jsonlite fromJSON
 #' @importFrom jsonlite toJSON
 #' @importFrom purrr map
+#' @importFrom R.utils isAbsolutePath
 #' @importFrom rzmq connect.socket
 #' @importFrom rzmq disconnect.socket
 #' @importFrom rzmq init.context

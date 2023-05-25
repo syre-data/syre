@@ -1,0 +1,126 @@
+* using log directory 'C:/Users/carls/Documents/thot/lang/thot.Rcheck'
+* using R version 4.2.3 (2023-03-15 ucrt)
+* using platform: x86_64-w64-mingw32 (64-bit)
+* using session charset: UTF-8
+* using options '--no-manual --as-cran'
+* checking for file 'thot/DESCRIPTION' ... OK
+* this is package 'thot' version '0.10.0'
+* package encoding: UTF-8
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for executable files ... WARNING
+Found the following executable files:
+  inst/thot-local-database-aarch64-apple-darwin
+  inst/thot-local-database-x86_64-pc-windows-msvc.exe
+  inst/thot-local-database-x86_64-unknown-linux-gnu
+Source packages should not contain undeclared executable files.
+See section 'Package structure' in the 'Writing R Extensions' manual.
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking serialization versions ... OK
+* checking whether package 'thot' can be installed ... OK
+* checking installed package size ... NOTE
+  installed size is 14.7Mb
+* checking package directory ... OK
+* checking for future file timestamps ... NOTE
+unable to verify current time
+* checking DESCRIPTION meta-information ... NOTE
+Malformed Title field: should not end in a period.
+* checking top-level files ... NOTE
+Non-standard files/directories found at top level:
+  'BUILD.md' '_src'
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking R files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
+* checking dependencies in R code ... WARNING
+'::' or ':::' import not declared from: 'uuid'
+Namespaces in Imports field not imported from:
+  'base' 'devtools'
+  All declared Imports should be used.
+package 'methods' is used but not declared
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... NOTE
+Asset: no visible global function definition for 'new'
+Container: no visible global function definition for 'new'
+add_asset: no visible binding for global variable 'type'
+database: no visible global function definition for 'new'
+Undefined global functions or variables:
+  new type
+Consider adding
+  importFrom("methods", "new")
+to your NAMESPACE file (and ensure that your DESCRIPTION Imports field
+contains 'methods').
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... WARNING
+Undocumented arguments in documentation object 'add_asset'
+  'tyfpe'
+Documented arguments not in \usage in documentation object 'add_asset':
+  'type'
+
+Documented arguments not in \usage in documentation object 'database_available':
+  'socket'
+
+Functions with \usage entries need to have the appropriate \alias
+entries, and all their arguments documented.
+The \usage entries must correspond to syntactically valid R code.
+See chapter 'Writing R documentation files' in the 'Writing R
+Extensions' manual.
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking examples ... ERROR
+Running examples in 'thot-Ex.R' failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: add_asset
+> ### Title: Adds an Asset to the Thot project. The associated data should be
+> ###   saved at the return path.
+> ### Aliases: add_asset
+> 
+> ### ** Examples
+> 
+> db <- database()
+Error in database() : !is.null(dev_root) is not TRUE
+Calls: database -> stopifnot
+Execution halted
+* checking for unstated dependencies in 'tests' ... OK
+* checking tests ... ERROR
+  Running 'testthat.R'
+Running the tests in 'tests/testthat.R' failed.
+Last 13 lines of output:
+  > test_check("thot")
+  [ FAIL 1 | WARN 0 | SKIP 0 | PASS 0 ]
+  
+  ══ Failed tests ════════════════════════════════════════════════════════════════
+  ── Error ('test-thot.R:3:3'): everything works ─────────────────────────────────
+  Error in `send_cmd(zmq_socket(), cmd)`: ProjectError(PathNotInProject("/home/brian/Downloads/thot-projects/0/data"))
+  Backtrace:
+      ▆
+   1. └─thot::database(dev_root = dev_root) at test-thot.R:3:2
+   2.   └─thot:::project_resource_root_path(root_path)
+   3.     └─thot:::send_cmd(zmq_socket(), cmd)
+  
+  [ FAIL 1 | WARN 0 | SKIP 0 | PASS 0 ]
+  Error: Test failures
+  Execution halted
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 2 ERRORs, 3 WARNINGs, 5 NOTEs

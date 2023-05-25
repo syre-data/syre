@@ -54,7 +54,7 @@ fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("could not create logger");
 
     // check for database, create if needed
-    db::functions::verify_database().unwrap();
+    db::functions::verify_database();
 
     // create app
     let app = tauri::Builder::default()

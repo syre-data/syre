@@ -1,6 +1,7 @@
-test_that("everything works", {
-  dev_root <- "/home/brian/Downloads/thot-projects/0/data"
+test_that("api works", {
+  dev_root <- "/path/to/test/container"
   db <- database(dev_root = dev_root)
+  root_container <- root(db)
   asset <- find_asset(db)
   assets <- find_assets(db)
   container <- find_container(db)

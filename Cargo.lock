@@ -4050,17 +4050,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thot"
-version = "0.1.0"
-dependencies = [
- "extendr-api",
- "serde",
- "serde_json",
- "thot-core",
- "thot-local",
-]
-
-[[package]]
 name = "thot-cli"
 version = "0.10.0-intermediate"
 dependencies = [

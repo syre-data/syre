@@ -43,6 +43,9 @@ pub enum ProjectCommand {
 
     /// Gets the path to the `Project`.
     GetPath(ResourceId),
+
+    /// Get's the project root path of a resource given its path.
+    ResourceRootPath(PathBuf),
 }
 
 #[cfg(test)]

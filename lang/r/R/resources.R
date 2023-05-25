@@ -1,7 +1,35 @@
 setClassUnion("OptionChar", c("character", "NULL"))
-setClass('Database', slots=list(root="character", root_path="character", socket="externalptr"))
-setClass('Container', slots=list(name="OptionChar", type="OptionChar", tags="list", metadata="list", assets="list"))
-setClass('Asset', slots=list(name="OptionChar", type="OptionChar", tags="list", metadata="list", file="OptionChar"))
+
+setClass(
+  'Database',
+  slots = list(
+    root = "character",
+    root_path = "character",
+    socket = "externalptr"
+  )
+)
+
+setClass(
+  'Container',
+  slots = list(
+    name = "OptionChar",
+    type = "OptionChar",
+    tags = "list",
+    metadata = "list",
+    assets = "list"
+  )
+)
+
+setClass(
+  'Asset',
+  slots = list(
+    name = "OptionChar",
+    type = "OptionChar",
+    tags = "list",
+    metadata = "list",
+    file = "OptionChar"
+  )
+)
 
 #' Create a new Asset.
 #'

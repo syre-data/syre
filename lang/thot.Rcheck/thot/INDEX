@@ -1,0 +1,49 @@
+Asset                   Create a new Asset.
+Container               Create a new Asset.
+StandardProperties      Create a new 'StandardProperties' list.
+active_user             Gets the active user id or 'NULL'.
+add_asset               Adds an Asset to the Thot project. The
+                        associated data should be saved at the return
+                        path.
+asset_from_json         Converts a list of properties to an Asset. The
+                        list should mirror the structure of the JSON
+                        representation of an Asset.
+container_by_path       Gets a Thot Container from its path.
+container_from_json     Converts a list of properties to a Container.
+                        The list should mirror the structure of the
+                        JSON representation of a Container.
+container_path          Gets a Thot Container's path.
+database                Create a new Thot database connection.
+database_available      Checks if a Thot database is available.
+database_server_path    Get the path to the correct database server.
+escape_str              Escape special string characters. Characters
+                        escaped: * Backslash (\)
+find_asset              Finds a single Asset matching the given filter
+                        criteria. If multiple matching Assets are
+                        found, a random one is returned.
+find_assets             Find Assets matching the given filter criteria.
+find_container          Finds a single Container matching the given
+                        filter criteria. If multiple matching
+                        Containers are found, a random one is returned.
+find_containers         Find Containers matching the given filter
+                        criteria.
+get_container           Gets a Thot Container.
+join_path_windows       Normalize Windows paths. If total path length
+                        is less than 256, returns the normalized path,
+                        otherwise returns the device (UNC) path.
+json_asset              Creates a new core Asset.
+json_empty_list_to_obj
+                        Converts an empty object ([]) in JSON to an
+                        empty object ('{}')
+load_graph              Loads a Thot Project's graph.
+load_project            Loads a Thot project.
+project_resource_root_path
+                        Gets the Project path given a path. Returns
+                        'NULL' if the path is not in a project.
+root                    Gets the root Container of the database.
+send_cmd                Send a command to the database.
+thot_container_id       Gets the 'THOT_CONTAINER_ID' environment
+                        variable.
+to_json                 Convert an object into JSON.
+utc_now                 Datetime in ISO 8601 format.
+zmq_socket              Create a ZMQ socket.

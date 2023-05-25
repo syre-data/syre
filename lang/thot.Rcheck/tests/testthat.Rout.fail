@@ -1,0 +1,43 @@
+
+R version 4.2.3 (2023-03-15 ucrt) -- "Shortstop Beagle"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # This file is part of the standard setup for testthat.
+> # It is recommended that you do not modify it.
+> #
+> # Where should you do additional test configuration?
+> # Learn more about the roles of various files in:
+> # * https://r-pkgs.org/tests.html
+> # * https://testthat.r-lib.org/reference/test_package.html#special-files
+> 
+> library(testthat)
+> library(thot)
+> 
+> test_check("thot")
+[ FAIL 1 | WARN 0 | SKIP 0 | PASS 0 ]
+
+══ Failed tests ════════════════════════════════════════════════════════════════
+── Error ('test-thot.R:3:3'): everything works ─────────────────────────────────
+Error in `send_cmd(zmq_socket(), cmd)`: ProjectError(PathNotInProject("/home/brian/Downloads/thot-projects/0/data"))
+Backtrace:
+    ▆
+ 1. └─thot::database(dev_root = dev_root) at test-thot.R:3:2
+ 2.   └─thot:::project_resource_root_path(root_path)
+ 3.     └─thot:::send_cmd(zmq_socket(), cmd)
+
+[ FAIL 1 | WARN 0 | SKIP 0 | PASS 0 ]
+Error: Test failures
+Execution halted

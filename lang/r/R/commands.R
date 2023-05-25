@@ -14,11 +14,12 @@ send_cmd <- function(socket, cmd, result = TRUE) {
   res <- receive.string(socket)
   res <- fromJSON(res, simplifyVector = FALSE)
   if (result) {
-    res <- res$Ok
     err <- res$Err
     if (!is.null(err)) {
       stop(err)
     }
+
+    res <- res$Ok
   }
 
   res

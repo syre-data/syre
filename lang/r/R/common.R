@@ -1,5 +1,5 @@
 # constants
-THOT_LOCALHOST <- "127.0.0.1"
+LOCALHOST <- "127.0.0.1"
 THOT_PORT <- 7047
 THOT_TIMEOUT <- 1000L # in milliseconds
 
@@ -10,7 +10,7 @@ zmq_socket <- function() {
   socket <- init.socket(THOT_ZMQ_CONTEXT, "ZMQ_REQ")
   set.send.timeout(socket, THOT_TIMEOUT)
   set.linger(socket, THOT_TIMEOUT)
-  connect.socket(socket, sprintf("tcp://%s:%d", THOT_LOCALHOST, THOT_PORT))
+  connect.socket(socket, sprintf("tcp://%s:%d", LOCALHOST, THOT_PORT))
 
   socket
 }

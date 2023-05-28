@@ -39,10 +39,16 @@ project_resource_root_path <- function(path) {
 new_asset <- function(file, name = NULL, type = NULL, tags = list(), metadata = list()) {
   path_type <- if(isAbsolutePath(file)) "Absolute" else "Relative"
   path_val <- list()
-  path_val[[path_type]] = file
+  path_val[[path_type]] <- file
+
   asset <- list(
     rid = uuid::UUIDgenerate(),
-    properties = StandardProperties(),
+    properties = StandardProperties(
+      name = name,
+      type = type,
+      tags = tags,
+      metadata = metadata
+    ),
     path = path_val
   )
 
@@ -51,9 +57,14 @@ new_asset <- function(file, name = NULL, type = NULL, tags = list(), metadata = 
 
 
 #' Create a new `StandardProperties` list.
+#' 
+#' @param name Name of the Asset to match.
+#' @param type Type of the Asset to match.
+#' @param tags List of tags the Asset has to match.
+#' @param metadata Named list of metadata the Asset has to match.
 #'
-#' @returns Default standard properties as a named list.
-StandardProperties <- function() {
+#' @returns Standard properties as a named list.
+StandardProperties <- function(name = NULL, type = NULL, tags = list(), metadata = list()) {
   user <- active_user()
   if (!is.null(user)) {
     user <- list(Id = user$rid)
@@ -62,10 +73,10 @@ StandardProperties <- function() {
   list(
     created = utc_now(),
     creator = list(User = user),
-    name = NULL,
-    kind = NULL,
+    name = name,
+    kind = type,
     description = NULL,
-    tags = list(),
-    metadata = list()
+    tags = tags,
+    metadata = metadata
   )
 }

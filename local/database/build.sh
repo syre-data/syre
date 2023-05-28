@@ -12,7 +12,7 @@ mv ${releases}/thot-local-database ${target_out}
 
 # copy to other packages
 lang=${root}/lang
-python_path=${lang}/python/python/thot/package_data
+python_path=${lang}/python/src/thot/bin
 r_path=${lang}/r/inst
 
 cp ${target_out} ${python_path}

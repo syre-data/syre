@@ -155,11 +155,13 @@ find_asset <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NUL
 #' The associated data should be saved at the return path.
 #'
 #' @param db Thot database connection.
-#' @param file File name of the associated data. Use relative paths to place the Asset in a bucket.
-#' @param name Name of the Asset to match.
-#' @param type Type of the Asset to match.
-#' @param tags List of tags the Asset has to match.
-#' @param metadata Named list of metadata the Asset has to match.
+#' @param file File name of the associated data.
+#' Use relative paths to place the Asset in a bucket.
+#' @param name Name of the Asset.
+#' @param type Type of the Asset.
+#' @param description Description of the Asset. 
+#' @param tags List of tags for the Asset.
+#' @param metadata Named list of metadata for the Asset.
 #'
 #' @returns Path to save the Asset's related data to.
 #' @export
@@ -168,8 +170,23 @@ find_asset <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NUL
 #' db <- database()
 #' path <- add_asset(db, "my_file.txt", name = "My Text File")
 #' cat("Hello!", path)
-add_asset <- function(db, file, name = NULL, type = NULL, tags = list(), metadata = list()) {
-  asset <- new_asset(file, name = name, type = type, tags = tags, metadata = metadata)
+add_asset <- function(
+  db,
+  file,
+  name = NULL,
+  type = NULL,
+  description = NULL,
+  tags = list(),
+  metadata = list()
+) {
+  asset <- new_asset(
+    file,
+    name = name,
+    type = type,
+    tags = tags,
+    metadata = metadata
+  )
+
   args <- to_json(list(asset, db@root))
   args <- json_empty_list_to_obj("metadata", args)
   cmd <- sprintf('{"AssetCommand": {"Add": %s}}', args)

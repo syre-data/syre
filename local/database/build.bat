@@ -22,5 +22,5 @@ move %dir%\thot-local-database.exe %target_out%
 
 :: copy to other directories
 set lang=%root%\lang
-copy "%target_out%" "%lang%\python\python\thot/package_data\"
+copy "%target_out%" "%lang%\python\src\thot\bin\"
 copy "%target_out%" "%lang%\r\inst\"

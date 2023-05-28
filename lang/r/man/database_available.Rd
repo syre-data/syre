@@ -6,9 +6,6 @@
 \usage{
 database_available()
 }
-\arguments{
-\item{socket}{ZMQ socket.}
-}
 \value{
 Whether a Thot database is available.
 }

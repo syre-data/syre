@@ -56,11 +56,11 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
 
     let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
+    let is_root = &props.rid == graph_state.graph.root();
 
     let navigator = use_navigator().expect("navigator not found");
     let show_create_assets = use_state(|| false);
     let selected = canvas_state.selected.contains(&props.rid);
-
     let multiple_selected = canvas_state.selected.len() > 1;
 
     let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
@@ -493,6 +493,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 r#ref: props.r#ref.clone(),
                 class,
                 visible: canvas_state.is_visible(&container.rid),
+                is_root,
                 rid: props.rid.clone(),
                 properties: container.properties.clone(),
                 assets: container.assets.clone(),

@@ -194,7 +194,7 @@ add_asset <- function(
   if (SYSNAME == "Windows") {
     path <- join_path_windows(db@root_path, asset$path[[1]])
   } else {
-    path <- normalizePath(file.path(db@root_path, asset$path))
+    path <- file.path(db@root_path, asset$path)
   }
 
   # ensure bucket is created

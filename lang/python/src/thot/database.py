@@ -96,12 +96,22 @@ class Database:
             s.bind((LOCALHOST, THOT_PORT))
             
         except OSError as err:
-            if err.winerror == 10048:
-                pass
-            elif err.errno:
-                # TODO Linux and Mac
+            system = platform.system()
+            if system == 'Darwin':
+                if err.errno == 48:
+                    pass
+                else:
+                    raise err
+            elif system == 'Linux':
                 print("TODO", err.errno)
                 pass
+            elif system == 'Windows':
+                if ("winerror" in err) and (err.winerror == 10048):
+                    pass
+                else:
+                    raise err
+            else:
+                raise err
             
         else:
             # socket not bound, no chance of database running

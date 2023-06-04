@@ -15,6 +15,9 @@ lang=${root}/lang
 python_path=${lang}/python/src/thot/bin
 r_path=${lang}/r/inst
 
+# create python bin path if it does not exist
+mkdir -p ${python_path};
+
 cp ${target_out} ${python_path}
 cp ${target_out} ${r_path}
 

@@ -31,7 +31,7 @@ target
 /lang/python/**/.Python
 /lang/python/**/.venv*/
 /lang/python/**/env/
-/lang/python/**/bin/
+/lang/python/*[!src]*/bin/
 /lang/python/**/build/
 /lang/python/**/develop-eggs/
 /lang/python/**/dist/

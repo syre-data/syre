@@ -7,7 +7,7 @@ Description: R bindings to interact with the Thot data management and analysis t
 License: MIT + file LICENSE
 Suggests: 
     testthat (>= 3.0.0)
-Depends:
+Imports:
     R.utils,
     base,
     jsonlite,

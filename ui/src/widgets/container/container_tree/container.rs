@@ -40,6 +40,10 @@ struct ContainerMenuProps {
 
     /// Callback when a menu item is clicked.
     pub onclick: Callback<ContainerMenuEvent>,
+
+    /// Indicates whether the Container is root
+    #[prop_or(false)]
+    pub is_root: bool,
 }
 
 /// Container menu.
@@ -73,14 +77,18 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
                     { "Add data" }
                 </li>
 
-                <li class={classes!("clickable")}
-                    onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
-                    { "Duplicate Tree" }
-                </li>
-                <li class={classes!("clickable")}
-                    onclick={onclick(ContainerMenuEvent::Remove)}>
-                    { "Remove Tree" }
-                </li>
+                { if props.is_root { html!{} } else { html!{
+                    <>
+                    <li class={classes!("clickable")}
+                        onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
+                        { "Duplicate Tree" }
+                    </li>
+                    <li class={classes!("clickable")}
+                        onclick={onclick(ContainerMenuEvent::Remove)}>
+                        { "Remove Tree" }
+                    </li>
+                    </>
+                }}}
             </ul>
         </div>
     }
@@ -106,6 +114,9 @@ pub struct ContainerProps {
 
     #[prop_or(true)]
     pub visible: bool,
+
+    #[prop_or(false)]
+    pub is_root: bool,
 
     #[prop_or(ContainerPreview::Assets)]
     pub preview: ContainerPreview,
@@ -282,7 +293,8 @@ pub fn container(props: &ContainerProps) -> Html {
                     if *show_menu {
                         <ContainerMenu
                             r#ref={menu_ref}
-                            onclick={on_menu_event} />
+                            onclick={on_menu_event}
+                            is_root={props.is_root} />
                     }
                 </div>
             }

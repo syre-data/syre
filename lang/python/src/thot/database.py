@@ -97,11 +97,15 @@ class Database:
             
         except OSError as err:
             system = platform.system()
+            print(system)
             if system == 'Darwin':
                 mac_system = platform.processor()
-                if (mac_system == 'arm') and (err.errno != 48):
-                    raise err
-                elif (mac_system == 'i386'): # TODO and (err.errno != 48):
+                print(mac_system)
+                print(err.errno)
+                if mac_system == 'arm':
+                    if err.errno != 48:
+                        raise err
+                elif mac_system == 'i386': # TODO and (err.errno != 48):
                     print("TODO", err.errno)
                 else:
                     raise err

@@ -101,7 +101,7 @@ class Database:
                 mac_system = platform.processor()
                 if (mac_system == 'arm') and (err.errno == 48):
                     pass
-                elif (mac_system == 'i386'):#TODO and (err.errno == 48):
+                elif (mac_system == 'i386'): # TODO and (err.errno == 48):
                     print("TODO", err.errno)
                 else:
                     raise err
@@ -109,9 +109,7 @@ class Database:
                 print("TODO", err.errno)
                 pass
             elif system == 'Windows':
-                if ("winerror" in err) and (err.winerror == 10048):
-                    pass
-                else:
+                if (not hasattr(err, "winerror")) or (err.winerror != 10048):
                     raise err
             else:
                 raise err

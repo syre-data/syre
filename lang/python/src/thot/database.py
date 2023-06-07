@@ -41,7 +41,11 @@ class Database:
             if os_name == "Linux":
                 exe_path = bin_path.joinpath(f"{exe_base_name}-x86_64-unknown-linux-gnu")
             elif os_name == "Darwin":
-                exe_path = bin_path.joinpath(f"{exe_base_name}-aarch64-apple-darwin")
+                mac_system = platform.processor()
+                if mac_system == 'arm':
+                    exe_path = bin_path.joinpath(f"{exe_base_name}-aarch64-apple-darwin")
+                else:
+                    exe_path = bin_path.joinpath(f"{exe_base_name}-x86_64-apple-darwin")
             elif os_name == "Windows":
                 exe_path = bin_path.joinpath(f"{exe_base_name}-x86_64-pc-windows-msvc.exe")
             else:

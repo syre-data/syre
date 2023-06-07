@@ -20,7 +20,6 @@ OptMetadata = Union[Metadata, None]
 LOCALHOST = "127.0.0.1"
 THOT_PORT = 7047
 
-
 class Database:
     """
     A Thot Database.
@@ -103,15 +102,7 @@ class Database:
             system = platform.system()
             print(system)
             if system == 'Darwin':
-                mac_system = platform.processor()
-                print(mac_system)
-                print(err.errno)
-                if mac_system == 'arm':
-                    if err.errno != 48:
-                        raise err
-                elif mac_system == 'i386': # TODO and (err.errno != 48):
-                    print("TODO", err.errno)
-                else:
+                if err.errno != 48:
                     raise err
             elif system == 'Linux':
                 if err.errno != 98:

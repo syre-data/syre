@@ -100,7 +100,6 @@ class Database:
             
         except OSError as err:
             system = platform.system()
-            print(system)
             if system == 'Darwin':
                 if err.errno != 48:
                     raise err

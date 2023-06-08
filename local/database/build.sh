@@ -6,7 +6,6 @@ target=$(rustc -Vv | grep host | cut -f2 -d' ')
 target_file=thot-local-database-${target}
 target_out=${releases}/${target_file}
 
-mkdir -p ${dir}
 cargo build --release -F server
 mv ${releases}/thot-local-database ${target_out}
 
@@ -16,7 +15,7 @@ python_path=${lang}/python/src/thot/bin
 r_path=${lang}/r/inst
 
 # create python bin path if it does not exist
-mkdir -p ${python_path};
+mkdir -p ${python_path}
 
 cp ${target_out} ${python_path}
 cp ${target_out} ${r_path}

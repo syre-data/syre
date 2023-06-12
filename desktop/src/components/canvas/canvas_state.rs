@@ -6,7 +6,7 @@ use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::ContainerPreview;
 use yew::prelude::*;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 enum ResourceType {
     Container,
     Asset,
@@ -84,17 +84,15 @@ impl CanvasState {
         self.visible.get(&rid).unwrap_or(&true).to_owned()
     }
 
+    #[tracing::instrument(skip(self))]
     fn details_bar_widget_from_selected(&self) -> Option<DetailsBarWidget> {
         match self.selected.len() {
             0 => None,
             1 => {
-                let Some(rid) = self.selected.iter().next() else {
-                    return None;
-                };
-
+                let rid = self.selected.iter().next().expect("resource not available");
                 let kind = self
                     .resource_types
-                    .get(&rid)
+                    .get(rid)
                     .expect("could not find resource type");
 
                 match kind {
@@ -103,8 +101,20 @@ impl CanvasState {
                 }
             }
             _ => {
-                // @todo: Bulk editing.
-                None
+                let mut kinds = self.selected.iter().map(|rid| {
+                    self.resource_types
+                        .get(rid)
+                        .expect("could not find resource type")
+                });
+
+                // must clone iterator, iterators can only be used once
+                if kinds.clone().all(|k| k == &ResourceType::Container) {
+                    Some(DetailsBarWidget::ContainerBulkEditor(self.selected.clone()))
+                } else if kinds.all(|k| k == &ResourceType::Asset) {
+                    Some(DetailsBarWidget::AssetBulkEditor(self.selected.clone()))
+                } else {
+                    Some(DetailsBarWidget::MixedBulkEditor(self.selected.clone()))
+                }
             }
         }
     }

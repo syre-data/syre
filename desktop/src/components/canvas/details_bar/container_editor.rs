@@ -111,7 +111,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 onchange={onchange} />
 
             <ScriptAssociationsEditor container={props.rid.clone()} />
-            // TODO <AssetDropZone />
+            // TODO Allow Assets to be dropped here.
         </div>
     }
 }

@@ -110,7 +110,6 @@ impl Reducible for ProjectsState {
             }
         }
 
-        tracing::debug!(projects_state = ?current);
         current.into()
     }
 }

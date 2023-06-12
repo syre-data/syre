@@ -114,7 +114,6 @@ impl Reducible for AppState<'static> {
             }
         };
 
-        tracing::debug!(app_state = ?current);
         current.into()
     }
 }

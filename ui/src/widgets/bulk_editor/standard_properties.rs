@@ -102,6 +102,8 @@ where
 }
 
 enum StandardPropertiesUpdateStateAction {
+    /// Set all values from properties.
+    SetValues(Vec<StandardProperties>),
     SetName(String),
     ClearName,
     SetKind(String),
@@ -179,6 +181,10 @@ impl Reducible for StandardPropertiesUpdateState {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
+            StandardPropertiesUpdateStateAction::SetValues(properties) => {
+                current = Self::new(&properties);
+            }
+
             StandardPropertiesUpdateStateAction::SetName(value) => {
                 current.name = FieldState::new_dirty(BulkValue::Equal(Some(value)));
             }
@@ -228,6 +234,20 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
+
+    {
+        let properties = props.properties.clone();
+        let updater_state = updater_state.clone();
+
+        use_effect_with_deps(
+            move |properties| {
+                updater_state.dispatch(StandardPropertiesUpdateStateAction::SetValues(
+                    properties.clone(),
+                ));
+            },
+            properties,
+        );
+    }
 
     // -----------------------
     // --- change handlers ---
@@ -318,7 +338,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                     { "Type" }
                     <input
                         ref={kind_ref}
-                        placeholder={value_placeholder(updater_state.name().value())}
+                        placeholder={value_placeholder(updater_state.kind().value())}
                         value={value_string(updater_state.kind().value())}
                         onchange={onchange_kind} />
                 </label>

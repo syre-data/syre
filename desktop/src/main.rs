@@ -12,7 +12,6 @@ mod pages;
 mod routes;
 mod widgets;
 
-use app::App;
 pub use error::Result;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt::format::Pretty;
@@ -39,5 +38,5 @@ fn main() {
         .with(perf_layer)
         .init();
 
-    yew::Renderer::<App>::new().render();
+    yew::Renderer::<app::App>::new().render();
 }

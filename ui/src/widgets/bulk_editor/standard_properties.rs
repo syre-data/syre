@@ -1,59 +1,10 @@
 //! Bulk editor for [`StandardProperties`].
+use super::tags::TagsBulkEditor;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use thot_core::project::Metadata;
 use thot_core::project::StandardProperties;
 use yew::prelude::*;
-
-// **********************
-// *** update builder ***
-// **********************
-
-// #[derive(PartialEq, Default)]
-// pub struct StandardPropertiesUpdateBuilder<'a> {
-//     name: Option<&'a str>,
-//     kind: Option<&'a str>,
-//     description: Option<&'a str>,
-//     tags: Option<Vec<String>>,
-//     // metadata: Option<Metadata>>,
-// }
-
-// impl<'a> StandardPropertiesUpdateBuilder<'a> {
-//     pub fn name(&self) -> Option<&'a str> {
-//         self.name
-//     }
-
-//     pub fn set_name(&mut self, name: &'a str) {
-//         self.name.insert(name);
-//     }
-
-//     pub fn clear_name(&mut self) {
-//         self.name.take();
-//     }
-
-//     pub fn kind(&self) -> Option<&'a str> {
-//         self.kind
-//     }
-
-//     pub fn set_kind(&mut self, kind: &'a str) {
-//         self.kind.insert(kind);
-//     }
-
-//     pub fn clear_kind(&mut self) {
-//         self.kind.take();
-//     }
-
-//     pub fn description(&self) -> Option<&'a str> {
-//         self.description
-//     }
-
-//     pub fn set_description(&mut self, description: &'a str) {
-//         self.description.insert(description);
-//     }
-
-//     pub fn clear_description(&mut self) {
-//         self.description.take();
-//     }
-// }
 
 // ***************
 // *** reducer ***
@@ -74,7 +25,7 @@ where
 /// 0. Value.
 /// 1. Dirty state. `true` indicates the value of the field is different from the original.
 #[derive(PartialEq, Clone)]
-struct FieldState<T>(BulkValue<T>, bool)
+struct FieldState<T>(T, bool)
 where
     T: PartialEq + Clone;
 
@@ -82,22 +33,47 @@ impl<T> FieldState<T>
 where
     T: PartialEq + Clone,
 {
-    pub fn new(value: BulkValue<T>) -> Self {
+    pub fn new(value: T) -> Self {
         Self(value, false)
     }
 
-    pub fn new_dirty(value: BulkValue<T>) -> Self {
+    pub fn new_dirty(value: T) -> Self {
         Self(value, true)
     }
 
     /// Returns the value of the field.
-    pub fn value(&self) -> &BulkValue<T> {
+    pub fn value(&self) -> &T {
         &self.0
     }
 
     /// Indicates if the field is dirty.
     pub fn dirty(&self) -> bool {
         self.1
+    }
+
+    /// Sets the field to be dirty.
+    pub fn set_dirty(&mut self) {
+        self.1 = true;
+    }
+}
+
+impl<T> Deref for FieldState<T>
+where
+    T: PartialEq + Clone,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for FieldState<T>
+where
+    T: PartialEq + Clone,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -110,15 +86,17 @@ enum StandardPropertiesUpdateStateAction {
     ClearKind,
     SetDescription(String),
     ClearDescription,
+    AddTag(String),
+    RemoveTag(String),
 }
 
 #[derive(PartialEq, Clone)]
 struct StandardPropertiesUpdateState {
-    name: FieldState<Option<String>>,
-    kind: FieldState<Option<String>>,
-    description: FieldState<Option<String>>,
-    // pub tags: Option<Vec<String>>,
-    // pub metadata: Option<Metadata>,
+    name: FieldState<BulkValue<Option<String>>>,
+    kind: FieldState<BulkValue<Option<String>>>,
+    description: FieldState<BulkValue<Option<String>>>,
+    tags: FieldState<Vec<String>>,
+    // metadata: Option<Metadata>,
 }
 
 impl StandardPropertiesUpdateState {
@@ -155,23 +133,37 @@ impl StandardPropertiesUpdateState {
             _ => BulkValue::Mixed,
         };
 
+        let mut tags = properties
+            .iter()
+            .map(|props| props.tags.clone())
+            .flatten()
+            .collect::<Vec<String>>();
+
+        tags.sort();
+        tags.dedup();
+
         Self {
             name: FieldState::new(name),
             kind: FieldState::new(kind),
             description: FieldState::new(description),
+            tags: FieldState::new(tags),
         }
     }
 
-    pub fn name(&self) -> &FieldState<Option<String>> {
+    pub fn name(&self) -> &FieldState<BulkValue<Option<String>>> {
         &self.name
     }
 
-    pub fn kind(&self) -> &FieldState<Option<String>> {
+    pub fn kind(&self) -> &FieldState<BulkValue<Option<String>>> {
         &self.kind
     }
 
-    pub fn description(&self) -> &FieldState<Option<String>> {
+    pub fn description(&self) -> &FieldState<BulkValue<Option<String>>> {
         &self.description
+    }
+
+    pub fn tags(&self) -> &FieldState<Vec<String>> {
+        &self.tags
     }
 }
 
@@ -208,6 +200,21 @@ impl Reducible for StandardPropertiesUpdateState {
             StandardPropertiesUpdateStateAction::ClearDescription => {
                 current.description = FieldState::new_dirty(BulkValue::Equal(None));
             }
+
+            StandardPropertiesUpdateStateAction::AddTag(tag) => {
+                if !current.tags.contains(&tag) {
+                    current.tags.push(tag);
+                    current.tags.sort();
+                    current.tags.set_dirty();
+                }
+            }
+
+            StandardPropertiesUpdateStateAction::RemoveTag(tag) => {
+                if let Ok(index) = current.tags.binary_search(&tag) {
+                    current.tags.remove(index);
+                    current.tags.set_dirty();
+                }
+            }
         }
 
         current.into()
@@ -221,6 +228,21 @@ impl Reducible for StandardPropertiesUpdateState {
 #[derive(Properties, PartialEq)]
 pub struct StandardPropertiesBulkEditorProps {
     pub properties: Vec<StandardProperties>,
+
+    #[prop_or_default]
+    onchange_name: Callback<Option<String>>,
+
+    #[prop_or_default]
+    onchange_kind: Callback<Option<String>>,
+
+    #[prop_or_default]
+    onchange_description: Callback<Option<String>>,
+
+    #[prop_or_default]
+    onadd_tag: Callback<String>,
+
+    #[prop_or_default]
+    onremove_tag: Callback<String>,
 }
 
 #[function_component(StandardPropertiesBulkEditor)]
@@ -254,6 +276,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
     // -----------------------
 
     let onchange_name = {
+        let onchange_name = props.onchange_name.clone();
         let updater_state = updater_state.clone();
         let elm = name_ref.clone();
 
@@ -267,14 +290,16 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
             let action = if value.is_empty() {
                 StandardPropertiesUpdateStateAction::ClearName
             } else {
-                StandardPropertiesUpdateStateAction::SetName(value)
+                StandardPropertiesUpdateStateAction::SetName(value.clone())
             };
 
             updater_state.dispatch(action);
+            onchange_name.emit(value);
         })
     };
 
     let onchange_kind = {
+        let onchange_kind = props.onchange_kind.clone();
         let updater_state = updater_state.clone();
         let elm = kind_ref.clone();
 
@@ -288,14 +313,16 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
             let action = if value.is_empty() {
                 StandardPropertiesUpdateStateAction::ClearKind
             } else {
-                StandardPropertiesUpdateStateAction::SetKind(value)
+                StandardPropertiesUpdateStateAction::SetKind(value.clone())
             };
 
             updater_state.dispatch(action);
+            onchange_kind.emit(value.clone());
         })
     };
 
     let onchange_description = {
+        let onchange_description = props.onchange_description.clone();
         let updater_state = updater_state.clone();
         let elm = description_ref.clone();
 
@@ -309,10 +336,29 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
             let action = if value.is_empty() {
                 StandardPropertiesUpdateStateAction::ClearDescription
             } else {
-                StandardPropertiesUpdateStateAction::SetDescription(value)
+                StandardPropertiesUpdateStateAction::SetDescription(value.clone())
             };
 
             updater_state.dispatch(action);
+            onchange_description.emit(value);
+        })
+    };
+
+    let onadd_tag = {
+        let onadd_tag = props.onadd_tag.clone();
+        let updater_state = updater_state.clone();
+        Callback::from(move |tag: String| {
+            updater_state.dispatch(StandardPropertiesUpdateStateAction::AddTag(tag.clone()));
+            onadd_tag.emit(tag);
+        })
+    };
+
+    let onremove_tag = {
+        let onremove_tag = props.onremove_tag.clone();
+        let updater_state = updater_state.clone();
+        Callback::from(move |tag: String| {
+            updater_state.dispatch(StandardPropertiesUpdateStateAction::RemoveTag(tag.clone()));
+            onremove_tag.emit(tag);
         })
     };
 
@@ -327,8 +373,8 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                     { "Name" }
                     <input
                         ref={name_ref}
-                        placeholder={value_placeholder(updater_state.name().value())}
-                        value={value_string(updater_state.name().value())}
+                        placeholder={value_placeholder(updater_state.name())}
+                        value={value_string(updater_state.name())}
                         onchange={onchange_name} />
                 </label>
             </div>
@@ -338,8 +384,8 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                     { "Type" }
                     <input
                         ref={kind_ref}
-                        placeholder={value_placeholder(updater_state.kind().value())}
-                        value={value_string(updater_state.kind().value())}
+                        placeholder={value_placeholder(updater_state.kind())}
+                        value={value_string(updater_state.kind())}
                         onchange={onchange_kind} />
                 </label>
             </div>
@@ -348,21 +394,21 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 <label>{ "Description" }
                     <textarea
                         ref={description_ref}
-                        placeholder={value_placeholder(updater_state.description().value())}
-                        value={value_string(updater_state.description().value())}
+                        placeholder={value_placeholder(updater_state.description())}
+                        value={value_string(updater_state.description())}
                         onchange={onchange_description}></textarea>
                 </label>
             </div>
 
-            // TODO
-            // <div class={classes!("form-field", "tags")}>
-            //     <label>
-            //         { "Tags" }
-            //         <TagsEditor
-            //             value={properties_state.tags.clone()}
-            //             onchange={onchange_tags} />
-            //     </label>
-            // </div>
+            <div class={classes!("form-field", "tags")}>
+                <label>
+                    { "Tags" }
+                    <TagsBulkEditor
+                        tags={(*updater_state.tags).clone()}
+                        onadd={onadd_tag}
+                        onremove={onremove_tag} />
+                </label>
+            </div>
 
             // @todo
             // <div class={classes!("form-field", "metadata")}>

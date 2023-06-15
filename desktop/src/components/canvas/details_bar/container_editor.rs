@@ -77,6 +77,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                         rid,
                         properties: (*properties).clone(),
                     };
+
                     match invoke::<()>("update_container_properties", update_str).await {
                         Err(err) => {
                             tracing::debug!(?err);

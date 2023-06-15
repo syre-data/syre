@@ -99,6 +99,7 @@ fn main() {
             // container
             add_assets,
             add_asset_windows,
+            bulk_update_container_properties,
             get_container,
             get_container_path,
             new_child,

@@ -7,6 +7,7 @@ pub mod graph;
 pub mod project;
 pub mod script;
 pub mod settings;
+pub mod types;
 pub mod user;
 
 #[cfg(test)]

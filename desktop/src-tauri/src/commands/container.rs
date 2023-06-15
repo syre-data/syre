@@ -13,6 +13,7 @@ use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::{
     AddAssetInfo, AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
+use thot_local_database::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
 use thot_local_database::command::ContainerCommand;
 use thot_local_database::Result as DbResult;
 
@@ -123,10 +124,10 @@ pub fn add_asset_windows(
 
     let path: Option<PathBuf> =
         serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
+
     let mut path = path.expect("could not get `Container` path");
     path.push(name);
     let path = unique_file_name(path).expect("could not create a unique file name");
-
     fs::write(&path, contents).expect("could not write to file");
 
     // add asset
@@ -144,6 +145,25 @@ pub fn add_asset_windows(
         .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");
 
     Ok(asset_rids?)
+}
+
+#[tauri::command]
+pub fn bulk_update_container_properties(
+    db: State<DbClient>,
+    rids: Vec<ResourceId>,
+    update: StandardPropertiesUpdate,
+) -> Result {
+    let res = db.send(
+        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs {
+            containers: rids,
+            update,
+        })
+        .into(),
+    );
+
+    // TODO Handle errors.
+    res.expect("could not update Containers");
+    Ok(())
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ pub mod database;
 pub mod graph;
 pub mod project;
 pub mod script;
+pub mod types;
 pub mod user;
 
 // Re-exports

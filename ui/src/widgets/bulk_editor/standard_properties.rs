@@ -230,19 +230,19 @@ pub struct StandardPropertiesBulkEditorProps {
     pub properties: Vec<StandardProperties>,
 
     #[prop_or_default]
-    onchange_name: Callback<Option<String>>,
+    pub onchange_name: Callback<Option<String>>,
 
     #[prop_or_default]
-    onchange_kind: Callback<Option<String>>,
+    pub onchange_kind: Callback<Option<String>>,
 
     #[prop_or_default]
-    onchange_description: Callback<Option<String>>,
+    pub onchange_description: Callback<Option<String>>,
 
     #[prop_or_default]
-    onadd_tag: Callback<String>,
+    pub onadd_tag: Callback<String>,
 
     #[prop_or_default]
-    onremove_tag: Callback<String>,
+    pub onremove_tag: Callback<String>,
 }
 
 #[function_component(StandardPropertiesBulkEditor)]
@@ -287,13 +287,14 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let action = if value.is_empty() {
-                StandardPropertiesUpdateStateAction::ClearName
-            } else {
-                StandardPropertiesUpdateStateAction::SetName(value.clone())
-            };
+            let value = Some(value).filter(|value| !value.is_empty());
+            // let action = if value.is_empty() {
+            //     StandardPropertiesUpdateStateAction::ClearName
+            // } else {
+            //     StandardPropertiesUpdateStateAction::SetName(value.clone())
+            // };
 
-            updater_state.dispatch(action);
+            // updater_state.dispatch(action);
             onchange_name.emit(value);
         })
     };
@@ -310,13 +311,14 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let action = if value.is_empty() {
-                StandardPropertiesUpdateStateAction::ClearKind
-            } else {
-                StandardPropertiesUpdateStateAction::SetKind(value.clone())
-            };
+            let value = Some(value).filter(|value| !value.is_empty());
+            // let action = if value.is_empty() {
+            //     StandardPropertiesUpdateStateAction::ClearKind
+            // } else {
+            //     StandardPropertiesUpdateStateAction::SetKind(value.clone())
+            // };
 
-            updater_state.dispatch(action);
+            // updater_state.dispatch(action);
             onchange_kind.emit(value.clone());
         })
     };
@@ -333,13 +335,14 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let action = if value.is_empty() {
-                StandardPropertiesUpdateStateAction::ClearDescription
-            } else {
-                StandardPropertiesUpdateStateAction::SetDescription(value.clone())
-            };
+            let value = Some(value).filter(|value| !value.is_empty());
+            // let action = if value.is_empty() {
+            //     StandardPropertiesUpdateStateAction::ClearDescription
+            // } else {
+            //     StandardPropertiesUpdateStateAction::SetDescription(value.clone())
+            // };
 
-            updater_state.dispatch(action);
+            // updater_state.dispatch(action);
             onchange_description.emit(value);
         })
     };
@@ -348,7 +351,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
         let onadd_tag = props.onadd_tag.clone();
         let updater_state = updater_state.clone();
         Callback::from(move |tag: String| {
-            updater_state.dispatch(StandardPropertiesUpdateStateAction::AddTag(tag.clone()));
+            // updater_state.dispatch(StandardPropertiesUpdateStateAction::AddTag(tag.clone()));
             onadd_tag.emit(tag);
         })
     };
@@ -357,7 +360,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
         let onremove_tag = props.onremove_tag.clone();
         let updater_state = updater_state.clone();
         Callback::from(move |tag: String| {
-            updater_state.dispatch(StandardPropertiesUpdateStateAction::RemoveTag(tag.clone()));
+            // updater_state.dispatch(StandardPropertiesUpdateStateAction::RemoveTag(tag.clone()));
             onremove_tag.emit(tag);
         })
     };
@@ -372,7 +375,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 <label>
                     { "Name" }
                     <input
-                        ref={name_ref}
+                        // ref={name_ref}
                         placeholder={value_placeholder(updater_state.name())}
                         value={value_string(updater_state.name())}
                         onchange={onchange_name} />
@@ -410,7 +413,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 </label>
             </div>
 
-            // @todo
+            // TODO
             // <div class={classes!("form-field", "metadata")}>
             //     <h4>{ "Metadata" }</h4>
             //     <MetadataBulkEditor

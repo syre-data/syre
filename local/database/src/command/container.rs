@@ -1,4 +1,5 @@
 //! Container related commands.
+use super::types::BulkUpdatePropertiesArgs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
@@ -50,6 +51,9 @@ pub enum ContainerCommand {
 
     /// Gets the parent of a [`Container`](thot_core::project::Container).
     Parent(ResourceId),
+
+    /// Update multiple [`Container`](thot_core::project::Container)s' properties.
+    BulkUpdateProperties(BulkUpdatePropertiesArgs),
 }
 
 // *****************

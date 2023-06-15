@@ -1,6 +1,7 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::common::UpdatePropertiesArgs;
+use crate::commands::common::{BulkUpdatePropertiesArgs, UpdatePropertiesArgs};
 use crate::commands::container::UpdateScriptAssociationsArgs;
+use crate::commands::types::StandardPropertiesUpdate;
 use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
@@ -44,6 +45,9 @@ pub enum GraphStateAction {
 
     SetDragOverContainer(ResourceId),
     ClearDragOverContainer,
+
+    /// Bulk update `Container`s.
+    BulkUpdateContainerProperties(BulkUpdatePropertiesArgs),
 }
 
 #[derive(PartialEq, Clone)]
@@ -72,6 +76,45 @@ impl GraphState {
             asset_map,
             dragover_container: None,
         }
+    }
+
+    /// Update a `Container`'s properties.
+    #[tracing::instrument(skip(state))]
+    fn update_container_properties_from_update(
+        state: &mut Self,
+        rid: &ResourceId,
+        update: &StandardPropertiesUpdate,
+    ) {
+        let container = state
+            .graph
+            .get_mut(&rid)
+            .expect("could not find `Container`");
+
+        // basic properties
+        if let Some(name) = update.name.as_ref() {
+            container.properties.name = name.clone();
+        }
+
+        if let Some(kind) = update.kind.as_ref() {
+            container.properties.kind = kind.clone();
+        }
+
+        if let Some(description) = update.description.as_ref() {
+            container.properties.description = description.clone();
+        }
+
+        // tags
+        container
+            .properties
+            .tags
+            .append(&mut update.tags.add.clone());
+
+        container.properties.tags.sort();
+        container.properties.tags.dedup();
+        container
+            .properties
+            .tags
+            .retain(|tag| !update.tags.remove.contains(tag));
     }
 }
 
@@ -186,6 +229,15 @@ impl Reducible for GraphState {
 
             GraphStateAction::ClearDragOverContainer => {
                 current.dragover_container = None;
+            }
+
+            GraphStateAction::BulkUpdateContainerProperties(BulkUpdatePropertiesArgs {
+                rids,
+                update,
+            }) => {
+                for rid in rids {
+                    Self::update_container_properties_from_update(&mut current, &rid, &update);
+                }
             }
         };
 

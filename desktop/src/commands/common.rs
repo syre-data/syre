@@ -1,4 +1,5 @@
 //! Resources for common commands.
+use super::types::StandardPropertiesUpdate;
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::StandardProperties;
@@ -42,6 +43,13 @@ pub struct UpdatePropertiesStringArgs {
     pub properties: String, // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
                             // Unify with `UpdatePropertiesArgs` once resolved.
                             // See: https://github.com/tauri-apps/tauri/issues/6078
+}
+
+/// Bulk update resources.
+#[derive(Clone, Serialize)]
+pub struct BulkUpdatePropertiesArgs {
+    pub rids: Vec<ResourceId>,
+    pub update: StandardPropertiesUpdate,
 }
 
 #[cfg(test)]

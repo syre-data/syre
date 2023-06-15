@@ -4,6 +4,7 @@ use crate::command::container::AddAssetInfo;
 use crate::command::container::{
     AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
+use crate::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
 use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
@@ -18,6 +19,7 @@ use thot_local::project::asset::AssetBuilder;
 use thot_local::project::resources::Container;
 
 impl Database {
+    #[tracing::instrument(skip(self))]
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
         match cmd {
             ContainerCommand::Get(rid) => {
@@ -92,6 +94,14 @@ impl Database {
                     });
 
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
+            }
+
+            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs {
+                containers,
+                update,
+            }) => {
+                let res = self.bulk_update_container_properties(&containers, &update);
+                serde_json::to_value(res).unwrap()
             }
         }
     }
@@ -214,6 +224,62 @@ impl Database {
 
         let parent = graph.get(parent).expect("could not get parent `Container`");
         Ok(Some(parent))
+    }
+
+    /// Bulk update `Container` properties.
+    #[tracing::instrument(skip(self))]
+    fn bulk_update_container_properties(
+        &mut self,
+        containers: &Vec<ResourceId>,
+        update: &StandardPropertiesUpdate,
+    ) -> Result {
+        for container in containers {
+            self.update_container_properties_from_update(container, update)?;
+        }
+
+        Ok(())
+    }
+
+    /// Update a `Container`'s properties.
+    #[tracing::instrument(skip(self))]
+    fn update_container_properties_from_update(
+        &mut self,
+        rid: &ResourceId,
+        update: &StandardPropertiesUpdate,
+    ) -> Result {
+        let container = self
+            .store
+            .get_container_mut(&rid)
+            .expect("could not find `Container`");
+
+        // basic properties
+        if let Some(name) = update.name.as_ref() {
+            container.properties.name = name.clone();
+        }
+
+        if let Some(kind) = update.kind.as_ref() {
+            container.properties.kind = kind.clone();
+        }
+
+        if let Some(description) = update.description.as_ref() {
+            container.properties.description = description.clone();
+        }
+
+        // tags
+        container
+            .properties
+            .tags
+            .append(&mut update.tags.add.clone());
+
+        container.properties.tags.sort();
+        container.properties.tags.dedup();
+        container
+            .properties
+            .tags
+            .retain(|tag| !update.tags.remove.contains(tag));
+
+        container.save()?;
+        Ok(())
     }
 }
 

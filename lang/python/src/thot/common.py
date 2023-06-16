@@ -1,7 +1,17 @@
+import os
 from typing import Any
 
 from .container import Container
 from .asset import Asset
+
+def dev_mode() -> bool:
+    """
+    Returns if the script is running in dev mode.
+    
+    Returns:
+        bool: If the database is running in dev mode.
+    """
+    return os.getenv("THOT_CONTAINER_ID") is None
 
 def dict_to_container(d: dict[str, Any]) -> Container:
     """

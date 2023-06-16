@@ -180,6 +180,23 @@ where
         Ok(parent.as_ref())
     }
 
+    /// Returns the path of ancesetors to the tree root.
+    /// Begins with self.
+    ///
+    /// # Returns
+    /// + Empty `Vec` if the `root` `Node` is not found.
+    /// + `Vec` of the ancestor path to the tree root, beginning with self.
+    pub fn ancestors(&self, root: &ResourceId) -> Vec<ResourceId> {
+        let mut ancestors = Vec::new();
+        let mut current = self.get(root).map(|node| node.id());
+        while let Some(id) = current {
+            ancestors.push(id.clone());
+            current = self.parent(id).expect("parent not found");
+        }
+
+        return ancestors;
+    }
+
     /// Returns all the descendants of the root.
     ///
     /// # Returns

@@ -119,11 +119,7 @@ impl Database {
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        self.store
-            .find_containers_with_metadata(&root, filter)
-            .into_iter()
-            .map(|container| (*container).clone())
-            .collect()
+        self.store.find_containers_with_metadata(&root, filter)
     }
 
     fn update_container_properties(

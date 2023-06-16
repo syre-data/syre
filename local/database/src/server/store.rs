@@ -329,6 +329,33 @@ impl Datastore {
         Some(node)
     }
 
+    /// Get a Container with inherited metadata.
+    pub fn get_container_with_metadata(&self, container: &ResourceId) -> Option<CoreContainer> {
+        let Some(container) = self.get_container(container) else {
+            return None;
+        };
+
+        let graph = self
+            .get_container_graph(container.id())
+            .expect("could not find `Container`'s graph");
+
+        let metadata = graph.ancestors(container.id()).into_iter().rfold(
+            Metadata::new(),
+            |mut metadata, ancestor| {
+                let container = graph.get(&ancestor).expect("`Container` not found");
+                for (key, value) in container.properties.metadata.clone() {
+                    metadata.insert(key, value);
+                }
+
+                metadata
+            },
+        );
+
+        let mut container = (*container).clone();
+        container.properties.metadata = metadata;
+        Some(container)
+    }
+
     /// Finds `Container`'s that match the filter.
     ///
     /// # Arguments

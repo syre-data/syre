@@ -1,33 +1,30 @@
-//! Inline metadata editor.
-use super::{MetadatumBuilder, MetadatumEditor};
+//! Bulk metadata editor.
+use super::{MetadataBulk, Metadatum, MetadatumBuilder, MetadatumBulkEditor};
+use serde_json::Value as JsValue;
 use std::collections::HashSet;
-use thot_core::project::Metadata;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
-pub struct MetadataEditorProps {
-    #[prop_or_default]
-    pub class: Classes,
+pub struct MetadataBulkEditorProps {
+    pub value: MetadataBulk,
 
-    /// Displayed if inactive and no value.
+    /// Called when a metadatum is added.
     #[prop_or_default]
-    pub children: Children,
+    pub onadd: Option<Callback<Metadatum>>,
 
-    #[prop_or(Metadata::new())]
-    pub value: Metadata,
-
-    /// Callback triggered when the value of a single `Metadatum` is changed
-    /// or a new `Metadatum` is added.
-    ///
-    /// # Fields
-    /// 1. Current value
+    /// Called when a metadatum is removed.
     #[prop_or_default]
-    pub onchange: Callback<Metadata>,
+    pub onremove: Option<Callback<String>>,
+
+    /// Called when the value of a metadatum is changed.
+    #[prop_or_default]
+    pub onchange: Option<Callback<Metadatum>>,
 }
 
-#[function_component(MetadataEditor)]
-pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
+#[tracing::instrument(skip(props))]
+#[function_component(MetadataBulkEditor)]
+pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
     let add_metadatum_visible = use_state(|| false);
 
     let show_add_metadatum = {
@@ -39,14 +36,13 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
     };
 
     let add_metadatum = {
-        let metadata = props.value.clone();
-        let onchange = props.onchange.clone();
+        let onadd = props.onadd.clone();
         let add_metadatum_visible = add_metadatum_visible.clone();
 
-        Callback::from(move |(key, value)| {
-            let mut metadata = metadata.clone();
-            metadata.insert(key, value);
-            onchange.emit(metadata);
+        Callback::from(move |metadatum: Metadatum| {
+            if let Some(onadd) = onadd.as_ref() {
+                onadd.emit(metadatum.clone());
+            }
             add_metadatum_visible.set(false);
         })
     };
@@ -60,42 +56,30 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
     };
 
     let remove_metadatum = move |key: String| {
-        let metadata = props.value.clone();
-        let onchange = props.onchange.clone();
-
+        let onremove = props.onremove.clone();
         Callback::from(move |_: MouseEvent| {
-            let mut metadata = metadata.clone();
-
-            metadata.remove(&key);
-            onchange.emit(metadata);
+            if let Some(onremove) = onremove.as_ref() {
+                onremove.emit(key.clone());
+            }
         })
     };
 
-    let onchange = {
+    let onchange = move |key: String| {
         let onchange = props.onchange.clone();
-        let metadata = props.value.clone();
-
-        move |key: String| {
-            let onchange = onchange.clone();
-            let metadata = metadata.clone();
-
-            Callback::from(move |value| {
-                let mut metadata = metadata.clone();
-                metadata.insert(key.clone(), value);
-                onchange.emit(metadata);
-            })
-        }
+        Callback::from(move |value: JsValue| {
+            if let Some(onchange) = onchange.as_ref() {
+                onchange.emit((key.clone(), value.clone()));
+            }
+        })
     };
 
     let name_filter = props.value.clone().into_keys().collect::<HashSet<String>>();
-    let class = classes!("thot-ui-metadata-editor", props.class.clone());
 
     html! {
-        <div {class}>
+        <div class={classes!("thot-ui-metadata-bulk-editor")}>
             <div class={classes!("metadata-header")}>
-                <h3>{ "Metadata" }</h3>
                 <button class={classes!("add-button")} type="button" onclick={show_add_metadatum}>
-                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
+                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
                 </button>
             </div>
             <div class={classes!("add-metadatum-controls")}>
@@ -109,7 +93,7 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
             <ol class={classes!("metadata-editor")}>
                 { props.value.clone().into_iter().map(|(name, value)| html! {
                     <li key={name.clone()}>
-                        <MetadatumEditor
+                        <MetadatumBulkEditor
                             name={name.clone()}
                             {value}
                             onchange={onchange(name.clone())}/>
@@ -121,9 +105,6 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                 }).collect::<Html>() }
             </ol>
         </div>
+
     }
 }
-
-#[cfg(test)]
-#[path = "./metadata_editor_test.rs"]
-mod metadata_editor_test;

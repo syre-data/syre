@@ -1,9 +1,11 @@
 //! Common types for metadata.
 use serde_json::Value as JsValue;
+use std::collections::HashMap;
 use yew::html::IntoPropValue;
 use yew::virtual_dom::AttrValue;
 
 pub type Metadatum = (String, JsValue);
+pub type MetadataBulk = HashMap<String, Vec<JsValue>>;
 
 /// Types a metadatum value can assume.
 #[derive(PartialEq, Clone, Debug)]

@@ -4,10 +4,19 @@
 \alias{StandardProperties}
 \title{Create a new \code{StandardProperties} list.}
 \usage{
-StandardProperties()
+StandardProperties(name = NULL, type = NULL, tags = list(), metadata = list())
+}
+\arguments{
+\item{name}{Name of the Asset to match.}
+
+\item{type}{Type of the Asset to match.}
+
+\item{tags}{List of tags the Asset has to match.}
+
+\item{metadata}{Named list of metadata the Asset has to match.}
 }
 \value{
-Default standard properties as a named list.
+Standard properties as a named list.
 }
 \description{
 Create a new \code{StandardProperties} list.

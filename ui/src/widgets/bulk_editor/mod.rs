@@ -1,7 +1,7 @@
 //! Bulk editors.
-pub mod metadata;
 pub mod standard_properties;
 pub mod tags;
+pub mod types;
 
 // Re-exports
 pub use standard_properties::StandardPropertiesBulkEditor;

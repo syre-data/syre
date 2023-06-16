@@ -1,8 +1,8 @@
 //! Bulk editor for [`StandardProperties`].
 use super::tags::TagsBulkEditor;
-use std::ops::{Deref, DerefMut};
+use super::types::BulkValue;
+use crate::widgets::metadata::{MetadataBulk, MetadataBulkEditor, Metadatum};
 use std::rc::Rc;
-use thot_core::project::Metadata;
 use thot_core::project::StandardProperties;
 use yew::prelude::*;
 
@@ -10,93 +10,18 @@ use yew::prelude::*;
 // *** reducer ***
 // ***************
 
-#[derive(PartialEq, Clone)]
-enum BulkValue<T>
-where
-    T: PartialEq + Clone,
-{
-    Equal(T),
-    Mixed,
-}
-
-/// State of a field.
-///
-/// # Fields
-/// 0. Value.
-/// 1. Dirty state. `true` indicates the value of the field is different from the original.
-#[derive(PartialEq, Clone)]
-struct FieldState<T>(T, bool)
-where
-    T: PartialEq + Clone;
-
-impl<T> FieldState<T>
-where
-    T: PartialEq + Clone,
-{
-    pub fn new(value: T) -> Self {
-        Self(value, false)
-    }
-
-    pub fn new_dirty(value: T) -> Self {
-        Self(value, true)
-    }
-
-    /// Returns the value of the field.
-    pub fn value(&self) -> &T {
-        &self.0
-    }
-
-    /// Indicates if the field is dirty.
-    pub fn dirty(&self) -> bool {
-        self.1
-    }
-
-    /// Sets the field to be dirty.
-    pub fn set_dirty(&mut self) {
-        self.1 = true;
-    }
-}
-
-impl<T> Deref for FieldState<T>
-where
-    T: PartialEq + Clone,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for FieldState<T>
-where
-    T: PartialEq + Clone,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 enum StandardPropertiesUpdateStateAction {
     /// Set all values from properties.
     SetValues(Vec<StandardProperties>),
-    SetName(String),
-    ClearName,
-    SetKind(String),
-    ClearKind,
-    SetDescription(String),
-    ClearDescription,
-    AddTag(String),
-    RemoveTag(String),
 }
 
 #[derive(PartialEq, Clone)]
 struct StandardPropertiesUpdateState {
-    name: FieldState<BulkValue<Option<String>>>,
-    kind: FieldState<BulkValue<Option<String>>>,
-    description: FieldState<BulkValue<Option<String>>>,
-    tags: FieldState<Vec<String>>,
-    // metadata: Option<Metadata>,
+    name: BulkValue<Option<String>>,
+    kind: BulkValue<Option<String>>,
+    description: BulkValue<Option<String>>,
+    tags: Vec<String>,
+    metadata: MetadataBulk,
 }
 
 impl StandardPropertiesUpdateState {
@@ -142,28 +67,46 @@ impl StandardPropertiesUpdateState {
         tags.sort();
         tags.dedup();
 
+        let mut metadata = MetadataBulk::new();
+        for props in properties {
+            for (key, value) in props.metadata.iter() {
+                if let Some(val) = metadata.get_mut(key) {
+                    if !val.contains(value) {
+                        val.push(value.clone());
+                    }
+                } else {
+                    metadata.insert(key.clone(), Vec::from([value.clone()]));
+                }
+            }
+        }
+
         Self {
-            name: FieldState::new(name),
-            kind: FieldState::new(kind),
-            description: FieldState::new(description),
-            tags: FieldState::new(tags),
+            name,
+            kind,
+            description,
+            tags,
+            metadata,
         }
     }
 
-    pub fn name(&self) -> &FieldState<BulkValue<Option<String>>> {
+    pub fn name(&self) -> &BulkValue<Option<String>> {
         &self.name
     }
 
-    pub fn kind(&self) -> &FieldState<BulkValue<Option<String>>> {
+    pub fn kind(&self) -> &BulkValue<Option<String>> {
         &self.kind
     }
 
-    pub fn description(&self) -> &FieldState<BulkValue<Option<String>>> {
+    pub fn description(&self) -> &BulkValue<Option<String>> {
         &self.description
     }
 
-    pub fn tags(&self) -> &FieldState<Vec<String>> {
+    pub fn tags(&self) -> &Vec<String> {
         &self.tags
+    }
+
+    pub fn metadata(&self) -> &MetadataBulk {
+        &self.metadata
     }
 }
 
@@ -171,53 +114,11 @@ impl Reducible for StandardPropertiesUpdateState {
     type Action = StandardPropertiesUpdateStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        let mut current = (*self).clone();
         match action {
             StandardPropertiesUpdateStateAction::SetValues(properties) => {
-                current = Self::new(&properties);
-            }
-
-            StandardPropertiesUpdateStateAction::SetName(value) => {
-                current.name = FieldState::new_dirty(BulkValue::Equal(Some(value)));
-            }
-
-            StandardPropertiesUpdateStateAction::ClearName => {
-                current.name = FieldState::new_dirty(BulkValue::Equal(None));
-            }
-
-            StandardPropertiesUpdateStateAction::SetKind(value) => {
-                current.kind = FieldState::new_dirty(BulkValue::Equal(Some(value)));
-            }
-
-            StandardPropertiesUpdateStateAction::ClearKind => {
-                current.kind = FieldState::new_dirty(BulkValue::Equal(None));
-            }
-
-            StandardPropertiesUpdateStateAction::SetDescription(value) => {
-                current.description = FieldState::new_dirty(BulkValue::Equal(Some(value)));
-            }
-
-            StandardPropertiesUpdateStateAction::ClearDescription => {
-                current.description = FieldState::new_dirty(BulkValue::Equal(None));
-            }
-
-            StandardPropertiesUpdateStateAction::AddTag(tag) => {
-                if !current.tags.contains(&tag) {
-                    current.tags.push(tag);
-                    current.tags.sort();
-                    current.tags.set_dirty();
-                }
-            }
-
-            StandardPropertiesUpdateStateAction::RemoveTag(tag) => {
-                if let Ok(index) = current.tags.binary_search(&tag) {
-                    current.tags.remove(index);
-                    current.tags.set_dirty();
-                }
+                Self::new(&properties).into()
             }
         }
-
-        current.into()
     }
 }
 
@@ -243,6 +144,21 @@ pub struct StandardPropertiesBulkEditorProps {
 
     #[prop_or_default]
     pub onremove_tag: Callback<String>,
+
+    /// Called when metadatum is added.
+    #[prop_or_default]
+    pub onadd_metadata: Callback<Metadatum>,
+
+    /// Called when metadatum is removed.
+    ///
+    /// # Arguments
+    /// 1. Key to be removed.
+    #[prop_or_default]
+    pub onremove_metadata: Callback<String>,
+
+    /// Called when a metadatum value is changed.
+    #[prop_or_default]
+    pub onchange_metadata: Callback<Metadatum>,
 }
 
 #[function_component(StandardPropertiesBulkEditor)]
@@ -277,7 +193,6 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
     let onchange_name = {
         let onchange_name = props.onchange_name.clone();
-        let updater_state = updater_state.clone();
         let elm = name_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -288,20 +203,12 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
             let value = elm.value().trim().to_string();
             let value = Some(value).filter(|value| !value.is_empty());
-            // let action = if value.is_empty() {
-            //     StandardPropertiesUpdateStateAction::ClearName
-            // } else {
-            //     StandardPropertiesUpdateStateAction::SetName(value.clone())
-            // };
-
-            // updater_state.dispatch(action);
             onchange_name.emit(value);
         })
     };
 
     let onchange_kind = {
         let onchange_kind = props.onchange_kind.clone();
-        let updater_state = updater_state.clone();
         let elm = kind_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -312,20 +219,12 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
             let value = elm.value().trim().to_string();
             let value = Some(value).filter(|value| !value.is_empty());
-            // let action = if value.is_empty() {
-            //     StandardPropertiesUpdateStateAction::ClearKind
-            // } else {
-            //     StandardPropertiesUpdateStateAction::SetKind(value.clone())
-            // };
-
-            // updater_state.dispatch(action);
             onchange_kind.emit(value.clone());
         })
     };
 
     let onchange_description = {
         let onchange_description = props.onchange_description.clone();
-        let updater_state = updater_state.clone();
         let elm = description_ref.clone();
 
         Callback::from(move |_: Event| {
@@ -336,32 +235,42 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
             let value = elm.value().trim().to_string();
             let value = Some(value).filter(|value| !value.is_empty());
-            // let action = if value.is_empty() {
-            //     StandardPropertiesUpdateStateAction::ClearDescription
-            // } else {
-            //     StandardPropertiesUpdateStateAction::SetDescription(value.clone())
-            // };
-
-            // updater_state.dispatch(action);
             onchange_description.emit(value);
         })
     };
 
     let onadd_tag = {
         let onadd_tag = props.onadd_tag.clone();
-        let updater_state = updater_state.clone();
         Callback::from(move |tag: String| {
-            // updater_state.dispatch(StandardPropertiesUpdateStateAction::AddTag(tag.clone()));
             onadd_tag.emit(tag);
         })
     };
 
     let onremove_tag = {
         let onremove_tag = props.onremove_tag.clone();
-        let updater_state = updater_state.clone();
         Callback::from(move |tag: String| {
-            // updater_state.dispatch(StandardPropertiesUpdateStateAction::RemoveTag(tag.clone()));
             onremove_tag.emit(tag);
+        })
+    };
+
+    let onadd_metadata = {
+        let onadd_metadata = props.onadd_metadata.clone();
+        Callback::from(move |metadata: Metadatum| {
+            onadd_metadata.emit(metadata);
+        })
+    };
+
+    let onremove_metadata = {
+        let onremove_metadata = props.onremove_metadata.clone();
+        Callback::from(move |key: String| {
+            onremove_metadata.emit(key);
+        })
+    };
+
+    let onchange_metadata = {
+        let onchange_metadata = props.onchange_metadata.clone();
+        Callback::from(move |metadatum: Metadatum| {
+            onchange_metadata.emit(metadatum);
         })
     };
 
@@ -369,13 +278,17 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
     // --- html ---
     // ------------
 
+    let onsubmit = Callback::from(|e: SubmitEvent| {
+        e.prevent_default();
+    });
+
     html! {
-        <form class={classes!("thot-ui-standard-properties-editor")}>
+        <form class={classes!("thot-ui-standard-properties-editor")} {onsubmit}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     { "Name" }
                     <input
-                        // ref={name_ref}
+                        ref={name_ref}
                         placeholder={value_placeholder(updater_state.name())}
                         value={value_string(updater_state.name())}
                         onchange={onchange_name} />
@@ -407,19 +320,20 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
                 <label>
                     { "Tags" }
                     <TagsBulkEditor
-                        tags={(*updater_state.tags).clone()}
+                        value={updater_state.tags().clone()}
                         onadd={onadd_tag}
                         onremove={onremove_tag} />
                 </label>
             </div>
 
-            // TODO
-            // <div class={classes!("form-field", "metadata")}>
-            //     <h4>{ "Metadata" }</h4>
-            //     <MetadataBulkEditor
-            //         value={properties_state.metadata.clone()}
-            //         onchange={onchange_metadata} />
-            // </div>
+            <div class={classes!("form-field", "metadata")}>
+                <h4>{ "Metadata" }</h4>
+                <MetadataBulkEditor
+                    value={updater_state.metadata().clone()}
+                    onadd={onadd_metadata}
+                    onremove={onremove_metadata}
+                    onchange={onchange_metadata} />
+            </div>
     </form>
     }
 }

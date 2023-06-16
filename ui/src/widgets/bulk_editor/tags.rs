@@ -1,9 +1,10 @@
 //! Tags bulk editor.
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(PartialEq, Properties)]
 pub struct TagsBulkEditorProps {
-    pub tags: Vec<String>,
+    pub value: Vec<String>,
 
     #[prop_or_default]
     pub onadd: Option<Callback<String>>,
@@ -14,12 +15,24 @@ pub struct TagsBulkEditorProps {
 
 #[function_component(TagsBulkEditor)]
 pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
+    let input_ref = use_node_ref();
     let onadd = match props.onadd.as_ref() {
         None => None,
         Some(onadd) => {
             let onadd = onadd.clone();
+            let input_ref = input_ref.clone();
             Some(Callback::from(move |_: MouseEvent| {
-                onadd.emit("new tag".into());
+                let elm = input_ref
+                    .cast::<web_sys::HtmlInputElement>()
+                    .expect("could not cast `NodeRef` into element");
+
+                let value = elm.value().trim().to_string();
+                if value.is_empty() {
+                    return;
+                }
+
+                onadd.emit(value);
+                elm.set_value("");
             }))
         }
     };
@@ -39,20 +52,24 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
     };
 
     html! {
-        <div>
-            <div>
-                <input />
-                if let Some(onadd) = onadd {
-                    <button onclick={onadd}>{ "+" }</button>
-                }
-            </div>
+        <div class={classes!("thot-ui-bulk-tag-editor")}>
+            if let Some(onadd) = onadd {
+                <div>
+                    <input ref={input_ref}/>
+                    <button class={classes!("add-button")} type="button" onclick={onadd}>
+                        <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                    </button>
+                </div>
+            }
             <div>
                 <ul>
-                    {props.tags.iter().map(|tag| html! {
+                    {props.value.iter().map(|tag| html! {
                         <li>
                             <span>{ tag }</span>
                             if props.onremove.is_some() {
-                                <button onclick={onremove(tag.into())}>{ "-" }</button>
+                                <button class={classes!("remove-button")} type="button" onclick={onremove(tag.into())}>
+                                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                                </button>
                             }
                         </li>
                     }).collect::<Html>()}

@@ -128,7 +128,7 @@ class Database:
         Returns:
             Container: Root Container.
         """
-        self._socket.send_json({"ContainerCommand": {"Get": self._root}})
+        self._socket.send_json({"ContainerCommand": {"GetWithMetadata": self._root}})
         root = self._socket.recv_json()
         if root is None:
             raise RuntimeError("could not get rot Container")

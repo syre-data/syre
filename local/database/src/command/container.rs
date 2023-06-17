@@ -14,6 +14,9 @@ pub enum ContainerCommand {
     /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
     Get(ResourceId),
 
+    /// Retrievea a [`Container`](CoreContainer) with inherited metadata by [`ResourceId`].
+    GetWithMetadata(ResourceId),
+
     /// Retrieves a [`Container`](CoreContainer) by its path.
     ByPath(PathBuf),
 

@@ -329,6 +329,33 @@ impl Datastore {
         Some(node)
     }
 
+    /// Get a Container with inherited metadata.
+    pub fn get_container_with_metadata(&self, container: &ResourceId) -> Option<CoreContainer> {
+        let Some(container) = self.get_container(container) else {
+            return None;
+        };
+
+        let graph = self
+            .get_container_graph(container.id())
+            .expect("could not find `Container`'s graph");
+
+        let metadata = graph.ancestors(container.id()).into_iter().rfold(
+            Metadata::new(),
+            |mut metadata, ancestor| {
+                let container = graph.get(&ancestor).expect("`Container` not found");
+                for (key, value) in container.properties.metadata.clone() {
+                    metadata.insert(key, value);
+                }
+
+                metadata
+            },
+        );
+
+        let mut container = (*container).clone();
+        container.properties.metadata = metadata;
+        Some(container)
+    }
+
     /// Finds `Container`'s that match the filter.
     ///
     /// # Arguments
@@ -376,18 +403,20 @@ impl Datastore {
     ///
     /// # See also
     /// + [`find_containers`]
+    #[tracing::instrument(skip(self))]
     pub fn find_containers_with_metadata(
         &self,
         root: &ResourceId,
         filter: StdFilter,
-    ) -> HashSet<&LocalContainer> {
+    ) -> HashSet<CoreContainer> {
         /// Recursively finds mathcing `Containers`, inheriting metadata.
-        fn find_containers_with_metadata_recursive<'a>(
+        #[tracing::instrument(skip(graph))]
+        fn find_containers_with_metadata_recursive(
             root: &ResourceId,
-            graph: &'a ContainerTree,
+            graph: &ContainerTree,
             filter: StdFilter,
             mut metadata: Metadata,
-        ) -> HashSet<&'a LocalContainer> {
+        ) -> HashSet<CoreContainer> {
             let mut found = HashSet::new();
             let root = graph.get(root).expect("`Container` not in graph");
 
@@ -413,18 +442,31 @@ impl Datastore {
             let mut container: CoreContainer = (*root.data()).clone();
             container.properties.metadata = metadata;
             if filter.matches(&container) {
-                found.insert(root.data());
+                found.insert(container);
             }
 
             found
         }
 
-        // find mathing containers
+        // run fn
         let Some(graph) = self.get_container_graph(root) else {
             return HashSet::new();
         };
 
-        find_containers_with_metadata_recursive(root, graph, filter, Metadata::new())
+        let metadata =
+            graph
+                .ancestors(root)
+                .into_iter()
+                .rfold(Metadata::new(), |mut metadata, ancestor| {
+                    let container = graph.get(&ancestor).expect("`Container` not found");
+                    for (key, value) in container.properties.metadata.clone() {
+                        metadata.insert(key, value);
+                    }
+
+                    metadata
+                });
+
+        find_containers_with_metadata_recursive(root, graph, filter, metadata)
     }
 
     /// Gets a `Container`'s id by path.
@@ -575,9 +617,9 @@ impl Datastore {
         filter: StdFilter,
     ) -> HashSet<Asset> {
         /// Recursively finds mathcing `Containers`, inheriting metadata.
-        fn find_assets_with_metadata_recursive<'a>(
+        fn find_assets_with_metadata_recursive(
             root: &ResourceId,
-            graph: &'a ContainerTree,
+            graph: &ContainerTree,
             filter: StdFilter,
             mut metadata: Metadata,
         ) -> HashSet<Asset> {
@@ -626,7 +668,20 @@ impl Datastore {
             return HashSet::new();
         };
 
-        find_assets_with_metadata_recursive(root, graph, filter, Metadata::new())
+        let metadata =
+            graph
+                .ancestors(root)
+                .into_iter()
+                .rfold(Metadata::new(), |mut metadata, ancestor| {
+                    let container = graph.get(&ancestor).expect("`Container` not found");
+                    for (key, value) in container.properties.metadata.clone() {
+                        metadata.insert(key, value);
+                    }
+
+                    metadata
+                });
+
+        find_assets_with_metadata_recursive(root, graph, filter, metadata)
     }
 
     // **************

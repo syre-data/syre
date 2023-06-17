@@ -34,6 +34,11 @@ impl Database {
                 serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }
 
+            ContainerCommand::GetWithMetadata(rid) => {
+                let container = self.store.get_container_with_metadata(&rid);
+                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+            }
+
             ContainerCommand::ByPath(path) => {
                 let Some(rid) = self.store.get_path_container(&path) else {
                     let value: Option<CoreContainer> = None;
@@ -129,11 +134,7 @@ impl Database {
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        self.store
-            .find_containers_with_metadata(&root, filter)
-            .into_iter()
-            .map(|container| (*container).clone())
-            .collect()
+        self.store.find_containers_with_metadata(&root, filter)
     }
 
     fn update_container_properties(

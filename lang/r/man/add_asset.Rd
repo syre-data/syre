@@ -5,20 +5,31 @@
 \title{Adds an Asset to the Thot project.
 The associated data should be saved at the return path.}
 \usage{
-add_asset(db, file, name = NULL, type = NULL, tags = list(), metadata = list())
+add_asset(
+  db,
+  file,
+  name = NULL,
+  type = NULL,
+  description = NULL,
+  tags = list(),
+  metadata = list()
+)
 }
 \arguments{
 \item{db}{Thot database connection.}
 
-\item{file}{File name of the associated data. Use relative paths to place the Asset in a bucket.}
+\item{file}{File name of the associated data.
+Use relative paths to place the Asset in a bucket.}
 
-\item{name}{Name of the Asset to match.}
+\item{name}{Name of the Asset.}
 
-\item{type}{Type of the Asset to match.}
+\item{type}{Type of the Asset.}
 
-\item{tags}{List of tags the Asset has to match.}
+\item{description}{Description of the Asset.}
 
-\item{metadata}{Named list of metadata the Asset has to match.}
+\item{tags}{List of tags for the Asset.}
+
+\item{metadata}{Named list of metadata for the Asset.}
 }
 \value{
 Path to save the Asset's related data to.

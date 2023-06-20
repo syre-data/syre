@@ -49,8 +49,14 @@ If you haven't already, go back to the root path `cd ../../`.
 
 > When building from m1 to intel: `cargo tauri build --target x86_64-apple-darwin --debug`
 
-## Build errors
+## FAQ
+
+### General errors
 
 `Error:error running bundle_dmg.sh`
+> Make sure no `Thot` process is running and that Thot is not mounted as a volume.
 
-Make sure no `Thot` process is running and that Thot is not mounted as a volume.
+### Apple
+
+`Error failed to bundle project: failed to upload app to Apple's notarization servers.`
+> Check in the apple developer account that no terms of service are pending for approval.

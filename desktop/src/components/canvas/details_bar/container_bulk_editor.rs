@@ -1,8 +1,8 @@
-//! Bulk editor for Containers.
+//! Bulk editor for `Container`s.
 use super::super::{GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::BulkUpdatePropertiesArgs;
-use crate::commands::types::{ListAction, StandardPropertiesUpdate};
+use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
 use crate::common::invoke;
 use std::collections::HashSet;
 use thot_core::types::ResourceId;
@@ -131,12 +131,12 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         let graph_state = graph_state.clone();
         let rids = rids.clone();
 
-        Callback::from(move |tag| {
+        Callback::from(move |tags| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let mut update = StandardPropertiesUpdate::default();
-            let mut tags_update = ListAction::default();
-            tags_update.add.push(tag);
+            let mut tags_update = TagsAction::default();
+            tags_update.insert = tags;
             update.tags = tags_update;
             let update = BulkUpdatePropertiesArgs {
                 rids: rids.clone(),
@@ -166,7 +166,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let mut update = StandardPropertiesUpdate::default();
-            let mut tags_update = ListAction::default();
+            let mut tags_update = TagsAction::default();
             tags_update.remove.push(tag);
             update.tags = tags_update;
             let update = BulkUpdatePropertiesArgs {
@@ -189,26 +189,95 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     };
 
     let onadd_metadata = {
+        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let rids = rids.clone();
 
         Callback::from(move |(key, value)| {
-            tracing::debug!(?key, ?value);
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+            let mut update = StandardPropertiesUpdate::default();
+            let mut metadata_update = MetadataAction::default();
+            metadata_update.insert.insert(key, value);
+            update.metadata = metadata_update;
+            let update = BulkUpdatePropertiesArgs {
+                rids: rids.clone(),
+                update,
+            };
+
+            spawn_local(async move {
+                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Containers",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+            });
         })
     };
 
     let onremove_metadata = {
+        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let rids = rids.clone();
 
         Callback::from(move |key| {
-            tracing::debug!(?key);
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+            let mut update = StandardPropertiesUpdate::default();
+            let mut metadata_update = MetadataAction::default();
+            metadata_update.remove.push(key);
+            update.metadata = metadata_update;
+            let update = BulkUpdatePropertiesArgs {
+                rids: rids.clone(),
+                update,
+            };
+
+            spawn_local(async move {
+                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Containers",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+            });
         })
     };
 
     let onchange_metadata = {
+        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
+        let rids = rids.clone();
 
         Callback::from(move |(key, value)| {
-            tracing::debug!(?key, ?value);
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+            let mut update = StandardPropertiesUpdate::default();
+            let mut metadata_update = MetadataAction::default();
+            metadata_update.insert.insert(key, value);
+            update.metadata = metadata_update;
+            let update = BulkUpdatePropertiesArgs {
+                rids: rids.clone(),
+                update,
+            };
+
+            spawn_local(async move {
+                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Containers",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+            });
         })
     };
 

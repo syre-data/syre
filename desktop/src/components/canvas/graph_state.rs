@@ -48,6 +48,12 @@ pub enum GraphStateAction {
 
     /// Bulk update `Container`s.
     BulkUpdateContainerProperties(BulkUpdatePropertiesArgs),
+
+    /// Bulk update `Asset`s.
+    BulkUpdateAssetProperties(BulkUpdatePropertiesArgs),
+
+    /// Bulk update resource properties.
+    BulkUpdateResourceProperties(BulkUpdatePropertiesArgs),
 }
 
 #[derive(PartialEq, Clone)]
@@ -107,7 +113,7 @@ impl GraphState {
         container
             .properties
             .tags
-            .append(&mut update.tags.add.clone());
+            .append(&mut update.tags.insert.clone());
 
         container.properties.tags.sort();
         container.properties.tags.dedup();
@@ -115,6 +121,68 @@ impl GraphState {
             .properties
             .tags
             .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        container
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            container.properties.metadata.remove(key);
+        }
+    }
+
+    /// Update an `Assets`'s properties.
+    #[tracing::instrument(skip(state))]
+    fn update_asset_properties_from_update(
+        state: &mut Self,
+        rid: &ResourceId,
+        update: &StandardPropertiesUpdate,
+    ) {
+        let container = state.asset_map.get(rid).expect("`Asset` map not found");
+        let container = state
+            .graph
+            .get_mut(container)
+            .expect("could not find `Container`");
+
+        let asset = container.assets.get_mut(rid).expect("`Asset` not found");
+
+        // basic properties
+        if let Some(name) = update.name.as_ref() {
+            asset.properties.name = name.clone();
+        }
+
+        if let Some(kind) = update.kind.as_ref() {
+            asset.properties.kind = kind.clone();
+        }
+
+        if let Some(description) = update.description.as_ref() {
+            asset.properties.description = description.clone();
+        }
+
+        // tags
+        asset
+            .properties
+            .tags
+            .append(&mut update.tags.insert.clone());
+
+        asset.properties.tags.sort();
+        asset.properties.tags.dedup();
+        asset
+            .properties
+            .tags
+            .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        asset
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            asset.properties.metadata.remove(key);
+        }
     }
 }
 
@@ -237,6 +305,28 @@ impl Reducible for GraphState {
             }) => {
                 for rid in rids {
                     Self::update_container_properties_from_update(&mut current, &rid, &update);
+                }
+            }
+
+            GraphStateAction::BulkUpdateAssetProperties(BulkUpdatePropertiesArgs {
+                rids,
+                update,
+            }) => {
+                for rid in rids {
+                    Self::update_asset_properties_from_update(&mut current, &rid, &update);
+                }
+            }
+
+            GraphStateAction::BulkUpdateResourceProperties(BulkUpdatePropertiesArgs {
+                rids,
+                update,
+            }) => {
+                for rid in rids {
+                    if self.asset_map.contains_key(&rid) {
+                        Self::update_asset_properties_from_update(&mut current, &rid, &update);
+                    } else {
+                        Self::update_container_properties_from_update(&mut current, &rid, &update);
+                    }
                 }
             }
         };

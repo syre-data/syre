@@ -1,14 +1,21 @@
 //! Common types for `Command`s.
 pub use serde::Serialize;
+pub use thot_core::project::Metadata;
 
 // ************
 // *** Bulk ***
 // ************
 
 #[derive(Serialize, Clone, Default, Debug)]
-pub struct ListAction<T> {
-    pub add: Vec<T>,
-    pub remove: Vec<T>,
+pub struct TagsAction {
+    pub insert: Vec<String>,
+    pub remove: Vec<String>,
+}
+
+#[derive(Serialize, Clone, Default, Debug)]
+pub struct MetadataAction {
+    pub insert: Metadata,
+    pub remove: Vec<String>,
 }
 
 #[derive(Serialize, Clone, Default, Debug)]
@@ -16,6 +23,6 @@ pub struct StandardPropertiesUpdate {
     pub name: Option<Option<String>>,
     pub kind: Option<Option<String>>,
     pub description: Option<Option<String>>,
-    pub tags: ListAction<String>,
-    pub metadata: ListAction<String>,
+    pub tags: TagsAction,
+    pub metadata: MetadataAction,
 }

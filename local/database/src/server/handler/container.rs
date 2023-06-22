@@ -101,11 +101,8 @@ impl Database {
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
 
-            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs {
-                containers,
-                update,
-            }) => {
-                let res = self.bulk_update_container_properties(&containers, &update);
+            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
+                let res = self.bulk_update_container_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
         }
@@ -248,10 +245,9 @@ impl Database {
         rid: &ResourceId,
         update: &StandardPropertiesUpdate,
     ) -> Result {
-        let container = self
-            .store
-            .get_container_mut(&rid)
-            .expect("could not find `Container`");
+        let Some(container) = self.store.get_container_mut(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+        };
 
         // basic properties
         if let Some(name) = update.name.as_ref() {
@@ -270,7 +266,7 @@ impl Database {
         container
             .properties
             .tags
-            .append(&mut update.tags.add.clone());
+            .append(&mut update.tags.insert.clone());
 
         container.properties.tags.sort();
         container.properties.tags.dedup();
@@ -278,6 +274,16 @@ impl Database {
             .properties
             .tags
             .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        container
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            container.properties.metadata.remove(key);
+        }
 
         container.save()?;
         Ok(())

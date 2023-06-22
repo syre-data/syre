@@ -1,7 +1,7 @@
-//! Bulk editor for [`StandardProperties`].
 use super::tags::TagsBulkEditor;
 use super::types::BulkValue;
 use crate::widgets::metadata::{MetadataBulk, MetadataBulkEditor, Metadatum};
+use serde_json::Value as JsValue;
 use std::rc::Rc;
 use thot_core::project::StandardProperties;
 use yew::prelude::*;
@@ -68,14 +68,19 @@ impl StandardPropertiesUpdateState {
         tags.dedup();
 
         let mut metadata = MetadataBulk::new();
+        for props in properties.iter() {
+            // initialize all keys
+            for key in props.metadata.keys() {
+                metadata.insert(key.clone(), Vec::new());
+            }
+        }
+
         for props in properties {
-            for (key, value) in props.metadata.iter() {
-                if let Some(val) = metadata.get_mut(key) {
-                    if !val.contains(value) {
-                        val.push(value.clone());
-                    }
-                } else {
-                    metadata.insert(key.clone(), Vec::from([value.clone()]));
+            // insert values
+            for (key, md) in metadata.iter_mut() {
+                let value = props.metadata.get(key).unwrap_or(&JsValue::Null);
+                if !md.contains(value) {
+                    md.push(value.clone());
                 }
             }
         }
@@ -140,7 +145,7 @@ pub struct StandardPropertiesBulkEditorProps {
     pub onchange_description: Callback<Option<String>>,
 
     #[prop_or_default]
-    pub onadd_tag: Callback<String>,
+    pub onadd_tag: Callback<Vec<String>>,
 
     #[prop_or_default]
     pub onremove_tag: Callback<String>,
@@ -241,8 +246,8 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
     let onadd_tag = {
         let onadd_tag = props.onadd_tag.clone();
-        Callback::from(move |tag: String| {
-            onadd_tag.emit(tag);
+        Callback::from(move |tags: Vec<String>| {
+            onadd_tag.emit(tags);
         })
     };
 

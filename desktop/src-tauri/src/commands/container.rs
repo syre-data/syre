@@ -154,11 +154,7 @@ pub fn bulk_update_container_properties(
     update: StandardPropertiesUpdate,
 ) -> Result {
     let res = db.send(
-        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs {
-            containers: rids,
-            update,
-        })
-        .into(),
+        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }).into(),
     );
 
     // TODO Handle errors.

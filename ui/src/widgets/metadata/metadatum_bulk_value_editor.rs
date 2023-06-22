@@ -23,6 +23,7 @@ enum MetadatumStateAction {
 #[derive(PartialEq, Clone)]
 struct MetadatumState {
     value: BulkValue,
+    dirty: bool,
 }
 
 impl MetadatumState {
@@ -32,6 +33,7 @@ impl MetadatumState {
         if vals.len() == 1 {
             return Self {
                 value: BulkValue::EqualValue(vals[0].clone()),
+                dirty: false,
             };
         }
 
@@ -42,11 +44,13 @@ impl MetadatumState {
             let kind = kinds[0].clone().expect("invalid metadatum type");
             return Self {
                 value: BulkValue::MixedValue(kind),
+                dirty: false,
             };
         }
 
         Self {
             value: BulkValue::MixedType,
+            dirty: false,
         }
     }
 
@@ -71,7 +75,7 @@ impl Reducible for MetadatumState {
             MetadatumStateAction::New(value) => Self::new(&value).into(),
 
             MetadatumStateAction::Set(value) => {
-                let current = Self { value };
+                let current = Self { value, dirty: true };
                 current.into()
             }
         }
@@ -111,12 +115,25 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
     {
         // update states if prop value changes
         let state = state.clone();
-
         use_effect_with_deps(
             move |value| {
                 state.dispatch(MetadatumStateAction::New(value.clone()));
             },
             props.value.clone(),
+        );
+    }
+
+    {
+        // emit changes
+        let onchange = props.onchange.clone();
+        let state = state.clone();
+        use_effect_with_deps(
+            move |state| {
+                if let BulkValue::EqualValue(value) = state.value() {
+                    onchange.emit(value.clone());
+                }
+            },
+            state,
         );
     }
 

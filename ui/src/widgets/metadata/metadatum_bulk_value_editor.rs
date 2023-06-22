@@ -4,6 +4,8 @@ use serde_json::{Result as JsResult, Value as JsValue};
 use std::rc::Rc;
 use yew::prelude::*;
 
+const PLACEHOLDER: &'static str = "(mixed)";
+
 #[derive(PartialEq, Clone)]
 enum BulkValue {
     MixedType,
@@ -124,6 +126,31 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
     }
 
     {
+        let state = state.clone();
+        let value_ref = value_ref.clone();
+
+        use_effect_with_deps(
+            move |(state, value_ref)| {
+                if state.kind() != Some(MetadatumType::Bool) {
+                    return;
+                }
+
+                let input = value_ref
+                    .cast::<web_sys::HtmlInputElement>()
+                    .expect("could not cast node ref to input element");
+
+                let indeterminate = match state.value() {
+                    &BulkValue::EqualValue(_) => false,
+                    _ => true,
+                };
+
+                input.set_indeterminate(indeterminate);
+            },
+            (state, value_ref),
+        );
+    }
+
+    {
         // emit changes
         let onchange = props.onchange.clone();
         let state = state.clone();
@@ -212,7 +239,6 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
     };
 
     // ui
-    let placeholder = "(mixed)";
     let class = classes!("thot-ui-metadatum-value-editor", props.class.clone());
 
     html! {
@@ -227,7 +253,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                         <input
                             ref={value_ref.clone()}
                             value={""}
-                            {placeholder}
+                            {PLACEHOLDER}
                             onchange={onchange_value.clone()} />
                     },
 
@@ -235,7 +261,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                         <input
                             ref={value_ref.clone()}
                             type={"number"}
-                            {placeholder}
+                            {PLACEHOLDER}
                             value={""}
                             onchange={onchange_value.clone()} />
                     },
@@ -251,7 +277,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                     MetadatumType::Array => html! {
                         <textarea
                             ref={value_ref.clone()}
-                            {placeholder}
+                            {PLACEHOLDER}
                             value={""}
                             onchange={onchange_value.clone()}>
                         </textarea>
@@ -260,7 +286,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                     MetadatumType::Object => html! {
                         <textarea
                             ref={value_ref.clone()}
-                            {placeholder}
+                            {PLACEHOLDER}
                             value={""}
                             onchange={onchange_value.clone()}>
                         </textarea>

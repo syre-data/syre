@@ -131,7 +131,10 @@ class Database:
         self._socket.send_json({"ContainerCommand": {"GetWithMetadata": self._root}})
         root = self._socket.recv_json()
         if root is None:
-            raise RuntimeError("could not get rot Container")
+            raise RuntimeError("Could not get root Container")
+
+        if 'Err' in root:
+            raise RuntimeError(f"Error getting root: {root['Err']}")
         
         root = dict_to_container(root)
         return root
@@ -167,6 +170,9 @@ class Database:
         
         self._socket.send_json({"ContainerCommand": {"FindWithMetadata": (self._root, f)}})
         containers = self._socket.recv_json()
+        if 'Err' in containers:
+            raise RuntimeError(f"Error getting containers: {root['Err']}")
+
         containers = map(dict_to_container, containers)
         return list(containers)
     
@@ -226,6 +232,9 @@ class Database:
         
         self._socket.send_json({"AssetCommand": {"FindWithMetadata": (self._root, f)}})
         assets = self._socket.recv_json()
+        if 'Err' in assets:
+            raise RuntimeError(f"Error getting assets: {root['Err']}")
+
         assets = map(dict_to_asset, assets)
         return list(assets)
             

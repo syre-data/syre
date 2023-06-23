@@ -93,6 +93,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- interaction ---
     // -------------------
 
+    let onmousedown = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+    });
+
     let onclick = {
         let rid = props.rid.clone();
         let canvas_state = canvas_state.clone();
@@ -101,6 +105,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
+            e.prevent_default();
 
             let rid = rid.clone();
             match selection_action(selected, multiple_selected, e) {
@@ -501,6 +506,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 scripts: container.scripts.clone(),
                 script_names,
                 preview: canvas_state.preview.clone(),
+                onmousedown,
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
@@ -552,13 +558,7 @@ enum SelectionAction {
 /// 2. If at least one other resource is currently selected.
 /// 3. The [`MouseEvent`].
 fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
-    #[cfg(target_os = "macos")]
-    let mod_key = e.meta_key();
-
-    #[cfg(not(target_os = "macos"))]
-    let mod_key = e.ctrl_key();
-
-    if mod_key {
+    if e.shift_key() {
         if selected {
             return SelectionAction::Unselect;
         } else {

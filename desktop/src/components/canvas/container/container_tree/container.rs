@@ -552,7 +552,13 @@ enum SelectionAction {
 /// 2. If at least one other resource is currently selected.
 /// 3. The [`MouseEvent`].
 fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
-    if e.ctrl_key() {
+    #[cfg(target_os = "macos")]
+    let mod_key = e.meta_key();
+
+    #[cfg(not(target_os = "macos"))]
+    let mod_key = e.ctrl_key();
+
+    if mod_key {
         if selected {
             return SelectionAction::Unselect;
         } else {

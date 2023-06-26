@@ -11,7 +11,8 @@ use thot_local::common::unique_file_name;
 use thot_local::types::AssetFileAction;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::{
-    AddAssetInfo, AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AddAssetInfo, AddAssetsArgs, BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate,
+    UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use thot_local_database::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
 use thot_local_database::command::ContainerCommand;
@@ -55,11 +56,11 @@ pub fn update_container_properties(
 pub fn update_container_script_associations(
     db: State<DbClient>,
     rid: ResourceId,
-    associations: String, // @todo: Issue with deserializing `HashMap`. perform manually.
+    associations: String, // TODO Issue with deserializing `HashMap`. perform manually.
                           // See: https://github.com/tauri-apps/tauri/issues/6078
                           // associations: ScriptMap,
 ) -> Result {
-    // @todo: Issue with deserializing `HashMap`. perform manually.
+    // TODO Issue with deserializing `HashMap`. perform manually.
     // See: https://github.com/tauri-apps/tauri/issues/6078
     let associations: ScriptMap =
         serde_json::from_str(&associations).expect("could not deserialize into `ScriptMap`");
@@ -159,6 +160,24 @@ pub fn bulk_update_container_properties(
 
     // TODO Handle errors.
     res.expect("could not update Containers");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn bulk_update_container_script_associations(
+    db: State<DbClient>,
+    containers: Vec<ResourceId>,
+    update: ScriptAssociationBulkUpdate,
+) -> Result {
+    // TODO Handle errors.
+    db.send(
+        ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
+            containers,
+            update,
+        })
+        .into(),
+    )
+    .unwrap();
     Ok(())
 }
 

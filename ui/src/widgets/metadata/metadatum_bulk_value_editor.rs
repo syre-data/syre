@@ -135,16 +135,16 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                     return;
                 }
 
-                let input = value_ref
-                    .cast::<web_sys::HtmlInputElement>()
-                    .expect("could not cast node ref to input element");
+                match state.value() {
+                    &BulkValue::EqualValue(_) => {}
+                    _ => {
+                        let input = value_ref
+                            .cast::<web_sys::HtmlInputElement>()
+                            .expect("could not cast node ref to input element");
 
-                let indeterminate = match state.value() {
-                    &BulkValue::EqualValue(_) => false,
-                    _ => true,
+                        input.set_indeterminate(true);
+                    }
                 };
-
-                input.set_indeterminate(indeterminate);
             },
             (state, value_ref),
         );

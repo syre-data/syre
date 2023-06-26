@@ -100,6 +100,7 @@ fn main() {
             add_assets,
             add_asset_windows,
             bulk_update_container_properties,
+            bulk_update_container_script_associations,
             get_container,
             get_container_path,
             new_child,

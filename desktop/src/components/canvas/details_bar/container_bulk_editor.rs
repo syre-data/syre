@@ -1,13 +1,18 @@
 //! Bulk editor for `Container`s.
-use super::super::{GraphStateAction, GraphStateReducer};
-use crate::app::{AppStateAction, AppStateReducer};
+use super::super::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
+use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::BulkUpdatePropertiesArgs;
+use crate::commands::container::{BulkUpdateScriptAssociationArgs, ScriptAssociationsBulkUpdate};
 use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
 use crate::common::invoke;
 use std::collections::HashSet;
-use thot_core::types::ResourceId;
+use thot_core::project::ScriptAssociation;
+use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::StandardPropertiesBulkEditor;
+use thot_ui::widgets::bulk_editor::{
+    RunParametersUpdate, ScriptAssociationsBulkEditor, ScriptBulkMap, StandardPropertiesBulkEditor,
+};
+use thot_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -19,6 +24,12 @@ pub struct ContainerBulkEditorProps {
 #[function_component(ContainerBulkEditor)]
 pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
+
+    let canvas_state =
+        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
+
+    let project_state =
+        use_context::<ProjectsStateReducer>().expect("`ProjectStateReducer` context not found");
 
     let graph_state =
         use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
@@ -34,6 +45,61 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         .iter()
         .map(|c| c.properties.clone())
         .collect::<Vec<_>>();
+
+    let mut associations = ScriptBulkMap::new();
+    for container in containers.iter() {
+        for (script, params) in container.scripts.iter() {
+            if let Some(param_vec) = associations.get_mut(script) {
+                param_vec.push(params.clone());
+            } else {
+                associations.insert(script.clone(), Vec::from([params.clone()]));
+            }
+        }
+    }
+
+    let project_scripts = project_state
+        .project_scripts
+        .get(&canvas_state.project)
+        .expect("`Project`'s `Script`s not loaded");
+
+    let name_map = associations
+        .clone()
+        .into_keys()
+        .map(|assoc| {
+            let script = project_scripts.get(&assoc).expect("`Script` not found");
+            let name = match script.name.clone() {
+                Some(name) => name,
+                None => {
+                    let name = script
+                        .path
+                        .as_path()
+                        .file_name()
+                        .expect("could not get path's file name");
+
+                    name.to_str()
+                        .expect("could not convert file name to string")
+                        .to_string()
+                }
+            };
+
+            (assoc, name)
+        })
+        .collect::<NameMap>();
+
+    let remaining_scripts = {
+        let num_containers = containers.len();
+        associations
+            .iter()
+            .filter_map(|(script, conts)| {
+                if conts.len() == num_containers {
+                    return None;
+                }
+
+                let script = project_scripts.get(script).expect("`Script` not found");
+                Some(script.clone())
+            })
+            .collect::<Vec<_>>()
+    };
 
     // **********************
     // *** event handlers ***
@@ -281,7 +347,171 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         })
     };
 
+    let onadd_association = {
+        let app_state = app_state.clone();
+        let graph_state = graph_state.clone();
+        let container_scripts = containers
+            .iter()
+            .map(|c| {
+                (
+                    c.rid.clone(),
+                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                )
+            })
+            .collect::<ResourceMap<_>>();
+
+        Callback::from(move |script: ResourceId| {
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+
+            let update_containers = container_scripts
+                .iter()
+                .filter_map(|(c, scripts)| {
+                    if scripts.contains(&&script) {
+                        None
+                    } else {
+                        Some(c.clone())
+                    }
+                })
+                .collect();
+
+            let mut update = ScriptAssociationsBulkUpdate::default();
+            update.insert.push(ScriptAssociation::new(script.clone()));
+            let update = BulkUpdateScriptAssociationArgs {
+                containers: update_containers,
+                update,
+            };
+
+            spawn_local(async move {
+                let res =
+                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
+
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Container Script Assocations",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
+                    update,
+                ));
+            });
+        })
+    };
+
+    let onremove_association = {
+        let app_state = app_state.clone();
+        let graph_state = graph_state.clone();
+        let container_scripts = containers
+            .iter()
+            .map(|c| {
+                (
+                    c.rid.clone(),
+                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                )
+            })
+            .collect::<ResourceMap<_>>();
+
+        Callback::from(move |script: ResourceId| {
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+
+            let update_containers = container_scripts
+                .iter()
+                .filter_map(|(c, scripts)| {
+                    if scripts.contains(&&script) {
+                        Some(c.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            let mut update = ScriptAssociationsBulkUpdate::default();
+            update.remove.push(script.clone());
+            let update = BulkUpdateScriptAssociationArgs {
+                containers: update_containers,
+                update,
+            };
+
+            spawn_local(async move {
+                let res =
+                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
+
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Container Script Assocations",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
+                    update,
+                ));
+            });
+        })
+    };
+
+    let onchange_association = {
+        let app_state = app_state.clone();
+        let graph_state = graph_state.clone();
+        let container_scripts = containers
+            .iter()
+            .map(|c| {
+                (
+                    c.rid.clone(),
+                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                )
+            })
+            .collect::<ResourceMap<_>>();
+
+        Callback::from(
+            move |(script, run_params): (ResourceId, RunParametersUpdate)| {
+                let app_state = app_state.clone();
+                let graph_state = graph_state.clone();
+
+                let update_containers = container_scripts
+                    .iter()
+                    .filter_map(|(c, scripts)| {
+                        if scripts.contains(&&script) {
+                            Some(c.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let mut update = ScriptAssociationsBulkUpdate::default();
+                let mut assoc = ScriptAssociation::new(script.clone());
+                update.insert.push(assoc);
+                let update = BulkUpdateScriptAssociationArgs {
+                    containers: update_containers,
+                    update,
+                };
+
+                spawn_local(async move {
+                    let res =
+                        invoke::<()>("bulk_update_container_script_associations", update.clone())
+                            .await;
+
+                    if let Err(err) = res {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Could not update Container Script Assocations",
+                        )));
+                        return;
+                    }
+
+                    graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
+                        update,
+                    ));
+                });
+            },
+        )
+    };
+
     html! {
+        <>
         <StandardPropertiesBulkEditor
             {properties}
             {onchange_name}
@@ -292,5 +522,16 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             {onadd_metadata}
             {onremove_metadata}
             {onchange_metadata} />
+
+        <AddScriptAssociation
+            scripts={remaining_scripts}
+            onadd={onadd_association} />
+
+        <ScriptAssociationsBulkEditor
+            {associations}
+            {name_map}
+            onremove={onremove_association}
+            onchange={onchange_association} />
+        </>
     }
 }

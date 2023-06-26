@@ -29,7 +29,7 @@ pub struct UpdatePropertiesArgs {
     pub rid: ResourceId,
 
     /// Updated values.
-    pub properties: StandardProperties, // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+    pub properties: StandardProperties, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
                                         // See: https://github.com/tauri-apps/tauri/issues/6078
 }
 
@@ -40,7 +40,7 @@ pub struct UpdatePropertiesStringArgs {
     pub rid: ResourceId,
 
     /// Updated values.
-    pub properties: String, // @todo: Issue with serializing `HashMap` of `metadata`. perform manually.
+    pub properties: String, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
                             // Unify with `UpdatePropertiesArgs` once resolved.
                             // See: https://github.com/tauri-apps/tauri/issues/6078
 }

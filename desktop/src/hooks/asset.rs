@@ -26,7 +26,6 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
             .expect("`Asset` not found")
             .clone()
     });
-    tracing::debug!(?asset);
 
     {
         let rid = rid.clone();

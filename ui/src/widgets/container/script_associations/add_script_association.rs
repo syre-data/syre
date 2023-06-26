@@ -8,7 +8,7 @@ use yew_icons::{Icon, IconId};
 #[derive(Properties, PartialEq)]
 pub struct AddScriptAssociationProps {
     /// Available `Script`s.
-    pub scripts: Vec<CoreScript>, // @todo: Use indexmap::IndexSet.
+    pub scripts: Vec<CoreScript>, // TODO Use indexmap::IndexSet.
     pub onadd: Callback<ResourceId>,
 }
 

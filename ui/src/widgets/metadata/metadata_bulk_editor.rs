@@ -74,6 +74,8 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
     };
 
     let name_filter = props.value.clone().into_keys().collect::<HashSet<String>>();
+    let mut value = props.value.clone().into_iter().collect::<Vec<_>>();
+    value.sort_by_key(|v| v.0.clone());
 
     html! {
         <div class={classes!("thot-ui-metadata-bulk-editor")}>
@@ -91,7 +93,7 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
                 }
             </div>
             <ol class={classes!("metadata-editor")}>
-                { props.value.clone().into_iter().map(|(name, value)| html! {
+                { value.into_iter().map(|(name, value)| html! {
                     <li key={name.clone()}>
                         <MetadatumBulkEditor
                             name={name.clone()}

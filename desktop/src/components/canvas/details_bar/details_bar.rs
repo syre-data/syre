@@ -12,16 +12,16 @@ use yew::prelude::*;
 
 #[derive(Clone, PartialEq)]
 pub enum DetailsBarWidget {
-    /// Asset editor.
+    /// `Asset` editor.
     AssetEditor(ResourceId),
 
-    /// Container editor.
+    /// `Container` editor.
     ContainerEditor(ResourceId),
 
-    /// Container bulk editor.
+    /// `Container` bulk editor.
     ContainerBulkEditor(HashSet<ResourceId>),
 
-    /// Asset bulk editor.
+    /// `Asset` bulk editor.
     AssetBulkEditor(HashSet<ResourceId>),
 
     /// Mixed bulk editor.

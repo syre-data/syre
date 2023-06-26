@@ -7,7 +7,7 @@ pub struct TagsBulkEditorProps {
     pub value: Vec<String>,
 
     #[prop_or_default]
-    pub onadd: Option<Callback<String>>,
+    pub onadd: Option<Callback<Vec<String>>>,
 
     #[prop_or_default]
     pub onremove: Option<Callback<String>>,
@@ -31,6 +31,7 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
                     return;
                 }
 
+                let value = value.split(",").map(|s| s.trim().into()).collect();
                 onadd.emit(value);
                 elm.set_value("");
             }))

@@ -124,6 +124,9 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub active_assets: HashSet<ResourceId>,
 
+    #[prop_or_default]
+    pub onmousedown: Callback<MouseEvent>,
+
     /// Callback to run when the `Container` is clicked.
     #[prop_or_default]
     pub onclick: Callback<MouseEvent>,
@@ -276,6 +279,7 @@ pub fn container(props: &ContainerProps) -> Html {
     html! {
         <div ref={props.r#ref.clone()}
             {class}
+            onmousedown={props.onmousedown.clone()}
             onclick={props.onclick.clone()}
             ondblclick={props.ondblclick.clone()}
             {ondragenter}

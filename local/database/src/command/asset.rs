@@ -1,4 +1,5 @@
 //! Asset realated commands.
+use super::types::BulkUpdatePropertiesArgs;
 use serde::{Deserialize, Serialize};
 use thot_core::db::StandardSearchFilter;
 use thot_core::project::{Asset as CoreAsset, StandardProperties};
@@ -51,6 +52,9 @@ pub enum AssetCommand {
     /// 1. Root `Container`.
     /// 2. Search filter.
     FindWithMetadata(ResourceId, StandardSearchFilter),
+
+    /// Update multiple [`Asset`](CoreAsset)s' properties.
+    BulkUpdateProperties(BulkUpdatePropertiesArgs),
 }
 
 #[cfg(test)]

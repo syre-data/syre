@@ -4,30 +4,30 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::StandardProperties;
+use thot_core::project::{ScriptAssociation, StandardProperties};
 use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
 
 /// Container related commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ContainerCommand {
-    /// Retrieves a [`Container`](CoreContainer) by [`ResourceId`].
+    /// Retrieves a [`Container`](thot_core::project::Container) by [`ResourceId`].
     Get(ResourceId),
 
-    /// Retrievea a [`Container`](CoreContainer) with inherited metadata by [`ResourceId`].
+    /// Retrievea a [`Container`](thot_core::project::Container) with inherited metadata by [`ResourceId`].
     GetWithMetadata(ResourceId),
 
-    /// Retrieves a [`Container`](CoreContainer) by its path.
+    /// Retrieves a [`Container`](thot_core::project::Container) by its path.
     ByPath(PathBuf),
 
-    /// Retrieves [`Container`](CoreContainer)s based on a filter.
+    /// Retrieves [`Container`](thot_core::project::Container)s based on a filter.
     ///
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
     Find(ResourceId, StandardSearchFilter),
 
-    /// Retrieves [`Container`](CoreContainer)s based on a filter.
+    /// Retrieves [`Container`](thot_core::project::Container)s based on a filter.
     /// Lineage is compiled.
     ///
     /// # Fields
@@ -35,14 +35,14 @@ pub enum ContainerCommand {
     /// 2. Search filter.
     FindWithMetadata(ResourceId, StandardSearchFilter),
 
-    /// Updates a [`Container`](CoreContainer)'s properties.
+    /// Updates a [`Container`](thot_core::project::Container)'s properties.
     UpdateProperties(UpdatePropertiesArgs),
 
-    /// Updates a [`Container`](CoreContainer)'s
+    /// Updates a [`Container`](thot_core::project::Container)'s
     /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
     UpdateScriptAssociations(UpdateScriptAssociationsArgs),
 
-    /// Add [`Asset`](CoreAsset)s to a [`Container`](CoreContainer).
+    /// Add [`Asset`](thot_core::project::Asset)s to a [`Container`](thot_core::project::Container).
     ///
     /// # Notes
     /// + If an [`Asset`] with a given path already exists, the file name is
@@ -57,6 +57,9 @@ pub enum ContainerCommand {
 
     /// Update multiple [`Container`](thot_core::project::Container)s' properties.
     BulkUpdateProperties(BulkUpdatePropertiesArgs),
+
+    /// Update multiple `Container`s `ScriptAssociations`.
+    BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs),
 }
 
 // *****************
@@ -70,7 +73,7 @@ pub struct UpdatePropertiesArgs {
     pub properties: StandardProperties,
 }
 
-/// Arguments for updating a [`Container`](CoreContainer)'s
+/// Arguments for updating a [`Container`](thot_core::project::Container)'s
 /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateScriptAssociationsArgs {
@@ -78,18 +81,14 @@ pub struct UpdateScriptAssociationsArgs {
     pub associations: ScriptMap,
 }
 
-/// Arguments for adding [`Asset`](CoreAsset)s to a [`Container`](CoreContainer).
+/// Arguments for adding [`Asset`](thot_core::project::Asset)s to a [`Container`](thot_core::project::Container).
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AddAssetsArgs {
     pub container: ResourceId,
     pub assets: Vec<AddAssetInfo>,
 }
 
-// **********************
-// *** Add Asset Info ***
-// **********************
-
-// @todo: Merge with `thot_local::types::AssetFileAction`.
+// TODO Merge with `thot_local::types::AssetFileAction`.
 /// Info for adding an [`Asset`](thot_core::project::Asset).
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AddAssetInfo {
@@ -101,6 +100,18 @@ pub struct AddAssetInfo {
 
     /// The bucket to place the [`Asset`](thot_core::project::Asset)'s file in.
     pub bucket: Option<PathBuf>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BulkUpdateScriptAssociationsArgs {
+    pub containers: Vec<ResourceId>,
+    pub update: ScriptAssociationBulkUpdate,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ScriptAssociationBulkUpdate {
+    pub insert: Vec<ScriptAssociation>,
+    pub remove: Vec<ResourceId>,
 }
 
 #[cfg(test)]

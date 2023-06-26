@@ -2,7 +2,8 @@
 use super::super::Database;
 use crate::command::container::AddAssetInfo;
 use crate::command::container::{
-    AddAssetsArgs, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AddAssetsArgs, BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate,
+    UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
 use crate::command::ContainerCommand;
@@ -13,7 +14,7 @@ use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container as CoreContainer, StandardProperties};
+use thot_core::project::{Container as CoreContainer, RunParameters, StandardProperties};
 use thot_core::types::ResourceId;
 use thot_local::project::asset::AssetBuilder;
 use thot_local::project::resources::Container;
@@ -101,11 +102,16 @@ impl Database {
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
 
-            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs {
+            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
+                let res = self.bulk_update_container_properties(&rids, &update);
+                serde_json::to_value(res).unwrap()
+            }
+
+            ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
                 containers,
                 update,
             }) => {
-                let res = self.bulk_update_container_properties(&containers, &update);
+                let res = self.bulk_update_container_script_associations(&containers, &update);
                 serde_json::to_value(res).unwrap()
             }
         }
@@ -248,10 +254,9 @@ impl Database {
         rid: &ResourceId,
         update: &StandardPropertiesUpdate,
     ) -> Result {
-        let container = self
-            .store
-            .get_container_mut(&rid)
-            .expect("could not find `Container`");
+        let Some(container) = self.store.get_container_mut(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+        };
 
         // basic properties
         if let Some(name) = update.name.as_ref() {
@@ -270,7 +275,7 @@ impl Database {
         container
             .properties
             .tags
-            .append(&mut update.tags.add.clone());
+            .append(&mut update.tags.insert.clone());
 
         container.properties.tags.sort();
         container.properties.tags.dedup();
@@ -278,6 +283,55 @@ impl Database {
             .properties
             .tags
             .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        container
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            container.properties.metadata.remove(key);
+        }
+
+        container.save()?;
+        Ok(())
+    }
+
+    fn bulk_update_container_script_associations(
+        &mut self,
+        containers: &Vec<ResourceId>,
+        update: &ScriptAssociationBulkUpdate,
+    ) -> Result {
+        for rid in containers {
+            self.update_container_script_associations_from_update(rid, update)?;
+        }
+
+        Ok(())
+    }
+
+    fn update_container_script_associations_from_update(
+        &mut self,
+        rid: &ResourceId,
+        update: &ScriptAssociationBulkUpdate,
+    ) -> Result {
+        let Some(container) = self.store.get_container_mut(&rid) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+        };
+
+        for assoc in update.insert.iter() {
+            container.scripts.insert(
+                assoc.script.clone(),
+                RunParameters {
+                    priority: assoc.priority.clone(),
+                    autorun: assoc.autorun.clone(),
+                },
+            );
+        }
+
+        for script in update.remove.iter() {
+            container.scripts.remove(script);
+        }
 
         container.save()?;
         Ok(())

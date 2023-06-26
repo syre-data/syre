@@ -8,14 +8,13 @@ use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphState
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{RunParameters, Script as CoreScript};
 use thot_core::types::ResourceId;
-use thot_ui::widgets::container::script_associations::script_associations_editor::NameMap;
 use thot_ui::widgets::container::script_associations::{
-    AddScriptAssociation, ScriptAssociationsEditor as ContainerScriptsEditor,
+    AddScriptAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct ScriptAssociationsEditorProps {
     pub container: ResourceId,
 
@@ -24,6 +23,7 @@ pub struct ScriptAssociationsEditorProps {
     pub onsave: Option<Callback<()>>,
 }
 
+#[tracing::instrument]
 #[function_component(ScriptAssociationsEditor)]
 pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> HtmlResult {
     let projects_state =
@@ -43,9 +43,10 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     let dirty_state = use_state(|| false); // track if changes come from user or are internal
     let associations = use_state(|| container.scripts.clone());
 
-    let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
-        panic!("`Project`'s `Scripts` not loaded");
-    };
+    let project_scripts = projects_state
+        .project_scripts
+        .get(&canvas_state.project)
+        .expect("`Project`'s `Scripts` not loaded");
 
     let remaining_scripts = use_state(|| {
         project_scripts

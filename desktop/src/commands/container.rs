@@ -2,7 +2,7 @@
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::{Container, ScriptAssociation};
 use thot_core::types::ResourceId;
 use thot_local_database::command::container::AddAssetInfo;
 
@@ -14,11 +14,11 @@ pub struct LoadContainerTreeArgs {
     pub root: PathBuf,
 }
 
-/// Arguments for commands requiring a [`Container`](CoreContainer) named `container` only.
+/// Arguments for commands requiring a [`Container`](Container) named `container` only.
 #[derive(Serialize)]
 pub struct ContainerArgs {
-    /// [`Container`](CoreContainer) to update.
-    pub container: CoreContainer,
+    /// [`Container`](Container) to update.
+    pub container: Container,
 }
 
 /// Arguments for [`new_child`](thot_desktop_tauri::commands::container::new_child).
@@ -63,17 +63,17 @@ pub struct UpdateScriptAssociationsStringArgs {
 /// Arguments for [`add_assets`](thot_desktop_tauri::commands::container::add_assets).
 #[derive(Serialize, Debug)]
 pub struct AddAssetsArgs {
-    /// [`ResourceId`] of the [`Container`](CoreContainer).
+    /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
     /// [`Asset`](thot_core::project::Asset)s to add.
     pub assets: Vec<AddAssetInfo>,
 }
 
-/// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows). 
+/// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows).
 #[derive(Serialize)]
 pub struct AddAssetWindowsArgs {
-    /// [`ResourceId`] of the [`Container`](CoreContainer).
+    /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
     /// Name of the file.
@@ -81,6 +81,23 @@ pub struct AddAssetWindowsArgs {
 
     /// File contents.
     pub contents: Vec<u8>,
+}
+
+/// Arguments for [`bulk_update_container_script_association`](thot_desktop_tauri::commands::container::bulk_update_container_script_association).
+#[derive(Serialize, Clone)]
+pub struct BulkUpdateScriptAssociationArgs {
+    pub containers: Vec<ResourceId>,
+    pub update: ScriptAssociationsBulkUpdate,
+}
+
+/// Update action used for [`BulkUpdateScriptAssociationArgs`].
+#[derive(Serialize, Default, Clone)]
+pub struct ScriptAssociationsBulkUpdate {
+    /// Associations to insert or update.
+    pub insert: Vec<ScriptAssociation>,
+
+    /// Scripts to remove.
+    pub remove: Vec<ResourceId>,
 }
 
 #[cfg(test)]

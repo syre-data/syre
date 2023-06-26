@@ -90,7 +90,7 @@ fn main() {
             load_project,
             load_user_projects,
             get_project,
-            // new_project, @todo: Possibly remove.
+            // new_project, TODO Possibly remove.
             update_project,
             analyze,
             // graph
@@ -100,6 +100,7 @@ fn main() {
             add_assets,
             add_asset_windows,
             bulk_update_container_properties,
+            bulk_update_container_script_associations,
             get_container,
             get_container_path,
             new_child,
@@ -108,6 +109,7 @@ fn main() {
             duplicate_container_tree,
             remove_container_tree,
             // asset
+            bulk_update_asset_properties,
             get_assets,
             update_asset_properties,
             remove_asset,
@@ -122,7 +124,7 @@ fn main() {
 
     app.run(move |_app, event| match event {
         RunEvent::ExitRequested { api, .. } => {
-            // @todo: Appears that `database` process is killed automatically
+            // TODO Appears that `database` process is killed automatically
             // when parent is killed. May have to manually kill if detached.
             // if let Some((_rx_database, proc_database)) = db_handler {
             //     proc_database

@@ -20,8 +20,11 @@
     display: flex;
     justify-content: center;
     padding-top: t.$padding-l;
+    padding-bottom: t.$padding-l;
     width: t.$drawer-width;
     height: 100%;
+    max-height: 100vh;
+    overflow-y: scroll;
     background-color: t.$frame-background-color;
 
     .drawer-toggle {

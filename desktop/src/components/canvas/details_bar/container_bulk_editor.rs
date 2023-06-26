@@ -2,7 +2,9 @@
 use super::super::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::BulkUpdatePropertiesArgs;
-use crate::commands::container::{BulkUpdateScriptAssociationArgs, ScriptAssociationsBulkUpdate};
+use crate::commands::container::{
+    BulkUpdateScriptAssociationArgs, RunParametersUpdate, ScriptAssociationsBulkUpdate,
+};
 use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
 use crate::common::invoke;
 use std::collections::HashSet;
@@ -10,7 +12,8 @@ use thot_core::project::ScriptAssociation;
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_ui::types::Message;
 use thot_ui::widgets::bulk_editor::{
-    RunParametersUpdate, ScriptAssociationsBulkEditor, ScriptBulkMap, StandardPropertiesBulkEditor,
+    RunParametersUpdate as RunParametersUiUpdate, ScriptAssociationsBulkEditor, ScriptBulkMap,
+    StandardPropertiesBulkEditor,
 };
 use thot_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
 use wasm_bindgen_futures::spawn_local;
@@ -376,7 +379,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 .collect();
 
             let mut update = ScriptAssociationsBulkUpdate::default();
-            update.insert.push(ScriptAssociation::new(script.clone()));
+            update.add.push(ScriptAssociation::new(script.clone()));
             let update = BulkUpdateScriptAssociationArgs {
                 containers: update_containers,
                 update,
@@ -466,48 +469,50 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             })
             .collect::<ResourceMap<_>>();
 
-        Callback::from(
-            move |(script, run_params): (ResourceId, RunParametersUpdate)| {
-                let app_state = app_state.clone();
-                let graph_state = graph_state.clone();
+        Callback::from(move |update: RunParametersUiUpdate| {
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
 
-                let update_containers = container_scripts
-                    .iter()
-                    .filter_map(|(c, scripts)| {
-                        if scripts.contains(&&script) {
-                            Some(c.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                let mut update = ScriptAssociationsBulkUpdate::default();
-                let mut assoc = ScriptAssociation::new(script.clone());
-                update.insert.push(assoc);
-                let update = BulkUpdateScriptAssociationArgs {
-                    containers: update_containers,
-                    update,
-                };
-
-                spawn_local(async move {
-                    let res =
-                        invoke::<()>("bulk_update_container_script_associations", update.clone())
-                            .await;
-
-                    if let Err(err) = res {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Could not update Container Script Assocations",
-                        )));
-                        return;
+            let update_containers = container_scripts
+                .iter()
+                .filter_map(|(c, scripts)| {
+                    if scripts.contains(&update.script) {
+                        Some(c.clone())
+                    } else {
+                        None
                     }
+                })
+                .collect();
 
-                    graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                        update,
-                    ));
-                });
-            },
-        )
+            let mut assoc_update = ScriptAssociationsBulkUpdate::default();
+            let mut assoc = RunParametersUpdate {
+                script: update.script,
+                autorun: update.autorun,
+                priority: update.priority,
+            };
+
+            assoc_update.update.push(assoc);
+            let update = BulkUpdateScriptAssociationArgs {
+                containers: update_containers,
+                update: assoc_update,
+            };
+
+            spawn_local(async move {
+                let res =
+                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
+
+                if let Err(err) = res {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update Container Script Assocations",
+                    )));
+                    return;
+                }
+
+                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
+                    update,
+                ));
+            });
+        })
     };
 
     html! {

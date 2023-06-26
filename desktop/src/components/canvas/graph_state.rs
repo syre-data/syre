@@ -190,6 +190,13 @@ impl GraphState {
         }
     }
 
+    /// Update a `Container`'s `ScriptAssociations`.
+    ///
+    /// # Note
+    /// Updates are processed in the following order:
+    /// 1. New associations are added.
+    /// 2. Present associations are updated.
+    /// 3. Associations are removed.
     pub fn update_container_script_associations_from_update(
         &mut self,
         rid: &ResourceId,
@@ -200,7 +207,7 @@ impl GraphState {
             .get_mut(&rid)
             .expect("could not find `Container`");
 
-        for assoc in update.insert.iter() {
+        for assoc in update.add.iter() {
             container.scripts.insert(
                 assoc.script.clone(),
                 RunParameters {
@@ -208,6 +215,20 @@ impl GraphState {
                     autorun: assoc.autorun.clone(),
                 },
             );
+        }
+
+        for u in update.update.iter() {
+            let Some(script) = container.scripts.get_mut(&u.script) else {
+                continue;
+            };
+
+            if let Some(priority) = u.priority.as_ref() {
+                script.priority = priority.clone();
+            }
+
+            if let Some(autorun) = u.autorun.as_ref() {
+                script.autorun = autorun.clone();
+            }
         }
 
         for script in update.remove.iter() {

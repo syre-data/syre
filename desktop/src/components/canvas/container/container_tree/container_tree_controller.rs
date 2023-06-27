@@ -197,9 +197,23 @@ pub fn container_tree_controller() -> Html {
             let analysis_state = analysis_state.clone();
             let project_id = canvas_state.project.clone();
 
+            let selected = canvas_state.selected.clone();
+            let selected_rid = match selected.len() {
+                1 => {
+                    let rid = selected.iter().next().expect("resource not available");
+                    Some(rid.clone())
+                }
+                _ => None,
+            };
+
             spawn_local(async move {
                 // analyze
-                let root = graph_state.graph.root();
+                // let root = graph_state.graph.root();
+                // TODO: Should 
+                let root = selected_rid
+                    .clone()
+                    .unwrap_or(graph_state.graph.root().clone());
+
                 let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(

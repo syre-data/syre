@@ -93,11 +93,31 @@ pub struct BulkUpdateScriptAssociationArgs {
 /// Update action used for [`BulkUpdateScriptAssociationArgs`].
 #[derive(Serialize, Default, Clone)]
 pub struct ScriptAssociationsBulkUpdate {
-    /// Associations to insert or update.
-    pub insert: Vec<ScriptAssociation>,
+    /// Associations to insert.
+    pub add: Vec<ScriptAssociation>,
 
     /// Scripts to remove.
     pub remove: Vec<ResourceId>,
+
+    /// Associations to update.
+    pub update: Vec<RunParametersUpdate>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct RunParametersUpdate {
+    pub script: ResourceId,
+    pub autorun: Option<bool>,
+    pub priority: Option<i32>,
+}
+
+impl RunParametersUpdate {
+    pub fn new(script: ResourceId) -> Self {
+        Self {
+            script,
+            autorun: None,
+            priority: None,
+        }
+    }
 }
 
 #[cfg(test)]

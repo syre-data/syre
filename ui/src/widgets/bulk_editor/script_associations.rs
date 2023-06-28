@@ -10,12 +10,38 @@ const PLACEHOLDER: &'static str = "(mixed)";
 
 pub type NameMap = ResourceMap<String>;
 pub type ScriptBulkMap = ResourceMap<Vec<RunParameters>>;
-pub type ScriptAssociationUpdate = (ResourceId, RunParametersUpdate);
 
-#[derive(PartialEq, Clone, Default, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct RunParametersUpdate {
-    priority: Option<i32>,
-    autorun: Option<bool>,
+    pub script: ResourceId,
+    pub priority: Option<i32>,
+    pub autorun: Option<bool>,
+}
+
+impl RunParametersUpdate {
+    pub fn new(script: ResourceId) -> Self {
+        Self {
+            script,
+            priority: None,
+            autorun: None,
+        }
+    }
+
+    pub fn set_priority(&mut self, priority: i32) {
+        self.priority = Some(priority);
+    }
+
+    pub fn unset_priority(&mut self) {
+        self.priority = None;
+    }
+
+    pub fn set_autorun(&mut self, autorun: bool) {
+        self.autorun = Some(autorun);
+    }
+
+    pub fn unset_autorun(&mut self) {
+        self.autorun = None;
+    }
 }
 
 // **************************
@@ -99,6 +125,7 @@ pub struct ScriptAssociationEditorProps {
 pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     let association_state =
         use_reducer(|| ScriptAssociationState::new(props.run_parameters.clone()));
+
     let priority_ref = use_node_ref();
     let autorun_ref = use_node_ref();
 
@@ -221,7 +248,7 @@ pub struct ScriptAssociationsBulkEditorProps {
     pub onremove: Callback<ResourceId>,
 
     /// Called when the value of an association changes.
-    pub onchange: Callback<ScriptAssociationUpdate>,
+    pub onchange: Callback<RunParametersUpdate>,
 }
 
 #[function_component(ScriptAssociationsBulkEditor)]
@@ -230,13 +257,9 @@ pub fn script_associations_bulk_editor(props: &ScriptAssociationsBulkEditorProps
         let onchange = props.onchange.clone();
 
         Callback::from(move |priority: i32| {
-            onchange.emit((
-                script.clone(),
-                RunParametersUpdate {
-                    priority: Some(priority),
-                    autorun: None,
-                },
-            ));
+            let mut update = RunParametersUpdate::new(script.clone());
+            update.set_priority(priority);
+            onchange.emit(update);
         })
     };
 
@@ -245,13 +268,9 @@ pub fn script_associations_bulk_editor(props: &ScriptAssociationsBulkEditorProps
         let script = script.clone();
 
         Callback::from(move |autorun: bool| {
-            onchange.emit((
-                script.clone(),
-                RunParametersUpdate {
-                    priority: None,
-                    autorun: Some(autorun),
-                },
-            ));
+            let mut update = RunParametersUpdate::new(script.clone());
+            update.set_autorun(autorun);
+            onchange.emit(update);
         })
     };
 

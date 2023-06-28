@@ -110,8 +110,16 @@ pub struct BulkUpdateScriptAssociationsArgs {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ScriptAssociationBulkUpdate {
-    pub insert: Vec<ScriptAssociation>,
+    pub add: Vec<ScriptAssociation>,
     pub remove: Vec<ResourceId>,
+    pub update: Vec<RunParametersUpdate>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RunParametersUpdate {
+    pub script: ResourceId,
+    pub autorun: Option<bool>,
+    pub priority: Option<i32>,
 }
 
 #[cfg(test)]

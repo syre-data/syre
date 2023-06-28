@@ -19,13 +19,12 @@
   .details-bar-drawer {
     display: flex;
     justify-content: center;
-    padding-top: t.$padding-l;
-    padding-bottom: t.$padding-l;
     width: t.$drawer-width;
     height: 100%;
     max-height: 100vh;
     overflow-y: scroll;
     background-color: t.$frame-background-color;
+    box-sizing: border-box;
 
     .drawer-toggle {
       height: 100%;
@@ -33,7 +32,6 @@
       vertical-align: middle;
       cursor: pointer;
 
-      padding: 0 t.$padding-s;
       border-right: solid t.$border-width-s t.$frame-border-color;
     }
 
@@ -42,7 +40,6 @@
 
       .project-canvas-details-bar {
         margin: 0 t.$margin-l;
-        height: 100%;
 
         &.hidden {
           display: none;

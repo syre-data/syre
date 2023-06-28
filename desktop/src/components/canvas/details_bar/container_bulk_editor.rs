@@ -91,14 +91,17 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
     let remaining_scripts = {
         let num_containers = containers.len();
-        associations
+        project_scripts
             .iter()
-            .filter_map(|(script, conts)| {
-                if conts.len() == num_containers {
+            .filter_map(|(sid, script)| {
+                let Some(script_containers) = associations.get(&sid) else {
+                    return Some(script.clone());
+                };
+
+                if script_containers.len() == num_containers {
                     return None;
                 }
 
-                let script = project_scripts.get(script).expect("`Script` not found");
                 Some(script.clone())
             })
             .collect::<Vec<_>>()

@@ -125,6 +125,7 @@ pub struct ScriptAssociationEditorProps {
 pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     let association_state =
         use_reducer(|| ScriptAssociationState::new(props.run_parameters.clone()));
+
     let priority_ref = use_node_ref();
     let autorun_ref = use_node_ref();
 

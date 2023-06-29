@@ -477,15 +477,17 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
     };
 
     html! {
-        <StandardPropertiesBulkEditor
-            {properties}
-            {onchange_name}
-            {onchange_kind}
-            {onchange_description}
-            {onadd_tag}
-            {onremove_tag}
-            {onadd_metadata}
-            {onremove_metadata}
-            {onchange_metadata} />
+        <div class={classes!("thot-ui-editor")}>
+            <StandardPropertiesBulkEditor
+                {properties}
+                {onchange_name}
+                {onchange_kind}
+                {onchange_description}
+                {onadd_tag}
+                {onremove_tag}
+                {onadd_metadata}
+                {onremove_metadata}
+                {onchange_metadata} />
+        </div>
     }
 }

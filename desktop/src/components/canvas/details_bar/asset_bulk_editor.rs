@@ -295,15 +295,17 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
     };
 
     html! {
-        <StandardPropertiesBulkEditor
-            {properties}
-            {onchange_name}
-            {onchange_kind}
-            {onchange_description}
-            {onadd_tag}
-            {onremove_tag}
-            {onadd_metadata}
-            {onremove_metadata}
-            {onchange_metadata} />
+        <div class={classes!("thot-ui-editor")}>
+            <StandardPropertiesBulkEditor
+                {properties}
+                {onchange_name}
+                {onchange_kind}
+                {onchange_description}
+                {onadd_tag}
+                {onremove_tag}
+                {onadd_metadata}
+                {onremove_metadata}
+                {onchange_metadata} />
+        </div>
     }
 }

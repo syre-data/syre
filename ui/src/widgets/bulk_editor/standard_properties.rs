@@ -291,7 +291,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
         <form class={classes!("thot-ui-standard-properties-editor")} {onsubmit}>
             <div class={classes!("form-field", "name")}>
                 <label>
-                    { "Name" }
+                    <h3> { "Name" } </h3>
                     <input
                         ref={name_ref}
                         placeholder={value_placeholder(updater_state.name())}
@@ -302,7 +302,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
             <div class={classes!("form-field", "kind")}>
                 <label>
-                    { "Type" }
+                    <h3> { "Type" } </h3>
                     <input
                         ref={kind_ref}
                         placeholder={value_placeholder(updater_state.kind())}
@@ -312,7 +312,8 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
             </div>
 
             <div class={classes!("form-field", "description")}>
-                <label>{ "Description" }
+                <label>
+                    <h3> { "Description" } </h3>
                     <textarea
                         ref={description_ref}
                         placeholder={value_placeholder(updater_state.description())}
@@ -323,7 +324,7 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
 
             <div class={classes!("form-field", "tags")}>
                 <label>
-                    { "Tags" }
+                    <h3> { "Tags" } </h3>
                     <TagsBulkEditor
                         value={updater_state.tags().clone()}
                         onadd={onadd_tag}
@@ -332,7 +333,6 @@ pub fn standard_properties_bulk_editor(props: &StandardPropertiesBulkEditorProps
             </div>
 
             <div class={classes!("form-field", "metadata")}>
-                <h4>{ "Metadata" }</h4>
                 <MetadataBulkEditor
                     value={updater_state.metadata().clone()}
                     onadd={onadd_metadata}

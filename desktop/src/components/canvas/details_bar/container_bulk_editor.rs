@@ -519,27 +519,27 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     };
 
     html! {
-        <>
-        <StandardPropertiesBulkEditor
-            {properties}
-            {onchange_name}
-            {onchange_kind}
-            {onchange_description}
-            {onadd_tag}
-            {onremove_tag}
-            {onadd_metadata}
-            {onremove_metadata}
-            {onchange_metadata} />
+        <div class={classes!("thot-ui-editor")}>
+            <StandardPropertiesBulkEditor
+                {properties}
+                {onchange_name}
+                {onchange_kind}
+                {onchange_description}
+                {onadd_tag}
+                {onremove_tag}
+                {onadd_metadata}
+                {onremove_metadata}
+                {onchange_metadata} />
 
-        <AddScriptAssociation
-            scripts={remaining_scripts}
-            onadd={onadd_association} />
+            <AddScriptAssociation
+                scripts={remaining_scripts}
+                onadd={onadd_association} />
 
-        <ScriptAssociationsBulkEditor
-            {associations}
-            {name_map}
-            onremove={onremove_association}
-            onchange={onchange_association} />
-        </>
+            <ScriptAssociationsBulkEditor
+                {associations}
+                {name_map}
+                onremove={onremove_association}
+                onchange={onchange_association} />
+        </div>
     }
 }

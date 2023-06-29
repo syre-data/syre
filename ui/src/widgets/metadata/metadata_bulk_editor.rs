@@ -78,8 +78,9 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
     value.sort_by_key(|v| v.0.clone());
 
     html! {
-        <div class={classes!("thot-ui-metadata-bulk-editor")}>
+        <div class={classes!("thot-ui-metadata-editor")}>
             <div class={classes!("metadata-header")}>
+                <h3>{ "Metadata" }</h3>
                 <button class={classes!("add-button")} type="button" onclick={show_add_metadatum}>
                     <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
                 </button>

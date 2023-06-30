@@ -342,6 +342,10 @@ pub fn container_tree_controller() -> Html {
     };
 
     let container_tree_fallback = html! { <Loading text={"Loading container tree"} /> };
+    let mut primary_analyze_btn_classes = classes!("btn-primary", "primary-analyze-btn");
+    if *show_analyze_options {
+        primary_analyze_btn_classes.push("with_options");
+    }
 
     html! {
         <div ref={node_ref}
@@ -349,25 +353,34 @@ pub fn container_tree_controller() -> Html {
 
             <div class={classes!("container-tree-controls")}>
                 <ContainerPreviewSelect onchange={set_preview} />
-                <button
-                    class={classes!("btn-primary")}
-                    onclick={analyze.clone()}
-                    disabled={*analysis_state == AnalysisState::Analyzing}>
+                <div class={classes!("analyze-commands-group")}>
+                    <button
+                        class={primary_analyze_btn_classes}
+                        onclick={analyze.clone()}
+                        disabled={*analysis_state == AnalysisState::Analyzing}>
 
-                    { "Analyze" }
-                </button>
-                if *show_analyze_options {
-                <div class="dropdown">
-                  <button class="dropdown-btn">
-                    <Icon class={ classes!("icon")} icon_id={ IconId::FontAwesomeSolidAngleDown }/>
-                  </button>
-                  <div class="dropdown-content">
-                    <a onclick={analyze.clone()}>{"Project"}</a>
-                    <a onclick={analyze_container}>{"Container"}</a>
-                  </div>
+                        { "Analyze" }
+                    </button>
+                    if *show_analyze_options {
+                        <div class={classes!("dropdown")}>
+                            <button class={classes!("btn-primary", "dropdown-btn")}>
+                                <Icon
+                                    icon_id={IconId::FontAwesomeSolidAngleDown}
+                                    height={"12px"} />
+                            </button>
+                            <ul class={classes!("dropdown-content")}>
+                                <li class={classes!("clickable")}
+                                    onclick={analyze.clone()}>
+                                    { "Project" }
+                                </li>
+                                <li class={classes!("clickable")}
+                                    onclick={analyze_container}>
+                                    { "Container" }
+                                </li>
+                            </ul>
+                        </div>
+                    }
                 </div>
-
-                }
             </div>
 
             <div class={classes!("container-tree")}>

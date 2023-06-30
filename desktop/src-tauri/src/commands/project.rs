@@ -215,7 +215,7 @@ pub fn update_project(db: State<DbClient>, project: Project) -> Result {
 #[tauri::command]
 pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> LibResult {
     let graph = db
-        .send(GraphCommand::Get(root).into())
+        .send(GraphCommand::Get(root.clone()).into())
         .expect("could not get graph");
 
     let graph: Option<ResourceTree<Container>> =
@@ -228,7 +228,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
 
     let runner = Runner::new();
     let res = match max_tasks {
-        None => runner.run(&mut graph),
+        None => runner.run_from(&mut graph, &root),
         Some(max_tasks) => runner.run_with_tasks(&mut graph, max_tasks),
     };
 

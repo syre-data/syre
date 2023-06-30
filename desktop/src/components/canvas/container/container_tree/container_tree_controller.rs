@@ -4,7 +4,8 @@ use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
-use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
+use crate::components::canvas::canvas_state::ResourceType;
+use crate::components::canvas::{canvas_state, CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
@@ -22,6 +23,7 @@ use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(PartialEq)]
 enum AnalysisState {
@@ -50,6 +52,8 @@ pub fn container_tree_controller() -> Html {
     let analysis_state = use_state(|| AnalysisState::Standby);
     let node_ref = use_node_ref(); // @todo: Remove in favor of `graph_state.dragover_container`
                                    // See https://github.com/yewstack/yew/issues/3125.
+
+    let show_analyze_options = use_state(|| false);
 
     // listen for file drop events
     {
@@ -178,6 +182,34 @@ pub fn container_tree_controller() -> Html {
         );
     }
 
+    {
+        let canvas_state = canvas_state.clone();
+        let show_analyze_options = show_analyze_options.clone();
+        use_effect_with_deps(
+            move |canvas_state| {
+                if canvas_state.selected.len() != 1 {
+                    show_analyze_options.set(false);
+                    return;
+                }
+                let item = canvas_state
+                    .selected
+                    .iter()
+                    .next()
+                    .clone()
+                    .expect("selected has 1 item");
+                let item_type = canvas_state
+                    .resource_type(item)
+                    .expect("item should have type");
+                if item_type != ResourceType::Container {
+                    show_analyze_options.set(false);
+                    return;
+                }
+                show_analyze_options.set(true);
+            },
+            canvas_state,
+        )
+    }
+
     let set_preview = {
         let canvas_state = canvas_state.clone();
 
@@ -190,6 +222,7 @@ pub fn container_tree_controller() -> Html {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
+        let canvas_state = canvas_state.clone();
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
@@ -198,8 +231,73 @@ pub fn container_tree_controller() -> Html {
             let project_id = canvas_state.project.clone();
 
             spawn_local(async move {
-                // analyze
                 let root = graph_state.graph.root();
+
+                let max_tasks = None;
+                analysis_state.set(AnalysisState::Analyzing);
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                    Message::info("Running analysis"),
+                    MESSAGE_TIMEOUT,
+                    app_state.clone(),
+                ));
+
+                // @todo: Handle analysis error.
+                match invoke(
+                    "analyze",
+                    &AnalyzeArgs {
+                        root: root.clone(),
+                        max_tasks,
+                    },
+                )
+                .await
+                {
+                    Err(err) => {
+                        web_sys::console::error_1(&format!("{err:?}").into());
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Error while analyzing",
+                        )))
+                    }
+
+                    Ok(()) => {}
+                }
+
+                // update tree
+                let update: ResourceTree<Container> =
+                    invoke("load_project_graph", &ResourceIdArgs { rid: project_id })
+                        .await
+                        .expect("could not `load_project_graph");
+
+                graph_state.dispatch(GraphStateAction::SetGraph(update));
+                analysis_state.set(AnalysisState::Complete);
+                app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                    "Analysis complete",
+                )));
+            })
+        })
+    };
+
+    let analyze_container = {
+        let app_state = app_state.clone();
+        let graph_state = graph_state.clone();
+        let analysis_state = analysis_state.clone();
+        let canvas_state = canvas_state.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            let app_state = app_state.clone();
+            let graph_state = graph_state.clone();
+            let analysis_state = analysis_state.clone();
+            let project_id = canvas_state.project.clone();
+
+            let selected = canvas_state.selected.clone();
+            let selected_rid = selected
+                .iter()
+                .next()
+                .expect("there should be a single container selected")
+                .clone();
+
+            spawn_local(async move {
+                let root = selected_rid;
+
                 let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
@@ -244,6 +342,10 @@ pub fn container_tree_controller() -> Html {
     };
 
     let container_tree_fallback = html! { <Loading text={"Loading container tree"} /> };
+    let mut primary_analyze_btn_classes = classes!("btn-primary", "primary-analyze-btn");
+    if *show_analyze_options {
+        primary_analyze_btn_classes.push("with_options");
+    }
 
     html! {
         <div ref={node_ref}
@@ -251,13 +353,34 @@ pub fn container_tree_controller() -> Html {
 
             <div class={classes!("container-tree-controls")}>
                 <ContainerPreviewSelect onchange={set_preview} />
-                <button
-                    class={classes!("btn-primary")}
-                    onclick={analyze}
-                    disabled={*analysis_state == AnalysisState::Analyzing}>
+                <div class={classes!("analyze-commands-group")}>
+                    <button
+                        class={primary_analyze_btn_classes}
+                        onclick={analyze.clone()}
+                        disabled={*analysis_state == AnalysisState::Analyzing}>
 
-                    { "Analyze" }
-                </button>
+                        { "Analyze" }
+                    </button>
+                    if *show_analyze_options {
+                        <div class={classes!("dropdown")}>
+                            <button class={classes!("btn-primary", "dropdown-btn")}>
+                                <Icon
+                                    icon_id={IconId::FontAwesomeSolidAngleDown}
+                                    height={"12px"} />
+                            </button>
+                            <ul class={classes!("dropdown-content")}>
+                                <li class={classes!("clickable")}
+                                    onclick={analyze.clone()}>
+                                    { "Project" }
+                                </li>
+                                <li class={classes!("clickable")}
+                                    onclick={analyze_container}>
+                                    { "Container" }
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                </div>
             </div>
 
             <div class={classes!("container-tree")}>

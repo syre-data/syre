@@ -7,7 +7,7 @@ use thot_ui::types::ContainerPreview;
 use yew::prelude::*;
 
 #[derive(PartialEq, Clone, Debug)]
-enum ResourceType {
+pub enum ResourceType {
     Container,
     Asset,
 }
@@ -82,6 +82,11 @@ impl CanvasState {
     /// Returns the visibility state for a resource.
     pub fn is_visible(&self, rid: &ResourceId) -> bool {
         self.visible.get(&rid).unwrap_or(&true).to_owned()
+    }
+
+    /// Returns the ResourceType of a given ResourceId
+    pub fn resource_type(&self, rid: &ResourceId) -> Option<ResourceType> {
+        self.resource_types.get(rid).cloned()
     }
 
     #[tracing::instrument(skip(self))]

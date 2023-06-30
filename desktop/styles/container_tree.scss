@@ -273,3 +273,60 @@ $control-button-size: 25px;
     }
   }
 }
+
+.container-tree-controls {
+
+  .dropdown-btn {
+    color: t.$primary-button-color;
+    background-color: t.$primary-button-background-color;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: t.$padding-s;
+    box-sizing: border-box;
+
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: t.$secondary-button-hover-background-color;
+    }
+
+  }
+
+  .dropdown {
+    position: relative;
+    display: inline-block;
+  }
+
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    color: t.$primary-button-color;
+    background-color: t.$primary-button-background-color;
+    border-radius: 10px;
+    top: -0.5px;
+    z-index: 1;
+  }
+
+  .dropdown:hover .dropdown-content {
+    display: block;
+  }
+
+  .dropdown-content a {
+    display: block;
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+  }
+
+  .dropdown-content a:hover {
+    border-radius: 10px;
+    color: t.$primary-button-hover-color;
+    background-color: t.$primary-button-hover-background-color;
+    cursor: pointer;
+  }
+}

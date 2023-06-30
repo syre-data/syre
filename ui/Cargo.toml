@@ -61,9 +61,10 @@ features=[
     "FontAwesomeRegularFileWord",
     "FontAwesomeRegularFileZipper",
     "FontAwesomeRegularFile",
+    "FontAwesomeSolidAngleDown",
     "OcticonsFileBinary24",
     "HeroiconsSolidMinus",
-    "HeroiconsSolidPlus"
+    "HeroiconsSolidPlus",
 ]
 
 [dev-dependencies]

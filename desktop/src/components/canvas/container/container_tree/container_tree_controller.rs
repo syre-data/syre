@@ -307,24 +307,14 @@ pub fn container_tree_controller() -> Html {
                 ));
 
                 // @todo: Handle analysis error.
-                match invoke(
+                let res = invoke(
                     "analyze",
                     &AnalyzeArgs {
                         root: root.clone(),
                         max_tasks,
                     },
                 )
-                .await
-                {
-                    Err(err) => {
-                        web_sys::console::error_1(&format!("{err:?}").into());
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Error while analyzing",
-                        )))
-                    }
-
-                    Ok(()) => {}
-                }
+                .await;
 
                 // update tree
                 let update: ResourceTree<Container> =
@@ -334,9 +324,22 @@ pub fn container_tree_controller() -> Html {
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
                 analysis_state.set(AnalysisState::Complete);
-                app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                    "Analysis complete",
-                )));
+
+                match res {
+                    Err(err) => {
+                        web_sys::console::error_1(&format!("{err:?}").into());
+
+                        let mut msg = Message::error("Error while analyzing");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
+
+                    Ok(()) => {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                            "Analysis complete",
+                        )));
+                    }
+                }
             })
         })
     };

@@ -62,6 +62,7 @@ features=[
     "FontAwesomeRegularFileZipper",
     "FontAwesomeRegularFile",
     "FontAwesomeSolidAngleDown",
+    "FontAwesomeSolidAngleUp",
     "OcticonsFileBinary24",
     "HeroiconsSolidMinus",
     "HeroiconsSolidPlus",

@@ -11,8 +11,11 @@
   position: absolute;
   bottom:0;
   right: t.$margin-l;
+  text-align: right;
+  max-width: 50%;
 
   .thot-ui-message {
+    text-align: left;
     color: t.$message-font-color;
     padding: t.$padding-m;
     border-radius: t.$border-radius-m;

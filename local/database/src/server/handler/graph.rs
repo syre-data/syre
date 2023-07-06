@@ -174,7 +174,7 @@ impl Database {
         };
 
         // create child
-        // @todo: Ensure unique and valid path.
+        // TODO Ensure unique and valid path.
         let child_path = unique_file_name(parent.base_path().join(&name))?;
         let cid = container::new(&child_path)?;
         let mut child: Container = ContainerLoader::load_or_create(child_path.into())?.into();
@@ -188,30 +188,9 @@ impl Database {
     }
 }
 
-// #[cfg(not(target_os = "windows"))]
 fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
     trash::delete(root_path)
 }
-
-// #[cfg(target_os = "windows")]
-// #[tracing::instrument]
-// fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
-//     for entry in fs::read_dir(root_path).expect("could not read dir") {
-//         let entry = entry.expect("could not get dir entry");
-//         let path = root_path.join(entry.file_name());
-//         if entry
-//             .file_type()
-//             .expect("could not read file type")
-//             .is_dir()
-//         {
-//             delete_folder(&path)?;
-//         } else {
-//             trash::delete(path)?;
-//         }
-//     }
-
-//     trash::delete(root_path)
-// }
 
 #[cfg(test)]
 #[path = "./graph_test.rs"]

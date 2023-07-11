@@ -66,7 +66,7 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                 <div class={classes!("thot-ui-asset")}>
 
                                     <div style={ asset_icon_color(&asset) }>
-                                        <Icon class={ classes!("thot-ui-asset-icon")} icon_id={ asset_icon_id(&asset) } />
+                                        <Icon class={classes!("thot-ui-asset-icon")} icon_id={asset_icon_id(&asset)} />
                                     </div>
 
                                     <div class={classes!("thot-ui-asset-name")}>

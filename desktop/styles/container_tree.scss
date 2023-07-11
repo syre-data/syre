@@ -50,33 +50,6 @@ $control-button-size: 25px;
         border: none;
         box-shadow: none;
       }
-
-      .container-menu {
-        position: absolute;
-        z-index: 100;
-
-        background-color: t.$background-accent-color;
-        padding: 5px;
-        border: t.$border-width-s t.$shadow-medium solid;
-        border-radius: t.$border-radius-m;
-
-        ul {
-          list-style: none;
-          margin: 0;
-          padding: 5px;
-
-          li {
-            text-align: left;
-            white-space: nowrap;
-            border-bottom: t.$border-width-s t.$background-color solid;
-
-            &:hover {
-              // @todo: Darken background.
-              filter: brightness(t.$darker); 
-            }
-          }
-        }
-      }
     }     
 
     .container-name {

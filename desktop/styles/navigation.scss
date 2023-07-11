@@ -14,6 +14,52 @@
   }
 }
 
+.dropdown-group {
+  position: relative;
+
+  .dropdown-menu {
+    position: absolute;
+    display: none;
+    z-index: 100;
+    top: t.$margin-xl;
+    left: - t.$margin-xl;
+  }
+
+  &:hover .dropdown-menu {
+    display: block;
+  }
+
+  .dropdown-menu:hover {
+    display: block;
+  }
+
+  ul.dropdown-menu,
+  ol.dropdown-menu {
+    margin: 0;
+    border: t.$border-width-s t.$shadow-medium solid;
+    border-radius: t.$border-radius-s;
+    padding-left: 0;
+
+    list-style: none;
+    background-color: t.$background-accent-color;
+
+    li {
+      cursor: pointer;
+      white-space: nowrap;
+      padding: t.$padding-s t.$padding-m;
+
+      &:not(:last-child) {
+        border-bottom: t.$border-width-s t.$background-color solid;
+      }
+
+      &:hover {
+        // TODO Darken background.
+        filter: brightness(t.$darker); 
+      }
+    }
+  }
+}
+
 #main-navigation-tabs {
   background-color: t.$frame-background-color;
   border-bottom: solid t.$border-width-s t.$frame-border-color;

@@ -36,6 +36,9 @@ pub enum ContainerMenuEvent {
 #[derive(PartialEq, Properties)]
 struct ContainerMenuProps {
     #[prop_or_default]
+    pub class: Classes,
+
+    #[prop_or_default]
     pub r#ref: NodeRef,
 
     /// Callback when a menu item is clicked.
@@ -62,35 +65,30 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
         }
     };
 
+    let mut class = props.class.clone();
+    class.push("container-menu");
+
     html! {
-        <div ref={props.r#ref.clone()}
-            class={classes!("container-menu")}>
+        <ul ref={props.r#ref.clone()} {class}>
+            <li onclick={onclick(ContainerMenuEvent::OpenFolder)}>
+                { "Open folder" }
+            </li>
 
-            <ul>
-                <li class={classes!("clickable")}
-                    onclick={onclick(ContainerMenuEvent::OpenFolder)}>
-                    { "Open folder" }
+            <li onclick={onclick(ContainerMenuEvent::AddAssets)}>
+                { "Add data" }
+            </li>
+
+            { if props.is_root { html!{} } else { html!{
+                <>
+                <li onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
+                    { "Duplicate Tree" }
                 </li>
-
-                <li class={classes!("clickable")}
-                    onclick={onclick(ContainerMenuEvent::AddAssets)}>
-                    { "Add data" }
+                <li onclick={onclick(ContainerMenuEvent::Remove)}>
+                    { "Remove Tree" }
                 </li>
-
-                { if props.is_root { html!{} } else { html!{
-                    <>
-                    <li class={classes!("clickable")}
-                        onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
-                        { "Duplicate Tree" }
-                    </li>
-                    <li class={classes!("clickable")}
-                        onclick={onclick(ContainerMenuEvent::Remove)}>
-                        { "Remove Tree" }
-                    </li>
-                    </>
-                }}}
-            </ul>
-        </div>
+                </>
+            }}}
+        </ul>
     }
 }
 
@@ -240,15 +238,6 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     };
 
-    let onclick_menu = {
-        let show_menu = show_menu.clone();
-
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            show_menu.set(!*show_menu);
-        })
-    };
-
     let onadd_child = {
         let onadd_child = props.onadd_child.clone();
         let rid = props.rid.clone();
@@ -289,17 +278,21 @@ pub fn container(props: &ContainerProps) -> Html {
             data-rid={props.rid.clone()} >
 
             if let Some(on_menu_event) = on_menu_event {
-                <div class={classes!("container-menu-control")}>
-                    <button
-                        class={classes!("container-menu-toggle")}
-                        onclick={onclick_menu}>{ "\u{22ee}" }</button>
+                <div class={classes!("container-menu-control", "dropdown-group")}>
+                    // <button
+                    //     class={classes!("container-menu-toggle")}
+                    //     onclick={onclick_menu}>{ "\u{22ee}" }</button>
+                    <span class={classes!("container-menu-toggle")}>
+                        { "\u{22ee}" }
+                    </span>
 
-                    if *show_menu {
+                    // if *show_menu {
                         <ContainerMenu
+                            class={classes!("dropdown-menu")}
                             r#ref={menu_ref}
                             onclick={on_menu_event}
                             is_root={props.is_root} />
-                    }
+                    // }
                 </div>
             }
 

@@ -4,7 +4,7 @@ use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 /// Build the main menu.
 pub fn main_menu() -> Menu {
     // thot submenu
-    let dev_settings = CustomMenuItem::new("developer_settings".to_string(), "Developer Settings");
+    let dev_settings = CustomMenuItem::new("developer_settings".to_string(), "Developer settings");
     let sm_thot = Submenu::new("Thot", Menu::new().add_item(dev_settings));
 
     // projects submenu

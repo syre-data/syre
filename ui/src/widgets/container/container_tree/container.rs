@@ -81,10 +81,10 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
             { if props.is_root { html!{} } else { html!{
                 <>
                 <li onclick={onclick(ContainerMenuEvent::DuplicateTree)}>
-                    { "Duplicate Tree" }
+                    { "Duplicate tree" }
                 </li>
                 <li onclick={onclick(ContainerMenuEvent::Remove)}>
-                    { "Remove Tree" }
+                    { "Remove tree" }
                 </li>
                 </>
             }}}

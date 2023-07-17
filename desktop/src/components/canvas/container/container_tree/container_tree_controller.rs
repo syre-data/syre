@@ -5,7 +5,7 @@ use crate::commands::common::ResourceIdArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
 use crate::components::canvas::canvas_state::ResourceType;
-use crate::components::canvas::{canvas_state, CanvasStateAction, CanvasStateReducer};
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
@@ -241,25 +241,14 @@ pub fn container_tree_controller() -> Html {
                     app_state.clone(),
                 ));
 
-                // @todo: Handle analysis error.
-                match invoke(
+                let res = invoke(
                     "analyze",
                     &AnalyzeArgs {
                         root: root.clone(),
                         max_tasks,
                     },
                 )
-                .await
-                {
-                    Err(err) => {
-                        web_sys::console::error_1(&format!("{err:?}").into());
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Error while analyzing",
-                        )))
-                    }
-
-                    Ok(()) => {}
-                }
+                .await;
 
                 // update tree
                 let update: ResourceTree<Container> =
@@ -269,9 +258,22 @@ pub fn container_tree_controller() -> Html {
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
                 analysis_state.set(AnalysisState::Complete);
-                app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                    "Analysis complete",
-                )));
+
+                match res {
+                    Err(err) => {
+                        web_sys::console::error_1(&format!("{err:?}").into());
+
+                        let mut msg = Message::error("Error while analyzing");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
+
+                    Ok(()) => {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                            "Analysis complete",
+                        )));
+                    }
+                }
             })
         })
     };
@@ -292,7 +294,7 @@ pub fn container_tree_controller() -> Html {
             let selected_rid = selected
                 .iter()
                 .next()
-                .expect("there should be a single container selected")
+                .expect("a container should be selected")
                 .clone();
 
             spawn_local(async move {
@@ -306,7 +308,6 @@ pub fn container_tree_controller() -> Html {
                     app_state.clone(),
                 ));
 
-                // @todo: Handle analysis error.
                 let res = invoke(
                     "analyze",
                     &AnalyzeArgs {

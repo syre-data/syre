@@ -3,7 +3,7 @@ use super::{type_from_string, type_of_value, MetadatumType};
 use serde_json::{Result as JsResult, Value as JsValue};
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumValueEditorProps {
     #[prop_or_default]
     pub class: Classes,
@@ -18,6 +18,7 @@ pub struct MetadatumValueEditorProps {
     pub onerror: Callback<String>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumValueEditor)]
 pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
     // NOTE `value` are set to default values if they can not be
@@ -94,6 +95,30 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         })
     };
 
+    let validate_numeric_input = {
+        let value = value.clone();
+        Callback::from(move |e: KeyboardEvent| {
+            let JsValue::Number(value) = (*value).clone() else {
+                panic!("non-numeric value");
+            };
+
+            let mut value = value.to_string();
+            let key = e.key();
+            if key.len() > 1 {
+                // special key
+                return;
+            }
+
+            let valid_keys = [
+                "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "_", ",", ".", "-",
+            ];
+            if !valid_keys.contains(&key.as_str()) {
+                e.prevent_default();
+                return;
+            }
+        })
+    };
+
     // create <options> for `kind` <select>
     let kind_opts = [
         MetadatumType::String,
@@ -137,8 +162,8 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                 JsValue::Number(value) => html! {
                     <input
                         ref={value_ref}
-                        type={"number"}
                         value={value.to_string()}
+                        onkeydown={validate_numeric_input.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -176,6 +201,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
 // *** helpers ***
 // ***************
 
+#[tracing::instrument(skip(value_ref))]
 fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValue> {
     let value = match kind {
         MetadatumType::String => {
@@ -194,7 +220,7 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not convert value node ref into input");
 
-            let val = v_in.value_as_number();
+            let val = v_in.value().trim().parse::<f64>().unwrap();
             match val.is_nan() {
                 true => JsValue::Null,
                 false => JsValue::from(val),
@@ -234,6 +260,7 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
     Ok(value)
 }
 
+#[tracing::instrument]
 fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
     match (value.clone(), target.clone()) {
         (JsValue::String(_), MetadatumType::String)
@@ -243,7 +270,7 @@ fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
         | (JsValue::Object(_), MetadatumType::Object) => value,
 
         (JsValue::String(value), MetadatumType::Number) => {
-            let value = value.parse::<u64>().unwrap_or(0);
+            let value = value.parse::<f64>().unwrap_or(0 as f64);
             value.into()
         }
 

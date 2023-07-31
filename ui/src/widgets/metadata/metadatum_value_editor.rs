@@ -87,6 +87,12 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
 
             // get value
             if let Ok(val) = value_from_input(value_ref.clone(), &kind) {
+                if kind == MetadatumType::Number && val == JsValue::Null {
+                    // invalid number input
+                    onerror.emit("Invalid number".to_string());
+                    return;
+                }
+
                 value.set(convert_value(val, &kind));
             } else {
                 // invalid input for type
@@ -95,29 +101,18 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         })
     };
 
-    let validate_numeric_input = {
-        let value = value.clone();
-        Callback::from(move |e: KeyboardEvent| {
-            let JsValue::Number(value) = (*value).clone() else {
-                panic!("non-numeric value");
-            };
+    let validate_numeric_input = Callback::from(move |e: KeyboardEvent| {
+        let key = e.key();
+        if key.len() > 1 {
+            // special key
+            return;
+        }
 
-            let mut value = value.to_string();
-            let key = e.key();
-            if key.len() > 1 {
-                // special key
-                return;
-            }
-
-            let valid_keys = [
-                "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "_", ",", ".", "-",
-            ];
-            if !valid_keys.contains(&key.as_str()) {
-                e.prevent_default();
-                return;
-            }
-        })
-    };
+        let valid_keys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "-"];
+        if !valid_keys.contains(&key.as_str()) {
+            e.prevent_default();
+        }
+    });
 
     // create <options> for `kind` <select>
     let kind_opts = [
@@ -220,7 +215,10 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not convert value node ref into input");
 
-            let val = v_in.value().trim().parse::<f64>().unwrap();
+            let Ok(val) = v_in.value().trim().parse::<f64>() else {
+                return Ok(JsValue::Null);
+            };
+
             match val.is_nan() {
                 true => JsValue::Null,
                 false => JsValue::from(val),

@@ -3,7 +3,7 @@ use super::MetadatumValueEditor;
 use serde_json::Value as JsValue;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumEditorProps {
     pub name: String,
 
@@ -14,14 +14,23 @@ pub struct MetadatumEditorProps {
     pub onchange: Callback<JsValue>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumEditor)]
 pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let error = use_state(|| None);
     let onerror = {
         let error = error.clone();
-
         Callback::from(move |message: String| {
             error.set(Some(message));
+        })
+    };
+
+    let oninput = {
+        let error = error.clone();
+        Callback::from(move |_: InputEvent| {
+            if error.is_some() {
+                error.set(None);
+            }
         })
     };
 
@@ -46,6 +55,7 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
                 <MetadatumValueEditor
                     class={classes!("metadatum-value")}
                     value={props.value.clone()}
+                    {oninput}
                     {onchange}
                     {onerror} />
             </div>

@@ -4,7 +4,7 @@ use serde_json::Value as JsValue;
 use std::collections::HashSet;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumBuilderProps {
     /// Initial name.
     #[prop_or_default]
@@ -25,6 +25,7 @@ pub struct MetadatumBuilderProps {
     pub oncancel: Callback<()>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumBuilder)]
 pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
     // @note: `kind` and `value` are set to default values if they can not be
@@ -50,15 +51,22 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
 
     let onchange_value = {
         let value = value.clone();
-
         Callback::from(move |val| {
             value.set(val);
         })
     };
 
+    let oninput = {
+        let error = error.clone();
+        Callback::from(move |_: InputEvent| {
+            if error.is_some() {
+                error.set(None);
+            }
+        })
+    };
+
     let onerror = {
         let error = error.clone();
-
         Callback::from(move |message: String| {
             error.set(Some(message));
         })
@@ -85,47 +93,53 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 return;
             }
 
+            if (*error).is_some() {
+                return;
+            }
+
             onsave.emit(((*key).clone(), (*value).clone()));
         })
     };
 
     let oncancel = {
         let oncancel = props.oncancel.clone();
-
         Callback::from(move |_: MouseEvent| {
             oncancel.emit(());
         })
     };
 
     html! {
-        <form class={classes!("thot-ui-metadatum-builder")} {onsubmit}>
-            <div class={classes!("form-fields")}>
-                <input
-                    ref={key_ref}
-                    placeholder="Name"
-                    value={(*key).clone()}
-                    minlength="1"
-                    onchange={onchange_key}
-                    required={true} />
+        <div class={classes!("thot-ui-metadatum-builder")}>
+            <form {onsubmit}>
+                <div class={classes!("form-fields")}>
+                    <input
+                        ref={key_ref}
+                        placeholder="Name"
+                        value={(*key).clone()}
+                        minlength="1"
+                        onchange={onchange_key}
+                        required={true} />
 
-                <MetadatumValueEditor
-                    class={classes!("metadatum-value")}
-                    value={props.value.clone()}
-                    onchange={onchange_value}
-                    {onerror} />
+                    <MetadatumValueEditor
+                        class={classes!("metadatum-value")}
+                        value={props.value.clone()}
+                        {oninput}
+                        onchange={onchange_value}
+                        {onerror} />
 
-                <div class={classes!("error")}>
-                    if let Some(msg) = error.as_ref() {
-                        { msg }
-                    }
+                    <div class={classes!("form-controls")}>
+                        <button>{ "Add" }</button>
+                        <button type="button" onclick={oncancel}>{ "Cancel" }</button>
+                    </div>
                 </div>
-            </div>
+            </form>
 
-            <div class={classes!("form-controls")}>
-                <button>{ "Add" }</button>
-                <button type="button" onclick={oncancel}>{ "Cancel" }</button>
+            <div class={classes!("error")}>
+                if let Some(msg) = error.as_ref() {
+                    { msg }
+                }
             </div>
-        </form>
+        </div>
     }
 }
 

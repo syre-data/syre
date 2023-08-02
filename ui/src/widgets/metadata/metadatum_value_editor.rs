@@ -12,6 +12,9 @@ pub struct MetadatumValueEditorProps {
     pub value: JsValue,
 
     #[prop_or_default]
+    pub oninput: Callback<InputEvent>,
+
+    #[prop_or_default]
     pub onchange: Callback<JsValue>,
 
     #[prop_or_default]
@@ -52,6 +55,13 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
             value,
         );
     }
+
+    let oninput = {
+        let oninput = props.oninput.clone();
+        Callback::from(move |e: InputEvent| {
+            oninput.emit(e);
+        })
+    };
 
     let onchange_kind = {
         let value = value.clone();
@@ -150,7 +160,8 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <input
                         ref={value_ref}
                         {value}
-                        placeholder="Value"
+                        placeholder={"Value"}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -159,6 +170,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                         ref={value_ref}
                         value={value.to_string()}
                         onkeydown={validate_numeric_input.clone()}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -167,6 +179,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                         ref={value_ref}
                         type={"checkbox"}
                         checked={value}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -174,6 +187,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <textarea
                         ref={value_ref}
                         value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()}>
                     </textarea>
                 },
@@ -182,6 +196,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <textarea
                         ref={value_ref}
                         value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()}>
                     </textarea>
                 },

@@ -130,18 +130,19 @@
         justify-content: space-between; 
       }
 
-      .thot-ui-metadatum .metadatum-fields, .thot-ui-metadatum-value-editor {
+      .thot-ui-metadatum .metadatum-fields, 
+      .thot-ui-metadatum-value-editor {
         display: flex;
         align-items: center;
         gap: t.$gap-s;
 
       }
+    }
 
-      .thot-ui-metadatum .error {
-        display: block;
-        color: t.$error-color;
-      }
-
+    .thot-ui-metadatum-builder .error,
+    .thot-ui-metadatum .error {
+      display: block;
+      color: t.$error-color;
     }
 
     .form-fields, .form-controls, .metadatum-value {

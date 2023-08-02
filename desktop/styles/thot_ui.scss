@@ -105,8 +105,8 @@
 .thot-ui-standard-properties-editor {
 
   .thot-ui-metadata-editor {
-
     margin-top: t.$margin-l;
+
     input {
       all:unset;
       appearance: auto;
@@ -135,11 +135,19 @@
         justify-content: space-between; 
       }
 
-      .metadatum, .thot-ui-metadatum-value-editor {
+      .thot-ui-metadatum .metadatum-fields, 
+      .thot-ui-metadatum-value-editor {
         display: flex;
         align-items: center;
         gap: t.$gap-s;
+
       }
+    }
+
+    .thot-ui-metadatum-builder .error,
+    .thot-ui-metadatum .error {
+      display: block;
+      color: t.$error-color;
     }
 
     .form-fields, .form-controls, .metadatum-value {

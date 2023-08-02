@@ -3,7 +3,7 @@ use super::{type_from_string, type_of_value, MetadatumType};
 use serde_json::{Result as JsResult, Value as JsValue};
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumValueEditorProps {
     #[prop_or_default]
     pub class: Classes,
@@ -12,12 +12,16 @@ pub struct MetadatumValueEditorProps {
     pub value: JsValue,
 
     #[prop_or_default]
+    pub oninput: Callback<InputEvent>,
+
+    #[prop_or_default]
     pub onchange: Callback<JsValue>,
 
     #[prop_or_default]
     pub onerror: Callback<String>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumValueEditor)]
 pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
     // NOTE `value` are set to default values if they can not be
@@ -51,6 +55,13 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
             value,
         );
     }
+
+    let oninput = {
+        let oninput = props.oninput.clone();
+        Callback::from(move |e: InputEvent| {
+            oninput.emit(e);
+        })
+    };
 
     let onchange_kind = {
         let value = value.clone();
@@ -86,6 +97,12 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
 
             // get value
             if let Ok(val) = value_from_input(value_ref.clone(), &kind) {
+                if kind == MetadatumType::Number && val == JsValue::Null {
+                    // invalid number input
+                    onerror.emit("Invalid number".to_string());
+                    return;
+                }
+
                 value.set(convert_value(val, &kind));
             } else {
                 // invalid input for type
@@ -93,6 +110,19 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
             };
         })
     };
+
+    let validate_numeric_input = Callback::from(move |e: KeyboardEvent| {
+        let key = e.key();
+        if key.len() > 1 {
+            // special key
+            return;
+        }
+
+        let valid_keys = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "-"];
+        if !valid_keys.contains(&key.as_str()) {
+            e.prevent_default();
+        }
+    });
 
     // create <options> for `kind` <select>
     let kind_opts = [
@@ -130,15 +160,17 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <input
                         ref={value_ref}
                         {value}
-                        placeholder="Value"
+                        placeholder={"Value"}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
                 JsValue::Number(value) => html! {
                     <input
                         ref={value_ref}
-                        type={"number"}
                         value={value.to_string()}
+                        onkeydown={validate_numeric_input.clone()}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -147,6 +179,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                         ref={value_ref}
                         type={"checkbox"}
                         checked={value}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()} />
                 },
 
@@ -154,6 +187,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <textarea
                         ref={value_ref}
                         value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()}>
                     </textarea>
                 },
@@ -162,6 +196,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <textarea
                         ref={value_ref}
                         value={serde_json::to_string_pretty(&value).unwrap_or(String::default())}
+                        oninput={oninput.clone()}
                         onchange={onchange_value.clone()}>
                     </textarea>
                 },
@@ -176,6 +211,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
 // *** helpers ***
 // ***************
 
+#[tracing::instrument(skip(value_ref))]
 fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValue> {
     let value = match kind {
         MetadatumType::String => {
@@ -194,7 +230,10 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not convert value node ref into input");
 
-            let val = v_in.value_as_number();
+            let Ok(val) = v_in.value().trim().parse::<f64>() else {
+                return Ok(JsValue::Null);
+            };
+
             match val.is_nan() {
                 true => JsValue::Null,
                 false => JsValue::from(val),
@@ -234,6 +273,7 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
     Ok(value)
 }
 
+#[tracing::instrument]
 /// Converts a value from one JSON value to another.
 ///
 /// # Note
@@ -247,7 +287,7 @@ fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
         | (JsValue::Object(_), MetadatumType::Object) => value,
 
         (JsValue::String(value), MetadatumType::Number) => {
-            let value = value.parse::<u64>().unwrap_or(0);
+            let value = value.parse::<f64>().unwrap_or(0 as f64);
             value.into()
         }
 

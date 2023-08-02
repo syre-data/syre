@@ -274,6 +274,10 @@ fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValu
 }
 
 #[tracing::instrument]
+/// Converts a value from one JSON value to another.
+///
+/// # Note
+/// + Strings are trimmed.
 fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
     match (value.clone(), target.clone()) {
         (JsValue::String(_), MetadatumType::String)
@@ -287,7 +291,7 @@ fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
             value.into()
         }
 
-        (JsValue::Number(value), MetadatumType::String) => value.to_string().into(),
+        (JsValue::Number(value), MetadatumType::String) => value.to_string().trim().into(),
 
         (JsValue::Array(value), MetadatumType::String) => serde_json::to_string_pretty(&value)
             .unwrap_or(String::default())

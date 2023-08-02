@@ -45,7 +45,7 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not cast node ref to input");
 
-            key.set(key_input.value());
+            key.set(key_input.value().trim().into());
         })
     };
 

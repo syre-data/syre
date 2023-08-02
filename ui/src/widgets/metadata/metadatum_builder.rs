@@ -123,7 +123,6 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                     <MetadatumValueEditor
                         class={classes!("metadatum-value")}
                         value={props.value.clone()}
-                        {oninput}
                         onchange={onchange_value}
                         {onerror} />
 

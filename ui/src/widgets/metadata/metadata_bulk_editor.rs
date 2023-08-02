@@ -108,6 +108,5 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
                 }).collect::<Html>() }
             </ol>
         </div>
-
     }
 }

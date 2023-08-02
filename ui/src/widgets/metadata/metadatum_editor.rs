@@ -55,7 +55,6 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
                 <MetadatumValueEditor
                     class={classes!("metadatum-value")}
                     value={props.value.clone()}
-                    {oninput}
                     {onchange}
                     {onerror} />
             </div>

@@ -1,4 +1,5 @@
 //! Metadata widgets.
+pub mod common;
 pub mod metadata_bulk_editor;
 pub mod metadata_editor;
 pub mod metadata_preview;

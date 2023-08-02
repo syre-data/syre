@@ -37,16 +37,18 @@ pub fn metadatum_bulk_editor(props: &MetadatumBulkEditorProps) -> Html {
 
     // ui
     html! {
-        <div class={classes!("metadatum")}>
-            <span class={classes!("metadatum-key")}>
-                { &props.name }
-            </span>
+        <div class={classes!("thot-ui-metadatum")}>
+            <div class={classes!("metadatum-fields")}>
+                <span class={classes!("metadatum-key")}>
+                    { &props.name }
+                </span>
 
-            <MetadatumBulkValueEditor
-                class={classes!("metadatum-value")}
-                value={props.value.clone()}
-                {onchange}
-                {onerror} />
+                <MetadatumBulkValueEditor
+                    class={classes!("metadatum-value")}
+                    value={props.value.clone()}
+                    {onchange}
+                    {onerror} />
+            </div>
 
             if let Some(msg) = error.as_ref() {
                 <span class={classes!("error")}>{ msg }</span>

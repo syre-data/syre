@@ -1,6 +1,7 @@
 //! Editor for a `Metadatum` value.
+use super::common;
 use super::{type_from_string, type_of_value, MetadatumType};
-use serde_json::{Result as JsResult, Value as JsValue};
+use serde_json::Value as JsValue;
 use std::rc::Rc;
 use yew::prelude::*;
 
@@ -182,7 +183,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
             };
 
             state.dispatch(MetadatumStateAction::Set(BulkValue::EqualValue(
-                convert_value(JsValue::Null, &kind_val),
+                common::convert_value(JsValue::Null, &kind_val),
             )));
         })
     };
@@ -193,7 +194,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
         let onerror = props.onerror.clone();
 
         Callback::from(move |_: Event| {
-            if let Ok(val) = value_from_input(
+            if let Ok(val) = common::value_from_input(
                 value_ref.clone(),
                 &state.kind().expect("invalid metadatum type"),
             ) {
@@ -339,116 +340,5 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                 }}
             }
         </span>
-    }
-}
-
-// ***************
-// *** helpers ***
-// ***************
-
-fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValue> {
-    let value = match kind {
-        MetadatumType::String => {
-            let v_in = value_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not convert value node ref into input");
-
-            let val = v_in.value().trim().to_owned();
-            match val.is_empty() {
-                true => JsValue::Null,
-                false => JsValue::String(val),
-            }
-        }
-        MetadatumType::Number => {
-            let v_in = value_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not convert value node ref into input");
-
-            let val = v_in.value_as_number();
-            match val.is_nan() {
-                true => JsValue::Null,
-                false => JsValue::from(val),
-            }
-        }
-        MetadatumType::Bool => {
-            let v_in = value_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not convert value node ref into input");
-
-            JsValue::Bool(v_in.checked())
-        }
-        MetadatumType::Array => {
-            let v_in = value_ref
-                .cast::<web_sys::HtmlTextAreaElement>()
-                .expect("could not cast value node ref as textarea");
-
-            let val = v_in.value().trim().to_owned();
-            match val.is_empty() {
-                true => JsValue::Null,
-                false => serde_json::from_str(&val)?,
-            }
-        }
-        MetadatumType::Object => {
-            let v_in = value_ref
-                .cast::<web_sys::HtmlTextAreaElement>()
-                .expect("could not cast value node ref as textarea");
-
-            let val = v_in.value().trim().to_owned();
-            match val.is_empty() {
-                true => JsValue::Null,
-                false => serde_json::from_str(&val)?,
-            }
-        }
-    };
-
-    Ok(value)
-}
-
-fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
-    match (value.clone(), target.clone()) {
-        (JsValue::String(_), MetadatumType::String)
-        | (JsValue::Number(_), MetadatumType::Number)
-        | (JsValue::Bool(_), MetadatumType::Bool)
-        | (JsValue::Array(_), MetadatumType::Array)
-        | (JsValue::Object(_), MetadatumType::Object) => value,
-
-        (JsValue::String(value), MetadatumType::Number) => {
-            let value = value.parse::<u64>().unwrap_or(0);
-            value.into()
-        }
-
-        (JsValue::Number(value), MetadatumType::String) => value.to_string().into(),
-
-        (JsValue::Array(value), MetadatumType::String) => serde_json::to_string_pretty(&value)
-            .unwrap_or(String::default())
-            .into(),
-
-        (JsValue::Object(value), MetadatumType::String) => serde_json::to_string_pretty(&value)
-            .unwrap_or(String::default())
-            .into(),
-
-        (JsValue::String(value), MetadatumType::Array) => {
-            let value = serde_json::to_value(value).unwrap_or_default();
-            if value.is_array() {
-                value
-            } else {
-                JsValue::Array(Vec::default())
-            }
-        }
-
-        (JsValue::String(value), MetadatumType::Object) => {
-            let value = serde_json::to_value(value).unwrap_or_default();
-            if value.is_object() {
-                value
-            } else {
-                JsValue::Object(serde_json::Map::default())
-            }
-        }
-
-        (_, MetadatumType::String) => JsValue::String(String::default()),
-        (_, MetadatumType::Number) => JsValue::Number(0.into()),
-        (_, MetadatumType::Bool) => JsValue::Bool(false),
-        (_, MetadatumType::Array) => JsValue::Array(Vec::default()),
-        (_, MetadatumType::Object) => JsValue::Object(serde_json::Map::default()),
     }
 }

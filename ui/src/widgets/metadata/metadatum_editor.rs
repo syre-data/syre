@@ -25,15 +25,6 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
         })
     };
 
-    let oninput = {
-        let error = error.clone();
-        Callback::from(move |_: InputEvent| {
-            if error.is_some() {
-                error.set(None);
-            }
-        })
-    };
-
     let onchange = {
         let onchange = props.onchange.clone();
         let error = error.clone();
@@ -55,7 +46,6 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
                 <MetadatumValueEditor
                     class={classes!("metadatum-value")}
                     value={props.value.clone()}
-                    {oninput}
                     {onchange}
                     {onerror} />
             </div>

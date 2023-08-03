@@ -24,7 +24,3 @@ pub fn use_user() -> UseStateHandle<Option<User>> {
 
     user
 }
-
-#[cfg(test)]
-#[path = "./user_test.rs"]
-mod user_test;

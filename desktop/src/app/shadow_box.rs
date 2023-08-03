@@ -27,7 +27,3 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
             onclose={&props.onclose} />
     }
 }
-
-#[cfg(test)]
-#[path = "./shadow_box_test.rs"]
-mod shadow_box_test;

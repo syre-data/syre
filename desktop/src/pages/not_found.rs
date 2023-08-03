@@ -15,7 +15,3 @@ pub fn not_found() -> Html {
     </>
     }
 }
-
-#[cfg(test)]
-#[path = "./not_found_test.rs"]
-mod not_found_test;

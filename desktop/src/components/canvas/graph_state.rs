@@ -395,7 +395,3 @@ impl Reducible for GraphState {
 }
 
 pub type GraphStateReducer = UseReducerHandle<GraphState>;
-
-#[cfg(test)]
-#[path = "./graph_state_test.rs"]
-mod graph_state_test;

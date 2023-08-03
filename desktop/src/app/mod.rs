@@ -11,7 +11,3 @@ pub use app_state::{AppStateAction, AppStateReducer, AppWidget};
 pub use auth_state::{AuthStateAction, AuthStateReducer};
 pub use projects_state::{ProjectsStateAction, ProjectsStateReducer};
 pub use shadow_box::ShadowBox;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

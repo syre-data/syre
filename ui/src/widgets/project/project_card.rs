@@ -20,7 +20,3 @@ pub fn project_card(props: &ProjectCardProps) -> Html {
         <Card<Project> item={props.item.clone()} onclick={&props.onclick} />
     }
 }
-
-#[cfg(test)]
-#[path = "./project_card_test.rs"]
-mod project_card_test;

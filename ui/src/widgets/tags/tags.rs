@@ -20,7 +20,3 @@ pub fn tags_editor(props: &TagsProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./tags_test.rs"]
-mod tags_test;

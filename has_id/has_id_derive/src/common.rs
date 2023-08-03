@@ -14,7 +14,3 @@ pub fn attrs_with_ident<'a>(attrs: &'a Vec<Attribute>, ident: &str) -> Vec<&'a A
         })
         .collect::<Vec<&Attribute>>()
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

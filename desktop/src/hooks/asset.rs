@@ -58,7 +58,3 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
     }
     asset
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

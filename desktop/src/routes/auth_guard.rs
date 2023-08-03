@@ -31,7 +31,3 @@ pub fn auth_guard(props: &AuthGuardProps) -> Html {
         </RouteGuard<Route>>
     }
 }
-
-#[cfg(test)]
-#[path = "./auth_guard_test.rs"]
-mod auth_guard_test;

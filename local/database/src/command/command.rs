@@ -58,7 +58,3 @@ impl From<UserCommand> for Command {
         Self::UserCommand(cmd)
     }
 }
-
-#[cfg(test)]
-#[path = "./command_test.rs"]
-mod command_test;

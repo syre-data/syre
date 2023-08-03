@@ -13,7 +13,3 @@ impl Into<Key> for &Project {
         self.rid.clone().into()
     }
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

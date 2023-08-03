@@ -41,7 +41,3 @@ pub fn handle_system_tray_event(_app: &AppHandle, event: SystemTrayEvent) {
         _ => {}
     }
 }
-
-#[cfg(test)]
-#[path = "./events_test.rs"]
-mod events_test;

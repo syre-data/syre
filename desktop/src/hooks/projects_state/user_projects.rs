@@ -63,7 +63,3 @@ fn filter_user_projects<'a>(
         })
         .collect::<Vec<&Project>>()
 }
-
-#[cfg(test)]
-#[path = "./user_projects_test.rs"]
-mod user_projects_test;

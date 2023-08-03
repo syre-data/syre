@@ -60,7 +60,3 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
     }
 }
-
-#[cfg(test)]
-#[path = "./asset_editor_test.rs"]
-mod asset_editor_test;

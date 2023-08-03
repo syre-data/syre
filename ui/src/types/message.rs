@@ -72,7 +72,3 @@ impl Message {
         self.details = None;
     }
 }
-
-#[cfg(test)]
-#[path = "./message_test.rs"]
-mod message_test;

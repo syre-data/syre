@@ -115,7 +115,3 @@ impl Reducible for ProjectsState {
 }
 
 pub type ProjectsStateReducer = UseReducerHandle<ProjectsState>;
-
-#[cfg(test)]
-#[path = "./projects_state_test.rs"]
-mod projects_state_test;

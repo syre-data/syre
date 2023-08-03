@@ -185,6 +185,3 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
         </div>
     })
 }
-
-#[path = "./create_assets_test.rs"]
-mod create_assets_test;

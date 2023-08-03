@@ -98,7 +98,3 @@ pub fn app() -> Html {
         </BrowserRouter>
     }
 }
-
-#[cfg(test)]
-#[path = "./app_test.rs"]
-mod app_test;

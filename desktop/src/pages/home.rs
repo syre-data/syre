@@ -138,7 +138,3 @@ pub fn home() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./home_test.rs"]
-mod home_test;

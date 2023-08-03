@@ -74,7 +74,3 @@ pub fn drawer(props: &DrawerProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./drawer_test.rs"]
-mod drawer_test;

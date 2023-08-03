@@ -24,7 +24,3 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./setup_test.rs"]
-mod setup_test;

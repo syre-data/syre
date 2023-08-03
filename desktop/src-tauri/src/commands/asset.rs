@@ -54,7 +54,3 @@ pub fn bulk_update_asset_properties(
     res.expect("could not update `Asset`s");
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

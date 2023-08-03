@@ -44,7 +44,3 @@ impl DerefMut for Templates {
         &mut self.templates
     }
 }
-
-#[cfg(test)]
-#[path = "./templates_test.rs"]
-mod templates_test;

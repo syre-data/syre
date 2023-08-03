@@ -128,7 +128,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -157,7 +157,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -186,7 +186,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -217,7 +217,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -248,7 +248,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -279,7 +279,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -310,7 +310,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -341,7 +341,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -392,7 +392,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 let res =
                     invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
 
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Container Script Assocations",
                     )));
@@ -445,7 +445,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 let res =
                     invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
 
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Container Script Assocations",
                     )));
@@ -488,7 +488,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 .collect();
 
             let mut assoc_update = ScriptAssociationsBulkUpdate::default();
-            let mut assoc = RunParametersUpdate {
+            let assoc = RunParametersUpdate {
                 script: update.script,
                 autorun: update.autorun,
                 priority: update.priority,
@@ -504,7 +504,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 let res =
                     invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
 
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Container Script Assocations",
                     )));

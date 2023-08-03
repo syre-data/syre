@@ -215,7 +215,3 @@ impl ScriptLang {
 // *************************
 
 pub type ScriptParameters = HashMap<String, JsValue>;
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

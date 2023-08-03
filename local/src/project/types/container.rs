@@ -50,7 +50,3 @@ impl From<CoreContainer> for ContainerProperties {
 pub struct ContainerSettings {
     pub permissions: Vec<UserPermissions>,
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

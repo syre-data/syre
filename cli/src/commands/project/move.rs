@@ -56,7 +56,3 @@ pub fn main(args: MoveArgs, verbose: bool) -> Result {
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./move_test.rs"]
-mod move_test;

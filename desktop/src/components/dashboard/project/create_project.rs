@@ -141,7 +141,3 @@ pub fn create_project() -> Html {
         <FileSelector ..props />
     }
 }
-
-#[cfg(test)]
-#[path = "./create_project_test.rs"]
-mod create_project_test;

@@ -14,7 +14,7 @@ struct ScriptAssociationPreviewProps {
 
 #[function_component(ScriptAssociationPreview)]
 fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
-    // @todo: Add `RunParameters` functionality.
+    // TODO Add `RunParameters` functionality.
     let mut class = classes!("thot-ui-script-association-preview");
     if props.run_parameters.autorun {
         class.push("autorun-true");
@@ -61,7 +61,3 @@ pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Ht
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./script_associations_preview_test.rs"]
-mod script_associations_preview_test;

@@ -66,7 +66,3 @@ impl Reducible for AuthState {
 }
 
 pub type AuthStateReducer = UseReducerHandle<AuthState>;
-
-#[cfg(test)]
-#[path = "./auth_state_test.rs"]
-mod auth_state_test;

@@ -11,7 +11,3 @@ pub mod project;
 pub use canvas::ProjectCanvas;
 pub use canvas_state::{CanvasStateAction, CanvasStateReducer};
 pub use graph_state::{GraphStateAction, GraphStateReducer};
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

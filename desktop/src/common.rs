@@ -32,7 +32,3 @@ mod inner {
         pub async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
     }
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

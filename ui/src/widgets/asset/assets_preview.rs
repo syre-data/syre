@@ -252,7 +252,3 @@ fn onclick_asset_remove(
         }
     })
 }
-
-#[cfg(test)]
-#[path = "./assets_preview_test.rs"]
-mod assets_preview_test;

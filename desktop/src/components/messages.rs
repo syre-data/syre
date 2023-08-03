@@ -36,7 +36,3 @@ pub fn messages() -> Html {
         </MessagesUi>
     }
 }
-
-#[cfg(test)]
-#[path = "./messages_test.rs"]
-mod messages_test;

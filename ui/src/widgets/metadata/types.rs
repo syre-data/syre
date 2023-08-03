@@ -70,7 +70,3 @@ pub fn type_of_value(value: &JsValue) -> Option<MetadatumType> {
         JsValue::Object(_) => Some(MetadatumType::Object),
     }
 }
-
-#[cfg(test)]
-#[path = "./types_test.rs"]
-mod types_test;

@@ -238,7 +238,3 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

@@ -96,7 +96,3 @@ pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceI
     res.expect("error removing `Script`");
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

@@ -12,7 +12,3 @@ pub fn workspace() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./page_test.rs"]
-mod page_test;

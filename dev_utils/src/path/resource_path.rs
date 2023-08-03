@@ -18,7 +18,3 @@ pub fn resource_path<S: AsRef<OsStr>>(ext: Option<S>) -> ResourcePath {
 
     ResourcePath::new(path).expect("creating resource path should work")
 }
-
-#[cfg(test)]
-#[path = "./resource_path_test.rs"]
-mod resource_path_test;

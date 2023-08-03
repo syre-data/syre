@@ -14,7 +14,3 @@ pub use projects::Projects;
 pub use scripts::Scripts;
 pub use templates::Templates;
 pub use users::Users;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

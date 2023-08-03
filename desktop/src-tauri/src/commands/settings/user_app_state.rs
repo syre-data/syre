@@ -67,7 +67,3 @@ pub fn update_user_app_state(app_state: State<AppState>, state: DesktopUserAppSt
     user_app_state.save()?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./user_app_state_test.rs"]
-mod user_app_state_test;

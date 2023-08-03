@@ -7,7 +7,3 @@ pub trait TreeViewItem: PartialEq {
     fn html(&self) -> Html;
     // fn iter_children(&self) -> Box<dyn Iterator<Item = Box<dyn TreeViewItem>>>;
 }
-
-#[cfg(test)]
-#[path = "./item_test.rs"]
-mod item_test;

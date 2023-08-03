@@ -46,7 +46,3 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
         <button {onclick}>{ &props.text }</button>
     }
 }
-
-#[cfg(test)]
-#[path = "./create_script_test.rs"]
-mod create_script_test;

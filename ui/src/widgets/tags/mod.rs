@@ -1,11 +1,7 @@
 //! Tag widgets.
-pub mod tags_editor;
 pub mod tags;
+pub mod tags_editor;
 
 // Re-exports
 pub use tags::Tags;
 pub use tags_editor::TagsEditor;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

@@ -18,7 +18,3 @@ impl Default for ProjectSettings {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./project_settings_test.rs"]
-mod project_settings_test;

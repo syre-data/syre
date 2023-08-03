@@ -57,7 +57,3 @@ pub fn switch(routes: Route) -> Html {
         Route::NotFound => html! { <NotFound /> },
     }
 }
-
-#[cfg(test)]
-#[path = "./routes_test.rs"]
-mod routes_test;

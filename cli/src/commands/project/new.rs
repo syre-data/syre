@@ -36,7 +36,3 @@ pub fn main(args: NewArgs, verbose: bool) -> Result {
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./new_test.rs"]
-mod new_test;

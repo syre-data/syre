@@ -63,7 +63,3 @@ impl Asset {
         PathBuf::from(self.path.as_path())
     }
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

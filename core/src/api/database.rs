@@ -23,7 +23,3 @@ pub trait Database {
     /// Adds an Asset to the database.
     fn add_asset(&mut self, asset: Asset) -> Result;
 }
-
-#[cfg(test)]
-#[path = "./database_test.rs"]
-mod database_test;

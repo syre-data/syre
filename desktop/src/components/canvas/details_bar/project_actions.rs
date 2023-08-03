@@ -119,7 +119,3 @@ pub fn project_actions() -> HtmlResult {
         </div>
     })
 }
-
-#[cfg(test)]
-#[path = "./project_actions_test.rs"]
-mod project_actions_test;

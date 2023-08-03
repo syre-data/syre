@@ -73,7 +73,3 @@ pub fn unset_active_user(app_state: State<AppState>) -> Result {
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./user_test.rs"]
-mod user_test;

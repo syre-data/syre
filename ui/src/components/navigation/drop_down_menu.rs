@@ -67,7 +67,3 @@ pub fn drop_down_menu(props: &DropdownMenuProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./drop_down_menu_test.rs"]
-mod drop_down_menu_test;

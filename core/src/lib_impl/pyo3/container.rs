@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use pythonize::pythonize;
 use std::collections::{HashMap, HashSet};
 
-// @todo: Unify implementations of property getters with Asset.
+// TODO Unify implementations of property getters with Asset.
 #[pymethods]
 impl Container {
     // properties
@@ -62,7 +62,3 @@ impl Container {
         self.assets.clone().into_keys().collect()
     }
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

@@ -63,7 +63,3 @@ pub fn update_user_settings(app_state: State<AppState>, settings: DesktopUserSet
     user_settings.save()?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./user_settings_test.rs"]
-mod user_settings_test;

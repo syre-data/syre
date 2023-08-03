@@ -47,7 +47,3 @@ pub fn user_config_dir(user: &ResourceId) -> Result<PathBuf> {
     path.push(user.to_string());
     Ok(path)
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

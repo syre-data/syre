@@ -60,7 +60,3 @@ where
         &mut self.data
     }
 }
-
-#[cfg(test)]
-#[path = "./node_test.rs"]
-mod node_test;

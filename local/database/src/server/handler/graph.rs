@@ -191,7 +191,3 @@ impl Database {
 fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
     trash::delete(root_path)
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

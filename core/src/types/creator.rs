@@ -28,7 +28,3 @@ impl PartialEq for Creator {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./creator_test.rs"]
-mod creator_test;

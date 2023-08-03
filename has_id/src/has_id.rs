@@ -7,7 +7,3 @@ pub trait HasId {
 
     fn id(&self) -> &Self::Id;
 }
-
-#[cfg(test)]
-#[path = "./has_id_test.rs"]
-mod has_id_test;

@@ -74,7 +74,3 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
 
     create_portal(out, host.into())
 }
-
-#[cfg(test)]
-#[path = "./shadow_box_test.rs"]
-mod shadow_box_test;

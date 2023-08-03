@@ -123,7 +123,3 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadata_editor_test.rs"]
-mod metadata_editor_test;

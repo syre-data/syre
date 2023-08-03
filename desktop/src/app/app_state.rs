@@ -119,7 +119,3 @@ impl Reducible for AppState {
 }
 
 pub type AppStateReducer<'a> = UseReducerHandle<AppState>;
-
-#[cfg(test)]
-#[path = "./app_state_test.rs"]
-mod app_state_test;

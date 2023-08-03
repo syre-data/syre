@@ -596,7 +596,3 @@ fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<CoreAss
 
     container.assets.get(&rid).cloned()
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

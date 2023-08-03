@@ -56,7 +56,3 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadatum_editor_test.rs"]
-mod metadatum_editor_test;

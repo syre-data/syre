@@ -51,7 +51,3 @@ pub struct BulkUpdatePropertiesArgs {
     pub rids: Vec<ResourceId>,
     pub update: StandardPropertiesUpdate,
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

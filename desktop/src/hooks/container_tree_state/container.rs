@@ -39,7 +39,3 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<CoreContainer> {
 
     container
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

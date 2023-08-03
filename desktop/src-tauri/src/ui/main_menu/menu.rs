@@ -29,7 +29,3 @@ pub fn main_menu() -> Menu {
         .add_submenu(sm_project)
         .add_submenu(edit_menu)
 }
-
-#[cfg(test)]
-#[path = "./menu_test.rs"]
-mod menu_test;

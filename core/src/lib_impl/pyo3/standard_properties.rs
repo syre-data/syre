@@ -77,7 +77,3 @@ fn serde_value_to_py_object(val: &SerdeValue, py: Python<'_>) -> PyObject {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./standard_properties_test.rs"]
-mod standard_properties_test;

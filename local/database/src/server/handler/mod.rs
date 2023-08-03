@@ -6,7 +6,3 @@ pub mod graph;
 pub mod project;
 pub mod script;
 pub mod user;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

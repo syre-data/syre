@@ -48,7 +48,3 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
 
     })
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

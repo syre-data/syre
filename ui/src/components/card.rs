@@ -51,7 +51,3 @@ where
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./card_test.rs"]
-mod card_test;

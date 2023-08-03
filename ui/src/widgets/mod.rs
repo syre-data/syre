@@ -13,7 +13,3 @@ pub mod tags;
 pub use metadata::MetadataEditor;
 pub use standard_properties_editor::StandardPropertiesEditor;
 pub use tags::{Tags, TagsEditor};
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

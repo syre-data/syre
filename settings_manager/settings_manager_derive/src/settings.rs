@@ -258,7 +258,3 @@ pub(crate) fn impl_settings(ast: &syn::DeriveInput) -> TokenStream {
 
     gen.into()
 }
-
-#[cfg(test)]
-#[path = "./settings_test.rs"]
-mod settings_test;

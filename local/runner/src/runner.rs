@@ -9,7 +9,3 @@ impl Runner {
         CoreRunner::new(hooks)
     }
 }
-
-#[cfg(test)]
-#[path = "./runner_test.rs"]
-mod runner_test;

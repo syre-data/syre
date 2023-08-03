@@ -184,7 +184,3 @@ impl Reducible for CanvasState {
 }
 
 pub type CanvasStateReducer = UseReducerHandle<CanvasState>;
-
-#[cfg(test)]
-#[path = "./canvas_state_test.rs"]
-mod canvas_state_test;

@@ -6,7 +6,3 @@ use crate::HasId;
 pub trait HasIdMut: HasId {
     fn id_mut(&mut self) -> &mut Self::Id;
 }
-
-#[cfg(test)]
-#[path = "./has_id_mut_test.rs"]
-mod has_id_mut_test;

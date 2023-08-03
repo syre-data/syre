@@ -67,7 +67,3 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         </ContextProvider<CanvasStateReducer>>
     })
 }
-
-#[cfg(test)]
-#[path = "./canvas_test.rs"]
-mod canvas_test;

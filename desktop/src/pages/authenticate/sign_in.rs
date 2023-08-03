@@ -110,7 +110,3 @@ pub fn sign_in() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./sign_in_test.rs"]
-mod sign_in_test;

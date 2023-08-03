@@ -16,7 +16,3 @@ pub fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
         Err(poisoned) => poisoned.into_inner(),
     }
 }
-
-#[cfg(test)]
-#[path = "./lock_test.rs"]
-mod lock_test;

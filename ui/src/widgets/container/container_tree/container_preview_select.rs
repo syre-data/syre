@@ -45,7 +45,3 @@ pub fn container_preview_select(props: &ContainerPreviewSelectProps) -> Html {
         </select>
     }
 }
-
-#[cfg(test)]
-#[path = "./container_preview_select_test.rs"]
-mod container_preview_select_test;

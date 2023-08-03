@@ -24,7 +24,3 @@ pub fn use_details_bar_widget() -> UseStateHandle<Option<DetailsBarWidget>> {
 
     details_bar_widget
 }
-
-#[cfg(test)]
-#[path = "./details_bar_widget_test.rs"]
-mod details_bar_widget_test;

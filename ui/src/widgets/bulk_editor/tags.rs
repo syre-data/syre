@@ -79,7 +79,3 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./tags_test.rs"]
-mod tags_test;

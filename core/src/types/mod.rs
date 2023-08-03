@@ -15,7 +15,3 @@ pub use resource_map::ResourceMap;
 pub use resource_path::ResourcePath;
 pub use user_id::UserId;
 pub use user_permissions::UserPermissions;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

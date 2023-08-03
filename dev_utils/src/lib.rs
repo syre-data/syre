@@ -6,6 +6,3 @@ pub mod path;
 
 // Re-exports
 pub use error::{Error, Result};
-
-#[cfg(test)]
-mod tests {}

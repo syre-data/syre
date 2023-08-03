@@ -44,7 +44,3 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree
 
     Err(s)
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

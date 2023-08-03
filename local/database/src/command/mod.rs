@@ -18,7 +18,3 @@ pub use graph::GraphCommand;
 pub use project::ProjectCommand;
 pub use script::ScriptCommand;
 pub use user::UserCommand;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

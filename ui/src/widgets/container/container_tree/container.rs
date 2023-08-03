@@ -179,7 +179,6 @@ pub struct ContainerProps {
 /// A Container node within a Container tree.
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> Html {
-    let show_menu = use_state(|| false);
     let dragover_counter = use_state(|| 0);
     let menu_ref = use_node_ref();
 
@@ -252,11 +251,8 @@ pub fn container(props: &ContainerProps) -> Html {
 
     // inject closing setings menu on click to `on_menu_event` callback
     let on_menu_event = props.on_menu_event.clone().map(|on_menu_event| {
-        let show_menu = show_menu.clone();
-
         Callback::from(move |event: ContainerMenuEvent| {
-            show_menu.set(false); // close settigns menu
-            on_menu_event.emit(event); // trigger callback
+            on_menu_event.emit(event);
         })
     });
 
@@ -279,20 +275,15 @@ pub fn container(props: &ContainerProps) -> Html {
 
             if let Some(on_menu_event) = on_menu_event {
                 <div class={classes!("container-menu-control", "dropdown-group")}>
-                    // <button
-                    //     class={classes!("container-menu-toggle")}
-                    //     onclick={onclick_menu}>{ "\u{22ee}" }</button>
                     <span class={classes!("container-menu-toggle")}>
                         { "\u{22ee}" }
                     </span>
 
-                    // if *show_menu {
-                        <ContainerMenu
-                            class={classes!("dropdown-menu")}
-                            r#ref={menu_ref}
-                            onclick={on_menu_event}
-                            is_root={props.is_root} />
-                    // }
+                    <ContainerMenu
+                        class={classes!("dropdown-menu")}
+                        r#ref={menu_ref}
+                        onclick={on_menu_event}
+                        is_root={props.is_root} />
                 </div>
             }
 

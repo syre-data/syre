@@ -295,7 +295,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let graph_state = graph_state.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+        Callback::from(move |(asset, _e): (ResourceId, MouseEvent)| {
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));
@@ -375,7 +375,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
-    // @note: Used for Windows machines.
+    // NOTE Used for Windows machines.
     //      For *nix and macOS machine, look in the `ContainerTreeController` component.
 
     let ondragenter = {
@@ -430,7 +430,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let container_id = container_id.clone();
                     spawn_local(async move {
                         // create assets
-                        // @todo: Handle buckets.
+                        // TODO Handle buckets.
                         let asset: Vec<ResourceId> = invoke(
                             "add_asset_windows",
                             AddAssetWindowsArgs {

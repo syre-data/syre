@@ -261,6 +261,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
                     MetadatumType::Number => html! {
                         <input
                             ref={value_ref.clone()}
+                            type={"number"}
                             {PLACEHOLDER}
                             value={""}
                             onchange={onchange_value.clone()} />

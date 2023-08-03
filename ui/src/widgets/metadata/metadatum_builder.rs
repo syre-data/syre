@@ -56,15 +56,6 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
         })
     };
 
-    let oninput = {
-        let error = error.clone();
-        Callback::from(move |_: InputEvent| {
-            if error.is_some() {
-                error.set(None);
-            }
-        })
-    };
-
     let onerror = {
         let error = error.clone();
         Callback::from(move |message: String| {

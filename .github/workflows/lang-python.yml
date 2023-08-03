@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
-      - master
+      - release
   pull_request:
+    branches:
+      - main
+      - release
 
 jobs:
   linux:
@@ -54,7 +57,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
+    if: startsWith(github.ref, 'refs/tags/')
     needs: [ macos, windows, linux ]
     steps:
       - uses: actions/download-artifact@v2

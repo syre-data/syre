@@ -1,5 +1,9 @@
 name: 'test tauri on pr'
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+      - main
+      - release
 
 jobs:
   test-tauri:

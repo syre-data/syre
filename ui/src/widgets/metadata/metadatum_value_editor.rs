@@ -146,7 +146,6 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                     <input
                         ref={value_ref}
                         type={"number"}
-                        min={"1"}
                         value={value.to_string()}
                         onchange={onchange_value.clone()} />
                 },

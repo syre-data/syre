@@ -1,6 +1,6 @@
 //! Settings meant for local use.
 //! Local settings all have the same realtive path, with a variable base path.
-use crate::settings::{self, Settings};
+use super::settings::{self, Settings};
 use crate::Result;
 use cluFlock::FlockLock;
 use serde::{de::DeserializeOwned, Serialize};

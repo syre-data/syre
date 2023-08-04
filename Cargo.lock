@@ -3607,7 +3607,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "settings_manager_derive",
+ "settings_manager_derive_locked",
  "tempfile",
 ]
 
@@ -3626,7 +3626,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "settings_manager_derive"
+name = "settings_manager_derive_locked"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

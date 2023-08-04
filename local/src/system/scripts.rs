@@ -1,7 +1,7 @@
 //! Functionality to handle Scripts at a system level.
 use super::collections::scripts::Scripts;
 use crate::Result;
-use settings_manager::{system_settings::Loader, Settings};
+use settings_manager::locked::{system_settings::Loader, Settings};
 use std::path::Path;
 use std::{fs, io};
 use thot_core::project::Script;

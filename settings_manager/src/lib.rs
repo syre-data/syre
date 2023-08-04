@@ -11,27 +11,18 @@
 //! + `UserSettings`: Have a fixed base path with variable relative path.
 //! + `LocalSettings`: Have a variable base path with fixed relative path.
 //!
-//! # Locking settings files
-//! In order to load or save a settings file a file lock must be acquired.
-//! This ensures that another process can not overwrite the settings while
-//! it is in use, thus poisoning the settings.
 pub mod error;
-pub mod local_settings;
-pub mod settings;
-pub mod system_settings;
 pub mod types;
-pub mod user_settings;
 
-#[cfg(feature = "derive")]
-use settings_manager_derive;
+#[cfg(feature = "locked")]
+pub mod locked;
 
 // Re-exports
 pub use error::{Error, Result};
-pub use local_settings::LocalSettings;
-pub use settings::Settings;
-pub use system_settings::SystemSettings;
 pub use types::Priority;
-pub use user_settings::UserSettings;
 
-#[cfg(feature = "derive")]
-pub use settings_manager_derive::Settings;
+#[cfg(feature = "derive_locked")]
+use settings_manager_derive_locked;
+
+#[cfg(feature = "derive_locked")]
+pub use settings_manager_derive_locked::LockedSettings;

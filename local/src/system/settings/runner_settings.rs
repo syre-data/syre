@@ -2,8 +2,8 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use serde::{Deserialize, Serialize};
-use settings_manager::settings::Settings;
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
+use settings_manager::locked::settings::Settings;
+use settings_manager::locked::system_settings::{Components, Loader, SystemSettings};
 use settings_manager::types::Priority as SettingsPriority;
 use settings_manager::Result as SettingsResult;
 use std::borrow::Cow;

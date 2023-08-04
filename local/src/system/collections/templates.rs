@@ -2,8 +2,8 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::system_settings::SystemSettings;
-use settings_manager::Settings;
+use settings_manager::locked::system_settings::SystemSettings;
+use settings_manager::LockedSettings;
 use std::collections::HashMap;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
@@ -13,13 +13,13 @@ use thot_core::types::ResourceId;
 
 pub type TemplateMap = HashMap<ResourceId, ProjectTemplate>;
 
-#[derive(Derivative, Settings)]
+#[derive(Derivative, LockedSettings)]
 #[derivative(Debug)]
 pub struct Templates {
-    #[settings(file_lock = "TemplateMap")]
+    #[locked_settings(file_lock = "TemplateMap")]
     file_lock: FlockLock<File>,
 
-    #[settings(priority = "User")]
+    #[locked_settings(priority = "User")]
     templates: TemplateMap,
 }
 

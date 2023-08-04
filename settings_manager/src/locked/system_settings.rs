@@ -1,6 +1,6 @@
 //! Settings meant for system wide use.
 //! These settings have a fixed path.
-use crate::settings::{self, Settings};
+use super::settings::{self, Settings};
 use crate::Result;
 use cluFlock::FlockLock;
 use serde::{de::DeserializeOwned, Serialize};

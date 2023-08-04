@@ -2,8 +2,8 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::Settings;
+use settings_manager::locked::system_settings::{Components, Loader, SystemSettings};
+use settings_manager::LockedSettings;
 use std::collections::HashMap;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
@@ -17,13 +17,13 @@ pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 // *** Scripts ***
 // ****************
 
-#[derive(Derivative, Settings)]
+#[derive(Derivative, LockedSettings)]
 #[derivative(Debug)]
 pub struct Scripts {
-    #[settings(file_lock = "ScriptMap")]
+    #[locked_settings(file_lock = "ScriptMap")]
     file_lock: FlockLock<File>,
 
-    #[settings(priority = "User")]
+    #[locked_settings(priority = "User")]
     scripts: ScriptMap,
 }
 

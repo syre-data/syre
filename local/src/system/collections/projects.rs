@@ -2,8 +2,8 @@
 use crate::system::common::config_dir_path;
 use cluFlock::FlockLock;
 use derivative::{self, Derivative};
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::Settings;
+use settings_manager::locked::system_settings::{Components, Loader, SystemSettings};
+use settings_manager::LockedSettings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
@@ -16,13 +16,13 @@ pub type ProjectMap = ResourceMap<PathBuf>;
 // *** Projects ***
 // ****************
 
-#[derive(Derivative, Settings)]
+#[derive(Derivative, LockedSettings)]
 #[derivative(Debug)]
 pub struct Projects {
-    #[settings(file_lock = "ProjectMap")]
+    #[locked_settings(file_lock = "ProjectMap")]
     file_lock: FlockLock<File>,
 
-    #[settings(priority = "User")]
+    #[locked_settings(priority = "User")]
     projects: ProjectMap,
 }
 

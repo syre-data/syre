@@ -4,7 +4,7 @@ use super::resources::asset::{Asset as LocalAsset, Assets};
 use crate::error::AssetError;
 use crate::types::AssetFileAction;
 use crate::{common, Error, Result};
-use settings_manager::{local_settings::Loader, Settings};
+use settings_manager::locked::{local_settings::Loader, Settings};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Asset as CoreAsset;

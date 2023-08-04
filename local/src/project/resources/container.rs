@@ -8,11 +8,12 @@ use crate::error::{Error, Result};
 use cluFlock::FlockLock;
 use has_id::HasId;
 use settings_manager::error::Result as SettingsResult;
-use settings_manager::local_settings::{
+use settings_manager::locked::local_settings::{
     Components as LocalComponents, Loader as LocalLoader, LocalSettings,
 };
+use settings_manager::locked::{settings, Settings};
 use settings_manager::types::Priority as SettingsPriority;
-use settings_manager::{settings, Settings};
+use settings_manager::LockedSettings;
 use std::borrow::Cow;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -27,18 +28,18 @@ use thot_core::types::ResourceId;
 // *** Container ***
 // *****************
 
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct Container {
     container_file_lock: FlockLock<File>,
     assets_file_lock: FlockLock<File>,
 
-    #[settings(file_lock = "ContainerSets")]
+    #[locked_settings(file_lock = "ContainerSets")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
     container: CoreContainer,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     settings: ContainerSets,
 }
 
@@ -250,13 +251,13 @@ impl From<Loader> for Container {
 // *** Container Properties ***
 // ****************************
 
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct ContainerProperties {
-    #[settings(file_lock = "ContainerProps")]
+    #[locked_settings(file_lock = "ContainerProps")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     properties: ContainerProps,
 }
 
@@ -298,13 +299,13 @@ impl From<LocalLoader<ContainerProps>> for ContainerProperties {
 // *** Container Settings ***
 // **************************
 
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct ContainerSettings {
-    #[settings(file_lock = "ContainerSets")]
+    #[locked_settings(file_lock = "ContainerSets")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     settings: ContainerSets,
 }
 

@@ -1,6 +1,6 @@
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
-use settings_manager::system_settings::Loader;
+use settings_manager::locked::system_settings::Loader;
 use thot_core::project::StandardProperties as CoreStandardProperties;
 use thot_core::types::{Creator, UserId};
 

@@ -6,17 +6,13 @@
 pub mod common;
 pub mod constants;
 pub mod error;
+pub mod identifier;
 pub mod project;
 pub mod system;
 pub mod types;
-pub mod identifier;
 
 #[cfg(feature = "fs")]
 pub mod graph;
-
-#[cfg(test)]
-#[path = "./lib_test.rs"]
-mod lib_test;
 
 // Re-exports
 pub use error::{Error, Result};

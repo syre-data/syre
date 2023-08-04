@@ -3,8 +3,8 @@ use super::super::Database;
 use crate::command::ScriptCommand;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
-use settings_manager::local_settings::Loader as LocalLoader;
-use settings_manager::system_settings::Loader as SystemLoader;
+use settings_manager::locked::local_settings::Loader as LocalLoader;
+use settings_manager::locked::system_settings::Loader as SystemLoader;
 use std::path::PathBuf;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Project as CoreProject, Script as CoreScript};
@@ -91,7 +91,7 @@ impl Database {
     /// Remove `Script` from `Project`.
     fn remove_script(&mut self, pid: &ResourceId, script: &ResourceId) -> Result {
         let script = self.store.remove_project_script(pid, script)?;
-        
+
         if let Some(script) = script {
             let path = match script.path {
                 ResourcePath::Absolute(path) => path.clone(),
@@ -101,10 +101,15 @@ impl Database {
                     };
 
                     let path = project.base_path();
-                    path
-                        .join(project.analysis_root.as_ref().expect("`Project`'s analysis root not set").clone())
-                        .join(script_path)
-                },
+                    path.join(
+                        project
+                            .analysis_root
+                            .as_ref()
+                            .expect("`Project`'s analysis root not set")
+                            .clone(),
+                    )
+                    .join(script_path)
+                }
                 ResourcePath::Root(_path, _level) => {
                     todo!("root paths not handled");
                 }

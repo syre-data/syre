@@ -3,9 +3,9 @@ use crate::common::scripts_file;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
 use cluFlock::FlockLock;
-use settings_manager::local_settings::{Components, Loader};
-use settings_manager::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
-use std::borrow::Cow;
+use settings_manager::locked::local_settings::{Components, Loader};
+use settings_manager::locked::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
+use settings_manager::LockedSettings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -34,13 +34,13 @@ impl Script {
 // *** Scripts ***
 // ***************
 
-#[derive(Settings, Debug)]
+#[derive(LockedSettings, Debug)]
 pub struct Scripts {
-    #[settings(file_lock = "CoreScripts")]
+    #[locked_settings(file_lock = "CoreScripts")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     scripts: CoreScripts,
 }
 

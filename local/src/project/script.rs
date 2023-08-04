@@ -6,7 +6,7 @@ use super::resources::{
 use crate::error::{ContainerError, Result};
 use crate::system::collections::Projects;
 use crate::system::collections::Scripts as SystemScripts;
-use settings_manager::{
+use settings_manager::locked::{
     local_settings::Loader as LocalLoader, system_settings::Loader as SystemLoader, Settings,
 };
 use std::path::{Path, PathBuf};

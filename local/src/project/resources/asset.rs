@@ -3,8 +3,8 @@ use super::standard_properties::StandardProperties;
 use crate::common::assets_file;
 use crate::Result;
 use cluFlock::FlockLock;
-use settings_manager::local_settings::{Components, Loader, LocalSettings};
-use settings_manager::Settings;
+use settings_manager::locked::local_settings::{Components, Loader, LocalSettings};
+use settings_manager::LockedSettings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -41,13 +41,13 @@ impl Asset {
 /// + A [`Container`] may only reference a file in a single [`Asset`].
 /// This functionality is enforced in the `insert_asset` method, which
 /// should be prefered over `insert`.
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct Assets {
-    #[settings(file_lock = "AssetMap")]
+    #[locked_settings(file_lock = "AssetMap")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     assets: AssetMap,
 }
 

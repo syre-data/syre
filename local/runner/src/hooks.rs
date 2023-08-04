@@ -1,5 +1,5 @@
 //! Local runner hooks.
-use settings_manager::system_settings::Loader as SystemLoader;
+use settings_manager::locked::system_settings::Loader as SystemLoader;
 use std::path::PathBuf;
 use thot_core::error::{ResourceError, Result as CoreResult};
 use thot_core::project::{Project, Script as CoreScript};

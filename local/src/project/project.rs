@@ -6,7 +6,7 @@ use crate::error::ProjectError;
 use crate::system::collections::Projects;
 use crate::system::projects;
 use crate::{Error, Result};
-use settings_manager::{system_settings::Loader as SystemLoader, Settings};
+use settings_manager::locked::{system_settings::Loader as SystemLoader, Settings};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};

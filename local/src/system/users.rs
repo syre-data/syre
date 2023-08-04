@@ -1,7 +1,7 @@
 use super::collections::users::Users;
 use super::settings::user_settings::UserSettings;
 use crate::error::{Error, Result, UsersError};
-use settings_manager::{system_settings::Loader, Settings};
+use settings_manager::locked::{system_settings::Loader, Settings};
 use std::collections::HashMap;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::system::User;

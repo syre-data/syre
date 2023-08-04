@@ -1,4 +1,4 @@
-//! Derive the `settings_manager#Settings` trait.
+//! Derive the `settings_manager::locked::Settings` trait.
 use crate::common::IDENT;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -124,20 +124,20 @@ impl TryFrom<SettingsInfoBuilder> for Vec<SettingsInfo> {
 // *** Derive ***
 // **************
 
-pub(crate) fn impl_settings(ast: &syn::DeriveInput) -> TokenStream {
+pub(crate) fn impl_locked_settings(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
 
     // get marked fields
     let Data::Struct(obj) = &ast.data else {
-        panic!("`Settings` can only be derived for structs.");
+        panic!("`LockedSettings` can only be derived for structs.");
     };
 
     let fields = match &obj.fields {
         Fields::Named(fields) => &fields.named,
         Fields::Unnamed(fields) => &fields.unnamed,
         Fields::Unit => {
-            panic!("cannot derive `Settings` for unit structs");
+            panic!("cannot derive `LockedSettings` for unit structs");
         }
     };
 
@@ -226,7 +226,7 @@ pub(crate) fn impl_settings(ast: &syn::DeriveInput) -> TokenStream {
     } in settings_info.iter()
     {
         let gen = quote! {
-            impl #impl_generics Settings<#data_type> for #name #ty_generics #where_clause {
+            impl #impl_generics settings_manager::locked::Settings<#data_type> for #name #ty_generics #where_clause {
                 fn settings(&self) -> std::borrow::Cow<#data_type> {
                     std::borrow::Cow::Borrowed(&self.#data_field_ident)
                 }

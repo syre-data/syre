@@ -1,6 +1,6 @@
 //! Settings meant for use on a user by user basis.
 //! These settings have a fixed base path and variable relative path.
-use crate::settings::{self, Settings};
+use super::settings::{self, Settings};
 use crate::Result;
 use cluFlock::FlockLock;
 use serde::{de::DeserializeOwned, Serialize};

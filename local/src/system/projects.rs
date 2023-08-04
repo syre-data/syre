@@ -2,8 +2,8 @@
 use super::collections::projects::Projects;
 use crate::error::{Error, ProjectError, Result, SettingsValidationError};
 use crate::system::settings::user_settings::UserSettings;
-use settings_manager::system_settings::Loader;
-use settings_manager::Settings;
+use settings_manager::locked::system_settings::Loader;
+use settings_manager::locked::Settings;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::ResourceId;

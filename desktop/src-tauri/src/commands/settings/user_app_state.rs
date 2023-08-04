@@ -2,7 +2,7 @@
 use crate::error::{DesktopSettingsError, Result};
 use crate::settings::{loader::Loader, UserAppState};
 use crate::state::AppState;
-use settings_manager::Settings;
+use settings_manager::locked::Settings;
 use tauri::State;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};

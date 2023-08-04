@@ -1,6 +1,6 @@
 //! Handle main menu events.
 use crate::error::Result;
-use settings_manager::system_settings::Loader;
+use settings_manager::locked::system_settings::Loader;
 use tauri::{Window, WindowMenuEvent};
 use thot_local::system::{common::config_dir_path, settings::RunnerSettings};
 

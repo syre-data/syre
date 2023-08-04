@@ -21,7 +21,7 @@ serde_json = "1.0"
 directories = "4.0"
 cluFlock = "1.2"
 
-settings_manager_derive = { path = "settings_manager_derive", optional = true }
+settings_manager_derive_locked = { path = "settings_manager_derive_locked", optional = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -30,5 +30,6 @@ fake = "2.4"
 dev_utils = { path = "../dev_utils" }
 
 [features]
-default = ["derive"]
-derive = ["dep:settings_manager_derive"]
+default = ["locked", "derive_locked"]
+locked = []
+derive_locked = ["dep:settings_manager_derive_locked", "locked"]

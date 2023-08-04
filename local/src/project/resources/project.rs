@@ -4,8 +4,9 @@ use crate::common::{project_file, project_settings_file};
 use crate::Result;
 use cluFlock::FlockLock;
 use settings_manager::error::Result as SettingsResult;
-use settings_manager::local_settings::{Components, Loader as LocalLoader, LocalSettings};
-use settings_manager::Settings;
+use settings_manager::locked::local_settings::{Components, Loader as LocalLoader, LocalSettings};
+use settings_manager::locked::Settings;
+use settings_manager::LockedSettings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -16,20 +17,20 @@ use thot_core::project::Project as CoreProject;
 // ***************
 
 /// Represents a Thot project.
-#[derive(Settings, Debug)]
+#[derive(LockedSettings, Debug)]
 pub struct Project {
-    #[settings(file_lock = "CoreProject")]
+    #[locked_settings(file_lock = "CoreProject")]
     project_file_lock: FlockLock<File>,
 
-    #[settings(file_lock = "PrjSettings")]
+    #[locked_settings(file_lock = "PrjSettings")]
     settings_file_lock: FlockLock<File>,
 
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     project: CoreProject,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     settings: PrjSettings,
 }
 
@@ -115,13 +116,13 @@ impl From<Loader> for Project {
 // ************************
 
 /// Settings for a Thot project.
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct ProjectSettings {
-    #[settings(file_lock = "PrjSettings")]
+    #[locked_settings(file_lock = "PrjSettings")]
     file_lock: FlockLock<File>,
     base_path: PathBuf,
 
-    #[settings(priority = "Local")]
+    #[locked_settings(priority = "Local")]
     settings: PrjSettings,
 }
 

@@ -2,24 +2,24 @@
 use crate::common;
 use crate::error::{DesktopSettingsError, Result};
 use cluFlock::FlockLock;
-use settings_manager::user_settings::{
+use settings_manager::locked::user_settings::{
     Components, Loader as UserLoader, UserSettings as UserSettingsInterface,
 };
-use settings_manager::Settings;
+use settings_manager::LockedSettings;
 use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_desktop_lib::settings::UserSettingsFile;
 use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
 
-#[derive(Settings)]
+#[derive(LockedSettings)]
 pub struct UserSettings {
-    #[settings(file_lock = "DesktopUserSettings")]
+    #[locked_settings(file_lock = "DesktopUserSettings")]
     file_lock: FlockLock<File>,
 
     rel_path: PathBuf,
 
-    #[settings(priority = "User")]
+    #[locked_settings(priority = "User")]
     settings: DesktopUserSettings,
 }
 

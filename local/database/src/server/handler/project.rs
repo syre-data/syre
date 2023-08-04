@@ -3,7 +3,7 @@ use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
 use serde_json::Value as JsValue;
-use settings_manager::{system_settings::Loader as SystemLoader, Settings};
+use settings_manager::locked::{system_settings::Loader as SystemLoader, Settings};
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;

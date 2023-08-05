@@ -125,7 +125,3 @@ where
        </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./inline_input_test.rs"]
-mod inline_input_test;

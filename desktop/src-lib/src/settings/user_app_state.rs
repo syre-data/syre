@@ -29,7 +29,3 @@ impl HasUser for UserAppState {
         &self.user
     }
 }
-
-#[cfg(test)]
-#[path = "./user_app_state_test.rs"]
-mod user_app_state_test;

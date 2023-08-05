@@ -13,7 +13,3 @@ pub trait InheritMetadata {
     /// Returns inherited [`Metadata`].
     fn metadata_inherited(&self) -> &Metadata;
 }
-
-#[cfg(test)]
-#[path = "./metadata_test.rs"]
-mod metadata_test;

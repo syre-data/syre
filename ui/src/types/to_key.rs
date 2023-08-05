@@ -4,7 +4,3 @@ use yew::virtual_dom::Key;
 pub trait ToKey {
     fn key(&self) -> Key;
 }
-
-#[cfg(test)]
-#[path = "./to_key_test.rs"]
-mod to_key_test;

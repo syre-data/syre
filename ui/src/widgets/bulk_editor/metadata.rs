@@ -44,7 +44,3 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
 
     }
 }
-
-#[cfg(test)]
-#[path = "./metadata_test.rs"]
-mod metadata_test;

@@ -6,7 +6,3 @@ use thot_core::project::Asset as CoreAsset;
 pub struct AssetArgs {
     pub asset: CoreAsset,
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

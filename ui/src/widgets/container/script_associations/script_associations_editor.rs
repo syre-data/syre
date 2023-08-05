@@ -227,7 +227,3 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         </form>
     }
 }
-
-#[cfg(test)]
-#[path = "./script_associations_editor_test.rs"]
-mod script_associations_editor_test;

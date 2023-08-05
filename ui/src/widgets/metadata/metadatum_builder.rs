@@ -132,7 +132,3 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadatum_builder_test.rs"]
-mod metadatum_builder_test;

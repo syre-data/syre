@@ -35,7 +35,3 @@ pub fn global_widgets() -> Html {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./global_test.rs"]
-mod global_test;

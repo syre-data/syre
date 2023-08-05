@@ -248,7 +248,3 @@ pub mod serialize_local_resource_map_keys_only {
         deserializer.deserialize_seq(RidVisitor::new())
     }
 }
-
-#[cfg(test)]
-#[path = "./resource_store_test.rs"]
-mod resource_store_test;

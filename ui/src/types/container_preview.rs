@@ -60,7 +60,3 @@ impl fmt::Display for ContainerPreview {
         write!(f, "{}", Into::<String>::into(self.clone()))
     }
 }
-
-#[cfg(test)]
-#[path = "./container_preview_test.rs"]
-mod container_preview_test;

@@ -24,7 +24,3 @@ pub fn use_active_project() -> UseStateHandle<Option<ResourceId>> {
 
     active_project
 }
-
-#[cfg(test)]
-#[path = "./active_project_test.rs"]
-mod active_project_test;

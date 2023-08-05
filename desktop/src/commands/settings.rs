@@ -13,7 +13,3 @@ pub struct UserAppStateArgs {
 pub struct UserSettingsArgs {
     pub settings: UserSettings,
 }
-
-#[cfg(test)]
-#[path = "./settings_test.rs"]
-mod settings_test;

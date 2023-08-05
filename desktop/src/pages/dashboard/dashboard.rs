@@ -109,7 +109,3 @@ pub fn dashboard() -> HtmlResult {
         </>
     })
 }
-
-#[cfg(test)]
-#[path = "./dashboard_test.rs"]
-mod dashboard_test;

@@ -31,7 +31,3 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./editor_test.rs"]
-mod editor_test;

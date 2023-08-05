@@ -51,7 +51,3 @@ pub fn tags_editor(props: &TagsEditorProps) -> Html {
             {onchange} />
     }
 }
-
-#[cfg(test)]
-#[path = "./tags_editor_test.rs"]
-mod tags_editor_test;

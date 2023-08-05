@@ -76,7 +76,3 @@ impl From<trash::Error> for Error {
 }
 
 pub type Result<T = ()> = StdResult<T, Error>;
-
-#[cfg(test)]
-#[path = "./error_test.rs"]
-mod error_test;

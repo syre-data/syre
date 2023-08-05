@@ -27,7 +27,3 @@ pub struct NewChildArgs {
     pub name: String,
     pub parent: ResourceId,
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

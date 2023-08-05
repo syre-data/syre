@@ -14,7 +14,3 @@ pub struct RemoveScriptArgs {
     pub project: ResourceId,
     pub script: ResourceId,
 }
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

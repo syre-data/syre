@@ -74,7 +74,3 @@ pub fn use_preferred_theme() -> Option<PreferredTheme> {
 
     (*state).clone()
 }
-
-#[cfg(test)]
-#[path = "./preferred_theme_test.rs"]
-mod preferred_theme_test;

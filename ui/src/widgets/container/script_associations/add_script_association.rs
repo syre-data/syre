@@ -81,7 +81,3 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./add_script_association_test.rs"]
-mod add_script_association_test;

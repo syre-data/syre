@@ -71,7 +71,3 @@ impl UserSettings<ProjectTemplate> for Project {
         &self.rel_path
     }
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

@@ -116,7 +116,3 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./container_editor_test.rs"]
-mod container_editor_test;

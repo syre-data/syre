@@ -35,7 +35,3 @@ pub use user_settings::UserSettings;
 
 #[cfg(feature = "derive")]
 pub use settings_manager_derive::Settings;
-
-#[cfg(test)]
-#[path = "./lib_test.rs"]
-mod lib_test;

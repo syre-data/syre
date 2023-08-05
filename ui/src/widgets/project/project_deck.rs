@@ -11,7 +11,3 @@ impl ToKey for Project {
         self.rid.clone().into()
     }
 }
-
-#[cfg(test)]
-#[path = "./project_deck_test.rs"]
-mod project_deck_test;

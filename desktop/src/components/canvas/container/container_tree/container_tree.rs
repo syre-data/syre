@@ -593,7 +593,3 @@ fn create_visibility_control_element(
 
     visibility.to_owned()
 }
-
-#[cfg(test)]
-#[path = "./container_tree_test.rs"]
-mod container_tree_test;

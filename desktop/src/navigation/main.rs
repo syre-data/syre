@@ -112,7 +112,3 @@ fn projects_to_tabs(projects: Vec<&Project>) -> IndexMap<ResourceId, String> {
         .map(|p| (p.rid.clone(), p.name.clone()))
         .collect::<IndexMap<ResourceId, String>>()
 }
-
-#[cfg(test)]
-#[path = "./main_test.rs"]
-mod main_test;

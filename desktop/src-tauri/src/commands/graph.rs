@@ -189,7 +189,3 @@ pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
         .expect("could not convert result of `Remove` to `Container` tree");
     res.map_err(|err| err.into())
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

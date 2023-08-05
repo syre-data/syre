@@ -13,7 +13,3 @@ pub fn dashboard() -> Html {
         </Suspense>
     }
 }
-
-#[cfg(test)]
-#[path = "./page_test.rs"]
-mod page_test;

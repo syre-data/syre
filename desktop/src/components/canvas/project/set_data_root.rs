@@ -128,7 +128,3 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./set_data_root_test.rs"]
-mod set_data_root_test;

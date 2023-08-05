@@ -25,7 +25,3 @@ pub fn use_canvas_project() -> UseStateHandle<ResourceId> {
 
     project
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

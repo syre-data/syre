@@ -18,7 +18,3 @@ pub fn create_user(email: String, name: Option<String>) -> Result<User> {
 
     Ok(user)
 }
-
-#[cfg(test)]
-#[path = "./authenticate_test.rs"]
-mod authenticate_test;

@@ -48,7 +48,3 @@ impl AssetFileAction {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

@@ -20,7 +20,3 @@ pub use metadatum_bulk_value_editor::MetadatumBulkValueEditor;
 pub use metadatum_editor::MetadatumEditor;
 pub use metadatum_value_editor::MetadatumValueEditor;
 pub use types::{type_from_string, type_of_value, MetadataBulk, Metadatum, MetadatumType};
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

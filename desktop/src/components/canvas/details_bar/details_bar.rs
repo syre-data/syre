@@ -66,7 +66,3 @@ pub fn details_bar() -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./details_bar_test.rs"]
-mod details_bar_test;

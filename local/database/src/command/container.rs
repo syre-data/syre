@@ -121,7 +121,3 @@ pub struct RunParametersUpdate {
     pub autorun: Option<bool>,
     pub priority: Option<i32>,
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

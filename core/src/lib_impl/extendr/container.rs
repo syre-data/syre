@@ -28,7 +28,3 @@ extendr_module! {
     mod container;
     impl Container;
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

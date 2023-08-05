@@ -19,7 +19,3 @@ pub use file_selector::{FileSelector, FileSelectorAction};
 pub use funnel::Funnel;
 pub use messages::{Message, Messages};
 pub use shadow_box::ShadowBox;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

@@ -107,7 +107,3 @@ pub fn sign_up() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./sign_up_test.rs"]
-mod sign_up_test;

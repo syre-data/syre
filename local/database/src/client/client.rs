@@ -119,7 +119,3 @@ impl Default for Client {
 fn port_is_free(port: PortNumber) -> bool {
     TcpListener::bind(format!("{LOCALHOST}:{port}")).is_ok()
 }
-
-#[cfg(test)]
-#[path = "./client_test.rs"]
-mod client_test;

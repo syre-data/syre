@@ -79,7 +79,3 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
         </div>
     })
 }
-
-#[cfg(test)]
-#[path = "./project_scripts_test.rs"]
-mod project_scripts_test;

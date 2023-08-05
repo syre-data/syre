@@ -40,7 +40,3 @@ pub struct AnalyzeArgs {
     /// Maximum number of allowed tasks.
     pub max_tasks: Option<usize>,
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

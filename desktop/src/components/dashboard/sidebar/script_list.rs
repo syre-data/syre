@@ -7,7 +7,3 @@ pub fn script_list() -> Html {
         { "Scripts" }
     }
 }
-
-#[cfg(test)]
-#[path = "./script_list_test.rs"]
-mod script_list_test;

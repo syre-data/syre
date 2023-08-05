@@ -179,7 +179,3 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         </span>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadatum_value_editor_test.rs"]
-mod metadatum_value_editor_test;

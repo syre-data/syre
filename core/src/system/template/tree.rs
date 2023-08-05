@@ -24,7 +24,3 @@ impl ResourceTree {
         serde_json::from_value(template)
     }
 }
-
-#[cfg(test)]
-#[path = "./tree_test.rs"]
-mod tree_test;

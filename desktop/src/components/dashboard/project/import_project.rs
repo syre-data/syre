@@ -82,7 +82,3 @@ pub fn import_project() -> Html {
         <FileSelector ..props />
     }
 }
-
-#[cfg(test)]
-#[path = "./import_project_test.rs"]
-mod import_project_test;

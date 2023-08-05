@@ -4,7 +4,6 @@ use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::BulkUpdatePropertiesArgs;
 use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
 use crate::common::invoke;
-use crate::hooks::use_asset;
 use std::collections::HashSet;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
@@ -69,7 +68,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -98,7 +97,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -127,7 +126,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -158,7 +157,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -189,7 +188,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -220,7 +219,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -251,7 +250,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -282,7 +281,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_asset_properties", update.clone()).await;
-                if let Err(err) = res {
+                if let Err(_err) = res {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));

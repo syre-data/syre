@@ -57,7 +57,3 @@ pub fn open_file(path: PathBuf) -> Result {
     let path = path.canonicalize()?;
     open::that(path).map_err(|err| err.into())
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

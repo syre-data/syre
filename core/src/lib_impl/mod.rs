@@ -10,7 +10,3 @@ pub mod pyo3;
 
 #[cfg(feature = "yew")]
 pub mod yew;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

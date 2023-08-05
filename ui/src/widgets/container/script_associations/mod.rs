@@ -7,7 +7,3 @@ pub mod script_associations_preview;
 pub use add_script_association::AddScriptAssociation;
 pub use script_associations_editor::{NameMap, ScriptAssociationsEditor};
 pub use script_associations_preview::ScriptAssociationsPreview;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

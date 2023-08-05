@@ -39,8 +39,7 @@ pub struct AddScriptArgs {
 
     #[clap(short, long, parse(from_os_str))]
     project: Option<PathBuf>,
-
-    // @todo: Allow path type to be specified
+    // TODO Allow path type to be specified
     // #[clap(long, value_enum)]
     // path_type: Option<ResourcePathType>,
 }

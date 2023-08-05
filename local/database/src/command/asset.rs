@@ -56,7 +56,3 @@ pub enum AssetCommand {
     /// Update multiple [`Asset`](CoreAsset)s' properties.
     BulkUpdateProperties(BulkUpdatePropertiesArgs),
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

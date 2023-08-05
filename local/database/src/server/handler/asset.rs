@@ -186,7 +186,3 @@ impl Database {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

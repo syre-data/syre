@@ -8,7 +8,3 @@ pub enum LocalId {
     Path(PathBuf),
     ResourcePath(ResourcePath),
 }
-
-#[cfg(test)]
-#[path = "./local_id_test.rs"]
-mod local_id_test;

@@ -66,7 +66,3 @@ impl StandardResource for Container {
         &mut self.properties
     }
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

@@ -27,7 +27,3 @@ pub fn mkfile_with_extension<S: AsRef<OsStr>>(ext: S) -> Result<PathBuf> {
     fs::rename(f.path(), &dst)?;
     Ok(dst)
 }
-
-#[cfg(test)]
-#[path = "./temp_file_test.rs"]
-mod temp_file_test;

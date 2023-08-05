@@ -50,7 +50,3 @@ pub fn system_tray() -> SystemTray {
     // init tray
     SystemTray::new().with_menu(tray_menu)
 }
-
-#[cfg(test)]
-#[path = "./menu_test.rs"]
-mod menu_test;

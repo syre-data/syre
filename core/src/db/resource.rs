@@ -15,7 +15,3 @@ pub trait StandardResource: Resource {
     /// Retrieve a mutable reference to the [`StandardProperties`] of the object.
     fn properties_mut(&mut self) -> &mut StandardProperties;
 }
-
-#[cfg(test)]
-#[path = "./resource_test.rs"]
-mod resource_test;

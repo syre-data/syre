@@ -43,7 +43,3 @@ where
         <div class={classes!("card-deck")}>{ cards }</div>
     }
 }
-
-#[cfg(test)]
-#[path = "./card_deck_test.rs"]
-mod card_deck_test;

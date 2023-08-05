@@ -124,5 +124,5 @@ fn standard_search_filter_matches_should_work() {
         "metadata filter should not match"
     );
 
-    // @todo: Check empty filters. Specifically for `tags` and `metadata`.
+    // TODO Check empty filters. Specifically for `tags` and `metadata`.
 }

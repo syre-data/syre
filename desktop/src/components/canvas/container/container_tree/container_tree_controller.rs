@@ -395,7 +395,3 @@ pub fn container_tree_controller() -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./container_tree_controller_test.rs"]
-mod container_tree_controller_test;

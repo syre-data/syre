@@ -64,7 +64,3 @@ pub fn index() -> Html {
        <Redirect<Route> to={Route::SignIn} />
     }
 }
-
-#[cfg(test)]
-#[path = "./index_test.rs"]
-mod index_test;

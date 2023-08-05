@@ -30,7 +30,3 @@ pub fn open_developer_settings(window: &Window) -> Result {
     window.emit("thot://open-settings", ())?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./events_test.rs"]
-mod events_test;

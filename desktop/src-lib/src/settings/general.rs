@@ -19,7 +19,3 @@ impl GeneralSettings {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./general_test.rs"]
-mod general_test;

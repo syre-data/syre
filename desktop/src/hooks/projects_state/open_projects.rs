@@ -25,7 +25,3 @@ pub fn use_open_projects() -> UseStateHandle<IndexSet<ResourceId>> {
 
     open_projects
 }
-
-#[cfg(test)]
-#[path = "./open_projects_test.rs"]
-mod open_projects_test;

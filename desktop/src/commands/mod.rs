@@ -8,8 +8,3 @@ pub mod project;
 pub mod script;
 pub mod settings;
 pub mod types;
-pub mod user;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

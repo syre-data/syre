@@ -82,7 +82,3 @@ pub fn message(props: &MessageProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./message_test.rs"]
-mod message_test;

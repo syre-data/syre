@@ -104,7 +104,3 @@ pub fn inline_textarea(props: &InlineTextareaProps<'static>) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./inline_textarea_test.rs"]
-mod inline_textarea_test;

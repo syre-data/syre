@@ -29,7 +29,3 @@ pub fn metadata_preview(props: &MetadataPreviewProps) -> Html {
         </ol>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadata_preview_test.rs"]
-mod metadata_preview_test;

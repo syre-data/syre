@@ -180,7 +180,3 @@ pub fn bulk_update_container_script_associations(
     .unwrap();
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

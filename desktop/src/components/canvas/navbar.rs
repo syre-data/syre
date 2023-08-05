@@ -68,7 +68,3 @@ pub fn navbar() -> Html {
         <ContainerTreeView root={project.root} />
     }
 }
-
-#[cfg(test)]
-#[path = "./navbar_test.rs"]
-mod navbar_test;

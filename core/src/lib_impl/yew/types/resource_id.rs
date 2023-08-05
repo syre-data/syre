@@ -20,7 +20,3 @@ impl IntoPropValue<Option<AttrValue>> for ResourceId {
         Some(self.to_string().into())
     }
 }
-
-#[cfg(test)]
-#[path = "./resource_id_test.rs"]
-mod resource_id_test;

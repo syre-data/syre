@@ -26,7 +26,3 @@ where
         Ok(loader)
     }
 }
-
-#[cfg(test)]
-#[path = "./loader_test.rs"]
-mod loader_test;

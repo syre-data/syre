@@ -94,7 +94,3 @@ impl DirectedEdge {
         &self.to
     }
 }
-
-#[cfg(test)]
-#[path = "./edge_test.rs"]
-mod edge_test;

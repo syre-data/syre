@@ -93,7 +93,3 @@ impl Project {
         })
     }
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

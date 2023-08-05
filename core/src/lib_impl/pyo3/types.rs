@@ -17,7 +17,3 @@ impl ToPyObject for ResourceId {
 //         self.to_object(py)
 //     }
 // }
-
-#[cfg(test)]
-#[path = "./types_test.rs"]
-mod types_test;

@@ -189,7 +189,3 @@ pub fn funnel(props: &FunnelProps) -> Html {
         </ContextProvider<FunnelReducer>>
     }
 }
-
-#[cfg(test)]
-#[path = "./funnel_test.rs"]
-mod funnel_test;

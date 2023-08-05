@@ -38,7 +38,3 @@ pub fn robj_to_value(obj: Robj) -> Option<JsValue> {
 
     return None;
 }
-
-#[cfg(test)]
-#[path = "./functions_test.rs"]
-mod functions_test;

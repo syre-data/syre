@@ -54,7 +54,3 @@ impl From<Loader<UserMap>> for Users {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./users_test.rs"]
-mod users_test;

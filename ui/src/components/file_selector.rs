@@ -180,7 +180,3 @@ async fn get_user_path<'a>(
     let user_path = user_path.expect("could not retrieve file");
     user_path
 }
-
-#[cfg(test)]
-#[path = "./file_selector_test.rs"]
-mod file_selector_test;

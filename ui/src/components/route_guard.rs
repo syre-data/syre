@@ -40,7 +40,3 @@ where
         { for props.children.iter() }
     }
 }
-
-#[cfg(test)]
-#[path = "./route_guard_test.rs"]
-mod route_guard_test;

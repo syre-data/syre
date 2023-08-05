@@ -93,7 +93,3 @@ impl RunnerHooks {
         CoreRunnerHooks::new(get_script)
     }
 }
-
-#[cfg(test)]
-#[path = "./hooks_test.rs"]
-mod hooks_test;

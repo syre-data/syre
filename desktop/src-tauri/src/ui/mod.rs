@@ -5,7 +5,3 @@ pub mod system_tray;
 // Re-exports
 pub use main_menu::{handle_menu_event, main_menu};
 pub use system_tray::{handle_system_tray_event, system_tray};
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

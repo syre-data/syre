@@ -21,7 +21,3 @@ pub fn loading(props: &LoadingProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./fallback_loading_test.rs"]
-mod fallback_loading_test;

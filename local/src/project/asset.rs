@@ -4,7 +4,6 @@ use super::resources::asset::{Asset as LocalAsset, Assets};
 use crate::error::AssetError;
 use crate::types::AssetFileAction;
 use crate::{common, Error, Result};
-use settings_manager::locked::{local_settings::Loader, Settings};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Asset as CoreAsset;
@@ -198,7 +197,7 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+        let mut assets = Assets::load_from(container)?;
         assets.insert(asset.rid.clone(), asset);
         assets.save()?;
         Ok(rid)
@@ -262,7 +261,7 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+        let mut assets = Assets::load_from(container)?;
         assets.insert(asset.rid.clone(), asset.clone());
         assets.save()?;
 
@@ -319,7 +318,7 @@ pub fn init(path: &Path, container: Option<&Path>) -> Result<ResourceId> {
     let rid = asset.rid.clone();
 
     // insert asset
-    let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
+    let mut assets = Assets::load_from(container)?;
     assets.insert(asset.rid.clone(), asset);
     assets.save()?;
     Ok(rid)

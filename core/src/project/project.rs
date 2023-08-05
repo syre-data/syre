@@ -43,22 +43,6 @@ impl Project {
     }
 }
 
-impl Default for Project {
-    fn default() -> Project {
-        Project {
-            rid: ResourceId::new(),
-            name: String::from(""),
-            creator: Creator::User(None),
-            created: Utc::now(),
-            description: None,
-            data_root: None,
-            universal_root: None,
-            analysis_root: None,
-            meta_level: 0,
-        }
-    }
-}
-
 #[cfg(test)]
 #[path = "./project_test.rs"]
 mod project_test;

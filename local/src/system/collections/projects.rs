@@ -1,10 +1,8 @@
 //! Projects collection.
+use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use cluFlock::FlockLock;
-use derivative::{self, Derivative};
-use settings_manager::locked::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::LockedSettings;
-use std::fs::File;
+use crate::Result;
+use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::types::ResourceMap;
@@ -12,49 +10,40 @@ use thot_core::types::ResourceMap;
 /// Map from a [`Project`]'s id to its path.
 pub type ProjectMap = ResourceMap<PathBuf>;
 
-// ****************
-// *** Projects ***
-// ****************
+#[derive(Debug)]
+pub struct Projects(ProjectMap);
 
-#[derive(Derivative, LockedSettings)]
-#[derivative(Debug)]
-pub struct Projects {
-    #[locked_settings(file_lock = "ProjectMap")]
-    file_lock: FlockLock<File>,
+impl Projects {
+    pub fn load() -> Result<Self> {
+        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
+        serde_json::from_reader(fh)
+    }
 
-    #[locked_settings(priority = "User")]
-    projects: ProjectMap,
+    pub fn save(&self) -> Result {
+        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
+        serde_json::to_writer_pretty(fh, &self.0)
+    }
 }
 
 impl Deref for Projects {
     type Target = ProjectMap;
 
     fn deref(&self) -> &Self::Target {
-        &self.projects
+        &self.0
     }
 }
 
 impl DerefMut for Projects {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.projects
+        &mut self.0
     }
 }
 
-impl SystemSettings<ProjectMap> for Projects {
+impl SystemResource<ProjectMap> for Projects {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
         settings_dir.join("projects.json")
-    }
-}
-
-impl From<Loader<ProjectMap>> for Projects {
-    fn from(loader: Loader<ProjectMap>) -> Projects {
-        let loader: Components<ProjectMap> = loader.into();
-        Projects {
-            file_lock: loader.file_lock,
-            projects: loader.data,
-        }
     }
 }
 

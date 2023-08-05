@@ -1,12 +1,9 @@
 //! Local [`Script`].
 use crate::common::scripts_file;
+use crate::file_resource::LocalResource;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
-use cluFlock::FlockLock;
-use settings_manager::locked::local_settings::{Components, Loader};
-use settings_manager::locked::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
-use settings_manager::LockedSettings;
-use std::fs::File;
+use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -21,7 +18,7 @@ pub struct Script;
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
     pub fn new(path: ResourcePath) -> Result<CoreScript> {
-        let settings: UserSettings = SystemLoader::load_or_create::<UserSettings>()?.into();
+        let settings = UserSettings::load()?;
         let creator = settings.active_user.clone().map(|c| c.into());
 
         let mut script = CoreScript::new(path)?;
@@ -34,17 +31,26 @@ impl Script {
 // *** Scripts ***
 // ***************
 
-#[derive(LockedSettings, Debug)]
 pub struct Scripts {
-    #[locked_settings(file_lock = "CoreScripts")]
-    file_lock: FlockLock<File>,
     base_path: PathBuf,
-
-    #[locked_settings(priority = "Local")]
     scripts: CoreScripts,
 }
 
 impl Scripts {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = base_path.into();
+        let path = base_path.join(Self::rel_path());
+        let fh = fs::OpenOptions::new().read(true).open(path)?;
+        let scripts = serde_json::from_reader(fh)?;
+
+        Ok(Self { base_path, scripts })
+    }
+
+    pub fn save(&self) -> Result {
+        let fh = fs::OpenOptions::new().write(true).open(self.path())?;
+        serde_json::to_writer_pretty(fh, &self.scripts)
+    }
+
     /// Inserts a script.
     ///
     /// # Errors
@@ -83,24 +89,13 @@ impl Into<CoreScripts> for Scripts {
     }
 }
 
-impl LocalSettings<CoreScripts> for Scripts {
+impl LocalResource<CoreScripts> for Scripts {
     fn rel_path() -> PathBuf {
         scripts_file()
     }
 
     fn base_path(&self) -> &Path {
         &self.base_path
-    }
-}
-
-impl From<Loader<CoreScripts>> for Scripts {
-    fn from(loader: Loader<CoreScripts>) -> Self {
-        let loader: Components<CoreScripts> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            base_path: loader.base_path,
-            scripts: loader.data,
-        }
     }
 }
 

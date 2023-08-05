@@ -1,108 +1,37 @@
-/// User settings.
+use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use cluFlock::FlockLock;
+use crate::Result;
 use serde::{Deserialize, Serialize};
-use settings_manager::locked::settings::Settings;
-use settings_manager::locked::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::types::Priority as SettingsPriority;
-use settings_manager::Result as SettingsResult;
-use std::borrow::Cow;
-use std::fs::File;
-use std::ops::{Deref, DerefMut};
+use std::fs;
 use std::path::PathBuf;
 use thot_core::types::ResourceId;
 
-// *********************
-// *** User Settings ***
-// *********************
-
-/// Represents Thot user settings.
-///
-/// # Default
-/// UserSettings::default is derived so does not automatically obtain a file lock.
-/// This is done intentionally as it may not reflect the current state of the persisted settings.
-/// To obtain the file lock use the `UserSettings#acquire_lock` method.
-///
-/// # Fields
-/// + **active_user:** Option of the active User id.
-/// + **active_project:** Option of the active Project id.
-pub struct UserSettings {
-    file_lock: FlockLock<File>,
-    settings: LocalUserSettings,
-}
-
-impl UserSettings {
-    /// Returns the path to the users config directory for Thot.
-    pub fn dir_path() -> SettingsResult<PathBuf> {
-        let path = config_dir_path()?;
-        Ok(path.to_path_buf())
-    }
-}
-
-impl Deref for UserSettings {
-    type Target = LocalUserSettings;
-
-    fn deref(&self) -> &Self::Target {
-        &self.settings
-    }
-}
-
-impl DerefMut for UserSettings {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.settings
-    }
-}
-
 /// User settings.
 #[derive(Serialize, Deserialize, Clone, Default)]
-pub struct LocalUserSettings {
+pub struct UserSettings {
     pub active_user: Option<ResourceId>,
     pub active_project: Option<ResourceId>,
 }
 
-impl Settings<LocalUserSettings> for UserSettings {
-    fn settings(&self) -> Cow<LocalUserSettings> {
-        Cow::Owned(LocalUserSettings {
-            active_user: self.active_user.clone(),
-            active_project: self.active_project.clone(),
-        })
+impl UserSettings {
+    pub fn load() -> Result<Self> {
+        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
+        serde_json::from_reader(fh)
     }
 
-    fn file(&self) -> &File {
-        &*self.file_lock
-    }
-
-    fn file_mut(&mut self) -> &mut File {
-        &mut *self.file_lock
-    }
-
-    fn file_lock(&self) -> &FlockLock<File> {
-        &self.file_lock
-    }
-
-    fn priority(&self) -> SettingsPriority {
-        SettingsPriority::User
+    pub fn save(&self) -> Result {
+        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
+        serde_json::to_writer_pretty(fh, &self)
     }
 }
 
-impl SystemSettings<LocalUserSettings> for UserSettings {
+impl SystemResource<UserSettings> for UserSettings {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
-        let settings_dir = Self::dir_path().expect("could not get settings directory");
+        let settings_dir = config_dir_path()
+            .expect("could not get config dir")
+            .to_path_buf();
+
         settings_dir.join("settings.json")
     }
 }
-
-impl From<Loader<LocalUserSettings>> for UserSettings {
-    fn from(loader: Loader<LocalUserSettings>) -> Self {
-        let loader: Components<LocalUserSettings> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            settings: loader.data,
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "./user_settings_test.rs"]
-mod user_settings_test;

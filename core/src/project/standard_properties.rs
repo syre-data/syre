@@ -46,21 +46,6 @@ impl StandardProperties {
     }
 }
 
-impl Default for StandardProperties {
-    fn default() -> Self {
-        StandardProperties {
-            created: Utc::now(),
-            creator: Creator::User(None),
-
-            name: None,
-            kind: None,
-            description: None,
-            tags: Vec::new(),
-            metadata: HashMap::new(),
-        }
-    }
-}
-
 // ***************
 // *** Builder ***
 // ***************

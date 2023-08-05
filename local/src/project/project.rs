@@ -1,15 +1,13 @@
 //! Functionality and resources related to projects.
-use super::resources::project::{Loader, Project};
+use super::resources::Project;
 use crate::common;
 use crate::constants::THOT_DIR;
 use crate::error::ProjectError;
 use crate::system::collections::Projects;
 use crate::system::projects;
 use crate::{Error, Result};
-use settings_manager::locked::{system_settings::Loader as SystemLoader, Settings};
-use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::ResourceId;
@@ -64,7 +62,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         }
     };
 
-    let mut project: Project = Loader::load_or_create(path)?.into();
+    let mut project = Project::load_from(path)?;
     project.name = name;
     project.save()?;
 
@@ -91,7 +89,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 
 /// Move project to a new location.
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
-    let mut projects: Projects = SystemLoader::load_or_create::<Projects>()?.into();
+    let mut projects = Projects::load()?;
     let Some(project) = projects.get_mut(rid) else {
         return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` is not registered")).into());
     };
@@ -132,7 +130,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
         }
 
         // TODO[h] Should not create.
-        let prj: Project = Loader::load_or_create(path.clone())?.into();
+        let prj = Project::load_from(path.clone())?;
         if prj.meta_level == 0 {
             return common::canonicalize_path(path);
         }

@@ -96,7 +96,7 @@ fn init_from_should_work() {
 
     // test
     init_from(_dir.path(), container.clone()).expect("`init_from` should work");
-    let c = Container::load(_dir.path()).expect("could not load `Container`");
+    let c = Container::load_from(_dir.path()).expect("could not load `Container`");
     assert_eq!(container.rid, c.rid, "`rid` does not match");
     assert_eq!(
         container.properties, c.properties,

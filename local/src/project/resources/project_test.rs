@@ -1,6 +1,5 @@
 use super::*;
 use crate::common::{project_file_of, project_settings_file_of};
-use settings_manager::types::Priority as SettingsPriority;
 use std::path::Path;
 
 // ***************
@@ -34,16 +33,6 @@ fn project_rel_path_should_be_correct() {
         project_file_of(Path::new("")),
         rel_path,
         "realtive path is incorrect"
-    );
-}
-
-#[test]
-fn project_priority_should_be_correct() {
-    let prj = Project::new("test").expect("new should work");
-    assert_eq!(
-        SettingsPriority::Local,
-        prj.priority(),
-        "incorrect priority level"
     );
 }
 

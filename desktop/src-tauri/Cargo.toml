@@ -29,7 +29,6 @@ uuid = { version = "1.2", features = ["serde", "v4"] }
 tauri = { version = "1.4", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
 zmq = "0.10.0"
 
-settings_manager = { path = "../../settings_manager" }
 thot-core = { path = "../../core", features = ["serde"] }
 thot-desktop-lib = { path = "../src-lib" }
 thot-local = { path = "../../local" }

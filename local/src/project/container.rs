@@ -1,6 +1,6 @@
 //! High level functionality related to Containers.
 use super::project;
-use super::resources::container::{Container, Loader};
+use super::resources::Container;
 use crate::common::{container_file_of, thot_dir_of};
 use crate::error::ContainerError;
 use crate::{Error, Result};
@@ -43,7 +43,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         if path_is_container(path) {
             // path is already a container
             // return resource id
-            let container: Container = Loader::load_or_create(path.to_path_buf())?.into();
+            let container = Container::load_from(path)?;
             return Ok(container.rid.clone());
         }
     } else {
@@ -55,7 +55,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 
     // initialize container
     // assets included
-    let mut container: Container = Loader::load_or_create(path.to_path_buf())?.into();
+    let mut container = Container::load_from(path)?;
     container.save()?;
 
     Ok(container.rid.clone())
@@ -68,8 +68,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 /// + [`init`]
 pub fn init_from(path: &Path, container: CoreContainer) -> Result {
     init(path)?;
-    let mut cont: Container = Loader::load_or_create(path.into())?.into();
-
+    let mut cont = Container::load_from(path)?;
     *cont = container;
     cont.save()?;
 
@@ -173,7 +172,7 @@ pub fn init_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> 
 
     // init and register
     let rid = init(child)?;
-    let mut container: Container = Loader::load_or_create(container.to_path_buf())?.into();
+    let mut container = Container::load_from(container)?;
     container.save()?;
 
     Ok(rid)

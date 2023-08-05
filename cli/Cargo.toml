@@ -20,7 +20,6 @@ env_logger = "0.9"
 clap = { version = "3.2", features = ["derive"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
-settings_manager = { path = "../settings_manager" }
 thot-core = { path = "../core", features=["clap"] }
 thot-local = { path = "../local" }
 

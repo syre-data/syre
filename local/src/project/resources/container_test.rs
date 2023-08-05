@@ -7,7 +7,6 @@ use fake::faker::filesystem::raw::FilePath;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
 use fake::Fake;
-use settings_manager::types::Priority as SettingsPriority;
 use std::path::Path;
 use thot_core::project::{
     Asset as CoreAsset, Container as CoreContainer, RunParameters, ScriptAssociation,
@@ -32,17 +31,6 @@ fn container_default_works() {
 
     assert_eq!(0, container.scripts.len(), "scripts should be an empty Vec");
     assert_eq!(0, container.assets.len(), "assets should be empty");
-}
-
-#[test]
-fn container_priority_should_be_correct() {
-    let container = Container::default();
-
-    assert_eq!(
-        SettingsPriority::Local,
-        container.priority(),
-        "priority should be correct"
-    );
 }
 
 #[test]

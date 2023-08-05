@@ -1,6 +1,5 @@
-use crate::system::settings::user_settings::UserSettings;
+use crate::system::settings::UserSettings;
 use crate::Result;
-use settings_manager::locked::system_settings::Loader;
 use thot_core::project::StandardProperties as CoreStandardProperties;
 use thot_core::types::{Creator, UserId};
 
@@ -9,7 +8,7 @@ pub struct StandardProperties;
 impl StandardProperties {
     /// Creates a new [`StandardProperties`] with fields actively filled from system settings.
     pub fn new() -> Result<CoreStandardProperties> {
-        let settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+        let settings = UserSettings::load()?;
         let creator = match settings.active_user.as_ref() {
             Some(uid) => Some(UserId::Id(uid.clone().into())),
             None => None,
@@ -22,7 +21,3 @@ impl StandardProperties {
         Ok(props)
     }
 }
-
-#[cfg(test)]
-#[path = "standard_properties_test.rs"]
-mod standard_properties_test;

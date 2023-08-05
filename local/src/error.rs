@@ -6,9 +6,6 @@ use std::result::Result as StdResult;
 use thot_core::types::ResourceId;
 use thot_core::Error as CoreError;
 
-#[cfg(feature = "fs")]
-use settings_manager::Error as SettingsError;
-
 // ***********************
 // *** Settings Errors ***
 // ***********************
@@ -16,8 +13,8 @@ use settings_manager::Error as SettingsError;
 #[cfg(feature = "fs")]
 #[derive(Debug)]
 pub enum SettingsFileError {
-    CouldNotLoad(SettingsError),
-    CouldNotSave(SettingsError),
+    CouldNotLoad(PathBuf),
+    CouldNotSave(PathBuf),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,9 +121,6 @@ pub enum Error {
     ResourceStoreError(ResourceStoreError),
 
     #[cfg(feature = "fs")]
-    SettingsError(SettingsError),
-
-    #[cfg(feature = "fs")]
     SettingsFileError(SettingsFileError),
 }
 
@@ -140,13 +134,6 @@ impl From<CoreError> for Error {
 impl From<ContainerError> for Error {
     fn from(err: ContainerError) -> Self {
         Error::ContainerError(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<SettingsError> for Error {
-    fn from(err: SettingsError) -> Self {
-        Error::SettingsError(err)
     }
 }
 
@@ -169,7 +156,6 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-// @todo: Make better.
 impl Serialize for Error {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
     where

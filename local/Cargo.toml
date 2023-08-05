@@ -16,7 +16,6 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 aquamarine = "0.1"  # @todo: Only needed for documentation.
-cluFlock = { version = "1.2.7", optional = true }
 derivative = "2.2"
 directories = { version = "4.0", optional = true }
 serde = { version = "1.0", features = ["derive"] }
@@ -25,7 +24,6 @@ uuid = { version = "1.2.1", features = ["serde", "v4"] }
 validator = "0.14"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
-settings_manager = { path = "../settings_manager", optional = true }
 thot-core = { path = "../core", features = ["serde"] }
 tracing = "0.1.37"
 
@@ -34,9 +32,8 @@ rand = "0.8"
 fake = "2.4"
 lazy_static = "1.4.0"
 
-settings_manager_change_path = { path = "../settings_manager/settings_manager_change_path" }
 dev_utils = { path = "../dev_utils" }
 
 [features]
 default = ["fs"]
-fs = ["dep:cluFlock", "dep:directories", "dep:settings_manager"]
+fs = ["dep:directories"]

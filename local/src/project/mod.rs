@@ -5,21 +5,10 @@
 //! + Containers
 //! + Assets
 //! + Script Associations
-pub mod types;
-
-#[cfg(feature = "fs")]
 pub mod asset;
-
-#[cfg(feature = "fs")]
 pub mod container;
-
-#[cfg(feature = "fs")]
 pub mod project;
-
-#[cfg(feature = "fs")]
 pub mod resources;
-
-#[cfg(feature = "fs")]
 pub mod script;
 
 /// Current project format version.

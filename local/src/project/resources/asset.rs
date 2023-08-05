@@ -1,11 +1,8 @@
 /// Asset and Assets.
 use super::standard_properties::StandardProperties;
 use crate::common::assets_file;
+use crate::file_resource::LocalResource;
 use crate::Result;
-use cluFlock::FlockLock;
-use settings_manager::locked::local_settings::{Components, Loader, LocalSettings};
-use settings_manager::LockedSettings;
-use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::container::AssetMap;
@@ -41,14 +38,19 @@ impl Asset {
 /// + A [`Container`] may only reference a file in a single [`Asset`].
 /// This functionality is enforced in the `insert_asset` method, which
 /// should be prefered over `insert`.
-#[derive(LockedSettings)]
 pub struct Assets {
-    #[locked_settings(file_lock = "AssetMap")]
-    file_lock: FlockLock<File>,
     base_path: PathBuf,
-
-    #[locked_settings(priority = "Local")]
     assets: AssetMap,
+}
+
+impl Assets {
+    pub fn load_from(path: impl Into<PathBuf>) -> Result<Self> {
+        todo!();
+    }
+
+    pub fn save(&self) -> Result {
+        todo!();
+    }
 }
 
 impl Deref for Assets {
@@ -65,24 +67,13 @@ impl DerefMut for Assets {
     }
 }
 
-impl LocalSettings<AssetMap> for Assets {
+impl LocalResource<AssetMap> for Assets {
     fn rel_path() -> PathBuf {
         assets_file()
     }
 
     fn base_path(&self) -> &Path {
         &self.base_path
-    }
-}
-
-impl From<Loader<AssetMap>> for Assets {
-    fn from(loader: Loader<AssetMap>) -> Self {
-        let loader: Components<AssetMap> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            base_path: loader.base_path,
-            assets: loader.data,
-        }
     }
 }
 

@@ -728,12 +728,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diff"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2185,21 +2179,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 
 [[package]]
-name = "macrotest"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7489ae0986ce45414b7b3122c2e316661343ecf396b206e3e15f07c846616f10"
-dependencies = [
- "diff",
- "glob",
- "prettyplease",
- "serde",
- "serde_json",
- "syn 1.0.109",
- "toml 0.5.11",
-]
-
-[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3596,45 +3575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "settings_manager"
-version = "0.0.2"
-dependencies = [
- "cluFlock",
- "derivative",
- "dev_utils",
- "directories",
- "fake",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "settings_manager_derive_locked",
- "tempfile",
-]
-
-[[package]]
-name = "settings_manager_change_path"
-version = "0.0.1"
-dependencies = [
- "cluFlock",
- "macrotest",
- "proc-macro2",
- "quote",
- "serde",
- "settings_manager",
- "syn 1.0.109",
- "tempfile",
-]
-
-[[package]]
-name = "settings_manager_derive_locked"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.15",
-]
-
-[[package]]
 name = "sha2"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4178,7 +4118,6 @@ dependencies = [
  "log",
  "mockall",
  "rand 0.8.5",
- "settings_manager",
  "thot-core",
  "thot-local",
  "uuid 0.8.2",
@@ -4270,7 +4209,6 @@ dependencies = [
  "open",
  "serde",
  "serde_json",
- "settings_manager",
  "tauri",
  "tauri-build",
  "thot-core",
@@ -4301,7 +4239,6 @@ name = "thot-local"
 version = "0.10.0-intermediate"
 dependencies = [
  "aquamarine",
- "cluFlock",
  "derivative",
  "dev_utils",
  "directories",
@@ -4311,8 +4248,6 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "settings_manager",
- "settings_manager_change_path",
  "thot-core",
  "tracing",
  "uuid 1.3.1",
@@ -4330,7 +4265,6 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "settings_manager",
  "thot-core",
  "thot-local",
  "tracing",
@@ -4345,7 +4279,6 @@ name = "thot-local-runner"
 version = "0.0.1"
 dependencies = [
  "serde_json",
- "settings_manager",
  "thot-core",
  "thot-local",
  "thot-local-database",

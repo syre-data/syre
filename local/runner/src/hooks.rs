@@ -1,5 +1,4 @@
 //! Local runner hooks.
-use settings_manager::locked::system_settings::Loader as SystemLoader;
 use std::path::PathBuf;
 use thot_core::error::{ResourceError, Result as CoreResult};
 use thot_core::project::{Project, Script as CoreScript};
@@ -65,7 +64,7 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
 
     //TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
     // Get runner settings and override script's cmd if necessary
-    let runner_settings = SystemLoader::load_or_create::<RunnerSettings>();
+    let runner_settings = RunnerSettings::load();
     if let Ok(runner_settings) = runner_settings {
         let runner_settings: RunnerSettings = runner_settings.into();
         let cmd_str = script.env.cmd.as_str().to_lowercase();

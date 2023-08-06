@@ -4,6 +4,7 @@ use crate::system::common::config_dir_path;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 // *********************
@@ -28,13 +29,14 @@ pub struct RunnerSettings {
 
 impl RunnerSettings {
     pub fn load() -> Result<Self> {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        serde_json::from_reader(fh)
+        let file = fs::File::open(Self::path())?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
     }
 
     pub fn save(&self) -> Result {
         let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        serde_json::to_writer_pretty(fh, &self)
+        Ok(serde_json::to_writer_pretty(fh, &self)?)
     }
 }
 

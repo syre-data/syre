@@ -1,11 +1,11 @@
 //! Common error types.
-// use crate::db::error::Error as DbError;
 use crate::types::{ResourceId, ResourcePath};
 use std::convert::From;
 use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{self, Deserialize, Serialize};
@@ -15,10 +15,15 @@ use serde::{self, Deserialize, Serialize};
 // **********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ResourceError {
+    #[error("resource `{0}` does not exist")]
     DoesNotExist(&'static str),
+
+    #[error("id `{0}` already exists")]
     DuplicateId(ResourceId),
+
+    #[error("resource `{0}` already exists")]
     AlreadyExists(&'static str),
 }
 
@@ -27,9 +32,12 @@ pub enum ResourceError {
 // **********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ProjectError {
+    #[error("Project is not registered")]
     NotRegistered(Option<ResourceId>, Option<PathBuf>),
+
+    #[error("Project is misconfigured: {0}")]
     Misconfigured(&'static str),
 }
 
@@ -38,19 +46,10 @@ pub enum ProjectError {
 // ******************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GraphError {
+    #[error("invalid graph: {0}")]
     InvalidGraph(&'static str),
-}
-
-// ***********************
-// *** Container Error ***
-// ***********************
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
-pub enum ContainerError {
-    MissingChild(ResourceId),
 }
 
 // *******************
@@ -58,9 +57,12 @@ pub enum ContainerError {
 // *******************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AssetError {
+    #[error("Asset not registered")]
     NotRegistered(Option<ResourceId>, Option<ResourcePath>),
+
+    #[error("Asset path is not set")]
     PathNotSet,
 }
 
@@ -68,9 +70,9 @@ pub enum AssetError {
 // *** Script Error ***
 // ********************
 
-// @todo: serde features.
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ScriptError {
+    #[error("unknown language `{0:?}`")]
     UnknownLanguage(Option<OsString>),
 }
 
@@ -79,8 +81,9 @@ pub enum ScriptError {
 // ***************************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ResourcePathError {
+    #[error("{0}")]
     CouldNotParseMetalevel(&'static str),
 }
 
@@ -89,7 +92,7 @@ pub enum ResourcePathError {
 // ********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum RunnerError {
     /// An error occured when running the script
     /// on the specified `Container`.
@@ -98,6 +101,7 @@ pub enum RunnerError {
     /// 1. [`ResourceId`] of the `Script`.
     /// 2. [`ResourceId`] of the `Container`.
     /// 3. Error message from the script.
+    #[error("Script `{0}` running over Container `{1}` errored: {2}")]
     ScriptError(ResourceId, ResourceId, String),
 }
 
@@ -105,22 +109,38 @@ pub enum RunnerError {
 // *** Thot Error ***
 // ******************
 
-// @todo[3]: Put behind correct features.
-#[derive(Debug)]
+// TODO Put behind correct features.
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("{0}")]
     AssetError(AssetError),
-    ContainerError(ContainerError),
-    // DbError(DbError),
+
+    #[error("{0}")]
     IoError(io::Error),
+
+    #[error("{0}")]
     ProjectError(ProjectError),
+
+    #[error("{0}")]
     ResourceError(ResourceError),
+
+    #[error("{0}")]
     GraphError(GraphError),
+
+    #[error("{0}")]
     ResourcePathError(ResourcePathError),
+
+    #[error("{0}")]
     RunnerError(RunnerError),
+
+    #[error("{0}")]
     ScriptError(ScriptError),
+
+    #[error("{0}")]
     SerdeError(serde_json::Error),
 
     /// Invalid value encountered.
+    #[error("{0}")]
     ValueError(&'static str),
 }
 

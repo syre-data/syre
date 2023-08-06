@@ -2,7 +2,9 @@
 use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
 use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::types::ResourceMap;
@@ -10,18 +12,20 @@ use thot_core::types::ResourceMap;
 /// Map from a [`Project`]'s id to its path.
 pub type ProjectMap = ResourceMap<PathBuf>;
 
-#[derive(Debug)]
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(transparent)]
 pub struct Projects(ProjectMap);
 
 impl Projects {
     pub fn load() -> Result<Self> {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        serde_json::from_reader(fh)
+        let file = fs::File::open(Self::path())?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
     }
 
     pub fn save(&self) -> Result {
         let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        serde_json::to_writer_pretty(fh, &self.0)
+        Ok(serde_json::to_writer_pretty(fh, &self.0)?)
     }
 }
 

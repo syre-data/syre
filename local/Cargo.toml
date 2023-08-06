@@ -20,12 +20,13 @@ derivative = "2.2"
 directories = { version = "4.0", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
+thiserror = "1.0.44"
+tracing = "0.1.37"
 uuid = { version = "1.2.1", features = ["serde", "v4"] }
 validator = "0.14"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
 thot-core = { path = "../core", features = ["serde"] }
-tracing = "0.1.37"
 
 [dev-dependencies]
 rand = "0.8"

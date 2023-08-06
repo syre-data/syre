@@ -48,7 +48,8 @@ impl Scripts {
 
     pub fn save(&self) -> Result {
         let fh = fs::OpenOptions::new().write(true).open(self.path())?;
-        serde_json::to_writer_pretty(fh, &self.scripts)
+        serde_json::to_writer_pretty(fh, &self.scripts)?;
+        Ok(())
     }
 
     /// Inserts a script.

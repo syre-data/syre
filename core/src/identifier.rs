@@ -11,7 +11,7 @@ impl Identifier {
     }
 
     pub fn application() -> String {
-        String::from("core")
+        String::from("thot-core")
     }
 }
 

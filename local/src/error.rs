@@ -155,9 +155,6 @@ pub enum Error {
     #[error("{0}")]
     ProjectError(ProjectError),
 
-    // #[cfg(feature = "fs")]
-    // #[error("{0}")]
-    // ResourceStoreError(ResourceStoreError),
     #[cfg(feature = "fs")]
     #[error("{0}")]
     SettingsFileError(SettingsFileError),

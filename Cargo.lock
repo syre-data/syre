@@ -4212,6 +4212,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "thiserror",
  "thot-core",
  "thot-desktop-lib",
  "thot-local",

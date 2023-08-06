@@ -11,7 +11,7 @@ fn user_path_should_be_correct() {
 
     assert_eq!(
         expected,
-        UserSettings::user_path(uid),
+        UserSettings::rel_path(uid),
         "incorrect relative path"
     );
 }

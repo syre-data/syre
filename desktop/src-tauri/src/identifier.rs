@@ -3,6 +3,6 @@ pub struct Identifier;
 
 impl Identifier {
     pub fn application() -> String {
-        String::from("desktop")
+        String::from("thot-desktop")
     }
 }

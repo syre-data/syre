@@ -1,10 +1,10 @@
 //! Common implmentation for system functionality.
 use crate::identifier::Identifier;
-use crate::Result;
 use directories::ProjectDirs;
 use std::io;
 use std::path::PathBuf;
 use thot_core::identifier::Identifier as CoreIdentifier;
+use thot_core::Result;
 
 /// Returns directories for the user's Thot.
 pub fn system_dirs() -> Result<ProjectDirs> {

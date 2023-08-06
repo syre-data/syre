@@ -34,7 +34,7 @@ pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<Container> 
 pub fn update_container_properties(
     db: State<DbClient>,
     rid: ResourceId,
-    properties: String, // @todo: Issue with deserializing `HashMap` of `metadata`. perform manually.
+    properties: String, // TODO Issue with deserializing `HashMap` of `metadata`. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/6078
                         // properties: StandardProperties,
 ) -> LibResult {

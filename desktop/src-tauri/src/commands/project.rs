@@ -12,8 +12,7 @@ use thot_desktop_lib::error::{
     DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
 };
 use thot_local::project::project;
-use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
-use thot_local::project::types::ProjectSettings;
+use thot_local::project::resources::{Project as LocalProject, ProjectSettings};
 use thot_local::system::projects as sys_projects;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
@@ -157,17 +156,13 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 pub fn init_project(path: &Path) -> Result<ResourceId> {
     let rid = project::init(path)?;
 
-    // @todo: Move to frontend.
     // create analysis folder
     let analysis_root = "analysis";
     let mut analysis = path.to_path_buf();
     analysis.push(analysis_root);
     fs::create_dir(&analysis).expect("could not create analysis directory");
 
-    let mut project: LocalProject = ProjectLoader::load_or_create(path)
-        .expect("Could not load `Project`")
-        .into();
-
+    let mut project = LocalProject::load_from(path)?;
     project.analysis_root = Some(PathBuf::from(analysis_root));
     project.save()?;
 

@@ -1,6 +1,5 @@
 //! Commands related to users.
 use crate::error::Result;
-use crate::settings::loader::Loader;
 use crate::settings::{UserAppState, UserSettings};
 use crate::state::AppState;
 use tauri::State;
@@ -34,13 +33,13 @@ pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
         .expect("could not lock `AppState.user`") = user;
 
     // settings
-    let user_app_state: UserAppState = Loader::load_or_create_with::<UserAppState>(&rid)?.into();
+    let user_app_state = UserAppState::load(&rid)?;
     *app_state
         .user_app_state
         .lock()
         .expect("could not lock `AppState.user_app_state`") = Some(user_app_state);
 
-    let user_settings: UserSettings = Loader::load_or_create_with::<UserSettings>(&rid)?.into();
+    let user_settings = UserSettings::load(&rid)?.into();
     *app_state
         .user_settings
         .lock()

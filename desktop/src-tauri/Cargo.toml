@@ -34,6 +34,7 @@ thot-desktop-lib = { path = "../src-lib" }
 thot-local = { path = "../../local" }
 thot-local-database = { path = "../../local/database", features = ["server", "client"] }
 thot-local-runner = { path = "../../local/runner" }
+thiserror = "1.0.44"
 
 [features]
 # by default Tauri runs in production mode

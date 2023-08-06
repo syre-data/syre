@@ -7,10 +7,6 @@ use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
 
-// *********************
-// *** Runner Settings ***
-// *********************
-
 /// Represents Thot runner settings.
 ///
 /// # Default
@@ -40,6 +36,7 @@ impl RunnerSettings {
     }
 }
 
+// TODO Should probably be a `UserResource`.
 impl SystemResource<RunnerSettings> for RunnerSettings {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {

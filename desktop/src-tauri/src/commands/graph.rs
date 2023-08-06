@@ -48,7 +48,7 @@ pub fn init_project_graph(
     };
 
     let user = UserId::Id(user.rid.clone());
-    let mut container = Container::default();
+    let mut container = Container::new();
     container.properties.creator = Creator::User(Some(user));
 
     // create data folder

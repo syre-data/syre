@@ -1,5 +1,4 @@
 //! Resource ids.
-use std::ffi::OsStr;
 use std::fmt::{self, Display};
 use std::ops::Deref;
 use std::result::Result as StdResult;
@@ -16,7 +15,6 @@ use serde::{Deserialize, Serialize};
 pub struct ResourceId(Uuid);
 
 impl ResourceId {
-    // @todo: Change to default.
     pub fn new() -> ResourceId {
         ResourceId(Uuid::new_v4())
     }

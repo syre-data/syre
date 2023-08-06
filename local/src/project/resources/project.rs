@@ -1,17 +1,11 @@
 //! Project and project settings.
-use super::super::PROJECT_FORMAT_VERSION;
 use crate::common::{project_file, project_settings_file};
 use crate::file_resource::LocalResource;
+use crate::types::ProjectSettings;
 use crate::Result;
-use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
-use thot_core::types::{ResourceMap, UserPermissions};
-
-// ***************
-// *** Project ***
-// ***************
 
 /// Represents a Thot project.
 pub struct Project {
@@ -83,26 +77,6 @@ impl LocalResource<ProjectSettings> for Project {
 
     fn base_path(&self) -> &Path {
         &self.base_path
-    }
-}
-
-// ************************
-// *** Project Settings ***
-// ************************
-
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
-pub struct ProjectSettings {
-    /// Format standard for the Project.
-    pub local_format_version: String,
-    pub permissions: ResourceMap<UserPermissions>,
-}
-
-impl Default for ProjectSettings {
-    fn default() -> Self {
-        Self {
-            local_format_version: PROJECT_FORMAT_VERSION.to_string(),
-            permissions: ResourceMap::default(),
-        }
     }
 }
 

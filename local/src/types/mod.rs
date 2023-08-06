@@ -1,10 +1,8 @@
 pub mod asset;
-
-// #[cfg(feature = "fs")]
-// pub mod resource_store;
+pub mod container_settings;
+pub mod project_settings;
 
 // Re-exports
 pub use asset::AssetFileAction;
-
-// #[cfg(feature = "fs")]
-// pub use resource_store::{LocalResourceMap, ResourceStore, ResourceValue};
+pub use container_settings::ContainerSettings;
+pub use project_settings::ProjectSettings;

@@ -2,15 +2,15 @@
 use crate::common::{assets_file, container_file, container_settings_file};
 use crate::error::{Error, Result};
 use crate::file_resource::LocalResource;
+use crate::types::ContainerSettings;
 use has_id::HasId;
-use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::AssetMap;
 use thot_core::project::{Asset, Container as CoreContainer, ScriptAssociation};
-use thot_core::types::{ResourceId, UserPermissions};
+use thot_core::types::ResourceId;
 
 // *****************
 // *** Container ***
@@ -165,16 +165,6 @@ impl LocalResource<ContainerSettings> for Container {
     fn base_path(&self) -> &Path {
         &self.base_path
     }
-}
-
-// **************************
-// *** Container Settings ***
-// **************************
-
-/// Settings for a Container
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct ContainerSettings {
-    pub permissions: Vec<UserPermissions>,
 }
 
 #[cfg(test)]

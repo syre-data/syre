@@ -9,7 +9,7 @@ use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
 use thot_core::project::Project;
-use thot_local::project::types::ProjectSettings;
+use thot_local::types::ProjectSettings;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;

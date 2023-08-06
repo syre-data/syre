@@ -1,4 +1,7 @@
-/// Crate wide constant values.
+//! Crate wide constant values.
+
+/// Current project format version.
+pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";
 
 // *************
 // *** files ***

@@ -6,7 +6,7 @@ use crate::routes::Route;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
-use thot_local::project::types::ProjectSettings;
+use thot_local::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;

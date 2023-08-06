@@ -4,7 +4,7 @@ use indexmap::IndexSet;
 use std::rc::Rc;
 use thot_core::project::{Project, Scripts};
 use thot_core::types::{ResourceId, ResourceMap};
-use thot_local::project::types::ProjectSettings;
+use thot_local::types::ProjectSettings;
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;

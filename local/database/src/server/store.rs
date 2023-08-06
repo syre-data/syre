@@ -1,7 +1,6 @@
 //! Database for storing resources.
 use crate::error::Result;
 use has_id::HasId;
-use settings_manager::locked::Settings;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -3,8 +3,6 @@ use super::super::Database;
 use crate::command::ScriptCommand;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
-use settings_manager::locked::local_settings::Loader as LocalLoader;
-use settings_manager::locked::system_settings::Loader as SystemLoader;
 use std::path::PathBuf;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Project as CoreProject, Script as CoreScript};
@@ -66,17 +64,14 @@ impl Database {
             return Ok(scripts);
         }
 
-        let projects: Projects = SystemLoader::load_or_create::<Projects>()?.into();
+        let projects = Projects::load()?;
         let Some(project) = projects.get(&rid).clone() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
         };
 
-        let scripts: ProjectScripts =
-            LocalLoader::load_or_create::<ProjectScripts>(project.clone())?.into();
-
+        let scripts = ProjectScripts::load_from(project)?;
         let script_vals = (*scripts).clone().into_values().collect();
         self.store.insert_project_scripts(rid, scripts);
-
         Ok(script_vals)
     }
 

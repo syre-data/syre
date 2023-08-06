@@ -5,7 +5,6 @@ use crate::command::GraphCommand;
 use crate::server::store::ContainerTree;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
-use std::fs;
 use std::path::Path;
 use std::result::Result as StdResult;
 use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
@@ -15,7 +14,7 @@ use thot_core::types::ResourceId;
 use thot_local::common::unique_file_name;
 use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeLoader, ContainerTreeTransformer};
 use thot_local::project::container;
-use thot_local::project::resources::container::{Container, Loader as ContainerLoader};
+use thot_local::project::resources::container::Container;
 
 impl Database {
     #[tracing::instrument(skip(self))]
@@ -177,7 +176,7 @@ impl Database {
         // TODO Ensure unique and valid path.
         let child_path = unique_file_name(parent.base_path().join(&name))?;
         let cid = container::new(&child_path)?;
-        let mut child: Container = ContainerLoader::load_or_create(child_path.into())?.into();
+        let mut child = Container::load_from(child_path)?;
         child.properties.name = Some(name);
         child.save()?;
 

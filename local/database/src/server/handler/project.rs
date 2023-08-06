@@ -3,14 +3,12 @@ use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
 use serde_json::Value as JsValue;
-use settings_manager::locked::{system_settings::Loader as SystemLoader, Settings};
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::{Creator, ResourceId, UserPermissions};
 use thot_local::project::project::project_resource_root_path;
-use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
-use thot_local::project::types::{project_settings, ProjectSettings};
+use thot_local::project::resources::project::{Project as LocalProject, ProjectSettings};
 use thot_local::system::collections::projects::Projects;
 
 impl Database {
@@ -88,15 +86,14 @@ impl Database {
                 }
 
                 // add project to collection
-                let mut projects: Projects = match SystemLoader::load_or_create::<Projects>() {
+                let mut projects = match Projects::load() {
                     Ok(projects) => projects,
                     Err(err) => {
                         let err = Error::SettingsError(format!("{err:?}"));
                         return serde_json::to_value(err)
                             .expect("could not convert error to JsValue");
                     }
-                }
-                .into();
+                };
 
                 projects.insert(project.rid.clone(), path.to_path_buf());
 
@@ -155,7 +152,7 @@ impl Database {
     /// Reference to the loaded [`Project`](LocalProject).
     pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
         // load project
-        let project: LocalProject = ProjectLoader::load_or_create(path)?.into();
+        let project = LocalProject::load_from(path)?;
         let _o_project = self.store.insert_project(project)?;
         if let Some(project) = self.get_path_project(&path) {
             return Ok(project);
@@ -189,7 +186,7 @@ impl Database {
         &mut self,
         user: &ResourceId,
     ) -> Result<Vec<(CoreProject, ProjectSettings)>> {
-        let projects_info: Projects = SystemLoader::load_or_create::<Projects>()?.into();
+        let projects_info = Projects::load()?;
 
         // load projects
         let mut projects = Vec::new();

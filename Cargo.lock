@@ -4267,6 +4267,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "thiserror",
  "thot-core",
  "thot-local",
  "tracing",

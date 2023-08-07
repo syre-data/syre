@@ -8,6 +8,6 @@ pub mod standard_properties;
 // Re-exports
 pub use asset::{Asset, Assets};
 pub use container::Container;
-pub use project::{Project, ProjectSettings};
+pub use project::Project;
 pub use script::{Script, Scripts};
 pub use standard_properties::StandardProperties;

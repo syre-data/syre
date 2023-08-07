@@ -1,8 +1,10 @@
 /// Asset and Assets.
 use super::standard_properties::StandardProperties;
-use crate::common::assets_file;
+use crate::common;
 use crate::file_resource::LocalResource;
 use crate::Result;
+use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::container::AssetMap;
@@ -44,12 +46,19 @@ pub struct Assets {
 }
 
 impl Assets {
-    pub fn load_from(path: impl Into<PathBuf>) -> Result<Self> {
-        todo!();
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = base_path.into();
+        let path = base_path.join(Self::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        let assets = serde_json::from_reader(reader)?;
+
+        Ok(Self { base_path, assets })
     }
 
     pub fn save(&self) -> Result {
-        todo!();
+        let file = fs::OpenOptions::new().write(true).open(self.path())?;
+        Ok(serde_json::to_writer_pretty(file, &self.assets)?)
     }
 }
 
@@ -69,7 +78,7 @@ impl DerefMut for Assets {
 
 impl LocalResource<AssetMap> for Assets {
     fn rel_path() -> PathBuf {
-        assets_file()
+        common::assets_file()
     }
 
     fn base_path(&self) -> &Path {

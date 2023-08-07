@@ -3,6 +3,8 @@ use crate::common::{project_file, project_settings_file};
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
+use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
@@ -15,15 +17,37 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn load_from(path: impl Into<PathBuf>) -> Result<Self> {
-        todo!();
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = base_path.into();
+        let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+        let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
+
+        let project_file = fs::File::open(project_path)?;
+        let settings_file = fs::File::open(settings_path)?;
+
+        let project_reader = BufReader::new(project_file);
+        let settings_reader = BufReader::new(settings_file);
+
+        let project = serde_json::from_reader(project_reader)?;
+        let settings = serde_json::from_reader(settings_reader)?;
+
+        Ok(Self {
+            base_path,
+            project,
+            settings,
+        })
     }
 
     /// Save all data.
-    pub fn save(&mut self) -> Result {
-        todo!();
-        <Project as LocalResource<CoreProject>>::path(self);
-        <Project as LocalResource<ProjectSettings>>::path(self);
+    pub fn save(&self) -> Result {
+        let project_path = <Project as LocalResource<CoreProject>>::path(self);
+        let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
+
+        let project_file = fs::OpenOptions::new().write(true).open(project_path)?;
+        let settings_file = fs::OpenOptions::new().write(true).open(settings_path)?;
+
+        serde_json::to_writer_pretty(project_file, &self.project)?;
+        serde_json::to_writer_pretty(settings_file, &self.settings)?;
         Ok(())
     }
 

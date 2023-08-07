@@ -2,19 +2,17 @@
 use crate::common::{assets_file, container_file, container_settings_file};
 use crate::error::{Error, Result};
 use crate::file_resource::LocalResource;
-use crate::types::ContainerSettings;
+use crate::types::{ContainerProperties, ContainerSettings};
 use has_id::HasId;
+use std::fs;
 use std::hash::{Hash, Hasher};
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::AssetMap;
 use thot_core::project::{Asset, Container as CoreContainer, ScriptAssociation};
 use thot_core::types::ResourceId;
-
-// *****************
-// *** Container ***
-// *****************
 
 pub struct Container {
     base_path: PathBuf,
@@ -23,19 +21,69 @@ pub struct Container {
 }
 
 impl Container {
+    /// Create a new Container at the given base path.
+    ///
+    /// # Notes
+    /// + No changes or checks are made to the file system.
+    pub fn new(base_path: impl Into<PathBuf>) -> Self {
+        Self {
+            base_path: base_path.into(),
+            container: CoreContainer::new(),
+            settings: ContainerSettings::default(),
+        }
+    }
+
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
-        todo!();
-        <Container as LocalResource<CoreContainer>>::rel_path();
-        <Container as LocalResource<AssetMap>>::rel_path();
-        <Container as LocalResource<ContainerSettings>>::rel_path();
+        let base_path = base_path.into();
+        let properties_path =
+            base_path.join(<Container as LocalResource<ContainerProperties>>::rel_path());
+
+        let assets_path = base_path.join(<Container as LocalResource<AssetMap>>::rel_path());
+
+        let settings_path =
+            base_path.join(<Container as LocalResource<ContainerSettings>>::rel_path());
+
+        let properties_file = fs::File::open(properties_path)?;
+        let assets_file = fs::File::open(assets_path)?;
+        let settings_file = fs::File::open(settings_path)?;
+
+        let properties_reader = BufReader::new(properties_file);
+        let assets_reader = BufReader::new(assets_file);
+        let settings_reader = BufReader::new(settings_file);
+
+        let container: ContainerProperties = serde_json::from_reader(properties_reader)?;
+        let assets = serde_json::from_reader(assets_reader)?;
+        let settings = serde_json::from_reader(settings_reader)?;
+
+        let container = CoreContainer {
+            rid: container.rid,
+            properties: container.properties,
+            assets,
+            scripts: container.scripts,
+        };
+
+        Ok(Self {
+            base_path,
+            container,
+            settings,
+        })
     }
 
     /// Save all data.
-    pub fn save(&mut self) -> Result {
-        todo!();
-        <Container as LocalResource<CoreContainer>>::path(self);
-        <Container as LocalResource<AssetMap>>::path(self);
-        <Container as LocalResource<ContainerSettings>>::path(self);
+    pub fn save(&self) -> Result {
+        let properties_path = <Container as LocalResource<ContainerProperties>>::path(self);
+        let assets_path = <Container as LocalResource<AssetMap>>::path(self);
+        let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
+
+        let properties_file = fs::OpenOptions::new().write(true).open(properties_path)?;
+        let assets_file = fs::OpenOptions::new().write(true).open(assets_path)?;
+        let settings_file = fs::OpenOptions::new().write(true).open(settings_path)?;
+
+        let properties: ContainerProperties = self.container.clone().into();
+        serde_json::to_writer_pretty(properties_file, &properties)?;
+        serde_json::to_writer_pretty(assets_file, &self.assets)?;
+        serde_json::to_writer_pretty(settings_file, &self.settings)?;
+
         Ok(())
     }
 
@@ -137,7 +185,7 @@ impl HasId for Container {
     }
 }
 
-impl LocalResource<CoreContainer> for Container {
+impl LocalResource<ContainerProperties> for Container {
     fn rel_path() -> PathBuf {
         container_file()
     }

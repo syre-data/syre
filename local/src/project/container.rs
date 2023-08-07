@@ -55,9 +55,8 @@ pub fn init(path: &Path) -> Result<ResourceId> {
 
     // initialize container
     // assets included
-    let mut container = Container::load_from(path)?;
+    let mut container = Container::new(path);
     container.save()?;
-
     Ok(container.rid.clone())
 }
 

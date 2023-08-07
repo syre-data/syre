@@ -12,8 +12,9 @@ use thot_desktop_lib::error::{
     DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
 };
 use thot_local::project::project;
-use thot_local::project::resources::{Project as LocalProject, ProjectSettings};
+use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::projects as sys_projects;
+use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;

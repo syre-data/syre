@@ -5,7 +5,7 @@ use crate::types::ResourceId;
 use std::collections::HashSet;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 // *************
 // *** Trait ***
@@ -21,13 +21,37 @@ pub trait SearchFilter<T> {
 // *** Standard Filter ***
 // ***********************
 
+#[cfg(feature = "serde")]
+fn deserialize_possible_empty_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    match Option::<String>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(val) if val.is_empty() => Ok(Some(None)),
+        Some(val) => Ok(Some(Some(val))),
+    }
+}
+
 /// Search filter for all properties.
 #[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Default, Debug, Clone)]
 pub struct StandardSearchFilter {
     pub rid: Option<ResourceId>,
+
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, deserialize_with = "deserialize_possible_empty_string")
+    )]
     pub name: Option<Option<String>>,
+
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, deserialize_with = "deserialize_possible_empty_string")
+    )]
     pub kind: Option<Option<String>>,
     pub tags: Option<HashSet<String>>,
     pub metadata: Option<Metadata>,
@@ -37,7 +61,7 @@ impl<T> SearchFilter<T> for StandardSearchFilter
 where
     T: StandardResource,
 {
-    // @todo: Should just pass `StandardProperties`.
+    // TODO Should just pass `StandardProperties`.
     // Then can remove `StandardResource` trait.
     fn matches(&self, resource: &T) -> bool {
         if let Some(s_rid) = self.rid.as_ref() {

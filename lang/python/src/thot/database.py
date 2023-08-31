@@ -286,7 +286,7 @@ class Database:
             str: Path to save the Asset's file to.
         """
         if os.path.isabs(file):
-            raise ValueError("Asset file must be relative")
+            raise ValueError("file must be relative")
         
         path = {"Relative": file}
         user = self._active_user()

@@ -67,7 +67,7 @@ container_from_json <- function(container) {
   properties <- container$properties
   Container(
     name = properties$name,
-    type = properties$type,
+    type = properties$kind,
     tags = properties$tag,
     metadata = properties$metadata,
     assets = assets

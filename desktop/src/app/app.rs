@@ -32,7 +32,6 @@ use yew_router::prelude::*;
 ///      sign_in -- New user --> create_account(Create account)
 ///      create_account --> set_state
 /// ```
-#[tracing::instrument]
 #[function_component(App)]
 pub fn app() -> Html {
     let auth_state = use_reducer(|| AuthState::default());
@@ -71,7 +70,7 @@ pub fn app() -> Html {
         )
     }
 
-    // @todo: Respond to `open_settings` event.
+    // TODO Respond to `open_settings` event.
 
     html! {
         <BrowserRouter>

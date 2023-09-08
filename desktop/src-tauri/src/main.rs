@@ -15,12 +15,12 @@ mod ui;
 
 use commands::*;
 use std::io;
-use tauri::RunEvent;
+// use tauri::RunEvent;
 use thot_local_database::client::Client as DbClient;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::time::UtcTime;
-use tracing_subscriber::fmt::Subscriber;
+// use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{Layer, Registry};
 
@@ -57,7 +57,7 @@ fn main() {
     db::functions::verify_database();
 
     // create app
-    let app = tauri::Builder::default()
+    let _app = tauri::Builder::default()
         .system_tray(system_tray())
         .on_system_tray_event(|app, event| handle_system_tray_event(app, event))
         .menu(main_menu())
@@ -118,20 +118,22 @@ fn main() {
             add_script,
             remove_script,
         ])
-        .setup(setup::setup)
-        .build(tauri::generate_context!())
+        // .setup(setup::setup) // TODO Splashscreen
+        // .build(tauri::generate_context!()) // TODO Handle events
+        .run(tauri::generate_context!())
         .expect("could not build app");
 
-    app.run(move |_app, event| match event {
-        RunEvent::ExitRequested { api, .. } => {
-            // TODO Appears that `database` process is killed automatically
-            // when parent is killed. May have to manually kill if detached.
-            // if let Some((_rx_database, proc_database)) = db_handler {
-            //     proc_database
-            //         .kill()
-            //         .expect("could not kill `database` process");
-            // }
-        }
-        _ => {}
-    });
+    // TODO Handle events
+    // app.run(move |_app, event| match event {
+    //     RunEvent::ExitRequested { api, .. } => {
+    // TODO Appears that `database` process is killed automatically
+    // when parent is killed. May have to manually kill if detached.
+    // if let Some((_rx_database, proc_database)) = db_handler {
+    //     proc_database
+    //         .kill()
+    //         .expect("could not kill `database` process");
+    // }
+    // }
+    // _ => {}
+    // });
 }

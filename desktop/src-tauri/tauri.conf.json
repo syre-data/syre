@@ -82,15 +82,8 @@
         "minHeight": 640,
         "resizable": true,
         "title": "Thot",
-        "visible": false,
+        "visible": true,
         "fileDropEnabled": true
-      },
-      {
-          "width": 400,
-          "height": 200,
-          "decorations": false,
-          "url": "public/splashscreen.html",
-          "label": "splashscreen"
       }
     ],
     "systemTray": {

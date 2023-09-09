@@ -14,8 +14,7 @@ fn container_tree_load_should_work() {
     let cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
 
     // test
-    let graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
+    let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     assert_eq!(&rid, graph.root(), "incorrect root");
     assert!(
@@ -60,8 +59,7 @@ fn container_tree_duplicate_should_work() {
     let _cid_11 = container::init(&c11_dir).expect("could not init grandchild `Container`");
     let _cid_12 = container::init(&c12_dir).expect("could not init grandchild `Container`");
 
-    let graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
+    let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     // test
     let dup = graph
@@ -111,8 +109,7 @@ fn container_tree_set_base_path_should_work() {
     let cid_11 = container::init(&c11_dir).expect("could not init grandchild `Container`");
     let cid_12 = container::init(&c12_dir).expect("could not init grandchild `Container`");
 
-    let mut graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
+    let mut graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     // test
     graph

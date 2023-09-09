@@ -4,7 +4,7 @@ use crate::system::common::config_dir_path;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::types::ResourceMap;
@@ -12,7 +12,7 @@ use thot_core::types::ResourceMap;
 /// Map from a [`Project`]'s id to its path.
 pub type ProjectMap = ResourceMap<PathBuf>;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 #[serde(transparent)]
 pub struct Projects(ProjectMap);
 
@@ -23,9 +23,21 @@ impl Projects {
         Ok(serde_json::from_reader(reader)?)
     }
 
+    pub fn load_or_default() -> Result<Self> {
+        match fs::File::open(Self::path()) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                Ok(serde_json::from_reader(reader)?)
+            }
+
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self.0)?)
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 }
 

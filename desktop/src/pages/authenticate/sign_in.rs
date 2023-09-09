@@ -53,7 +53,7 @@ pub fn sign_in() -> Html {
                 };
 
                 if user.is_none() {
-                    // @todo[0]: Alert user.
+                    // TODO Alert user.
                     // user not found, alert user
                     invalid_credentials.set(true);
                 } else {

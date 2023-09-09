@@ -41,7 +41,7 @@ pub fn add_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users = Users::load()?;
+    let mut users = Users::load_or_default()?;
 
     // check if email already exists
     let user_count = user_count_by_email(&user.email, &users);
@@ -104,7 +104,7 @@ pub fn update_user(user: User) -> Result {
 
 /// Gets the active user.
 pub fn get_active_user() -> Result<Option<User>> {
-    let user_settings = UserSettings::load()?;
+    let user_settings = UserSettings::load_or_default()?;
     let Some(active_user) = user_settings.active_user.as_ref() else {
         return Ok(None);
     };
@@ -122,8 +122,8 @@ pub fn set_active_user(rid: &ResourceId) -> Result {
     validate_id_is_present(&rid, &users)?;
 
     // set active user
-    let mut settings = UserSettings::load()?;
-    settings.active_user = Some((*rid).clone().into());
+    let mut settings = UserSettings::load_or_default()?;
+    settings.active_user = Some(rid.clone());
     settings.save()?;
     Ok(())
 }

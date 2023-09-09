@@ -101,40 +101,39 @@ impl ContainerTreeDuplicator {
         graph: &ContainerTree,
         root: &ResourceId,
     ) -> Result<ContainerTree> {
-        todo!();
-        // // ensure root exists
-        // let Some(node) = graph.get(root) else {
-        //     return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
-        // };
+        // ensure root exists
+        let Some(node) = graph.get(root) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
+        };
 
-        // // duplicate container to new location
-        // let mut container = Container::new();
-        // container.properties = node.properties.clone();
-        // container.scripts = node.scripts.clone();
-        // let container = container.save(path.into())?;
+        // duplicate container to new location
+        let mut container = Container::new(path);
+        container.properties = node.properties.clone();
+        container.scripts = node.scripts.clone();
+        container.save()?;
 
-        // let dup_root = container.rid.clone();
-        // let mut dup_graph = ResourceTree::new(container);
-        // let Some(children) = graph.children(&root).cloned() else {
-        //     return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
-        // };
+        let dup_root = container.rid.clone();
+        let mut dup_graph = ResourceTree::new(container);
+        let Some(children) = graph.children(&root).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
+        };
 
-        // for child in children {
-        //     let rel_path = graph
-        //         .get(&child)
-        //         .expect("could not get child node")
-        //         .base_path()
-        //         .file_name()
-        //         .expect("could not get file name of `Container`");
+        for child in children {
+            let rel_path = graph
+                .get(&child)
+                .expect("could not get child node")
+                .base_path()
+                .file_name()
+                .expect("could not get file name of `Container`");
 
-        //     let mut c_path = path.to_path_buf();
-        //     c_path.push(rel_path);
+            let mut c_path = path.to_path_buf();
+            c_path.push(rel_path);
 
-        //     let c_tree = Self::duplicate_to(&c_path, graph, &child)?;
-        //     dup_graph.insert_tree(&dup_root, c_tree)?;
-        // }
+            let c_tree = Self::duplicate_to(&c_path, graph, &child)?;
+            dup_graph.insert_tree(&dup_root, c_tree)?;
+        }
 
-        // Ok(dup_graph)
+        Ok(dup_graph)
     }
 }
 

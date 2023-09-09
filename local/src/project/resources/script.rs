@@ -37,6 +37,13 @@ pub struct Scripts {
 }
 
 impl Scripts {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            base_path: path,
+            scripts: CoreScripts::default(),
+        }
+    }
+
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
         let base_path = base_path.into();
         let path = base_path.join(Self::rel_path());
@@ -47,8 +54,7 @@ impl Scripts {
     }
 
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(self.path())?;
-        serde_json::to_writer_pretty(fh, &self.scripts)?;
+        fs::write(self.path(), serde_json::to_string_pretty(&self.scripts)?)?;
         Ok(())
     }
 

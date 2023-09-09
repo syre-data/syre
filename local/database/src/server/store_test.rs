@@ -21,7 +21,7 @@ fn new_should_work() {
 fn insert_project_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    let project = LocalProject::load(_dir.path()).expect("load `Project` should work");
+    let project = LocalProject::load_from(_dir.path()).expect("load `Project` should work");
     let pid = project.rid.clone();
 
     let mut db = Datastore::new();
@@ -52,8 +52,9 @@ fn insert_container_tree_should_work() {
     let mut _dir = TempDir::new().expect("new `TempDir` should work");
     let child_dir = _dir.mkdir().expect("mkdir should work");
 
-    let mut root = LocalContainer::load(_dir.path()).expect("load `Container` should work");
-    let mut child = LocalContainer::load(&child_dir).expect("load child `Container` should work");
+    let mut root = LocalContainer::load_from(_dir.path()).expect("load `Container` should work");
+    let mut child =
+        LocalContainer::load_from(&child_dir).expect("load child `Container` should work");
     root.register_child(child.rid.clone());
 
     let a0 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
@@ -110,14 +111,14 @@ fn insert_container_tree_should_work() {
 fn insert_container_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    let mut container = LocalContainer::load(_dir.path()).expect("load `Container` should work");
+    let mut container =
+        LocalContainer::load_from(_dir.path()).expect("load `Container` should work");
     let asset = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
 
     let cid = container.rid.clone();
     let aid = asset.rid.clone();
 
     container
-        .assets
         .insert_asset(asset)
         .expect("could not insert `Asset`s");
 
@@ -195,12 +196,12 @@ fn find_containers_should_work() {
     let child_1_dir = _dir.mkdir().expect("mkdir should work");
     let child_2_dir = _dir.mkdir().expect("mkdir should work");
 
-    let mut root = LocalContainer::load(_dir.path()).expect("load `Container` should work");
+    let mut root = LocalContainer::load_from(_dir.path()).expect("load `Container` should work");
     let mut child_1 =
-        LocalContainer::load(&child_1_dir).expect("load child `Container` should work");
+        LocalContainer::load_from(&child_1_dir).expect("load child `Container` should work");
 
     let mut child_2 =
-        LocalContainer::load(&child_2_dir).expect("load child `Container` should work");
+        LocalContainer::load_from(&child_2_dir).expect("load child `Container` should work");
 
     root.register_child(child_1.rid.clone());
     root.register_child(child_2.rid.clone());
@@ -277,8 +278,9 @@ fn find_assets_should_work() {
     let mut _dir = TempDir::new().expect("new `TempDir` should work");
     let child_dir = _dir.mkdir().expect("mkdir should work");
 
-    let mut root = LocalContainer::load(_dir.path()).expect("load `Container` should work");
-    let mut child = LocalContainer::load(&child_dir).expect("load child `Container` should work");
+    let mut root = LocalContainer::load_from(_dir.path()).expect("load `Container` should work");
+    let mut child =
+        LocalContainer::load_from(&child_dir).expect("load child `Container` should work");
     root.register_child(child.rid.clone());
 
     let mut a0 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
@@ -372,7 +374,7 @@ fn find_assets_should_work() {
 fn insert_project_scripts_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    let project = LocalProject::load(_dir.path()).expect("load `Project` should work");
+    let project = LocalProject::load_from(_dir.path()).expect("load `Project` should work");
     let pid = project.rid.clone();
 
     let mut db = Datastore::new();
@@ -388,7 +390,7 @@ fn remove_script_should_work() {
 
     let pid = ResourceId::new();
 
-    let mut scripts = LocalScripts::load(_dir.path()).expect("could not load `Scripts`");
+    let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
     let script = CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
     let sid = script.rid.clone();
 

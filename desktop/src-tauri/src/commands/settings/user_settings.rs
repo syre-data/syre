@@ -27,7 +27,7 @@ pub fn load_user_settings(
         }
     }
 
-    let user_settings = AppUserSettings::load(&rid)?;
+    let user_settings = AppUserSettings::load_or_new(&rid)?;
     let desktop_settings: DesktopUserSettings = user_settings.clone().into();
     *settings = Some(user_settings);
 

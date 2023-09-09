@@ -60,7 +60,6 @@ impl Reducible for AuthState {
             }
         };
 
-        tracing::debug!(auth_state = ?current);
         current.into()
     }
 }

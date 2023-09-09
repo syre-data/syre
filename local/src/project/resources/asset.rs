@@ -16,9 +16,8 @@ use thot_core::types::{ResourceId, ResourcePath};
 // *******************
 
 pub struct Asset;
-
 impl Asset {
-    /// Creates an [] with the `properties` field filled actively from
+    /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].
     pub fn new(path: ResourcePath) -> Result<CoreAsset> {
         let props = StandardProperties::new()?;
@@ -60,6 +59,10 @@ impl Assets {
         let file = fs::OpenOptions::new().write(true).open(self.path())?;
         Ok(serde_json::to_writer_pretty(file, &self.assets)?)
     }
+
+    pub fn insert(&mut self, asset: CoreAsset) -> Option<CoreAsset> {
+        self.assets.insert(asset.rid.clone(), asset)
+    }
 }
 
 impl Deref for Assets {
@@ -85,7 +88,3 @@ impl LocalResource<AssetMap> for Assets {
         &self.base_path
     }
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

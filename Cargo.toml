@@ -9,7 +9,6 @@ members = [
     "dev_utils",
     "has_id",
     "has_id/has_id_derive",
-    "lang",
     "lang/rust",
     "local",
     "local/database",

@@ -18,7 +18,7 @@ use thot_core::types::ResourceId;
 /// # See also
 /// + `insert_project`
 pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = Projects::load_or_default()?;
 
     // check if project is already registered.
     if projects.contains_key(&rid) {

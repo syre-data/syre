@@ -21,9 +21,20 @@ impl UserSettings {
         Ok(serde_json::from_reader(reader)?)
     }
 
+    pub fn load_or_default() -> Result<Self> {
+        match fs::File::open(Self::path()) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                Ok(serde_json::from_reader(reader)?)
+            }
+
+            Err(_) => Ok(Self::default()),
+        }
+    }
+
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self)?)
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 }
 

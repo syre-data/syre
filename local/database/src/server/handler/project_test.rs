@@ -3,7 +3,6 @@ use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
-use settings_manager::LocalSettings;
 use thot_core::project::Project as CoreProject;
 use thot_local::project::project;
 use thot_local::project::resources::Project as LocalProject;
@@ -18,7 +17,7 @@ fn update_project_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not create new `TempDir`");
     project::init(_dir.path()).expect("could not init `Project`");
-    let project = LocalProject::load(_dir.path()).expect("could not load `Project`");
+    let project = LocalProject::load_from(_dir.path()).expect("could not load `Project`");
     let pid = project.rid.clone();
 
     let name = Word(EN).fake::<String>();

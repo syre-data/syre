@@ -187,7 +187,7 @@ impl Database {
         &mut self,
         user: &ResourceId,
     ) -> Result<Vec<(CoreProject, ProjectSettings)>> {
-        let projects_info = Projects::load()?;
+        let projects_info = Projects::load_or_default()?;
 
         // load projects
         let mut projects = Vec::new();
@@ -202,7 +202,7 @@ impl Database {
             }
         }
 
-        // @todo: Unload unused projects.
+        // TODO Unload unused projects.
         Ok(projects)
     }
 

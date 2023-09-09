@@ -42,7 +42,7 @@ pub fn mock_props(name_none: Option<bool>, kind_none: Option<bool>) -> StandardP
     );
 
     // props
-    let mut props = StandardProperties::default();
+    let mut props = StandardProperties::new();
     props.name = fake_opt_str(name_none);
     props.kind = fake_opt_str(kind_none);
     props.tags = tag_words;

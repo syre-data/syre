@@ -10,47 +10,12 @@ use thot_local::project::container;
 use thot_local::project::resources::Container as LocalContainer;
 
 #[test]
-fn load_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("new temp dir should work");
-    let c_path = _dir.path().to_path_buf();
-    let rid = container::init(_dir.path()).expect("could not init `Container`");
-    let mut db = Database::new();
-
-    // test
-    let container = db.handle_command_container(ContainerCommand::Load(c_path.clone()));
-
-    let container: Result<CoreContainer> =
-        serde_json::from_value(container).expect("could not convert JsValue to `Container`");
-
-    let container = container.expect("`LoadContainer` should work");
-    assert_eq!(
-        rid.clone(),
-        container.rid,
-        "incorrect `Container` retrieved"
-    );
-
-    // second retrieval
-    let container = db.handle_command_container(ContainerCommand::Load(c_path));
-
-    let container: Result<CoreContainer> =
-        serde_json::from_value(container).expect("could not convert JsValue to `Container`");
-
-    let container = container.expect("`LoadContainer` should work");
-    assert_eq!(
-        rid.clone(),
-        container.rid,
-        "could not retrieve `Container` again"
-    );
-}
-
-#[test]
 fn database_command_update_container_properties_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not create new temp dir");
     let _rid = container::init(_dir.path()).expect("could not init `Container`");
     let mut db = Database::new();
-    let container = db.handle_command_container(ContainerCommand::Load(_dir.path().to_path_buf()));
+    let container = db.handle_command_container(ContainerCommand::load(_dir.path().to_path_buf()));
 
     let container: Result<CoreContainer> =
         serde_json::from_value(container).expect("could not contvert JsValue to `Container`");
@@ -83,7 +48,7 @@ fn database_command_update_container_properties_should_work() {
         db.store.remove_container(&container.rid);
     }
 
-    let saved = LocalContainer::load(_dir.path()).expect("could not load `Container`");
+    let saved = LocalContainer::load_from(_dir.path()).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
         "incorrect name persisted"
@@ -97,10 +62,5 @@ fn database_command_update_asset_should_work() {
 
 #[test]
 fn database_add_assets_should_work() {
-    todo!();
-}
-
-#[test]
-fn duplicate_tree_should_work() {
     todo!();
 }

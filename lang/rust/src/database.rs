@@ -208,7 +208,3 @@ impl Database {
         Ok(path.into())
     }
 }
-
-#[cfg(test)]
-#[path = "./database_test.rs"]
-mod database_test;

@@ -77,10 +77,6 @@ impl Script {
 pub struct Scripts(#[cfg_attr(feature = "serde", serde(with = "values_only"))] ResourceMap<Script>);
 
 impl Scripts {
-    pub fn new() -> Scripts {
-        Scripts(ResourceMap::new())
-    }
-
     /// Returns whether a script with the given path is registered.
     pub fn contains_path(&self, path: &ResourcePath) -> bool {
         self.by_path(path).is_some()

@@ -24,8 +24,8 @@ impl Templates {
     }
 
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self.0)?)
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 }
 

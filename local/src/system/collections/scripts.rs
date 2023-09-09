@@ -13,7 +13,7 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(transparent)]
 pub struct Scripts(ScriptMap);
 
@@ -25,8 +25,8 @@ impl Scripts {
     }
 
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self.0)?)
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 
     /// Returns whether a script with the given path is registered.

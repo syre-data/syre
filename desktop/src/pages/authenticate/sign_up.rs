@@ -79,7 +79,7 @@ pub fn sign_up() -> Html {
                     // set user as active
                     navigator.push(&Route::Home);
 
-                    // @todo[1]: Handle error from set_active_user.
+                    // TODO Handle error from set_active_user.
                     let _active_res =
                         invoke::<()>("set_active_user", ResourceIdArgs { rid: user.rid }).await;
                 }

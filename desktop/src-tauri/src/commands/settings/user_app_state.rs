@@ -22,15 +22,14 @@ pub fn load_user_app_state(
         // user state loaded
         if state.user() == &rid {
             // user state for user already loaded
-            return Ok((*state).clone());
+            return Ok((*state).clone().into());
         }
     }
 
-    let user_state = UserAppState::load(&rid)?;
-    let desktop_state = user_state.clone().into();
-    *state = Some(user_state);
+    let user_app_state = UserAppState::load_or_new(&rid)?;
+    *state = Some(user_app_state.clone());
 
-    Ok(desktop_state)
+    Ok(user_app_state.into())
 }
 
 /// Gets the current [`UserAppState`].
@@ -41,7 +40,7 @@ pub fn get_user_app_state(app_state: State<AppState>) -> Option<DesktopUserAppSt
         .lock()
         .expect("could not lock `UserAppState`");
 
-    state.as_ref().map(|settings| (*settings).clone())
+    state.as_ref().map(|state| (*state).clone().into())
 }
 
 /// Updates a user's [`UserAppState`](DesktopUserAppState) settings.

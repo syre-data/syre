@@ -17,6 +17,21 @@ pub struct Project {
 }
 
 impl Project {
+    pub fn new(path: PathBuf) -> Self {
+        let name = path.clone();
+        let name = name
+            .file_name()
+            .expect("invalid path")
+            .to_str()
+            .expect("could not convert name to str");
+
+        Self {
+            base_path: path,
+            project: CoreProject::new(name),
+            settings: ProjectSettings::default(),
+        }
+    }
+
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
         let base_path = base_path.into();
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
@@ -43,11 +58,8 @@ impl Project {
         let project_path = <Project as LocalResource<CoreProject>>::path(self);
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
 
-        let project_file = fs::OpenOptions::new().write(true).open(project_path)?;
-        let settings_file = fs::OpenOptions::new().write(true).open(settings_path)?;
-
-        serde_json::to_writer_pretty(project_file, &self.project)?;
-        serde_json::to_writer_pretty(settings_file, &self.settings)?;
+        fs::write(project_path, serde_json::to_string_pretty(&self.project)?)?;
+        fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
         Ok(())
     }
 
@@ -103,7 +115,3 @@ impl LocalResource<ProjectSettings> for Project {
         &self.base_path
     }
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

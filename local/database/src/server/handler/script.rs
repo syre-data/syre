@@ -64,7 +64,7 @@ impl Database {
             return Ok(scripts);
         }
 
-        let projects = Projects::load()?;
+        let projects = Projects::load_or_default()?;
         let Some(project) = projects.get(&rid).clone() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
         };

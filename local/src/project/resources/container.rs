@@ -74,29 +74,14 @@ impl Container {
         let properties_path = <Container as LocalResource<ContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
-
-        let properties_file = fs::OpenOptions::new().write(true).open(properties_path)?;
-        let assets_file = fs::OpenOptions::new().write(true).open(assets_path)?;
-        let settings_file = fs::OpenOptions::new().write(true).open(settings_path)?;
+        fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
 
         let properties: ContainerProperties = self.container.clone().into();
-        serde_json::to_writer_pretty(properties_file, &properties)?;
-        serde_json::to_writer_pretty(assets_file, &self.assets)?;
-        serde_json::to_writer_pretty(settings_file, &self.settings)?;
+        fs::write(properties_path, serde_json::to_string_pretty(&properties)?)?;
+        fs::write(assets_path, serde_json::to_string_pretty(&self.assets)?)?;
+        fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
 
         Ok(())
-    }
-
-    /// Adds the given [`Asset`](LocalAsset) to the `Container`.
-    pub fn insert_asset(&mut self, asset: Asset) -> Option<Asset> {
-        self.container.assets.insert(asset.rid.clone(), asset)
-    }
-
-    /// Removes an [`Asset`](CoreAsset).
-    /// Returns the removed `Asset` if it was present,
-    /// or `None` otherwise.
-    pub fn remove_asset(&mut self, rid: &ResourceId) -> Option<Asset> {
-        self.assets.remove(rid)
     }
 
     // ---------------

@@ -13,7 +13,7 @@ use thot_core::types::ResourceId;
 
 pub type UserMap = HashMap<ResourceId, User>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(transparent)]
 pub struct Users(UserMap);
 
@@ -24,9 +24,20 @@ impl Users {
         Ok(serde_json::from_reader(reader)?)
     }
 
+    pub fn load_or_default() -> Result<Self> {
+        match fs::File::open(Self::path()) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                Ok(serde_json::from_reader(reader)?)
+            }
+
+            Err(_) => Ok(Self::default()),
+        }
+    }
+
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self.0)?)
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 }
 

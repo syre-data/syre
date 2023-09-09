@@ -14,16 +14,16 @@ fn remove_script_should_work() {
 
     // initialize project
     project::init(_dir.path()).expect("could not init `Project`");
-    let mut project = LocalProject::load(_dir.path()).expect("could not load `Project`");
+    let mut project = LocalProject::load_from(_dir.path()).expect("could not load `Project`");
 
     let cid = container::init(_dir.path()).expect("could not init `Container`");
 
     let child_cid = container::init(&child_dir).expect("could not init child `Container`");
 
-    let mut container = LocalContainer::load(_dir.path()).expect("could not load `Container`");
+    let mut container = LocalContainer::load_from(_dir.path()).expect("could not load `Container`");
 
     let mut child_container =
-        LocalContainer::load(&child_dir).expect("could not load child `Container`");
+        LocalContainer::load_from(&child_dir).expect("could not load child `Container`");
 
     container.register_child(child_cid.clone());
 
@@ -41,7 +41,7 @@ fn remove_script_should_work() {
     let sid_0 = script_0.rid.clone();
     let sid_1 = script_1.rid.clone();
 
-    let mut scripts = LocalScripts::load(_dir.path()).expect("could not load `Scripts`");
+    let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
 
     scripts
         .insert_script(script_0)
@@ -143,5 +143,5 @@ fn remove_script_should_work() {
         child_container.scripts.contains_key(&sid_1),
         "child container should contain unremoved script"
     );
-    // @todo[3]: ensure changes save to disk
+    // TODO ensure changes save to disk
 }

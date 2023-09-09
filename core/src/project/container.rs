@@ -45,6 +45,11 @@ impl Container {
     pub fn insert_asset(&mut self, asset: Asset) -> Option<Asset> {
         self.assets.insert(asset.rid.clone(), asset)
     }
+
+    /// Inserts an [`Asset`] into the [`Container`].
+    pub fn remove_asset(&mut self, rid: &ResourceId) -> Option<Asset> {
+        self.assets.remove(rid)
+    }
 }
 
 impl Hash for Container {

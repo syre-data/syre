@@ -24,7 +24,7 @@ pub fn index() -> Html {
         let app_state = app_state.clone();
         let navigator = navigator.clone();
 
-        // @todo: Check if any users exist. If not redirect to sign up page
+        // TODO Check if any users exist. If not redirect to sign up page
         //  instead of sign in page.
         use_effect_with_deps(
             |auth_state| {
@@ -39,7 +39,7 @@ pub fn index() -> Html {
                     match active_user {
                         None => navigator.push(&Route::SignIn),
                         Some(user) => {
-                            // set acitve user on backend
+                            // set active user on backend
                             let _active_res = invoke::<()>(
                                 "set_active_user",
                                 ResourceIdArgs {

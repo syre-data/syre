@@ -1,5 +1,5 @@
 //! Functionality and resources related to projects.
-use super::resources::Project;
+use super::resources::{Project, Scripts};
 use crate::common;
 use crate::constants::THOT_DIR;
 use crate::error::ProjectError;
@@ -16,7 +16,6 @@ use thot_core::types::ResourceId;
 // *** Init ***
 // ************
 
-// @todo: reinitialize project if already a project. See Git's functionality.
 /// Initialize a new Thot project.
 /// If the path is already initialized as a Thot resource -- i.e. has a `.thot` folder -- nothing is
 /// done.
@@ -39,7 +38,6 @@ pub fn init(path: &Path) -> Result<ResourceId> {
     fs::create_dir(&thot_dir)?;
 
     // create thot files
-    // project
     let name = match path.file_name() {
         None => {
             return Err(io::Error::new(
@@ -62,14 +60,15 @@ pub fn init(path: &Path) -> Result<ResourceId> {
         }
     };
 
-    let mut project = Project::load_from(path)?;
+    let mut project = Project::new(path.into());
     project.name = name;
     project.save()?;
 
-    // add project to collection registry
+    let scripts = Scripts::new(path.into());
+    scripts.save()?;
+
     projects::register_project(project.rid.clone(), project.base_path().into())?;
 
-    // success
     Ok(project.rid.clone().into())
 }
 

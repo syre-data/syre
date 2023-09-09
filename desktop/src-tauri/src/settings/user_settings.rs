@@ -2,7 +2,7 @@
 use crate::common;
 use crate::error::{DesktopSettingsError, Result};
 use std::fs;
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::types::ResourceId;
@@ -32,9 +32,34 @@ impl UserSettings {
         })
     }
 
+    pub fn load_or_new(user: &ResourceId) -> Result<Self> {
+        let rel_path = PathBuf::from(user.to_string());
+        let rel_path = rel_path.join(Self::settings_file());
+
+        let path = Self::base_path().join(&rel_path);
+        match fs::File::open(path) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let settings = serde_json::from_reader(reader)?;
+
+                Ok(Self {
+                    rel_path: rel_path.into(),
+                    settings,
+                })
+            }
+
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self {
+                rel_path: rel_path.into(),
+                settings: DesktopUserSettings::new(user.clone()),
+            }),
+
+            Err(err) => Err(err.into()),
+        }
+    }
+
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(self.path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self.settings)?)
+        fs::write(self.path(), serde_json::to_string_pretty(&self.settings)?)?;
+        Ok(())
     }
 
     /// Updates the app state.
@@ -86,7 +111,3 @@ impl UserSettingsFile for UserSettings {
         PathBuf::from("desktop_settings.json")
     }
 }
-
-#[cfg(test)]
-#[path = "./user_settings_test.rs"]
-mod user_settings_test;

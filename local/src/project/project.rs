@@ -181,7 +181,7 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
     Err(CoreError::ProjectError(CoreProjectError::Misconfigured("project has no root.")).into())
 }
 
-/// Returns the [`ResourceId`] of the containing [`Project`] if it exists..
+/// Returns the [`ResourceId`] of the containing [`Project`] if it exists.
 pub fn project_id(path: &Path) -> Result<Option<ResourceId>> {
     let root = project_resource_root_path(path)?;
     projects::get_id(root.as_path())

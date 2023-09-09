@@ -1,37 +1,30 @@
 use super::*;
 use dev_utils::fs::TempDir;
 use dev_utils::path::resource_path;
+use thot_core::graph::ResourceTree;
 use thot_core::project::{Script, ScriptAssociation};
-use thot_local::project::resources::{Project as LocalProject, Scripts as LocalScripts};
-use thot_local::project::{container, project};
+use thot_local::project::resources::{
+    Container as LocalContainer, Project as LocalProject, Scripts as LocalScripts,
+};
 
 #[test]
 fn remove_script_should_work() {
     // setup
-
-    let mut _dir = TempDir::new().expect("could not create new `TempDir`");
-    let child_dir = _dir.mkdir().expect("could not create new child directory");
+    let mut dir = TempDir::new().expect("could not create new `TempDir`");
+    let data_dir = dir.mkdir().expect("could not create new child directory");
+    let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
 
     // initialize project
-    project::init(_dir.path()).expect("could not init `Project`");
-    let mut project = LocalProject::load_from(_dir.path()).expect("could not load `Project`");
+    let mut project = LocalProject::new(dir.path().into());
+    let mut container = LocalContainer::new(data_dir.clone());
+    let mut child_container = LocalContainer::new(child_dir.clone());
 
-    let cid = container::init(_dir.path()).expect("could not init `Container`");
-
-    let child_cid = container::init(&child_dir).expect("could not init child `Container`");
-
-    let mut container = LocalContainer::load_from(_dir.path()).expect("could not load `Container`");
-
-    let mut child_container =
-        LocalContainer::load_from(&child_dir).expect("could not load child `Container`");
-
-    container.register_child(child_cid.clone());
-
-    project.data_root = Some(_dir.path().to_path_buf());
+    project.data_root = Some(data_dir.clone());
+    let cid = container.rid.clone();
+    let child_cid = child_container.rid.clone();
     let pid = project.rid.clone();
 
     // initialize scripts
-
     let script_0 =
         Script::new(resource_path::resource_path(Some("py"))).expect("could not create `script`");
 
@@ -41,7 +34,7 @@ fn remove_script_should_work() {
     let sid_0 = script_0.rid.clone();
     let sid_1 = script_1.rid.clone();
 
-    let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
+    let mut scripts = LocalScripts::load_from(dir.path()).expect("could not load `Scripts`");
 
     scripts
         .insert_script(script_0)
@@ -52,7 +45,6 @@ fn remove_script_should_work() {
         .expect("could not insert `Script` 1");
 
     // add script association
-
     let assoc_root_0 = ScriptAssociation::new(sid_0.clone());
     let assoc_root_1 = ScriptAssociation::new(sid_1.clone());
     let assoc_child_0 = ScriptAssociation::new(sid_0.clone());
@@ -74,26 +66,17 @@ fn remove_script_should_work() {
         .add_script_association(assoc_child_1.clone())
         .expect("could not add `ScriptAssociation`");
 
-    project.save().expect("could not save `Project`");
-    scripts.save().expect("could not save `Scripts`");
-
-    container.save().expect("could not save root `Container`");
-    child_container
-        .save()
-        .expect("could not save child `Container`");
+    let mut graph = ResourceTree::new(container);
+    graph.insert(cid.clone(), child_container).unwrap();
 
     // database setup
-
-    drop(child_container);
-    container.load_children(true).expect("could not load child");
-
     let mut db = Database::new();
     db.store
         .insert_project(project)
         .expect("could not insert `Project`");
 
     db.store
-        .insert_container_tree(Arc::new(Mutex::new(container)))
+        .insert_project_graph(pid.clone(), graph)
         .expect("could not insert `Container`");
 
     db.store.insert_project_scripts(pid.clone(), scripts);
@@ -110,7 +93,6 @@ fn remove_script_should_work() {
 
     // scripts are properly removed from project
     assert!(!scripts.contains_key(&sid_0));
-
     assert!(scripts.contains_key(&sid_1));
 
     let container = db
@@ -122,9 +104,6 @@ fn remove_script_should_work() {
         .store
         .get_container(&child_cid)
         .expect("could not get `Container`");
-
-    let container = container.lock().expect("could not lock `Container`");
-    let child_container = child_container.lock().expect("could not lock `Container`");
 
     // scripts are properly removed from container
     assert!(

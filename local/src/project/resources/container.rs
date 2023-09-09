@@ -74,8 +74,8 @@ impl Container {
         let properties_path = <Container as LocalResource<ContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
-        fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
 
+        fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
         let properties: ContainerProperties = self.container.clone().into();
         fs::write(properties_path, serde_json::to_string_pretty(&properties)?)?;
         fs::write(assets_path, serde_json::to_string_pretty(&self.assets)?)?;

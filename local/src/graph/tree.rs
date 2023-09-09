@@ -61,7 +61,6 @@ impl ContainerTreeTransformer {
 // **************
 // *** Loader ***
 // **************
-
 pub struct ContainerTreeLoader;
 impl ContainerTreeLoader {
     /// Load a `Container` tree into a [`ResourceTree`].
@@ -124,7 +123,7 @@ impl ContainerTreeDuplicator {
                 .expect("could not get child node")
                 .base_path()
                 .file_name()
-                .expect("could not get file name of `Container`");
+                .expect("could not get name of `Container`");
 
             let mut c_path = path.to_path_buf();
             c_path.push(rel_path);

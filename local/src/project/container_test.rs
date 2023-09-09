@@ -1,7 +1,7 @@
 use super::*;
 use crate::common::thot_dir_of;
 use crate::constants::{ASSETS_FILE, CONTAINER_FILE, CONTAINER_SETTINGS_FILE, THOT_DIR};
-use crate::project::resources::{Assets, Container};
+use crate::project::resources::Container;
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::FileName;
 use fake::faker::lorem::raw::Words;
@@ -9,7 +9,7 @@ use fake::locales::EN;
 use fake::Fake;
 use serde_json;
 use std::fs;
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::container::{AssetMap, Container as CoreContainer};
 
 #[test]
 fn init_on_non_resource_should_work() {
@@ -36,7 +36,7 @@ fn init_on_non_resource_should_work() {
     // ensure assets are empty
     let assets_path = thot_dir.join(ASSETS_FILE);
     let assets_json = fs::read_to_string(assets_path).expect("assets file should be readable");
-    let assets: Assets =
+    let assets: AssetMap =
         serde_json::from_str(assets_json.as_str()).expect("assets should be valid json");
 
     assert_eq!(0, assets.len(), "assets not empty");
@@ -45,7 +45,7 @@ fn init_on_non_resource_should_work() {
     let container_path = thot_dir.join(CONTAINER_FILE);
     let container_json =
         fs::read_to_string(container_path).expect("container file should be readable");
-    let container: Container =
+    let container: CoreContainer =
         serde_json::from_str(container_json.as_str()).expect("container should be valid json");
 
     assert_eq!(0, container.assets.len(), "assets should be empty");
@@ -88,7 +88,7 @@ fn init_should_error_if_folder_does_not_exist() {
 fn init_from_should_work() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let mut container = CoreContainer::default();
+    let mut container = CoreContainer::new();
 
     let name: Vec<String> = Words(EN, 3..5).fake();
     let name = name.join(" ");

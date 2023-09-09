@@ -1,17 +1,7 @@
 use super::*;
-use crate::common::{container_file_of, container_settings_file_of};
-use crate::project::container;
 use dev_utils::fs::TempDir;
-use dev_utils::path::resource_path::resource_path;
-use fake::faker::filesystem::raw::FilePath;
-use fake::faker::lorem::raw::Words;
-use fake::locales::EN;
-use fake::Fake;
-use std::path::Path;
-use thot_core::project::{
-    Asset as CoreAsset, Container as CoreContainer, RunParameters, ScriptAssociation,
-};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::project::{RunParameters, ScriptAssociation};
+use thot_core::types::ResourceId;
 
 // *****************
 // *** Container ***
@@ -138,74 +128,4 @@ fn container_remove_script_association_should_work() {
     // second
     let sec = container.remove_script_association(&sid);
     assert_eq!(false, sec, "remove should return false");
-}
-
-// -------------
-// --- serde ---
-// -------------
-
-#[test]
-fn container_serde_serialization_should_work() {
-    // setup
-    let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    container::init(_dir.path()).expect("init container should work");
-    let mut container = Container::load_from(_dir.path()).expect("load container should work");
-
-    // asset
-    let a_path = _dir.mkfile().expect("mkfile should work");
-    let asset = Asset::new(ResourcePath::new(a_path).unwrap());
-    container.insert_asset(asset);
-
-    // script association
-    let sid = ResourceId::new();
-    let assoc = ScriptAssociation::new(sid.clone());
-    container
-        .add_script_association(assoc.clone())
-        .expect("adding script association should work");
-
-    // test
-    let _json = serde_json::to_string(&container).expect("serialization should work");
-    println!("{:?}", _json);
-}
-
-#[test]
-fn container_serde_deserialization_should_work() {
-    // setup
-    let json = r#"{
-        "rid":"761474b7-0b71-47de-8751-f28d44958100",
-        "properties":{
-            "created":"2022-10-19T20:45:38.194421359Z",
-            "creator":{
-                "User":null
-            },
-            "permissions":{
-                
-            },
-            "name":null,
-            "kind":null,
-            "description":null,
-            "tags":[
-                
-            ],
-            "metadata":{
-                
-            }
-        },
-        "children":[
-                "d228cc54-bba2-40cb-a77b-50562415ff52"
-        ],
-        "assets":[
-                "956581ec-3a50-4399-9d2c-e54ed6776a86"
-        ],
-        "scripts":[
-            {
-                "script":"9983bfd5-8d85-41ea-af51-d16ac0e188e7",
-                "autorun":true,
-                "priority":0
-            }
-        ]
-    }"#;
-
-    // test
-    let _container: Container = serde_json::from_str(&json).expect("deserialize should work");
 }

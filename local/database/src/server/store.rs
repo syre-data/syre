@@ -3,6 +3,7 @@ use crate::error::Result;
 use has_id::HasId;
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -45,6 +46,13 @@ impl<T> PathMap<T> {
     }
 }
 
+impl<T> Deref for PathMap<T> {
+    type Target = HashMap<PathBuf, T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub type ContainerTree = ResourceTree<LocalContainer>;
 
 pub type IdMap = HashMap<ResourceId, ResourceId>;
@@ -62,12 +70,10 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 // *** Datastore ***
 // *****************
 
-// @todo: Paths should always be canonicalized.
+// TODO Paths should always be canonicalized.
 
 /// A store for [`Container`](LocalContainer)s.
 /// Assets can be referenced as well.
-///
-///
 ///
 /// # Notes
 /// + Because local Thot resources can only be controlled by a single process
@@ -652,7 +658,7 @@ impl Datastore {
 
                 if filter.matches(&asset) {
                     // set path to absolute
-                    let mut path = root.base_path().join(asset.path.as_path());
+                    let path = root.base_path().join(asset.path.as_path());
                     asset.path = ResourcePath::new(path).expect("could not set absolute path");
 
                     found.insert(asset);

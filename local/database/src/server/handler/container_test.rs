@@ -1,21 +1,24 @@
 use super::*;
-use crate::command::ContainerCommand;
+use crate::command::{ContainerCommand, GraphCommand, ProjectCommand};
 use crate::error::Result;
 use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use thot_core::project::Container as CoreContainer;
-use thot_local::project::container;
 use thot_local::project::resources::Container as LocalContainer;
+use thot_local::project::{container, project};
 
 #[test]
 fn database_command_update_container_properties_should_work() {
     // setup
-    let _dir = TempDir::new().expect("could not create new temp dir");
-    let _rid = container::init(_dir.path()).expect("could not init `Container`");
+    let mut dir = TempDir::new().expect("could not create new temp dir");
+    let data_dir = dir.mkdir().unwrap();
+    let pid = project::init(dir.path()).unwrap();
+    let rid = container::init(&data_dir).expect("could not init `Container`");
     let mut db = Database::new();
-    let container = db.handle_command_container(ContainerCommand::load(_dir.path().to_path_buf()));
+    let project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
+    let container = db.handle_command_graph(GraphCommand::Load(pid));
 
     let container: Result<CoreContainer> =
         serde_json::from_value(container).expect("could not contvert JsValue to `Container`");
@@ -38,29 +41,15 @@ fn database_command_update_container_properties_should_work() {
             .get_container(&container.rid)
             .expect("`Container` not stored");
 
-        let stored = stored.lock().expect("could not lock `Container`");
         assert_eq!(
             properties.name, stored.properties.name,
             "incorrect name stored"
         );
-
-        // ensure persisted container updated
-        db.store.remove_container(&container.rid);
     }
 
-    let saved = LocalContainer::load_from(_dir.path()).expect("could not load `Container`");
+    let saved = LocalContainer::load_from(dir.path()).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
         "incorrect name persisted"
     );
-}
-
-#[test]
-fn database_command_update_asset_should_work() {
-    todo!();
-}
-
-#[test]
-fn database_add_assets_should_work() {
-    todo!();
 }

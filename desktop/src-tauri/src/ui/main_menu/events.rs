@@ -1,6 +1,6 @@
 //! Handle main menu events.
 use crate::error::Result;
-use std::fs;
+use std::path::Path;
 use tauri::{Window, WindowMenuEvent};
 use thot_local::file_resource::SystemResource;
 use thot_local::system::settings::RunnerSettings;
@@ -20,12 +20,9 @@ pub fn handle_menu_event(event: WindowMenuEvent) {
 /// Emit an `open_settings` event.
 pub fn open_developer_settings(_window: &Window) -> Result {
     let path = RunnerSettings::path();
-    {
-        // ensure file exists
-        if fs::OpenOptions::new().create_new(true).open(&path).is_ok() {
-            let settings = RunnerSettings::load()?;
-            settings.save()?;
-        }
+    if !Path::exists(&path) {
+        let settings = RunnerSettings::default();
+        settings.save()?;
     }
 
     Ok(open::that(path)?)

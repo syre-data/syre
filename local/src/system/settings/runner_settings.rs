@@ -31,8 +31,9 @@ impl RunnerSettings {
     }
 
     pub fn save(&self) -> Result {
-        let fh = fs::OpenOptions::new().write(true).open(Self::path())?;
-        Ok(serde_json::to_writer_pretty(fh, &self)?)
+        fs::create_dir_all(Self::path().parent().expect("invalid path"))?;
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
     }
 }
 

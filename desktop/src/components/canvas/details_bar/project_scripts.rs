@@ -54,7 +54,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                     let name = match script.name.as_ref() {
                         Some(name) => name.clone(),
                         None => {
-                            let path = script.path.as_path().clone();
+                            let path = script.path.as_path();
                             let file_name = path.file_name().expect("could not get file name");
                             let name = file_name.to_string_lossy().to_string();
 

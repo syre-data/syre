@@ -1,7 +1,6 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use fake::faker::filesystem::raw::{FileExtension, FileName, FilePath};
-use fake::faker::lorem::raw::Word;
+use fake::faker::filesystem::raw::{FileName, FilePath};
 use fake::locales::EN;
 use fake::Fake;
 use std::fs;
@@ -48,7 +47,7 @@ fn unique_file_name_should_work() {
         .expect("could not convert path to string");
 
     let p0 = PathBuf::from(format!(".{p0}"));
-    fs::rename(p, &p0);
+    fs::rename(p, &p0).unwrap();
     let p = p0;
 
     let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");

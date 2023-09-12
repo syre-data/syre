@@ -29,14 +29,14 @@ pub fn update_asset_properties(
     rid: ResourceId,
     properties: StandardProperties,
 ) -> Result {
-    db.send(AssetCommand::UpdateProperties(rid, properties).into());
+    db.send(AssetCommand::UpdateProperties(rid, properties).into())?;
     Ok(())
 }
 
 /// Remove an `Asset`.
 #[tauri::command]
 pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> Result {
-    db.send(AssetCommand::Remove(rid).into());
+    db.send(AssetCommand::Remove(rid).into())?;
     Ok(())
 }
 

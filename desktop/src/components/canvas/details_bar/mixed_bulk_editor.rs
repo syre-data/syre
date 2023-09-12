@@ -93,6 +93,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -101,6 +102,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -143,6 +145,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -151,6 +154,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -193,6 +197,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -201,6 +206,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -249,6 +255,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -257,6 +264,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -301,6 +309,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -309,6 +318,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -353,6 +363,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -361,6 +372,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -405,6 +417,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -413,6 +426,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -457,6 +471,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -465,6 +480,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));

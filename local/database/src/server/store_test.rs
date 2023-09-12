@@ -176,8 +176,8 @@ fn find_containers_should_work() {
     let mut db = Datastore::new();
 
     let mut graph = ResourceTree::new(root);
-    graph.insert(root_rid.clone(), child_1);
-    graph.insert(root_rid.clone(), child_2);
+    graph.insert(root_rid.clone(), child_1).unwrap();
+    graph.insert(root_rid.clone(), child_2).unwrap();
     db.insert_project_graph(ResourceId::new(), graph);
 
     let mut find_filter = StdFilter::default();
@@ -268,7 +268,7 @@ fn find_assets_should_work() {
 
     let mut db = Datastore::new();
     let mut graph = ResourceTree::new(root);
-    graph.insert(root_rid.clone(), child);
+    graph.insert(root_rid.clone(), child).unwrap();
     db.insert_project_graph(ResourceId::new(), graph)
         .expect("load container tree should work");
 

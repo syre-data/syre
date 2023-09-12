@@ -15,9 +15,9 @@ fn database_command_update_container_properties_should_work() {
     let mut dir = TempDir::new().expect("could not create new temp dir");
     let data_dir = dir.mkdir().unwrap();
     let pid = project::init(dir.path()).unwrap();
-    let rid = container::init(&data_dir).expect("could not init `Container`");
+    let _rid = container::init(&data_dir).expect("could not init `Container`");
     let mut db = Database::new();
-    let project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
+    let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
     let container = db.handle_command_graph(GraphCommand::Load(pid));
 
     let container: Result<CoreContainer> =

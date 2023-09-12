@@ -62,7 +62,7 @@ fn deregister_project_should_work() {
 fn deregister_project_should_exit_silently_if_project_did_not_exist() {
     let _m = get_lock(&MTX);
 
-    let (prj, path) = create_project();
+    let (prj, _path) = create_project();
     deregister_project(&prj).expect("deregister_project should work");
 }
 

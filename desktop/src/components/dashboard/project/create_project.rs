@@ -41,7 +41,9 @@ pub fn create_project() -> Html {
     let user = use_user();
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+            "Could not get user.",
+        )));
         return html! {};
     };
 
@@ -63,23 +65,31 @@ pub fn create_project() -> Html {
             spawn_local(async move {
                 // TODO[m]: Validate path is not already a project.
                 // init project
-                let Ok(_rid) = invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() })
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create project")));
-                        return;
-                    };
+                let Ok(_rid) =
+                    invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create project",
+                    )));
+                    return;
+                };
 
-                let Ok((mut project, settings)) =
-                    invoke::<(Project, ProjectSettings)>("load_project", PathBufArgs { path: path.clone() })
-                        .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load project")));
-                        return;
-                    };
+                let Ok((mut project, settings)) = invoke::<(Project, ProjectSettings)>(
+                    "load_project",
+                    PathBufArgs { path: path.clone() },
+                )
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not load project",
+                    )));
+                    return;
+                };
 
                 // initialize data root as container
                 let mut data_root_abs = path.clone();
                 let data_root_rel = Path::new("data");
-                data_root_abs.push(data_root_rel.clone());
+                data_root_abs.push(data_root_rel);
 
                 // TODO[l]: Could load graph here.
                 let Ok(_graph) = invoke::<ContainerTree>(
@@ -88,8 +98,12 @@ pub fn create_project() -> Html {
                         path: data_root_abs.clone(),
                         project: project.rid.clone(),
                     },
-                ).await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create project graph.")));
+                )
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create project graph.",
+                    )));
                     return;
                 };
 
@@ -103,8 +117,11 @@ pub fn create_project() -> Html {
                         project: project.clone(),
                     },
                 )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not update project")));
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not update project",
+                    )));
                     return;
                 };
 

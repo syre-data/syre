@@ -1,7 +1,7 @@
 use super::*;
 use crate::error::{Error, ProjectError, RunnerError};
+use crate::project::Container;
 use crate::project::Script;
-use crate::project::{Container, ScriptAssociation};
 use crate::types::{ResourceId, ResourcePath};
 use dev_utils::fs::temp_file;
 use dev_utils::{create_lock, lock::get_lock};

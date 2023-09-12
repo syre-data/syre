@@ -181,7 +181,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                         onchange={onchange_value.clone()} />
                 },
 
-                JsValue::Number(value) => html! {
+                JsValue::Number(_value) => html! {
                     <input
                         ref={value_ref}
                         type={"number"}
@@ -218,17 +218,5 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                 JsValue::Null => html! {}
             }}
         </span>
-    }
-}
-
-fn number_step_from_input(value_ref: yew::NodeRef) -> f64 {
-    let v_in = value_ref
-        .cast::<web_sys::HtmlInputElement>()
-        .expect("could not convert value node ref into input");
-
-    let val_str = v_in.value().trim().to_owned();
-    match val_str.split_once('.') {
-        None => 1_f64,
-        Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
     }
 }

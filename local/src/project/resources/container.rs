@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::AssetMap;
-use thot_core::project::{Asset, Container as CoreContainer, ScriptAssociation};
+use thot_core::project::{Container as CoreContainer, ScriptAssociation};
 use thot_core::types::ResourceId;
 
 pub struct Container {

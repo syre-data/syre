@@ -499,8 +499,6 @@ fn move_index_should_work() {
         .expect("could not get child `Node` by index")
         .clone();
 
-    drop(children);
-
     // test
     tree.move_index(&c1, 1)
         .expect("could not move child `Node` index");

@@ -149,7 +149,10 @@ impl Database {
         properties: StandardProperties,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         container.properties = properties;
@@ -163,7 +166,10 @@ impl Database {
         associations: ScriptMap,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Script` does not exist",
+            ))
+            .into());
         };
 
         container.scripts = associations;
@@ -177,7 +183,10 @@ impl Database {
         assets: Vec<AddAssetInfo>,
     ) -> Result<HashSet<ResourceId>> {
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Script` does not exist",
+            ))
+            .into());
         };
 
         // @todo: Ensure file is not an Asset with the Container already.
@@ -202,7 +211,6 @@ impl Database {
 
         container.save()?;
         let cid = container.rid.clone();
-        drop(container); // free mutable borrow of store
 
         for aid in asset_ids.iter() {
             self.store.insert_asset(aid.clone(), cid.clone());
@@ -221,12 +229,15 @@ impl Database {
 
     fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {
         let Some(graph) = self.store.get_container_graph(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         let parent = graph.parent(rid)?;
         let Some(parent) = parent else {
-           return Ok(None);
+            return Ok(None);
         };
 
         let parent = graph.get(parent).expect("could not get parent `Container`");
@@ -255,7 +266,10 @@ impl Database {
         update: &StandardPropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         // basic properties
@@ -323,7 +337,10 @@ impl Database {
         update: &ScriptAssociationBulkUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         for assoc in update.add.iter() {

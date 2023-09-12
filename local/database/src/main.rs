@@ -35,5 +35,5 @@ fn main() {
 
     // run database
     let mut db = Database::new();
-    db.listen_for_commands();
+    db.listen_for_commands().expect("could not stast server");
 }

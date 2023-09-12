@@ -53,7 +53,6 @@ fn next_tab_on_close_should_work() {
     assert_eq!(None, next, "next should be undetermined");
 
     // close tab not found
-    let active_index = tabs.len() - 4;
     let (active, _) = tabs.get_index(close_index + 1).expect("tab should exist");
     let close = ResourceId::new();
     let next = next_tab_on_close(&close, Some(active), &tabs);

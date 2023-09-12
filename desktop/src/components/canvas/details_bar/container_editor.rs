@@ -100,6 +100,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         let properties = properties.clone();
 
         Callback::from(move |update: StandardProperties| {
+            tracing::debug!("properties changed");
             properties.set(update);
             dirty_state.set(true);
         })

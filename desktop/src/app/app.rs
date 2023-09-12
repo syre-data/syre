@@ -56,11 +56,14 @@ pub fn app() -> Html {
                 spawn_local(async move {
                     let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
                         "load_user_projects",
-                        LoadUserProjectsArgs { user: user_id }
+                        LoadUserProjectsArgs { user: user_id },
                     )
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load user projects")));
-                            return;
+                    .await
+                    else {
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Could not load user projects",
+                        )));
+                        return;
                     };
 
                     projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));

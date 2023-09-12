@@ -41,6 +41,7 @@ features=[
     "HtmlDivElement",
 	"HtmlSelectElement",
 	"HtmlTextAreaElement",
+    "InputEvent",
 	"MediaQueryList",
 	"MediaQueryListEvent",
 	"Window",

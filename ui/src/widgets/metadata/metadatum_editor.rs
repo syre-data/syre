@@ -21,7 +21,7 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let onerror = {
         let error = error.clone();
         Callback::from(move |message: String| {
-            error.set(Some(message));
+            error.set(message.into());
         })
     };
 

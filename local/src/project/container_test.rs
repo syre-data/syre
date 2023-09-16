@@ -88,11 +88,9 @@ fn init_should_error_if_folder_does_not_exist() {
 fn init_from_should_work() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let mut container = CoreContainer::new();
-
     let name: Vec<String> = Words(EN, 3..5).fake();
     let name = name.join(" ");
-    container.properties.name = Some(name);
+    let container = CoreContainer::new(name);
 
     // test
     init_from(_dir.path(), container.clone()).expect("`init_from` should work");

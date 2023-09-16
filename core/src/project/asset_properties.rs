@@ -8,26 +8,26 @@ use std::collections::HashMap;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// ***************************
-// *** Standard Properties ***
-// ***************************
+// ************************
+// *** Asset Properties ***
+// ************************
 
 /// Standard resource properties.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "pyo3", pyo3::pyclass)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StandardProperties {
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AssetProperties {
     created: DateTime<Utc>,
     pub creator: Creator,
 
     pub name: Option<String>,
     pub kind: Option<String>,
     pub description: Option<String>,
-    pub tags: Vec<String>, // @todo: Should be a `HashSet`.
+    pub tags: Vec<String>,
     pub metadata: Metadata,
 }
 
-impl StandardProperties {
+impl AssetProperties {
     pub fn new() -> Self {
         Self {
             created: Utc::now(),
@@ -176,9 +176,9 @@ impl Default for Builder {
     }
 }
 
-impl Into<StandardProperties> for Builder {
-    fn into(self) -> StandardProperties {
-        StandardProperties {
+impl Into<AssetProperties> for Builder {
+    fn into(self) -> AssetProperties {
+        AssetProperties {
             created: self.created.unwrap_or_else(|| Utc::now()),
             creator: self.creator,
             name: self.name,
@@ -189,7 +189,3 @@ impl Into<StandardProperties> for Builder {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "standard_properties_test.rs"]
-mod standard_properties_test;

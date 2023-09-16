@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, StandardProperties};
+use thot_core::project::{Container, ContainerProperties};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local::common::unique_file_name;
@@ -14,7 +14,9 @@ use thot_local_database::command::container::{
     AddAssetInfo, AddAssetsArgs, BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate,
     UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
-use thot_local_database::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
+use thot_local_database::command::container::{
+    BulkUpdateContainerPropertiesArgs, ContainerPropertiesUpdate,
+};
 use thot_local_database::command::ContainerCommand;
 use thot_local_database::Result as DbResult;
 
@@ -36,10 +38,10 @@ pub fn update_container_properties(
     rid: ResourceId,
     properties: String, // TODO Issue with deserializing `HashMap` of `metadata`. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/6078
-                        // properties: StandardProperties,
+                        // properties: ContainerProperties,
 ) -> LibResult {
-    let properties: StandardProperties =
-        serde_json::from_str(&properties).expect("could not deserialize into `StandardProperties`");
+    let properties: ContainerProperties = serde_json::from_str(&properties)
+        .expect("could not deserialize into `ContainerProperties`");
 
     let res = db
         .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
@@ -152,10 +154,11 @@ pub fn add_asset_windows(
 pub fn bulk_update_container_properties(
     db: State<DbClient>,
     rids: Vec<ResourceId>,
-    update: StandardPropertiesUpdate,
+    update: ContainerPropertiesUpdate,
 ) -> Result {
     let res = db.send(
-        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }).into(),
+        ContainerCommand::BulkUpdateProperties(BulkUpdateContainerPropertiesArgs { rids, update })
+            .into(),
     );
 
     // TODO Handle errors.

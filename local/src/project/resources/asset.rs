@@ -1,15 +1,38 @@
 /// Asset and Assets.
-use super::standard_properties::StandardProperties;
 use crate::common;
 use crate::file_resource::LocalResource;
+use crate::system::settings::UserSettings;
 use crate::Result;
 use std::fs;
 use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::container::AssetMap;
-use thot_core::project::Asset as CoreAsset;
+use thot_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
+use thot_core::types::{Creator, UserId};
 use thot_core::types::{ResourceId, ResourcePath};
+
+// ******************************
+// *** Local Asset Properties ***
+// ******************************
+
+pub struct AssetProperties;
+impl AssetProperties {
+    /// Creates a new [`AssetProperties`](CoreAssetProperties) with fields actively filled from system settings.
+    pub fn new() -> Result<CoreAssetProperties> {
+        let settings = UserSettings::load()?;
+        let creator = match settings.active_user.as_ref() {
+            Some(uid) => Some(UserId::Id(uid.clone().into())),
+            None => None,
+        };
+
+        let creator = Creator::User(creator);
+        let mut props = CoreAssetProperties::new();
+        props.creator = creator;
+
+        Ok(props)
+    }
+}
 
 // *******************
 // *** Local Asset ***
@@ -20,7 +43,7 @@ impl Asset {
     /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].
     pub fn new(path: ResourcePath) -> Result<CoreAsset> {
-        let props = StandardProperties::new()?;
+        let props = AssetProperties::new()?;
         Ok(CoreAsset {
             rid: ResourceId::new(),
             properties: props,

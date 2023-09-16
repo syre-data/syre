@@ -2,10 +2,10 @@
 use super::super::Database;
 use crate::command::container::AddAssetInfo;
 use crate::command::container::{
-    AddAssetsArgs, BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate,
-    UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AddAssetsArgs, BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationsArgs,
+    ContainerPropertiesUpdate, ScriptAssociationBulkUpdate, UpdatePropertiesArgs,
+    UpdateScriptAssociationsArgs,
 };
-use crate::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
 use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container as CoreContainer, RunParameters, StandardProperties};
+use thot_core::project::{Container as CoreContainer, ContainerProperties, RunParameters};
 use thot_core::types::ResourceId;
 use thot_local::project::asset::AssetBuilder;
 use thot_local::project::resources::Container;
@@ -102,7 +102,10 @@ impl Database {
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
 
-            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
+            ContainerCommand::BulkUpdateProperties(BulkUpdateContainerPropertiesArgs {
+                rids,
+                update,
+            }) => {
                 let res = self.bulk_update_container_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
@@ -146,7 +149,7 @@ impl Database {
     fn update_container_properties(
         &mut self,
         rid: ResourceId,
-        properties: StandardProperties,
+        properties: ContainerProperties,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
@@ -249,7 +252,7 @@ impl Database {
     fn bulk_update_container_properties(
         &mut self,
         containers: &Vec<ResourceId>,
-        update: &StandardPropertiesUpdate,
+        update: &ContainerPropertiesUpdate,
     ) -> Result {
         for container in containers {
             self.update_container_properties_from_update(container, update)?;
@@ -263,7 +266,7 @@ impl Database {
     fn update_container_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &StandardPropertiesUpdate,
+        update: &ContainerPropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist(

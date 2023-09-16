@@ -1,11 +1,11 @@
 //! Handle `Asset` related functionality.
 use super::super::Database;
-use crate::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
+use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
 use crate::command::AssetCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer, StandardProperties};
+use thot_core::project::{Asset as CoreAsset, AssetProperties, Container as CoreContainer};
 use thot_core::types::ResourceId;
 
 impl Database {
@@ -78,28 +78,33 @@ impl Database {
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }
 
-            AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
+            AssetCommand::BulkUpdateProperties(BulkUpdateAssetPropertiesArgs { rids, update }) => {
                 let res = self.bulk_update_asset_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
         }
     }
 
-    fn update_asset_properties(
-        &mut self,
-        rid: &ResourceId,
-        properties: StandardProperties,
-    ) -> Result {
+    fn update_asset_properties(&mut self, rid: &ResourceId, properties: AssetProperties) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Asset` does not exist",
+            ))
+            .into());
         };
 
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         let Some(asset) = container.assets.get_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Asset` does not exist",
+            ))
+            .into());
         };
 
         asset.properties = properties;
@@ -118,7 +123,7 @@ impl Database {
     fn bulk_update_asset_properties(
         &mut self,
         assets: &Vec<ResourceId>,
-        update: &StandardPropertiesUpdate,
+        update: &AssetPropertiesUpdate,
     ) -> Result {
         for asset in assets {
             self.update_asset_properties_from_update(asset, update)?;
@@ -132,18 +137,27 @@ impl Database {
     fn update_asset_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &StandardPropertiesUpdate,
+        update: &AssetPropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Asset` does not exist",
+            ))
+            .into());
         };
 
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist",
+            ))
+            .into());
         };
 
         let Some(asset) = container.assets.get_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Asset` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Asset` does not exist",
+            ))
+            .into());
         };
 
         // basic properties

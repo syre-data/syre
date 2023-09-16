@@ -6,7 +6,7 @@ use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::HashSet;
 use thot_core::project::container::{AssetMap, ScriptMap};
-use thot_core::project::{Asset as CoreAsset, StandardProperties};
+use thot_core::project::{Asset as CoreAsset, ContainerProperties};
 use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 
@@ -99,7 +99,7 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
     pub rid: ResourceId,
-    pub properties: StandardProperties,
+    pub properties: ContainerProperties,
     pub assets: AssetMap,
     pub scripts: ScriptMap,
     pub script_names: ResourceMap<String>,
@@ -288,11 +288,7 @@ pub fn container(props: &ContainerProps) -> Html {
             }
 
             <div class={classes!("container-name")}>
-                if let Some(name) = props.properties.name.as_ref() {
-                    { &name }
-                } else {
-                    { "(no name)" }
-                }
+                { &props.properties.name }
             </div>
 
             <div class={classes!("container-preview")}>

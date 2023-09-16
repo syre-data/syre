@@ -1,8 +1,8 @@
 //! Asset realated commands.
-use super::types::BulkUpdatePropertiesArgs;
+use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use thot_core::db::StandardSearchFilter;
-use thot_core::project::{Asset as CoreAsset, StandardProperties};
+use thot_core::project::{Asset as CoreAsset, AssetProperties};
 use thot_core::types::ResourceId;
 
 /// Asset realated commands.
@@ -36,7 +36,7 @@ pub enum AssetCommand {
     Remove(ResourceId),
 
     /// Updates an [`Asset`](CoreAsset).
-    UpdateProperties(ResourceId, StandardProperties),
+    UpdateProperties(ResourceId, AssetProperties),
 
     /// Retrieves [`Asset`](CoreAsset)s based on a filter.
     ///
@@ -54,5 +54,20 @@ pub enum AssetCommand {
     FindWithMetadata(ResourceId, StandardSearchFilter),
 
     /// Update multiple [`Asset`](CoreAsset)s' properties.
-    BulkUpdateProperties(BulkUpdatePropertiesArgs),
+    BulkUpdateProperties(BulkUpdateAssetPropertiesArgs),
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct AssetPropertiesUpdate {
+    pub name: Option<Option<String>>,
+    pub kind: Option<Option<String>>,
+    pub description: Option<Option<String>>,
+    pub tags: TagsAction,
+    pub metadata: MetadataAction,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BulkUpdateAssetPropertiesArgs {
+    pub rids: Vec<ResourceId>,
+    pub update: AssetPropertiesUpdate,
 }

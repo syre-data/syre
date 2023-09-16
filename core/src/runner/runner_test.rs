@@ -9,7 +9,6 @@ use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use mockall::*;
-use rand::Rng;
 use std::collections::HashSet;
 use std::result::Result as StdResult;
 use std::{fs, str};
@@ -50,7 +49,7 @@ fn runner_run_script_should_work() {
     let key: String = Word(EN).fake();
     fs::write(&script.path, format!("print('{}')", key)).expect("could not write to file");
     let runner = Runner::new(create_default_runner_hooks());
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
 
     // test
     let out = runner
@@ -73,7 +72,7 @@ fn runner_run_script_if_script_errors_should_err() {
     fs::write(&script.path, prg).expect("could not write to file");
 
     let runner = Runner::new(create_default_runner_hooks());
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
 
     let sid = script.rid.clone();
     let cid = container.rid.clone();
@@ -104,7 +103,7 @@ fn runner_run_scripts_should_work() {
     let prg = format!("print('{}')", key);
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -142,7 +141,7 @@ fn runner_run_scripts_with_unhandled_error_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -175,7 +174,7 @@ fn runner_run_scripts_with_handled_error_that_returns_ok_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -217,7 +216,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -257,7 +256,7 @@ fn runner_run_scripts_with_unhandled_error_ignored_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -291,7 +290,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_ignored_should_work() 
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::new();
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 

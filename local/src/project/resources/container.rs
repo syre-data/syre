@@ -2,8 +2,10 @@
 use crate::common::{assets_file, container_file, container_settings_file};
 use crate::error::{Error, Result};
 use crate::file_resource::LocalResource;
-use crate::types::{ContainerProperties, ContainerSettings};
+use crate::system::settings::UserSettings;
+use crate::types::ContainerSettings;
 use has_id::HasId;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::BufReader;
@@ -11,8 +13,59 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::AssetMap;
-use thot_core::project::{Container as CoreContainer, ScriptAssociation};
-use thot_core::types::ResourceId;
+use thot_core::project::{
+    container::ScriptMap, Container as CoreContainer,
+    ContainerProperties as CoreContainerProperties, ScriptAssociation,
+};
+use thot_core::types::{Creator, ResourceId, UserId};
+
+// **********************************
+// *** Local Container Properties ***
+// **********************************
+
+pub struct ContainerProperties;
+impl ContainerProperties {
+    /// Creates a new [`ContainerProperties`](CoreContainerProperties) with fields actively filled from system settings.
+    pub fn new(name: String) -> Result<CoreContainerProperties> {
+        let settings = UserSettings::load()?;
+        let creator = match settings.active_user.as_ref() {
+            Some(uid) => Some(UserId::Id(uid.clone().into())),
+            None => None,
+        };
+
+        let creator = Creator::User(creator);
+        let mut props = CoreContainerProperties::new(name);
+        props.creator = creator;
+
+        Ok(props)
+    }
+}
+
+// ***********************************
+// *** Stored Container Properties ***
+// ***********************************
+
+/// Properties for a Container.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct StoredContainerProperties {
+    pub rid: ResourceId,
+    pub properties: CoreContainerProperties,
+    pub scripts: ScriptMap,
+}
+
+impl From<CoreContainer> for StoredContainerProperties {
+    fn from(container: CoreContainer) -> Self {
+        Self {
+            rid: container.rid,
+            properties: container.properties,
+            scripts: container.scripts,
+        }
+    }
+}
+
+// *****************
+// *** Container ***
+// *****************
 
 pub struct Container {
     base_path: PathBuf,
@@ -25,10 +78,15 @@ impl Container {
     ///
     /// # Notes
     /// + No changes or checks are made to the file system.
-    pub fn new(base_path: impl Into<PathBuf>) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        let name = PathBuf::from(path.clone());
+        let name = name.file_name().expect("invalid path");
+        let name: String = name.to_string_lossy().to_string();
+
         Self {
-            base_path: base_path.into(),
-            container: CoreContainer::new(),
+            base_path: path,
+            container: CoreContainer::new(name),
             settings: ContainerSettings::default(),
         }
     }
@@ -36,7 +94,7 @@ impl Container {
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
         let base_path = base_path.into();
         let properties_path =
-            base_path.join(<Container as LocalResource<ContainerProperties>>::rel_path());
+            base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 
         let assets_path = base_path.join(<Container as LocalResource<AssetMap>>::rel_path());
 
@@ -51,7 +109,7 @@ impl Container {
         let assets_reader = BufReader::new(assets_file);
         let settings_reader = BufReader::new(settings_file);
 
-        let container: ContainerProperties = serde_json::from_reader(properties_reader)?;
+        let container: StoredContainerProperties = serde_json::from_reader(properties_reader)?;
         let assets = serde_json::from_reader(assets_reader)?;
         let settings = serde_json::from_reader(settings_reader)?;
 
@@ -71,12 +129,12 @@ impl Container {
 
     /// Save all data.
     pub fn save(&self) -> Result {
-        let properties_path = <Container as LocalResource<ContainerProperties>>::path(self);
+        let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
 
         fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
-        let properties: ContainerProperties = self.container.clone().into();
+        let properties: StoredContainerProperties = self.container.clone().into();
         fs::write(properties_path, serde_json::to_string_pretty(&properties)?)?;
         fs::write(assets_path, serde_json::to_string_pretty(&self.assets)?)?;
         fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
@@ -170,7 +228,7 @@ impl HasId for Container {
     }
 }
 
-impl LocalResource<ContainerProperties> for Container {
+impl LocalResource<StoredContainerProperties> for Container {
     fn rel_path() -> PathBuf {
         container_file()
     }

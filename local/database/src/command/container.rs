@@ -1,10 +1,10 @@
 //! Container related commands.
-use super::types::BulkUpdatePropertiesArgs;
+use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{ScriptAssociation, StandardProperties};
+use thot_core::project::{ContainerProperties, ScriptAssociation};
 use thot_core::types::ResourceId;
 use thot_local::types::AssetFileAction;
 
@@ -56,7 +56,7 @@ pub enum ContainerCommand {
     Parent(ResourceId),
 
     /// Update multiple [`Container`](thot_core::project::Container)s' properties.
-    BulkUpdateProperties(BulkUpdatePropertiesArgs),
+    BulkUpdateProperties(BulkUpdateContainerPropertiesArgs),
 
     /// Update multiple `Container`s `ScriptAssociations`.
     BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs),
@@ -70,7 +70,22 @@ pub enum ContainerCommand {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdatePropertiesArgs {
     pub rid: ResourceId,
-    pub properties: StandardProperties,
+    pub properties: ContainerProperties,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ContainerPropertiesUpdate {
+    pub name: Option<String>,
+    pub kind: Option<Option<String>>,
+    pub description: Option<Option<String>>,
+    pub tags: TagsAction,
+    pub metadata: MetadataAction,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BulkUpdateContainerPropertiesArgs {
+    pub rids: Vec<ResourceId>,
+    pub update: ContainerPropertiesUpdate,
 }
 
 /// Arguments for updating a [`Container`](thot_core::project::Container)'s

@@ -1,7 +1,9 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::common::{BulkUpdatePropertiesArgs, UpdatePropertiesArgs};
+use crate::commands::common::BulkUpdatePropertiesArgs;
 use crate::commands::container::{
-    BulkUpdateScriptAssociationArgs, ScriptAssociationsBulkUpdate, UpdateScriptAssociationsArgs,
+    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationArgs,
+    ContainerPropertiesUpdate, ScriptAssociationsBulkUpdate,
+    UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::commands::types::StandardPropertiesUpdate;
 use std::collections::HashMap;
@@ -20,7 +22,7 @@ pub enum GraphStateAction {
     SetGraph(ContainerTree),
 
     /// Update a [`Container`](Container)'s [`StandardProperties`](thot_::project::StandardProperties).
-    UpdateContainerProperties(UpdatePropertiesArgs),
+    UpdateContainerProperties(UpdateContainerPropertiesArgs),
 
     /// Add a [`Container`](Container) as a child.
     ///
@@ -49,7 +51,7 @@ pub enum GraphStateAction {
     ClearDragOverContainer,
 
     /// Bulk update `Container`s.
-    BulkUpdateContainerProperties(BulkUpdatePropertiesArgs),
+    BulkUpdateContainerProperties(BulkUpdateContainerPropertiesArgs),
 
     /// Bulk update `Asset`s.
     BulkUpdateAssetProperties(BulkUpdatePropertiesArgs),
@@ -94,7 +96,7 @@ impl GraphState {
     fn update_container_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &StandardPropertiesUpdate,
+        update: &ContainerPropertiesUpdate,
     ) {
         let container = self
             .graph
@@ -317,12 +319,9 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::UpdateContainerAssets(container_rid, assets) => {
-                let Some(container) = current
-                    .graph
-                    .get_mut(&container_rid)
-                     else {
-                        panic!("`Container` not found")
-                    };
+                let Some(container) = current.graph.get_mut(&container_rid) else {
+                    panic!("`Container` not found")
+                };
 
                 container.assets = assets;
             }
@@ -350,10 +349,9 @@ impl Reducible for GraphState {
                 current.dragover_container = None;
             }
 
-            GraphStateAction::BulkUpdateContainerProperties(BulkUpdatePropertiesArgs {
-                rids,
-                update,
-            }) => {
+            GraphStateAction::BulkUpdateContainerProperties(
+                BulkUpdateContainerPropertiesArgs { rids, update },
+            ) => {
                 for rid in rids {
                     current.update_container_properties_from_update(&rid, &update);
                 }
@@ -376,7 +374,8 @@ impl Reducible for GraphState {
                     if self.asset_map.contains_key(&rid) {
                         current.update_asset_properties_from_update(&rid, &update);
                     } else {
-                        current.update_container_properties_from_update(&rid, &update);
+                        current
+                            .update_container_properties_from_update(&rid, &update.clone().into());
                     }
                 }
             }

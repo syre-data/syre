@@ -1,22 +1,24 @@
 //! Graph commands.
 use crate::error::{DesktopSettingsError, Result};
 use crate::state::AppState;
+use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Container, Project};
+use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local::project::container;
+use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::UpdatePropertiesArgs;
 use thot_local_database::command::graph::NewChildArgs;
 use thot_local_database::command::{ContainerCommand, GraphCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;
 
-type ContainerTree = ResourceTree<Container>;
+type ContainerTree = ResourceTree<CoreContainer>;
 
 /// Initializes a directory as a [`Container`](LocalContainer).
 ///
@@ -47,13 +49,11 @@ pub fn init_project_graph(
         return Err(DesktopSettingsError::NoUser.into());
     };
 
-    let user = UserId::Id(user.rid.clone());
-    let mut container = Container::new();
-    container.properties.creator = Creator::User(Some(user));
-
     // create data folder
-    fs::create_dir(&path).expect("could not create data root directory");
-    let _rid = container::init_from(&path, container)?;
+    let user = UserId::Id(user.rid.clone());
+    let mut container = LocalContainer::new(path.clone());
+    container.properties.creator = Creator::User(Some(user));
+    container.save()?;
 
     // set project data root
     let project = db
@@ -64,7 +64,9 @@ pub fn init_project_graph(
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
     let Some(mut project) = project else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
+        return Err(
+            CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into(),
+        );
     };
 
     project.data_root = Some(path.clone());
@@ -116,12 +118,12 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
 #[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
-pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result<Container> {
+pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result<CoreContainer> {
     let child = db
         .send(GraphCommand::NewChild(NewChildArgs { name, parent }).into())
         .expect("could not create child `Container`");
 
-    let child: DbResult<Container> = serde_json::from_value(child)
+    let child: DbResult<CoreContainer> = serde_json::from_value(child)
         .expect("could not convert `NewChild` result to a `Container`");
 
     Ok(child?)
@@ -148,16 +150,26 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
         .get_mut(&root_id)
         .expect("duplicated tree root not found");
 
-    let name = match root.properties.name.clone() {
-        None => "Copy".to_string(),
-        Some(mut name) => {
-            // TODO[m]: Add index to copy, instead of new "(Copy)" every time.
+    let name_pattern = Regex::new(r"\(Copy(?: (\d+))?\)$").unwrap();
+    let mut name = root.properties.name.clone();
+    match name_pattern.captures(&name) {
+        None => {
             name.push_str(" (Copy)");
-            name
         }
+
+        Some(caps) => match caps.get(1) {
+            None => {
+                name.push_str(" (Copy 2)");
+            }
+
+            Some(n) => {
+                let n = n.as_str().parse::<u32>().unwrap() + 1;
+                name.push_str(&format!(" (Copy {n})"));
+            }
+        },
     };
 
-    root.properties.name = Some(name);
+    root.properties.name = name;
 
     let res = db
         .send(

@@ -1,93 +1,88 @@
 //! Properties editor for [`Contaier`](thot_core::project::Container)s.
-use super::{MetadataEditor, TagsEditor};
+use super::super::{MetadataEditor, TagsEditor};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use thot_core::project::{Metadata, StandardProperties};
+use thot_core::project::{ContainerProperties, Metadata};
 use yew::prelude::*;
 
 // ************************
 // *** Properties State ***
 // ************************
-enum StandardPropertiesStateAction {
+enum ContainerPropertiesStateAction {
     SetName(String),
-    ClearName,
     SetKind(String),
     ClearKind,
     SetDescription(String),
     ClearDescription,
     SetTags(Vec<String>),
     SetMetadata(Metadata),
-    Update(StandardProperties),
+    Update(ContainerProperties),
 }
 
 #[derive(PartialEq, Clone)]
-struct StandardPropertiesState(StandardProperties);
+struct ContainerPropertiesState(ContainerProperties);
 
-impl From<StandardProperties> for StandardPropertiesState {
-    fn from(props: StandardProperties) -> Self {
+impl From<ContainerProperties> for ContainerPropertiesState {
+    fn from(props: ContainerProperties) -> Self {
         Self(props)
     }
 }
 
-impl Into<StandardProperties> for StandardPropertiesState {
-    fn into(self) -> StandardProperties {
+impl Into<ContainerProperties> for ContainerPropertiesState {
+    fn into(self) -> ContainerProperties {
         self.0
     }
 }
 
-impl Deref for StandardPropertiesState {
-    type Target = StandardProperties;
+impl Deref for ContainerPropertiesState {
+    type Target = ContainerProperties;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for StandardPropertiesState {
+impl DerefMut for ContainerPropertiesState {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl Reducible for StandardPropertiesState {
-    type Action = StandardPropertiesStateAction;
+impl Reducible for ContainerPropertiesState {
+    type Action = ContainerPropertiesStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
-            StandardPropertiesStateAction::SetName(value) => {
-                let _ = current.name.insert(value);
+            ContainerPropertiesStateAction::SetName(value) => {
+                current.name = value;
             }
 
-            StandardPropertiesStateAction::ClearName => {
-                current.name.take();
-            }
-
-            StandardPropertiesStateAction::SetKind(value) => {
+            ContainerPropertiesStateAction::SetKind(value) => {
                 let _ = current.kind.insert(value);
             }
 
-            StandardPropertiesStateAction::ClearKind => {
+            ContainerPropertiesStateAction::ClearKind => {
                 current.kind.take();
             }
 
-            StandardPropertiesStateAction::SetDescription(value) => {
+            ContainerPropertiesStateAction::SetDescription(value) => {
                 let _ = current.description.insert(value);
             }
 
-            StandardPropertiesStateAction::ClearDescription => {
+            ContainerPropertiesStateAction::ClearDescription => {
                 current.description.take();
             }
 
-            StandardPropertiesStateAction::SetTags(tags) => {
+            ContainerPropertiesStateAction::SetTags(tags) => {
                 current.tags = tags;
             }
 
-            StandardPropertiesStateAction::SetMetadata(metadata) => {
+            ContainerPropertiesStateAction::SetMetadata(metadata) => {
                 current.metadata = metadata;
             }
 
-            StandardPropertiesStateAction::Update(properties) => {
+            ContainerPropertiesStateAction::Update(properties) => {
                 return Self(properties).into();
             }
         }
@@ -100,27 +95,26 @@ impl Reducible for StandardPropertiesState {
 // *** Properties Component ***
 // ****************************
 
-/// Properties for [`StandardPropertiesEditor`].
+/// Properties for [`ContainerPropertiesEditor`].
 #[derive(PartialEq, Properties)]
-pub struct StandardPropertiesEditorProps {
+pub struct ContainerPropertiesEditorProps {
     #[prop_or_default]
     pub class: Classes,
 
     /// Initial value.
-    #[prop_or_else(StandardProperties::new)]
-    pub properties: StandardProperties,
+    pub properties: ContainerProperties,
 
     /// Callback when value changes.
     #[prop_or_default]
-    pub onchange: Callback<StandardProperties>,
+    pub onchange: Callback<ContainerProperties>,
 }
 
-/// [`StandardProperties`] editor.
+/// [`ContainerProperties`] editor.
 #[tracing::instrument(skip(props))]
-#[function_component(StandardPropertiesEditor)]
-pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html {
+#[function_component(ContainerPropertiesEditor)]
+pub fn Container_properties_editor(props: &ContainerPropertiesEditorProps) -> Html {
     let properties_state =
-        use_reducer(|| Into::<StandardPropertiesState>::into(props.properties.clone()));
+        use_reducer(|| Into::<ContainerPropertiesState>::into(props.properties.clone()));
 
     let dirty_state = use_state(|| false);
 
@@ -136,7 +130,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
             move |properties| {
                 dirty_state.set(false);
                 properties_state
-                    .dispatch(StandardPropertiesStateAction::Update(properties.clone()));
+                    .dispatch(ContainerPropertiesStateAction::Update(properties.clone()));
             },
             props.properties.clone(),
         );
@@ -154,13 +148,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            let action = if value.is_empty() {
-                StandardPropertiesStateAction::ClearName
-            } else {
-                StandardPropertiesStateAction::SetName(value)
-            };
-
-            properties_state.dispatch(action);
+            properties_state.dispatch(ContainerPropertiesStateAction::SetName(value));
             dirty_state.set(true);
         })
     };
@@ -178,9 +166,9 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
             let value = elm.value().trim().to_string();
             let action = if value.is_empty() {
-                StandardPropertiesStateAction::ClearKind
+                ContainerPropertiesStateAction::ClearKind
             } else {
-                StandardPropertiesStateAction::SetKind(value)
+                ContainerPropertiesStateAction::SetKind(value)
             };
 
             properties_state.dispatch(action);
@@ -201,9 +189,9 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
 
             let value = elm.value().trim().to_string();
             let action = if value.is_empty() {
-                StandardPropertiesStateAction::ClearDescription
+                ContainerPropertiesStateAction::ClearDescription
             } else {
-                StandardPropertiesStateAction::SetDescription(value)
+                ContainerPropertiesStateAction::SetDescription(value)
             };
 
             properties_state.dispatch(action);
@@ -216,7 +204,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
         let dirty_state = dirty_state.clone();
 
         Callback::from(move |value: Vec<String>| {
-            properties_state.dispatch(StandardPropertiesStateAction::SetTags(value));
+            properties_state.dispatch(ContainerPropertiesStateAction::SetTags(value));
             dirty_state.set(true);
         })
     };
@@ -226,7 +214,7 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
         let dirty_state = dirty_state.clone();
 
         Callback::from(move |value: Metadata| {
-            properties_state.dispatch(StandardPropertiesStateAction::SetMetadata(value));
+            properties_state.dispatch(ContainerPropertiesStateAction::SetMetadata(value));
             dirty_state.set(true);
         })
     };
@@ -248,13 +236,14 @@ pub fn standard_properties_editor(props: &StandardPropertiesEditorProps) -> Html
     }
 
     html! {
-        <form class={classes!("thot-ui-standard-properties-editor")}>
+        <form class={classes!("thot-ui-Container-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>
                     <input
                         ref={name_ref}
                         placeholder={"(no name)"}
+                        min={"1"}
                         value={properties_state.name.clone()}
                         onchange={onchange_name} />
                 </label>

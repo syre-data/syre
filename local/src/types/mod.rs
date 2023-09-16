@@ -4,5 +4,5 @@ pub mod project_settings;
 
 // Re-exports
 pub use asset::AssetFileAction;
-pub use container::{ContainerProperties, ContainerSettings};
+pub use container::ContainerSettings;
 pub use project_settings::ProjectSettings;

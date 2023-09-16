@@ -19,8 +19,8 @@ pub struct MetadataAction {
 }
 
 #[derive(Serialize, Clone, Default, Debug)]
-pub struct StandardPropertiesUpdate {
-    pub name: Option<Option<String>>,
+pub struct ResourcePropertiesUpdate {
+    pub name: Option<String>,
     pub kind: Option<Option<String>>,
     pub description: Option<Option<String>>,
     pub tags: TagsAction,

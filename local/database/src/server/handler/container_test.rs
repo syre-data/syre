@@ -26,7 +26,7 @@ fn database_command_update_container_properties_should_work() {
     let container = container.expect("`LoadContainer` should work");
     let mut properties = container.properties.clone();
     let name = Word(EN).fake();
-    properties.name = Some(name);
+    properties.name = name;
 
     // test
     db.handle_command_container(ContainerCommand::UpdateProperties(UpdatePropertiesArgs {

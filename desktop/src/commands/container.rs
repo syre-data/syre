@@ -1,8 +1,9 @@
 //! Resources for [`container commands`](thot_desktop_tauri::commands::container).
+use super::types::{MetadataAction, TagsAction};
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, ScriptAssociation};
+use thot_core::project::{Container, ContainerProperties, ScriptAssociation};
 use thot_core::types::ResourceId;
 use thot_local_database::command::container::AddAssetInfo;
 
@@ -19,6 +20,29 @@ pub struct LoadContainerTreeArgs {
 pub struct ContainerArgs {
     /// [`Container`](Container) to update.
     pub container: Container,
+}
+
+/// Arguments to update a resorce's [`StandardProperties`].
+#[derive(Clone, Serialize)]
+pub struct UpdatePropertiesArgs {
+    /// [`ResourceId`] of the resource to update.
+    pub rid: ResourceId,
+
+    /// Updated values.
+    pub properties: ContainerProperties, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
+                                         // See: https://github.com/tauri-apps/tauri/issues/6078
+}
+
+/// Arguments to update a resorce's [`StandardProperties`].
+#[derive(Clone, Serialize)]
+pub struct UpdatePropertiesStringArgs {
+    /// [`ResourceId`] of the resource to update.
+    pub rid: ResourceId,
+
+    /// Updated values.
+    pub properties: String, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
+                            // Unify with `UpdatePropertiesArgs` once resolved.
+                            // See: https://github.com/tauri-apps/tauri/issues/6078
 }
 
 /// Arguments for [`new_child`](thot_desktop_tauri::commands::container::new_child).
@@ -81,6 +105,22 @@ pub struct AddAssetWindowsArgs {
 
     /// File contents.
     pub contents: Vec<u8>,
+}
+
+/// Bulk update resources.
+#[derive(Clone, Serialize)]
+pub struct BulkUpdatePropertiesArgs {
+    pub rids: Vec<ResourceId>,
+    pub update: ContainerPropertiesUpdate,
+}
+
+#[derive(Serialize, Clone, Default, Debug)]
+pub struct ContainerPropertiesUpdate {
+    pub name: Option<String>,
+    pub kind: Option<Option<String>>,
+    pub description: Option<Option<String>>,
+    pub tags: TagsAction,
+    pub metadata: MetadataAction,
 }
 
 /// Arguments for [`bulk_update_container_script_association`](thot_desktop_tauri::commands::container::bulk_update_container_script_association).

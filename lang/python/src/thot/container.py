@@ -1,7 +1,12 @@
-from typing import List
-
+from thot import _LEGACY_
 from .types import OptStr, Tags, Metadata
 from .asset import Asset
+
+if _LEGACY_:
+    from typing import List
+    Assets = List[Asset]
+else:
+    Assets = list[Asset]
 
 class Container:
     """
@@ -14,7 +19,7 @@ class Container:
         type: OptStr = None,
         tags: Tags = [],
         metadata: Metadata = {},
-        assets: List[str] = []
+        assets: Assets = []
     ):
         """
         Create a new Container.
@@ -24,7 +29,7 @@ class Container:
         self._type: OptStr = type
         self._tags: Tags = tags
         self._metadata: Metadata = metadata
-        self._assets: List[str] = assets
+        self._assets: Assets = assets
     
     @property
     def name(self) -> OptStr:
@@ -59,9 +64,9 @@ class Container:
         return self._metadata
         
     @property
-    def assets(self) -> List[Asset]:
+    def assets(self) -> Assets:
         """
         Returns:
-            List[Asset]: Container's Assets.
+            list[Asset]: Container's Assets.
         """
         return self._assets

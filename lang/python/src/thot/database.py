@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 import subprocess
 import importlib.resources as pkg_resources
 import socket
@@ -9,6 +9,7 @@ from uuid import uuid4 as uuid
 
 import zmq
 
+from thot import _LEGACY_
 from .types import OptStr, Tags, Metadata
 from .common import dict_to_container, dict_to_asset
 from .asset import Asset
@@ -16,6 +17,13 @@ from .container import Container
 
 OptTags = Union[Tags, None]
 OptMetadata = Union[Metadata, None]
+if _LEGACY_:
+    from typing import List
+    Containers = List[Container]
+    Assets = List[Asset]
+else:
+    Containers = list[Container]
+    Assets = list[Asset]
 
 LOCALHOST = "127.0.0.1"
 THOT_PORT = 7047
@@ -145,7 +153,7 @@ class Database:
         type: OptStr = None,
         tags: OptTags = None,
         metadata: OptMetadata = None
-    ) -> List[Container]:
+    ) -> Containers:
         """
         Find Containers matching the filter.
 
@@ -156,7 +164,7 @@ class Database:
             metadata (OptMetadata, optional): Metadata filter. Defaults to None.
 
         Returns:
-            List[Container]: Containers matching the filter.
+            list[Container]: Containers matching the filter.
         """
         f = {}
         if name is not None:
@@ -171,7 +179,7 @@ class Database:
         self._socket.send_json({"ContainerCommand": {"FindWithMetadata": (self._root, f)}})
         containers = self._socket.recv_json()
         if 'Err' in containers:
-            raise RuntimeError(f"Error getting containers: {root['Err']}")
+            raise RuntimeError(f"Error getting containers: {containers['Err']}")
 
         containers = map(dict_to_container, containers)
         return list(containers)
@@ -207,7 +215,7 @@ class Database:
         type: OptStr = None,
         tags: OptTags = None,
         metadata: OptMetadata = None
-    ) -> List[Asset]:
+    ) -> Assets:
         """
         Find Assets matching the filter.
         
@@ -218,7 +226,7 @@ class Database:
             metadata (OptMetadata, optional): Metadata filter. Defaults to None.
 
         Returns:
-            List[Asset]: Assets matching the filter.
+            list[Asset]: Assets matching the filter.
         """
         f = {}
         if name is not None:
@@ -233,7 +241,7 @@ class Database:
         self._socket.send_json({"AssetCommand": {"FindWithMetadata": (self._root, f)}})
         assets = self._socket.recv_json()
         if 'Err' in assets:
-            raise RuntimeError(f"Error getting assets: {root['Err']}")
+            raise RuntimeError(f"Error getting assets: {assets['Err']}")
 
         assets = map(dict_to_asset, assets)
         return list(assets)

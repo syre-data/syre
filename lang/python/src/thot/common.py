@@ -1,8 +1,16 @@
 import os
 from typing import Any
 
+from thot import _LEGACY_
 from .container import Container
 from .asset import Asset
+
+if _LEGACY_:
+    from typing import Dict
+    Properties = Dict[str, Any]
+else:
+    Properties = dict[str, Any]
+
 
 def dev_mode() -> bool:
     """
@@ -13,7 +21,7 @@ def dev_mode() -> bool:
     """
     return os.getenv("THOT_CONTAINER_ID") is None
 
-def dict_to_container(d: dict[str, Any]) -> Container:
+def dict_to_container(d: Properties) -> Container:
     """
     Converts a dictionary to a Container.
 
@@ -32,7 +40,7 @@ def dict_to_container(d: dict[str, Any]) -> Container:
         assets = d["assets"]
     )
     
-def dict_to_asset(d: dict[str, Any]) -> Asset:
+def dict_to_asset(d: Properties) -> Asset:
     """
     Converts a dictionary to an Asset.
 

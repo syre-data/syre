@@ -118,7 +118,7 @@ pub struct AssetPropertiesEditorProps {
 /// [`AssetProperties`] editor.
 #[tracing::instrument(skip(props))]
 #[function_component(AssetPropertiesEditor)]
-pub fn Asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
+pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
     let properties_state =
         use_reducer(|| Into::<AssetPropertiesState>::into(props.properties.clone()));
 
@@ -247,7 +247,7 @@ pub fn Asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
     }
 
     html! {
-        <form class={classes!("thot-ui-Asset-properties-editor")}>
+        <form class={classes!("thot-ui-asset-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>

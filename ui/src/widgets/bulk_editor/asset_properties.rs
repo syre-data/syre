@@ -3,47 +3,37 @@ use super::types::BulkValue;
 use crate::widgets::metadata::{MetadataBulk, MetadataBulkEditor, Metadatum};
 use serde_json::Value as JsValue;
 use std::rc::Rc;
-use thot_core::project::resources::ResourceProperties;
+use thot_core::project::AssetProperties;
 use yew::prelude::*;
 
 // ***************
 // *** reducer ***
 // ***************
 
-enum ResourcePropertiesUpdateStateAction {
+enum AssetPropertiesUpdateStateAction {
     /// Set all values from properties.
-    SetValues(Vec<ResourceProperties>),
+    SetValues(Vec<AssetProperties>),
 }
 
 #[derive(PartialEq, Clone)]
-struct ResourcePropertiesUpdateState {
-    name: BulkValue<String>,
+struct AssetPropertiesUpdateState {
+    name: BulkValue<Option<String>>,
     kind: BulkValue<Option<String>>,
     description: BulkValue<Option<String>>,
     tags: Vec<String>,
     metadata: MetadataBulk,
 }
 
-impl ResourcePropertiesUpdateState {
-    pub fn new(properties: &Vec<ResourceProperties>) -> Self {
+impl AssetPropertiesUpdateState {
+    pub fn new(properties: &Vec<AssetProperties>) -> Self {
         let n_props = properties.len();
         let mut names = Vec::with_capacity(n_props);
         let mut kinds = Vec::with_capacity(n_props);
         let mut descriptions = Vec::with_capacity(n_props);
         for prop in properties.iter() {
-            match &prop {
-                &ResourceProperties::Container(prop) => {
-                    names.push(Some(prop.name.clone()));
-                    kinds.push(prop.kind.clone());
-                    descriptions.push(prop.description.clone());
-                }
-
-                &ResourceProperties::Asset(prop) => {
-                    names.push(prop.name.clone());
-                    kinds.push(prop.kind.clone());
-                    descriptions.push(prop.description.clone());
-                }
-            }
+            names.push(prop.name.clone());
+            kinds.push(prop.kind.clone());
+            descriptions.push(prop.description.clone());
         }
 
         names.sort();
@@ -54,11 +44,7 @@ impl ResourcePropertiesUpdateState {
         descriptions.dedup();
 
         let name = match names.len() {
-            1 => match names[0].as_ref() {
-                None => panic!("name can not be `None`"),
-                Some(name) => BulkValue::Equal(name.clone()),
-            },
-
+            1 => BulkValue::Equal(names[0].clone()),
             _ => BulkValue::Mixed,
         };
 
@@ -74,10 +60,7 @@ impl ResourcePropertiesUpdateState {
 
         let mut tags = properties
             .iter()
-            .map(|props| match props {
-                ResourceProperties::Container(props) => props.tags.clone(),
-                ResourceProperties::Asset(props) => props.tags.clone(),
-            })
+            .map(|props| props.tags.clone())
             .flatten()
             .collect::<Vec<String>>();
 
@@ -87,40 +70,17 @@ impl ResourcePropertiesUpdateState {
         let mut metadata = MetadataBulk::new();
         for props in properties.iter() {
             // initialize all keys
-            match props {
-                ResourceProperties::Container(props) => {
-                    for key in props.metadata.keys() {
-                        metadata.insert(key.clone(), Vec::new());
-                    }
-                }
-
-                ResourceProperties::Asset(props) => {
-                    for key in props.metadata.keys() {
-                        metadata.insert(key.clone(), Vec::new());
-                    }
-                }
+            for key in props.metadata.keys() {
+                metadata.insert(key.clone(), Vec::new());
             }
         }
 
         for props in properties {
             // insert values
-            match props {
-                ResourceProperties::Container(props) => {
-                    for (key, md) in metadata.iter_mut() {
-                        let value = props.metadata.get(key).unwrap_or(&JsValue::Null);
-                        if !md.contains(value) {
-                            md.push(value.clone());
-                        }
-                    }
-                }
-
-                ResourceProperties::Asset(props) => {
-                    for (key, md) in metadata.iter_mut() {
-                        let value = props.metadata.get(key).unwrap_or(&JsValue::Null);
-                        if !md.contains(value) {
-                            md.push(value.clone());
-                        }
-                    }
+            for (key, md) in metadata.iter_mut() {
+                let value = props.metadata.get(key).unwrap_or(&JsValue::Null);
+                if !md.contains(value) {
+                    md.push(value.clone());
                 }
             }
         }
@@ -134,7 +94,7 @@ impl ResourcePropertiesUpdateState {
         }
     }
 
-    pub fn name(&self) -> &BulkValue<String> {
+    pub fn name(&self) -> &BulkValue<Option<String>> {
         &self.name
     }
 
@@ -155,12 +115,12 @@ impl ResourcePropertiesUpdateState {
     }
 }
 
-impl Reducible for ResourcePropertiesUpdateState {
-    type Action = ResourcePropertiesUpdateStateAction;
+impl Reducible for AssetPropertiesUpdateState {
+    type Action = AssetPropertiesUpdateStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         match action {
-            ResourcePropertiesUpdateStateAction::SetValues(properties) => {
+            AssetPropertiesUpdateStateAction::SetValues(properties) => {
                 Self::new(&properties).into()
             }
         }
@@ -172,11 +132,11 @@ impl Reducible for ResourcePropertiesUpdateState {
 // *****************
 
 #[derive(Properties, PartialEq)]
-pub struct ResourcePropertiesBulkEditorProps {
-    pub properties: Vec<ResourceProperties>,
+pub struct AssetPropertiesBulkEditorProps {
+    pub properties: Vec<AssetProperties>,
 
     #[prop_or_default]
-    pub onchange_name: Callback<String>,
+    pub onchange_name: Callback<Option<String>>,
 
     #[prop_or_default]
     pub onchange_kind: Callback<Option<String>>,
@@ -206,14 +166,14 @@ pub struct ResourcePropertiesBulkEditorProps {
     pub onchange_metadata: Callback<Metadatum>,
 }
 
-#[function_component(ResourcePropertiesBulkEditor)]
-pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps) -> Html {
+#[function_component(AssetPropertiesBulkEditor)]
+pub fn standard_properties_bulk_editor(props: &AssetPropertiesBulkEditorProps) -> Html {
     assert!(
         props.properties.len() > 1,
         "bulk editor should not be used with fewer than two items."
     );
 
-    let updater_state = use_reducer(|| ResourcePropertiesUpdateState::new(&props.properties));
+    let updater_state = use_reducer(|| AssetPropertiesUpdateState::new(&props.properties));
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
@@ -224,7 +184,7 @@ pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps
 
         use_effect_with_deps(
             move |properties| {
-                updater_state.dispatch(ResourcePropertiesUpdateStateAction::SetValues(
+                updater_state.dispatch(AssetPropertiesUpdateStateAction::SetValues(
                     properties.clone(),
                 ));
             },
@@ -247,9 +207,8 @@ pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps
                 .expect("could not cast `NodeRef` into element");
 
             let value = elm.value().trim().to_string();
-            if !value.is_empty() {
-                onchange_name.emit(value);
-            }
+            let value = Some(value).filter(|value| !value.is_empty());
+            onchange_name.emit(value);
         })
     };
 
@@ -329,14 +288,14 @@ pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps
     });
 
     html! {
-        <form class={classes!("thot-ui-bulk-resource-properties-editor")} {onsubmit}>
+        <form class={classes!("thot-ui-bulk-asset-properties-editor")} {onsubmit}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>
                     <input
                         ref={name_ref}
                         placeholder={value_placeholder(updater_state.name())}
-                        value={value_name(updater_state.name())}
+                        value={value_string(updater_state.name())}
                         onchange={onchange_name} />
                 </label>
             </div>
@@ -387,13 +346,6 @@ pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps
 // ***************
 // *** helpers ***
 // ***************
-
-fn value_name(value: &BulkValue<String>) -> Option<String> {
-    match value {
-        BulkValue::Equal(val) => Some(val.clone()),
-        BulkValue::Mixed => None,
-    }
-}
 
 fn value_string(value: &BulkValue<Option<String>>) -> Option<String> {
     match value {

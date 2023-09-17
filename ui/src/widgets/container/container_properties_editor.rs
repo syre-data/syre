@@ -112,7 +112,7 @@ pub struct ContainerPropertiesEditorProps {
 /// [`ContainerProperties`] editor.
 #[tracing::instrument(skip(props))]
 #[function_component(ContainerPropertiesEditor)]
-pub fn Container_properties_editor(props: &ContainerPropertiesEditorProps) -> Html {
+pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Html {
     let properties_state =
         use_reducer(|| Into::<ContainerPropertiesState>::into(props.properties.clone()));
 
@@ -236,7 +236,7 @@ pub fn Container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
     }
 
     html! {
-        <form class={classes!("thot-ui-Container-properties-editor")}>
+        <form class={classes!("thot-ui-container-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>

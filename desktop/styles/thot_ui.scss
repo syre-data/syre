@@ -102,13 +102,16 @@
   }
 }
 
-.thot-ui-standard-properties-editor {
-
+.thot-ui-container-properties-editor,
+.thot-ui-asset-properties-editor,
+.thot-ui-bulk-container-properties-editor,
+.thot-ui-bulk-asset-properties-editor,
+.thot-ui-bulk-resource-properties-editor {
   .thot-ui-metadata-editor {
     margin-top: t.$margin-l;
 
     input {
-      all:unset;
+      all: unset;
       appearance: auto;
       width: t.$drawer-content-width-1-4;
       border: solid t.$border-width-s transparent;
@@ -117,6 +120,7 @@
         outline: none;
         border: solid t.$border-width-s t.$hover-border-color;
       }
+
       &:hover {
         border: solid t.$border-width-s t.$hover-border-color;
       }
@@ -153,6 +157,25 @@
     .form-fields, .form-controls, .metadatum-value {
       display: flex;
       gap: t.$gap-s;
+    }
+  }
+}
+
+.thot-ui-bulk-container-properties-editor,
+.thot-ui-bulk-asset-properties-editor,
+.thot-ui-bulk-resource-properties-editor {
+  .thot-ui-bulk-tag-editor {
+    list-style: none;
+    padding: 0;
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between; 
+    }
+
+    .add-tags {
+      display: flex;
     }
   }
 }

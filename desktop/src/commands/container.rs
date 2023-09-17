@@ -1,5 +1,5 @@
 //! Resources for [`container commands`](thot_desktop_tauri::commands::container).
-use super::types::{MetadataAction, TagsAction};
+use super::types::{MetadataAction, ResourcePropertiesUpdate, TagsAction};
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
@@ -121,6 +121,18 @@ pub struct ContainerPropertiesUpdate {
     pub description: Option<Option<String>>,
     pub tags: TagsAction,
     pub metadata: MetadataAction,
+}
+
+impl From<ResourcePropertiesUpdate> for ContainerPropertiesUpdate {
+    fn from(update: ResourcePropertiesUpdate) -> Self {
+        Self {
+            name: update.name,
+            kind: update.kind,
+            description: update.description,
+            tags: update.tags,
+            metadata: update.metadata,
+        }
+    }
 }
 
 /// Arguments for [`bulk_update_container_script_association`](thot_desktop_tauri::commands::container::bulk_update_container_script_association).

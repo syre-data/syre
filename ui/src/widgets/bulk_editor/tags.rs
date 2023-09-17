@@ -55,14 +55,14 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
     html! {
         <div class={classes!("thot-ui-bulk-tag-editor")}>
             if let Some(onadd) = onadd {
-                <div>
+                <div class={classes!("add-tags")}>
                     <input ref={input_ref}/>
                     <button class={classes!("add-button")} type="button" onclick={onadd}>
                         <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
                     </button>
                 </div>
             }
-            <div>
+            <div class={classes!("existing-tags")}>
                 <ul>
                     {props.value.iter().map(|tag| html! {
                         <li>

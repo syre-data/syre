@@ -1,8 +1,7 @@
 //! Container tree UI.
 use super::Container as ContainerUi;
 use crate::app::{AppStateAction, AppStateReducer, AuthStateReducer, ShadowBox};
-use crate::commands::common::UpdatePropertiesArgs;
-use crate::commands::container::NewChildArgs;
+use crate::commands::container::{NewChildArgs, UpdatePropertiesArgs};
 use crate::common::invoke;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
@@ -163,8 +162,11 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                         parent: parent.clone(),
                     },
                 )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create child")));
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create child",
+                    )));
                     return;
                 };
 
@@ -276,14 +278,10 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                                 <div class={classes!("child-node-marker")}
                                     data-rid={rid.clone()}>
 
-                                    { match graph_state.graph.get(&rid)
+                                    { &graph_state.graph.get(&rid)
                                         .expect("child `Container` not found")
                                         .properties
                                         .name
-                                        .clone() {
-                                            Some(name) => name,
-                                            None => "(no name)".to_string()
-                                        }
                                     }
                                 </div>
                             }

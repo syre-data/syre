@@ -1,11 +1,14 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::common::BulkUpdatePropertiesArgs;
+use crate::commands::asset::{
+    AssetPropertiesUpdate, BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
+};
+use crate::commands::common::BulkUpdateResourcePropertiesArgs;
 use crate::commands::container::{
     BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationArgs,
     ContainerPropertiesUpdate, ScriptAssociationsBulkUpdate,
     UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
 };
-use crate::commands::types::StandardPropertiesUpdate;
+use crate::commands::types::ResourcePropertiesUpdate;
 use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
@@ -54,10 +57,10 @@ pub enum GraphStateAction {
     BulkUpdateContainerProperties(BulkUpdateContainerPropertiesArgs),
 
     /// Bulk update `Asset`s.
-    BulkUpdateAssetProperties(BulkUpdatePropertiesArgs),
+    BulkUpdateAssetProperties(BulkUpdateAssetPropertiesArgs),
 
     /// Bulk update resource properties.
-    BulkUpdateResourceProperties(BulkUpdatePropertiesArgs),
+    BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs),
 
     /// Bulk update `Container` `ScriptAssociation`s.
     BulkUpdateContainerScriptAssociations(BulkUpdateScriptAssociationArgs),
@@ -145,7 +148,7 @@ impl GraphState {
     fn update_asset_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &StandardPropertiesUpdate,
+        update: &AssetPropertiesUpdate,
     ) {
         let container = self.asset_map.get(rid).expect("`Asset` map not found");
         let container = self
@@ -357,7 +360,7 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::BulkUpdateAssetProperties(BulkUpdatePropertiesArgs {
+            GraphStateAction::BulkUpdateAssetProperties(BulkUpdateAssetPropertiesArgs {
                 rids,
                 update,
             }) => {
@@ -366,13 +369,13 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::BulkUpdateResourceProperties(BulkUpdatePropertiesArgs {
+            GraphStateAction::BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs {
                 rids,
                 update,
             }) => {
                 for rid in rids {
                     if self.asset_map.contains_key(&rid) {
-                        current.update_asset_properties_from_update(&rid, &update);
+                        current.update_asset_properties_from_update(&rid, &update.clone().into());
                     } else {
                         current
                             .update_container_properties_from_update(&rid, &update.clone().into());

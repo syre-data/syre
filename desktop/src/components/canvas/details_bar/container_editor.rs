@@ -1,13 +1,13 @@
 //! Container editor widget.
 use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
+use crate::commands::container::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
-use thot_core::project::StandardProperties;
+use thot_core::project::ContainerProperties;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
-use thot_ui::widgets::StandardPropertiesEditor;
+use thot_ui::widgets::container::ContainerPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -66,7 +66,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                     // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
                     // See https://github.com/tauri-apps/tauri/issues/6078
                     let properties_str = serde_json::to_string(&*properties)
-                        .expect("could not serialize `StandardProperties`");
+                        .expect("could not serialize `ContainerProperties`");
 
                     let update_str = UpdatePropertiesStringArgs {
                         rid: rid.clone(),
@@ -99,7 +99,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let onchange = {
         let properties = properties.clone();
 
-        Callback::from(move |update: StandardProperties| {
+        Callback::from(move |update: ContainerProperties| {
             tracing::debug!("properties changed");
             properties.set(update);
             dirty_state.set(true);
@@ -108,7 +108,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
-            <StandardPropertiesEditor
+            <ContainerPropertiesEditor
                 properties={(*properties).clone()}
                 onchange={onchange} />
 

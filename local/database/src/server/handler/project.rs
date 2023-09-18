@@ -64,7 +64,8 @@ impl Database {
 
             ProjectCommand::Add(path, user) => {
                 let Ok(local_project) = self.load_project(&path) else {
-                    let err: Result<CoreProject> = Err(Error::SettingsError("could not load project".to_string()));
+                    let err: Result<CoreProject> =
+                        Err(Error::SettingsError("could not load project".to_string()));
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
 
@@ -106,7 +107,6 @@ impl Database {
                 };
 
                 let project: Result<(CoreProject, ProjectSettings)> = Ok((project, settings));
-
                 serde_json::to_value(project).expect("could not convert `Project` to JsValue")
             }
 
@@ -118,7 +118,8 @@ impl Database {
             ProjectCommand::Get(rid) => {
                 let Some(project) = self.store.get_project(&rid) else {
                     let value: Option<CoreProject> = None;
-                    return serde_json::to_value(value).expect("could not convert `None` to JsValue")
+                    return serde_json::to_value(value)
+                        .expect("could not convert `None` to JsValue");
                 };
 
                 let project = Some((**project).clone());
@@ -208,7 +209,10 @@ impl Database {
 
     fn update_project(&mut self, update: CoreProject) -> Result {
         let Some(project) = self.store.get_project_mut(&update.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Script` does not exist",
+            ))
+            .into());
         };
 
         **project = update;
@@ -218,7 +222,10 @@ impl Database {
 
     fn update_project_settings(&mut self, rid: &ResourceId, settings: ProjectSettings) -> Result {
         let Some(project) = self.store.get_project_mut(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Script` does not exist",
+            ))
+            .into());
         };
 
         *project.settings_mut() = settings;

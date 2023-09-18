@@ -52,6 +52,20 @@ pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
     Ok(u_path)
 }
 
+/// Replaces any non-alphanumeric or standard characters with underscor(_).
+pub fn sanitize_file_path(path: impl Into<String>) -> String {
+    let path: String = path.into();
+    path.chars()
+        .map(|char| {
+            if char.is_ascii_alphanumeric() || char == '-' || char == '_' || char == '.' {
+                char
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 // ******************
 // *** file paths ***
 // ******************

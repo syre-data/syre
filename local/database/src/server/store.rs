@@ -41,7 +41,11 @@ impl<T> PathMap<T> {
     }
 
     pub fn remove(&mut self, key: &Path) -> Option<T> {
-        let key = fs::canonicalize(key).unwrap();
+        let key = match fs::canonicalize(key) {
+            Ok(key) => key,
+            Err(_) => key.to_path_buf(),
+        };
+
         self.0.remove(&key)
     }
 }
@@ -124,7 +128,6 @@ impl Datastore {
     // *** project ***
     // ***************
 
-    // @todo: Ensure the `Project` controls the settings file.
     /// Inserts a [`Project`](LocalProject) into the database.
     ///
     /// # Returns
@@ -246,7 +249,10 @@ impl Datastore {
         graph: ResourceTree<LocalContainer>,
     ) -> Result {
         let Some(project) = self.get_container_project(parent).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` `Project` not found",
+            ))
+            .into());
         };
 
         let p_graph = self
@@ -279,7 +285,10 @@ impl Datastore {
     #[tracing::instrument(skip(self))]
     pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result<ContainerTree> {
         let Some(project) = self.get_container_project(root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` `Project` not found")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` `Project` not found",
+            ))
+            .into());
         };
 
         let p_graph = self
@@ -302,6 +311,37 @@ impl Datastore {
         }
 
         Ok(sub_graph)
+    }
+
+    /// Updates the path to a subtree.
+    pub fn update_subgraph_path(&mut self, root: &ResourceId, path: impl Into<PathBuf>) -> Result {
+        let path = path.into();
+        let Some(graph) = self.get_container_graph(root) else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` graph not found",
+            ))
+            .into());
+        };
+
+        let descendants = graph.descendants(root).unwrap();
+        let container_path = graph.get(root).unwrap().base_path().to_path_buf();
+        if container_path == path {
+            return Ok(());
+        }
+
+        for rid in descendants {
+            let descendant = self.get_container_mut(&rid).unwrap();
+            let descendant_id = descendant.rid.clone();
+            let old_path = descendant.base_path().to_path_buf();
+            let new_path = old_path.strip_prefix(&container_path).unwrap();
+            let new_path = path.join(new_path);
+
+            descendant.set_base_path(path.clone());
+            self.container_paths.remove(&old_path);
+            self.container_paths.insert(new_path, descendant_id);
+        }
+
+        Ok(())
     }
 
     // *****************
@@ -511,7 +551,10 @@ impl Datastore {
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
     pub fn add_asset(&mut self, mut asset: Asset, container: ResourceId) -> Result<Option<Asset>> {
         let Some(project) = self.container_projects.get(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` is not loaded",
+            ))
+            .into());
         };
 
         let graph = self
@@ -520,7 +563,10 @@ impl Datastore {
             .expect("`Project` present without graph");
 
         let Some(container) = graph.get_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` is not loaded",
+            ))
+            .into());
         };
 
         // check if asset with same path already extists
@@ -545,15 +591,24 @@ impl Datastore {
     #[tracing::instrument(level = "debug", skip(self))]
     pub fn remove_asset(&mut self, rid: &ResourceId) -> Result<Option<Asset>> {
         let Some(cid) = self.assets.get(rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` is not loaded")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` is not loaded",
+            ))
+            .into());
         };
 
         let Some(graph) = self.get_container_graph_mut(&cid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container`'s graph is not loaded")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container`'s graph is not loaded",
+            ))
+            .into());
         };
 
         let Some(container) = graph.get_mut(&cid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` not in graph")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` not in graph",
+            ))
+            .into());
         };
 
         let container_path = container.base_path().to_path_buf();
@@ -723,7 +778,10 @@ impl Datastore {
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
             // project does not exist
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Project` does not exist",
+            ))
+            .into());
         };
 
         let sid = script.rid.clone();
@@ -748,12 +806,18 @@ impl Datastore {
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
             // project does not exist
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project`'s `Scripts` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Project`'s `Scripts` does not exist",
+            ))
+            .into());
         };
 
         // remove association from contiainers
         let Some(graph) = self.graphs.get_mut(project) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project`'s graph does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Project`'s graph does not exist",
+            ))
+            .into());
         };
 
         for (_cid, container) in graph.iter_nodes_mut() {

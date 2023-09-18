@@ -142,6 +142,14 @@ impl Container {
         Ok(())
     }
 
+    pub fn base_path(&self) -> &Path {
+        &self.base_path
+    }
+
+    pub fn set_base_path(&mut self, path: impl Into<PathBuf>) {
+        self.base_path = path.into();
+    }
+
     // ---------------
     // --- scripts ---
     // ---------------
@@ -185,10 +193,6 @@ impl Container {
     pub fn remove_script_association(&mut self, rid: &ResourceId) -> bool {
         let old = self.scripts.remove(rid);
         old.is_some()
-    }
-
-    pub fn base_path(&self) -> &Path {
-        &self.base_path
     }
 }
 

@@ -58,6 +58,7 @@ impl Project {
         let project_path = <Project as LocalResource<CoreProject>>::path(self);
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
 
+        fs::create_dir_all(project_path.parent().expect("invalid path"))?;
         fs::write(project_path, serde_json::to_string_pretty(&self.project)?)?;
         fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
         Ok(())

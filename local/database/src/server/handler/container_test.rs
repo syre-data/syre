@@ -5,12 +5,14 @@ use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
-use thot_core::project::Container as CoreContainer;
-use thot_local::project::resources::Container as LocalContainer;
+use std::path::Path;
+use thot_core::graph::ResourceTree;
+use thot_core::project::{Container as CoreContainer, ContainerProperties};
+use thot_local::project::resources::{Container as LocalContainer, Project as LocalProject};
 use thot_local::project::{container, project};
 
 #[test]
-fn database_command_update_container_properties_should_work() {
+fn database_command_update_container_properties_without_name_should_work() {
     // setup
     let mut dir = TempDir::new().expect("could not create new temp dir");
     let data_dir = dir.mkdir().unwrap();
@@ -25,8 +27,8 @@ fn database_command_update_container_properties_should_work() {
 
     let container = container.expect("`LoadContainer` should work");
     let mut properties = container.properties.clone();
-    let name = Word(EN).fake();
-    properties.name = name;
+    let kind = Word(EN).fake();
+    properties.kind = kind;
 
     // test
     db.handle_command_container(ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
@@ -51,5 +53,89 @@ fn database_command_update_container_properties_should_work() {
     assert_eq!(
         properties.name, saved.properties.name,
         "incorrect name persisted"
+    );
+}
+
+#[test]
+fn database_command_update_container_name_should_work() {
+    // setup
+    let mut dir = TempDir::new().expect("could not create new temp dir");
+    let data_dir = dir.mkdir().unwrap();
+    let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
+    let sibling_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
+
+    let mut project = LocalProject::new(dir.path().to_path_buf());
+    project.data_root = Some(data_dir.clone());
+    project.save().unwrap();
+
+    let pid = project.rid.clone();
+    let rid = container::init(&data_dir).expect("could not init `Container`");
+    let cid = container::init(&child_dir).expect("could not init `Container`");
+    let sid = container::init(&sibling_dir).expect("could not init `Container`");
+
+    let mut db = Database::new();
+    let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
+    let _graph = db.handle_command_graph(GraphCommand::Load(pid));
+
+    let properties = ContainerProperties::new(Word(EN).fake::<String>());
+
+    // test
+    // root
+    db.handle_command_container(ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
+        rid: rid.clone(),
+        properties: properties.clone(),
+    }));
+
+    let stored = db
+        .store
+        .get_container(&rid)
+        .expect("`Container` not stored");
+
+    assert_eq!(
+        properties.name, stored.properties.name,
+        "incorrect name stored"
+    );
+
+    assert_eq!(&data_dir, stored.base_path(), "root path should not change");
+
+    let saved = LocalContainer::load_from(&data_dir).expect("could not load `Container`");
+    assert_eq!(
+        properties.name, saved.properties.name,
+        "incorrect name persisted"
+    );
+
+    // child
+    db.handle_command_container(ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
+        rid: cid.clone(),
+        properties: properties.clone(),
+    }));
+
+    let stored = db
+        .store
+        .get_container(&cid)
+        .expect("`Container` not stored");
+
+    assert_eq!(
+        properties.name, stored.properties.name,
+        "incorrect name stored"
+    );
+
+    assert_ne!(
+        child_dir,
+        stored.base_path(),
+        "container path should change"
+    );
+
+    if properties.name.is_ascii() {
+        assert_eq!(
+            &properties.name,
+            stored.base_path().file_name().unwrap().to_str().unwrap(),
+            "folder name and name should agree"
+        );
+    }
+
+    assert!(
+        Path::exists(stored.base_path()),
+        "child folder should be renamed"
     );
 }

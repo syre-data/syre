@@ -164,11 +164,17 @@ where
     }
 
     /// Returns the children `Containers` of the parent, if found.
+    ///
+    /// # Returns
+    /// `None` if the parent `Node` is not found.
     pub fn children(&self, parent: &ResourceId) -> Option<&IndexSet<ResourceId>> {
         self.edges.get(&parent).to_owned()
     }
 
     /// Returns the parent of a `Node`.
+    ///
+    /// # Returns
+    /// `None` if the `Node` is the graph root.
     ///
     /// # Errors
     /// + If the child does not exist.
@@ -178,6 +184,30 @@ where
         };
 
         Ok(parent.as_ref())
+    }
+
+    /// Returns the siblings of a `Node`.
+    ///
+    /// # Returns
+    /// `None` if the `Node` is not found.
+    pub fn siblings(&self, node: &ResourceId) -> Option<Vec<ResourceId>> {
+        let Ok(parent) = self.parent(node) else {
+            // node not found
+            return None;
+        };
+
+        let Some(parent) = parent else {
+            // node is root
+            return Some(Vec::new());
+        };
+
+        Some(
+            self.children(parent)
+                .unwrap()
+                .iter()
+                .map(|rid| rid.clone())
+                .collect(),
+        )
     }
 
     /// Returns the path of ancesetors to the tree root.
@@ -201,7 +231,7 @@ where
     ///
     /// # Returns
     /// + `None` if the root `Node` does not exist.
-    /// + Descendant Ids, otherwise.
+    /// + Descendant ids, including `root`, otherwise.
     pub fn descendants(&self, root: &ResourceId) -> Option<HashSet<ResourceId>> {
         let mut descendants = HashSet::new();
         if !self.get(&root).is_some() {

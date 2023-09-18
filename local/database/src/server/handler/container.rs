@@ -10,12 +10,16 @@ use crate::command::ContainerCommand;
 use crate::Result;
 use serde_json::Value as JsValue;
 use std::collections::HashSet;
+use std::fs;
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container as CoreContainer, ContainerProperties, RunParameters};
 use thot_core::types::ResourceId;
+use thot_local::common;
+use thot_local::error::ContainerError;
+use thot_local::error::Error as LocalError;
 use thot_local::project::asset::AssetBuilder;
 use thot_local::project::resources::Container;
 
@@ -146,20 +150,97 @@ impl Database {
         self.store.find_containers_with_metadata(&root, filter)
     }
 
+    #[tracing::instrument(skip(self))]
     fn update_container_properties(
         &mut self,
         rid: ResourceId,
         properties: ContainerProperties,
     ) -> Result {
-        let Some(container) = self.store.get_container_mut(&rid) else {
+        let Some(container) = self.store.get_container(&rid) else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
                 "`Container` does not exist",
             ))
             .into());
         };
 
+        let graph = self.store.get_container_graph(&rid).unwrap();
+        if properties.name != container.properties.name && &container.rid != graph.root() {
+            self.rename_container_folder(&rid, &properties.name)?;
+        }
+
+        let container = self
+            .store
+            .get_container_mut(&rid)
+            .expect("Container no longer exists");
+
         container.properties = properties;
         container.save()?;
+        Ok(())
+    }
+
+    /// Renames a Container's folder.
+    ///
+    /// # Side effects
+    /// + Updates the Container's graph.
+    /// + Updates the store's mappings.
+    ///
+    /// # Errors
+    /// + If the new name results in a name clash between sibling Containers.
+    #[tracing::instrument(skip(self, name))]
+    fn rename_container_folder(
+        &mut self,
+        container: &ResourceId,
+        name: impl Into<String>,
+    ) -> Result {
+        let container_path = {
+            let name: String = name.into();
+            let Some(container) = self.store.get_container(container) else {
+                return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                    "`Container` does not exist",
+                ))
+                .into());
+            };
+            let graph = self.store.get_container_graph(&container.rid).unwrap();
+
+            // get siblings to check for name clash
+            let siblings = graph.siblings(&container.rid).unwrap();
+            let sibling_names: Vec<String> = siblings
+                .iter()
+                .map(|sid| {
+                    let sibling = graph.get(sid).unwrap();
+                    sibling.properties.name.clone()
+                })
+                .collect();
+
+            if sibling_names.contains(&name) {
+                return Err(
+                    LocalError::ContainerError(ContainerError::ContainerNameConflict).into(),
+                );
+            }
+
+            // create unique sanitized path
+            let mut container_path = container
+                .base_path()
+                .parent()
+                .expect("invalid path")
+                .to_path_buf();
+
+            container_path.push(common::sanitize_file_path(name));
+            let container_path = common::unique_file_name(PathBuf::from(container_path)).unwrap();
+
+            // rename folder
+            match fs::rename(container.base_path(), &container_path) {
+                Ok(_) => {}
+                Err(err) => {
+                    return Err(LocalError::from(err).into());
+                }
+            };
+
+            container_path
+        };
+
+        // update descendant's path
+        self.store.update_subgraph_path(container, container_path)?;
         Ok(())
     }
 

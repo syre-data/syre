@@ -61,6 +61,10 @@ pub enum ContainerError {
     /// but does not.
     #[error("`{0}` is not a Container")]
     PathNotAContainer(PathBuf),
+
+    /// If two Containers with the same parent have the same name.
+    #[error("clashing Container names")]
+    ContainerNameConflict,
 }
 
 // *******************

@@ -59,7 +59,8 @@ impl Database {
             };
 
             let Ok(cmd) = serde_json::from_str(msg_str) else {
-                let err_msg = "invalid message: could not convert `Message` to `Command".to_string();
+                let err_msg =
+                    "invalid message: could not convert `Message` to `Command".to_string();
                 tracing::debug!(err = err_msg, msg = msg_str);
                 let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
                 let res = serde_json::to_value(res).expect("could not convert error to JsValue");
@@ -81,7 +82,7 @@ impl Database {
         Ok(())
     }
 
-    // @todo: Handle errors.
+    // TODO Handle errors.
     /// Handles a given command, returning the correct data.
     pub fn handle_command(&mut self, command: Command) -> JsValue {
         match command {

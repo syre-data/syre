@@ -336,7 +336,7 @@ impl Datastore {
             let new_path = old_path.strip_prefix(&container_path).unwrap();
             let new_path = path.join(new_path);
 
-            descendant.set_base_path(path.clone());
+            descendant.set_base_path(new_path.clone());
             self.container_paths.remove(&old_path);
             self.container_paths.insert(new_path, descendant_id);
         }

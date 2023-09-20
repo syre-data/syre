@@ -254,7 +254,7 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
                     <input
                         ref={name_ref}
                         placeholder={"(no name)"}
-                        value={properties_state.name.clone()}
+                        value={properties_state.name.clone().unwrap_or("".into())}
                         onchange={onchange_name} />
                 </label>
             </div>
@@ -265,7 +265,7 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
                     <input
                         ref={kind_ref}
                         placeholder={"(no type)"}
-                        value={properties_state.kind.clone()}
+                        value={properties_state.kind.clone().unwrap_or("".into())}
                         onchange={onchange_kind} />
                 </label>
             </div>
@@ -276,7 +276,7 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
                     <textarea
                         ref={description_ref}
                         placeholder={"(no description)"}
-                        value={properties_state.description.clone()}
+                        value={properties_state.description.clone().unwrap_or("".into())}
                         onchange={onchange_description}></textarea>
                 </label>
             </div>

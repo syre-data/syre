@@ -19,7 +19,7 @@ enum ContainerPropertiesStateAction {
     Update(ContainerProperties),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 struct ContainerPropertiesState(ContainerProperties);
 
 impl From<ContainerProperties> for ContainerPropertiesState {
@@ -115,9 +115,7 @@ pub struct ContainerPropertiesEditorProps {
 pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Html {
     let properties_state =
         use_reducer(|| Into::<ContainerPropertiesState>::into(props.properties.clone()));
-
     let dirty_state = use_state(|| false);
-
     let name_ref = use_node_ref();
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
@@ -239,7 +237,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
         <form class={classes!("thot-ui-container-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
-                    <h3> { "Name" } </h3>
+                    <h3>{ "Name" }</h3>
                     <input
                         ref={name_ref}
                         placeholder={"(no name)"}
@@ -251,29 +249,29 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
 
             <div class={classes!("form-field", "kind")}>
                 <label>
-                    <h3> { "Type" } </h3>
+                    <h3>{ "Type" }</h3>
                     <input
                         ref={kind_ref}
                         placeholder={"(no type)"}
-                        value={properties_state.kind.clone()}
+                        value={properties_state.kind.clone().unwrap_or("".into())}
                         onchange={onchange_kind} />
                 </label>
             </div>
 
             <div class={classes!("form-field", "description")}>
                 <label>
-                    <h3> { "Description" } </h3>
+                    <h3>{ "Description" }</h3>
                     <textarea
                         ref={description_ref}
                         placeholder={"(no description)"}
-                        value={properties_state.description.clone()}
+                        value={properties_state.description.clone().unwrap_or("".into())}
                         onchange={onchange_description}></textarea>
                 </label>
             </div>
 
             <div class={classes!("form-field", "tags")}>
                 <label>
-                    <h3> { "Tags" } </h3>
+                    <h3>{ "Tags" }</h3>
                     <TagsEditor
                         value={properties_state.tags.clone()}
                         onchange={onchange_tags} />

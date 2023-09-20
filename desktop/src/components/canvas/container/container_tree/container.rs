@@ -473,6 +473,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             .get(&asset[0])
                             .expect("could not find `Asset`")
                             .clone();
+
                         graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                             container_id.clone(),
                             vec![asset],

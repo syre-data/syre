@@ -168,7 +168,7 @@ where
     /// # Returns
     /// `None` if the parent `Node` is not found.
     pub fn children(&self, parent: &ResourceId) -> Option<&IndexSet<ResourceId>> {
-        self.edges.get(&parent).to_owned()
+        self.edges.get(parent)
     }
 
     /// Returns the parent of a `Node`.

@@ -2,7 +2,6 @@
 use crate::error::{DesktopSettingsError, Result};
 use crate::state::AppState;
 use regex::Regex;
-use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -10,7 +9,6 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
-use thot_local::project::container;
 use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::UpdatePropertiesArgs;
@@ -145,9 +143,8 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
 
     // Update name
     let mut dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    let root_id = dup.root().clone();
     let root = dup
-        .get_mut(&root_id)
+        .get_mut(&dup.root().clone())
         .expect("duplicated tree root not found");
 
     let name_pattern = Regex::new(r"\(Copy(?: (\d+))?\)$").unwrap();
@@ -159,12 +156,15 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
 
         Some(caps) => match caps.get(1) {
             None => {
-                name.push_str(" (Copy 2)");
+                let replace_range = (name.len() - 6)..; // "(Copy)".len() == 6
+                name.replace_range(replace_range, "(Copy 2)");
             }
 
             Some(n) => {
+                let match_len = caps.get(0).unwrap().as_str().len();
                 let n = n.as_str().parse::<u32>().unwrap() + 1;
-                name.push_str(&format!(" (Copy {n})"));
+                let replace_range = (name.len() - match_len)..;
+                name.replace_range(replace_range, &format!("(Copy {n})"));
             }
         },
     };
@@ -174,7 +174,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
     let res = db
         .send(
             ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
-                rid: root_id,
+                rid: root.rid.clone(),
                 properties: root.properties.clone(),
             })
             .into(),

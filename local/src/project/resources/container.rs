@@ -76,6 +76,9 @@ pub struct Container {
 impl Container {
     /// Create a new Container at the given base path.
     ///
+    /// # Arguments
+    /// 1. Path to the Container.
+    ///
     /// # Notes
     /// + No changes or checks are made to the file system.
     pub fn new(path: impl Into<PathBuf>) -> Self {

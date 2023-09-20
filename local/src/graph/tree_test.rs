@@ -64,21 +64,64 @@ fn container_tree_duplicate_to_should_work() {
     let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     // test
+    // root
     let dup = ContainerTreeDuplicator::duplicate_to(dup_dir.path(), &graph, graph.root())
         .expect("could not duplicate tree from root");
 
     let root_children = dup
-        .children(graph.root())
+        .children(dup.root())
         .expect("could not get root children");
 
-    assert_eq!(2, root_children.len(), "incorrect number of children");
+    assert_eq!(
+        graph.children(graph.root()).unwrap().len(),
+        root_children.len(),
+        "incorrect number of children"
+    );
 
+    assert_eq!(
+        graph.get(graph.root()).unwrap().properties.name,
+        dup.get(dup.root()).unwrap().properties.name
+    );
+
+    let mut c_names = child_names(graph.root(), &graph);
+    let mut cdup_names = child_names(dup.root(), &dup);
+    c_names.sort();
+    cdup_names.sort();
+    assert_eq!(c_names, cdup_names);
+
+    // child
     let c_dup = ContainerTreeDuplicator::duplicate_to(dup_child_dir.path(), &graph, &cid_1)
         .expect("could not duplicate tree from root");
 
     let c1_children = c_dup
-        .children(graph.root())
+        .children(c_dup.root())
         .expect("could not get root children");
 
-    assert_eq!(2, c1_children.len(), "incorrect number of children");
+    assert_eq!(
+        graph.children(&cid_1).unwrap().len(),
+        c1_children.len(),
+        "incorrect number of children"
+    );
+
+    let mut c_names = child_names(&cid_1, &graph);
+    let mut cdup_names = child_names(c_dup.root(), &c_dup);
+    c_names.sort();
+    cdup_names.sort();
+    assert_eq!(c_names, cdup_names);
+}
+
+// ***************
+// *** helpers ***
+// ***************
+
+fn child_names(parent: &ResourceId, graph: &ContainerTree) -> Vec<String> {
+    graph
+        .children(parent)
+        .unwrap()
+        .iter()
+        .map(|cid| {
+            let child = graph.get(cid).unwrap();
+            child.properties.name.clone()
+        })
+        .collect()
 }

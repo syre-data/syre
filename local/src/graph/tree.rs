@@ -35,8 +35,9 @@ impl ContainerTreeTransformer {
         tree: &ContainerTree,
         root: &ResourceId,
     ) -> Option<ResourceTree<CoreContainer>> {
-        let Some(rids) = tree
-            .descendants(root) else {return None;};
+        let Some(rids) = tree.descendants(root) else {
+            return None;
+        };
 
         let mut core_nodes = NodeMap::new();
         let mut edges = EdgeMap::new();
@@ -102,7 +103,10 @@ impl ContainerTreeDuplicator {
     ) -> Result<ContainerTree> {
         // ensure root exists
         let Some(node) = graph.get(root) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist in graph",
+            ))
+            .into());
         };
 
         // duplicate container to new location
@@ -114,7 +118,10 @@ impl ContainerTreeDuplicator {
         let dup_root = container.rid.clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Container` does not exist in graph")).into());
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Container` does not exist in graph",
+            ))
+            .into());
         };
 
         for child in children {

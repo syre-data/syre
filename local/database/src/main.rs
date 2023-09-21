@@ -30,7 +30,6 @@ fn main() {
         .with_filter(MAX_LOG_LEVEL);
 
     let subscriber = Registry::default().with(console_logger).with(file_logger);
-
     tracing::subscriber::set_global_default(subscriber).expect("could not create logger");
 
     // run database

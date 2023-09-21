@@ -101,7 +101,10 @@ pub struct Datastore {
     container_projects: IdMap,
 
     /// Map from an [`Asset`]'s [`ResourceId`] to its [`Container`]'s.
-    assets: IdMap,
+    asset_containers: IdMap,
+
+    /// Map from an [`Asset`]'s path to its [`ResourceId`].
+    asset_paths: PathMap<ResourceId>,
 
     /// Map from a [`Script`](CoreScript)'s [`ResourceId`] to its `Project`.
     script_projects: IdMap,
@@ -118,7 +121,8 @@ impl Datastore {
             graphs: ProjectGraphMap::new(),
             container_paths: PathMap::new(),
             container_projects: IdMap::new(),
-            assets: IdMap::new(),
+            asset_containers: IdMap::new(),
+            asset_paths: PathMap::new(),
             script_projects: IdMap::new(),
             scripts: ProjectScriptsMap::new(),
         }
@@ -233,9 +237,10 @@ impl Datastore {
             self.container_paths
                 .insert(node.base_path().into(), cid.clone());
 
-            // map assets to containers
-            for aid in node.data().assets.keys() {
-                self.assets.insert(aid.clone(), cid.clone());
+            // map assets
+            for (aid, asset) in node.data().assets.iter() {
+                let asset_path = node.base_path().join(asset.path.as_path());
+                self.insert_asset(aid.clone(), asset_path, cid.clone())
             }
         }
 
@@ -255,10 +260,9 @@ impl Datastore {
             .into());
         };
 
-        let p_graph = self
-            .graphs
-            .get_mut(&project)
-            .expect("`Project` graph not found");
+        if !self.graphs.contains_key(&project) {
+            panic!("`Project` graph not found");
+        }
 
         for (cid, container) in graph.nodes() {
             // map container to project
@@ -268,13 +272,18 @@ impl Datastore {
             self.container_paths
                 .insert(container.base_path().into(), cid.clone());
 
-            // map assets to containers
-            for aid in container.assets.keys() {
-                self.assets.insert(aid.clone(), cid.clone());
+            // map assets
+            for (aid, asset) in container.assets.iter() {
+                let asset_path = container.base_path().join(asset.path.as_path());
+                self.insert_asset(aid.clone(), asset_path, cid.clone());
             }
         }
 
-        p_graph.insert_tree(parent, graph)?;
+        self.graphs
+            .get_mut(&project)
+            .unwrap()
+            .insert_tree(parent, graph)?;
+
         Ok(())
     }
 
@@ -304,9 +313,12 @@ impl Datastore {
             // map path to container
             self.container_paths.remove(&container.base_path());
 
-            // map assets to containers
-            for aid in container.assets.keys() {
-                self.assets.remove(aid);
+            // map assets
+            for (aid, asset) in container.assets.iter() {
+                self.asset_containers.remove(aid);
+
+                let asset_path = container.base_path().join(asset.path.as_path());
+                self.asset_paths.remove(&asset_path);
             }
         }
 
@@ -526,13 +538,13 @@ impl Datastore {
     /// Gets an [`Asset`](LocalAsset)'s [`Container`](LocalContainer) [`ResourceId`]
     /// from the database if it exists, otherwise `None`.
     pub fn get_asset_container_id(&self, rid: &ResourceId) -> Option<&ResourceId> {
-        self.assets.get(rid)
+        self.asset_containers.get(rid)
     }
 
     /// Gets an [`Asset`](LocalAsset)'s [`Container`](LocalContainer)
     /// from the database if it exists, otherwise `None`.
     pub fn get_asset_container(&self, rid: &ResourceId) -> Option<&LocalContainer> {
-        let Some(container) = self.assets.get(rid) else {
+        let Some(container) = self.asset_containers.get(rid) else {
             return None;
         };
 
@@ -543,9 +555,15 @@ impl Datastore {
         Some(container)
     }
 
-    /// Inserts a map from the `Asset` to its `Container`.
-    pub fn insert_asset(&mut self, asset: ResourceId, container: ResourceId) -> Option<ResourceId> {
-        self.assets.insert(asset, container)
+    /// Get the [`ResourceId`] of the `Asset` associated with the path.
+    pub fn get_path_asset_id(&self, path: impl AsRef<Path>) -> Option<&ResourceId> {
+        self.asset_paths.get(path.as_ref())
+    }
+
+    /// Inserts an [`Asset`].
+    pub fn insert_asset(&mut self, asset: ResourceId, path: PathBuf, container: ResourceId) {
+        self.asset_containers.insert(asset.clone(), container);
+        self.asset_paths.insert(path, asset);
     }
 
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
@@ -579,10 +597,11 @@ impl Datastore {
 
         let aid = asset.rid.clone();
         let cid = container.rid.clone();
+        let asset_path = container.base_path().join(asset.path.as_path());
         let o_asset = container.assets.insert(aid.clone(), asset);
         container.save()?;
+        self.insert_asset(aid, asset_path, cid);
 
-        self.insert_asset(aid, cid);
         Ok(o_asset)
     }
 
@@ -590,7 +609,7 @@ impl Datastore {
     /// Deletes the related file if it exists.
     #[tracing::instrument(level = "debug", skip(self))]
     pub fn remove_asset(&mut self, rid: &ResourceId) -> Result<Option<Asset>> {
-        let Some(cid) = self.assets.get(rid).cloned() else {
+        let Some(cid) = self.asset_containers.get(rid).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
                 "`Container` is not loaded",
             ))
@@ -615,13 +634,35 @@ impl Datastore {
         let asset = container.assets.remove(rid);
         container.save()?;
 
-        self.assets.remove(rid);
         if let Some(asset) = asset.as_ref() {
             let path = container_path.join(asset.path.as_path());
-            trash::delete(path)?;
+            trash::delete(&path)?;
+            self.asset_paths.remove(&path);
         };
 
+        self.asset_containers.remove(rid);
         Ok(asset)
+    }
+
+    /// Updates an [`Asset`]'s path.
+    pub fn update_asset_path(&mut self, from: impl AsRef<Path>, to: PathBuf) -> Result {
+        let from = from.as_ref();
+        let Some(aid) = self.get_path_asset_id(from).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                "`Asset` does not exist",
+            ))
+            .into());
+        };
+
+        let container = self.get_asset_container_id(&aid).unwrap().clone();
+        let container = self.get_container_mut(&container).unwrap();
+        let asset = container.assets.get_mut(&aid).unwrap();
+        asset.path = ResourcePath::new(to.clone())?;
+        container.save()?;
+
+        self.asset_paths.remove(from);
+        self.asset_paths.insert(to, aid);
+        Ok(())
     }
 
     /// Finds `Asset`'s that match the filter.

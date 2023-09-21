@@ -1,4 +1,6 @@
 //! Handle `Asset` related functionality.
+use std::path::PathBuf;
+
 use super::super::Database;
 use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
 use crate::command::AssetCommand;
@@ -65,6 +67,11 @@ impl Database {
 
             AssetCommand::UpdateProperties(rid, properties) => {
                 let res = self.update_asset_properties(&rid, properties);
+                serde_json::to_value(res).expect("could not convert result to JSON")
+            }
+
+            AssetCommand::UpdatePath(from, to) => {
+                let res = self.store.update_asset_path(&from, to);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 

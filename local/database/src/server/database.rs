@@ -6,8 +6,12 @@ use super::store::Datastore;
 use crate::command::Command;
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::{Error, Result};
+use notify::{self, RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
 use serde_json::Value as JsValue;
 use std::net::Ipv4Addr;
+use std::path::Path;
+use std::time::Duration;
 
 static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
 
@@ -20,15 +24,42 @@ pub struct Database {
 
     /// ZMQ context.
     zmq_context: zmq::Context,
+
+    // File watchers
+    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
 }
 
 impl Database {
     pub fn new() -> Self {
+        let watcher = new_debouncer(
+            Duration::from_millis(1000),
+            None,
+            |event: DebounceEventResult| Self::handle_file_system_events(event),
+        )
+        .unwrap();
+
         Database {
             store: Datastore::new(),
             kill: false,
             zmq_context: zmq::Context::new(),
+            watcher,
         }
+    }
+
+    pub fn watcher_mut(&mut self) -> &mut Debouncer<RecommendedWatcher, FileIdMap> {
+        &mut self.watcher
+    }
+
+    pub fn watch(&mut self, path: impl AsRef<Path>) {
+        let path = path.as_ref();
+        self.watcher
+            .watcher()
+            .watch(path, RecursiveMode::Recursive)
+            .unwrap();
+
+        self.watcher
+            .cache()
+            .add_root(path, RecursiveMode::Recursive);
     }
 
     #[tracing::instrument(skip(self))]
@@ -48,7 +79,8 @@ impl Database {
 
             let Some(msg_str) = msg.as_str() else {
                 let err_msg = "invalid message: could not convert to string".to_string();
-                tracing::debug!(err = err_msg.clone());
+                tracing::debug!(?err_msg);
+
                 let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
                 let res = serde_json::to_value(res).expect("could not convert error to JsValue");
                 rep_socket

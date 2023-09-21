@@ -97,7 +97,7 @@ fn insert_project_graph_should_work() {
 
     // assets
     for rid in aids {
-        assert!(db.assets.contains_key(&rid), "asset not inserted");
+        assert!(db.asset_containers.contains_key(&rid), "asset not inserted");
     }
 }
 

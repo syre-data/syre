@@ -1,6 +1,7 @@
 //! Asset realated commands.
 use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::project::{Asset as CoreAsset, AssetProperties};
 use thot_core::types::ResourceId;
@@ -37,6 +38,13 @@ pub enum AssetCommand {
 
     /// Updates an [`Asset`](CoreAsset).
     UpdateProperties(ResourceId, AssetProperties),
+
+    /// Updates an Asset's file path.
+    ///
+    /// # Fields
+    /// 1. From.
+    /// 2. To.
+    UpdatePath(PathBuf, PathBuf),
 
     /// Retrieves [`Asset`](CoreAsset)s based on a filter.
     ///

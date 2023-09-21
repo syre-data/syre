@@ -2,6 +2,8 @@
 use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
+use notify::{RecursiveMode, Watcher};
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use serde_json::Value as JsValue;
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -152,17 +154,16 @@ impl Database {
     ///
     /// # Returns
     /// Reference to the loaded [`Project`](LocalProject).
+    ///
+    /// # Side effects
+    /// + Creates a watcher over the project folder.
     pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
         // load project
         let project = LocalProject::load_from(path)?;
-        let _o_project = self.store.insert_project(project)?;
-        if let Some(project) = self.get_path_project(&path) {
-            return Ok(project);
-        }
-
-        Err(Error::DatabaseError(
-            "could not store `Project`".to_string(),
-        ))
+        self.store.insert_project(project)?;
+        self.watch(path);
+        let project = self.get_path_project(&path).unwrap();
+        return Ok(project);
     }
 
     fn get_path_project(&self, path: &Path) -> Option<&LocalProject> {

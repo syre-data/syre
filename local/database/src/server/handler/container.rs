@@ -273,8 +273,8 @@ impl Database {
             .into());
         };
 
-        // @todo: Ensure file is not an Asset with the Container already.
-        let mut asset_ids = HashSet::with_capacity(assets.len());
+        // TODO Ensure file is not an Asset with the Container already.
+        let mut asset_info = Vec::with_capacity(assets.len());
         for AddAssetInfo {
             path,
             action,
@@ -282,25 +282,26 @@ impl Database {
         } in assets
         {
             // create asset
-            let mut asset = AssetBuilder::new(path);
+            let mut asset = AssetBuilder::new(path.clone());
             asset.set_container(container.base_path().into());
             if let Some(bucket) = bucket {
                 asset.set_bucket(bucket);
             }
 
             let asset = asset.create(action)?;
-            asset_ids.insert(asset.rid.clone());
+            asset_info.push((asset.rid.clone(), path));
             container.insert_asset(asset);
         }
 
         container.save()?;
         let cid = container.rid.clone();
 
-        for aid in asset_ids.iter() {
-            self.store.insert_asset(aid.clone(), cid.clone());
+        for (aid, path) in asset_info.iter() {
+            self.store
+                .insert_asset(aid.clone(), path.clone(), cid.clone());
         }
 
-        Ok(asset_ids)
+        Ok(asset_info.into_iter().map(|(aid, _)| aid.clone()).collect())
     }
 
     fn get_container_path(&self, container: &ResourceId) -> Option<PathBuf> {

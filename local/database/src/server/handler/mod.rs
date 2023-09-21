@@ -2,6 +2,7 @@
 pub mod asset;
 pub mod container;
 pub mod database;
+pub mod file_system_events;
 pub mod graph;
 pub mod project;
 pub mod script;

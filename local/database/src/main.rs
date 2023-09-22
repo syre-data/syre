@@ -11,7 +11,8 @@ use tracing_subscriber::{Layer, Registry};
 const LOG_PREFIX: &str = "database.local.log";
 const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // logging setup
     let config_dir = common::config_dir_path().expect("could not get config dir path");
     let file_logger = tracing_appender::rolling::daily(config_dir, LOG_PREFIX);
@@ -20,7 +21,6 @@ fn main() {
         .with_writer(file_logger)
         .with_timer(UtcTime::rfc_3339())
         .json()
-        // .pretty()
         .with_filter(MAX_LOG_LEVEL);
 
     let console_logger = fmt::layer()
@@ -34,5 +34,5 @@ fn main() {
 
     // run database
     let mut db = Database::new();
-    db.listen_for_commands().expect("could not stast server");
+    db.start().await;
 }

@@ -4,10 +4,17 @@ use notify::{self, EventKind};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
 
 impl Database {
+    pub async fn listen_for_file_system_events(&mut self) {
+        while let Some(event) = self.fs_rx.recv().await {
+            tracing::debug!("handle");
+            self.handle_file_system_events(event);
+        }
+    }
+
     /// Handle file system events.
     /// To be used with [`notify::Watcher`]s.
-    #[tracing::instrument]
-    pub fn handle_file_system_events(event: DebounceEventResult) {
+    #[tracing::instrument(skip(self))]
+    fn handle_file_system_events(&mut self, event: DebounceEventResult) {
         let events = match event {
             Ok(events) => events,
             Err(errs) => {
@@ -40,7 +47,9 @@ impl Database {
                     };
 
                     if to.is_file() {
+                        tracing::debug!("file");
                     } else if to.is_dir() {
+                        tracing::debug!("dir");
                     } else {
                         panic!("unknown path type end point");
                     }
@@ -51,7 +60,7 @@ impl Database {
                 }
 
                 notify::event::RenameMode::To => {
-                    tracing::debug!("from {:?}", event);
+                    tracing::debug!("to {:?}", event);
                 }
 
                 _ => {

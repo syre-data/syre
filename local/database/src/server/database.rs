@@ -12,8 +12,10 @@ use serde_json::Value as JsValue;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::time::Duration;
+use tokio::sync::mpsc;
 
 static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
+static FILE_SYSTEM_EVENT_BUFFER_SIZE: usize = 1;
 
 /// Database.
 pub struct Database {
@@ -25,16 +27,25 @@ pub struct Database {
     /// ZMQ context.
     zmq_context: zmq::Context,
 
-    // File watchers
+    // File watcher
     watcher: Debouncer<RecommendedWatcher, FileIdMap>,
+
+    // File system event receiver
+    fs_rx: mpsc::Receiver<DebounceEventResult>,
 }
 
 impl Database {
     pub fn new() -> Self {
+        let (tx, rx) = mpsc::channel(FILE_SYSTEM_EVENT_BUFFER_SIZE);
         let watcher = new_debouncer(
             Duration::from_millis(1000),
             None,
-            |event: DebounceEventResult| Self::handle_file_system_events(event),
+            move |event: DebounceEventResult| {
+                let tx = tx.clone();
+                futures::executor::block_on(async {
+                    tx.send(event).await.unwrap();
+                });
+            },
         )
         .unwrap();
 
@@ -43,14 +54,17 @@ impl Database {
             kill: false,
             zmq_context: zmq::Context::new(),
             watcher,
+            fs_rx: rx,
         }
     }
 
-    pub fn watcher_mut(&mut self) -> &mut Debouncer<RecommendedWatcher, FileIdMap> {
-        &mut self.watcher
+    /// Start the database.
+    pub async fn start(&mut self) {
+        tokio::spawn(self.listen_for_commands());
+        tokio::spawn(self.listen_for_file_system_events());
     }
 
-    pub fn watch(&mut self, path: impl AsRef<Path>) {
+    fn watch(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
         self.watcher
             .watcher()
@@ -63,7 +77,7 @@ impl Database {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn listen_for_commands(&mut self) -> Result {
+    async fn listen_for_commands(&mut self) -> Result {
         let rep_socket = self.zmq_context.socket(zmq::SocketType::REP)?;
         rep_socket.bind(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))?;
 
@@ -72,40 +86,10 @@ impl Database {
                 break;
             }
 
-            let mut msg = zmq::Message::new();
-            rep_socket
-                .recv(&mut msg, 0)
-                .expect("could not recieve request");
-
-            let Some(msg_str) = msg.as_str() else {
-                let err_msg = "invalid message: could not convert to string".to_string();
-                tracing::debug!(?err_msg);
-
-                let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
-                let res = serde_json::to_value(res).expect("could not convert error to JsValue");
-                rep_socket
-                    .send(&res.to_string(), 0)
-                    .expect("could not send response");
-
-                continue;
-            };
-
-            let Ok(cmd) = serde_json::from_str(msg_str) else {
-                let err_msg =
-                    "invalid message: could not convert `Message` to `Command".to_string();
-                tracing::debug!(err = err_msg, msg = msg_str);
-                let res: Result<JsValue> = Err(Error::ZMQ(err_msg));
-                let res = serde_json::to_value(res).expect("could not convert error to JsValue");
-                rep_socket
-                    .send(&res.to_string(), 0)
-                    .expect("could not send response");
-
-                continue;
-            };
-
+            let cmd = self.receive_command(&rep_socket).await?;
             tracing::debug!(?cmd);
-            let res = self.handle_command(cmd);
 
+            let res = self.handle_command(cmd);
             rep_socket
                 .send(&res.to_string(), 0)
                 .expect("could not send response");
@@ -114,9 +98,28 @@ impl Database {
         Ok(())
     }
 
+    async fn receive_command(&self, socket: &zmq::Socket) -> Result<Command> {
+        let mut msg = zmq::Message::new();
+        socket.recv(&mut msg, 0).expect("could not recieve request");
+
+        let Some(msg_str) = msg.as_str() else {
+            let err_msg = "invalid message: could not convert to string";
+            tracing::debug!(?err_msg);
+            return Err(Error::ZMQ(err_msg.into()));
+        };
+
+        let Ok(cmd) = serde_json::from_str(msg_str) else {
+            let err_msg = "invalid message: could not convert `Message` to `Command";
+            tracing::debug!(err = err_msg, msg = msg_str);
+            return Err(Error::ZMQ(err_msg.into()));
+        };
+
+        Ok(cmd)
+    }
+
     // TODO Handle errors.
     /// Handles a given command, returning the correct data.
-    pub fn handle_command(&mut self, command: Command) -> JsValue {
+    fn handle_command(&mut self, command: Command) -> JsValue {
         match command {
             Command::AssetCommand(cmd) => self.handle_command_asset(cmd),
             Command::ContainerCommand(cmd) => self.handle_command_container(cmd),

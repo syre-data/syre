@@ -13,7 +13,10 @@ pub struct MessageProps {
     pub class: Classes,
 
     pub message: AttrValue,
+
+    #[prop_or_default]
     pub details: Option<AttrValue>,
+
     pub kind: MessageType,
 
     #[prop_or_default]

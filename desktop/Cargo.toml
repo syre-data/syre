@@ -60,7 +60,7 @@ features = [
 ]
 
 [dependencies.yew_icons]
-version = "0.7"
+version = "0.8"
 features = [
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",

@@ -124,14 +124,11 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
         let properties_state = properties_state.clone();
         let dirty_state = dirty_state.clone();
 
-        use_effect_with_deps(
-            move |properties| {
-                dirty_state.set(false);
-                properties_state
-                    .dispatch(ContainerPropertiesStateAction::Update(properties.clone()));
-            },
-            props.properties.clone(),
-        );
+        use_effect_with(props.properties.clone(), move |properties| {
+            dirty_state.set(false);
+            properties_state
+                .dispatch(ContainerPropertiesStateAction::Update(properties.clone()));
+        });
     }
 
     let onchange_name = {
@@ -222,15 +219,12 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
         let dirty_state = dirty_state.clone();
         let onchange = props.onchange.clone();
 
-        use_effect_with_deps(
-            move |(properties_state, dirty_state)| {
-                if !(**dirty_state) {
-                    return;
-                }
-                onchange.emit((**properties_state).clone().into());
-            },
-            (properties_state, dirty_state),
-        );
+        use_effect_with((properties_state, dirty_state), move |(properties_state, dirty_state)| {
+            if !(**dirty_state) {
+                return;
+            }
+            onchange.emit((**properties_state).clone().into());
+        });
     }
 
     html! {

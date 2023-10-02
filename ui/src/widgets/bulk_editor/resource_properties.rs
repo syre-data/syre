@@ -222,14 +222,11 @@ pub fn standard_properties_bulk_editor(props: &ResourcePropertiesBulkEditorProps
         let properties = props.properties.clone();
         let updater_state = updater_state.clone();
 
-        use_effect_with_deps(
-            move |properties| {
-                updater_state.dispatch(ResourcePropertiesUpdateStateAction::SetValues(
-                    properties.clone(),
-                ));
-            },
-            properties,
-        );
+        use_effect_with(properties, move |properties| {
+            updater_state.dispatch(ResourcePropertiesUpdateStateAction::SetValues(
+                properties.clone(),
+            ));
+        });
     }
 
     // -----------------------

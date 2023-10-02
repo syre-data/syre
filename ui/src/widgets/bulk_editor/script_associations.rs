@@ -132,30 +132,24 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     {
         let association_state = association_state.clone();
 
-        use_effect_with_deps(
-            move |params| {
-                association_state.dispatch(ScriptAssociationStateAction::SetValue(params.clone()));
-            },
-            props.run_parameters.clone(),
-        );
+        use_effect_with(props.run_parameters.clone(), move |params| {
+            association_state.dispatch(ScriptAssociationStateAction::SetValue(params.clone()));
+        });
     }
 
     {
         let association_state = association_state.clone();
         let autorun_ref = autorun_ref.clone();
 
-        use_effect_with_deps(
-            move |(association_state, autorun_ref)| {
-                if association_state.autorun() == &BulkValue::Mixed {
-                    let input = autorun_ref
-                        .cast::<web_sys::HtmlInputElement>()
-                        .expect("could not cast node ref to input element");
-
-                    input.set_indeterminate(true);
-                }
-            },
-            (association_state, autorun_ref),
-        );
+        use_effect_with((association_state, autorun_ref), move |(association_state, autorun_ref)| {
+            if association_state.autorun() == &BulkValue::Mixed {
+                let input = autorun_ref
+                    .cast::<web_sys::HtmlInputElement>()
+                    .expect("could not cast node ref to input element");
+        
+                input.set_indeterminate(true);
+            }
+        });
     }
 
     // ***********************

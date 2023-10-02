@@ -46,19 +46,16 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         let project_path = project_path.clone();
         let pid = props.project.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                spawn_local(async move {
-                    let path =
-                        invoke::<PathBuf>("get_project_path", GetProjectPathArgs { id: pid })
-                            .await
-                            .expect("could not invoke `get_project_path`");
-
-                    project_path.set(Some(path));
-                })
-            },
-            (),
-        )
+        use_effect_with((), move |_| {
+            spawn_local(async move {
+                let path =
+                    invoke::<PathBuf>("get_project_path", GetProjectPathArgs { id: pid })
+                        .await
+                        .expect("could not invoke `get_project_path`");
+        
+                project_path.set(Some(path));
+            })
+        })
     }
 
     let onsuccess = {

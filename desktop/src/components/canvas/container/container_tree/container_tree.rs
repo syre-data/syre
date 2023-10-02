@@ -214,29 +214,26 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                let window = web_sys::window().expect("could not get window");
-                let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
-                    create_connectors(
-                        root_ref.clone(),
-                        children_ref.clone(),
-                        connectors_ref.clone(),
-                        canvas_state.clone(),
-                    )
-                });
-
-                window
-                    .add_event_listener_with_callback(
-                        "resize",
-                        create_connectors_cb.as_ref().unchecked_ref(),
-                    )
-                    .expect("could not add `resize` listener to `window`");
-
-                create_connectors_cb.forget();
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            let window = web_sys::window().expect("could not get window");
+            let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
+                create_connectors(
+                    root_ref.clone(),
+                    children_ref.clone(),
+                    connectors_ref.clone(),
+                    canvas_state.clone(),
+                )
+            });
+        
+            window
+                .add_event_listener_with_callback(
+                    "resize",
+                    create_connectors_cb.as_ref().unchecked_ref(),
+                )
+                .expect("could not add `resize` listener to `window`");
+        
+            create_connectors_cb.forget();
+        });
     }
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };

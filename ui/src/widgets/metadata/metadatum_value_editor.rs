@@ -41,14 +41,11 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         let value = value.clone();
         let value_str = value_str.clone();
 
-        use_effect_with_deps(
-            move |val| {
-                let val_str = serde_json::to_string_pretty(val).expect("could not stringify value");
-                value_str.set(val_str);
-                value.set(val.clone());
-            },
-            props.value.clone(),
-        );
+        use_effect_with(props.value.clone(), move |val| {
+            let val_str = serde_json::to_string_pretty(val).expect("could not stringify value");
+            value_str.set(val_str);
+            value.set(val.clone());
+        });
     }
 
     {
@@ -56,29 +53,23 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         let onchange = props.onchange.clone();
         let value = value.clone();
 
-        use_effect_with_deps(
-            move |value| {
-                onchange.emit((**value).clone());
-            },
-            value,
-        );
+        use_effect_with(value, move |value| {
+            onchange.emit((**value).clone());
+        });
     }
 
     {
         let value_str = value_str.clone();
         let number_step = number_step.clone();
 
-        use_effect_with_deps(
-            move |value_str| {
-                let step = match value_str.split_once('.') {
-                    None => 1_f64,
-                    Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
-                };
-
-                number_step.set(step);
-            },
-            value_str,
-        );
+        use_effect_with(value_str, move |value_str| {
+            let step = match value_str.split_once('.') {
+                None => 1_f64,
+                Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
+            };
+        
+            number_step.set(step);
+        });
     }
 
     let oninput_number = {

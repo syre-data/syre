@@ -32,7 +32,7 @@ thiserror = "1.0.44"
 tracing = "0.1.37"
 uuid = { version = "1.2", features = ["serde", "v4"] }
 validator = "0.14"
-yew = { version = "0.20", optional = true }
+yew = { version = "0.21", optional = true }
 
 has_id = { path = "../has_id", features = ["derive"] }
 

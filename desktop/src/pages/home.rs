@@ -95,34 +95,31 @@ pub fn home() -> Html {
         let navigator = navigator.clone();
         let rid = user.rid.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                let navigator = navigator.clone();
-                let app_state = app_state.clone();
-                let rid = rid.clone();
-
-                spawn_local(async move {
-                    let Ok(user_app_state) = invoke::<UserAppState>(
-                        "load_user_app_state",
-                        ResourceIdArgs { rid: rid.clone() }
-                    )
-                    .await else {
-                        navigator.push(&Route::SignIn);
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.")));
-                        return;
-                    };
-
-                    let Ok(user_settings) = invoke::<UserSettings>("load_user_settings", ResourceIdArgs { rid }).await else {
-                                app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.")));
-                                return;
-                    };
-
-                    app_state.dispatch(AppStateAction::SetUserAppState(Some(user_app_state)));
-                    app_state.dispatch(AppStateAction::SetUserSettings(Some(user_settings)));
-                });
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            let navigator = navigator.clone();
+            let app_state = app_state.clone();
+            let rid = rid.clone();
+        
+            spawn_local(async move {
+                let Ok(user_app_state) = invoke::<UserAppState>(
+                    "load_user_app_state",
+                    ResourceIdArgs { rid: rid.clone() }
+                )
+                .await else {
+                    navigator.push(&Route::SignIn);
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.")));
+                    return;
+                };
+        
+                let Ok(user_settings) = invoke::<UserSettings>("load_user_settings", ResourceIdArgs { rid }).await else {
+                            app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.")));
+                            return;
+                };
+        
+                app_state.dispatch(AppStateAction::SetUserAppState(Some(user_app_state)));
+                app_state.dispatch(AppStateAction::SetUserSettings(Some(user_settings)));
+            });
+        });
     }
 
     let fallback = html! { <Loading text={"Loading projects"} /> };

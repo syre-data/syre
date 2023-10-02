@@ -67,13 +67,10 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
-        use_effect_with_deps(
-            move |container| {
-                associations.set(container.scripts.clone());
-                dirty_state.set(false);
-            },
-            container,
-        );
+        use_effect_with(container, move |container| {
+            associations.set(container.scripts.clone());
+            dirty_state.set(false);
+        });
     }
 
     {
@@ -82,23 +79,20 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         let associations = associations.clone();
         let remaining_scripts = remaining_scripts.clone();
 
-        use_effect_with_deps(
-            move |associations| {
-                let scripts = project_scripts
-                    .values()
-                    .filter_map(|script| {
-                        if associations.contains_key(&script.rid) {
-                            None
-                        } else {
-                            Some(script.clone())
-                        }
-                    })
-                    .collect::<Vec<CoreScript>>();
-
-                remaining_scripts.set(scripts);
-            },
-            associations,
-        );
+        use_effect_with(associations, move |associations| {
+            let scripts = project_scripts
+                .values()
+                .filter_map(|script| {
+                    if associations.contains_key(&script.rid) {
+                        None
+                    } else {
+                        Some(script.clone())
+                    }
+                })
+                .collect::<Vec<CoreScript>>();
+        
+            remaining_scripts.set(scripts);
+        });
     }
 
     {
@@ -108,42 +102,39 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
-        use_effect_with_deps(
-            move |associations| {
-                if !*dirty_state {
-                    return;
-                }
-
-                let container = container.clone();
-                let graph_state = graph_state.clone();
-                let associations = associations.clone();
-
-                spawn_local(async move {
-                    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
-                    // See https://github.com/tauri-apps/tauri/issues/6078
-                    let associations_str = serde_json::to_string(&*associations)
-                        .expect("could not serialize `ScriptMap`");
-
-                    let update = UpdateScriptAssociationsStringArgs {
-                        rid: container.clone(),
-                        associations: associations_str,
-                    };
-
-                    let _res = invoke::<()>("update_container_script_associations", update)
-                        .await
-                        .expect("could not invoke `update_container_script_associations`");
-
-                    let update = UpdateScriptAssociationsArgs {
-                        rid: container,
-                        associations: (*associations).clone(),
-                    };
-
-                    graph_state
-                        .dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
-                });
-            },
-            associations,
-        );
+        use_effect_with(associations, move |associations| {
+            if !*dirty_state {
+                return;
+            }
+        
+            let container = container.clone();
+            let graph_state = graph_state.clone();
+            let associations = associations.clone();
+        
+            spawn_local(async move {
+                // TODO Issue with deserializing `HashMap` in Tauri, send as string.
+                // See https://github.com/tauri-apps/tauri/issues/6078
+                let associations_str = serde_json::to_string(&*associations)
+                    .expect("could not serialize `ScriptMap`");
+        
+                let update = UpdateScriptAssociationsStringArgs {
+                    rid: container.clone(),
+                    associations: associations_str,
+                };
+        
+                let _res = invoke::<()>("update_container_script_associations", update)
+                    .await
+                    .expect("could not invoke `update_container_script_associations`");
+        
+                let update = UpdateScriptAssociationsArgs {
+                    rid: container,
+                    associations: (*associations).clone(),
+                };
+        
+                graph_state
+                    .dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
+            });
+        });
     }
 
     let name_map = (*associations)

@@ -44,33 +44,30 @@ pub fn app() -> Html {
         let app_state = app_state.clone();
         let projects_state = projects_state.clone();
 
-        use_effect_with_deps(
-            move |auth_state| {
-                let Some(user) = auth_state.user.as_ref() else {
+        use_effect_with(auth_state, move |auth_state| {
+            let Some(user) = auth_state.user.as_ref() else {
+                return;
+            };
+        
+            let user_id = user.rid.clone();
+            let projects_state = projects_state.clone();
+        
+            spawn_local(async move {
+                let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
+                    "load_user_projects",
+                    LoadUserProjectsArgs { user: user_id },
+                )
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not load user projects",
+                    )));
                     return;
                 };
-
-                let user_id = user.rid.clone();
-                let projects_state = projects_state.clone();
-
-                spawn_local(async move {
-                    let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
-                        "load_user_projects",
-                        LoadUserProjectsArgs { user: user_id },
-                    )
-                    .await
-                    else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Could not load user projects",
-                        )));
-                        return;
-                    };
-
-                    projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
-                });
-            },
-            auth_state,
-        )
+        
+                projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
+            });
+        })
     }
 
     // TODO Respond to `open_settings` event.

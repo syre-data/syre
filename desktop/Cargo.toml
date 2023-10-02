@@ -29,8 +29,8 @@ tracing-web = "0.1.2"
 uuid = { version = "1.2", features = ["js", "serde", "v4"] }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4"
-yew = { version = "0.20", features = ["csr"] }
-yew-router = "0.17"
+yew = { version = "0.21", features = ["csr"] }
+yew-router = "0.18"
 
 thot-core = { path = "../core", features = ["yew", "serde"] }
 thot-local = { path = "../local", default-features = false }

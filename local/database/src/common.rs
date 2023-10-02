@@ -17,5 +17,5 @@ pub fn zmq_url(kind: zmq::SocketType) -> Option<String> {
         _ => return None,
     };
 
-    Some(format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
+    Some(format!("tcp://{LOCALHOST}:{port}"))
 }

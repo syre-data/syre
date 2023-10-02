@@ -2,9 +2,13 @@
 //! # Thot Local Database
 //! Implements a local database for Thot.
 pub mod command;
+pub mod update;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod constants;
+
+#[cfg(any(feature = "client", feature = "server"))]
+pub mod common;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod error;

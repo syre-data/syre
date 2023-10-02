@@ -89,6 +89,7 @@ pub fn add_project(
 // *******************
 // *** get project ***
 // *******************
+
 /// Gets a [`Project`].
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
@@ -123,30 +124,6 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 
     Ok(())
 }
-
-// *******************
-// *** new project ***
-// *******************
-
-// @todo: Can possibly remove.
-//
-// /// Creates a new project.
-// #[tauri::command]
-// pub fn new_project(app_state: State<AppState>, name: &str) -> Result<Project> {
-//     // create new project
-//     let project = LocalProject::new(name)?;
-//     let prj_props = (*project).clone();
-
-//     // store project
-//     let mut project_store = app_state
-//         .projects
-//         .lock()
-//         .expect("could not lock `AppState.projects`");
-
-//     project_store.insert(prj.properties.rid.clone(), prj);
-
-//     Ok(prj_props)
-// }
 
 // ********************
 // *** init project ***
@@ -218,7 +195,8 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
         serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
 
     let Some(mut graph) = graph else {
-        let error = CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
+        let error =
+            CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
         return Err(LibError::Database(format!("{error:?}")));
     };
 

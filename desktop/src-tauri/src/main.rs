@@ -90,7 +90,6 @@ fn main() {
             load_project,
             load_user_projects,
             get_project,
-            // new_project, TODO Possibly remove.
             update_project,
             analyze,
             // graph
@@ -118,7 +117,7 @@ fn main() {
             add_script,
             remove_script,
         ])
-        // .setup(setup::setup) // TODO Splashscreen
+        .setup(setup::setup)
         // .build(tauri::generate_context!()) // TODO Handle events
         .run(tauri::generate_context!())
         .expect("could not build app");

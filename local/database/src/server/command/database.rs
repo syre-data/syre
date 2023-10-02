@@ -7,10 +7,7 @@ use serde_json::Value as JsValue;
 impl Database {
     pub fn handle_command_database(&mut self, cmd: DatabaseCommand) -> JsValue {
         match cmd {
-            DatabaseCommand::Kill => {
-                self.kill = true;
-                JsValue::Null
-            }
+            DatabaseCommand::Kill => JsValue::Null,
             DatabaseCommand::Id => JsValue::String(DATABASE_ID.to_string()),
         }
     }

@@ -1,7 +1,22 @@
 //! Startup functionality.
+use crate::db::{UpdateActor, UpdateActorHandle};
+use std::sync::mpsc;
+use std::thread;
 use tauri::{App, Manager};
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    // database updates
+    let (update_tx, update_rx) = mpsc::channel();
+    let update_actor = UpdateActor::new(update_tx);
+    let update_actor_handler = UpdateActorHandle::new(update_rx, app.get_window("main").unwrap());
+    thread::spawn(move || update_actor.run());
+    thread::spawn(move || update_actor_handler.run());
+
+    Ok(())
+}
+
+/// Launches the splashscreen.
+fn splashscreen(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // get windows
     let w_splashscreen = app
         .get_window("splashscreen")

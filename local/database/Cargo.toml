@@ -16,12 +16,11 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 futures = "0.3.28"
-notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
-notify-debouncer-full = { version = "0.3", default-features = false }
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true}
+notify-debouncer-full = { version = "0.3", default-features = false, optional = true}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0.44"
-tokio = { version = "1", features = ["full", "tracing"] }
 tracing = "0.1.37"
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
@@ -40,5 +39,5 @@ lazy_static = "1.4"
 dev_utils = { path = "../../dev_utils", features = ["thot_core"] }
 
 [features]
-server = ["dep:zmq", "thot-local/fs", "dep:has_id", "dep:trash"]
+server = ["dep:zmq", "thot-local/fs", "dep:has_id", "dep:trash", "dep:notify", "dep:notify-debouncer-full"]
 client = ["dep:zmq"]

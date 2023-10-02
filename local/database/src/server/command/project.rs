@@ -161,7 +161,7 @@ impl Database {
         // load project
         let project = LocalProject::load_from(path)?;
         self.store.insert_project(project)?;
-        self.watch(path);
+        self.watch_path(path);
         let project = self.get_path_project(&path).unwrap();
         return Ok(project);
     }

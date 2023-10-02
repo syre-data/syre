@@ -1,125 +1,98 @@
 //! Database for storing resources.
-#[path = "./handler/mod.rs"]
-mod handler;
+#[path = "./command/mod.rs"]
+mod command;
 
+#[path = "./file_system/mod.rs"]
+mod file_system;
+
+use self::command::CommandActor;
+use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
 use super::store::Datastore;
+use super::Event;
 use crate::command::Command;
-use crate::constants::{DATABASE_ID, REQ_REP_PORT};
-use crate::{Error, Result};
-use notify::{self, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
+use crate::common;
+use crate::constants::DATABASE_ID;
+use crate::update::Update;
+use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
-use std::net::Ipv4Addr;
-use std::path::Path;
-use std::time::Duration;
-use tokio::sync::mpsc;
-
-static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
-static FILE_SYSTEM_EVENT_BUFFER_SIZE: usize = 1;
+use std::path::PathBuf;
+use std::sync::mpsc;
+use std::thread;
 
 /// Database.
 pub struct Database {
     store: Datastore,
+    event_rx: mpsc::Receiver<Event>,
+    file_system_tx: mpsc::Sender<FileSystemActorCommand>,
 
-    /// Kill flag indicating the database should stop listening and return.
-    kill: bool,
-
-    /// ZMQ context.
-    zmq_context: zmq::Context,
-
-    // File watcher
-    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
-
-    // File system event receiver
-    fs_rx: mpsc::Receiver<DebounceEventResult>,
+    /// Publication socket to broadcast updates.
+    update_tx: zmq::Socket,
 }
 
 impl Database {
+    /// Creates a new Database.
+    /// The database immediately begins listening for ZMQ and file system events.
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel(FILE_SYSTEM_EVENT_BUFFER_SIZE);
-        let watcher = new_debouncer(
-            Duration::from_millis(1000),
-            None,
-            move |event: DebounceEventResult| {
-                let tx = tx.clone();
-                futures::executor::block_on(async {
-                    tx.send(event).await.unwrap();
-                });
-            },
-        )
-        .unwrap();
+        let zmq_context = zmq::Context::new();
+        let update_tx = zmq_context.socket(zmq::SocketType::PUB).unwrap();
+        update_tx
+            .bind(&common::zmq_url(zmq::SocketType::PUB).unwrap())
+            .unwrap();
+
+        let (event_tx, event_rx) = mpsc::channel();
+        let (file_system_tx, file_system_rx) = mpsc::channel();
+        let command_actor = CommandActor::new(event_tx.clone());
+        let mut file_system_actor = FileSystemActor::new(event_tx, file_system_rx);
+
+        thread::spawn(move || command_actor.run());
+        thread::spawn(move || file_system_actor.run());
 
         Database {
             store: Datastore::new(),
-            kill: false,
-            zmq_context: zmq::Context::new(),
-            watcher,
-            fs_rx: rx,
+            event_rx,
+            file_system_tx,
+            update_tx,
         }
     }
 
-    /// Start the database.
-    pub async fn start(&mut self) {
-        tokio::spawn(self.listen_for_commands());
-        tokio::spawn(self.listen_for_file_system_events());
+    /// Begin responding to events.
+    pub fn start(&mut self) {
+        self.listen_for_events();
     }
 
-    fn watch(&mut self, path: impl AsRef<Path>) {
-        let path = path.as_ref();
-        self.watcher
-            .watcher()
-            .watch(path, RecursiveMode::Recursive)
-            .unwrap();
-
-        self.watcher
-            .cache()
-            .add_root(path, RecursiveMode::Recursive);
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn listen_for_commands(&mut self) -> Result {
-        let rep_socket = self.zmq_context.socket(zmq::SocketType::REP)?;
-        rep_socket.bind(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))?;
-
+    /// Listen for events coming from child actors.
+    fn listen_for_events(&mut self) {
         loop {
-            if self.kill {
-                break;
+            match self.event_rx.recv().unwrap() {
+                Event::Command { cmd, tx } => tx.send(self.handle_command(cmd)).unwrap(),
+                Event::FileSystem(events) => self.handle_file_system_events(events),
             }
-
-            let cmd = self.receive_command(&rep_socket).await?;
-            tracing::debug!(?cmd);
-
-            let res = self.handle_command(cmd);
-            rep_socket
-                .send(&res.to_string(), 0)
-                .expect("could not send response");
         }
-
-        Ok(())
     }
 
-    async fn receive_command(&self, socket: &zmq::Socket) -> Result<Command> {
-        let mut msg = zmq::Message::new();
-        socket.recv(&mut msg, 0).expect("could not recieve request");
+    /// Add a path to watch for file system changes.
+    fn watch_path(&mut self, path: impl Into<PathBuf>) {
+        self.file_system_tx
+            .send(FileSystemActorCommand::Watch(path.into()))
+            .unwrap();
+    }
 
-        let Some(msg_str) = msg.as_str() else {
-            let err_msg = "invalid message: could not convert to string";
-            tracing::debug!(?err_msg);
-            return Err(Error::ZMQ(err_msg.into()));
-        };
+    /// Remove a path from watching file system changes.
+    fn unwatch_path(&mut self, path: impl Into<PathBuf>) {
+        self.file_system_tx
+            .send(FileSystemActorCommand::Unwatch(path.into()))
+            .unwrap();
+    }
 
-        let Ok(cmd) = serde_json::from_str(msg_str) else {
-            let err_msg = "invalid message: could not convert `Message` to `Command";
-            tracing::debug!(err = err_msg, msg = msg_str);
-            return Err(Error::ZMQ(err_msg.into()));
-        };
-
-        Ok(cmd)
+    fn publish_update(&self, update: &Update) -> zmq::Result<()> {
+        self.update_tx
+            .send(&serde_json::to_string(update).unwrap(), 0)
     }
 
     // TODO Handle errors.
     /// Handles a given command, returning the correct data.
     fn handle_command(&mut self, command: Command) -> JsValue {
+        tracing::debug!(?command);
         match command {
             Command::AssetCommand(cmd) => self.handle_command_asset(cmd),
             Command::ContainerCommand(cmd) => self.handle_command_container(cmd),
@@ -128,6 +101,27 @@ impl Database {
             Command::GraphCommand(cmd) => self.handle_command_graph(cmd),
             Command::ScriptCommand(cmd) => self.handle_command_script(cmd),
             Command::UserCommand(cmd) => self.handle_command_user(cmd),
+        }
+    }
+
+    /// Handle file system events.
+    /// To be used with [`notify::Watcher`]s.
+    #[tracing::instrument(skip(self))]
+    fn handle_file_system_events(&mut self, events: DebounceEventResult) {
+        let events = match events {
+            Ok(events) => events,
+            Err(errs) => {
+                tracing::debug!("watch error: {errs:?}");
+                return;
+            }
+        };
+
+        for event in events.into_iter() {
+            tracing::debug!(?event);
+            match event.event.kind {
+                notify::EventKind::Modify(_) => self.handle_file_system_event_modify(event),
+                _ => {}
+            }
         }
     }
 }

@@ -84,6 +84,8 @@ impl Database {
             .unwrap();
     }
 
+    /// Publish an update to subscribers.
+    /// Triggered by file system events.
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {
         self.update_tx
             .send(&serde_json::to_string(update).unwrap(), 0)

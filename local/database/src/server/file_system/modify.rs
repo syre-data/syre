@@ -4,8 +4,9 @@ use crate::update::{Container as ContainerUpdate, Update};
 use crate::Result;
 use notify::{self, EventKind};
 use notify_debouncer_full::DebouncedEvent;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thot_core::types::ResourceId;
+use thot_local::constants::WINDOWS_UNC_PREFIX;
 
 impl Database {
     /// Handle [`notify::event::EventKind::ModifyKind`] events.
@@ -25,7 +26,7 @@ impl Database {
                     if to.is_file() {
                         self.update_asset_file_path(from, to).unwrap();
                     } else if to.is_dir() {
-                        let container = self.update_container_name(from, to).unwrap();
+                        let container = self.update_container_path(from, to).unwrap();
                         self.publish_update(
                             &ContainerUpdate::PathChange {
                                 container,
@@ -60,18 +61,47 @@ impl Database {
         todo!();
     }
 
-    fn update_container_name(
+    /// Updates a `Container`'s path.
+    /// Syncs name with path.
+    ///
+    /// # Returns
+    /// `ResouceId` of the affected `Container`.
+    #[tracing::instrument(skip(self, from, to))]
+    fn update_container_path(
         &mut self,
         from: impl AsRef<Path>,
         to: impl AsRef<Path>,
     ) -> Result<ResourceId> {
-        let from = from.as_ref();
         let to = to.as_ref();
-        let cid = self.store.get_path_container(from).unwrap().clone();
+        let from = PathBuf::from(from.as_ref());
+        tracing::debug!(?from);
+
+        // Assume that relative segments are resolved in file paths.
+        // On Windows paths are canonicalized to UNC when inserted.
+        // Can not use `fs::canonicalize` on `from` because file no longer exists,
+        // so mush canonicalize by hand.
+        #[cfg(target_os = "windows")]
+        let from = if from.starts_with(WINDOWS_UNC_PREFIX) {
+            from
+        } else {
+            // Must prefix UNC path as `str` because using `Path`s strips it.
+            let mut f = WINDOWS_UNC_PREFIX.to_string();
+            f.push_str(from.to_str().unwrap());
+            PathBuf::from(f)
+        };
+
+        let cid = self
+            .store
+            .get_path_container(from.as_ref())
+            .unwrap()
+            .clone();
+
         let container = self.store.get_container_mut(&cid).unwrap();
         container.properties.name = to.file_name().unwrap().to_str().unwrap().to_string();
+        self.store.update_subgraph_path(&cid, to)?; // must update graph paths before saving container
+
+        let container = self.store.get_container(&cid).unwrap();
         container.save()?;
-        self.store.update_subgraph_path(&cid, to)?;
 
         Ok(cid)
     }

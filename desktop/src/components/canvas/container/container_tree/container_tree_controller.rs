@@ -69,53 +69,49 @@ pub fn container_tree_controller() -> Html {
                 let mut events = tauri_sys::event::listen::<Vec<PathBuf>>("tauri://file-drop")
                     .await
                     .expect("could not create `tauri://file-drop` listener");
-        
+
                 while let Some(event) = events.next().await {
                     // get active container id
                     let node = node_ref
                         .cast::<web_sys::HtmlElement>()
                         .expect("could not cast node to element");
-        
+
                     let active_nodes = node
                         .query_selector_all(".dragover-active")
                         .expect("could not query node");
-        
+
                     if active_nodes.length() > 1 {
-                        web_sys::console::error_1(
-                            &"more than one node is dragover active".into(),
-                        );
+                        web_sys::console::error_1(&"more than one node is dragover active".into());
                         graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
                         app_state.dispatch(AppStateAction::AddMessage(Message::error(
                             "Could not add files",
                         )));
                         return;
                     }
-        
+
                     let Some(active_node) = active_nodes.get(0) else {
                         continue;
                     };
-        
+
                     let active_node = active_node
                         .dyn_ref::<web_sys::HtmlElement>()
                         .expect("could not cast node to element");
-        
+
                     let container_id = active_node
                         .dataset()
                         .get("rid")
                         .expect("could not get `ResourceId` from element");
-        
+
                     let container_id = ResourceId::from_str(&container_id)
                         .expect("could not convest string to `ResourceId`");
-        
+
                     // create assets
                     let action = match &app_state.user_settings {
                         None => AssetFileAction::Copy,
-                        Some(user_settings) => {
-                            user_settings.general.ondrop_asset_action.clone()
-                        }
+                        Some(user_settings) => user_settings.general.ondrop_asset_action.clone(),
                     };
-        
-                    // @todo: Handle buckets.
+
+                    // TODO Handle buckets.
                     let assets = event
                         .payload
                         .into_iter()
@@ -125,7 +121,7 @@ pub fn container_tree_controller() -> Html {
                             bucket: None,
                         })
                         .collect::<Vec<AddAssetInfo>>();
-        
+
                     let assets: Vec<ResourceId> = invoke(
                         "add_assets",
                         AddAssetsArgs {
@@ -135,7 +131,7 @@ pub fn container_tree_controller() -> Html {
                     )
                     .await
                     .expect("could not invoke `add_assets`");
-        
+
                     // update container
                     let container: Container = invoke(
                         "get_container",
@@ -145,20 +141,20 @@ pub fn container_tree_controller() -> Html {
                     )
                     .await
                     .expect("could not invoke `get_container`");
-        
+
                     let assets = container
                         .assets
                         .into_values()
                         .filter(|asset| assets.contains(&asset.rid))
                         .collect::<Vec<Asset>>();
-        
+
                     // update container
                     let num_assets = assets.len();
                     graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                         container_id.clone(),
                         assets,
                     ));
-        
+
                     // notify user
                     let num_assets_msg = if num_assets == 0 {
                         "No assets added"
@@ -168,7 +164,7 @@ pub fn container_tree_controller() -> Html {
                         // todo[3]: Display number of assets added.
                         "Assets added"
                     };
-        
+
                     app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                         Message::success(num_assets_msg),
                         MESSAGE_TIMEOUT,

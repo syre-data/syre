@@ -47,6 +47,7 @@ impl UpdateActor {
             };
 
             let update = serde_json::from_str(message.as_str().unwrap()).unwrap();
+            tracing::debug!(?update);
             self.update_tx.send(update).unwrap();
         }
     }
@@ -72,8 +73,11 @@ impl UpdateActorHandle {
 
     #[tracing::instrument(skip(self))]
     fn handle_database_updates(&self) {
-        let update = self.update_rx.recv().unwrap();
-        tracing::debug!(?update);
-        self.window.emit("database-update", update).unwrap();
+        tracing::debug!("LISTENING");
+        loop {
+            let update = self.update_rx.recv().unwrap();
+            tracing::debug!(?update);
+            self.window.emit("thot://database-update", update).unwrap();
+        }
     }
 }

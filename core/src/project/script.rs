@@ -194,7 +194,6 @@ impl ScriptLang {
     pub fn from_extension(ext: &OsStr) -> Option<Self> {
         let ext = ext.to_ascii_lowercase();
         let Some(ext) = ext.as_os_str().to_str() else {
-            tracing::debug!("0");
             return None;
         };
 

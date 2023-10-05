@@ -28,6 +28,8 @@ pub use command::{
     ScriptCommand,
 };
 
+pub use update::Update;
+
 #[cfg(any(feature = "client", feature = "server"))]
 pub use error::{Error, Result};
 

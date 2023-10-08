@@ -45,7 +45,7 @@ impl Database {
             }
 
             ContainerCommand::ByPath(path) => {
-                let Some(rid) = self.store.get_path_container(&path) else {
+                let Some(rid) = self.store.get_path_container_canonical(&path) else {
                     let value: Option<CoreContainer> = None;
                     return serde_json::to_value(value).expect("could not convert `None` to JSON");
                 };

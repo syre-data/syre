@@ -224,14 +224,14 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     canvas_state.clone(),
                 )
             });
-        
+
             window
                 .add_event_listener_with_callback(
                     "resize",
                     create_connectors_cb.as_ref().unchecked_ref(),
                 )
                 .expect("could not add `resize` listener to `window`");
-        
+
             create_connectors_cb.forget();
         });
     }

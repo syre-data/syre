@@ -37,7 +37,9 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 
     let project = projects_state.projects.get(&props.project);
     let Some(project) = project else {
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load project")));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+            "Could not load project",
+        )));
         navigator.push(&Route::Dashboard);
         return Ok(html! {{ "Could not load project" }});
     };

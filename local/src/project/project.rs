@@ -90,7 +90,10 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
     let mut projects = Projects::load()?;
     let Some(project) = projects.get_mut(rid) else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` is not registered")).into());
+        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            "`Project` is not registered",
+        ))
+        .into());
     };
 
     // move folder
@@ -131,7 +134,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
         // TODO[h] Should not create.
         let prj = Project::load_from(path.clone())?;
         if prj.meta_level == 0 {
-            return common::canonicalize_path(path);
+            return Ok(fs::canonicalize(path)?);
         }
     }
 
@@ -161,11 +164,11 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
         }
 
         let Ok(prj_json) = fs::read_to_string(prj_file) else {
-            // @todo: Handle metalevel.
+            // TODO Handle metalevel.
             // Currently assumed that if project file can't be read, it is because
             // the file is being controlled by another process, likely the database
             // so just return the path.
-            return common::canonicalize_path(path);
+            return Ok(fs::canonicalize(path)?);
         };
 
         let prj: CoreProject = match serde_json::from_str(prj_json.as_str()) {
@@ -174,7 +177,7 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
         };
 
         if prj.meta_level == 0 {
-            return common::canonicalize_path(path);
+            return Ok(fs::canonicalize(path)?);
         }
     }
 

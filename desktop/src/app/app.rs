@@ -8,6 +8,7 @@ use crate::common::invoke;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
+use futures::stream::StreamExt;
 use thot_core::project::Project;
 use thot_local::types::ProjectSettings;
 use thot_ui::types::Message;
@@ -48,10 +49,10 @@ pub fn app() -> Html {
             let Some(user) = auth_state.user.as_ref() else {
                 return;
             };
-        
+
             let user_id = user.rid.clone();
             let projects_state = projects_state.clone();
-        
+
             spawn_local(async move {
                 let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
                     "load_user_projects",
@@ -64,11 +65,24 @@ pub fn app() -> Html {
                     )));
                     return;
                 };
-        
+
                 projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
             });
         })
     }
+
+    use_effect_with((), move |_| {
+        spawn_local(async move {
+            let mut events =
+                tauri_sys::event::listen::<thot_local_database::Update>("thot://database-update")
+                    .await
+                    .expect("could not create `thot://database-update` listener");
+
+            while let Some(event) = events.next().await {
+                tracing::debug!(?event);
+            }
+        });
+    });
 
     // TODO Respond to `open_settings` event.
 

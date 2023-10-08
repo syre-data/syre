@@ -87,8 +87,8 @@ pub struct AddScriptArgs {
     // force register parameters
     #[clap(long)]
     register: bool,
-    
-    // @todo: Only valid if register is true
+
+    // TODO Only valid if register is true
     #[clap(long, value_enum)]
     path_type: Option<ResourcePathType>,
 }

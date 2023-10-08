@@ -27,8 +27,7 @@ fn main() {
 
 #[derive(Debug, Parser)]
 #[clap(name = "Thot CLI")]
-#[clap(version)]
-#[clap(about, long_about = None)]
+#[clap(version, about, long_about = None)]
 struct Cli {
     #[clap(subcommand)]
     command: Command,

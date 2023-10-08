@@ -19,28 +19,45 @@ use thot_local::project::resources::{
 // *************
 
 // TODO[l]: Types don't need to be `pub`.
+#[derive(Debug)]
 pub struct PathMap<T>(HashMap<PathBuf, T>);
 impl<T> PathMap<T> {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn get(&self, key: &Path) -> Option<&T> {
+    /// Gets an item.
+    ///
+    /// # Notes
+    /// + Canonicalizes the `key` path.
+    pub fn get_canonical(&self, key: &Path) -> Option<&T> {
         let key = fs::canonicalize(&key).unwrap();
         self.0.get(&key)
     }
 
-    pub fn get_mut(&mut self, key: &Path) -> Option<&mut T> {
+    /// Gets an item.
+    ///
+    /// # Notes
+    /// + Canonicalizes the `key` path.
+    pub fn get_canonical_mut(&mut self, key: &Path) -> Option<&mut T> {
         let key = fs::canonicalize(key).unwrap();
         self.0.get_mut(&key)
     }
 
-    pub fn insert(&mut self, key: PathBuf, value: T) -> Option<T> {
+    /// Inserts an item.
+    ///
+    /// # Notes
+    /// + Canonicalizes the `key` path.
+    pub fn insert_canonical(&mut self, key: PathBuf, value: T) -> Option<T> {
         let key = fs::canonicalize(key).unwrap();
         self.0.insert(key, value)
     }
 
-    pub fn remove(&mut self, key: &Path) -> Option<T> {
+    /// Removes an item.
+    ///
+    /// # Notes
+    /// + Canonicalizes the `key` path.
+    pub fn remove_canonical(&mut self, key: &Path) -> Option<T> {
         let key = match fs::canonicalize(key) {
             Ok(key) => key,
             Err(_) => key.to_path_buf(),
@@ -144,7 +161,7 @@ impl Datastore {
         let project_path = project.base_path().to_path_buf();
 
         self.projects.insert(pid.clone(), project);
-        self.project_paths.insert(project_path, pid);
+        self.project_paths.insert_canonical(project_path, pid);
 
         Ok(())
     }
@@ -163,7 +180,7 @@ impl Datastore {
 
     /// Gets the `Project` associated to the given path.
     pub fn get_path_project(&self, path: &Path) -> Option<&ResourceId> {
-        self.project_paths.get(path)
+        self.project_paths.get_canonical(path)
     }
 
     /// Gets the `Project` the `Container` belongs to.
@@ -235,7 +252,7 @@ impl Datastore {
         for (cid, node) in graph.nodes().iter() {
             self.container_projects.insert(cid.clone(), rid.clone());
             self.container_paths
-                .insert(node.base_path().into(), cid.clone());
+                .insert_canonical(node.base_path().into(), cid.clone());
 
             // map assets
             for (aid, asset) in node.data().assets.iter() {
@@ -270,7 +287,7 @@ impl Datastore {
 
             // map path to container
             self.container_paths
-                .insert(container.base_path().into(), cid.clone());
+                .insert_canonical(container.base_path().into(), cid.clone());
 
             // map assets
             for (aid, asset) in container.assets.iter() {
@@ -311,14 +328,15 @@ impl Datastore {
             self.container_projects.remove(cid);
 
             // map path to container
-            self.container_paths.remove(&container.base_path());
+            self.container_paths
+                .remove_canonical(&container.base_path());
 
             // map assets
             for (aid, asset) in container.assets.iter() {
                 self.asset_containers.remove(aid);
 
                 let asset_path = container.base_path().join(asset.path.as_path());
-                self.asset_paths.remove(&asset_path);
+                self.asset_paths.remove_canonical(&asset_path);
             }
         }
 
@@ -337,9 +355,6 @@ impl Datastore {
 
         let descendants = graph.descendants(root).unwrap();
         let container_path = graph.get(root).unwrap().base_path().to_path_buf();
-        if container_path == path {
-            return Ok(());
-        }
 
         for rid in descendants {
             let descendant = self.get_container_mut(&rid).unwrap();
@@ -347,10 +362,14 @@ impl Datastore {
             let old_path = descendant.base_path().to_path_buf();
             let new_path = old_path.strip_prefix(&container_path).unwrap();
             let new_path = path.join(new_path);
+            if new_path == old_path {
+                continue;
+            }
 
             descendant.set_base_path(new_path.clone());
-            self.container_paths.remove(&old_path);
-            self.container_paths.insert(new_path, descendant_id);
+            self.container_paths.remove_canonical(&old_path);
+            self.container_paths
+                .insert_canonical(new_path, descendant_id);
         }
 
         Ok(())
@@ -526,9 +545,17 @@ impl Datastore {
         find_containers_with_metadata_recursive(root, graph, filter, metadata)
     }
 
-    /// Gets a `Container`'s id by path.
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
+        tracing::debug!(?path, ?self.container_paths);
         self.container_paths.get(path)
+    }
+
+    /// Gets a `Container`'s id by path.
+    ///
+    /// # Notes
+    /// + Path is canonicalized.
+    pub fn get_path_container_canonical(&self, path: &Path) -> Option<&ResourceId> {
+        self.container_paths.get_canonical(path)
     }
 
     // *************
@@ -563,7 +590,7 @@ impl Datastore {
     /// Inserts an [`Asset`].
     pub fn insert_asset(&mut self, asset: ResourceId, path: PathBuf, container: ResourceId) {
         self.asset_containers.insert(asset.clone(), container);
-        self.asset_paths.insert(path, asset);
+        self.asset_paths.insert_canonical(path, asset);
     }
 
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
@@ -637,7 +664,7 @@ impl Datastore {
         if let Some(asset) = asset.as_ref() {
             let path = container_path.join(asset.path.as_path());
             trash::delete(&path)?;
-            self.asset_paths.remove(&path);
+            self.asset_paths.remove_canonical(&path);
         };
 
         self.asset_containers.remove(rid);
@@ -660,8 +687,8 @@ impl Datastore {
         asset.path = ResourcePath::new(to.clone())?;
         container.save()?;
 
-        self.asset_paths.remove(from);
-        self.asset_paths.insert(to, aid);
+        self.asset_paths.remove_canonical(from);
+        self.asset_paths.insert_canonical(to, aid);
         Ok(())
     }
 

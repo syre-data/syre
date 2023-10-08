@@ -12,6 +12,7 @@ members = [
     "lang/rust",
     "local",
     "local/database",
+    "local/database/cli",
     "local/runner",
     "ui",
 ]

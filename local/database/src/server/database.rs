@@ -34,10 +34,8 @@ impl Database {
     /// The database immediately begins listening for ZMQ and file system events.
     pub fn new() -> Self {
         let zmq_context = zmq::Context::new();
-        let update_tx = zmq_context.socket(zmq::SocketType::PUB).unwrap();
-        update_tx
-            .bind(&common::zmq_url(zmq::SocketType::PUB).unwrap())
-            .unwrap();
+        let update_tx = zmq_context.socket(zmq::PUB).unwrap();
+        update_tx.bind(&common::zmq_url(zmq::PUB).unwrap()).unwrap();
 
         let (event_tx, event_rx) = mpsc::channel();
         let (file_system_tx, file_system_rx) = mpsc::channel();
@@ -84,9 +82,17 @@ impl Database {
             .unwrap();
     }
 
+    /// Publish an update to subscribers.
+    /// Triggered by file system events.
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {
-        self.update_tx
-            .send(&serde_json::to_string(update).unwrap(), 0)
+        self.update_tx.send(
+            format!(
+                "{} {}",
+                constants::PUB_SUB_TOPIC,
+                &serde_json::to_string(update).unwrap()
+            ),
+            0,
+        )
     }
 
     // TODO Handle errors.

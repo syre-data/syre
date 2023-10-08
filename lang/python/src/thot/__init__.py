@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 import sys
-if sys.version_info < (3, 7):
-    raise RuntimeError("Requires Python version 3.7 or higher")
 
 if sys.version_info < (3, 9):
     _LEGACY_ = True
@@ -11,5 +9,5 @@ else:
     _LEGACY_ = False
 
 from .common import dev_mode
-from .database import Database
+from .database import Database, Asset, Container
 from .filter import filter

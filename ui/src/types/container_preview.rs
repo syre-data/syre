@@ -15,8 +15,8 @@ pub enum ContainerPreview {
     Scripts,
 }
 
-impl AsRef<str> for ContainerPreview {
-    fn as_ref(&self) -> &str {
+impl ContainerPreview {
+    pub fn as_str(&self) -> &str {
         match self {
             ContainerPreview::None => "None",
             ContainerPreview::Type => "Type",
@@ -29,9 +29,15 @@ impl AsRef<str> for ContainerPreview {
     }
 }
 
+impl AsRef<str> for ContainerPreview {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl ToHtml for ContainerPreview {
     fn to_html(&self) -> Html {
-        self.to_string().into_html()
+        self.as_str().into_html()
     }
 }
 
@@ -63,6 +69,6 @@ impl From<String> for ContainerPreview {
 
 impl fmt::Display for ContainerPreview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self.as_str())
     }
 }

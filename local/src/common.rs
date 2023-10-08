@@ -1,20 +1,8 @@
 //! Common use functions.
 use crate::constants::*;
 use crate::{Error, Result};
-use std::fs;
 use std::path::{Path, PathBuf};
-
-/// Canonicalizes a path.
-///
-/// # Notes
-/// Currently delegates to std::fs::canonicalize, but reserved for
-/// easy future changes.
-pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    match fs::canonicalize(path) {
-        Ok(path) => Ok(path),
-        Err(err) => Err(Error::from(err)),
-    }
-}
+use std::{fs, io};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {

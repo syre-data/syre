@@ -43,12 +43,12 @@ pub fn sign_in() -> Html {
 
             spawn_local(async move {
                 debug!(email);
-                let Ok(user) = invoke::<Option<User>>(
-                    "authenticate_user",
-                    UserCredentials { email }
-                )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
+                let Ok(user) =
+                    invoke::<Option<User>>("authenticate_user", UserCredentials { email }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not authenticate user.",
+                    )));
                     return;
                 };
 

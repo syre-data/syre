@@ -2,4 +2,4 @@
 pub mod functions;
 pub mod update_actor;
 
-pub use update_actor::{UpdateActor, UpdateActorHandle};
+pub use update_actor::UpdateActor;

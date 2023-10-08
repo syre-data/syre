@@ -1,7 +1,6 @@
 //! Actor for listening to database updates.
 use std::sync::mpsc;
 use std::thread;
-use thot_local_database::common;
 use thot_local_database::update::Update;
 
 pub struct UpdateActor {
@@ -15,8 +14,9 @@ impl UpdateActor {
     pub fn new(window: tauri::Window) -> Self {
         let zmq_context = zmq::Context::new();
         let zmq_socket = zmq_context.socket(zmq::SUB).unwrap();
+        zmq_socket.set_subscribe(thot_local_database::constants::PUB_SUB_TOPIC);
         zmq_socket
-            .connect(&common::zmq_url(zmq::SUB).unwrap())
+            .connect(&thot_local_database::common::zmq_url(zmq::SUB).unwrap())
             .unwrap();
 
         Self { window, zmq_socket }
@@ -30,7 +30,6 @@ impl UpdateActor {
     /// Listen for database updates and send them over the tx channel.
     #[tracing::instrument(skip(self))]
     fn listen_for_updates(&self) {
-        tracing::debug!("DB UPDATE LISTEN");
         loop {
             let message = match self.zmq_socket.recv_msg(0) {
                 Ok(msg) => msg,
@@ -40,7 +39,7 @@ impl UpdateActor {
                 }
             };
 
-            let update = serde_json::from_str(message.as_str().unwrap()).unwrap();
+            let update: Update = serde_json::from_str(message.as_str().unwrap()).unwrap();
             tracing::debug!(?update);
             self.window.emit("thot://database-update", update).unwrap();
         }

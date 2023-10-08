@@ -1,5 +1,5 @@
 //! Startup functionality.
-use crate::db::{UpdateActor, UpdateActorHandle};
+use crate::db::UpdateActor;
 use std::sync::mpsc;
 use std::thread;
 use tauri::{App, Manager};
@@ -23,10 +23,9 @@ fn splashscreen(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     // run init in new task
     tauri::async_runtime::spawn(async move {
-        // Important! If sleep time is less than 150ms SIGBUS error occurs.
+        // NOTE If sleep time is less than 150ms SIGBUS error occurs.
         std::thread::sleep(std::time::Duration::from_millis(250));
         // TODO: Load user settings.
-        // TODO: Load user projects.
         w_splashscreen
             .close()
             .expect("could not close splashscreen");

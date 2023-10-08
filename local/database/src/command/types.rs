@@ -1,7 +1,6 @@
 //! Types used for `Command`s.
 use serde::{Deserialize, Serialize};
 use thot_core::project::Metadata;
-use thot_core::types::ResourceId;
 
 /// Actions to be taken on tags.
 #[derive(Serialize, Deserialize, Default, Debug)]

@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use std::io;
 use thot_local_database::constants;
 
 #[derive(Parser, Debug)]
@@ -11,27 +12,34 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Command::Pub(SendArgs { message }) => publ(message).unwrap(),
+        Command::Pub => publ().unwrap(),
         Command::Sub => sub().unwrap(),
-        Command::Req(SendArgs { message }) => req(&message).unwrap(),
+        Command::Req => req().unwrap(),
         Command::Rep => rep().unwrap(),
     }
 }
 
-fn publ(message: impl std::fmt::Display) -> zmq::Result<()> {
+fn publ() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::PUB).unwrap();
     zmq_socket
         .bind(&thot_local_database::common::zmq_url(zmq::PUB).unwrap())
         .unwrap();
 
-    zmq_socket.send(&format!("{} {}", constants::PUB_SUB_TOPIC, message), 0)
+    let stdin = io::stdin();
+    let mut message = String::new();
+    loop {
+        stdin.read_line(&mut message).unwrap();
+        zmq_socket.send(&constants::PUB_SUB_TOPIC, zmq::SNDMORE)?;
+        zmq_socket.send(&message, 0)?;
+        message.clear();
+    }
 }
 
 fn sub() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::SUB).unwrap();
-    zmq_socket.connect(&thot_local_database::common::zmq_url(zmq::REQ).unwrap())?;
+    zmq_socket.connect(&thot_local_database::common::zmq_url(zmq::SUB).unwrap())?;
     zmq_socket
         .set_subscribe(constants::PUB_SUB_TOPIC.as_bytes())
         .unwrap();
@@ -42,12 +50,18 @@ fn sub() -> zmq::Result<()> {
     }
 }
 
-fn req(message: impl zmq::Sendable) -> zmq::Result<()> {
+fn req() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::REQ)?;
     zmq_socket.connect(&thot_local_database::common::zmq_url(zmq::REQ).unwrap())?;
 
-    zmq_socket.send(message, 0)
+    let stdin = io::stdin();
+    let mut message = String::new();
+    loop {
+        stdin.read_line(&mut message).unwrap();
+        zmq_socket.send(&message, 0)?;
+        message.clear();
+    }
 }
 
 fn rep() -> zmq::Result<()> {
@@ -63,13 +77,8 @@ fn rep() -> zmq::Result<()> {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Pub(SendArgs),
+    Pub,
     Sub,
-    Req(SendArgs),
+    Req,
     Rep,
-}
-
-#[derive(Debug, Args)]
-struct SendArgs {
-    message: String,
 }

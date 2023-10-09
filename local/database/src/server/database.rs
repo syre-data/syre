@@ -11,7 +11,7 @@ use super::store::Datastore;
 use super::Event;
 use crate::command::Command;
 use crate::common;
-use crate::constants::DATABASE_ID;
+use crate::constants;
 use crate::update::Update;
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
@@ -85,14 +85,11 @@ impl Database {
     /// Publish an update to subscribers.
     /// Triggered by file system events.
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {
-        self.update_tx.send(
-            format!(
-                "{} {}",
-                constants::PUB_SUB_TOPIC,
-                &serde_json::to_string(update).unwrap()
-            ),
-            0,
-        )
+        self.update_tx
+            .send(constants::PUB_SUB_TOPIC, zmq::SNDMORE)?;
+
+        self.update_tx
+            .send(&serde_json::to_string(update).unwrap(), 0)
     }
 
     // TODO Handle errors.

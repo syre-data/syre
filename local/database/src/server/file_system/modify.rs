@@ -6,6 +6,7 @@ use notify::{self, EventKind};
 use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
 use thot_core::types::ResourceId;
+#[cfg(target_os = "windows")]
 use thot_local::constants::WINDOWS_UNC_PREFIX;
 
 impl Database {

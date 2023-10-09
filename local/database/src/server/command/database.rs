@@ -1,7 +1,7 @@
 //! Handle [`DatabaseCommand`]s.
 use super::super::Database;
-use super::super::DATABASE_ID;
 use crate::command::DatabaseCommand;
+use crate::constants::DATABASE_ID;
 use serde_json::Value as JsValue;
 
 impl Database {

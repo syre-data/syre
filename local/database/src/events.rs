@@ -13,20 +13,15 @@ use thot_core::types::ResourceId;
 /// Update types.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Update {
-    Project(Project),
-}
-
-impl From<Project> for Update {
-    fn from(update: Project) -> Self {
-        Self::Project(update)
-    }
+    Project {
+        project: ResourceId,
+        update: Project,
+    },
 }
 
 // ***************
 // *** Project ***
 // ***************
-
-pub struct ProjectUpdate {}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {
@@ -46,15 +41,8 @@ impl From<Container> for Project {
 /// Container updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Container {
-    PathChange {
+    Properties {
         container: ResourceId,
-        path: PathBuf,
+        properties: thot_core::project::ContainerProperties,
     },
-}
-
-impl Into<Update> for Container {
-    fn into(self) -> Update {
-        let update: Project = self.into();
-        update.into()
-    }
 }

@@ -24,10 +24,10 @@ pub enum GraphStateAction {
     ///  Sets the [`ContainerTree`].
     SetGraph(ContainerTree),
 
-    /// Update a [`Container`](Container)'s [`StandardProperties`](thot_::project::StandardProperties).
+    /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
     UpdateContainerProperties(UpdateContainerPropertiesArgs),
 
-    /// Add a [`Container`](Container) as a child.
+    /// Add a [`Container`] as a child.
     ///
     /// # Fields
     /// #. `parent`: `ResourceId` of the parent.

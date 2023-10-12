@@ -12,7 +12,7 @@ use super::Event;
 use crate::command::Command;
 use crate::common;
 use crate::constants;
-use crate::update::Update;
+use crate::events::Update;
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
@@ -85,9 +85,14 @@ impl Database {
     /// Publish an update to subscribers.
     /// Triggered by file system events.
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {
-        self.update_tx
-            .send(constants::PUB_SUB_TOPIC, zmq::SNDMORE)?;
+        let mut topic = constants::PUB_SUB_TOPIC.to_string();
+        match update {
+            Update::Project { project, update } => {
+                topic.push_str(&format!("/project/{project}"));
+            }
+        };
 
+        self.update_tx.send(&topic, zmq::SNDMORE)?;
         self.update_tx
             .send(&serde_json::to_string(update).unwrap(), 0)
     }

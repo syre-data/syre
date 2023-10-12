@@ -28,7 +28,7 @@ pub enum AppStateAction {
     /// Add a message to display.
     AddMessage(Message),
 
-    // @todo: Remove requirement to pass `AppStateReducer`.
+    // TODO Remove requirement to pass `AppStateReducer`.
     /// Adda a message to display,
     /// disappering after some time.
     AddMessageWithTimeout(Message, u32, AppStateReducer<'static>),
@@ -69,7 +69,7 @@ pub struct AppState {
 impl Reducible for AppState {
     type Action = AppStateAction;
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {

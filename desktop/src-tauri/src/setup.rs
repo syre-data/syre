@@ -7,7 +7,10 @@ use tauri::{App, Manager};
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // database updates
     let update_actor = UpdateActor::new(app.get_window("main").unwrap());
-    thread::spawn(move || update_actor.run());
+    thread::Builder::new()
+        .name("update-actor".into())
+        .spawn(move || update_actor.run())
+        .unwrap();
 
     Ok(())
 }

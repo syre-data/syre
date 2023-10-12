@@ -1,6 +1,6 @@
 //! Handle file system events.
+use crate::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
 use crate::server::Database;
-use crate::update::{Container as ContainerUpdate, Update};
 use crate::Result;
 use notify::{self, EventKind};
 use notify_debouncer_full::DebouncedEvent;
@@ -28,13 +28,26 @@ impl Database {
                         self.update_asset_file_path(from, to).unwrap();
                     } else if to.is_dir() {
                         let container = self.update_container_path(from, to).unwrap();
-                        self.publish_update(
-                            &ContainerUpdate::PathChange {
+                        let project = self
+                            .store
+                            .get_container_project(&container)
+                            .unwrap()
+                            .clone();
+                        let properties = self
+                            .store
+                            .get_container(&container)
+                            .unwrap()
+                            .properties
+                            .clone();
+
+                        self.publish_update(&Update::Project {
+                            project,
+                            update: ContainerUpdate::Properties {
                                 container,
-                                path: to.clone(),
+                                properties,
                             }
                             .into(),
-                        )
+                        })
                         .unwrap();
                     } else {
                         panic!("unknown path resource");
@@ -75,12 +88,11 @@ impl Database {
     ) -> Result<ResourceId> {
         let to = to.as_ref();
         let from = PathBuf::from(from.as_ref());
-        tracing::debug!(?from);
 
         // Assume that relative segments are resolved in file paths.
         // On Windows paths are canonicalized to UNC when inserted.
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
-        // so mush canonicalize by hand.
+        // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
         let from = if from.starts_with(WINDOWS_UNC_PREFIX) {
             from

@@ -6,6 +6,7 @@ mod common;
 mod components;
 mod constants;
 mod error;
+mod events;
 mod hooks;
 mod navigation;
 mod pages;

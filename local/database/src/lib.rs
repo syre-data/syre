@@ -2,7 +2,7 @@
 //! # Thot Local Database
 //! Implements a local database for Thot.
 pub mod command;
-pub mod update;
+pub mod events;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod constants;
@@ -28,7 +28,7 @@ pub use command::{
     ScriptCommand,
 };
 
-pub use update::Update;
+pub use events::Update;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub use error::{Error, Result};

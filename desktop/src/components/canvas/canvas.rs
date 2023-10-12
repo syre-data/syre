@@ -90,6 +90,11 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     properties,
                                 },
                             )),
+
+                            ContainerUpdate::ChildCreated { container, parent } => graph_state
+                                .dispatch(GraphStateAction::InsertChildContainer(
+                                    parent, container,
+                                )),
                         },
                     }
                 }

@@ -2,7 +2,7 @@
 use crate::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
 use crate::server::Database;
 use crate::Result;
-use notify::{self, EventKind};
+use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
 use thot_core::types::ResourceId;
@@ -10,29 +10,30 @@ use thot_core::types::ResourceId;
 use thot_local::constants::WINDOWS_UNC_PREFIX;
 
 impl Database {
-    /// Handle [`notify::event::EventKind::ModifyKind`] events.
+    /// Handle [`notify::event::ModifyKind`] events.
     #[tracing::instrument(skip(self))]
-    pub fn handle_file_system_event_modify(&mut self, event: DebouncedEvent) {
+    pub fn handle_file_system_event_modify(&mut self, event: DebouncedEvent) -> Result {
         let EventKind::Modify(kind) = event.event.kind else {
             panic!("invalid event kind");
         };
 
         match kind {
-            notify::event::ModifyKind::Name(rename_mode) => match rename_mode {
-                notify::event::RenameMode::Both => {
+            ModifyKind::Name(rename_mode) => match rename_mode {
+                RenameMode::Both => {
                     let [from, to] = &event.event.paths[..] else {
                         panic!("invalid paths");
                     };
 
                     if to.is_file() {
-                        self.update_asset_file_path(from, to).unwrap();
+                        self.update_asset_file_path(from, to)?;
                     } else if to.is_dir() {
-                        let container = self.update_container_path(from, to).unwrap();
+                        let container = self.update_container_path(from, to)?;
                         let project = self
                             .store
                             .get_container_project(&container)
                             .unwrap()
                             .clone();
+
                         let properties = self
                             .store
                             .get_container(&container)
@@ -47,27 +48,31 @@ impl Database {
                                 properties,
                             }
                             .into(),
-                        })
-                        .unwrap();
+                        })?
                     } else {
                         panic!("unknown path resource");
                     }
+
+                    Ok(())
                 }
 
-                notify::event::RenameMode::From => {
+                RenameMode::From => {
                     tracing::debug!("from {:?}", event);
+                    todo!();
                 }
 
-                notify::event::RenameMode::To => {
+                RenameMode::To => {
                     tracing::debug!("to {:?}", event);
+                    todo!();
                 }
 
                 _ => {
-                    tracing::debug!("other {:?}", event)
+                    tracing::debug!("other {:?}", event);
+                    todo!();
                 }
             },
 
-            _ => {}
+            _ => Ok(()),
         }
     }
 

@@ -19,7 +19,7 @@ pub struct ContainerEditorProps {
     pub onsave: Callback<()>,
 }
 
-#[tracing::instrument(level = "debug", skip(props), fields(?props.rid))]
+#[tracing::instrument(skip(props), fields(?props.rid))]
 #[function_component(ContainerEditor)]
 pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
@@ -56,24 +56,24 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
             if !*dirty_state {
                 return;
             }
-        
+
             let properties = properties.clone();
             spawn_local(async move {
                 // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
                 // See https://github.com/tauri-apps/tauri/issues/6078
                 let properties_str = serde_json::to_string(&*properties)
                     .expect("could not serialize `ContainerProperties`");
-        
+
                 let update_str = UpdatePropertiesStringArgs {
                     rid: rid.clone(),
                     properties: properties_str,
                 };
-        
+
                 let update = UpdatePropertiesArgs {
                     rid,
                     properties: (*properties).clone(),
                 };
-        
+
                 match invoke::<()>("update_container_properties", update_str).await {
                     Err(err) => {
                         tracing::debug!(?err);
@@ -82,8 +82,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                         )));
                     }
                     Ok(_) => {
-                        graph_state
-                            .dispatch(GraphStateAction::UpdateContainerProperties(update));
+                        graph_state.dispatch(GraphStateAction::UpdateContainerProperties(update));
                     }
                 }
             });

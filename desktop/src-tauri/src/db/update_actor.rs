@@ -30,7 +30,7 @@ impl UpdateActor {
         self.listen_for_events();
     }
 
-    /// Listen for database updates and send them over the tx channel.
+    /// Listen for database updates and send them to main window.
     #[tracing::instrument(skip(self))]
     fn listen_for_events(&self) {
         loop {

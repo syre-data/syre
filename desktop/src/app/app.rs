@@ -6,7 +6,6 @@ use super::{
 use crate::commands::project::LoadUserProjectsArgs;
 use crate::common::invoke;
 use crate::components::messages::Messages;
-use crate::events::handle_event;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
 use futures::stream::StreamExt;
@@ -72,12 +71,13 @@ pub fn app() -> Html {
         })
     }
 
+    // TODO Respond to `open_settings` event.
     // use_effect_with((), move |_| {
     //     spawn_local(async move {
     //         let mut events =
-    //             tauri_sys::event::listen::<thot_local_database::Update>("thot://database-update")
+    //             tauri_sys::event::listen::<thot_local_database::Update>("thot://settings")
     //                 .await
-    //                 .expect("could not create `thot://database-update` listener");
+    //                 .expect("could not create `thot://settings` listener");
 
     //         while let Some(event) = events.next().await {
     //             tracing::debug!(?event);
@@ -85,8 +85,6 @@ pub fn app() -> Html {
     //         }
     //     });
     // });
-
-    // TODO Respond to `open_settings` event.
 
     html! {
         <BrowserRouter>

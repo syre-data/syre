@@ -545,8 +545,8 @@ impl Datastore {
         find_containers_with_metadata_recursive(root, graph, filter, metadata)
     }
 
+    /// Get a `Container`'s id by its path.
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
-        tracing::debug!(?path, ?self.container_paths);
         self.container_paths.get(path)
     }
 

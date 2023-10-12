@@ -45,4 +45,9 @@ pub enum Container {
         container: ResourceId,
         properties: thot_core::project::ContainerProperties,
     },
+
+    ChildCreated {
+        parent: ResourceId,
+        container: thot_core::project::Container,
+    },
 }

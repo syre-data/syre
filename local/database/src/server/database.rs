@@ -10,9 +10,8 @@ use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
 use super::store::Datastore;
 use super::Event;
 use crate::command::Command;
-use crate::common;
-use crate::constants;
 use crate::events::Update;
+use crate::{common, constants, Result};
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
@@ -63,7 +62,7 @@ impl Database {
         loop {
             match self.event_rx.recv().unwrap() {
                 Event::Command { cmd, tx } => tx.send(self.handle_command(cmd)).unwrap(),
-                Event::FileSystem(events) => self.handle_file_system_events(events),
+                Event::FileSystem(events) => self.handle_file_system_events(events).unwrap(),
             }
         }
     }
@@ -115,22 +114,25 @@ impl Database {
     /// Handle file system events.
     /// To be used with [`notify::Watcher`]s.
     #[tracing::instrument(skip(self))]
-    fn handle_file_system_events(&mut self, events: DebounceEventResult) {
+    fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
         let events = match events {
             Ok(events) => events,
             Err(errs) => {
                 tracing::debug!("watch error: {errs:?}");
-                return;
+                return Err(crate::Error::DatabaseError(format!("{errs:?}")));
             }
         };
 
         for event in events.into_iter() {
             tracing::debug!(?event);
             match event.event.kind {
-                notify::EventKind::Modify(_) => self.handle_file_system_event_modify(event),
-                _ => {}
+                notify::EventKind::Modify(_) => self.handle_file_system_event_modify(event)?,
+                notify::EventKind::Create(_) => self.handle_file_system_event_create(event)?,
+                _ => todo!(),
             }
         }
+
+        Ok(())
     }
 }
 

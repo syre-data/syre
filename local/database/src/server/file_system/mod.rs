@@ -2,3 +2,4 @@
 pub mod actor;
 pub mod create;
 pub mod modify;
+pub mod remove;

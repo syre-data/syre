@@ -12,7 +12,7 @@ use super::Event;
 use crate::command::Command;
 use crate::events::Update;
 use crate::{common, constants, Result};
-use notify_debouncer_full::DebounceEventResult;
+use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -122,17 +122,66 @@ impl Database {
                 return Err(crate::Error::DatabaseError(format!("{errs:?}")));
             }
         };
+        tracing::debug!(?events);
+
+        if let Some(res) = self.try_handle_events_group(&events) {
+            return res;
+        }
 
         for event in events.into_iter() {
-            tracing::debug!(?event);
             match event.event.kind {
                 notify::EventKind::Modify(_) => self.handle_file_system_event_modify(event)?,
                 notify::EventKind::Create(_) => self.handle_file_system_event_create(event)?,
+                notify::EventKind::Remove(_) => self.handle_file_system_event_remove(event)?,
                 _ => todo!(),
             }
         }
 
         Ok(())
+    }
+
+    /// Try to handle events as a group.
+    ///
+    /// # Returns
+    /// `Some` with the `Result` if the events were handled as a group.
+    /// `None` if the events were not handled as a group.
+    fn try_handle_events_group(&mut self, events: &Vec<DebouncedEvent>) -> Option<Result> {
+        let rename_from_to_events = events
+            .iter()
+            .map(|event| {
+                event.kind
+                    == notify::EventKind::Modify(notify::event::ModifyKind::Name(
+                        notify::event::RenameMode::From,
+                    ))
+                    || event.kind
+                        == notify::EventKind::Modify(notify::event::ModifyKind::Name(
+                            notify::event::RenameMode::To,
+                        ))
+            })
+            .collect::<Vec<_>>();
+
+        let num_rename_from_to_events = rename_from_to_events
+            .iter()
+            .filter(|&&event| event)
+            .collect::<Vec<_>>()
+            .len();
+
+        if num_rename_from_to_events == 2 {
+            let p1 = rename_from_to_events.iter().position(|&e| e).unwrap();
+            let p2 = rename_from_to_events.iter().rposition(|&e| e).unwrap();
+            let (from, to) = if events[p1].kind
+                == notify::EventKind::Modify(notify::event::ModifyKind::Name(
+                    notify::event::RenameMode::From,
+                )) {
+                (&events[p1], &events[p2])
+            } else {
+                (&events[p2], &events[p1])
+            };
+
+            return Some(self.handle_from_to_event(&from.paths[0], &to.paths[0]));
+        }
+
+        None
     }
 }
 

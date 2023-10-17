@@ -46,7 +46,7 @@ impl Database {
             }
 
             AssetCommand::Parent(asset) => {
-                // @todo: Convert to result for homogeneity with `ContainerCommand::Parent`.
+                // TODO Convert to result for homogeneity with `ContainerCommand::Parent`.
                 let container: Option<CoreContainer> = self
                     .store
                     .get_asset_container(&asset)

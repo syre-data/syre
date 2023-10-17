@@ -1,13 +1,13 @@
 //! Handle file system events.
-use crate::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
+use crate::events::{
+    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
+};
 use crate::server::Database;
-use crate::Result;
+use crate::{common, Result};
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
-use thot_core::types::ResourceId;
-#[cfg(target_os = "windows")]
-use thot_local::constants::WINDOWS_UNC_PREFIX;
+use thot_core::types::{ResourceId, ResourcePath};
 
 impl Database {
     /// Handle [`notify::event::ModifyKind`] events.
@@ -24,47 +24,12 @@ impl Database {
                         panic!("invalid paths");
                     };
 
-                    if to.is_file() {
-                        self.update_asset_file_path(from, to)?;
-                    } else if to.is_dir() {
-                        let container = self.update_container_path(from, to)?;
-                        let project = self
-                            .store
-                            .get_container_project(&container)
-                            .unwrap()
-                            .clone();
-
-                        let properties = self
-                            .store
-                            .get_container(&container)
-                            .unwrap()
-                            .properties
-                            .clone();
-
-                        self.publish_update(&Update::Project {
-                            project,
-                            update: ContainerUpdate::Properties {
-                                container,
-                                properties,
-                            }
-                            .into(),
-                        })?
-                    } else {
-                        panic!("unknown path resource");
-                    }
-
+                    self.handle_from_to_event(from, to)?;
                     Ok(())
                 }
 
-                RenameMode::From => {
-                    tracing::debug!("from {:?}", event);
-                    todo!();
-                }
-
-                RenameMode::To => {
-                    tracing::debug!("to {:?}", event);
-                    todo!();
-                }
+                RenameMode::From => panic!("can not handle individual `From` event"),
+                RenameMode::To => panic!("can not handle individual `To` event"),
 
                 _ => {
                     tracing::debug!("other {:?}", event);
@@ -76,8 +41,76 @@ impl Database {
         }
     }
 
-    fn update_asset_file_path(&mut self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result {
-        todo!();
+    pub fn handle_from_to_event(&mut self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result {
+        let from = from.as_ref();
+        let to = to.as_ref();
+
+        if to.is_file() {
+            let asset = self.update_asset_file_path(from, to)?;
+            let container = self.store.get_asset_container(&asset).unwrap();
+            let project = self
+                .store
+                .get_container_project(&container.rid)
+                .unwrap()
+                .clone();
+
+            let path = container.assets.get(&asset).unwrap().path.clone();
+            self.publish_update(&Update::Project {
+                project,
+                update: AssetUpdate::PathChanged { asset, path }.into(),
+            })?
+        } else if to.is_dir() {
+            let container = self.update_container_path(from, to)?;
+            let project = self
+                .store
+                .get_container_project(&container)
+                .unwrap()
+                .clone();
+
+            let properties = self
+                .store
+                .get_container(&container)
+                .unwrap()
+                .properties
+                .clone();
+
+            self.publish_update(&Update::Project {
+                project,
+                update: ContainerUpdate::Properties {
+                    container,
+                    properties,
+                }
+                .into(),
+            })?
+        } else {
+            panic!("unknown path resource");
+        }
+
+        Ok(())
+    }
+
+    /// Updates an `Asset`'s file path.
+    ///
+    /// # Returns
+    /// `ResourceId` of the `Asset`.
+    fn update_asset_file_path(
+        &mut self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+    ) -> Result<ResourceId> {
+        let to = to.as_ref();
+        let from = from.as_ref();
+
+        // Assume that relative segments are resolved in file paths.
+        // On Windows paths are canonicalized to UNC when inserted.
+        // Can not use `fs::canonicalize` on `from` because file no longer exists,
+        // so must canonicalize by hand.
+        #[cfg(target_os = "windows")]
+        let from = common::ensure_windows_unc(from);
+
+        self.store.update_asset_path(from, to)?;
+        let aid = self.store.get_path_asset_id_canonical(to).unwrap().clone();
+        Ok(aid)
     }
 
     /// Updates a `Container`'s path.
@@ -92,21 +125,14 @@ impl Database {
         to: impl AsRef<Path>,
     ) -> Result<ResourceId> {
         let to = to.as_ref();
-        let from = PathBuf::from(from.as_ref());
+        let from = from.as_ref();
 
         // Assume that relative segments are resolved in file paths.
         // On Windows paths are canonicalized to UNC when inserted.
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
         // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
-        let from = if from.starts_with(WINDOWS_UNC_PREFIX) {
-            from
-        } else {
-            // Must prefix UNC path as `str` because using `Path`s strips it.
-            let mut f = WINDOWS_UNC_PREFIX.to_string();
-            f.push_str(from.to_str().unwrap());
-            PathBuf::from(f)
-        };
+        let from = common::ensure_windows_unc(from);
 
         let cid = self
             .store

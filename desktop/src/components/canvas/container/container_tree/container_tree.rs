@@ -170,20 +170,21 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     return;
                 };
 
-                graph_state.dispatch(GraphStateAction::InsertChildContainer(
-                    parent,
-                    child.clone(),
-                ));
+                // REMOVE Taken care of by file listener now.
+                // graph_state.dispatch(GraphStateAction::InsertChildContainer(
+                //     parent,
+                //     child.clone(),
+                // ));
 
-                // set creator
-                child.properties.creator = Creator::User(Some(UserId::Id(uid)));
+                // // set creator
+                // child.properties.creator = Creator::User(Some(UserId::Id(uid)));
 
-                graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
-                    UpdatePropertiesArgs {
-                        rid: child.rid,
-                        properties: child.properties,
-                    },
-                ));
+                // graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
+                //     UpdatePropertiesArgs {
+                //         rid: child.rid,
+                //         properties: child.properties,
+                //     },
+                // ));
             });
         })
     };

@@ -117,7 +117,7 @@ pub struct Datastore {
     /// Map from a `Container`'s id to its `Project`'s.
     container_projects: IdMap,
 
-    /// Map from an [`Asset`]'s [`ResourceId`] to its [`Container`]'s.
+    /// Map from an [`Asset`]'s [`ResourceId`] to its `Container`'s.
     asset_containers: IdMap,
 
     /// Map from an [`Asset`]'s path to its [`ResourceId`].
@@ -546,6 +546,9 @@ impl Datastore {
     }
 
     /// Get a `Container`'s id by its path.
+    ///
+    /// # See also
+    /// + [`get_path_container_canonical`]
     pub fn get_path_container(&self, path: &Path) -> Option<&ResourceId> {
         self.container_paths.get(path)
     }
@@ -583,8 +586,17 @@ impl Datastore {
     }
 
     /// Get the [`ResourceId`] of the `Asset` associated with the path.
+    ///
+    /// # See also
+    /// + `get_path_asset_id_canoncial`
     pub fn get_path_asset_id(&self, path: impl AsRef<Path>) -> Option<&ResourceId> {
         self.asset_paths.get(path.as_ref())
+    }
+
+    /// Get the [`ResourceId`] of the `Asset` associated with the path.
+    /// `path` is first canonicalized.
+    pub fn get_path_asset_id_canonical(&self, path: impl AsRef<Path>) -> Option<&ResourceId> {
+        self.asset_paths.get_canonical(path.as_ref())
     }
 
     /// Inserts an [`Asset`].
@@ -672,8 +684,15 @@ impl Datastore {
     }
 
     /// Updates an [`Asset`]'s path.
-    pub fn update_asset_path(&mut self, from: impl AsRef<Path>, to: PathBuf) -> Result {
+    /// Sets the `Asset`'s path relative to its `Container`.
+    ///
+    /// # Notes
+    /// The `from` path is first removed from mappings. The path is then updated in it's `Container`.
+    /// Finally the `to` path is added to mappings.
+    pub fn update_asset_path(&mut self, from: impl AsRef<Path>, to: impl Into<PathBuf>) -> Result {
         let from = from.as_ref();
+        let to = to.into();
+
         let Some(aid) = self.get_path_asset_id(from).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
                 "`Asset` does not exist",
@@ -681,13 +700,17 @@ impl Datastore {
             .into());
         };
 
+        self.asset_paths.remove_canonical(from);
+
         let container = self.get_asset_container_id(&aid).unwrap().clone();
         let container = self.get_container_mut(&container).unwrap();
+        let container_path = container.base_path().to_path_buf();
         let asset = container.assets.get_mut(&aid).unwrap();
-        asset.path = ResourcePath::new(to.clone())?;
+        let path = to.strip_prefix(container_path).unwrap().to_path_buf();
+
+        asset.path = ResourcePath::new(path)?;
         container.save()?;
 
-        self.asset_paths.remove_canonical(from);
         self.asset_paths.insert_canonical(to, aid);
         Ok(())
     }

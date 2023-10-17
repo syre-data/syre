@@ -1,16 +1,16 @@
 //! Handle file system events.
 use crate::error::Result;
-use crate::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
+use crate::events::{
+    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
+};
 use crate::server::store::ContainerTree;
 use crate::server::Database;
 use notify::{self, event::CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::types::ResourceId;
-#[cfg(target_os = "windows")]
-use thot_local::constants::WINDOWS_UNC_PREFIX;
-use thot_local::project::resources::Container;
+use thot_core::types::{ResourceId, ResourcePath};
+use thot_local::project::resources::{Asset, Container};
 
 impl Database {
     /// Handle [`notify::event::CreateKind`] events.
@@ -29,7 +29,6 @@ impl Database {
         }
 
         let path = path.clone();
-
         match kind {
             CreateKind::File => self.handle_create_file(path),
             CreateKind::Folder => self.handle_create_folder(path),
@@ -54,7 +53,7 @@ impl Database {
         let ParentChild {
             parent,
             child: container,
-        } = self.init_container(path)?;
+        } = self.file_system_init_container(path)?;
 
         let project = self
             .store
@@ -75,16 +74,36 @@ impl Database {
     }
 
     fn handle_create_file(&mut self, path: PathBuf) -> Result {
-        let asset = self.init_asset(path)?;
-        todo!();
+        let ParentChild {
+            parent: container,
+            child: asset,
+        } = self.file_system_init_asset(path)?;
+        let project = self
+            .store
+            .get_container_project(&container)
+            .unwrap()
+            .clone();
+
+        let container = self.store.get_container(&container).unwrap();
+        let asset = container.assets.get(&asset).unwrap().clone();
+
+        self.publish_update(&Update::Project {
+            project,
+            update: ProjectUpdate::Asset(AssetUpdate::Created {
+                container: container.rid.clone(),
+                asset,
+            }),
+        })?;
+
+        Ok(())
     }
 
-    /// Initialize a path as a `Container` and add it into the graph;
+    /// Initialize a path as a `Container` and add it into the graph.
     ///
     /// # Returns
     /// `ResourceId` of the initialize `Container`.
     #[tracing::instrument(skip(self))]
-    fn init_container(&mut self, path: PathBuf) -> Result<ParentChild> {
+    fn file_system_init_container(&mut self, path: PathBuf) -> Result<ParentChild> {
         let Some(parent) = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
@@ -110,8 +129,26 @@ impl Database {
         Ok(ParentChild { parent, child })
     }
 
-    fn init_asset(&mut self, path: PathBuf) -> Result {
-        todo!();
+    fn file_system_init_asset(&mut self, path: PathBuf) -> Result<ParentChild> {
+        let container_path = thot_local::project::asset::container_from_path_ancestor(&path)?;
+        let asset_path = path
+            .strip_prefix(container_path.clone())
+            .unwrap()
+            .to_path_buf();
+
+        let asset = Asset::new(ResourcePath::new(asset_path)?)?;
+        let aid = asset.rid.clone();
+        let container = self
+            .store
+            .get_path_container_canonical(&container_path)
+            .unwrap()
+            .clone();
+
+        self.store.add_asset(asset, container.clone())?;
+        Ok(ParentChild {
+            parent: container,
+            child: aid,
+        })
     }
 }
 

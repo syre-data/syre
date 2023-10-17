@@ -1,19 +1,21 @@
 //! Project canvas.
 use super::details_bar::DetailsBar;
-use super::graph_state;
 use super::project::Project as ProjectUi;
 use super::{
-    canvas_state::CanvasState, graph_state::GraphState, CanvasStateReducer, GraphStateAction,
-    GraphStateReducer,
+    canvas_state::CanvasState, graph_state::GraphState, CanvasStateAction, CanvasStateReducer,
+    GraphStateAction, GraphStateReducer,
 };
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
 use crate::commands::graph;
+use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::{use_load_project_scripts, use_project_graph};
 use crate::routes::Route;
 use futures::stream::StreamExt;
 use thot_core::types::ResourceId;
-use thot_local_database::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
+use thot_local_database::events::{
+    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
+};
 use thot_ui::components::{Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
@@ -56,6 +58,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let graph_state = use_reducer(|| GraphState::new(graph));
 
     {
+        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let pid = project.rid.clone();
 
@@ -91,10 +94,70 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 },
                             )),
 
-                            ContainerUpdate::ChildCreated { container, parent } => graph_state
-                                .dispatch(GraphStateAction::InsertChildContainer(
+                            ContainerUpdate::ChildCreated { container, parent } => {
+                                let added = container.rid.clone();
+                                tracing::debug!(?added);
+                                graph_state.dispatch(GraphStateAction::InsertChildContainer(
                                     parent, container,
-                                )),
+                                ))
+                            }
+
+                            ContainerUpdate::Removed(container) => {
+                                let mut graph = graph_state.graph.clone();
+                                let gn = graph.nodes().keys();
+                                tracing::debug!(?gn);
+                                match graph.remove(&container) {
+                                    Ok(removed) => {
+                                        // unselect removed elements
+                                        let mut rids = Vec::with_capacity(removed.nodes().len());
+                                        for (cid, container) in removed.nodes() {
+                                            rids.push(cid.clone());
+                                            let mut aids = container
+                                                .assets
+                                                .keys()
+                                                .map(|rid| rid.clone())
+                                                .collect::<Vec<ResourceId>>();
+
+                                            rids.append(&mut aids);
+                                        }
+
+                                        canvas_state
+                                            .dispatch(CanvasStateAction::UnselectMany(rids));
+                                        graph_state.dispatch(GraphStateAction::SetGraph(graph));
+                                    }
+                                    Err(_) => {
+                                        let mut msg = Message::error("File system sync error");
+                                        msg.set_details("A Container was removed from the file system, but could not be removed from the canvas.");
+                                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                                    }
+                                }
+                            }
+                        },
+
+                        ProjectUpdate::Asset(update) => match update {
+                            AssetUpdate::Created { container, asset } => {
+                                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
+                                    container.clone(),
+                                    vec![asset],
+                                ));
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Asset added from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
+                            }
+
+                            AssetUpdate::PathChanged { asset, path } => {
+                                graph_state
+                                    .dispatch(GraphStateAction::UpdateAssetPath { asset, path });
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Asset path modified on file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
+                            }
                         },
                     }
                 }

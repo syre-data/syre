@@ -218,7 +218,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             .expect("could not invoke `remove_container_tree`");
 
                         let mut graph = graph_state.graph.clone();
-
                         match graph.remove(&rid) {
                             Ok(removed) => {
                                 // unselect removed elements
@@ -479,7 +478,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             vec![asset],
                         ));
 
-                        // notify user
                         app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                             Message::success("Added asset"),
                             MESSAGE_TIMEOUT,

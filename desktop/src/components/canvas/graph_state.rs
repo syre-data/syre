@@ -13,11 +13,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, ResourcePath};
 use yew::prelude::*;
 
 type ContainerTree = ResourceTree<Container>;
-
 pub type AssetContainerMap = HashMap<ResourceId, ResourceId>;
 
 pub enum GraphStateAction {
@@ -49,6 +48,11 @@ pub enum GraphStateAction {
 
     /// Update an [`Asset`](Asset).
     UpdateAsset(Asset),
+
+    UpdateAssetPath {
+        asset: ResourceId,
+        path: ResourcePath,
+    },
 
     SetDragOverContainer(ResourceId),
     ClearDragOverContainer,
@@ -340,8 +344,15 @@ impl Reducible for GraphState {
                     .get_mut(&container)
                     .expect("`Container` not found");
 
-                // @todo: Ensure `Asset` exists in `Container` before update.
+                // TODO Ensure `Asset` exists in `Container` before update.
                 container.assets.insert(asset.rid.clone(), asset.clone());
+            }
+
+            GraphStateAction::UpdateAssetPath { asset, path } => {
+                let container = current.asset_map.get(&asset).unwrap();
+                let container = current.graph.get_mut(container).unwrap();
+                let asset = container.assets.get_mut(&asset).unwrap();
+                asset.path = path;
             }
 
             GraphStateAction::SetDragOverContainer(rid) => {

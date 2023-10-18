@@ -44,7 +44,8 @@ impl Database {
                 let project = self.get_script_project(&script);
                 let Some(project) = project else {
                     let val: Option<CoreProject> = None;
-                    return serde_json::to_value(val).expect("could not convert `CoreProject` to JsValue")
+                    return serde_json::to_value(val)
+                        .expect("could not convert `CoreProject` to JsValue");
                 };
 
                 let project: Option<CoreProject> = Some((**project).clone());
@@ -66,7 +67,10 @@ impl Database {
 
         let projects = Projects::load_or_default()?;
         let Some(project) = projects.get(&rid).clone() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Project` does not exist",
+            ))
+            .into());
         };
 
         let scripts = ProjectScripts::load_from(project)?;
@@ -92,7 +96,9 @@ impl Database {
                 ResourcePath::Absolute(path) => path.clone(),
                 ResourcePath::Relative(script_path) => {
                     let Some(project) = self.store.get_project(&pid) else {
-                        return Err(Error::DatabaseError(String::from("could not get `Project` path")));
+                        return Err(Error::DatabaseError(String::from(
+                            "could not get `Project` path",
+                        )));
                     };
 
                     let path = project.base_path();
@@ -119,7 +125,10 @@ impl Database {
     /// Update a `Script`.
     fn update_script(&mut self, script: CoreScript) -> Result {
         let Some(project) = self.store.get_script_project(&script.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Script` does not exist")).into());
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Script` does not exist",
+            ))
+            .into());
         };
 
         self.store.insert_script(project.clone(), script)?;

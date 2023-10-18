@@ -103,7 +103,7 @@ impl ContainerTreeDuplicator {
     ) -> Result<ContainerTree> {
         // ensure root exists
         let Some(node) = graph.get(root) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());
@@ -118,7 +118,7 @@ impl ContainerTreeDuplicator {
         let dup_root = container.rid.clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());

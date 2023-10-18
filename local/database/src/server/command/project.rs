@@ -167,7 +167,7 @@ impl Database {
     }
 
     fn get_path_project(&self, path: &Path) -> Option<&LocalProject> {
-        if let Some(pid) = self.store.get_path_project(&path) {
+        if let Some(pid) = self.store.get_path_project_canonical(&path).unwrap() {
             if let Some(project) = self.store.get_project(pid) {
                 // already loaded
                 return Some(project);
@@ -210,7 +210,7 @@ impl Database {
 
     fn update_project(&mut self, update: CoreProject) -> Result {
         let Some(project) = self.store.get_project_mut(&update.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());
@@ -223,7 +223,7 @@ impl Database {
 
     fn update_project_settings(&mut self, rid: &ResourceId, settings: ProjectSettings) -> Result {
         let Some(project) = self.store.get_project_mut(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());

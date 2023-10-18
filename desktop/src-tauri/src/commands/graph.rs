@@ -62,9 +62,10 @@ pub fn init_project_graph(
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
     let Some(mut project) = project else {
-        return Err(
-            CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into(),
-        );
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` not loaded",
+        ))
+        .into());
     };
 
     project.data_root = Some(path.clone());

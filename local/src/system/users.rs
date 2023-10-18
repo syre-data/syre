@@ -136,7 +136,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
     let user = user_by_email(email)?;
     let Some(user) = user else {
         return Err(Error::CoreError(CoreError::ResourceError(
-            ResourceError::DoesNotExist("email does not exist"),
+            ResourceError::does_not_exist("email does not exist"),
         )));
     };
 
@@ -172,7 +172,7 @@ fn user_count_by_email(email: &str, users: &Users) -> usize {
 fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -> Result {
     // validate id
     if !store.contains_key(&rid) {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`User` does not exist.",
         ))
         .into());

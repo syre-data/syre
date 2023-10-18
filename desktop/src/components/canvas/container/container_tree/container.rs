@@ -361,13 +361,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     return;
                 };
 
-                let mut assets = container.assets.clone();
-                assets.retain(|asset, _| asset != &rid);
-                graph_state.dispatch(GraphStateAction::UpdateContainerAssets(
-                    container_id.clone(),
-                    assets,
-                ));
-
+                graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
                 canvas_state.dispatch(CanvasStateAction::Unselect(rid.clone()));
             });
         })

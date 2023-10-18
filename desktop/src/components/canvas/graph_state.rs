@@ -11,6 +11,7 @@ use crate::commands::container::{
 use crate::commands::types::ResourcePropertiesUpdate;
 use std::collections::HashMap;
 use std::rc::Rc;
+use thot_core::db::Resource;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
 use thot_core::types::{ResourceId, ResourcePath};
@@ -23,6 +24,9 @@ pub enum GraphStateAction {
     ///  Sets the [`ContainerTree`].
     SetGraph(ContainerTree),
 
+    /// Removes a `Container`` subtree from the graph.
+    RemoveSubtree(ResourceId),
+
     /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
     UpdateContainerProperties(UpdateContainerPropertiesArgs),
 
@@ -33,20 +37,23 @@ pub enum GraphStateAction {
     /// #. `child`: Child `Container`.
     InsertChildContainer(ResourceId, Container),
 
-    /// Update [`Asset`](Asset)s of a [`Container`](CoreContainer).
-    UpdateContainerAssets(ResourceId, AssetMap),
+    /// Set a [`Container`]'s [`Asset`]s.
+    SetContainerAssets(ResourceId, AssetMap),
 
-    /// Insert [`Asset`](Asset)s into a [`Container`](Container).
+    /// Insert [`Asset`]s into a [`Container`].
     InsertContainerAssets(ResourceId, Vec<Asset>),
 
-    /// Update a [`Container`](Container)'s
-    /// [`ScriptAssociation`](thot_::project::ScriptAssociation)s.
+    /// Update a [`Container`]'s
+    /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
 
-    /// Remove all associations with `Script` from [`Container`](CoreContainer)'s
+    /// Remove all associations with `Script` from [`Container`]'s.
     RemoveContainerScriptAssociations(ResourceId),
 
-    /// Update an [`Asset`](Asset).
+    // Remove an [`Asset`].
+    RemoveAsset(ResourceId),
+
+    /// Update an [`Asset`].
     UpdateAsset(Asset),
 
     UpdateAssetPath {
@@ -258,15 +265,19 @@ impl Reducible for GraphState {
 
         match action {
             GraphStateAction::SetGraph(graph) => {
-                let mut asset_map = AssetContainerMap::new();
+                // let mut asset_map = AssetContainerMap::new();
+                current.asset_map.clear();
                 for container in graph.nodes().values() {
                     for aid in container.assets.keys() {
-                        asset_map.insert(aid.clone(), container.rid.clone());
+                        current.asset_map.insert(aid.clone(), container.rid.clone());
                     }
                 }
 
                 current.graph = graph;
-                current.asset_map = asset_map;
+            }
+
+            GraphStateAction::RemoveSubtree(root) => {
+                current.graph.remove(&root).unwrap();
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
@@ -310,6 +321,20 @@ impl Reducible for GraphState {
                     .expect("could not insert child node");
             }
 
+            GraphStateAction::SetContainerAssets(container_rid, assets) => {
+                let Some(container) = current.graph.get_mut(&container_rid) else {
+                    panic!("`Container` not found")
+                };
+
+                container.assets = assets;
+                current.asset_map.clear();
+                for asset in container.assets.keys() {
+                    current
+                        .asset_map
+                        .insert(asset.clone(), container.rid.clone());
+                }
+            }
+
             GraphStateAction::InsertContainerAssets(container, assets) => {
                 let container = current
                     .graph
@@ -325,12 +350,15 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::UpdateContainerAssets(container_rid, assets) => {
-                let Some(container) = current.graph.get_mut(&container_rid) else {
-                    panic!("`Container` not found")
-                };
+            GraphStateAction::RemoveAsset(asset) => {
+                let container = current.asset_map.get(&asset).unwrap();
+                let container = current
+                    .graph
+                    .get_mut(container)
+                    .expect("`Container` not found");
 
-                container.assets = assets;
+                container.assets.remove(&asset);
+                current.asset_map.remove(&asset);
             }
 
             GraphStateAction::UpdateAsset(asset) => {

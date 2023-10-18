@@ -148,7 +148,7 @@ impl ScriptEnv {
         let language = ScriptLang::from_extension(path_ext);
         if language.is_none() {
             return Err(Error::ScriptError(ScriptError::UnknownLanguage(Some(
-                path_ext.to_os_string(),
+                path_ext.to_str().unwrap().to_string(),
             ))));
         }
         let language = language.unwrap();

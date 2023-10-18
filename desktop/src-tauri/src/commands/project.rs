@@ -196,7 +196,7 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
 
     let Some(mut graph) = graph else {
         let error =
-            CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
+            CoreError::ResourceError(ResourceError::does_not_exist("root `Container` not loaded"));
         return Err(LibError::Database(format!("{error:?}")));
     };
 

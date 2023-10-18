@@ -90,7 +90,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
     let mut projects = Projects::load()?;
     let Some(project) = projects.get_mut(rid) else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`Project` is not registered",
         ))
         .into());
@@ -181,7 +181,7 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
         }
     }
 
-    Err(CoreError::ProjectError(CoreProjectError::Misconfigured("project has no root.")).into())
+    Err(CoreError::ProjectError(CoreProjectError::misconfigured("project has no root.")).into())
 }
 
 /// Returns the [`ResourceId`] of the containing [`Project`] if it exists.

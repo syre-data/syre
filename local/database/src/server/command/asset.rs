@@ -94,21 +94,21 @@ impl Database {
 
     fn update_asset_properties(&mut self, rid: &ResourceId, properties: AssetProperties) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
         };
 
         let Some(asset) = container.assets.get_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
@@ -119,9 +119,13 @@ impl Database {
         Ok(())
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(skip(self))]
     fn remove_asset(&mut self, rid: &ResourceId) -> Result {
-        self.store.remove_asset(rid)?;
+        let Some((asset, path)) = self.store.remove_asset(rid)? else {
+            return Ok(());
+        };
+
+        trash::delete(&path)?;
         Ok(())
     }
 
@@ -147,21 +151,21 @@ impl Database {
         update: &AssetPropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
         };
 
         let Some(asset) = container.assets.get_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());

@@ -1,7 +1,6 @@
 //! Common error types.
 use crate::types::{ResourceId, ResourcePath};
 use std::convert::From;
-use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
@@ -18,13 +17,23 @@ use serde::{self, Deserialize, Serialize};
 #[derive(Error, Debug)]
 pub enum ResourceError {
     #[error("resource `{0}` does not exist")]
-    DoesNotExist(&'static str),
+    DoesNotExist(String),
 
     #[error("id `{0}` already exists")]
     DuplicateId(ResourceId),
 
     #[error("resource `{0}` already exists")]
-    AlreadyExists(&'static str),
+    AlreadyExists(String),
+}
+
+impl ResourceError {
+    pub fn does_not_exist(msg: impl Into<String>) -> Self {
+        Self::DoesNotExist(msg.into())
+    }
+
+    pub fn already_exists(msg: impl Into<String>) -> Self {
+        Self::AlreadyExists(msg.into())
+    }
 }
 
 // **********************
@@ -38,7 +47,13 @@ pub enum ProjectError {
     NotRegistered(Option<ResourceId>, Option<PathBuf>),
 
     #[error("Project is misconfigured: {0}")]
-    Misconfigured(&'static str),
+    Misconfigured(String),
+}
+
+impl ProjectError {
+    pub fn misconfigured(msg: impl Into<String>) -> Self {
+        Self::Misconfigured(msg.into())
+    }
 }
 
 // ******************
@@ -49,7 +64,13 @@ pub enum ProjectError {
 #[derive(Error, Debug)]
 pub enum GraphError {
     #[error("invalid graph: {0}")]
-    InvalidGraph(&'static str),
+    InvalidGraph(String),
+}
+
+impl GraphError {
+    pub fn invalid_graph(msg: impl Into<String>) -> Self {
+        Self::InvalidGraph(msg.into())
+    }
 }
 
 // *******************
@@ -71,9 +92,10 @@ pub enum AssetError {
 // ********************
 
 #[derive(Error, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ScriptError {
     #[error("unknown language `{0:?}`")]
-    UnknownLanguage(Option<OsString>),
+    UnknownLanguage(Option<String>),
 }
 
 // ***************************
@@ -84,7 +106,13 @@ pub enum ScriptError {
 #[derive(Error, Debug)]
 pub enum ResourcePathError {
     #[error("{0}")]
-    CouldNotParseMetalevel(&'static str),
+    CouldNotParseMetalevel(String),
+}
+
+impl ResourcePathError {
+    pub fn could_not_parse_meta_level(msg: impl Into<String>) -> Self {
+        Self::CouldNotParseMetalevel(msg.into())
+    }
 }
 
 // ********************
@@ -111,11 +139,13 @@ pub enum RunnerError {
 
 // TODO Put behind correct features.
 #[derive(Error, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Error {
     #[error("{0}")]
     AssetError(AssetError),
 
     #[error("{0}")]
+    #[serde(skip)]
     IoError(io::Error),
 
     #[error("{0}")]
@@ -137,11 +167,18 @@ pub enum Error {
     ScriptError(ScriptError),
 
     #[error("{0}")]
+    #[serde(skip)]
     SerdeError(serde_json::Error),
 
     /// Invalid value encountered.
     #[error("{0}")]
-    ValueError(&'static str),
+    Value(String),
+}
+
+impl Error {
+    pub fn value(msg: impl Into<String>) -> Self {
+        Self::Value(msg.into())
+    }
 }
 
 impl From<io::Error> for Error {
@@ -171,18 +208,6 @@ impl From<RunnerError> for Error {
 impl From<GraphError> for Error {
     fn from(err: GraphError) -> Self {
         Self::GraphError(err)
-    }
-}
-
-// @todo: Make better.
-#[cfg(feature = "serde")]
-impl Serialize for Error {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        let msg = format!("{:?}", self);
-        serializer.serialize_str(msg.as_ref())
     }
 }
 

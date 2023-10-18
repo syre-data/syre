@@ -77,7 +77,16 @@ impl Database {
         let ParentChild {
             parent: container,
             child: asset,
-        } = self.file_system_init_asset(path)?;
+        } = match self.file_system_init_asset(path) {
+            Ok(container_asset) => container_asset,
+
+            Err(crate::Error::CoreError(CoreError::ResourceError(
+                ResourceError::AlreadyExists(_msg),
+            ))) => return Ok(()),
+
+            Err(err) => return Err(err),
+        };
+
         let project = self
             .store
             .get_container_project(&container)
@@ -107,9 +116,10 @@ impl Database {
         let Some(parent) = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
+            .unwrap()
             .cloned()
         else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -131,6 +141,20 @@ impl Database {
 
     fn file_system_init_asset(&mut self, path: PathBuf) -> Result<ParentChild> {
         let container_path = thot_local::project::asset::container_from_path_ancestor(&path)?;
+        let container = self
+            .store
+            .get_path_container_canonical(&container_path)
+            .unwrap()
+            .cloned()
+            .unwrap();
+
+        if let Some(asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
+            return Err(CoreError::ResourceError(ResourceError::already_exists(
+                "path is already an Asset",
+            ))
+            .into());
+        }
+
         let asset_path = path
             .strip_prefix(container_path.clone())
             .unwrap()
@@ -138,13 +162,8 @@ impl Database {
 
         let asset = Asset::new(ResourcePath::new(asset_path)?)?;
         let aid = asset.rid.clone();
-        let container = self
-            .store
-            .get_path_container_canonical(&container_path)
-            .unwrap()
-            .clone();
-
         self.store.add_asset(asset, container.clone())?;
+
         Ok(ParentChild {
             parent: container,
             child: aid,

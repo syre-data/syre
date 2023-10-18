@@ -45,7 +45,7 @@ impl Database {
             }
 
             ContainerCommand::ByPath(path) => {
-                let Some(rid) = self.store.get_path_container_canonical(&path) else {
+                let Some(rid) = self.store.get_path_container_canonical(&path).unwrap() else {
                     let value: Option<CoreContainer> = None;
                     return serde_json::to_value(value).expect("could not convert `None` to JSON");
                 };
@@ -157,7 +157,7 @@ impl Database {
         properties: ContainerProperties,
     ) -> Result {
         let Some(container) = self.store.get_container(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -195,7 +195,7 @@ impl Database {
         let container_path = {
             let name: String = name.into();
             let Some(container) = self.store.get_container(container) else {
-                return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                     "`Container` does not exist",
                 ))
                 .into());
@@ -250,7 +250,7 @@ impl Database {
         associations: ScriptMap,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());
@@ -267,7 +267,7 @@ impl Database {
         assets: Vec<AddAssetInfo>,
     ) -> Result<HashSet<ResourceId>> {
         let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());
@@ -314,7 +314,7 @@ impl Database {
 
     fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {
         let Some(graph) = self.store.get_container_graph(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -351,7 +351,7 @@ impl Database {
         update: &ContainerPropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -422,7 +422,7 @@ impl Database {
         update: &ScriptAssociationBulkUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());

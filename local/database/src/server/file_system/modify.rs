@@ -3,7 +3,7 @@ use crate::events::{
     Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
 };
 use crate::server::Database;
-use crate::{common, Result};
+use crate::Result;
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
@@ -106,10 +106,16 @@ impl Database {
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
         // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
-        let from = common::ensure_windows_unc(from);
+        let from = thot_local::common::ensure_windows_unc(from);
 
         self.store.update_asset_path(from, to)?;
-        let aid = self.store.get_path_asset_id_canonical(to).unwrap().clone();
+        let aid = self
+            .store
+            .get_path_asset_id_canonical(to)
+            .unwrap()
+            .cloned()
+            .unwrap();
+
         Ok(aid)
     }
 
@@ -132,7 +138,7 @@ impl Database {
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
         // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
-        let from = common::ensure_windows_unc(from);
+        let from = thot_local::common::ensure_windows_unc(from);
 
         let cid = self
             .store

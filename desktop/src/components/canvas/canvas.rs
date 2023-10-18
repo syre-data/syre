@@ -63,6 +63,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         let pid = project.rid.clone();
 
         use_effect_with((), move |_| {
+            let canvas_state = canvas_state.clone();
             let graph_state = graph_state.clone();
             let pid = pid.clone();
 
@@ -75,7 +76,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                 .expect("could not create `thot://database/update/project/{rid}` listener");
 
                 while let Some(event) = events.next().await {
-                    tracing::debug!(?event);
+                    tracing::debug!(?graph_state.asset_map);
                     let Update::Project { project, update } = event.payload else {
                         tracing::debug!("Unhandled `Update` event");
                         continue;
@@ -96,41 +97,13 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 
                             ContainerUpdate::ChildCreated { container, parent } => {
                                 let added = container.rid.clone();
-                                tracing::debug!(?added);
                                 graph_state.dispatch(GraphStateAction::InsertChildContainer(
                                     parent, container,
                                 ))
                             }
 
                             ContainerUpdate::Removed(container) => {
-                                let mut graph = graph_state.graph.clone();
-                                let gn = graph.nodes().keys();
-                                tracing::debug!(?gn);
-                                match graph.remove(&container) {
-                                    Ok(removed) => {
-                                        // unselect removed elements
-                                        let mut rids = Vec::with_capacity(removed.nodes().len());
-                                        for (cid, container) in removed.nodes() {
-                                            rids.push(cid.clone());
-                                            let mut aids = container
-                                                .assets
-                                                .keys()
-                                                .map(|rid| rid.clone())
-                                                .collect::<Vec<ResourceId>>();
-
-                                            rids.append(&mut aids);
-                                        }
-
-                                        canvas_state
-                                            .dispatch(CanvasStateAction::UnselectMany(rids));
-                                        graph_state.dispatch(GraphStateAction::SetGraph(graph));
-                                    }
-                                    Err(_) => {
-                                        let mut msg = Message::error("File system sync error");
-                                        msg.set_details("A Container was removed from the file system, but could not be removed from the canvas.");
-                                        app_state.dispatch(AppStateAction::AddMessage(msg));
-                                    }
-                                }
+                                graph_state.dispatch(GraphStateAction::RemoveSubtree(container));
                             }
                         },
 
@@ -143,6 +116,16 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 
                                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                                     Message::success("Asset added from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
+                            }
+
+                            AssetUpdate::Removed(asset) => {
+                                graph_state.dispatch(GraphStateAction::RemoveAsset(asset.clone()));
+                                canvas_state.dispatch(CanvasStateAction::Unselect(asset));
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Asset removed from file system."),
                                     MESSAGE_TIMEOUT,
                                     app_state.clone(),
                                 ));
@@ -162,6 +145,32 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                     }
                 }
             });
+        });
+    }
+
+    {
+        let canvas_state = canvas_state.clone();
+        let graph_state = graph_state.clone();
+        use_effect_with(graph_state, move |graph_state| {
+            let mut resources = Vec::new();
+            for (cid, container) in graph_state.graph.iter_nodes() {
+                resources.push(cid);
+
+                for asset in container.assets.keys() {
+                    resources.push(asset);
+                }
+            }
+
+            let unselect = canvas_state
+                .selected
+                .iter()
+                .filter_map(|rid| match resources.contains(&rid) {
+                    true => None,
+                    false => Some(rid.clone()),
+                })
+                .collect::<Vec<_>>();
+
+            canvas_state.dispatch(CanvasStateAction::UnselectMany(unselect));
         });
     }
 

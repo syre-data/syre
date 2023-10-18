@@ -79,4 +79,6 @@ pub enum Asset {
         asset: ResourceId,
         path: ResourcePath,
     },
+
+    Removed(ResourceId),
 }

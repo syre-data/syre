@@ -171,7 +171,7 @@ impl Container {
     pub fn add_script_association(&mut self, assoc: ScriptAssociation) -> Result {
         if self.contains_script_association(&assoc.script) {
             return Err(Error::CoreError(CoreError::ResourceError(
-                ResourceError::AlreadyExists("Association with script already exists"),
+                ResourceError::already_exists("Association with script already exists"),
             )));
         }
 

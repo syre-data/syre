@@ -65,7 +65,7 @@ impl Scripts {
     /// already present.
     pub fn insert_script(&mut self, script: CoreScript) -> Result {
         if self.scripts.contains_path(&script.path) {
-            return Err(CoreError::ResourceError(ResourceError::AlreadyExists(
+            return Err(CoreError::ResourceError(ResourceError::already_exists(
                 "`Script` with same path is already present",
             ))
             .into());

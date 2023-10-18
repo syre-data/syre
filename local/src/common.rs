@@ -59,6 +59,20 @@ pub fn sanitize_file_path(path: impl Into<String>) -> String {
         .collect()
 }
 
+/// Prefixes the path with the [Windows UNC](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#unc-paths) path if it is not already there.
+#[cfg(target_os = "windows")]
+pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
+    let path: PathBuf = path.into();
+    if path.starts_with(WINDOWS_UNC_PREFIX) {
+        path
+    } else {
+        // Must prefix UNC path as `str` because using `Path`s strips it.
+        let mut p = WINDOWS_UNC_PREFIX.to_string();
+        p.push_str(path.to_str().unwrap());
+        PathBuf::from(p)
+    }
+}
+
 // ******************
 // *** file paths ***
 // ******************

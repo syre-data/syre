@@ -79,7 +79,7 @@ impl Database {
                 };
 
                 let Some(child) = self.store.get_container(&cid) else {
-                    let err: Error = CoreError::ResourceError(ResourceError::DoesNotExist(
+                    let err: Error = CoreError::ResourceError(ResourceError::does_not_exist(
                         "child `Container` not inserted into graph",
                     ))
                     .into();
@@ -101,7 +101,7 @@ impl Database {
                 // get duplicated tree
                 let Some(graph) = self.store.get_container_graph(&rid) else {
                     let err: Result<ResourceTree<CoreContainer>> = Err(CoreError::ResourceError(
-                        ResourceError::DoesNotExist("graph not found"),
+                        ResourceError::does_not_exist("graph not found"),
                     )
                     .into());
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
@@ -119,7 +119,7 @@ impl Database {
     /// Loads a `Projcet`'s [`Container`](LocalContainer) tree from settings.
     fn load_project_graph(&mut self, pid: &ResourceId) -> Result<&ContainerTree> {
         let Some(project) = self.store.get_project(pid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Project` not loaded",
             ))
             .into());
@@ -127,7 +127,7 @@ impl Database {
 
         let Some(data_root) = project.data_root.as_ref() else {
             return Err(
-                CoreError::ProjectError(ProjectError::Misconfigured("data root not set")).into(),
+                CoreError::ProjectError(ProjectError::misconfigured("data root not set")).into(),
             );
         };
 
@@ -151,28 +151,28 @@ impl Database {
     #[tracing::instrument(skip(self))]
     fn duplicate_container_tree(&mut self, rid: &ResourceId) -> Result<ResourceId> {
         let Some(project) = self.store.get_container_project(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` `Project` not loaded",
             ))
             .into());
         };
 
         let Some(graph) = self.store.get_project_graph(&project) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Project` graph not loaded",
             ))
             .into());
         };
 
         let Some(root) = graph.get(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());
         };
 
         let Some(parent) = graph.parent(rid)?.cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not have parent",
             ))
             .into());
@@ -193,7 +193,7 @@ impl Database {
 
     fn new_child(&mut self, parent: &ResourceId, name: String) -> Result<ResourceId> {
         let Some(parent) = self.store.get_container(&parent) else {
-            return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());

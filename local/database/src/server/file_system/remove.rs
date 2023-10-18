@@ -1,6 +1,8 @@
 //! Handle file system events.
 use crate::error::Result;
-use crate::events::{Container as ContainerUpdate, Project as ProjectUpdate, Update};
+use crate::events::{
+    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
+};
 use crate::server::store::ContainerTree;
 use crate::server::Database;
 use notify::{self, event::RemoveKind, EventKind};
@@ -8,8 +10,6 @@ use notify_debouncer_full::DebouncedEvent;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::ResourceId;
-#[cfg(target_os = "windows")]
-use thot_local::constants::WINDOWS_UNC_PREFIX;
 use thot_local::project::resources::Container;
 
 impl Database {
@@ -33,17 +33,17 @@ impl Database {
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
         // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
-        let path = if path.starts_with(WINDOWS_UNC_PREFIX) {
-            path.clone()
-        } else {
-            // Must prefix UNC path as `str` because using `Path`s strips it.
-            let mut p = WINDOWS_UNC_PREFIX.to_string();
-            p.push_str(path.to_str().unwrap());
-            PathBuf::from(p)
-        };
+        let path = thot_local::common::ensure_windows_unc(path);
 
         match kind {
-            RemoveKind::File => self.handle_remove_file(path),
+            RemoveKind::File => {
+                let Some(asset) = self.store.get_path_container(&path).cloned() else {
+                    return Ok(());
+                };
+
+                self.handle_remove_asset(asset)?;
+                Ok(())
+            }
             RemoveKind::Folder => {
                 let Some(container) = self.store.get_path_container(&path).cloned() else {
                     return Ok(());
@@ -57,8 +57,9 @@ impl Database {
                 if let Some(container) = self.store.get_path_container(&path).cloned() {
                     self.handle_remove_container(container)?;
                     Ok(())
-                } else if let Some(asset) = self.store.get_path_asset_id(&path) {
-                    todo!();
+                } else if let Some(asset) = self.store.get_path_asset_id(&path).cloned() {
+                    self.handle_remove_asset(asset)?;
+                    Ok(())
                 } else {
                     Ok(())
                 }
@@ -87,12 +88,15 @@ impl Database {
         Ok(())
     }
 
-    fn handle_remove_file(&mut self, path: PathBuf) -> Result {
-        let asset = self.file_system_remove_asset(path)?;
-        todo!();
-    }
+    fn handle_remove_asset(&mut self, asset: ResourceId) -> Result {
+        let container = self.store.get_asset_container_id(&asset).unwrap();
+        let project = self.store.get_container_project(container).unwrap().clone();
+        self.store.remove_asset(&asset)?;
+        self.publish_update(&Update::Project {
+            project,
+            update: ProjectUpdate::Asset(AssetUpdate::Removed(asset)),
+        })?;
 
-    fn file_system_remove_asset(&mut self, path: PathBuf) -> Result {
-        todo!();
+        Ok(())
     }
 }

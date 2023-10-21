@@ -23,7 +23,7 @@ use thot_core::types::ResourceId;
 /// # Steps
 /// 1. Create `.thot` folder to store data.
 /// 2. Create [`Project`] for project info.
-/// 3. Create [`ProjectSettings`] for project settings.
+/// 3. Create `ProjectSettings` for project settings.
 /// 4. Create `Script`s registry.
 /// 5. Add [`Project`] to collections registry.
 pub fn init(path: &Path) -> Result<ResourceId> {
@@ -41,7 +41,7 @@ pub fn init(path: &Path) -> Result<ResourceId> {
     let name = match path.file_name() {
         None => {
             return Err(io::Error::new(
-                io::ErrorKind::InvalidInput, // @todo: Should be InvalidFilename
+                io::ErrorKind::InvalidInput, // TODO Should be InvalidFilename
                 "file name could not be extracted from path",
             )
             .into());
@@ -148,7 +148,8 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
 ///
 /// # See also
 /// + [`project_root_path`]
-pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
+pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
+    let path = path.as_ref();
     if !path_is_resource(path) {
         return Err(Error::ProjectError(ProjectError::PathNotInProject(
             PathBuf::from(path),
@@ -185,8 +186,8 @@ pub fn project_resource_root_path(path: &Path) -> Result<PathBuf> {
 }
 
 /// Returns the [`ResourceId`] of the containing [`Project`] if it exists.
-pub fn project_id(path: &Path) -> Result<Option<ResourceId>> {
-    let root = project_resource_root_path(path)?;
+pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
+    let root = project_resource_root_path(path.as_ref())?;
     projects::get_id(root.as_path())
 }
 

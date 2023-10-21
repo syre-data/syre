@@ -1,4 +1,4 @@
-use crate::result::Result;
+use crate::Result;
 use clap::Args;
 use std::env;
 use std::path::{Path, PathBuf};

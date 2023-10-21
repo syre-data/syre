@@ -9,9 +9,18 @@ fn container_tree_load_should_work() {
     let c1_dir = dir.mkdir().expect("could not create child dir");
     let c2_dir = dir.mkdir().expect("could not create child dir");
 
-    let rid = container::init(dir.path()).expect("could not init root `Container`");
-    let cid_1 = container::init(&c1_dir).expect("could not init child `Container`");
-    let cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
+    let builder = container::InitOptions::init();
+    let rid = builder
+        .build(dir.path())
+        .expect("could not init root `Container`");
+
+    let cid_1 = builder
+        .build(&c1_dir)
+        .expect("could not init child `Container`");
+
+    let cid_2 = builder
+        .build(&c2_dir)
+        .expect("could not init child `Container`");
 
     // test
     let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
@@ -55,11 +64,26 @@ fn container_tree_duplicate_to_should_work() {
     let c11_dir = c1_tdir.mkdir().expect("could not create child dir");
     let c12_dir = c1_tdir.mkdir().expect("could not create child dir");
 
-    let _rid = container::init(dir.path()).expect("could not init root `Container`");
-    let cid_1 = container::init(&c1_dir).expect("could not init child `Container`");
-    let _cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
-    let _cid_11 = container::init(&c11_dir).expect("could not init grandchild `Container`");
-    let _cid_12 = container::init(&c12_dir).expect("could not init grandchild `Container`");
+    let builder = container::InitOptions::init();
+    let _rid = builder
+        .build(dir.path())
+        .expect("could not init root `Container`");
+
+    let cid_1 = builder
+        .build(&c1_dir)
+        .expect("could not init child `Container`");
+
+    let _cid_2 = builder
+        .build(&c2_dir)
+        .expect("could not init child `Container`");
+
+    let _cid_11 = builder
+        .build(&c11_dir)
+        .expect("could not init grandchild `Container`");
+
+    let _cid_12 = builder
+        .build(&c12_dir)
+        .expect("could not init grandchild `Container`");
 
     let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 

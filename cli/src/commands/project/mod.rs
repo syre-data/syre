@@ -1,5 +1,4 @@
-use crate::result::Result;
-use crate::types::ResourcePathType;
+use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 mod commands;

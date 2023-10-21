@@ -8,7 +8,10 @@ use dev_utils::fs::TempDir;
 fn add_association_should_work() {
     // setup
     let mut _dir = init_project().expect("setup should work");
-    let _cid = container::init(_dir.path()).expect("init as container should work");
+    let builder = container::InitOptions::init();
+    let _cid = builder
+        .build(_dir.path())
+        .expect("init as container should work");
     let s_path = _dir
         .mkfile_with_extension("py")
         .expect("mkfile should work");

@@ -1,6 +1,5 @@
 use super::*;
-use crate::common::thot_dir_of;
-use crate::constants::{ASSETS_FILE, CONTAINER_FILE, CONTAINER_SETTINGS_FILE, THOT_DIR};
+use crate::common;
 use crate::project::resources::Container;
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::FileName;
@@ -12,209 +11,124 @@ use std::fs;
 use thot_core::project::container::{AssetMap, Container as CoreContainer};
 
 #[test]
-fn init_on_non_resource_should_work() {
+fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
     let root = _dir.path().join("container");
     fs::create_dir(&root).expect("create directory should work");
 
     // test
-    init(root.as_path()).expect("init should work");
+    let builder = InitOptions::init();
+    builder.build(root.as_path()).unwrap();
 
     // check .thot folder created
-    let mut thot_dir = root.clone();
-    thot_dir.push(THOT_DIR);
-    assert!(thot_dir.exists(), ".thot folder should exist");
+    assert!(
+        common::thot_dir_of(&root).exists(),
+        ".thot folder should exist"
+    );
 
     // check files exist and are empty
-    let files = vec![CONTAINER_FILE, CONTAINER_SETTINGS_FILE, ASSETS_FILE];
-    for f in files {
-        let p = thot_dir.join(f);
-        assert!(p.exists(), "{} file should exist", f);
-    }
+    assert!(
+        common::container_file_of(&root).exists(),
+        "container file should exist"
+    );
 
-    // ensure assets are empty
-    let assets_path = thot_dir.join(ASSETS_FILE);
-    let assets_json = fs::read_to_string(assets_path).expect("assets file should be readable");
-    let assets: AssetMap =
-        serde_json::from_str(assets_json.as_str()).expect("assets should be valid json");
+    assert!(
+        common::container_settings_file_of(&root).exists(),
+        "container settings file should exist"
+    );
 
-    assert_eq!(0, assets.len(), "assets not empty");
+    assert!(
+        common::assets_file_of(&root).exists(),
+        "assets file should exist"
+    );
 
-    // ensure container info is correct
-    let container_path = thot_dir.join(CONTAINER_FILE);
-    let container_json =
-        fs::read_to_string(container_path).expect("container file should be readable");
-    let container: CoreContainer =
-        serde_json::from_str(container_json.as_str()).expect("container should be valid json");
+    // ensure container is correct
+    let container = Container::load_from(&root).unwrap();
+    assert_eq!(
+        root.file_name().unwrap().to_str().unwrap(),
+        container.properties.name,
+        "container's name should match folder"
+    );
 
-    assert_eq!(0, container.assets.len(), "assets should be empty");
-    assert_eq!(0, container.scripts.len(), "scripts should be empty");
+    assert!(
+        container.assets.is_empty(),
+        "container should not have assets"
+    );
 }
 
 #[test]
-fn init_should_return_resource_id_if_already_a_container() {
+fn builder_init_should_return_resource_id_if_already_a_container() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let rid = init(_dir.path()).expect("init should work");
+
+    let builder = InitOptions::init();
+    let rid = builder.build(_dir.path()).expect("init should work");
 
     // test
-    let found_rid = init(_dir.path()).expect("init should return old resource id");
+    let found_rid = builder
+        .build(_dir.path())
+        .expect("init should return old resource id");
+
     assert_eq!(rid, found_rid, "resource ids should match");
 }
 
 #[test]
-fn init_should_work_if_folder_is_a_thot_resource_but_not_a_container() {
+#[should_panic]
+fn builder_init_if_folder_is_a_thot_resource_but_not_a_container_should_error() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
-    fs::create_dir(thot_dir_of(_dir.path())).expect("creating thot directory should work");
+    fs::create_dir(common::thot_dir_of(_dir.path())).expect("creating thot directory should work");
 
     // test
-    init(_dir.path()).expect("init should work");
+    let builder = InitOptions::init();
+    builder.build(_dir.path()).expect("init should work");
 }
 
 #[test]
 #[should_panic(expected = "NotADirectory")]
-fn init_should_error_if_folder_does_not_exist() {
+fn builder_init_should_error_if_folder_does_not_exist() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
     let path = _dir.path().join("root");
 
     // test
-    init(path.as_path()).unwrap();
+    let builder = InitOptions::init();
+    builder.build(path.as_path()).unwrap();
 }
 
 #[test]
-fn init_from_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let name: Vec<String> = Words(EN, 3..5).fake();
-    let name = name.join(" ");
-    let container = CoreContainer::new(name);
-
-    // test
-    init_from(_dir.path(), container.clone()).expect("`init_from` should work");
-    let c = Container::load_from(_dir.path()).expect("could not load `Container`");
-    assert_eq!(container.rid, c.rid, "`rid` does not match");
-    assert_eq!(
-        container.properties, c.properties,
-        "`properties` do not match"
-    );
-    // @todo: Ensure `children`, `assets`, and `scripts` match.
-}
-
-#[test]
-fn new_should_work() {
+fn builder_new_should_work() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
 
     // test
     let c_path = _dir.path().join("container");
-    new(c_path.as_path()).expect("new should work");
+    let builder = InitOptions::new();
+    builder.build(c_path.as_path()).expect("new should work");
 }
 
 #[test]
-#[should_panic(expected = "IsADirectory")]
-fn new_should_error_if_path_already_exists() {
+fn builder_new_with_properties_should_work() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
+    let name: Vec<String> = Words(EN, 3..5).fake();
+    let name = name.join(" ");
+    let kind: Vec<String> = Words(EN, 3..5).fake();
+    let kind = kind.join(" ");
+    let mut properties = ContainerProperties::new(name);
+    properties.kind = Some(kind);
 
     // test
-    new(_dir.path()).unwrap();
-}
+    let mut builder = InitOptions::new();
+    builder.properties(properties.clone());
+    builder.build(_dir.path()).expect("`init_from` should work");
 
-#[test]
-fn init_child_with_default_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let child = child_dir(_dir.path());
-    fs::create_dir(&child).expect("creating child folder should work");
-    init(_dir.path()).expect("init parent should work");
-
-    // test
-    init_child(&child, None).expect("init as child should work");
-}
-
-#[test]
-fn init_child_with_specified_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let child = child_dir(_dir.path());
-    fs::create_dir(&child).expect("creating child folder should work");
-    init(_dir.path()).expect("init parent should work");
-
-    // test
-    init_child(&child, Some(_dir.path())).expect("init as child should work");
-}
-
-#[test]
-#[should_panic(expected = "NotAContainer")]
-fn init_child_should_error_if_parent_is_not_a_container() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let child = child_dir(_dir.path());
-    fs::create_dir(&child).expect("creating child folder should work");
-
-    // test
-    init_child(&child, None).unwrap();
-}
-
-#[test]
-#[should_panic(expected = "NotADirectory")]
-fn init_child_should_error_if_path_does_not_exist() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let child = child_dir(_dir.path());
-    init(_dir.path()).expect("init parent should work");
-
-    // test
-    init_child(&child, None).unwrap();
-}
-
-#[test]
-#[should_panic(expected = "InvalidChildPath")]
-fn init_child_should_error_if_child_is_not_a_child_folder_of_parent() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    let child = child_dir(&child_dir(_dir.path()));
-
-    fs::create_dir_all(&child).expect("create child folder should work");
-    init(_dir.path()).expect("init parent should work");
-
-    // test
-    init_child(&child, Some(_dir.path())).unwrap();
-}
-
-#[test]
-fn new_child_with_default_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    init(_dir.path()).expect("init parent should work");
-    let child = child_dir(_dir.path());
-
-    // test
-    let _rid = new_child(&child, None).expect("new child should work");
-}
-
-#[test]
-fn new_child_with_specified_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("`TempDir::new` should work");
-    init(_dir.path()).expect("init parent should work");
-    let child = child_dir(_dir.path());
-
-    // test
-    let _rid = new_child(&child, Some(_dir.path())).expect("new child should work");
-}
-
-// ************************
-// *** helper functions ***
-// ************************
-
-/// Create a child directory path.
-fn child_dir(parent: &Path) -> PathBuf {
-    let mut child = FileName(EN).fake::<String>();
-    child.retain(|char| char != '.');
-
-    parent.join(child)
+    let c = Container::load_from(_dir.path()).expect("could not load `Container`");
+    assert_eq!(properties.kind, c.properties.kind, "`kind`s do not match");
+    assert_eq!(
+        _dir.path().file_name().unwrap().to_str().unwrap(),
+        c.properties.name,
+        "name should be changed to folder"
+    );
 }

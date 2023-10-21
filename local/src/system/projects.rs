@@ -50,7 +50,8 @@ pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
 
 /// Returns a [`Project`] by its path.
 /// Returns None if project is not found.
-pub fn get_id(path: &Path) -> Result<Option<ResourceId>> {
+pub fn get_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
+    let path = path.as_ref();
     let projects = Projects::load()?;
     let projects = &projects
         .iter()
@@ -125,12 +126,12 @@ pub fn unset_active_project() -> Result {
 // *** private functions ***
 // *************************
 
-// @todo
+// TODO
 fn validate_project(id: &ResourceId) -> bool {
     true
 }
 
-// @todo
+// TODO
 fn validate_project_path(path: &Path) -> bool {
     true
 }

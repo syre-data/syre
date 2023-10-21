@@ -18,6 +18,7 @@ categories = [ "science" ]
 log = { version = "0.4" }
 env_logger = "0.9"
 clap = { version = "3.2", features = ["derive"] }
+thiserror = "1.0.50"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 thot-core = { path = "../core", features=["clap"] }

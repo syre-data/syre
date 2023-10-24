@@ -9,6 +9,7 @@ class Asset:
         rid: str,
         file: str,
         name: OptStr = None,
+        description: OptStr = None,
         type: OptStr = None,
         tags: Tags = [],
         metadata: Metadata = {},
@@ -20,6 +21,7 @@ class Asset:
         self._file: str = file
         self._name: OptStr = name
         self._type: OptStr = type
+        self._description: OptStr = description
         self._tags: Tags = tags
         self._metadata: Metadata = metadata
     
@@ -30,7 +32,7 @@ class Asset:
             OptStr: Asset's name.
         """
         return self._name
-    
+            
     @property
     def type(self) -> OptStr:
         """
@@ -38,6 +40,14 @@ class Asset:
             OptStr: Asset's type.
         """
         return self._type
+    
+    @property
+    def description(self) -> OptStr:
+        """
+        Returns:
+            OptStr: Asset's description.
+        """
+        return self._description
     
     @property
     def tags(self) -> Tags:

@@ -14,6 +14,7 @@ setClass(
   slots = list(
     name = "OptionChar",
     type = "OptionChar",
+    description = "OptionChar",
     tags = "list",
     metadata = "list",
     assets = "list"
@@ -25,6 +26,7 @@ setClass(
   slots = list(
     name = "OptionChar",
     type = "OptionChar",
+    description = "OptionChar",
     tags = "list",
     metadata = "list",
     file = "OptionChar"
@@ -36,21 +38,23 @@ setClass(
 #' @param file File path.
 #' @param name Name.
 #' @param type Type.
+#' @param description Description.
 #' @param tags List of tags.
 #' @param metadata List of metadata.
-Asset <- function(file, name = NULL, type = NULL, tags = list(), metadata = list()) {
-  new("Asset", file = file, name = name, type = type, tags = tags, metadata = metadata)
+Asset <- function(file, name = NULL, type = NULL, description = NULL, tags = list(), metadata = list()) {
+  new("Asset", file = file, name = name, type = type, description = description, tags = tags, metadata = metadata)
 }
 
 #' Create a new Asset.
 #'
 #' @param name Name.
 #' @param type Type.
+#' @param description Description.
 #' @param tags List of tags.
 #' @param metadata List of metadata.
 #' @param assets List of Assets.
-Container <- function(name = NULL, type = NULL, tags = list(), metadata = list(), assets=list()) {
-  new("Container", name = name, type = type, tags = tags, metadata = metadata, assets = assets)
+Container <- function(name = NULL, type = NULL, description = NULL, tags = list(), metadata = list(), assets=list()) {
+  new("Container", name = name, type = type, description = description, tags = tags, metadata = metadata, assets = assets)
 }
 
 #' Converts a list of properties to a Container.
@@ -68,6 +72,7 @@ container_from_json <- function(container) {
   Container(
     name = properties$name,
     type = properties$kind,
+    description = properties$description,
     tags = properties$tag,
     metadata = properties$metadata,
     assets = assets
@@ -86,6 +91,7 @@ asset_from_json <- function(asset) {
     file = asset$path[[1]],
     name = properties$name,
     type = properties$kind,
+    description = properties$description,
     tags = properties$tags,
     metadata = properties$metadata
   )

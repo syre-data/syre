@@ -17,6 +17,7 @@ class Container:
         rid: str,
         name: OptStr = None,
         type: OptStr = None,
+        description: OptStr = None,
         tags: Tags = [],
         metadata: Metadata = {},
         assets: Assets = []
@@ -27,6 +28,7 @@ class Container:
         self._rid: str = rid
         self._name: OptStr = name
         self._type: OptStr = type
+        self._description: OptStr = description
         self._tags: Tags = tags
         self._metadata: Metadata = metadata
         self._assets: Assets = assets
@@ -46,6 +48,14 @@ class Container:
             OptStr: Container's type.
         """
         return self._type
+    
+    @property
+    def description(self) -> OptStr:
+        """
+        Returns:
+            OptStr: Container's description.
+        """
+        return self._description
     
     @property
     def tags(self) -> Tags:

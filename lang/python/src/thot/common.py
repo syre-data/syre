@@ -35,6 +35,7 @@ def dict_to_container(d: Properties) -> Container:
         d["rid"],
         name = d["properties"]["name"],
         type = d["properties"]["kind"],
+        description = d["properties"]["description"],
         tags = d["properties"]["tags"],
         metadata = d["properties"]["metadata"],
         assets = d["assets"]
@@ -59,6 +60,7 @@ def dict_to_asset(d: Properties) -> Asset:
         file["Absolute"],
         name = d["properties"]["name"],
         type = d["properties"]["kind"],
+        description = d["properties"]["description"],
         tags = d["properties"]["tags"],
         metadata = d["properties"]["metadata"]
     )

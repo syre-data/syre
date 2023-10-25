@@ -1,4 +1,5 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
+use crate::common::invoke;
 use crate::hooks::use_user;
 use crate::routes::Route;
 use std::path::PathBuf;
@@ -38,7 +39,14 @@ pub fn initialize_project() -> Html {
             let user = user.clone();
 
             app_state.dispatch(AppStateAction::SetActiveWidget(None)); // close self
-            spawn_local(async move {});
+            spawn_local(async move {
+                // let project = match invoke("initialize_project", InitProjectArgs {
+
+                // }).await {
+                //     Ok(project) => project,
+                //     Err(err) => app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error(err), (), ()))
+                // }
+            });
         })
     };
 

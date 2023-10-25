@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
+use std::result::Result as StdResult;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -37,17 +38,12 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: ResourcePath) -> Result<Script> {
-        // setup env
-        let file_name = path.as_path().file_name();
-        if file_name.is_none() {
-            return Err(Error::ScriptError(ScriptError::UnknownLanguage(None)));
-        }
+    pub fn new(path: ResourcePath) -> StdResult<Script, ScriptError> {
+        let Some(file_name) = path.as_path().file_name() else {
+            return Err(ScriptError::UnknownLanguage(None));
+        };
 
-        let file_name = Path::new(file_name.unwrap());
-        let env = ScriptEnv::new(file_name)?;
-
-        // create Script
+        let env = ScriptEnv::new(Path::new(file_name))?;
         Ok(Script {
             rid: ResourceId::new(),
             path,
@@ -137,19 +133,19 @@ pub struct ScriptEnv {
 
 impl ScriptEnv {
     /// Creates a new script environment for the given script.
-    pub fn new(script: &Path) -> Result<Self> {
+    pub fn new(script: &Path) -> StdResult<Self, ScriptError> {
         let path_ext = script.extension();
         if path_ext.is_none() {
-            return Err(Error::ScriptError(ScriptError::UnknownLanguage(None)));
+            return Err(ScriptError::UnknownLanguage(None));
         }
 
         // lang
         let path_ext = path_ext.unwrap();
         let language = ScriptLang::from_extension(path_ext);
         if language.is_none() {
-            return Err(Error::ScriptError(ScriptError::UnknownLanguage(Some(
+            return Err(ScriptError::UnknownLanguage(Some(
                 path_ext.to_str().unwrap().to_string(),
-            ))));
+            )));
         }
         let language = language.unwrap();
 
@@ -202,6 +198,11 @@ impl ScriptLang {
             "r" => Some(Self::R),
             _ => None,
         }
+    }
+
+    /// Returns a list of supported extensions.
+    pub fn supported_extensions() -> Vec<&'static str> {
+        vec!["py", "r"]
     }
 }
 

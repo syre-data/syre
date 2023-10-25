@@ -89,7 +89,7 @@ impl ContainerTreeLoader {
 pub struct ContainerTreeDuplicator;
 impl ContainerTreeDuplicator {
     /// Duplicates a subtree.
-    /// Base paths of the [`Containers`] are maintained.
+    /// Base paths of the [`Containers`] are updated.
     ///
     /// # Arguments
     /// 1. Path to duplicate the tree to.

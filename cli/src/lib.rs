@@ -1,3 +1,5 @@
+#![feature(io_error_more)]
+
 pub mod commands;
 pub mod common;
 pub mod error;

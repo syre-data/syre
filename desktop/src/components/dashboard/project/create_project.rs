@@ -110,7 +110,6 @@ pub fn create_project() -> Html {
                 // save project
                 project.data_root = Some(data_root_rel.to_path_buf());
                 project.creator = Creator::User(Some(UserId::Id(user)));
-                tracing::debug!(?project);
                 let Ok(_) = invoke::<()>(
                     "update_project",
                     UpdateProjectArgs {

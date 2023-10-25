@@ -29,7 +29,6 @@ pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
 
     projects.insert(rid, path);
     projects.save()?;
-
     Ok(())
 }
 
@@ -49,7 +48,8 @@ pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
 }
 
 /// Returns a [`Project`] by its path.
-/// Returns None if project is not found.
+/// # Returns
+/// `None` if path is not found.
 pub fn get_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
     let path = path.as_ref();
     let projects = Projects::load()?;

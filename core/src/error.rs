@@ -145,7 +145,7 @@ pub enum Error {
     AssetError(AssetError),
 
     #[error("{0}")]
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     IoError(io::Error),
 
     #[error("{0}")]
@@ -167,7 +167,7 @@ pub enum Error {
     ScriptError(ScriptError),
 
     #[error("{0}")]
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     SerdeError(serde_json::Error),
 
     /// Invalid value encountered.
@@ -208,6 +208,12 @@ impl From<RunnerError> for Error {
 impl From<GraphError> for Error {
     fn from(err: GraphError) -> Self {
         Self::GraphError(err)
+    }
+}
+
+impl From<ScriptError> for Error {
+    fn from(err: ScriptError) -> Self {
+        Self::ScriptError(err)
     }
 }
 

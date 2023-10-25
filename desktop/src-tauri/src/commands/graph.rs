@@ -1,7 +1,6 @@
 //! Graph commands.
 use crate::error::{DesktopSettingsError, Result};
 use crate::state::AppState;
-use regex::Regex;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -142,50 +141,7 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");
 
-    // Update name
-    let mut dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    let root = dup
-        .get_mut(&dup.root().clone())
-        .expect("duplicated tree root not found");
-
-    let name_pattern = Regex::new(r"\(Copy(?: (\d+))?\)$").unwrap();
-    let mut name = root.properties.name.clone();
-    match name_pattern.captures(&name) {
-        None => {
-            name.push_str(" (Copy)");
-        }
-
-        Some(caps) => match caps.get(1) {
-            None => {
-                let replace_range = (name.len() - 6)..; // "(Copy)".len() == 6
-                name.replace_range(replace_range, "(Copy 2)");
-            }
-
-            Some(n) => {
-                let match_len = caps.get(0).unwrap().as_str().len();
-                let n = n.as_str().parse::<u32>().unwrap() + 1;
-                let replace_range = (name.len() - match_len)..;
-                name.replace_range(replace_range, &format!("(Copy {n})"));
-            }
-        },
-    };
-
-    root.properties.name = name;
-
-    let res = db
-        .send(
-            ContainerCommand::UpdateProperties(UpdatePropertiesArgs {
-                rid: root.rid.clone(),
-                properties: root.properties.clone(),
-            })
-            .into(),
-        )
-        .expect("could not update root `Container`");
-
-    let res: DbResult = serde_json::from_value(res)
-        .expect("could not convert result of `UpdateContainerProperties` from JsValue");
-
-    res.map_err(|err| LibError::Database(format!("{err:?}")))?;
+    let dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
     Ok(dup)
 }
 
@@ -198,7 +154,9 @@ pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
     let res = db
         .send(GraphCommand::Remove(rid).into())
         .expect("could not remove `Container` tree");
+
     let res: DbResult = serde_json::from_value(res)
         .expect("could not convert result of `Remove` to `Container` tree");
+
     res.map_err(|err| err.into())
 }

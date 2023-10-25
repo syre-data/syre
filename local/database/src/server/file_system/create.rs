@@ -1,5 +1,5 @@
 //! Handle file system events.
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::events::{
     Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
 };
@@ -7,15 +7,19 @@ use crate::server::store::ContainerTree;
 use crate::server::Database;
 use notify::{self, event::CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
+use std::fs;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::{ResourceId, ResourcePath};
+use thot_local::error::{Error as LocalError, ProjectError};
+use thot_local::project::project;
 use thot_local::project::resources::{Asset, Container};
 
 impl Database {
     /// Handle [`notify::event::CreateKind`] events.
     #[tracing::instrument(skip(self))]
     pub fn handle_file_system_event_create(&mut self, event: DebouncedEvent) -> Result {
+        tracing::debug!(?event);
         let EventKind::Create(kind) = event.event.kind else {
             panic!("invalid event kind");
         };
@@ -38,7 +42,8 @@ impl Database {
                 } else if path.is_dir() {
                     self.handle_create_folder(path)
                 } else {
-                    panic!("unknown path resource");
+                    tracing::debug!("unknown path resource `{:?}`", path);
+                    return Ok(());
                 }
             }
 
@@ -50,6 +55,40 @@ impl Database {
     }
 
     fn handle_create_folder(&mut self, path: PathBuf) -> Result {
+        // ignore graph root
+        let project_path = project::project_root_path(&path)?;
+        let Some(project) = self
+            .store
+            .get_path_project_canonical(&project_path)
+            .unwrap()
+        else {
+            return Err(LocalError::ProjectError(ProjectError::PathNotInProject(path)).into());
+        };
+
+        let Some(project) = self.store.get_project(project) else {
+            return Err(Error::DatabaseError("Project not loaded".into()));
+        };
+
+        if let Some(data_root) = project.data_root.as_ref() {
+            let path = fs::canonicalize(&path).unwrap();
+            let project_path = fs::canonicalize(&project_path).unwrap();
+            let data_root = project_path.join(data_root);
+            if path == data_root {
+                return Ok(());
+            }
+        };
+
+        // ignore if container
+        if self
+            .store
+            .get_path_container_canonical(&path)
+            .unwrap()
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        // handle new
         let ParentChild {
             parent,
             child: container,
@@ -74,15 +113,49 @@ impl Database {
     }
 
     fn handle_create_file(&mut self, path: PathBuf) -> Result {
+        // ignore analysis root
+        let project_path = project::project_root_path(&path)?;
+        let Some(project) = self
+            .store
+            .get_path_project_canonical(&project_path)
+            .unwrap()
+        else {
+            return Err(LocalError::ProjectError(ProjectError::PathNotInProject(path)).into());
+        };
+
+        let Some(project) = self.store.get_project(project) else {
+            return Err(Error::DatabaseError("Project not loaded".into()));
+        };
+
+        if let Some(analysis_root) = project.analysis_root.as_ref() {
+            let path = fs::canonicalize(&path).unwrap();
+            let project_path = fs::canonicalize(&project_path).unwrap();
+            let analysis_root = project_path.join(analysis_root);
+            if path == analysis_root {
+                return Ok(());
+            }
+        };
+
+        // ignore if asset
+        if self
+            .store
+            .get_path_asset_id_canonical(&path)
+            .unwrap()
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        // handle new
         let ParentChild {
             parent: container,
             child: asset,
         } = match self.file_system_init_asset(path) {
             Ok(container_asset) => container_asset,
 
-            Err(crate::Error::CoreError(CoreError::ResourceError(
-                ResourceError::AlreadyExists(_msg),
-            ))) => return Ok(()),
+            Err(Error::CoreError(CoreError::ResourceError(ResourceError::AlreadyExists(_msg)))) => {
+                return Ok(())
+            }
 
             Err(err) => return Err(err),
         };
@@ -120,7 +193,7 @@ impl Database {
             .cloned()
         else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "`Container` does not exist",
+                "parent `Container` does not exist",
             ))
             .into());
         };

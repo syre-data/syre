@@ -168,13 +168,18 @@ impl Database {
             self.rename_container_folder(&rid, &properties.name)?;
         }
 
+        tracing::debug!("2");
         let container = self
             .store
             .get_container_mut(&rid)
             .expect("Container no longer exists");
 
         container.properties = properties;
+
+        let bp = container.base_path();
+        tracing::debug!(?bp, ?container.properties);
         container.save()?;
+        tracing::debug!("saves");
         Ok(())
     }
 
@@ -232,6 +237,8 @@ impl Database {
             match fs::rename(container.base_path(), &container_path) {
                 Ok(_) => {}
                 Err(err) => {
+                    let from = container.base_path();
+                    tracing::debug!(?err, ?from, ?container_path);
                     return Err(LocalError::from(err).into());
                 }
             };
@@ -298,7 +305,7 @@ impl Database {
 
         for (aid, path) in asset_info.iter() {
             self.store
-                .insert_asset(aid.clone(), path.clone(), cid.clone());
+                .insert_asset_canonical(aid.clone(), path.clone(), cid.clone());
         }
 
         Ok(asset_info.into_iter().map(|(aid, _)| aid.clone()).collect())

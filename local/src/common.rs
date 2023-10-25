@@ -1,11 +1,16 @@
 //! Common use functions.
 use crate::constants::*;
 use crate::{Error, Result};
+use regex::Regex;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
+    if !path.exists() {
+        return Ok(path);
+    }
+
     // get file name
     let Some(file_prefix) = path.file_prefix() else {
         return Err(Error::InvalidPath(path.to_path_buf()));
@@ -26,31 +31,68 @@ pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
 
     let ext = &ext[file_prefix.len()..];
 
-    // create unique file name
-    let mut u_path = path.to_path_buf();
-    let mut counter: usize = 0;
-    while u_path.exists() {
-        counter += 1;
-        let u_file_name = format!("{file_prefix}-{counter}{ext}");
+    let Some(parent) = path.parent() else {
+        return Err(Error::InvalidPath(path.to_path_buf()));
+    };
 
-        u_path = path.to_path_buf();
-        u_path.set_file_name(u_file_name);
+    // get highest counter
+    let name_pattern = Regex::new(&format!(r" \((\d+)\){ext}$")).unwrap();
+    let mut highest = None;
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+
+        let Some(entry_path_str) = entry_path.to_str() else {
+            continue;
+        };
+
+        let Some(captures) = name_pattern.captures(entry_path_str) else {
+            continue;
+        };
+
+        if let Some(n) = captures.get(1) {
+            let Ok(n) = n.as_str().parse::<u32>() else {
+                continue;
+            };
+
+            match highest {
+                None => {
+                    let n = std::cmp::max(n, 1);
+                    let _ = highest.insert(n);
+                }
+                Some(m) if n > m => {
+                    let _ = highest.insert(n);
+                }
+                _ => {}
+            }
+        }
     }
 
-    Ok(u_path)
+    // set unique file name
+    let mut file_name = file_prefix.to_string();
+    match highest {
+        None => file_name.push_str(" (1)"),
+
+        Some(n) => {
+            let match_len = &format!("({n})").len();
+            let replace_range = (file_prefix.len() - match_len)..;
+            file_name.replace_range(replace_range, &format!("({})", n + 1));
+        }
+    };
+    file_name.push_str(ext);
+
+    let mut unique_path = path.clone();
+    unique_path.set_file_name(file_name);
+    Ok(unique_path)
 }
 
 /// Replaces any non-alphanumeric or standard characters with underscore (_).
 pub fn sanitize_file_path(path: impl Into<String>) -> String {
     let path: String = path.into();
+    let char_whitelist = vec!['-', '_', '.', ' ', '(', ')', '[', ']'];
     path.chars()
         .map(|char| {
-            if char.is_ascii_alphanumeric()
-                || char == '-'
-                || char == '_'
-                || char == '.'
-                || char == ' '
-            {
+            if char.is_ascii_alphanumeric() || char_whitelist.contains(&char) {
                 char
             } else {
                 '_'

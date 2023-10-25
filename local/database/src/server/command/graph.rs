@@ -180,8 +180,19 @@ impl Database {
 
         // duplicate tree
         let dup_path = unique_file_name(root.base_path().into())?;
-        let dup = ContainerTreeDuplicator::duplicate_to(&dup_path, graph, rid)?;
+        let mut dup = ContainerTreeDuplicator::duplicate_to(&dup_path, graph, rid)?;
         let dup_root = dup.root().clone();
+
+        // update root name
+        let root = dup.get_mut(&dup_root).unwrap();
+        root.properties.name = root
+            .base_path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+
+        root.save()?;
 
         // insert duplicate
         let res = self.store.insert_subgraph(&parent, dup);

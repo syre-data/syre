@@ -4,7 +4,7 @@ use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
 use std::fs;
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
@@ -17,19 +17,31 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(path: PathBuf) -> Self {
-        let name = path.clone();
-        let name = name
-            .file_name()
-            .expect("invalid path")
-            .to_str()
-            .expect("could not convert name to str");
+    /// Create a new `Project` with the given path.
+    /// Name of the `Project` is taken from the last component of the path.
+    pub fn new(path: PathBuf) -> Result<Self> {
+        let Some(name) = path.file_name() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be extracted from path",
+            )
+            .into());
+        };
 
-        Self {
+        let Some(name) = name.to_str() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be converted to string",
+            )
+            .into());
+        };
+
+        let name = name.to_string();
+        Ok(Self {
             base_path: path,
             project: CoreProject::new(name),
             settings: ProjectSettings::default(),
-        }
+        })
     }
 
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
@@ -74,6 +86,25 @@ impl Project {
 
     pub fn base_path(&self) -> &Path {
         self.base_path.as_path()
+    }
+
+    /// Get the full path of the data root.
+    pub fn data_root_path(&self) -> Option<PathBuf> {
+        let Some(data_root) = self.data_root.as_ref() else {
+            return None;
+        };
+
+        Some(self.base_path.join(data_root))
+    }
+
+    /// Get the full path of the analysis root.
+    ///
+    pub fn analysis_root_path(&self) -> Option<PathBuf> {
+        let Some(analysis_root) = self.analysis_root.as_ref() else {
+            return None;
+        };
+
+        Some(self.base_path.join(analysis_root))
     }
 }
 

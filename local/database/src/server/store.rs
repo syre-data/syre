@@ -49,8 +49,19 @@ impl<T> PathMap<T> {
     ///
     /// # Notes
     /// + Canonicalizes the `key` path.
+    pub fn insert(&mut self, key: PathBuf, value: T) -> Option<T> {
+        self.0.insert(key, value)
+    }
+
+    /// Inserts an item.
+    ///
+    /// # Notes
+    /// + Canonicalizes the `key` path.
     pub fn insert_canonical(&mut self, key: PathBuf, value: T) -> Option<T> {
-        let key = fs::canonicalize(key).unwrap();
+        let Ok(key) = fs::canonicalize(&key) else {
+            panic!("could not canonicalize path `{:?}`", key);
+        };
+
         self.0.insert(key, value)
     }
 
@@ -268,7 +279,7 @@ impl Datastore {
             // map assets
             for (aid, asset) in node.data().assets.iter() {
                 let asset_path = node.base_path().join(asset.path.as_path());
-                self.insert_asset(aid.clone(), asset_path, cid.clone())
+                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone())
             }
         }
 
@@ -303,7 +314,7 @@ impl Datastore {
             // map assets
             for (aid, asset) in container.assets.iter() {
                 let asset_path = container.base_path().join(asset.path.as_path());
-                self.insert_asset(aid.clone(), asset_path, cid.clone());
+                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone());
             }
         }
 
@@ -616,8 +627,20 @@ impl Datastore {
         self.asset_paths.get_canonical(path.as_ref())
     }
 
-    /// Inserts an [`Asset`].
+    /// Inserts maps for an [`Asset`].
     pub fn insert_asset(&mut self, asset: ResourceId, path: PathBuf, container: ResourceId) {
+        self.asset_containers.insert(asset.clone(), container);
+        self.asset_paths.insert(path, asset);
+    }
+
+    /// Inserts maps for an [`Asset`].
+    /// Canonicalizes `asset_path`.
+    pub fn insert_asset_canonical(
+        &mut self,
+        asset: ResourceId,
+        path: PathBuf,
+        container: ResourceId,
+    ) {
         self.asset_containers.insert(asset.clone(), container);
         self.asset_paths.insert_canonical(path, asset);
     }
@@ -656,8 +679,19 @@ impl Datastore {
         let asset_path = container.base_path().join(asset.path.as_path());
         let o_asset = container.assets.insert(aid.clone(), asset);
         container.save()?;
-        self.insert_asset(aid, asset_path, cid);
 
+        let asset_path = match fs::canonicalize(&asset_path) {
+            Ok(path) => path,
+            Err(_) => {
+                if cfg!(target_os = "windows") {
+                    thot_local::common::ensure_windows_unc(asset_path)
+                } else {
+                    asset_path
+                }
+            }
+        };
+
+        self.insert_asset(aid, asset_path, cid);
         Ok(o_asset)
     }
 

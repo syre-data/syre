@@ -21,7 +21,11 @@ impl Script {
         let settings = UserSettings::load()?;
         let creator = settings.active_user.clone().map(|c| c.into());
 
-        let mut script = CoreScript::new(path)?;
+        let mut script = match CoreScript::new(path) {
+            Ok(script) => script,
+            Err(err) => return Err(CoreError::ScriptError(err).into()),
+        };
+
         script.creator = creator;
         Ok(script)
     }
@@ -77,16 +81,16 @@ impl Scripts {
 }
 
 impl Deref for Scripts {
-    type Target = ResourceMap<CoreScript>;
+    type Target = CoreScripts;
 
     fn deref(&self) -> &Self::Target {
-        &*self.scripts
+        &self.scripts
     }
 }
 
 impl DerefMut for Scripts {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.scripts
+        &mut self.scripts
     }
 }
 

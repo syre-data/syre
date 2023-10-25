@@ -18,8 +18,10 @@ categories = [ "science", "data-structures" ]
 aquamarine = "0.1"  # @todo: Only needed for documentation.
 derivative = "2.2"
 directories = { version = "4.0", optional = true }
+glob = { version = "0.3.1", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
+regex = "1.9.5"
 thiserror = "1.0.44"
 tracing = "0.1.37"
 uuid = { version = "1.2.1", features = ["serde", "v4"] }
@@ -37,4 +39,4 @@ dev_utils = { path = "../dev_utils", features = ["thot_core"] }
 
 [features]
 default = ["fs"]
-fs = ["dep:directories"]
+fs = ["dep:directories", "dep:glob"]

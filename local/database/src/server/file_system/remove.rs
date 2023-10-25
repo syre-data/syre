@@ -16,6 +16,7 @@ impl Database {
     /// Handle [`notify::event::RemoveKind`] events.
     #[tracing::instrument(skip(self))]
     pub fn handle_file_system_event_remove(&mut self, event: DebouncedEvent) -> Result {
+        tracing::debug!(?event);
         let EventKind::Remove(kind) = event.event.kind else {
             panic!("invalid event kind");
         };

@@ -37,18 +37,29 @@ impl InitNew {
 #[derive(Default)]
 pub struct InitExisting {
     recursive: bool,
+
+    /// glob patterns to ignore.
+    ignore: Vec<String>,
 }
 
 impl InitExisting {
     pub fn set_recursive(&mut self, recursive: bool) {
         self.recursive = recursive;
     }
+
+    pub fn ignored(&self) -> &Vec<String> {
+        &self.ignore
+    }
+
+    pub fn ignore(&mut self, pattern: impl Into<String>) {
+        self.ignore.push(pattern.into());
+    }
 }
 
 #[derive(Default)]
 pub struct InitOptions<I> {
-    init_assets: bool,
     init: I,
+    init_assets: bool,
 }
 
 impl<I> InitOptions<I> {
@@ -135,6 +146,16 @@ impl InitOptions<InitExisting> {
         self.init.set_recursive(recursive);
     }
 
+    /// Ignore a path and it's subfolders when recursing.
+    /// Ignored if `recurse` is `false`.
+    ///
+    /// # Arguments
+    /// + `pattern`: A glob pattern to ignore, relative to the
+    /// `Container` graph root.
+    pub fn ignore(&mut self, pattern: impl Into<String>) {
+        self.init.ignore(pattern);
+    }
+
     /// Run the intialization.
     ///
     /// # Returns
@@ -152,12 +173,18 @@ impl InitOptions<InitExisting> {
     pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
         /// Initialize a path as a Container.
         /// Used to recurse.
+        ///
+        /// # Arguments
+        /// + `ignore`: Absolute paths to ignore.
+        /// Ignored if `recurse` is `false`.
         fn init_container(
             path: impl AsRef<Path>,
             init_assets: bool,
             recurse: bool,
+            ignore: &Vec<PathBuf>,
         ) -> Result<ResourceId> {
             let path = path.as_ref();
+            println!("{path:?}");
             let mut container = if project::path_is_resource(path) {
                 Container::load_from(path)?
             } else {
@@ -220,8 +247,8 @@ impl InitOptions<InitExisting> {
             container.save()?;
 
             if recurse {
-                for dir_path in dirs {
-                    init_container(dir_path, init_assets, recurse)?;
+                for dir_path in dirs.into_iter().filter(|path| !ignore.contains(path)) {
+                    init_container(dir_path, init_assets, recurse, ignore)?;
                 }
             }
 
@@ -234,7 +261,24 @@ impl InitOptions<InitExisting> {
             return Err(io::Error::new(io::ErrorKind::NotADirectory, "path does not exist").into());
         }
 
-        init_container(path, self.init_assets, self.init.recursive)
+        let ignore = self
+            .init
+            .ignored()
+            .iter()
+            .map(|pattern| {
+                let pattern = path.join(pattern).to_str().unwrap().to_string();
+                let mut match_options = glob::MatchOptions::new();
+                match_options.case_sensitive = false;
+
+                glob::glob_with(&pattern, match_options)
+                    .unwrap()
+                    .map(|path| PathBuf::from(path.unwrap()))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect();
+
+        init_container(path, self.init_assets, self.init.recursive, &ignore)
     }
 }
 

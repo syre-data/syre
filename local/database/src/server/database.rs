@@ -122,7 +122,6 @@ impl Database {
                 return Err(crate::Error::DatabaseError(format!("{errs:?}")));
             }
         };
-        tracing::debug!(?events);
 
         if let Some(res) = self.try_handle_events_group(&events) {
             return res;
@@ -167,6 +166,8 @@ impl Database {
             .len();
 
         if num_rename_from_to_events == 2 {
+            tracing::debug!(?events);
+
             let p1 = rename_from_to_events.iter().position(|&e| e).unwrap();
             let p2 = rename_from_to_events.iter().rposition(|&e| e).unwrap();
             let (from, to) = if events[p1].kind

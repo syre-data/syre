@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use thot_cli::commands::{config, container, project, run, user};
+use thot_cli::commands::{check, config, container, project, run, user};
 
 fn main() {
     let cli = Cli::parse();
@@ -10,6 +10,7 @@ fn main() {
         Command::Init(args) => project::init::main(args, cli.verbose),
         Command::Move(args) => project::r#move::main(args, cli.verbose),
         Command::Run(args) => run::main(args, cli.verbose),
+        Command::Check(args) => check::main(args, cli.verbose),
 
         // subcommands
         Command::Config(args) => config::main(args, cli.verbose),
@@ -42,6 +43,7 @@ enum Command {
     Init(project::init::InitArgs),
     Run(run::RunArgs),
     Move(project::r#move::MoveArgs),
+    Check(check::CheckArgs),
 
     // subcommands
     Config(config::ConfigArgs),

@@ -61,7 +61,7 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, Proj
 // *** add project ***
 // *******************
 
-/// Adds a [`Project`].
+/// Adds an existing [`Project`] to the users vault.
 #[tauri::command]
 pub fn add_project(
     app_state: State<AppState>,
@@ -80,6 +80,7 @@ pub fn add_project(
     let project = db
         .send(ProjectCommand::Add(path, user.rid.clone()).into())
         .expect("could not add `Project`");
+
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 

@@ -45,6 +45,9 @@ pub enum ProjectError {
 
     #[error("`{0}` is not a resource")]
     PathNotAResource(PathBuf),
+
+    #[error("`{0}` is not registered")]
+    PathNotRegistered(PathBuf),
 }
 
 // ***********************
@@ -171,6 +174,13 @@ impl From<CoreError> for Error {
 }
 
 #[cfg(feature = "fs")]
+impl From<AssetError> for Error {
+    fn from(err: AssetError) -> Self {
+        Error::AssetError(err)
+    }
+}
+
+#[cfg(feature = "fs")]
 impl From<ContainerError> for Error {
     fn from(err: ContainerError) -> Self {
         Error::ContainerError(err)
@@ -178,9 +188,9 @@ impl From<ContainerError> for Error {
 }
 
 #[cfg(feature = "fs")]
-impl From<AssetError> for Error {
-    fn from(err: AssetError) -> Self {
-        Error::AssetError(err)
+impl From<ProjectError> for Error {
+    fn from(err: ProjectError) -> Self {
+        Error::ProjectError(err)
     }
 }
 

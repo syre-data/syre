@@ -61,8 +61,7 @@ impl Database {
     fn load_project_scripts(&mut self, rid: ResourceId) -> Result<Vec<CoreScript>> {
         if let Some(scripts) = self.store.get_project_scripts(&rid) {
             // project scripts already loaded
-            let scripts = (*scripts).clone().into_values().collect();
-            return Ok(scripts);
+            return Ok(scripts.values().map(|script| script.clone()).collect());
         }
 
         let projects = Projects::load_or_default()?;
@@ -74,7 +73,7 @@ impl Database {
         };
 
         let scripts = ProjectScripts::load_from(project)?;
-        let script_vals = (*scripts).clone().into_values().collect();
+        let script_vals = (**scripts).clone().into_values().collect();
         self.store.insert_project_scripts(rid, scripts);
         Ok(script_vals)
     }

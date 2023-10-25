@@ -1,11 +1,9 @@
 //! Functionality and resources related to projects.
 use super::resources::{Project, Scripts};
 use crate::common;
-use crate::constants::THOT_DIR;
-use crate::error::ProjectError;
+use crate::error::{Error, ProjectError, Result};
 use crate::system::collections::Projects;
 use crate::system::projects;
-use crate::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
@@ -26,49 +24,32 @@ use thot_core::types::ResourceId;
 /// 3. Create `ProjectSettings` for project settings.
 /// 4. Create `Script`s registry.
 /// 5. Add [`Project`] to collections registry.
-pub fn init(path: &Path) -> Result<ResourceId> {
+pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
+    let path = path.as_ref();
     if path_is_resource(path) {
         // project already initialized
-        let rid = project_id(path)?.expect("path is unregistered `Project`");
+        let rid = match project_id(path)? {
+            Some(rid) => rid,
+            None => {
+                return Err(ProjectError::PathNotRegistered(path.to_path_buf()).into());
+            }
+        };
+
         return Ok(rid);
     }
 
     // create directory
-    let thot_dir = path.join(THOT_DIR);
+    let thot_dir = common::thot_dir_of(path);
     fs::create_dir(&thot_dir)?;
 
     // create thot files
-    let name = match path.file_name() {
-        None => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput, // TODO Should be InvalidFilename
-                "file name could not be extracted from path",
-            )
-            .into());
-        }
-        Some(f_name) => {
-            match f_name.to_str() {
-                None => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidInput, // @todo: Should be InvalidFilename
-                        "file name could not be converted to string",
-                    )
-                    .into());
-                }
-                Some(f_str) => String::from(f_str),
-            }
-        }
-    };
-
-    let mut project = Project::new(path.into());
-    project.name = name;
+    let project = Project::new(path.into())?;
     project.save()?;
 
     let scripts = Scripts::new(path.into());
     scripts.save()?;
 
     projects::register_project(project.rid.clone(), project.base_path().into())?;
-
     Ok(project.rid.clone().into())
 }
 
@@ -185,9 +166,16 @@ pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     Err(CoreError::ProjectError(CoreProjectError::misconfigured("project has no root.")).into())
 }
 
-/// Returns the [`ResourceId`] of the containing [`Project`] if it exists.
+/// # Returns
+/// + [`ResourceId`] of the containing [`Project`] if it exists.
+/// + `None` if the path is not inside a `Project``.
 pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
-    let root = project_resource_root_path(path.as_ref())?;
+    let root = match project_resource_root_path(path.as_ref()) {
+        Ok(root) => root,
+        Err(Error::ProjectError(ProjectError::PathNotInProject(_))) => return Ok(None),
+        Err(err) => return Err(err),
+    };
+
     projects::get_id(root.as_path())
 }
 

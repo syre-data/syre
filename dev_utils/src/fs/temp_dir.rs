@@ -42,9 +42,6 @@ impl TempDir {
     }
 
     /// Add a file to the directory.
-    ///
-    /// # See also
-    /// + `mkfile_with_extension`
     pub fn mkfile(&mut self) -> Result<PathBuf> {
         let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
         let path = f.path().to_path_buf();
@@ -53,10 +50,19 @@ impl TempDir {
         Ok(path)
     }
 
+    /// Add a file to the directory with a given name.
+    pub fn mkfile_with_name<S: AsRef<OsStr>>(&mut self, file_name: S) -> Result<PathBuf> {
+        let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
+        let mut dst = f.path().to_path_buf();
+        dst.set_file_name(file_name);
+
+        fs::rename(f.path(), &dst)?;
+        self.files.insert(dst.clone(), f);
+
+        Ok(dst)
+    }
+
     /// Add a file to the directory with a given extension.
-    ///
-    /// # See also
-    /// + `mkfile`
     pub fn mkfile_with_extension<S: AsRef<OsStr>>(&mut self, ext: S) -> Result<PathBuf> {
         let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
         let mut dst = f.path().to_path_buf();

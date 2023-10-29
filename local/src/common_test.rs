@@ -77,6 +77,20 @@ fn unique_file_name_should_work() {
     assert_eq!(r, q, "unexpected file name");
 }
 
+#[cfg(target_os = "windows")]
+#[test]
+fn ensure_windows_unc_should_work() {
+    let dir = TempDir::new().unwrap();
+    let base_path = dir.path().to_path_buf();
+    let canon_path = fs::canonicalize(&base_path).unwrap();
+
+    let unc_base = ensure_windows_unc(&base_path);
+    assert_eq!(canon_path, unc_base);
+
+    let unc_canon = ensure_windows_unc(&canon_path);
+    assert_eq!(canon_path, unc_canon);
+}
+
 // ******************
 // *** file paths ***
 // ******************

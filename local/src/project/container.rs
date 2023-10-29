@@ -184,7 +184,6 @@ impl InitOptions<InitExisting> {
             ignore: &Vec<PathBuf>,
         ) -> Result<ResourceId> {
             let path = path.as_ref();
-            println!("{path:?}");
             let mut container = if project::path_is_resource(path) {
                 Container::load_from(path)?
             } else {

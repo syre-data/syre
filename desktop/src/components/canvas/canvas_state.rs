@@ -41,6 +41,12 @@ pub enum CanvasStateAction {
 
     /// Set the visibility state of a `Container`.
     SetVisibility(ResourceId, bool),
+
+    /// Removes a resource's mappings.
+    Remove(ResourceId),
+
+    /// Removes resource mappings.
+    RemoveMany(Vec<ResourceId>),
 }
 
 #[derive(Clone, PartialEq)]
@@ -87,6 +93,13 @@ impl CanvasState {
     /// Returns the ResourceType of a given ResourceId
     pub fn resource_type(&self, rid: &ResourceId) -> Option<ResourceType> {
         self.resource_types.get(rid).cloned()
+    }
+
+    /// Remove a resource from mappings.
+    pub fn remove(&mut self, rid: &ResourceId) {
+        self.selected.remove(rid);
+        self.visible.remove(rid);
+        self.resource_types.remove(rid);
     }
 
     #[tracing::instrument(skip(self))]
@@ -165,7 +178,6 @@ impl Reducible for CanvasState {
                 for rid in rids {
                     current.selected.remove(&rid);
                 }
-
                 current.details_bar_widget = current.details_bar_widget_from_selected();
             }
 
@@ -176,6 +188,18 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::SetVisibility(rid, visible) => {
                 current.visible.insert(rid, visible);
+            }
+
+            CanvasStateAction::Remove(rid) => {
+                current.remove(&rid);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::RemoveMany(rids) => {
+                for rid in rids {
+                    current.remove(&rid);
+                }
+                current.details_bar_widget = current.details_bar_widget_from_selected();
             }
         }
 

@@ -7,7 +7,6 @@ use super::{
 };
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
-use crate::commands::graph;
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::{use_load_project_scripts, use_project_graph};
 use crate::routes::Route;
@@ -31,7 +30,7 @@ pub struct ProjectCanvasProps {
     pub class: Option<Classes>,
 }
 
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let show_side_bars = use_state(|| true);
@@ -69,18 +68,15 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 
             spawn_local(async move {
                 let mut events = tauri_sys::event::listen::<thot_local_database::Update>(&format!(
-                    "thot://database/update/project/{}",
-                    pid
+                    "thot://database/update/project/{pid}"
                 ))
                 .await
-                .expect("could not create `thot://database/update/project/{rid}` listener");
+                .expect(&format!(
+                    "could not create `thot://database/update/project/{pid}` listener"
+                ));
 
                 while let Some(event) = events.next().await {
-                    tracing::debug!(?graph_state.asset_map);
-                    let Update::Project { project, update } = event.payload else {
-                        tracing::debug!("Unhandled `Update` event");
-                        continue;
-                    };
+                    let Update::Project { project, update } = event.payload;
                     assert!(project == pid);
 
                     match update {
@@ -95,15 +91,36 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 },
                             )),
 
-                            ContainerUpdate::ChildCreated { container, parent } => {
-                                let added = container.rid.clone();
-                                graph_state.dispatch(GraphStateAction::InsertChildContainer(
-                                    parent, container,
-                                ))
+                            ContainerUpdate::SubgraphCreated { parent, graph } => {
+                                graph_state
+                                    .dispatch(GraphStateAction::InsertSubtree { parent, graph });
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Container added from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
                             }
 
-                            ContainerUpdate::Removed(container) => {
-                                graph_state.dispatch(GraphStateAction::RemoveSubtree(container));
+                            ContainerUpdate::Removed(graph) => {
+                                let mut rids = Vec::with_capacity(graph.nodes().len());
+                                for (cid, container) in graph.nodes() {
+                                    rids.push(cid.clone());
+                                    for aid in container.assets.keys() {
+                                        rids.push(aid.clone());
+                                    }
+                                }
+
+                                canvas_state.dispatch(CanvasStateAction::RemoveMany(rids));
+                                graph_state.dispatch(GraphStateAction::RemoveSubtree(
+                                    graph.root().clone(),
+                                ));
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Container removed from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
                             }
                         },
 
@@ -122,8 +139,8 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                             }
 
                             AssetUpdate::Removed(asset) => {
-                                graph_state.dispatch(GraphStateAction::RemoveAsset(asset.clone()));
-                                canvas_state.dispatch(CanvasStateAction::Unselect(asset));
+                                canvas_state.dispatch(CanvasStateAction::Remove(asset.clone()));
+                                graph_state.dispatch(GraphStateAction::RemoveAsset(asset));
                                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                                     Message::success("Asset removed from file system."),
                                     MESSAGE_TIMEOUT,

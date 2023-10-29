@@ -37,6 +37,12 @@ pub enum GraphStateAction {
     /// #. `child`: Child `Container`.
     InsertChildContainer(ResourceId, Container),
 
+    /// Insert the graph as a child of `parent.`
+    InsertSubtree {
+        parent: ResourceId,
+        graph: ContainerTree,
+    },
+
     /// Set a [`Container`]'s [`Asset`]s.
     SetContainerAssets(ResourceId, AssetMap),
 
@@ -277,7 +283,12 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::RemoveSubtree(root) => {
-                current.graph.remove(&root).unwrap();
+                let graph = current.graph.remove(&root).unwrap();
+                for container in graph.nodes().values() {
+                    for asset in container.assets.keys() {
+                        current.asset_map.remove(asset);
+                    }
+                }
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
@@ -319,6 +330,16 @@ impl Reducible for GraphState {
                     .graph
                     .insert(parent, child)
                     .expect("could not insert child node");
+            }
+
+            GraphStateAction::InsertSubtree { parent, graph } => {
+                for container in graph.nodes().values() {
+                    for aid in container.assets.keys() {
+                        current.asset_map.insert(aid.clone(), container.rid.clone());
+                    }
+                }
+
+                current.graph.insert_tree(&parent, graph).unwrap();
             }
 
             GraphStateAction::SetContainerAssets(container_rid, assets) => {

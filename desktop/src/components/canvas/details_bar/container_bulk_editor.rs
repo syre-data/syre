@@ -520,6 +520,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
+            <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
             <ContainerPropertiesBulkEditor
                 {properties}
                 {onchange_name}

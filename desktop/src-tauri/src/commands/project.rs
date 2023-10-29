@@ -148,6 +148,12 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
     Ok(rid)
 }
 
+// remember to call `.manage(MyState::default())`
+#[tauri::command]
+pub fn init_project_from(path: &Path) -> Result<ResourceId> {
+    Ok(thot_local::project::init(path, "data", "analysis")?)
+}
+
 // ************************
 // *** get project path ***
 // ************************

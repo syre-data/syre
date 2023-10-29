@@ -41,7 +41,3 @@ impl From<LocalError> for Error {
 }
 
 pub type Result<T = ()> = StdResult<T, Error>;
-
-#[cfg(test)]
-#[path = "./error_test.rs"]
-mod result_test;

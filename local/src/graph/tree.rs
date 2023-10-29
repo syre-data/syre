@@ -8,7 +8,7 @@ use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::tree::{EdgeMap, NodeMap};
 use thot_core::graph::{ResourceNode, ResourceTree};
-use thot_core::project::Container as CoreContainer;
+use thot_core::project::{Asset, Container as CoreContainer};
 use thot_core::types::ResourceId;
 
 type ContainerTree = ResourceTree<Container>;
@@ -23,6 +23,8 @@ impl ContainerTreeTransformer {
             .map(|(rid, node)| (rid.clone(), ResourceNode::new((*node.data()).clone())))
             .collect::<NodeMap<CoreContainer>>();
 
+        let edges = tree.edges();
+        tracing::debug!(?edges);
         ResourceTree::from_components(core_nodes, tree.edges().clone())
             .expect("could not build tree from components")
     }
@@ -65,7 +67,8 @@ impl ContainerTreeTransformer {
 pub struct ContainerTreeLoader;
 impl ContainerTreeLoader {
     /// Load a `Container` tree into a [`ResourceTree`].
-    pub fn load(path: &Path) -> Result<ContainerTree> {
+    pub fn load(path: impl AsRef<Path>) -> Result<ContainerTree> {
+        let path = path.as_ref();
         let root = Container::load_from(path)?;
         let rid = root.id().clone();
         let mut graph = ResourceTree::new(root);
@@ -89,14 +92,60 @@ impl ContainerTreeLoader {
 pub struct ContainerTreeDuplicator;
 impl ContainerTreeDuplicator {
     /// Duplicates a subtree.
+    ///
+    /// # Arguments
+    /// 1. Graph.
+    /// 2. Id of the root of the subtree to duplicate.
+    ///
+    /// # Notes
+    /// + `Asset`s are duplicated.
+    #[tracing::instrument(skip(graph))]
+    pub fn duplicate(graph: &ContainerTree, root: &ResourceId) -> thot_core::Result<ContainerTree> {
+        // ensure root exists
+        let Some(node) = graph.get(root) else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Container` does not exist in graph",
+            )));
+        };
+
+        // duplicate container to new location
+        let mut container = Container::new(node.base_path());
+        container.properties = node.properties.clone();
+        container.scripts = node.scripts.clone();
+        for asset_base in node.assets.values() {
+            let mut asset = Asset::new(asset_base.path.clone());
+            asset.properties = asset_base.properties.clone();
+            container.insert_asset(asset);
+        }
+
+        let dup_root = container.rid.clone();
+        let mut dup_graph = ResourceTree::new(container);
+        let Some(children) = graph.children(&root).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Container` does not exist in graph",
+            )));
+        };
+
+        for child in children {
+            let c_tree = Self::duplicate(graph, &child)?;
+            dup_graph.insert_tree(&dup_root, c_tree)?;
+        }
+
+        Ok(dup_graph)
+    }
+
+    /// Duplicates a subtree to a new file path.
     /// Base paths of the [`Containers`] are updated.
     ///
     /// # Arguments
     /// 1. Path to duplicate the tree to.
     /// 2. Graph.
     /// 3. Id of the root of the subtree to duplicate.
+    ///
+    /// # Notes
+    /// + `Asset`s are not copied.
     #[tracing::instrument(skip(graph))]
-    pub fn duplicate_to(
+    pub fn duplicate_without_assets_to(
         path: &Path,
         graph: &ContainerTree,
         root: &ResourceId,
@@ -135,7 +184,7 @@ impl ContainerTreeDuplicator {
             let mut c_path = path.to_path_buf();
             c_path.push(rel_path);
 
-            let c_tree = Self::duplicate_to(&c_path, graph, &child)?;
+            let c_tree = Self::duplicate_without_assets_to(&c_path, graph, &child)?;
             dup_graph.insert_tree(&dup_root, c_tree)?;
         }
 

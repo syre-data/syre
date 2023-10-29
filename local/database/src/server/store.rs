@@ -329,7 +329,7 @@ impl Datastore {
     /// Remove the subgraph with the given root.
     ///
     /// # Returns
-    /// Removed subgraph root.
+    /// Removed subgraph.
     #[tracing::instrument(skip(self))]
     pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result<ContainerTree> {
         let Some(project) = self.get_container_project(root).cloned() else {

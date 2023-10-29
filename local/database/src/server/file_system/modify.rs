@@ -1,13 +1,12 @@
 //! Handle file system events.
-use crate::events::{
-    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
-};
+use crate::events::{Asset as AssetUpdate, Container as ContainerUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
-use std::path::{Path, PathBuf};
-use thot_core::types::{ResourceId, ResourcePath};
+use std::path::Path;
+use thot_core::error::{Error as CoreError, ResourceError};
+use thot_core::types::ResourceId;
 
 impl Database {
     /// Handle [`notify::event::ModifyKind`] events.
@@ -141,11 +140,20 @@ impl Database {
         #[cfg(target_os = "windows")]
         let from = thot_local::common::ensure_windows_unc(from);
 
-        let cid = self
-            .store
-            .get_path_container(from.as_ref())
-            .unwrap()
-            .clone();
+        let cid = match (
+            self.store.get_path_container(from.as_ref()),
+            self.store.get_path_container(to),
+        ) {
+            (Some(cid), None) => cid.clone(),
+            (None, Some(cid)) => return Ok(cid.clone()),
+            (None, None) => {
+                return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                    "Container not found in path map".into(),
+                ))
+                .into())
+            }
+            (Some(_), Some(_)) => panic!("Container path map out of sync"),
+        };
 
         let container = self.store.get_container_mut(&cid).unwrap();
         container.properties.name = to.file_name().unwrap().to_str().unwrap().to_string();

@@ -44,24 +44,22 @@ impl Database {
         // resolve root
         let root_path = if thot_runner::dev_mode() {
             let Some(dev_root) = dev_root else {
-                return Err(Error::Value(
-                    "`dev_root` must be specified".into(),
-                ));
+                return Err(Error::Value("`dev_root` must be specified".into()));
             };
 
             dev_root
         } else {
             // TODO: Pass Container path instead of id?
             let Ok(root_id) = env::var(CONTAINER_ID_KEY) else {
-                return Err(Error::Runtime(
-                    format!("could not get `{:}`", CONTAINER_ID_KEY)
-                ));
+                return Err(Error::Runtime(format!(
+                    "could not get `{CONTAINER_ID_KEY}`"
+                )));
             };
 
             let root_id = ResourceId::from_str(&root_id)
                 .expect("could not convert `THOT_CONTAINER_ID` to `ResourceId`");
 
-            let root_path = db.send(ContainerCommand::GetPath(root_id).into());
+            let root_path = db.send(ContainerCommand::GetPath(root_id).into())?;
             let root_path: Option<PathBuf> = serde_json::from_value(root_path)
                 .expect("could not convert result of `GetPath` to `PathBuf`");
 
@@ -74,10 +72,12 @@ impl Database {
 
         // get project id
         let Ok(project_path) = project_resource_root_path(&root_path) else {
-                return Err(Error::Runtime("Root path is not a resource in a Thot project".into()));
+            return Err(Error::Runtime(
+                "Root path is not a resource in a Thot project".into(),
+            ));
         };
 
-        let project = db.send(ProjectCommand::Load(project_path).into());
+        let project = db.send(ProjectCommand::Load(project_path).into())?;
         let project: DbResult<Project> = serde_json::from_value(project)
             .expect("could not convert result of `Load` to `Project`");
 
@@ -86,7 +86,7 @@ impl Database {
         };
 
         // load tree
-        let graph = db.send(GraphCommand::Load(project.rid.clone()).into());
+        let graph = db.send(GraphCommand::Load(project.rid.clone()).into())?;
         let graph: DbResult<ContainerTree> =
             serde_json::from_value(graph).expect("could not convert result of `Load` to graph");
 
@@ -95,7 +95,7 @@ impl Database {
         };
 
         // get root container
-        let root = db.send(ContainerCommand::ByPath(root_path.clone()).into());
+        let root = db.send(ContainerCommand::ByPath(root_path.clone()).into())?;
         let root: Option<Container> = serde_json::from_value(root)
             .expect("could not convert result of `ByPath` to `Container`");
 
@@ -114,7 +114,7 @@ impl Database {
     pub fn root(&self) -> Result<Container> {
         let root = self
             .db
-            .send(ContainerCommand::Get(self.root.clone()).into());
+            .send(ContainerCommand::Get(self.root.clone()).into())?;
 
         let root: Option<Container> = serde_json::from_value(root)
             .expect("could not convert result of `GetContainer` to `Container`");
@@ -136,7 +136,7 @@ impl Database {
     pub fn find_containers(&self, filter: StdFilter) -> Result<HashSet<Container>> {
         let containers = self
             .db
-            .send(ContainerCommand::FindWithMetadata(self.root.clone(), filter).into());
+            .send(ContainerCommand::FindWithMetadata(self.root.clone(), filter).into())?;
 
         let containers: HashSet<Container> = serde_json::from_value(containers)
             .expect("could not convert result of `Find` to `HashSet<Container>`");
@@ -154,7 +154,7 @@ impl Database {
     pub fn find_assets(&self, filter: StdFilter) -> Result<HashSet<Asset>> {
         let assets = self
             .db
-            .send(AssetCommand::FindWithMetadata(self.root.clone(), filter).into());
+            .send(AssetCommand::FindWithMetadata(self.root.clone(), filter).into())?;
 
         let assets: HashSet<Asset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");
@@ -174,7 +174,7 @@ impl Database {
     pub fn add_asset(&self, asset: Asset) -> Result<PathBuf> {
         let root = self
             .db
-            .send(ContainerCommand::Get(self.root.clone()).into());
+            .send(ContainerCommand::Get(self.root.clone()).into())?;
 
         let root: Container =
             serde_json::from_value(root).expect("could not convert result of `Get` to `Container`");
@@ -183,7 +183,7 @@ impl Database {
         let bucket = asset.bucket();
         let res = self
             .db
-            .send(AssetCommand::Add(asset, root.rid.clone()).into());
+            .send(AssetCommand::Add(asset, root.rid.clone()).into())?;
 
         let res: DbResult<Option<Asset>> = serde_json::from_value(res)
             .expect("could not convert result of `Add` to `Option<Asset>`");

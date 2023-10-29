@@ -36,12 +36,12 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
                 .asset_map
                 .get(rid)
                 .expect("`Asset`'s `Container` not found");
-        
+
             let container = graph_state
                 .graph
                 .get(container)
                 .expect("`Container` not found");
-        
+
             asset.set(
                 container
                     .assets
@@ -49,8 +49,6 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
                     .expect("`Asset` not found")
                     .clone(),
             );
-        
-            tracing::debug!("Asset updated via use effect {:?}", asset);
         })
     }
     asset

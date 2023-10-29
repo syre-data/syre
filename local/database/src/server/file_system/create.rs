@@ -3,17 +3,18 @@ use crate::error::{Error, Result};
 use crate::events::{
     Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
 };
-use crate::server::store::ContainerTree;
 use crate::server::Database;
 use notify::{self, event::CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::{fs, io};
 use thot_core::error::{Error as CoreError, ResourceError};
+use thot_core::graph::ResourceTree;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
-use thot_local::project::project;
+use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeLoader, ContainerTreeTransformer};
 use thot_local::project::resources::{Asset, Container};
+use thot_local::project::{container, project};
 
 impl Database {
     /// Handle [`notify::event::CreateKind`] events.
@@ -78,7 +79,8 @@ impl Database {
             }
         };
 
-        // ignore if container
+        // ignore if registered container
+        // assume registration has already been handled
         if self
             .store
             .get_path_container_canonical(&path)
@@ -88,11 +90,24 @@ impl Database {
             return Ok(());
         }
 
+        // handle if unregistered container
+        match ContainerTreeLoader::load(&path) {
+            Ok(graph) => {
+                // existing container was copied
+                // update resource ids and register
+                return self.file_system_handle_copied_subtree(graph);
+            }
+
+            Err(LocalError::CoreError(CoreError::IoError(err)))
+                if err.kind() == io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err.into()),
+        }
+
         // handle new
         let ParentChild {
             parent,
             child: container,
-        } = self.file_system_init_container(path)?;
+        } = self.file_system_init_subgraph(path)?;
 
         let project = self
             .store
@@ -100,13 +115,11 @@ impl Database {
             .unwrap()
             .clone();
 
-        let container = self.store.get_container(&container).unwrap();
+        let graph = self.store.get_container_graph(&container).unwrap();
+        let graph = ContainerTreeTransformer::local_to_core(graph);
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Container(ContainerUpdate::ChildCreated {
-                parent,
-                container: (*container).clone(),
-            }),
+            update: ProjectUpdate::Container(ContainerUpdate::SubgraphCreated { parent, graph }),
         })?;
 
         Ok(())
@@ -131,7 +144,7 @@ impl Database {
             let path = fs::canonicalize(&path).unwrap();
             let project_path = fs::canonicalize(&project_path).unwrap();
             let analysis_root = project_path.join(analysis_root);
-            if path == analysis_root {
+            if path.starts_with(analysis_root) {
                 return Ok(());
             }
         };
@@ -180,12 +193,26 @@ impl Database {
         Ok(())
     }
 
-    /// Initialize a path as a `Container` and add it into the graph.
-    ///
-    /// # Returns
-    /// `ResourceId` of the initialize `Container`.
-    #[tracing::instrument(skip(self))]
-    fn file_system_init_container(&mut self, path: PathBuf) -> Result<ParentChild> {
+    /// Duplicates graph.
+    /// Registers resources.
+    /// Publishes update.
+    fn file_system_handle_copied_subtree(&mut self, graph: ResourceTree<Container>) -> Result {
+        let mut graph = ContainerTreeDuplicator::duplicate(&graph, graph.root())?;
+        let root = graph.root().clone();
+        let root_container = graph.get_mut(&root).unwrap();
+        root_container.properties.name = root_container
+            .base_path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        for container in graph.nodes().values() {
+            container.save()?;
+        }
+
+        let path = graph.get(&root).unwrap().base_path();
         let Some(parent) = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
@@ -198,16 +225,46 @@ impl Database {
             .into());
         };
 
-        // init container
-        let name = path.file_name().unwrap().to_str().unwrap().to_string();
-        let mut container = Container::new(path);
-        container.properties.name = name;
-        container.save()?;
+        self.store.insert_subgraph(&parent, graph)?;
+
+        let project = self.store.get_container_project(&root).unwrap().clone();
+        let graph = self.store.get_container_graph(&root).unwrap();
+        let graph = ContainerTreeTransformer::local_to_core(graph);
+        self.publish_update(&Update::Project {
+            project,
+            update: ProjectUpdate::Container(ContainerUpdate::SubgraphCreated { parent, graph }),
+        })?;
+
+        return Ok(());
+    }
+
+    /// Initialize a path as a  Contaienr tree and insert it into the graph.
+    ///
+    /// # Returns
+    /// `ResourceId` of the graph's root `Container`.
+    #[tracing::instrument(skip(self))]
+    fn file_system_init_subgraph(&mut self, path: PathBuf) -> Result<ParentChild> {
+        let Some(parent) = self
+            .store
+            .get_path_container_canonical(path.parent().unwrap())
+            .unwrap()
+            .cloned()
+        else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "parent `Container` does not exist",
+            ))
+            .into());
+        };
+
+        // init graph
+        let mut builder = container::InitOptions::init();
+        builder.recurse(true);
+        builder.with_assets();
+        let child = builder.build(&path)?;
 
         // insert into graph
-        let child = container.rid.clone();
-        self.store
-            .insert_subgraph(&parent, ContainerTree::new(container))?;
+        let graph = ContainerTreeLoader::load(path)?;
+        self.store.insert_subgraph(&parent, graph)?;
 
         Ok(ParentChild { parent, child })
     }
@@ -221,7 +278,7 @@ impl Database {
             .cloned()
             .unwrap();
 
-        if let Some(asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
+        if let Some(_asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
             return Err(CoreError::ResourceError(ResourceError::already_exists(
                 "path is already an Asset",
             ))

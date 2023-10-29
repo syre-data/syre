@@ -59,7 +59,7 @@ impl UpdateActor {
                 message.push_str(msg.as_str().unwrap());
             }
 
-            let event: Update = serde_json::from_str(message.as_str()).unwrap();
+            let event: Update = serde_json::from_str(&message).unwrap();
             self.window.emit(&topic, event).unwrap();
         }
     }

@@ -75,14 +75,17 @@ pub fn init(
         .into());
     }
 
-    let data_root = root.join(data_root);
-    let analysis_root = root.join(analysis_root);
-
     // create and register project
     let pid = match project::project_id(root.as_path())? {
         Some(id) => id,
         None => match project::init(root.as_path()) {
-            Ok(rid) => rid,
+            Ok(rid) => {
+                let mut project = Project::load_from(root.as_path())?;
+                project.data_root = Some(data_root.to_path_buf());
+                project.analysis_root = Some(analysis_root.to_path_buf());
+                project.save()?;
+                rid
+            }
             Err(Error::ProjectError(ProjectError::PathNotRegistered(_path))) => {
                 let project = Project::load_from(&root)?;
                 projects::register_project(project.rid.clone(), root.clone())?;
@@ -93,6 +96,9 @@ pub fn init(
     };
 
     // initialize analysis scripts
+    let data_root = root.join(data_root);
+    let analysis_root = root.join(analysis_root);
+
     let mv_analysis = analysis_root.exists();
     fs::create_dir_all(&analysis_root)?;
     let analysis_root = fs::canonicalize(analysis_root)?;

@@ -7,6 +7,7 @@ use has_id::HasId;
 use indexmap::IndexSet;
 use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashSet;
+use std::fmt;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -83,12 +84,16 @@ where
             }
         }
 
-        if root.len() != 1 {
-            return Err(GraphError::invalid_graph("root `Node` not found").into());
-        }
+        let root = match root.len() {
+            0 => return Err(GraphError::invalid_graph("root `Node` not found").into()),
+            1 => {
+                let Some(root) = root.into_iter().next() else {
+                    return Err(GraphError::invalid_graph("could not get root").into());
+                };
 
-        let Some(root) = root.into_iter().next() else {
-            return Err(GraphError::invalid_graph("could not get root").into());
+                root
+            }
+            _ => return Err(GraphError::invalid_graph("multiple root `Node`s found").into()),
         };
 
         parents.insert(root.clone(), None);
@@ -425,6 +430,15 @@ where
         }
 
         Ok(tree)
+    }
+}
+
+impl<D> fmt::Debug for ResourceTree<D>
+where
+    D: fmt::Debug + HasId<Id = ResourceId>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}\n{:?}", self.nodes(), self.edges())
     }
 }
 

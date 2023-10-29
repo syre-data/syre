@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DetailsBarWidget {
     /// `Asset` editor.
     AssetEditor(ResourceId),

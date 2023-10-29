@@ -6,7 +6,6 @@ use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use std::path::Path;
-use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, ContainerProperties};
 use thot_local::project::resources::{Container as LocalContainer, Project as LocalProject};
 use thot_local::project::{container, project};
@@ -17,7 +16,11 @@ fn database_command_update_container_properties_without_name_should_work() {
     let mut dir = TempDir::new().expect("could not create new temp dir");
     let data_dir = dir.mkdir().unwrap();
     let pid = project::init(dir.path()).unwrap();
-    let _rid = container::init(&data_dir).expect("could not init `Container`");
+    let builder = container::InitOptions::new();
+    let _rid = builder
+        .build(&data_dir)
+        .expect("could not init `Container`");
+
     let mut db = Database::new();
     let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
     let container = db.handle_command_graph(GraphCommand::Load(pid));
@@ -64,14 +67,21 @@ fn database_command_update_container_name_should_work() {
     let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
     let sibling_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
 
-    let mut project = LocalProject::new(dir.path().to_path_buf());
+    let mut project = LocalProject::new(dir.path().to_path_buf()).unwrap();
     project.data_root = Some(data_dir.clone());
     project.save().unwrap();
 
     let pid = project.rid.clone();
-    let rid = container::init(&data_dir).expect("could not init `Container`");
-    let cid = container::init(&child_dir).expect("could not init `Container`");
-    let sid = container::init(&sibling_dir).expect("could not init `Container`");
+    let builder = container::InitOptions::new();
+    let rid = builder
+        .build(&data_dir)
+        .expect("could not init `Container`");
+    let cid = builder
+        .build(&child_dir)
+        .expect("could not init `Container`");
+    let _sid = builder
+        .build(&sibling_dir)
+        .expect("could not init `Container`");
 
     let mut db = Database::new();
     let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));

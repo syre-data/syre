@@ -94,7 +94,7 @@ impl Container {
         }
     }
 
-    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> thot_core::Result<Self> {
         let base_path = base_path.into();
         let properties_path =
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());

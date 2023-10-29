@@ -1,12 +1,13 @@
 //! Graph node.
 use crate::types::ResourceId;
 use has_id::HasId;
+use std::fmt;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// @todo[2]: Clean up serde.
+// TODO Clean up serde.
 /// A graph node for a resource.
 /// The id of the node matches the id of the resource.
 /// Contains data.
@@ -58,5 +59,14 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
+    }
+}
+
+impl<D> fmt::Debug for ResourceNode<D>
+where
+    D: fmt::Debug + HasId<Id = ResourceId>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.data())
     }
 }

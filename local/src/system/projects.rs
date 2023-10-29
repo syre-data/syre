@@ -2,6 +2,7 @@
 use super::collections::projects::Projects;
 use crate::error::{Error, ProjectError, Result, SettingsValidationError};
 use crate::system::settings::user_settings::UserSettings;
+use std::fs;
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::ResourceId;
@@ -18,6 +19,7 @@ use thot_core::types::ResourceId;
 /// # See also
 /// + `insert_project`
 pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
+    let path = fs::canonicalize(path)?;
     let mut projects = Projects::load_or_default()?;
 
     // check if project is already registered.

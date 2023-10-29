@@ -355,7 +355,7 @@ checksum = "d38f2da7a0a2c4ccf0065be06397cc26a81f4e528be095826eee9d4adbb8c60f"
 dependencies = [
  "byteorder",
  "fnv",
- "uuid 1.5.0",
+ "uuid",
 ]
 
 [[package]]
@@ -3716,9 +3716,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.189"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e422a44e74ad4001bdc8eede9a4570ab52f71190e9c076d14369f38b9200537"
+checksum = "91d3c334ca1ee894a2c6f6ad698fe8c435b76d504b13d436f0685d648d6d96f7"
 dependencies = [
  "serde_derive",
 ]
@@ -3758,9 +3758,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.189"
+version = "1.0.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e48d1f918009ce3145511378cf68d613e3b3d9137d67272562080d68a2b32d5"
+checksum = "67c5609f394e5c2bd7fc51efda478004ea80ef42fee983d5c67a65e34f32c0e3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4135,7 +4135,7 @@ dependencies = [
  "serde",
  "tao-macros",
  "unicode-segmentation",
- "uuid 1.5.0",
+ "uuid",
  "windows 0.39.0",
  "windows-implement",
  "x11-dl",
@@ -4217,7 +4217,7 @@ dependencies = [
  "time",
  "tokio",
  "url",
- "uuid 1.5.0",
+ "uuid",
  "webkit2gtk",
  "webview2-com",
  "windows 0.39.0",
@@ -4265,7 +4265,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "time",
- "uuid 1.5.0",
+ "uuid",
  "walkdir",
 ]
 
@@ -4299,7 +4299,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "url",
- "uuid 1.5.0",
+ "uuid",
  "webview2-com",
  "windows 0.39.0",
 ]
@@ -4317,7 +4317,7 @@ dependencies = [
  "raw-window-handle",
  "tauri-runtime",
  "tauri-utils",
- "uuid 1.5.0",
+ "uuid",
  "webkit2gtk",
  "webview2-com",
  "windows 0.39.0",
@@ -4464,7 +4464,6 @@ dependencies = [
  "thiserror",
  "thot-core",
  "thot-local",
- "uuid 0.8.2",
 ]
 
 [[package]]
@@ -4491,7 +4490,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
- "uuid 1.5.0",
+ "uuid",
  "validator",
  "yew",
 ]
@@ -4530,7 +4529,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-web",
- "uuid 1.5.0",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -4569,7 +4568,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "uuid 1.5.0",
+ "uuid",
  "zmq",
 ]
 
@@ -4592,7 +4591,7 @@ dependencies = [
  "thiserror",
  "thot-core",
  "tracing",
- "uuid 1.5.0",
+ "uuid",
  "validator",
 ]
 
@@ -4625,6 +4624,8 @@ name = "thot-local-database-cli"
 version = "0.0.1"
 dependencies = [
  "clap 4.4.6",
+ "serde",
+ "serde_json",
  "thot-core",
  "thot-local",
  "thot-local-database",
@@ -4656,7 +4657,7 @@ dependencies = [
  "tauri-sys",
  "thot-core",
  "tracing",
- "uuid 1.5.0",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -5044,16 +5045,6 @@ name = "utf8parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom 0.2.10",
- "serde",
-]
 
 [[package]]
 name = "uuid"

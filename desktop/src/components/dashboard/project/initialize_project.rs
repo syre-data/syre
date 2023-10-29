@@ -1,8 +1,12 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
+use crate::commands::common::PathBufArgs;
 use crate::common::invoke;
 use crate::hooks::use_user;
 use crate::routes::Route;
 use std::path::PathBuf;
+use thot_core::project::Project;
+use thot_core::types::ResourceId;
+use thot_local::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -40,12 +44,35 @@ pub fn initialize_project() -> Html {
 
             app_state.dispatch(AppStateAction::SetActiveWidget(None)); // close self
             spawn_local(async move {
-                // let project = match invoke("initialize_project", InitProjectArgs {
+                let Ok(_rid) =
+                    invoke::<ResourceId>("init_project_from", PathBufArgs { path: path.clone() })
+                        .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create project",
+                    )));
+                    return;
+                };
 
-                // }).await {
-                //     Ok(project) => project,
-                //     Err(err) => app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error(err), (), ()))
-                // }
+                let Ok((mut project, settings)) = invoke::<(Project, ProjectSettings)>(
+                    "load_project",
+                    PathBufArgs { path: path.clone() },
+                )
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not load project",
+                    )));
+                    return;
+                };
+
+                // update ui
+                let rid = project.rid.clone();
+                projects_state.dispatch(ProjectsStateAction::InsertProject((project, settings)));
+                projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
+                projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid));
+
+                navigator.push(&Route::Workspace);
             });
         })
     };

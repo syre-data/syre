@@ -168,7 +168,6 @@ impl Database {
             self.rename_container_folder(&rid, &properties.name)?;
         }
 
-        tracing::debug!("2");
         let container = self
             .store
             .get_container_mut(&rid)
@@ -177,9 +176,7 @@ impl Database {
         container.properties = properties;
 
         let bp = container.base_path();
-        tracing::debug!(?bp, ?container.properties);
         container.save()?;
-        tracing::debug!("saves");
         Ok(())
     }
 

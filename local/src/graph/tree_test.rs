@@ -48,7 +48,7 @@ fn container_tree_load_should_work() {
 }
 
 #[test]
-fn container_tree_duplicate_to_should_work() {
+fn container_tree_duplicate_without_assets_to_should_work() {
     // setup
     let mut dir = TempDir::new().expect("could not create temp dir");
     let c1_dir = dir.mkdir().expect("could not create child dir");
@@ -89,8 +89,9 @@ fn container_tree_duplicate_to_should_work() {
 
     // test
     // root
-    let dup = ContainerTreeDuplicator::duplicate_to(dup_dir.path(), &graph, graph.root())
-        .expect("could not duplicate tree from root");
+    let dup =
+        ContainerTreeDuplicator::duplicate_without_assets_to(dup_dir.path(), &graph, graph.root())
+            .expect("could not duplicate tree from root");
 
     let root_children = dup
         .children(dup.root())
@@ -114,8 +115,9 @@ fn container_tree_duplicate_to_should_work() {
     assert_eq!(c_names, cdup_names);
 
     // child
-    let c_dup = ContainerTreeDuplicator::duplicate_to(dup_child_dir.path(), &graph, &cid_1)
-        .expect("could not duplicate tree from root");
+    let c_dup =
+        ContainerTreeDuplicator::duplicate_without_assets_to(dup_child_dir.path(), &graph, &cid_1)
+            .expect("could not duplicate tree from root");
 
     let c1_children = c_dup
         .children(c_dup.root())

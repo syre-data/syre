@@ -494,6 +494,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
+            <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
             <ResourcePropertiesBulkEditor
                 {properties}
                 {onchange_name}

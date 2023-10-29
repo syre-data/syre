@@ -36,14 +36,16 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
     // NOTE: Check double click was for same asset,
     // otherwise removing an asset may trigger double click.
     let clicked_asset = use_state(|| None);
+    let mut assets = props.assets.clone();
+    assets.sort_by(|a, b| a.path.as_path().cmp(b.path.as_path()));
 
     html! {
         <div class={classes!("assets-preview")}>
-            if props.assets.len() == 0 {
+            if assets.len() == 0 {
              { "(no data)" }
             } else {
                 <ol class={classes!("thot-ui-assets-list")}>
-                    { props.assets.iter().map(|asset| {
+                    { assets.iter().map(|asset| {
                         let mut class = classes!("thot-ui-asset-preview", "clickable");
                         if props.active.contains(&asset.rid) {
                             class.push("active");
@@ -64,7 +66,6 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                 )} >
 
                                 <div class={classes!("thot-ui-asset")}>
-
                                     <div style={ asset_icon_color(&asset) }>
                                         <Icon class={classes!("thot-ui-asset-icon")} icon_id={asset_icon_id(&asset)} />
                                     </div>

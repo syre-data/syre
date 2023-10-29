@@ -3,14 +3,11 @@ use crate::error::Result;
 use crate::events::{
     Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
 };
-use crate::server::store::ContainerTree;
 use crate::server::Database;
 use notify::{self, event::RemoveKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
-use std::path::{Path, PathBuf};
-use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::types::ResourceId;
-use thot_local::project::resources::Container;
+use thot_local::graph::ContainerTreeTransformer;
 
 impl Database {
     /// Handle [`notify::event::RemoveKind`] events.
@@ -30,7 +27,7 @@ impl Database {
         }
 
         // Assume that relative segments are resolved in file paths.
-        // On Windows paths are canonicalized to UNC when inserted.
+        // On Windows paths are canonicalized to UNC when inserted into database.
         // Can not use `fs::canonicalize` on `from` because file no longer exists,
         // so must canonicalize by hand.
         #[cfg(target_os = "windows")]
@@ -62,6 +59,7 @@ impl Database {
                     self.handle_remove_asset(asset)?;
                     Ok(())
                 } else {
+                    tracing::debug!("`{path:?}` is not a resource");
                     Ok(())
                 }
             }
@@ -73,6 +71,8 @@ impl Database {
         }
     }
 
+    /// Removes the subgraph of the Container.
+    /// Publishes the `ResourceId` of the removed subgraph's root.
     fn handle_remove_container(&mut self, container: ResourceId) -> Result {
         let project = self
             .store
@@ -80,10 +80,11 @@ impl Database {
             .unwrap()
             .clone();
 
-        self.store.remove_subgraph(&container)?;
+        let graph = self.store.remove_subgraph(&container)?;
+        let graph = ContainerTreeTransformer::local_to_core(&graph);
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Container(ContainerUpdate::Removed(container)),
+            update: ProjectUpdate::Container(ContainerUpdate::Removed(graph)),
         })?;
 
         Ok(())

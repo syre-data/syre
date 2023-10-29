@@ -3,6 +3,8 @@
 //! Topic should be `project:` followed by the resource id of the affected project.
 //! e.g. `project:123-4567-890
 use serde::{Deserialize, Serialize};
+use thot_core::graph::ResourceTree;
+use thot_core::project::{Container as CoreContainer, ContainerProperties};
 use thot_core::types::{ResourceId, ResourcePath};
 
 // **************
@@ -50,17 +52,17 @@ pub enum Container {
     /// `Container`'s properties were modified.
     Properties {
         container: ResourceId,
-        properties: thot_core::project::ContainerProperties,
+        properties: ContainerProperties,
     },
 
-    /// A child `Container` was created.
-    ChildCreated {
+    /// A subgraph was created.
+    SubgraphCreated {
         parent: ResourceId,
-        container: thot_core::project::Container,
+        graph: ResourceTree<CoreContainer>,
     },
 
-    /// `Container`` was removed.
-    Removed(ResourceId),
+    /// `Container` was removed.
+    Removed(ResourceTree<CoreContainer>),
 }
 
 // *************

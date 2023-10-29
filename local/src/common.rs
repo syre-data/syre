@@ -105,7 +105,7 @@ pub fn sanitize_file_path(path: impl Into<String>) -> String {
 #[cfg(target_os = "windows")]
 pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
     let path: PathBuf = path.into();
-    if path.starts_with(WINDOWS_UNC_PREFIX) {
+    if path.to_str().unwrap().starts_with(WINDOWS_UNC_PREFIX) {
         path
     } else {
         // Must prefix UNC path as `str` because using `Path`s strips it.

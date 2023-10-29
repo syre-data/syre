@@ -81,7 +81,7 @@ pub fn container_tree_controller() -> Html {
                         .expect("could not query node");
 
                     if active_nodes.length() > 1 {
-                        web_sys::console::error_1(&"more than one node is dragover active".into());
+                        tracing::error!("more than one node is dragover active");
                         graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
                         app_state.dispatch(AppStateAction::AddMessage(Message::error(
                             "Could not add files",

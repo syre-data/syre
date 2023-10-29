@@ -115,7 +115,3 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
     container.save()?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./commands_test.rs"]
-mod commands_test;

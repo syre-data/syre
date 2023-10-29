@@ -45,8 +45,32 @@ fn sub() -> zmq::Result<()> {
         .unwrap();
 
     loop {
-        let msg = zmq_socket.recv_msg(0)?;
-        println!("{:?}", msg.as_str().unwrap());
+        let messages = match zmq_socket.recv_multipart(0) {
+            Ok(msg) => msg,
+            Err(err) => {
+                tracing::debug!(?err);
+                continue;
+            }
+        };
+
+        let messages = messages
+            .into_iter()
+            .map(|msg| zmq::Message::try_from(msg).unwrap())
+            .collect::<Vec<_>>();
+
+        let topic = messages.get(0).unwrap().as_str().unwrap();
+        let mut message = String::new();
+        for msg in messages.iter().skip(1) {
+            message.push_str(msg.as_str().unwrap());
+        }
+
+        match serde_json::from_str::<thot_local_database::events::Update>(&message) {
+            Ok(message) => println!(
+                "{topic}\n{}\n",
+                serde_json::to_string_pretty(&message).unwrap()
+            ),
+            Err(err) => println!("[could not decode: {err:?}]\n{topic}\n{message:?}\n"),
+        }
     }
 }
 

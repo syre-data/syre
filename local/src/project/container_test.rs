@@ -2,13 +2,10 @@ use super::*;
 use crate::common;
 use crate::project::resources::Container;
 use dev_utils::fs::TempDir;
-use fake::faker::filesystem::raw::FileName;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
 use fake::Fake;
-use serde_json;
 use std::fs;
-use thot_core::project::container::{AssetMap, Container as CoreContainer};
 
 #[test]
 fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {

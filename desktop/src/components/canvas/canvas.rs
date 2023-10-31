@@ -13,7 +13,8 @@ use crate::routes::Route;
 use futures::stream::StreamExt;
 use thot_core::types::ResourceId;
 use thot_local_database::events::{
-    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
+    Asset as AssetUpdate, Container as ContainerUpdate, Graph as GraphUpdate,
+    Project as ProjectUpdate, Update,
 };
 use thot_ui::components::{Drawer, DrawerPosition};
 use thot_ui::types::Message;
@@ -90,19 +91,21 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     properties,
                                 },
                             )),
+                        },
 
-                            ContainerUpdate::SubgraphCreated { parent, graph } => {
+                        ProjectUpdate::Graph(update) => match update {
+                            GraphUpdate::Created { parent, graph } => {
                                 graph_state
                                     .dispatch(GraphStateAction::InsertSubtree { parent, graph });
 
                                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::success("Container added from file system."),
+                                    Message::success("Container tree added from file system."),
                                     MESSAGE_TIMEOUT,
                                     app_state.clone(),
                                 ));
                             }
 
-                            ContainerUpdate::Removed(graph) => {
+                            GraphUpdate::Removed(graph) => {
                                 let mut rids = Vec::with_capacity(graph.nodes().len());
                                 for (cid, container) in graph.nodes() {
                                     rids.push(cid.clone());
@@ -117,7 +120,18 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 ));
 
                                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::success("Container removed from file system."),
+                                    Message::success("Container tree removed from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
+                            }
+
+                            GraphUpdate::Moved { parent, root } => {
+                                graph_state
+                                    .dispatch(GraphStateAction::MoveSubtree { parent, root });
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Container tree moved from file system."),
                                     MESSAGE_TIMEOUT,
                                     app_state.clone(),
                                 ));
@@ -133,6 +147,17 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
 
                                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                                     Message::success("Asset added from file system."),
+                                    MESSAGE_TIMEOUT,
+                                    app_state.clone(),
+                                ));
+                            }
+
+                            AssetUpdate::Moved { asset, container } => {
+                                graph_state
+                                    .dispatch(GraphStateAction::MoveAsset { asset, container });
+
+                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                                    Message::success("Asset moved from file system."),
                                     MESSAGE_TIMEOUT,
                                     app_state.clone(),
                                 ));

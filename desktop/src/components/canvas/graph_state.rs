@@ -8,10 +8,8 @@ use crate::commands::container::{
     ContainerPropertiesUpdate, ScriptAssociationsBulkUpdate,
     UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
 };
-use crate::commands::types::ResourcePropertiesUpdate;
 use std::collections::HashMap;
 use std::rc::Rc;
-use thot_core::db::Resource;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
 use thot_core::types::{ResourceId, ResourcePath};
@@ -24,8 +22,18 @@ pub enum GraphStateAction {
     ///  Sets the [`ContainerTree`].
     SetGraph(ContainerTree),
 
-    /// Removes a `Container`` subtree from the graph.
+    /// Removes a `Container` subtree from the graph.
     RemoveSubtree(ResourceId),
+
+    /// Move a subtree.
+    ///
+    /// # Fields
+    /// `parent`: New parent.
+    /// `root`: Root of the subtree to move.
+    MoveSubtree {
+        parent: ResourceId,
+        root: ResourceId,
+    },
 
     /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
     UpdateContainerProperties(UpdateContainerPropertiesArgs),
@@ -65,6 +73,12 @@ pub enum GraphStateAction {
     UpdateAssetPath {
         asset: ResourceId,
         path: ResourcePath,
+    },
+
+    /// Move an `Asset` to another `Container`.  
+    MoveAsset {
+        asset: ResourceId,
+        container: ResourceId,
     },
 
     SetDragOverContainer(ResourceId),
@@ -291,6 +305,10 @@ impl Reducible for GraphState {
                 }
             }
 
+            GraphStateAction::MoveSubtree { parent, root } => {
+                current.graph.mv(&root, &parent).unwrap();
+            }
+
             GraphStateAction::UpdateContainerProperties(update) => {
                 let container = current
                     .graph
@@ -402,6 +420,18 @@ impl Reducible for GraphState {
                 let container = current.graph.get_mut(container).unwrap();
                 let asset = container.assets.get_mut(&asset).unwrap();
                 asset.path = path;
+            }
+
+            GraphStateAction::MoveAsset { asset, container } => {
+                let container_o = current.asset_map.get(&asset).unwrap();
+                let container_o = current.graph.get_mut(container_o).unwrap();
+                let asset = container_o.assets.remove(&asset).unwrap();
+                current.asset_map.remove(&asset.rid);
+
+                let container = current.graph.get_mut(&container).unwrap();
+                let aid = asset.rid.clone();
+                container.insert_asset(asset);
+                current.asset_map.insert(aid, container.rid.clone());
             }
 
             GraphStateAction::SetDragOverContainer(rid) => {

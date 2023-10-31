@@ -1,6 +1,4 @@
 //! Handle `Asset` related functionality.
-use std::path::PathBuf;
-
 use super::super::Database;
 use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
 use crate::command::AssetCommand;
@@ -121,7 +119,7 @@ impl Database {
 
     #[tracing::instrument(skip(self))]
     fn remove_asset(&mut self, rid: &ResourceId) -> Result {
-        let Some((asset, path)) = self.store.remove_asset(rid)? else {
+        let Some((_asset, path)) = self.store.remove_asset(rid)? else {
             return Ok(());
         };
 

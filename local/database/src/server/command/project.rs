@@ -2,8 +2,6 @@
 use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::{Error, Result};
-use notify::{RecursiveMode, Watcher};
-use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 use serde_json::Value as JsValue;
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};

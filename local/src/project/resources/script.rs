@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Script as CoreScript, Scripts as CoreScripts};
-use thot_core::types::{ResourceMap, ResourcePath};
+use thot_core::types::ResourcePath;
 
 // **************
 // *** Script ***

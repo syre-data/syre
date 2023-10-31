@@ -23,8 +23,6 @@ impl ContainerTreeTransformer {
             .map(|(rid, node)| (rid.clone(), ResourceNode::new((*node.data()).clone())))
             .collect::<NodeMap<CoreContainer>>();
 
-        let edges = tree.edges();
-        tracing::debug!(?edges);
         ResourceTree::from_components(core_nodes, tree.edges().clone())
             .expect("could not build tree from components")
     }

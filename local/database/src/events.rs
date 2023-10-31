@@ -26,8 +26,15 @@ pub enum Update {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {
+    Graph(Graph),
     Container(Container),
     Asset(Asset),
+}
+
+impl From<Graph> for Project {
+    fn from(update: Graph) -> Self {
+        Self::Graph(update)
+    }
 }
 
 impl From<Container> for Project {
@@ -42,6 +49,32 @@ impl From<Asset> for Project {
     }
 }
 
+// *************
+// *** Graph ***
+// *************
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Graph {
+    /// A subgraph was created.
+    Created {
+        parent: ResourceId,
+        graph: ResourceTree<CoreContainer>,
+    },
+
+    /// A subgraph was moved within the `Project`.
+    ///
+    /// # Fields
+    /// `parent`: New parent of the subgraph.
+    /// `root`: Root of the subgraph.
+    Moved {
+        parent: ResourceId,
+        root: ResourceId,
+    },
+
+    /// Subgraph was removed.
+    Removed(ResourceTree<CoreContainer>),
+}
+
 // *****************
 // *** Container ***
 // *****************
@@ -54,15 +87,6 @@ pub enum Container {
         container: ResourceId,
         properties: ContainerProperties,
     },
-
-    /// A subgraph was created.
-    SubgraphCreated {
-        parent: ResourceId,
-        graph: ResourceTree<CoreContainer>,
-    },
-
-    /// `Container` was removed.
-    Removed(ResourceTree<CoreContainer>),
 }
 
 // *************
@@ -77,9 +101,16 @@ pub enum Asset {
         asset: thot_core::project::Asset,
     },
 
+    /// The `Asset`'s path property changed.
     PathChanged {
         asset: ResourceId,
         path: ResourcePath,
+    },
+
+    /// An Asset moved `Container`s.
+    Moved {
+        asset: ResourceId,
+        container: ResourceId,
     },
 
     Removed(ResourceId),

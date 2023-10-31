@@ -214,12 +214,20 @@ impl Datastore {
     // *** graph ***
     // *************
 
-    /// Gets a [`Project`](LocalProjet)'s [`ContainerTree`].
+    /// Gets a [`Project`](LocalProject)'s [`ContainerTree`].
     ///
     /// # Arguments
-    /// 1. [`ResourceId`] of the [`Project`](LocalProjet).
+    /// 1. [`ResourceId`] of the [`Project`](LocalProject).
     pub fn get_project_graph(&self, rid: &ResourceId) -> Option<&ContainerTree> {
         self.graphs.get(&rid)
+    }
+
+    /// Gets a `mut`able reference to a [`Project`](LocalProject)'s [`ContainerTree`].
+    ///
+    /// # Arguments
+    /// 1. [`ResourceId`] of the [`Project`](LocalProject).
+    pub fn get_project_graph_mut(&mut self, rid: &ResourceId) -> Option<&mut ContainerTree> {
+        self.graphs.get_mut(&rid)
     }
 
     /// Gets the graph of a `Container`.
@@ -239,7 +247,7 @@ impl Datastore {
         Some(graph)
     }
 
-    /// Gets the `mut`able graph of a `Container`.
+    /// Gets a `mut`able graph of a `Container`.
     ///
     /// # Arguments
     /// 1. [`ResourceId`] of the [`Container`](LocalContainer).

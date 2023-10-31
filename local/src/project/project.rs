@@ -87,7 +87,12 @@ pub fn mv(rid: &ResourceId, to: &Path) -> Result {
 }
 
 /// Returns whether the given path is part of a Thot project.
-/// Returns true if the path has a <THOT_DIR> folder in it.
+///
+/// # Returns
+/// `true`` if the path has a <THOT_DIR> folder in it.
+///
+/// # Note
+/// + Only works with `Container`s and `Project`s, not `Asset`s.
 pub fn path_is_resource(path: &Path) -> bool {
     let path = common::thot_dir_of(path);
     path.exists()

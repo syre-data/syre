@@ -1,8 +1,6 @@
 //! Handle file system events.
 use crate::error::{Error, Result};
-use crate::events::{
-    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
-};
+use crate::events::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use notify::{self, event::CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
@@ -95,11 +93,23 @@ impl Database {
             Ok(graph) => {
                 // existing container was copied
                 // update resource ids and register
-                return self.file_system_handle_copied_subtree(graph);
+                let Some(loaded_container) = self.store.get_container(graph.root()) else {
+                    // container not loaded
+                    return self.file_system_handle_subtree_unknown(graph);
+                };
+
+                if loaded_container.base_path().exists() {
+                    // container copied
+                    return self.file_system_handle_subtree_copied(graph);
+                }
+
+                // container moved
+                return self.file_system_handle_subtree_moved(project.rid.clone(), graph);
             }
 
             Err(LocalError::CoreError(CoreError::IoError(err)))
                 if err.kind() == io::ErrorKind::NotFound => {}
+
             Err(err) => return Err(err.into()),
         }
 
@@ -119,7 +129,7 @@ impl Database {
         let graph = ContainerTreeTransformer::local_to_core(graph);
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Container(ContainerUpdate::SubgraphCreated { parent, graph }),
+            update: GraphUpdate::Created { parent, graph }.into(),
         })?;
 
         Ok(())
@@ -163,7 +173,7 @@ impl Database {
         let ParentChild {
             parent: container,
             child: asset,
-        } = match self.file_system_init_asset(path) {
+        } = match self.file_system_asset_init(path) {
             Ok(container_asset) => container_asset,
 
             Err(Error::CoreError(CoreError::ResourceError(ResourceError::AlreadyExists(_msg)))) => {
@@ -184,10 +194,36 @@ impl Database {
 
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Asset(AssetUpdate::Created {
+            update: AssetUpdate::Created {
                 container: container.rid.clone(),
                 asset,
-            }),
+            }
+            .into(),
+        })?;
+
+        Ok(())
+    }
+
+    /// Moves an unloaded subtree into a new location.
+    /// Registers resources.
+    /// Published update.
+    fn file_system_handle_subtree_unknown(&mut self, graph: ResourceTree<Container>) -> Result {
+        let root = graph.root().clone();
+        let path = graph.get(&root).unwrap().base_path();
+        let parent = self
+            .store
+            .get_path_container_canonical(path.parent().unwrap())
+            .unwrap()
+            .cloned()
+            .unwrap();
+
+        self.store.insert_subgraph(&parent, graph)?;
+        let project = self.store.get_container_project(&root).unwrap().clone();
+        let graph = self.store.get_container_graph(&root).unwrap();
+        let graph = ContainerTreeTransformer::local_to_core(graph);
+        self.publish_update(&Update::Project {
+            project,
+            update: GraphUpdate::Created { parent, graph }.into(),
         })?;
 
         Ok(())
@@ -196,7 +232,7 @@ impl Database {
     /// Duplicates graph.
     /// Registers resources.
     /// Publishes update.
-    fn file_system_handle_copied_subtree(&mut self, graph: ResourceTree<Container>) -> Result {
+    fn file_system_handle_subtree_copied(&mut self, graph: ResourceTree<Container>) -> Result {
         let mut graph = ContainerTreeDuplicator::duplicate(&graph, graph.root())?;
         let root = graph.root().clone();
         let root_container = graph.get_mut(&root).unwrap();
@@ -213,17 +249,12 @@ impl Database {
         }
 
         let path = graph.get(&root).unwrap().base_path();
-        let Some(parent) = self
+        let parent = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
             .unwrap()
             .cloned()
-        else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "parent `Container` does not exist",
-            ))
-            .into());
-        };
+            .unwrap();
 
         self.store.insert_subgraph(&parent, graph)?;
 
@@ -232,10 +263,63 @@ impl Database {
         let graph = ContainerTreeTransformer::local_to_core(graph);
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Container(ContainerUpdate::SubgraphCreated { parent, graph }),
+            update: GraphUpdate::Created { parent, graph }.into(),
         })?;
 
-        return Ok(());
+        Ok(())
+    }
+
+    /// Moves a subtree within or between `Project`s.
+    /// Publishes update.
+    fn file_system_handle_subtree_moved(
+        &mut self,
+        project: ResourceId,
+        graph: ResourceTree<Container>,
+    ) -> Result {
+        let container_project = self
+            .store
+            .get_container_project(graph.root())
+            .cloned()
+            .unwrap();
+
+        let root = graph.root().clone();
+        let path = graph.get(&root).unwrap().base_path();
+        let parent = self
+            .store
+            .get_path_container_canonical(path.parent().unwrap())
+            .unwrap()
+            .cloned()
+            .unwrap();
+
+        if container_project == project {
+            // moved within project
+            let project_graph = self.store.get_project_graph_mut(&project).unwrap();
+            project_graph.mv(graph.root(), &parent)?;
+
+            self.publish_update(&Update::Project {
+                project: project.clone(),
+                update: GraphUpdate::Moved { parent, root }.into(),
+            })?;
+        } else {
+            // moved from other project
+            self.store.remove_subgraph(graph.root())?;
+            self.store.insert_subgraph(&parent, graph)?;
+
+            let graph = self.store.get_container_graph(&root).unwrap();
+            let graph = ContainerTreeTransformer::local_to_core(graph);
+
+            self.publish_update(&Update::Project {
+                project: container_project.clone(),
+                update: GraphUpdate::Removed(graph.clone()).into(),
+            })?;
+
+            self.publish_update(&Update::Project {
+                project: project.clone(),
+                update: GraphUpdate::Created { parent, graph }.into(),
+            })?;
+        }
+
+        Ok(())
     }
 
     /// Initialize a path as a  Contaienr tree and insert it into the graph.
@@ -244,17 +328,12 @@ impl Database {
     /// `ResourceId` of the graph's root `Container`.
     #[tracing::instrument(skip(self))]
     fn file_system_init_subgraph(&mut self, path: PathBuf) -> Result<ParentChild> {
-        let Some(parent) = self
+        let parent = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
             .unwrap()
             .cloned()
-        else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "parent `Container` does not exist",
-            ))
-            .into());
-        };
+            .unwrap();
 
         // init graph
         let mut builder = container::InitOptions::init();
@@ -269,7 +348,7 @@ impl Database {
         Ok(ParentChild { parent, child })
     }
 
-    fn file_system_init_asset(&mut self, path: PathBuf) -> Result<ParentChild> {
+    fn file_system_asset_init(&mut self, path: PathBuf) -> Result<ParentChild> {
         let container_path = thot_local::project::asset::container_from_path_ancestor(&path)?;
         let container = self
             .store

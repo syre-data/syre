@@ -1,8 +1,6 @@
 //! Handle file system events.
 use crate::error::Result;
-use crate::events::{
-    Asset as AssetUpdate, Container as ContainerUpdate, Project as ProjectUpdate, Update,
-};
+use crate::events::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use notify::{self, event::RemoveKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
@@ -84,7 +82,7 @@ impl Database {
         let graph = ContainerTreeTransformer::local_to_core(&graph);
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Container(ContainerUpdate::Removed(graph)),
+            update: GraphUpdate::Removed(graph).into(),
         })?;
 
         Ok(())
@@ -96,7 +94,7 @@ impl Database {
         self.store.remove_asset(&asset)?;
         self.publish_update(&Update::Project {
             project,
-            update: ProjectUpdate::Asset(AssetUpdate::Removed(asset)),
+            update: AssetUpdate::Removed(asset).into(),
         })?;
 
         Ok(())

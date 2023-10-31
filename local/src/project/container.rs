@@ -1,14 +1,12 @@
 //! High level functionality related to Containers.
 use super::project;
 use super::resources::Container;
-use crate::common::{container_file_of, thot_dir, thot_dir_of};
-use crate::error::ContainerError;
-use crate::{Error, Result};
-use std::fs::canonicalize;
-use std::path::{self, Component, Path, PathBuf};
+use crate::common::{container_file_of, thot_dir};
+use crate::Result;
+use std::path::{self, Path, PathBuf};
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset, Container as CoreContainer, ContainerProperties};
+use thot_core::project::{Asset, ContainerProperties};
 use thot_core::types::{ResourceId, ResourcePath};
 
 // ***************

@@ -24,7 +24,7 @@ impl Database {
                         panic!("invalid paths");
                     };
 
-                    self.handle_from_to_event(from, to)?;
+                    self.file_system_handle_rename_from_to_event(from, to)?;
                     Ok(())
                 }
 
@@ -41,7 +41,11 @@ impl Database {
         }
     }
 
-    pub fn handle_from_to_event(&mut self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result {
+    pub fn file_system_handle_rename_from_to_event(
+        &mut self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+    ) -> Result {
         let from = from.as_ref();
         let to = to.as_ref();
 

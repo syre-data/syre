@@ -174,8 +174,6 @@ impl Database {
             .expect("Container no longer exists");
 
         container.properties = properties;
-
-        let bp = container.base_path();
         container.save()?;
         Ok(())
     }

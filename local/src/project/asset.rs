@@ -99,7 +99,11 @@ impl AssetBuilder {
         // calculate paths
         let mut rel_path = self.bucket.clone().unwrap_or(PathBuf::new());
         let Some(file_name) = self.path.file_name() else {
-            return Err(AssetError::InvalidPath(self.path.clone(), "could not get file name".to_string()).into());
+            return Err(AssetError::InvalidPath(
+                self.path.clone(),
+                "could not get file name".to_string(),
+            )
+            .into());
         };
 
         rel_path.push(file_name);
@@ -351,7 +355,8 @@ pub fn path_is_asset(path: &Path, container: &Path) -> bool {
     todo!();
 }
 
-/// Moves up the path until the first Container is reached.
+// TODO Return `Option` instead of `Result`.
+/// Moves up the path until the first `Container` is reached.
 pub fn container_from_path_ancestor(path: &Path) -> Result<PathBuf> {
     match path.ancestors().find(|p| path_is_container(p)) {
         None => {

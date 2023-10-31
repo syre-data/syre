@@ -22,7 +22,7 @@ use crate::common;
 use crate::error::{Error, ProjectError, Result};
 use crate::system::projects;
 use resources::Project;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path};
 use std::{fs, io};
 use thot_core::project::{Script, ScriptLang};
 use thot_core::types::{ResourceId, ResourcePath};

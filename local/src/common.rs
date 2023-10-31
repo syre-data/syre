@@ -2,8 +2,8 @@
 use crate::constants::*;
 use crate::{Error, Result};
 use regex::Regex;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{fs, io};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {

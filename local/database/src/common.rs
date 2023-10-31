@@ -1,7 +1,6 @@
 //! Common functions.
 use crate::constants::{PUB_SUB_PORT, REQ_REP_PORT};
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
 
 static LOCALHOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
 

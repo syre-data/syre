@@ -30,9 +30,11 @@ pub enum GraphStateAction {
     /// # Fields
     /// `parent`: New parent.
     /// `root`: Root of the subtree to move.
+    /// `name`: Name of the root `Container`.
     MoveSubtree {
         parent: ResourceId,
         root: ResourceId,
+        name: String,
     },
 
     /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
@@ -79,6 +81,7 @@ pub enum GraphStateAction {
     MoveAsset {
         asset: ResourceId,
         container: ResourceId,
+        path: ResourcePath,
     },
 
     SetDragOverContainer(ResourceId),
@@ -305,8 +308,10 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::MoveSubtree { parent, root } => {
+            GraphStateAction::MoveSubtree { parent, root, name } => {
                 current.graph.mv(&root, &parent).unwrap();
+                let root = current.graph.get_mut(&root).unwrap();
+                root.properties.name = name;
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
@@ -422,10 +427,15 @@ impl Reducible for GraphState {
                 asset.path = path;
             }
 
-            GraphStateAction::MoveAsset { asset, container } => {
-                let container_o = current.asset_map.get(&asset).unwrap();
-                let container_o = current.graph.get_mut(container_o).unwrap();
-                let asset = container_o.assets.remove(&asset).unwrap();
+            GraphStateAction::MoveAsset {
+                asset,
+                container,
+                path,
+            } => {
+                let container_old = current.asset_map.get(&asset).unwrap();
+                let container_old = current.graph.get_mut(container_old).unwrap();
+                let mut asset = container_old.assets.remove(&asset).unwrap();
+                asset.path = path;
                 current.asset_map.remove(&asset.rid);
 
                 let container = current.graph.get_mut(&container).unwrap();

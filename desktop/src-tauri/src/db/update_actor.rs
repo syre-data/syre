@@ -1,7 +1,5 @@
 //! Actor for listening to database updates.
-use std::sync::mpsc;
-use std::thread;
-use thot_local_database::events::Update;
+use thot_local_database::event::Update;
 
 pub struct UpdateActor {
     window: tauri::Window,

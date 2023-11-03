@@ -71,7 +71,6 @@ impl Script {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Scripts(#[cfg_attr(feature = "serde", serde(with = "values_only"))] ResourceMap<Script>);
-
 impl Scripts {
     /// Returns whether a script with the given path is registered.
     pub fn contains_path(&self, path: &ResourcePath) -> bool {

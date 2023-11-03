@@ -354,7 +354,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     return;
                 };
 
-                let Some(container) = graph_state.graph.get(&container_id).cloned() else {
+                let Some(_container) = graph_state.graph.get(&container_id).cloned() else {
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update container",
                     )));

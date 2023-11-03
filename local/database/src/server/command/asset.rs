@@ -69,8 +69,9 @@ impl Database {
             }
 
             AssetCommand::UpdatePath(from, to) => {
-                let res = self.store.update_asset_path(&from, to);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                todo!();
+                // let res = self.store.update_asset_path(&from, to);
+                // serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
             AssetCommand::Find(root, filter) => {

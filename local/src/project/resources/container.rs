@@ -67,6 +67,7 @@ impl From<CoreContainer> for StoredContainerProperties {
 // *** Container ***
 // *****************
 
+#[derive(Debug)]
 pub struct Container {
     base_path: PathBuf,
     container: CoreContainer,
@@ -196,6 +197,14 @@ impl Container {
     pub fn remove_script_association(&mut self, rid: &ResourceId) -> bool {
         let old = self.scripts.remove(rid);
         old.is_some()
+    }
+
+    pub fn settings(&self) -> &ContainerSettings {
+        &self.settings
+    }
+
+    pub fn settings_mut(&mut self) -> &mut ContainerSettings {
+        &mut self.settings
     }
 }
 

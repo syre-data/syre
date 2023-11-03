@@ -7,10 +7,11 @@ mod file_system;
 
 use self::command::CommandActor;
 use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
+use self::file_system::file_system_event_processor::FileSystemEventProcessor;
 use super::store::Datastore;
 use super::Event;
 use crate::command::Command;
-use crate::events::Update;
+use crate::event::Update;
 use crate::{common, constants, Result};
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
@@ -123,20 +124,9 @@ impl Database {
             }
         };
 
-        let events = Self::file_system_filter_events(events);
-        if let Some(res) = self.file_system_try_handle_events_group(&events) {
-            return res;
-        }
-
-        for event in events.into_iter() {
-            match event.event.kind {
-                notify::EventKind::Modify(_) => self.handle_file_system_event_modify(event)?,
-                notify::EventKind::Create(_) => self.handle_file_system_event_create(event)?,
-                notify::EventKind::Remove(_) => self.handle_file_system_event_remove(event)?,
-                _ => todo!(),
-            }
-        }
-
+        let events = FileSystemEventProcessor::process(events);
+        let events = self.process_file_system_events_to_thot_events(&events);
+        self.handle_thot_events(events)?;
         Ok(())
     }
 }

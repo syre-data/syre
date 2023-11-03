@@ -334,6 +334,28 @@ impl Datastore {
         Ok(())
     }
 
+    /// Move a subgraph.
+    ///
+    /// # Notes
+    /// + This does not affect node paths.
+    /// + This does not affect the file system.
+    pub fn move_subgraph(&mut self, root: &ResourceId, parent: &ResourceId) -> Result {
+        let Some(project) = self.get_container_project(root).cloned() else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Container` `Project` not found",
+            ))
+            .into());
+        };
+
+        let graph = self
+            .graphs
+            .get_mut(&project)
+            .expect("`Project` graph not found");
+
+        graph.mv(root, parent)?;
+        Ok(())
+    }
+
     /// Remove the subgraph with the given root.
     ///
     /// # Returns
@@ -347,21 +369,18 @@ impl Datastore {
             .into());
         };
 
-        let p_graph = self
+        let graph = self
             .graphs
             .get_mut(&project)
             .expect("`Project` graph not found");
 
-        let sub_graph = p_graph.remove(root)?;
+        let sub_graph = graph.remove(root)?;
         for (cid, container) in sub_graph.nodes() {
-            // map container to project
+            // remove maps
             self.container_projects.remove(cid);
-
-            // map path to container
             self.container_paths
                 .remove_canonical(&container.base_path());
 
-            // map assets
             for (aid, asset) in container.assets.iter() {
                 self.asset_containers.remove(aid);
 
@@ -374,6 +393,10 @@ impl Datastore {
     }
 
     /// Updates the path to a subtree.
+    ///
+    /// # Notes
+    /// + This does not affect the graph in any way.
+    /// + This does not affect the file system.
     pub fn update_subgraph_path(&mut self, root: &ResourceId, path: impl Into<PathBuf>) -> Result {
         let path = path.into();
         let Some(graph) = self.get_container_graph(root) else {
@@ -396,10 +419,24 @@ impl Datastore {
                 continue;
             }
 
+            let assets = descendant
+                .assets
+                .values()
+                .map(|asset| (asset.rid.clone(), asset.path.as_path().to_owned()))
+                .collect::<Vec<_>>();
+
             descendant.set_base_path(new_path.clone());
-            self.container_paths.remove_canonical(&old_path);
+            let descendant_path = descendant.base_path().to_owned();
+            self.container_paths.remove_canonical(&old_path).unwrap();
             self.container_paths
                 .insert_canonical(new_path, descendant_id);
+
+            for (aid, asset_path) in assets {
+                self.asset_paths.remove(&old_path.join(&asset_path));
+
+                self.asset_paths
+                    .insert(descendant_path.join(asset_path), aid);
+            }
         }
 
         Ok(())
@@ -685,7 +722,13 @@ impl Datastore {
         let aid = asset.rid.clone();
         let cid = container.rid.clone();
         let asset_path = container.base_path().join(asset.path.as_path());
-        let o_asset = container.assets.insert(aid.clone(), asset);
+        if let Some(bucket_path) = asset.bucket() {
+            if !container.settings().buckets.contains(&bucket_path) {
+                container.settings_mut().buckets.push(bucket_path);
+            }
+        }
+
+        let o_asset = container.insert_asset(asset);
         container.save()?;
 
         let asset_path = match fs::canonicalize(&asset_path) {
@@ -758,32 +801,64 @@ impl Datastore {
     /// Updates an [`Asset`]'s path.
     /// Sets the `Asset`'s path relative to its `Container`.
     ///
-    /// # Notes
-    /// The `from` path is first removed from mappings. The path is then updated in it's `Container`.
-    /// Finally the `to` path is added to mappings.
-    pub fn update_asset_path(&mut self, from: impl AsRef<Path>, to: impl Into<PathBuf>) -> Result {
-        let from = from.as_ref();
-        let to = to.into();
+    /// # Arguments
+    /// + `path` should be the path relative to its `Container`.
+    pub fn update_asset_path(&mut self, asset: &ResourceId, path: impl Into<PathBuf>) -> Result {
+        let path = path.into();
+        assert!(path.is_relative());
 
-        let Some(aid) = self.get_path_asset_id(from).cloned() else {
+        let container = self.get_asset_container_id(asset).unwrap().clone();
+        let container = self.get_container_mut(&container).unwrap();
+        let container_path = container.base_path().to_path_buf();
+        let asset = container.assets.get_mut(asset).unwrap();
+        let aid = asset.rid.clone();
+        let asset_path = asset.path.as_path().to_owned();
+
+        asset.path = ResourcePath::new(path.clone())?;
+        container.save()?;
+
+        let old_asset_path = container_path.join(&asset_path);
+        self.asset_paths.remove_canonical(&old_asset_path);
+
+        let path = container_path.join(path);
+        self.asset_paths.insert_canonical(path, aid);
+        Ok(())
+    }
+
+    /// Moves an [`Asset`] to another [`Container`](CoreContainer).
+    ///
+    /// # Notes
+    /// + Does not manipulate the `Asset`'s file.
+    pub fn move_asset(&mut self, asset: &ResourceId, container: &ResourceId) -> Result {
+        let Some(asset_container) = self.get_asset_container_id(asset).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
-        self.asset_paths.remove_canonical(from);
+        let asset_container = self.get_container_mut(&asset_container).unwrap();
+        let aid = asset.clone();
+        let asset = asset_container.remove_asset(asset).unwrap();
+        let asset_path_old = asset_container.base_path().join(asset.path.as_path());
+        asset_container.save()?;
 
-        let container = self.get_asset_container_id(&aid).unwrap().clone();
-        let container = self.get_container_mut(&container).unwrap();
-        let container_path = container.base_path().to_path_buf();
-        let asset = container.assets.get_mut(&aid).unwrap();
-        let path = to.strip_prefix(container_path).unwrap().to_path_buf();
+        let Some(container) = self.get_container_mut(container) else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Container` does not exist",
+            ))
+            .into());
+        };
 
-        asset.path = ResourcePath::new(path)?;
+        let cid = container.rid.clone();
+        let asset_path = container.base_path().join(asset.path.as_path());
+        container.insert_asset(asset);
         container.save()?;
 
-        self.asset_paths.insert_canonical(to, aid);
+        self.asset_containers.insert(aid.clone(), cid);
+        self.asset_paths.remove(&asset_path_old);
+        self.asset_paths.insert(asset_path, aid);
+
         Ok(())
     }
 
@@ -929,6 +1004,11 @@ impl Datastore {
         self.scripts.get(&project)
     }
 
+    /// Gets a `mut`able reference to a `Project`'s `Script`s.
+    pub fn get_project_scripts_mut(&mut self, project: &ResourceId) -> Option<&mut ProjectScripts> {
+        self.scripts.get_mut(&project)
+    }
+
     /// Gets the `Project` of a `Script`.
     pub fn get_script_project(&self, script: &ResourceId) -> Option<&ResourceId> {
         self.script_projects.get(&script)
@@ -940,7 +1020,6 @@ impl Datastore {
         script: CoreScript,
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
-            // project does not exist
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Project` does not exist",
             ))

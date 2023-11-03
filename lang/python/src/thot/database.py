@@ -32,9 +32,17 @@ class Database:
     """
     A Thot Database.
     """
-    def __init__(self, dev_root: OptStr = None):
+    def __init__(self, dev_root: OptStr = None, chdir: bool = True):
         """
         Create a new Thot Database.
+        
+        Args:
+            dev_root (OptStr, optional): Interactive graph root.
+                Used to set the development root when using a script interactively.
+                The script will set its graph root to the `Container` at the given path.
+                This is ignored if the script is being run by a runner.
+                
+            chdir (bool, optional): Whether to change the directory to the script's. Defaults to `True`.
         """
         self._ctx: zmq.Context = zmq.Context()
         self._socket: zmq.Socket = self._ctx.socket(zmq.REQ)
@@ -100,6 +108,14 @@ class Database:
         
         self._root: str = root["rid"]
         
+        if chdir:
+            analysis_root = project["analysis_root"]
+            if analysis_root is None:
+                raise RuntimeError("analysis root is not set, can not change directory")
+            
+            analysis_path = os.path.join(project_path, analysis_root)
+            os.chdir(analysis_path)
+        
     def _is_database_available(self) -> bool:
         """
         Check if a database is already running.
@@ -163,10 +179,10 @@ class Database:
         Find Containers matching the filter.
 
         Args:
-            name (OptStr, optional): Name filter. Defaults to None.
-            type (OptStr, optional): Type filter. Defaults to None.
-            tags (OptTags, optional): Tags filter. Defaults to None.
-            metadata (OptMetadata, optional): Metadata filter. Defaults to None.
+            name (OptStr, optional): Name filter. Defaults to `None`.
+            type (OptStr, optional): Type filter. Defaults to `None`.
+            tags (OptTags, optional): Tags filter. Defaults to `None`.
+            metadata (OptMetadata, optional): Metadata filter. Defaults to `None`.
 
         Returns:
             list[Container]: Containers matching the filter.
@@ -200,10 +216,10 @@ class Database:
         Find a single Container matching the filter.
         
         Args:
-            name (OptStr, optional): Name filter. Defaults to None.
-            type (OptStr, optional): Type filter. Defaults to None.
-            tags (OptTags, optional): Tags filter. Defaults to None.
-            metadata (OptMetadata, optional): Metadata filter. Defaults to None.
+            name (OptStr, optional): Name filter. Defaults to `None`.
+            type (OptStr, optional): Type filter. Defaults to `None`.
+            tags (OptTags, optional): Tags filter. Defaults to `None`.
+            metadata (OptMetadata, optional): Metadata filter. Defaults to `None`.
         
         Returns:
             Union[Container, None]: A Contianer, or `None`.
@@ -225,10 +241,10 @@ class Database:
         Find Assets matching the filter.
         
         Args:
-            name (OptStr, optional): Name filter. Defaults to None.
-            type (OptStr, optional): Type filter. Defaults to None.
-            tags (OptTags, optional): Tags filter. Defaults to None.
-            metadata (OptMetadata, optional): Metadata filter. Defaults to None.
+            name (OptStr, optional): Name filter. Defaults to `None`.
+            type (OptStr, optional): Type filter. Defaults to `None`.
+            tags (OptTags, optional): Tags filter. Defaults to `None`.
+            metadata (OptMetadata, optional): Metadata filter. Defaults to `None`.
 
         Returns:
             list[Asset]: Assets matching the filter.
@@ -262,10 +278,10 @@ class Database:
         Find a single Asset matching the filter.
         
         Args:
-            name (OptStr, optional): Name filter. Defaults to None.
-            type (OptStr, optional): Type filter. Defaults to None.
-            tags (OptTags, optional): Tags filter. Defaults to None.
-            metadata (OptMetadata, optional): Metadata filter. Defaults to None.
+            name (OptStr, optional): Name filter. Defaults to `None`.
+            type (OptStr, optional): Type filter. Defaults to `None`.
+            tags (OptTags, optional): Tags filter. Defaults to `None`.
+            metadata (OptMetadata, optional): Metadata filter. Defaults to `None`.
         
         Returns: 
             Union[Asset, None]: An Asset or `None`.
@@ -290,10 +306,10 @@ class Database:
         
         Args:
             file (str): File name of the associated data. Use relative paths to place the Asset in a bucket.
-            name (OptStr, optional): Name filter. Defaults to None.
-            type (OptStr, optional): Type filter. Defaults to None.
-            tags (OptTags, optional): Tags filter. Defaults to None.
-            metadata (OptMetadata, optional): Metadata filter. Defaults to None.
+            name (OptStr, optional): Name filter. Defaults to `None`.
+            type (OptStr, optional): Type filter. Defaults to `None`.
+            tags (OptTags, optional): Tags filter. Defaults to `None`.
+            metadata (OptMetadata, optional): Metadata filter. Defaults to `None`.
 
         Returns:
             str: Path to save the Asset's file to.
@@ -328,7 +344,7 @@ class Database:
         if "Ok" not in res:
             raise RuntimeError(f"could not create Asset: {res['Err']}")
         
-        path = os.path.join(self._root_path, file)
+        path = os.path.join(self._root_path, os.path.normpath(file))
         os.makedirs(os.path.dirname(path), exist_ok=True) # ensure bucket directory exists
         return path
     

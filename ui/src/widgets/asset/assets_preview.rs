@@ -1,10 +1,11 @@
 //! Assets preview.
 use std::collections::HashSet;
-use std::path::PathBuf;
 use thot_core::project::Asset as CoreAsset;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
+
+const MAX_FILE_NAME_LENGTH: usize = 15;
 
 #[derive(Properties, PartialEq, Debug)]
 pub struct AssetsPreviewProps {
@@ -102,30 +103,28 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 /// # Returns
 /// The `name` if set, otherwise the `path`'s file name.
 fn asset_display_name(asset: &CoreAsset) -> String {
-    fn shorten_file_name(file_name: &str) -> String {
+    fn shorten_file_name(file_name: String) -> String {
         //TODO[2]: not sure if this is the right place to max file length, should be centralized
-        let max_file_name_length = 11;
-        if file_name.len() <= max_file_name_length {
-            return file_name.to_string();
+        if file_name.len() <= MAX_FILE_NAME_LENGTH {
+            return file_name;
         }
+
         let mut shortened = file_name
             .chars()
-            .take(max_file_name_length)
+            .take(MAX_FILE_NAME_LENGTH - 3)
             .collect::<String>();
+
         shortened.push_str("...");
         shortened
     }
-    if let Some(name) = asset.properties.name.as_ref() {
+
+    let name = if let Some(name) = asset.properties.name.as_ref() {
         name.clone()
     } else {
-        let path = Into::<PathBuf>::into(asset.path.clone());
-        let name = path
-            .file_name()
-            .expect("`Asset.path` could not get file name");
+        asset.path.as_path().to_str().unwrap().to_string()
+    };
 
-        let name = name.to_str().expect("could not convert path to str");
-        shorten_file_name(name).to_owned()
-    }
+    shorten_file_name(name)
 }
 
 /// Gets the icon id to display for an [`Asset`](CoreAsset).
@@ -189,7 +188,7 @@ fn asset_icon_color(asset: &CoreAsset) -> Color {
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter, and sets
 /// the asset click state.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 fn onclick_asset(
     rid: ResourceId,
     cb: Option<Callback<(ResourceId, MouseEvent)>>,
@@ -210,7 +209,7 @@ fn onclick_asset(
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
 /// Reads the asset click state to ensure the same asset is being clicked.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 fn ondblclick_asset(
     rid: ResourceId,
     cb: Option<Callback<(ResourceId, MouseEvent)>>,
@@ -235,7 +234,7 @@ fn ondblclick_asset(
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 fn onclick_asset_remove(
     rid: ResourceId,
     cb: Option<Callback<ResourceId>>,

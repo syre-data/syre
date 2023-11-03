@@ -2,8 +2,8 @@
 // use crate::commands::settings::UserAppStateArgs;
 use indexmap::IndexSet;
 use std::rc::Rc;
-use thot_core::project::{Project, Scripts};
-use thot_core::types::{ResourceId, ResourceMap};
+use thot_core::project::{Project, Script, Scripts};
+use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
 use thot_local::types::ProjectSettings;
 use yew::prelude::*;
 
@@ -38,12 +38,24 @@ pub enum ProjectsStateAction {
     /// Update the [`Project`].
     UpdateProject(Project),
 
-    /// Insert a `Script`.
+    InsertProjectScript {
+        project: ResourceId,
+        script: Script,
+    },
+
+    /// Inserts `Script`s into a `Project`.
     ///
     /// # Fields
     /// 1. `Project`'s id.
     /// 2. `Project`'s `Script`s.
     InsertProjectScripts(ResourceId, Scripts),
+
+    RemoveProjectScript(ResourceId),
+
+    MoveProjectScript {
+        script: ResourceId,
+        path: ResourcePath,
+    },
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -101,8 +113,31 @@ impl Reducible for ProjectsState {
                 current.active_project = Some(rid);
             }
 
+            ProjectsStateAction::InsertProjectScript { project, script } => {
+                let scripts = current.project_scripts.get_mut(&project).unwrap();
+                scripts.insert(script.rid.clone(), script);
+            }
+
             ProjectsStateAction::InsertProjectScripts(project, scripts) => {
                 current.project_scripts.insert(project, scripts);
+            }
+
+            ProjectsStateAction::RemoveProjectScript(script) => {
+                for (_project, scripts) in current.project_scripts.iter_mut() {
+                    if scripts.contains_key(&script) {
+                        scripts.remove(&script);
+                        break;
+                    }
+                }
+            }
+
+            ProjectsStateAction::MoveProjectScript { script, path } => {
+                for (_project, scripts) in current.project_scripts.iter_mut() {
+                    if let Some(script) = scripts.get_mut(&script) {
+                        script.path = path;
+                        break;
+                    }
+                }
             }
 
             ProjectsStateAction::UpdateProject(project) => {

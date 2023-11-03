@@ -1,6 +1,6 @@
 //! Common functionality.
 use crate::error::Result;
-use std::path::PathBuf;
+use std::path::{Component, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -54,6 +54,17 @@ pub fn get_directory(title: Option<String>, dir: Option<PathBuf>) -> Option<Path
 #[tauri::command]
 #[tracing::instrument(level = "debug")]
 pub fn open_file(path: PathBuf) -> Result {
+    let path = path
+        .components()
+        .fold(PathBuf::new(), |path, component| match component {
+            Component::RootDir => path,
+            Component::Prefix(prefix) => path.join(prefix.as_os_str()),
+            Component::Normal(segment) => path.join(segment),
+            _ => {
+                panic!("invalid path component");
+            }
+        });
+
     let path = path.canonicalize()?;
     open::that(path).map_err(|err| err.into())
 }

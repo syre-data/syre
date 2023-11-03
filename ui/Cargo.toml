@@ -1,6 +1,6 @@
 [package]
 name = "thot-ui"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]

@@ -105,6 +105,8 @@ pub fn path_is_project_root(path: &Path) -> bool {
     path.exists()
 }
 
+// TODO Should return `Result<Option>` instead of `Result`
+// to differentiate file read error and path not in project.
 /// Returns path to the project root.
 ///
 /// # See also

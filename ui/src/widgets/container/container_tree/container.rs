@@ -14,7 +14,7 @@ use yew::prelude::*;
 // *** Menu ***
 // ************
 
-// @todo: Possible items:
+// TODO Possible items:
 // + Analyze: Analyze subtree.
 /// Menu items available in the [`Container`]'s menu.
 #[derive(PartialEq, Clone, Debug)]

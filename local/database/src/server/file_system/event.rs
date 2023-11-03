@@ -71,6 +71,7 @@ pub mod file_system {
 
     #[derive(Debug)]
     pub enum Any {
+        Created(PathBuf),
         Removed(PathBuf),
     }
 }

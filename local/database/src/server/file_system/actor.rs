@@ -25,7 +25,7 @@ impl FileSystemActor {
         let watcher = {
             let event_tx = event_tx.clone();
             new_debouncer(
-                Duration::from_millis(1000),
+                Duration::from_millis(100),
                 None,
                 move |event: DebounceEventResult| {
                     event_tx.send(Event::FileSystem(event)).unwrap();

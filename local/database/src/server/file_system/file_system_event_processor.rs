@@ -294,7 +294,9 @@ impl FileSystemEventProcessor {
             }
 
             EventKind::Create(CreateKind::Any) => {
-                let path = fs::canonicalize(&event.paths[0]).unwrap();
+                let Ok(path) = fs::canonicalize(&event.paths[0]) else {
+                    return Some(AnyEvent::Created(event.paths[0].to_owned()).into());
+                };
                 if path.is_file() {
                     Some(FileEvent::Created(path).into())
                 } else if path.is_dir() {

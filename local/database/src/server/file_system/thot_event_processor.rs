@@ -20,42 +20,63 @@ impl Database {
         let mut thot_events = Vec::with_capacity(events.len());
         for event in events {
             let thot_event = match event {
-                file_system::Event::File(file_system::File::Created(path)) => self
-                    .handle_file_created(path)
-                    .unwrap()
-                    .map(|event| event.into()),
+                file_system::Event::File(file_system::File::Created(path)) => {
+                    let path = normalize_path_root(path);
+                    self.handle_file_created(&path)
+                        .unwrap()
+                        .map(|event| event.into())
+                }
 
                 file_system::Event::File(file_system::File::Removed(path)) => {
-                    self.handle_file_removed(path).map(|event| event.into())
+                    let path = normalize_path_root(path);
+                    self.handle_file_removed(&path).map(|event| event.into())
                 }
 
                 file_system::Event::File(file_system::File::Moved { from, to }) => {
-                    self.handle_file_moved(from, to).map(|event| event.into())
+                    let from = normalize_path_root(from);
+                    self.handle_file_moved(&from, to).map(|event| event.into())
                 }
 
                 file_system::Event::File(file_system::File::Renamed { from, to }) => {
-                    self.handle_file_renamed(from, to).map(|event| event.into())
+                    let from = normalize_path_root(from);
+                    self.handle_file_renamed(&from, to)
+                        .map(|event| event.into())
                 }
 
-                file_system::Event::Folder(file_system::Folder::Created(path)) => self
-                    .file_system_handle_folder_created(path)
-                    .unwrap()
-                    .map(|event| event.into()),
+                file_system::Event::Folder(file_system::Folder::Created(path)) => {
+                    let path = normalize_path_root(path);
+                    self.handle_folder_created(&path)
+                        .unwrap()
+                        .map(|event| event.into())
+                }
 
                 file_system::Event::Folder(file_system::Folder::Removed(path)) => {
-                    self.handle_folder_removed(path).map(|event| event.into())
+                    let path = normalize_path_root(path);
+                    self.handle_folder_removed(&path).map(|event| event.into())
                 }
 
                 file_system::Event::Folder(file_system::Folder::Moved { from, to }) => {
-                    self.handle_folder_moved(from, to).map(|event| event.into())
+                    let from = normalize_path_root(from);
+                    self.handle_folder_moved(&from, to)
+                        .map(|event| event.into())
                 }
 
-                file_system::Event::Folder(file_system::Folder::Renamed { from, to }) => self
-                    .handle_folder_renamed(from, to)
-                    .map(|event| event.into()),
+                file_system::Event::Folder(file_system::Folder::Renamed { from, to }) => {
+                    let from = normalize_path_root(from);
+                    self.handle_folder_renamed(&from, to)
+                        .map(|event| event.into())
+                }
+
+                file_system::Event::Any(file_system::Any::Created(path)) => {
+                    let path = normalize_path_root(path);
+                    self.handle_any_created(&path)
+                        .unwrap()
+                        .map(|event| event.into())
+                }
 
                 file_system::Event::Any(file_system::Any::Removed(path)) => {
-                    self.handle_any_removed(path)
+                    let path = normalize_path_root(path);
+                    self.handle_any_removed(&path)
                 }
             };
 
@@ -126,6 +147,7 @@ impl Database {
         let script_path = path
             .strip_prefix(project.analysis_root_path().unwrap())
             .unwrap();
+
         let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
         if let Some(script) = scripts.by_path(&script_path) {
             return Some(thot::Script::Removed(script.rid.clone()).into());
@@ -140,7 +162,7 @@ impl Database {
     }
 
     fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Option<thot::Event> {
-        if let Some(asset) = self.store.get_path_asset_id(from).cloned() {
+        if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
             return Some(
                 thot::Asset::Moved {
                     asset,
@@ -150,7 +172,7 @@ impl Database {
             );
         };
 
-        let project = self.project_by_resource_path(from).unwrap();
+        let project = self.project_by_resource_path(&from).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         let script_path = from
             .strip_prefix(project.analysis_root_path().unwrap())
@@ -171,7 +193,7 @@ impl Database {
     }
 
     fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Option<thot::Event> {
-        if let Some(asset) = self.store.get_path_asset_id(from).cloned() {
+        if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
             return Some(
                 thot::Asset::Moved {
                     asset,
@@ -181,7 +203,7 @@ impl Database {
             );
         };
 
-        let project = self.project_by_resource_path(from).unwrap();
+        let project = self.project_by_resource_path(&from).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         let script_path = from
             .strip_prefix(project.analysis_root_path().unwrap())
@@ -202,7 +224,7 @@ impl Database {
         None
     }
 
-    fn file_system_handle_folder_created(&self, path: &PathBuf) -> Result<Option<thot::Event>> {
+    fn handle_folder_created(&self, path: &PathBuf) -> Result<Option<thot::Event>> {
         // ignore thot folder
         if path
             .components()
@@ -221,7 +243,6 @@ impl Database {
         };
 
         // ignore if registered container
-        // assume registration has already been handled
         if self
             .store
             .get_path_container_canonical(&path)
@@ -291,6 +312,16 @@ impl Database {
         })
     }
 
+    fn handle_any_created(&self, path: &PathBuf) -> Result<Option<thot::Event>> {
+        if path.is_file() {
+            self.handle_file_created(path)
+        } else if path.is_dir() {
+            self.handle_folder_created(path)
+        } else {
+            Ok(None)
+        }
+    }
+
     fn handle_any_removed(&self, path: &PathBuf) -> Option<thot::Event> {
         if let Some(container) = self.store.get_path_container(&path).cloned() {
             return Some(thot::Graph::Removed(container).into());
@@ -300,7 +331,7 @@ impl Database {
             return Some(thot::Asset::Removed(asset).into());
         }
 
-        let project = self.project_by_resource_path(path).unwrap();
+        let project = self.project_by_resource_path(&path).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
             let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
@@ -332,5 +363,15 @@ impl Database {
         };
 
         Ok(project)
+    }
+}
+
+/// If on Windows, convert to UNC if needed.
+/// Otherwise, returns the given path.
+fn normalize_path_root(path: impl Into<PathBuf>) -> PathBuf {
+    if cfg!(target_os = "windows") {
+        thot_local::common::ensure_windows_unc(path)
+    } else {
+        path.into()
     }
 }

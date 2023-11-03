@@ -19,5 +19,4 @@ pub const SCRIPTS_FILE: &str = "scripts.json";
 // *** misc ***
 // ************
 
-#[cfg(target_os = "windows")]
 pub const WINDOWS_UNC_PREFIX: &str = "\\\\?\\";

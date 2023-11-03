@@ -3,7 +3,7 @@ use crate::constants::*;
 use crate::{Error, Result};
 use regex::Regex;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
@@ -101,8 +101,24 @@ pub fn sanitize_file_path(path: impl Into<String>) -> String {
         .collect()
 }
 
+/// Normalizes path separators to the current systems.
+///
+/// On Windows this is `\\`.
+/// On all other systems this is `/`.
+pub fn normalize_path_separators(path: impl AsRef<Path>) -> PathBuf {
+    path.as_ref()
+        .components()
+        .fold(PathBuf::new(), |path, component| match component {
+            Component::RootDir => path.join(MAIN_SEPARATOR.to_string()),
+            Component::Prefix(prefix) => path.join(prefix.as_os_str()),
+            Component::Normal(segment) => path.join(segment),
+            _ => {
+                panic!("invalid path component");
+            }
+        })
+}
+
 /// Prefixes the path with the [Windows UNC](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#unc-paths) path if it is not already there.
-#[cfg(target_os = "windows")]
 pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
     let path: PathBuf = path.into();
     if path.to_str().unwrap().starts_with(WINDOWS_UNC_PREFIX) {

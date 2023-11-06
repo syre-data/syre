@@ -1,7 +1,8 @@
 //! Set the data root of a project.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
+use crate::commands::common::ResourceIdArgs;
 use crate::commands::graph::InitProjectGraphArgs;
-use crate::commands::project::{GetProjectPathArgs, UpdateProjectArgs};
+use crate::commands::project::UpdateProjectArgs;
 use crate::common::invoke;
 use crate::hooks::use_project;
 use std::path::PathBuf;
@@ -48,11 +49,10 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
 
         use_effect_with((), move |_| {
             spawn_local(async move {
-                let path =
-                    invoke::<PathBuf>("get_project_path", GetProjectPathArgs { id: pid })
-                        .await
-                        .expect("could not invoke `get_project_path`");
-        
+                let path = invoke::<PathBuf>("get_project_path", ResourceIdArgs { rid: pid })
+                    .await
+                    .expect("could not invoke `get_project_path`");
+
                 project_path.set(Some(path));
             })
         })

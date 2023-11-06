@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 
+const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
+
 pub enum FileSystemActorCommand {
     Watch(PathBuf),
     Unwatch(PathBuf),
@@ -24,13 +26,9 @@ impl FileSystemActor {
     ) -> Self {
         let watcher = {
             let event_tx = event_tx.clone();
-            new_debouncer(
-                Duration::from_millis(100),
-                None,
-                move |event: DebounceEventResult| {
-                    event_tx.send(Event::FileSystem(event)).unwrap();
-                },
-            )
+            new_debouncer(DEBOUNCE_TIMEOUT, None, move |event: DebounceEventResult| {
+                event_tx.send(Event::FileSystem(event)).unwrap();
+            })
             .unwrap()
         };
 

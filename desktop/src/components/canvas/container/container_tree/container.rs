@@ -300,7 +300,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let graph_state = graph_state.clone();
         let rid = props.rid.clone();
 
-        Callback::from(move |(asset, _e): (ResourceId, MouseEvent)| {
+        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+            e.stop_propagation();
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(

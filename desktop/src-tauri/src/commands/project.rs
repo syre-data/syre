@@ -159,10 +159,10 @@ pub fn init_project_from(path: &Path) -> Result<ResourceId> {
 // ************************
 
 #[tauri::command]
-pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
-    let Some(path) = sys_projects::get_path(&id)? else {
+pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
+    let Some(path) = sys_projects::get_path(&rid)? else {
         return Err(CoreError::ProjectError(ProjectError::NotRegistered(
-            Some(ResourceId::from(id.clone())),
+            Some(ResourceId::from(rid.clone())),
             None,
         ))
         .into());

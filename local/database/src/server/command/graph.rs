@@ -116,7 +116,7 @@ impl Database {
         }
     }
 
-    /// Loads a `Projcet`'s [`Container`](LocalContainer) tree from settings.
+    /// Loads a `Project`'s [`Container`](LocalContainer) tree from settings.
     fn load_project_graph(&mut self, pid: &ResourceId) -> Result<&ContainerTree> {
         let Some(project) = self.store.get_project(pid) else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(

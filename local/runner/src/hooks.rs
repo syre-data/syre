@@ -1,7 +1,7 @@
 //! Local runner hooks.
 use std::path::PathBuf;
 use thot_core::error::{ResourceError, Result as CoreResult};
-use thot_core::project::{Project, Script as CoreScript};
+use thot_core::project::{Project, Script as CoreScript, ScriptLang};
 use thot_core::runner::RunnerHooks as CoreRunnerHooks;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::system::settings::RunnerSettings;
@@ -24,7 +24,10 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
 
     // get absolute path to script
     match script.path {
-        ResourcePath::Absolute(_) => {}
+        ResourcePath::Absolute(_) => {
+            todo!();
+        }
+
         ResourcePath::Relative(path) => {
             let project = db
                 .send(ScriptCommand::GetProject(script.rid.clone()).into())
@@ -62,24 +65,21 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
         }
     }
 
-    //TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
+    // TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
     // Get runner settings and override script's cmd if necessary
-    let runner_settings = RunnerSettings::load();
-    if let Ok(runner_settings) = runner_settings {
-        let runner_settings: RunnerSettings = runner_settings.into();
-        let cmd_str = script.env.cmd.as_str().to_lowercase();
-        match cmd_str {
-            _ if cmd_str.contains("python") => {
+    if let Ok(runner_settings) = RunnerSettings::load() {
+        match script.env.language {
+            ScriptLang::Python => {
                 if let Some(python_path) = runner_settings.python_path.clone() {
                     script.env.cmd = python_path;
                 }
             }
-            _ if cmd_str.contains("rscript") => {
+
+            ScriptLang::R => {
                 if let Some(r_path) = runner_settings.r_path.clone() {
                     script.env.cmd = r_path;
                 }
             }
-            _ => {}
         }
     };
 

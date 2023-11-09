@@ -182,7 +182,8 @@ impl InitOptions<InitExisting> {
             ignore: &Vec<PathBuf>,
         ) -> Result<ResourceId> {
             let path = path.as_ref();
-            let mut container = if project::path_is_resource(path) {
+            // TODO What if path is a project?
+            let mut container = if path_is_container(path) {
                 Container::load_from(path)?
             } else {
                 Container::new(path)
@@ -215,7 +216,7 @@ impl InitOptions<InitExisting> {
                 }
             }
 
-            let container_path = fs::canonicalize(container.base_path())?;
+            let container_path = fs::canonicalize(container.base_path()).unwrap();
             let asset_paths = container
                 .assets
                 .values()
@@ -227,7 +228,7 @@ impl InitOptions<InitExisting> {
 
             if init_assets {
                 for file_path in files {
-                    let file_path = fs::canonicalize(file_path)?;
+                    let file_path = fs::canonicalize(file_path).unwrap();
                     if asset_paths.contains(&file_path) {
                         continue;
                     }

@@ -154,9 +154,8 @@ impl Database {
     /// Reference to the loaded [`Project`](LocalProject).
     ///
     /// # Side effects
-    /// + Creates a watcher over the project folder.
+    /// + Watches the project folder.
     pub fn load_project(&mut self, path: &Path) -> Result<&LocalProject> {
-        // load project
         let project = LocalProject::load_from(path)?;
         self.store.insert_project(project)?;
         self.watch_path(path);

@@ -73,7 +73,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let project = project.rid.clone();
                 let path = path.clone();
                 spawn_local(async move {
-                    let rid = invoke::<ContainerTree>(
+                    let _rid = invoke::<ContainerTree>(
                         "init_project_graph",
                         InitProjectGraphArgs { path, project },
                     )
@@ -90,7 +90,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let res = invoke::<()>(
+                    let _res = invoke::<()>(
                         "update_project",
                         UpdateProjectArgs {
                             project: project.clone(),

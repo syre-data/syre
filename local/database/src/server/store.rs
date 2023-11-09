@@ -230,6 +230,11 @@ impl Datastore {
         self.graphs.get_mut(&rid)
     }
 
+    /// Resturns whether the `Project`;s graph is loaded.
+    pub fn is_project_graph_loaded(&self, rid: &ResourceId) -> bool {
+        self.graphs.contains_key(rid)
+    }
+
     /// Gets the graph of a `Container`.
     ///
     /// # Arguments
@@ -1007,6 +1012,11 @@ impl Datastore {
     /// Gets a `mut`able reference to a `Project`'s `Script`s.
     pub fn get_project_scripts_mut(&mut self, project: &ResourceId) -> Option<&mut ProjectScripts> {
         self.scripts.get_mut(&project)
+    }
+
+    /// Returns if the `Project`'s `Scripts` are loaded.
+    pub fn are_project_scripts_loaded(&self, project: &ResourceId) -> bool {
+        self.scripts.contains_key(project)
     }
 
     /// Gets the `Project` of a `Script`.

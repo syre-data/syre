@@ -87,7 +87,10 @@ impl Database {
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {
         let mut topic = constants::PUB_SUB_TOPIC.to_string();
         match update {
-            Update::Project { project, update } => {
+            Update::Project {
+                project,
+                update: _update,
+            } => {
                 topic.push_str(&format!("/project/{project}"));
             }
         };

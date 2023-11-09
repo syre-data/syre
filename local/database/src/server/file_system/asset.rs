@@ -86,7 +86,7 @@ impl Database {
 
                     let asset = self
                         .store
-                        .get_asset_container(&path_container)
+                        .get_container(&path_container)
                         .unwrap()
                         .assets
                         .get(&asset)

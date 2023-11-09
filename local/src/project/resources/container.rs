@@ -101,7 +101,6 @@ impl Container {
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 
         let assets_path = base_path.join(<Container as LocalResource<AssetMap>>::rel_path());
-
         let settings_path =
             base_path.join(<Container as LocalResource<ContainerSettings>>::rel_path());
 

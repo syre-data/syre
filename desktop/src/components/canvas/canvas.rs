@@ -79,6 +79,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                 ));
 
                 while let Some(event) = events.next().await {
+                    tracing::debug!(?event.payload);
                     let Update::Project { project, update } = event.payload;
                     assert!(project == pid);
 

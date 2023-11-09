@@ -1,20 +1,22 @@
 //! Processes [`FileSystemEvent`]s into [`ThotEvent`]s.
 use super::event::{file_system, thot};
 use crate::error::{Error, Result};
+use crate::server::store::ContainerTree;
 use crate::server::Database;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::Error as CoreError;
+use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
 use thot_core::project::ScriptLang;
-use thot_core::types::ResourcePath;
+use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
 use thot_local::graph::ContainerTreeLoader;
 use thot_local::project::project;
-use thot_local::project::resources::Project as LocalProject;
+use thot_local::project::project::project_root_path;
+use thot_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};
 
 impl Database {
     pub fn process_file_system_events_to_thot_events(
-        &self,
+        &mut self,
         events: &Vec<file_system::Event>,
     ) -> Vec<thot::Event> {
         let mut thot_events = Vec::with_capacity(events.len());
@@ -22,6 +24,7 @@ impl Database {
             let thot_event = match event {
                 file_system::Event::File(file_system::File::Created(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_file_created(&path)
                         .unwrap()
                         .map(|event| event.into())
@@ -29,22 +32,28 @@ impl Database {
 
                 file_system::Event::File(file_system::File::Removed(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_file_removed(&path).map(|event| event.into())
                 }
 
                 file_system::Event::File(file_system::File::Moved { from, to }) => {
                     let from = normalize_path_root(from);
+                    self.ensure_project_resources_loaded(&from).unwrap();
+                    self.ensure_project_resources_loaded(&to).unwrap();
                     self.handle_file_moved(&from, to).map(|event| event.into())
                 }
 
                 file_system::Event::File(file_system::File::Renamed { from, to }) => {
                     let from = normalize_path_root(from);
+                    self.ensure_project_resources_loaded(&from).unwrap();
+                    self.ensure_project_resources_loaded(&to).unwrap();
                     self.handle_file_renamed(&from, to)
                         .map(|event| event.into())
                 }
 
                 file_system::Event::Folder(file_system::Folder::Created(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_folder_created(&path)
                         .unwrap()
                         .map(|event| event.into())
@@ -52,23 +61,29 @@ impl Database {
 
                 file_system::Event::Folder(file_system::Folder::Removed(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_folder_removed(&path).map(|event| event.into())
                 }
 
                 file_system::Event::Folder(file_system::Folder::Moved { from, to }) => {
                     let from = normalize_path_root(from);
+                    self.ensure_project_resources_loaded(&from).unwrap();
+                    self.ensure_project_resources_loaded(&to).unwrap();
                     self.handle_folder_moved(&from, to)
                         .map(|event| event.into())
                 }
 
                 file_system::Event::Folder(file_system::Folder::Renamed { from, to }) => {
                     let from = normalize_path_root(from);
+                    self.ensure_project_resources_loaded(&from).unwrap();
+                    self.ensure_project_resources_loaded(&to).unwrap();
                     self.handle_folder_renamed(&from, to)
                         .map(|event| event.into())
                 }
 
                 file_system::Event::Any(file_system::Any::Created(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_any_created(&path)
                         .unwrap()
                         .map(|event| event.into())
@@ -76,6 +91,7 @@ impl Database {
 
                 file_system::Event::Any(file_system::Any::Removed(path)) => {
                     let path = normalize_path_root(path);
+                    self.ensure_project_resources_loaded(&path).unwrap();
                     self.handle_any_removed(&path)
                 }
             };
@@ -343,7 +359,7 @@ impl Database {
         None
     }
 
-    /// Get a `Project` by a path witihin it.
+    /// Get a `Project` by a path within it.
     fn project_by_resource_path(&self, path: impl AsRef<Path>) -> Result<&LocalProject> {
         let path = path.as_ref();
         let project_path = project::project_root_path(path)?;
@@ -363,6 +379,67 @@ impl Database {
         };
 
         Ok(project)
+    }
+
+    /// Ensures all a `Project`'s resources are loaded.
+    ///
+    /// # Arguments
+    /// 1. `path`: Path to a resource within the project.
+    fn ensure_project_resources_loaded(&mut self, path: impl AsRef<Path>) -> Result {
+        let project = project_root_path(path.as_ref())?;
+        let Some(project) = self
+            .store
+            .get_path_project_canonical(project.as_ref())
+            .unwrap()
+            .cloned()
+        else {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "`Project` not loaded",
+            ))
+            .into());
+        };
+
+        self.ensure_project_graph_loaded(&project)?;
+        self.ensure_project_scripts_loaded(&project)?;
+        Ok(())
+    }
+
+    /// Ensures a `Project` resource's graph is loaded.
+    fn ensure_project_graph_loaded(&mut self, project: &ResourceId) -> Result {
+        let project = self.store.get_project(project).unwrap();
+        let Some(data_root) = project.data_root.as_ref() else {
+            return Err(CoreError::ProjectError(CoreProjectError::misconfigured(
+                "data root not set",
+            ))
+            .into());
+        };
+
+        if self.store.is_project_graph_loaded(&project.rid) {
+            return Ok(());
+        }
+
+        let path = project.base_path().join(data_root);
+        let graph: ContainerTree = ContainerTreeLoader::load(&path)?;
+        self.store.insert_project_graph(project.rid.clone(), graph);
+
+        Ok(())
+    }
+
+    /// Loads a `Project`'s `Scripts`.
+    ///
+    /// # Arguments
+    /// 1. `Project`'s id.
+    fn ensure_project_scripts_loaded(&mut self, project: &ResourceId) -> Result {
+        if self.store.are_project_scripts_loaded(project) {
+            return Ok(());
+        }
+
+        let project = self.store.get_project(project).unwrap();
+        let scripts = ProjectScripts::load_from(project.base_path())?;
+        self.store
+            .insert_project_scripts(project.rid.clone(), scripts);
+
+        Ok(())
     }
 }
 

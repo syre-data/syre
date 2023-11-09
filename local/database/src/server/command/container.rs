@@ -85,7 +85,7 @@ impl Database {
             }
 
             ContainerCommand::AddAssets(AddAssetsArgs { container, assets }) => {
-                let asset_rids = self.container_add_assets(&container, assets);
+                let asset_rids = self.add_assets(&container, assets);
                 serde_json::to_value(asset_rids)
                     .expect("could not convert `Asset` `ResourceId`s to JSON")
             }
@@ -263,7 +263,7 @@ impl Database {
         Ok(())
     }
 
-    fn container_add_assets(
+    fn add_assets(
         &mut self,
         container: &ResourceId,
         assets: Vec<AddAssetInfo>,

@@ -152,8 +152,8 @@ impl ScriptEnv {
         let cmd = match &language {
             ScriptLang::Python => "python3",
             ScriptLang::R => "Rscript",
-        };
-        let cmd = cmd.to_string();
+        }
+        .to_string();
 
         // args
         let args = Vec::new();

@@ -133,7 +133,3 @@ impl Database {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "./database_test.rs"]
-mod database_test;

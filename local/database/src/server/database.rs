@@ -126,7 +126,6 @@ impl Database {
                 return Err(crate::Error::DatabaseError(format!("{errs:?}")));
             }
         };
-
         let events = FileSystemEventProcessor::process(events);
         let events = self.process_file_system_events_to_thot_events(&events);
         self.handle_thot_events(events)?;

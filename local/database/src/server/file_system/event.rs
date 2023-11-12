@@ -168,6 +168,9 @@ pub mod thot {
             asset: ResourceId,
             name: PathBuf,
         },
+
+        /// A file corresponding to a registered `Asset` was created.
+        FileCreated(ResourceId),
     }
 
     #[derive(Debug)]

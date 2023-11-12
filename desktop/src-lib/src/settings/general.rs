@@ -6,8 +6,14 @@ use thot_local::types::AssetFileAction;
 #[derive(Serialize, Deserialize, PartialEq, Clone, Default, Debug)]
 pub struct GeneralSettings {
     pub default_project_directory: Option<PathBuf>,
-    pub open_previous_project_on_start: bool,
+
+    #[serde(default)]
     pub ondrop_asset_action: AssetFileAction,
+
+    #[serde(default)]
+    pub open_previous_project_on_start: bool,
+
+    #[serde(default)]
     pub rename_container_folder: bool,
 }
 

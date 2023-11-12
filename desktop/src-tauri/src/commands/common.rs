@@ -1,6 +1,6 @@
 //! Common functionality.
 use crate::error::Result;
-use std::path::{Component, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -52,7 +52,7 @@ pub fn get_directory(title: Option<String>, dir: Option<PathBuf>) -> Option<Path
 }
 
 #[tauri::command]
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 pub fn open_file(path: PathBuf) -> Result {
     let path = thot_local::common::normalize_path_separators(path);
     let path = path.canonicalize()?;

@@ -83,7 +83,6 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                             { "X" }
                                         </button>
                                     }
-
                                 </div>
                             </li>
                         }

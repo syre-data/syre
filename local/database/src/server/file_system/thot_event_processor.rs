@@ -116,11 +116,7 @@ impl Database {
         // analysis root
         let project = self.project_by_resource_path(&path)?;
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
-            if path.starts_with(analysis_root) {
-                let script_path = path
-                    .strip_prefix(project.analysis_root_path().unwrap())
-                    .unwrap();
-
+            if let Ok(script_path) = path.strip_prefix(analysis_root) {
                 let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if scripts.contains_path(&script_path) {
@@ -139,16 +135,11 @@ impl Database {
 
                 return Ok(None);
             }
-        };
+        }
 
         // ignore if asset
-        if self
-            .store
-            .get_path_asset_id_canonical(&path)
-            .unwrap()
-            .is_some()
-        {
-            return Ok(None);
+        if let Some(asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
+            return Ok(Some(thot::Asset::FileCreated(asset.clone()).into()));
         }
 
         // handle new
@@ -220,20 +211,39 @@ impl Database {
         };
 
         let project = self.project_by_resource_path(&from).unwrap();
-        let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-        let script_path = from
-            .strip_prefix(project.analysis_root_path().unwrap())
-            .unwrap();
+        if let Some(analysis_root) = project.analysis_root_path().as_ref() {
+            let script_path = from.strip_prefix(analysis_root).unwrap();
+            let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+            for script in scripts.values() {
+                if script.path.as_path() == script_path {
+                    return Some(
+                        thot::Script::Moved {
+                            script: script.rid.clone(),
+                            path: to.clone(),
+                        }
+                        .into(),
+                    );
+                }
+            }
 
-        for script in scripts.values() {
-            if script.path.as_path() == script_path {
-                return Some(
-                    thot::Script::Moved {
-                        script: script.rid.clone(),
-                        path: to.clone(),
-                    }
-                    .into(),
-                );
+            if let Ok(script_path) = to.strip_prefix(analysis_root) {
+                let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
+                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                if scripts.contains_path(&script_path) {
+                    return None;
+                }
+
+                let Some(ext) = to.extension() else {
+                    return None;
+                };
+
+                let ext = ext.to_ascii_lowercase();
+                let ext = ext.to_str().unwrap();
+                if ScriptLang::supported_extensions().contains(&ext) {
+                    return Some(thot::Script::Created(to.clone()).into());
+                }
+
+                return None;
             }
         }
 

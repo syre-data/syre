@@ -21,10 +21,29 @@ impl FileSystemEventProcessor {
     /// so must canonicalize by hand.
     pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
         let events = Self::filter_events(events);
+        let events = Self::filter_hidden(events);
         let events = Self::filter_created_subevents(events);
         let (mut converted, remaining) = Self::group_events(events);
         converted.append(&mut Self::convert_ungrouped_events(remaining));
         converted
+    }
+
+    fn filter_hidden(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+        events
+            .into_iter()
+            .filter(|event| match event.kind {
+                EventKind::Create(_) => {
+                    let Some(file_name) = event.paths[0].file_name() else {
+                        return true;
+                    };
+
+                    let file_name = file_name.to_str().unwrap();
+                    !file_name.starts_with(".")
+                }
+
+                _ => true,
+            })
+            .collect()
     }
 
     /// Filters out uninteresting events.
@@ -35,6 +54,7 @@ impl FileSystemEventProcessor {
                 EventKind::Create(_)
                 | EventKind::Remove(_)
                 | EventKind::Modify(ModifyKind::Name(_)) => true,
+
                 _ => false,
             })
             .collect()
@@ -124,7 +144,7 @@ impl FileSystemEventProcessor {
         let mut to_events = HashMap::with_capacity(events.len() / 2);
         for event in events {
             match event.kind {
-                EventKind::Remove(_) => {
+                EventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
                     let parent = event.paths[0].parent().unwrap();
                     let event_map = from_events
                         .entry(parent.to_path_buf())
@@ -132,12 +152,14 @@ impl FileSystemEventProcessor {
 
                     event_map.push(event);
                 }
-                EventKind::Create(_) => {
+
+                EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
                     let parent = event.paths[0].parent().unwrap();
                     let event_map = to_events.entry(parent.to_path_buf()).or_insert(Vec::new());
 
                     event_map.push(event);
                 }
+
                 _ => other_events.push(event),
             }
         }
@@ -153,7 +175,7 @@ impl FileSystemEventProcessor {
                 ([from_parent_event], [to_parent_event]) => {
                     if to_parent_event.paths[0].is_file() {
                         grouped_events.push(
-                            FileEvent::Moved {
+                            FileEvent::Renamed {
                                 from: from_parent_event.paths[0].clone(),
                                 to: to_parent_event.paths[0].clone(),
                             }

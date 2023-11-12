@@ -45,7 +45,7 @@ impl Project {
     }
 
     pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
-        let base_path = base_path.into();
+        let base_path = fs::canonicalize(base_path.into())?;
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
 
@@ -98,7 +98,6 @@ impl Project {
     }
 
     /// Get the full path of the analysis root.
-    ///
     pub fn analysis_root_path(&self) -> Option<PathBuf> {
         let Some(analysis_root) = self.analysis_root.as_ref() else {
             return None;

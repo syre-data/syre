@@ -139,6 +139,27 @@ impl Database {
 
                 Ok(())
             }
+
+            AssetEvent::FileCreated(asset) => {
+                let container = self.store.get_asset_container(&asset).unwrap();
+                let asset = container.assets.get(&asset).unwrap();
+                let project = self
+                    .store
+                    .get_container_project(&container.rid)
+                    .unwrap()
+                    .clone();
+
+                self.publish_update(&Update::Project {
+                    project,
+                    update: AssetUpdate::Created {
+                        container: container.rid.clone(),
+                        asset: asset.clone(),
+                    }
+                    .into(),
+                })?;
+
+                Ok(())
+            }
         }
     }
 }

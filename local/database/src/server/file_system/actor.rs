@@ -1,11 +1,18 @@
 use crate::server::Event;
-use notify::{self, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
+use notify::{self, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_full::{
+    new_debouncer, new_debouncer_opt, DebounceEventResult, Debouncer, FileIdMap,
+};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 
 const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
+
+#[cfg(target_os = "macos")]
+type FileSystemWatcher = PollWatcher;
+#[cfg(not(target_os = "macos"))]
+type FileSystemWatcher = RecommendedWatcher;
 
 pub enum FileSystemActorCommand {
     Watch(PathBuf),
@@ -14,12 +21,43 @@ pub enum FileSystemActorCommand {
 
 pub struct FileSystemActor {
     command_rx: mpsc::Receiver<FileSystemActorCommand>,
-    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
+    watcher: Debouncer<FileSystemWatcher, FileIdMap>,
 }
 
 impl FileSystemActor {
     /// Create a new actor to watch the file system.
     /// Begins watching upon creation.
+    #[cfg(target_os = "macos")]
+    pub fn new(
+        event_tx: mpsc::Sender<Event>,
+        command_rx: mpsc::Receiver<FileSystemActorCommand>,
+    ) -> Self {
+        let watcher: Debouncer<FileSystemWatcher, _> = {
+            let event_tx = event_tx.clone();
+            let config = notify::Config::default()
+                .with_poll_interval(DEBOUNCE_TIMEOUT)
+                .with_compare_contents(true);
+            new_debouncer_opt(
+                DEBOUNCE_TIMEOUT,
+                None,
+                move |event: DebounceEventResult| {
+                    event_tx.send(Event::FileSystem(event)).unwrap();
+                },
+                notify_debouncer_full::FileIdMap::new(),
+                config,
+            )
+            .unwrap()
+        };
+
+        Self {
+            command_rx,
+            watcher,
+        }
+    }
+
+    /// Create a new actor to watch the file system.
+    /// Begins watching upon creation.
+    #[cfg(not(target_os = "macos"))]
     pub fn new(
         event_tx: mpsc::Sender<Event>,
         command_rx: mpsc::Receiver<FileSystemActorCommand>,

@@ -590,6 +590,17 @@ impl Datastore {
             let mut container: CoreContainer = (*root.data()).clone();
             container.properties.metadata = metadata;
             if filter.matches(&container) {
+                for asset in container.assets.values_mut() {
+                    for (key, value) in container.properties.metadata.iter() {
+                        if !asset.properties.metadata.contains_key(key) {
+                            asset.properties.metadata.insert(key.clone(), value.clone());
+                        }
+                    }
+
+                    let path = root.base_path().join(asset.path.as_path());
+                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+                }
+
                 found.insert(container);
             }
 

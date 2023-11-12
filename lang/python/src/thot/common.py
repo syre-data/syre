@@ -21,26 +21,6 @@ def dev_mode() -> bool:
     """
     return os.getenv("THOT_CONTAINER_ID") is None
 
-def dict_to_container(d: Properties) -> Container:
-    """
-    Converts a dictionary to a Container.
-
-    Args:
-        d (dict[str, Any]): Dictionary to convert.
-
-    Returns:
-        Container: Container that the JSON represented.
-    """
-    return Container(
-        d["rid"],
-        name = d["properties"]["name"],
-        type = d["properties"]["kind"],
-        description = d["properties"]["description"],
-        tags = d["properties"]["tags"],
-        metadata = d["properties"]["metadata"],
-        assets = d["assets"]
-    )
-    
 def dict_to_asset(d: Properties) -> Asset:
     """
     Converts a dictionary to an Asset.
@@ -64,3 +44,26 @@ def dict_to_asset(d: Properties) -> Asset:
         tags = d["properties"]["tags"],
         metadata = d["properties"]["metadata"]
     )
+
+def dict_to_container(d: Properties) -> Container:
+    """
+    Converts a dictionary to a Container.
+
+    Args:
+        d (dict[str, Any]): Dictionary to convert.
+
+    Returns:
+        Container: Container that the JSON represented.
+    """
+    assets = list(map(lambda asset: dict_to_asset(asset), d["assets"].values()))
+
+    return Container(
+        d["rid"],
+        name = d["properties"]["name"],
+        type = d["properties"]["kind"],
+        description = d["properties"]["description"],
+        tags = d["properties"]["tags"],
+        metadata = d["properties"]["metadata"],
+        assets = assets
+    )
+    

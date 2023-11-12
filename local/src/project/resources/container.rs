@@ -1,5 +1,5 @@
 //! Container and container settings.
-use crate::common::{assets_file, container_file, container_settings_file};
+use crate::common;
 use crate::error::{Error, Result};
 use crate::file_resource::LocalResource;
 use crate::system::settings::UserSettings;
@@ -95,8 +95,8 @@ impl Container {
         }
     }
 
-    pub fn load_from(base_path: impl Into<PathBuf>) -> thot_core::Result<Self> {
-        let base_path = base_path.into();
+    pub fn load_from(base_path: impl AsRef<Path>) -> thot_core::Result<Self> {
+        let base_path = fs::canonicalize(base_path.as_ref())?;
         let properties_path =
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 
@@ -245,7 +245,7 @@ impl HasId for Container {
 
 impl LocalResource<StoredContainerProperties> for Container {
     fn rel_path() -> PathBuf {
-        container_file()
+        common::container_file()
     }
 
     fn base_path(&self) -> &Path {
@@ -255,7 +255,7 @@ impl LocalResource<StoredContainerProperties> for Container {
 
 impl LocalResource<AssetMap> for Container {
     fn rel_path() -> PathBuf {
-        assets_file()
+        common::assets_file()
     }
 
     fn base_path(&self) -> &Path {
@@ -265,7 +265,7 @@ impl LocalResource<AssetMap> for Container {
 
 impl LocalResource<ContainerSettings> for Container {
     fn rel_path() -> PathBuf {
-        container_settings_file()
+        common::container_settings_file()
     }
 
     fn base_path(&self) -> &Path {

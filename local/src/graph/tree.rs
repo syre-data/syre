@@ -1,4 +1,5 @@
 //! Local [`ResourceTree`](CoreTres).
+use crate::common;
 use crate::project::container;
 use crate::project::resources::Container;
 use crate::Result;
@@ -181,6 +182,7 @@ impl ContainerTreeDuplicator {
 
             let mut c_path = path.to_path_buf();
             c_path.push(rel_path);
+            let c_path = common::normalize_path_separators(c_path);
 
             let c_tree = Self::duplicate_without_assets_to(&c_path, graph, &child)?;
             dup_graph.insert_tree(&dup_root, c_tree)?;

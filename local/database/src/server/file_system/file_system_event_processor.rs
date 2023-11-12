@@ -348,3 +348,7 @@ impl FileSystemEventProcessor {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./file_system_event_processor_test.rs"]
+mod file_system_event_processor_test;

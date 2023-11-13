@@ -143,6 +143,8 @@ impl FileSystemEventProcessor {
         let mut other_events = Vec::with_capacity(events.len());
         let mut from_events = HashMap::with_capacity(events.len() / 2);
         let mut to_events = HashMap::with_capacity(events.len() / 2);
+        let mut remove_events = HashMap::with_capacity(events.len() / 2);
+        let mut create_events = HashMap::with_capacity(events.len() / 2);
         for event in events {
             match event.kind {
                 EventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
@@ -161,12 +163,31 @@ impl FileSystemEventProcessor {
                     event_map.push(event);
                 }
 
+                EventKind::Remove(_) => {
+                    let parent = event.paths[0].parent().unwrap();
+                    let event_map = remove_events
+                        .entry(parent.to_path_buf())
+                        .or_insert(Vec::new());
+
+                    event_map.push(event);
+                }
+
+                EventKind::Create(_) => {
+                    let parent = event.paths[0].parent().unwrap();
+                    let event_map = create_events
+                        .entry(parent.to_path_buf())
+                        .or_insert(Vec::new());
+
+                    event_map.push(event);
+                }
+
                 _ => other_events.push(event),
             }
         }
 
-        let mut grouped_events = Vec::with_capacity(from_events.len());
-        let mut grouped_keys = Vec::with_capacity(from_events.len());
+        // rename events
+        let mut grouped_events = Vec::with_capacity(from_events.len() + remove_events.len());
+        let mut grouped_rename_keys = Vec::with_capacity(from_events.len() + remove_events.len());
         for (parent, from_name_events) in from_events.iter() {
             let Some(to_name_events) = to_events.get(parent) else {
                 continue;
@@ -189,7 +210,7 @@ impl FileSystemEventProcessor {
                             .into(),
                         );
 
-                        grouped_keys.push(parent.to_owned());
+                        grouped_rename_keys.push(parent.to_owned());
                     } else if to_name_event.paths[0].is_dir() {
                         let from = if cfg!(target_os = "windows") {
                             common::ensure_windows_unc(&from_name_event.paths[0])
@@ -205,16 +226,69 @@ impl FileSystemEventProcessor {
                             .into(),
                         );
 
-                        grouped_keys.push(parent.to_owned());
+                        grouped_rename_keys.push(parent.to_owned());
                     }
                 }
                 _ => {}
             }
         }
 
-        for name in grouped_keys {
+        // remove / create events
+        let mut grouped_remove_create_keys = Vec::with_capacity(remove_events.len());
+        for (parent, remove_parent_events) in remove_events.iter() {
+            let Some(create_parent_events) = create_events.get(parent) else {
+                continue;
+            };
+
+            match (&remove_parent_events[..], &create_parent_events[..]) {
+                ([remove_parent_event], [create_parent_event]) => {
+                    if create_parent_event.paths[0].is_file() {
+                        let from = if cfg!(target_os = "windows") {
+                            common::ensure_windows_unc(&remove_parent_event.paths[0])
+                        } else {
+                            remove_parent_event.paths[0].clone()
+                        };
+
+                        grouped_events.push(
+                            FileEvent::Renamed {
+                                from,
+                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                            }
+                            .into(),
+                        );
+
+                        grouped_remove_create_keys.push(parent.to_owned());
+                    } else if create_parent_event.paths[0].is_dir() {
+                        let from = if cfg!(target_os = "windows") {
+                            common::ensure_windows_unc(&remove_parent_event.paths[0])
+                        } else {
+                            remove_parent_event.paths[0].clone()
+                        };
+
+                        grouped_events.push(
+                            FolderEvent::Moved {
+                                from,
+                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                            }
+                            .into(),
+                        );
+
+                        grouped_remove_create_keys.push(parent.to_owned());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // sort remaining
+        for name in grouped_rename_keys {
             from_events.remove(&name);
             to_events.remove(&name);
+        }
+
+        for name in grouped_remove_create_keys {
+            remove_events.remove(&name);
+            create_events.remove(&name);
         }
 
         for mut from_parent_events in from_events.into_values() {
@@ -223,6 +297,14 @@ impl FileSystemEventProcessor {
 
         for mut to_parent_events in to_events.into_values() {
             other_events.append(&mut to_parent_events);
+        }
+
+        for mut remove_parent_events in remove_events.into_values() {
+            other_events.append(&mut remove_parent_events);
+        }
+
+        for mut create_parent_events in create_events.into_values() {
+            other_events.append(&mut create_parent_events);
         }
 
         (grouped_events, other_events)

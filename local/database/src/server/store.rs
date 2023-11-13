@@ -799,9 +799,12 @@ impl Datastore {
             let path = match fs::canonicalize(path.clone()) {
                 Ok(path) => path,
 
-                #[cfg(target_os = "windows")]
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                    thot_local::common::ensure_windows_unc(path)
+                    if cfg!(target_os = "windows") {
+                        thot_local::common::ensure_windows_unc(path)
+                    } else {
+                        path
+                    }
                 }
 
                 Err(err) => panic!("{err}"),

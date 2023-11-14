@@ -288,7 +288,6 @@ impl Reducible for GraphState {
 
         match action {
             GraphStateAction::SetGraph(graph) => {
-                // let mut asset_map = AssetContainerMap::new();
                 current.asset_map.clear();
                 for container in graph.nodes().values() {
                     for aid in container.assets.keys() {

@@ -1,8 +1,6 @@
 use crate::server::Event;
-use notify::{self, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::{
-    new_debouncer, new_debouncer_opt, DebounceEventResult, Debouncer, FileIdMap,
-};
+use notify::{self, RecursiveMode, Watcher};
+use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdMap};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -10,9 +8,9 @@ use std::time::Duration;
 const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[cfg(target_os = "macos")]
-type FileSystemWatcher = PollWatcher;
+type FileSystemWatcher = notify::PollWatcher;
 #[cfg(not(target_os = "macos"))]
-type FileSystemWatcher = RecommendedWatcher;
+type FileSystemWatcher = notify::RecommendedWatcher;
 
 pub enum FileSystemActorCommand {
     Watch(PathBuf),
@@ -37,7 +35,8 @@ impl FileSystemActor {
             let config = notify::Config::default()
                 .with_poll_interval(DEBOUNCE_TIMEOUT)
                 .with_compare_contents(true);
-            new_debouncer_opt(
+
+            notify_debouncer_full::new_debouncer_opt(
                 DEBOUNCE_TIMEOUT,
                 None,
                 move |event: DebounceEventResult| {
@@ -63,10 +62,13 @@ impl FileSystemActor {
         command_rx: mpsc::Receiver<FileSystemActorCommand>,
     ) -> Self {
         let watcher = {
-            let event_tx = event_tx.clone();
-            new_debouncer(DEBOUNCE_TIMEOUT, None, move |event: DebounceEventResult| {
-                event_tx.send(Event::FileSystem(event)).unwrap();
-            })
+            notify_debouncer_full::new_debouncer(
+                DEBOUNCE_TIMEOUT,
+                None,
+                move |event: DebounceEventResult| {
+                    event_tx.send(Event::FileSystem(event)).unwrap();
+                },
+            )
             .unwrap()
         };
 

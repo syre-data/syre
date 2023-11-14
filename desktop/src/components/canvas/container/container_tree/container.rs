@@ -280,8 +280,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             let selected = canvas_state.selected.contains(&rid);
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
-                    canvas_state.dispatch(CanvasStateAction::ClearSelected);
-                    canvas_state.dispatch(CanvasStateAction::SelectAsset(rid));
+                    canvas_state.dispatch(CanvasStateAction::SelectAssetOnly(rid));
                 }
 
                 SelectionAction::Select => {

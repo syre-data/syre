@@ -17,6 +17,8 @@ use thot_core::types::ResourceId;
 
 impl Database {
     pub fn handle_thot_events(&mut self, events: Vec<Event>) -> Result {
+        let events = sort_events(events);
+
         tracing::debug!(?events);
         for event in events.into_iter() {
             match event {
@@ -36,4 +38,24 @@ impl Database {
 struct ParentChild {
     parent: ResourceId,
     child: ResourceId,
+}
+
+fn sort_events(events: Vec<Event>) -> Vec<Event> {
+    let mut folder_events = Vec::with_capacity(events.len());
+    let mut file_events = Vec::with_capacity(events.len());
+    let mut other_events = Vec::with_capacity(events.len());
+    for event in events {
+        match event {
+            Event::Graph(_) => folder_events.push(event),
+            Event::Container(_) => folder_events.push(event),
+            Event::Asset(_) => file_events.push(event),
+            Event::Script(_) => other_events.push(event),
+            Event::Folder(_) => folder_events.push(event),
+            Event::File(_) => file_events.push(event),
+        }
+    }
+
+    folder_events.append(&mut file_events);
+    folder_events.append(&mut other_events);
+    folder_events
 }

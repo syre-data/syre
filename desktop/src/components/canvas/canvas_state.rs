@@ -28,6 +28,9 @@ pub enum CanvasStateAction {
     /// Mark an `Asset` as selected.
     SelectAsset(ResourceId),
 
+    /// Set `Asset` as only selected.
+    SelectAssetOnly(ResourceId),
+
     /// Mark a resource as unselected.
     /// Updates the details bar as needed.
     Unselect(ResourceId),
@@ -164,6 +167,13 @@ impl Reducible for CanvasState {
             }
 
             CanvasStateAction::SelectAsset(rid) => {
+                current.selected.insert(rid.clone());
+                current.resource_types.insert(rid, ResourceType::Asset);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::SelectAssetOnly(rid) => {
+                current.selected.clear();
                 current.selected.insert(rid.clone());
                 current.resource_types.insert(rid, ResourceType::Asset);
                 current.details_bar_widget = current.details_bar_widget_from_selected();

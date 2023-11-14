@@ -17,3 +17,5 @@ zmq = "0.10.0"
 thot-core = { path = "../../../core", features=["clap"] }
 thot-local = { path = "../../../local" }
 thot-local-database = { path = "..", features = ["client"] }
+notify-debouncer-full = "0.3.1"
+notify = "6.1.1"

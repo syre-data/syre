@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
+use notify::Watcher;
 use std::io;
+use std::path::{Path, PathBuf};
 use thot_local_database::constants;
 
 #[derive(Parser, Debug)]
@@ -16,6 +18,13 @@ fn main() {
         Command::Sub => sub().unwrap(),
         Command::Req => req().unwrap(),
         Command::Rep => rep().unwrap(),
+        Command::WatchFs { path, no_debounce } => {
+            if no_debounce {
+                watch_file_system(&path);
+            } else {
+                watch_file_system_debounce(&path);
+            }
+        }
     }
 }
 
@@ -99,10 +108,63 @@ fn rep() -> zmq::Result<()> {
     }
 }
 
+fn watch_file_system(path: impl AsRef<Path>) {
+    let mut watcher = notify::recommended_watcher(|res| match res {
+        Ok(event) => println!("{event:?}"),
+        Err(err) => println!("ERROR {err:?}"),
+    })
+    .unwrap();
+
+    watcher
+        .watch(path.as_ref(), notify::RecursiveMode::Recursive)
+        .unwrap();
+
+    loop {}
+}
+
+fn watch_file_system_debounce(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+
+    let mut watcher = notify_debouncer_full::new_debouncer(
+        std::time::Duration::from_millis(100),
+        None,
+        move |events: notify_debouncer_full::DebounceEventResult| {
+            println!("{events:?}");
+        },
+    )
+    .unwrap();
+
+    watcher
+        .watcher()
+        .watch(path, notify::RecursiveMode::Recursive)
+        .unwrap();
+
+    watcher
+        .cache()
+        .add_root(path, notify::RecursiveMode::Recursive);
+
+    loop {}
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Publish an event to the database channel.
     Pub,
+
+    /// Listen to published events from the database.
     Sub,
+
+    /// Send a request to the database.
     Req,
+
+    /// Listen for requests to the database.
     Rep,
+
+    /// Listen to file system events.
+    WatchFs {
+        path: PathBuf,
+
+        #[clap(long)]
+        no_debounce: bool,
+    },
 }

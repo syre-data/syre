@@ -2,7 +2,10 @@ use clap::{Parser, Subcommand};
 use notify::Watcher;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use thot_local_database::constants;
+
+const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[derive(Parser, Debug)]
 #[clap(name = "Thot Local Database CLI", author, version, about, long_about = None)]
@@ -122,11 +125,44 @@ fn watch_file_system(path: impl AsRef<Path>) {
     loop {}
 }
 
+#[cfg(target_os = "macos")]
+fn watch_file_system_debounce(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    let mut watcher: notify_debouncer_full::Debouncer<notify::PollWatcher, _> = {
+        let config = notify::Config::default()
+            .with_poll_interval(DEBOUNCE_TIMEOUT)
+            .with_compare_contents(true);
+
+        notify_debouncer_full::new_debouncer_opt(
+            DEBOUNCE_TIMEOUT,
+            None,
+            move |events: notify_debouncer_full::DebounceEventResult| {
+                println!("{events:?}");
+            },
+            notify_debouncer_full::FileIdMap::new(),
+            config,
+        )
+        .unwrap()
+    };
+
+    watcher
+        .watcher()
+        .watch(path, notify::RecursiveMode::Recursive)
+        .unwrap();
+
+    watcher
+        .cache()
+        .add_root(path, notify::RecursiveMode::Recursive);
+
+    loop {}
+}
+
+#[cfg(not(target_os = "macos"))]
 fn watch_file_system_debounce(path: impl AsRef<Path>) {
     let path = path.as_ref();
 
     let mut watcher = notify_debouncer_full::new_debouncer(
-        std::time::Duration::from_millis(100),
+        DEBOUNCE_TIMEOUT,
         None,
         move |events: notify_debouncer_full::DebounceEventResult| {
             println!("{events:?}");

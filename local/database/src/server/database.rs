@@ -130,6 +130,11 @@ impl Database {
                         {
                             false
                         }
+                        notify::ErrorKind::Generic(msg)
+                            if msg.contains("No such file or directory") =>
+                        {
+                            false
+                        }
                         _ => true,
                     }) {
                         tracing::debug!("watch error: {errs:?}");

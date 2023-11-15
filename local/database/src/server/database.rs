@@ -122,8 +122,25 @@ impl Database {
         let events = match events {
             Ok(events) => events,
             Err(errs) => {
-                tracing::debug!("watch error: {errs:?}");
-                return Err(crate::Error::DatabaseError(format!("{errs:?}")));
+                #[cfg(target_os = "macos")]
+                {
+                    if errs.iter().any(|err| match &err.clone().kind {
+                        notify::ErrorKind::Io(err) if err.kind == std::io::ErrorKind::NotFound => {
+                            false
+                        }
+                        _ => true,
+                    }) {
+                        tracing::debug!("watch error: {errs:?}");
+                        return Err(crate::Error::DatabaseError(format!("{errs:?}")));
+                    }
+
+                    Vec::new()
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    tracing::debug!("watch error: {errs:?}");
+                    return Err(crate::Error::DatabaseError(format!("{errs:?}")));
+                }
             }
         };
 

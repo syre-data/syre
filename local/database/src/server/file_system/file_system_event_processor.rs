@@ -23,7 +23,7 @@ impl FileSystemEventProcessor {
     pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
         let events = Self::filter_events(events);
         let events = Self::filter_hidden(events);
-        let events = Self::filter_created_subevents(events);
+        let events = Self::filter_subfolder_events(events);
         let (mut converted, remaining) = Self::group_events(events);
         converted.append(&mut Self::convert_ungrouped_events(remaining));
         converted
@@ -61,10 +61,41 @@ impl FileSystemEventProcessor {
             .collect()
     }
 
-    /// Filters out subevents of a created folder.
+    /// Filters out subevents of a folder.
     /// These include
     /// + Created files and folders contained in another created folder.
-    fn filter_created_subevents(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+    /// + Removed files and folders contained within another removed folder.
+    fn filter_subfolder_events(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+        fn get_root_paths<'a>(paths: &'a Vec<(usize, &PathBuf)>) -> Vec<(usize, &'a PathBuf)> {
+            let mut root_paths = Vec::<(usize, &PathBuf)>::with_capacity(paths.len());
+            for (event_index, path) in paths.into_iter() {
+                let mut new_root = Some(root_paths.len());
+                for (root_index, (_, root_path)) in root_paths.iter().enumerate() {
+                    if path.starts_with(root_path) {
+                        new_root.take();
+                        break;
+                    }
+
+                    if root_path.starts_with(path) {
+                        let _ = new_root.insert(root_index);
+                        break;
+                    }
+                }
+
+                match new_root {
+                    Some(root_index) if root_index == root_paths.len() => {
+                        root_paths.push((event_index.clone(), path));
+                    }
+
+                    Some(index) => root_paths[index] = (event_index.clone(), path),
+
+                    None => {}
+                }
+            }
+
+            root_paths
+        }
+
         let create_events = events
             .iter()
             .enumerate()
@@ -74,33 +105,19 @@ impl FileSystemEventProcessor {
             })
             .collect::<Vec<_>>();
 
-        let mut root_paths = Vec::<(usize, &PathBuf)>::new();
-        for (event_index, path) in create_events.iter() {
-            let mut new_root = Some(root_paths.len());
-            for (root_index, (_, root_path)) in root_paths.iter().enumerate() {
-                if path.starts_with(root_path) {
-                    new_root.take();
-                    break;
-                }
+        let remove_events = events
+            .iter()
+            .enumerate()
+            .filter_map(|(index, event)| match event.kind {
+                EventKind::Remove(_) => Some((index, &event.paths[0])),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
-                if root_path.starts_with(path) {
-                    let _ = new_root.insert(root_index);
-                    break;
-                }
-            }
+        let create_root_paths = get_root_paths(&create_events);
+        let remove_root_paths = get_root_paths(&remove_events);
 
-            match new_root {
-                Some(root_index) if root_index == root_paths.len() => {
-                    root_paths.push((event_index.clone(), path));
-                }
-
-                Some(index) => root_paths[index] = (event_index.clone(), path),
-
-                None => {}
-            }
-        }
-
-        let root_indices = root_paths
+        let create_root_indices = create_root_paths
             .into_iter()
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
@@ -110,11 +127,23 @@ impl FileSystemEventProcessor {
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
 
+        let remove_root_indices = remove_root_paths
+            .into_iter()
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+
+        let remove_indices = remove_events
+            .into_iter()
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+
         events
             .into_iter()
             .enumerate()
             .filter_map(|(index, event)| {
-                if create_indices.contains(&index) && !root_indices.contains(&index) {
+                if (create_indices.contains(&index) && !create_root_indices.contains(&index))
+                    || (remove_indices.contains(&index) && !remove_root_indices.contains(&index))
+                {
                     None
                 } else {
                     Some(event)

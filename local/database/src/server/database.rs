@@ -125,7 +125,14 @@ impl Database {
                 #[cfg(target_os = "macos")]
                 {
                     if errs.iter().any(|err| match &err.clone().kind {
-                        notify::ErrorKind::Io(err) if err.kind == std::io::ErrorKind::NotFound => {
+                        notify::ErrorKind::Io(err)
+                            if err.kind() == std::io::ErrorKind::NotFound =>
+                        {
+                            false
+                        }
+                        notify::ErrorKind::Generic(msg)
+                            if msg.contains("No such file or directory") =>
+                        {
                             false
                         }
                         _ => true,

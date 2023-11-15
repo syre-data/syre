@@ -738,12 +738,6 @@ impl Datastore {
         let aid = asset.rid.clone();
         let cid = container.rid.clone();
         let asset_path = container.base_path().join(asset.path.as_path());
-        if let Some(bucket_path) = asset.bucket() {
-            if !container.settings().buckets.contains(&bucket_path) {
-                container.settings_mut().buckets.push(bucket_path);
-            }
-        }
-
         let o_asset = container.insert_asset(asset);
         container.save()?;
 

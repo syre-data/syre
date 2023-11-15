@@ -11,7 +11,4 @@ use thot_core::types::UserPermissions;
 pub struct ContainerSettings {
     #[serde(default)]
     pub permissions: Vec<UserPermissions>,
-
-    #[serde(default)]
-    pub buckets: Vec<PathBuf>,
 }

@@ -5,7 +5,7 @@ use crate::event::{Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Component, PathBuf};
 use thot_local::graph::{ContainerTreeLoader, ContainerTreeTransformer};
 use thot_local::project::{asset, container, project};
 
@@ -42,15 +42,31 @@ impl Database {
                     .unwrap()
                     .to_path_buf();
 
-                if path_container.settings().buckets.contains(&bucket_path) {
+                let Component::Normal(bucket_path_root) = bucket_path.components().next().unwrap()
+                else {
+                    panic!("invalid path type")
+                };
+
+                if path_container
+                    .buckets()
+                    .iter()
+                    .any(|bucket| bucket.starts_with(&bucket_path_root))
+                {
                     return Ok(());
                 }
 
                 // init subgraph
+                // NOTE When transferring large amounts of data
+                // some folder creation events are missed by `notify`.
+                // We account for this here by taking the highest possible folder as the root
+                // of the subgraph to be initialized.
+                let mut root_path = path_container.base_path().to_path_buf();
+                root_path.push(bucket_path.components().next().unwrap());
+
                 let ParentChild {
                     parent,
                     child: container,
-                } = self.init_subgraph(path)?;
+                } = self.init_subgraph(root_path)?;
 
                 let project = self
                     .store
@@ -70,7 +86,7 @@ impl Database {
         }
     }
 
-    /// Initialize a path as a  Contaienr tree and insert it into the graph.
+    /// Initialize a path as a  Container tree and insert it into the graph.
     ///
     /// # Returns
     /// `ResourceId` of the graph's root `Container`.

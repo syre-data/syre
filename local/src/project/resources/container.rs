@@ -153,6 +153,13 @@ impl Container {
         self.base_path = path.into();
     }
 
+    pub fn buckets(&self) -> Vec<PathBuf> {
+        self.assets
+            .values()
+            .filter_map(|asset| asset.bucket())
+            .collect()
+    }
+
     // ---------------
     // --- scripts ---
     // ---------------

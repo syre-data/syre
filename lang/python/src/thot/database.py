@@ -25,6 +25,7 @@ else:
 
 LOCALHOST = "127.0.0.1"
 THOT_PORT = 7047
+SOCKET_TIMEOUT = 10_000
 
 class Database:
     """
@@ -44,8 +45,8 @@ class Database:
         """
         self._ctx: zmq.Context = zmq.Context()
         self._socket: zmq.Socket = self._ctx.socket(zmq.REQ)
-        self._socket.setsockopt(zmq.SNDTIMEO, 10_000)
-        self._socket.setsockopt(zmq.RCVTIMEO, 10_000)
+        self._socket.setsockopt(zmq.SNDTIMEO, SOCKET_TIMEOUT)
+        self._socket.setsockopt(zmq.RCVTIMEO, SOCKET_TIMEOUT)
         self._socket.connect(f'tcp://{LOCALHOST}:{THOT_PORT}')
         if not self._is_database_available():
             exe_base_name = "thot-local-database"
@@ -350,6 +351,24 @@ class Database:
         path = os.path.join(self._root_path, os.path.normpath(file))
         os.makedirs(os.path.dirname(path), exist_ok=True) # ensure bucket directory exists
         return path
+    
+    def clone(self) -> 'Database':
+        """Clones the Database.
+        For use in multithreaded applications.
+
+        Returns:
+            Database: Clone of the Database.
+        """
+        clone = Database.__new__(Database)
+        clone._ctx = self._ctx
+        clone._socket: zmq.Socket = self._ctx.socket(zmq.REQ)
+        clone._root_path = self._root_path
+        clone._root = self._root
+        
+        clone._socket.setsockopt(zmq.SNDTIMEO, SOCKET_TIMEOUT)
+        clone._socket.setsockopt(zmq.RCVTIMEO, SOCKET_TIMEOUT)
+        clone._socket.connect(f'tcp://{LOCALHOST}:{THOT_PORT}')
+        return clone
     
     def _active_user(self) -> OptStr:
         """

@@ -201,14 +201,11 @@ class Database:
         if 'Err' in containers:
             raise RuntimeError(f"Error getting containers: {containers['Err']}")
 
-        containers = map(dict_to_container, containers)
-        for container in containers:
-            container._db = self
-            for asset in container.assets:
-                asset._db = self
+        return list(map(
+            lambda container: dict_to_container(container, db = self),
+            containers
+        ))
                 
-        return list(containers)
-    
     def find_container(
         self,
         name: OptStr = None,
@@ -268,11 +265,10 @@ class Database:
         if 'Err' in assets:
             raise RuntimeError(f"Error getting assets: {assets['Err']}")
 
-        assets = list(map(dict_to_asset, assets))
-        for asset in assets:
-            asset._db = self
-                
-        return assets
+        return list(map(
+            lambda asset: dict_to_asset(asset, db = self),
+            assets
+        ))
             
     def find_asset(
         self,

@@ -246,7 +246,6 @@ class Asset:
         """
         return self._file
     
-    @property
     def parent(self) -> 'Container':
         """
         Returns:

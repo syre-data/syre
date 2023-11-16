@@ -11,9 +11,7 @@ import zmq
 
 from thot import _LEGACY_
 from .types import OptStr, Tags, Metadata
-from .common import dict_to_container, dict_to_asset
-from .asset import Asset
-from .container import Container
+from .resources import Container, Asset, dict_to_container, dict_to_asset
 
 OptTags = Union[Tags, None]
 OptMetadata = Union[Metadata, None]
@@ -166,6 +164,7 @@ class Database:
             raise RuntimeError(f"Error getting root: {root['Err']}")
         
         root = dict_to_container(root)
+        root._db = self
         return root
                 
     def find_containers(
@@ -203,6 +202,11 @@ class Database:
             raise RuntimeError(f"Error getting containers: {containers['Err']}")
 
         containers = map(dict_to_container, containers)
+        for container in containers:
+            container._db = self
+            for asset in container.assets:
+                asset._db = self
+                
         return list(containers)
     
     def find_container(
@@ -264,8 +268,11 @@ class Database:
         if 'Err' in assets:
             raise RuntimeError(f"Error getting assets: {assets['Err']}")
 
-        assets = map(dict_to_asset, assets)
-        return list(assets)
+        assets = list(map(dict_to_asset, assets))
+        for asset in assets:
+            asset._db = self
+                
+        return assets
             
     def find_asset(
         self,

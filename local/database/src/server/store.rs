@@ -499,8 +499,20 @@ impl Datastore {
             },
         );
 
+        let container_path = container.base_path().to_owned();
         let mut container = (*container).clone();
         container.properties.metadata = metadata;
+        for asset in container.assets.values_mut() {
+            for (key, value) in container.properties.metadata.iter() {
+                if !asset.properties.metadata.contains_key(key) {
+                    asset.properties.metadata.insert(key.clone(), value.clone());
+                }
+            }
+
+            let path = fs::canonicalize(container_path.join(asset.path.as_path())).unwrap();
+            asset.path = ResourcePath::new(path).expect("could not set absolute path");
+        }
+
         Some(container)
     }
 

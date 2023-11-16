@@ -19,6 +19,12 @@ pub enum GraphCommand {
 
     /// Duplicate a graph from its root.
     Duplicate(ResourceId),
+
+    /// Get the children of the Container.
+    Children(ResourceId),
+
+    /// Get the parent of the Container.
+    Parent(ResourceId),
 }
 
 /// Arguments for [`Command::NewChild`].

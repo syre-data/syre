@@ -113,6 +113,36 @@ impl Database {
                 let graph: Result<ResourceTree<CoreContainer>> = Ok(graph);
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
+
+            GraphCommand::Parent(rid) => {
+                let Some(graph) = self.store.get_container_graph(&rid) else {
+                    let err: Result<Option<ResourceId>> =
+                        Err(Error::CoreError(CoreError::ResourceError(
+                            ResourceError::does_not_exist("`Container` does not exist"),
+                        )));
+
+                    return serde_json::to_value(err).expect("could not convert error to JsValue");
+                };
+
+                let parent = graph.parent(&rid).unwrap();
+                let Some(parent) = parent else {
+                    let res: Result<Option<ResourceId>> = Ok(None);
+                    return serde_json::to_value(res).expect("could not convert error to JsValue");
+                };
+
+                serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
+            }
+
+            GraphCommand::Children(rid) => {
+                let Some(graph) = self.store.get_container_graph(&rid) else {
+                    let res: Option<indexmap::IndexSet<ResourceId>> = None;
+                    return serde_json::to_value(res)
+                        .expect("could not convert `Container` to JsValue");
+                };
+
+                let children = graph.children(&rid).unwrap();
+                serde_json::to_value(children).expect("could not convert `Container` to JsValue")
+            }
         }
     }
 

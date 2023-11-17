@@ -100,12 +100,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                             GraphUpdate::Created { parent, graph } => {
                                 graph_state
                                     .dispatch(GraphStateAction::InsertSubtree { parent, graph });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Container tree added from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             GraphUpdate::Removed(graph) => {
@@ -121,12 +115,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 graph_state.dispatch(GraphStateAction::RemoveSubtree(
                                     graph.root().clone(),
                                 ));
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Container tree removed from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             GraphUpdate::Moved { parent, root, name } => {
@@ -135,12 +123,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     root,
                                     name,
                                 });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Container tree moved from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
                         },
 
@@ -149,12 +131,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 graph_state.dispatch(GraphStateAction::InsertContainerAssets(
                                     container.clone(),
                                     vec![asset],
-                                ));
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Asset added from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
                                 ));
                             }
 
@@ -168,33 +144,16 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     container,
                                     path,
                                 });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Asset moved from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             AssetUpdate::Removed(asset) => {
                                 canvas_state.dispatch(CanvasStateAction::Remove(asset.clone()));
                                 graph_state.dispatch(GraphStateAction::RemoveAsset(asset));
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Asset removed from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             AssetUpdate::PathChanged { asset, path } => {
                                 graph_state
                                     .dispatch(GraphStateAction::UpdateAssetPath { asset, path });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Asset path modified on file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
                         },
 
@@ -204,12 +163,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     project: pid.clone(),
                                     script,
                                 });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Script added from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             ScriptUpdate::Removed(script) => {
@@ -220,12 +173,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                 graph_state.dispatch(
                                     GraphStateAction::RemoveContainerScriptAssociations(script),
                                 );
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Script removed from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
 
                             ScriptUpdate::Moved { script, path } => {
@@ -233,12 +180,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     script: script.clone(),
                                     path,
                                 });
-
-                                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                                    Message::info("Script updated from file system."),
-                                    MESSAGE_TIMEOUT,
-                                    app_state.clone(),
-                                ));
                             }
                         },
                     }

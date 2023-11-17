@@ -59,7 +59,7 @@ impl Database {
             let root_id = ResourceId::from_str(&root_id)
                 .expect("could not convert `THOT_CONTAINER_ID` to `ResourceId`");
 
-            let root_path = db.send(ContainerCommand::GetPath(root_id).into())?;
+            let root_path = db.send(ContainerCommand::Path(root_id).into())?;
             let root_path: Option<PathBuf> = serde_json::from_value(root_path)
                 .expect("could not convert result of `GetPath` to `PathBuf`");
 
@@ -152,9 +152,13 @@ impl Database {
 
     /// Finds all Assets matching the search filter.
     pub fn find_assets(&self, filter: StdFilter) -> Result<HashSet<Asset>> {
-        let assets = self
-            .db
-            .send(AssetCommand::FindWithMetadata(self.root.clone(), filter).into())?;
+        let assets = self.db.send(
+            AssetCommand::FindWithMetadata {
+                root: self.root.clone(),
+                filter,
+            }
+            .into(),
+        )?;
 
         let assets: HashSet<Asset> = serde_json::from_value(assets)
             .expect("could not convert result of `Find` to `HashSet<Asset>`");
@@ -181,9 +185,13 @@ impl Database {
 
         let asset_path = asset.path.clone();
         let bucket = asset.bucket();
-        let res = self
-            .db
-            .send(AssetCommand::Add(asset, root.rid.clone()).into())?;
+        let res = self.db.send(
+            AssetCommand::Add {
+                asset,
+                container: root.rid.clone(),
+            }
+            .into(),
+        )?;
 
         let res: DbResult<Option<Asset>> = serde_json::from_value(res)
             .expect("could not convert result of `Add` to `Option<Asset>`");

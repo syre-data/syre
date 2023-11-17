@@ -3,21 +3,24 @@ use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
-use thot_core::project::{Asset as CoreAsset, AssetProperties};
+use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
 
 /// Asset realated commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum AssetCommand {
-    /// Retrieves an [`Asset`](CoreAsset) by [`ResourceId`].
+    /// Retrieves an [`Asset`] by [`ResourceId`].
     Get(ResourceId),
 
-    /// Retrieves [`Asset`](CoreAsset)s by [`ResourceId`].
+    /// Retrieves [`Asset`]s by [`ResourceId`].
     ///
     /// # Returns
-    /// `Vec<[Asset](CoreAsset)>` where [`Asset`](thot_core::project::Asset)s that were not found
+    /// `Vec<Asset>` where [`Asset`]s that were not found
     /// are not included.
     GetMany(Vec<ResourceId>),
+
+    /// Return the absolute path to the `Asset`'s file.
+    Path(ResourceId),
 
     /// Gets an `Asset`'s `Container`.
     ///
@@ -25,43 +28,34 @@ pub enum AssetCommand {
     /// 1. `Asset`'s `ResourceId`.
     Parent(ResourceId),
 
-    /// Insert's an [`Asset`](CoreAsset) into a
-    /// [`Container`](thot_core::project::Container).
-    ///  
-    /// # Fields
-    /// 1. [`Asset`](CoreAsset).
-    /// 2. `Container`.
-    Add(CoreAsset, ResourceId),
+    /// Insert's an [`Asset`] into a [`Container`](thot_core::project::Container).
+    Add { asset: Asset, container: ResourceId },
 
-    /// Removes an [`Asset`](CoreAsset).
-    Remove(ResourceId),
-
-    /// Updates an [`Asset`](CoreAsset).
+    /// Updates an [`Asset`].
     UpdateProperties(ResourceId, AssetProperties),
 
-    /// Updates an Asset's file path.
-    ///
-    /// # Fields
-    /// 1. From.
-    /// 2. To.
-    UpdatePath(PathBuf, PathBuf),
-
-    /// Retrieves [`Asset`](CoreAsset)s based on a filter.
+    /// Retrieves [`Asset`]s based on a filter.
     ///
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
-    Find(ResourceId, StandardSearchFilter),
+    Find {
+        root: ResourceId,
+        filter: StandardSearchFilter,
+    },
 
-    /// Retrieves [`Asset`](CoreAsset)s based on a filter.
+    /// Retrieves [`Asset`]s based on a filter.
     /// Lineage is compiled.
     ///
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
-    FindWithMetadata(ResourceId, StandardSearchFilter),
+    FindWithMetadata {
+        root: ResourceId,
+        filter: StandardSearchFilter,
+    },
 
-    /// Update multiple [`Asset`](CoreAsset)s' properties.
+    /// Update multiple [`Asset`]s' properties.
     BulkUpdateProperties(BulkUpdateAssetPropertiesArgs),
 }
 

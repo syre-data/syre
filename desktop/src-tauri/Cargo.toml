@@ -22,12 +22,13 @@ directories = "4.0"
 open = "3.2"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.5", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
 thiserror = "1.0.44"
 tracing = "0.1.37"
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
+trash = "3.1.2"
 uuid = { version = "1.2", features = ["serde", "v4"] }
-tauri = { version = "1.5", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
 zmq = "0.10.0"
 
 thot-core = { path = "../../core", features = ["serde"] }

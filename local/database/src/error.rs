@@ -41,6 +41,10 @@ pub enum Error {
     /// Issue with the database.
     #[error("{0}")]
     DatabaseError(String),
+
+    /// The database has become out of sync.
+    #[error("out of sync")]
+    OutOfSync,
 }
 
 impl From<zmq::Error> for Error {

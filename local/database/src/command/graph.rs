@@ -11,12 +11,6 @@ pub enum GraphCommand {
     /// Gets a subtree.
     Get(ResourceId),
 
-    /// Remove a graph from its root.
-    Remove(ResourceId),
-
-    /// Insert a child into the graph.
-    NewChild(NewChildArgs),
-
     /// Duplicate a graph from its root.
     Duplicate(ResourceId),
 

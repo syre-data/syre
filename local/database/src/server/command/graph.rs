@@ -45,51 +45,6 @@ impl Database {
                 serde_json::to_value(graph).expect("could not convert `Result` to JsValue")
             }
 
-            GraphCommand::Remove(root) => {
-                let sub_graph = match self.store.remove_subgraph(&root) {
-                    Ok(path) => path,
-                    Err(err) => {
-                        let err: Result = Err(err);
-                        return serde_json::to_value(err)
-                            .expect("could not convert `Result` to JsValue");
-                    }
-                };
-
-                let root_path = sub_graph
-                    .get(sub_graph.root())
-                    .expect("`Graph` root not found")
-                    .base_path()
-                    .canonicalize()
-                    .expect("could not canonicalize path");
-
-                if let Err(err) = delete_folder(&root_path) {
-                    let err: Error = err.into();
-                    return serde_json::to_value(err)
-                        .expect("could not convert `Result` to JsValue");
-                }
-
-                let res: Result = Ok(());
-                serde_json::to_value(res).expect("could not convert `Result` to JsValue")
-            }
-
-            GraphCommand::NewChild(NewChildArgs { name, parent }) => {
-                let res = self.new_child(&parent, name);
-                let Ok(cid) = res else {
-                    return serde_json::to_value(res).expect("could not convert error to JsValue");
-                };
-
-                let Some(child) = self.store.get_container(&cid) else {
-                    let err: Error = CoreError::ResourceError(ResourceError::does_not_exist(
-                        "child `Container` not inserted into graph",
-                    ))
-                    .into();
-                    return serde_json::to_value(err).expect("could not convert error to JsValue");
-                };
-
-                let child: Result<CoreContainer> = Ok((*child).clone());
-                serde_json::to_value(child).expect("could not convert child `Container` to JsValue")
-            }
-
             GraphCommand::Duplicate(root) => {
                 // duplicate tree
                 let res = self.duplicate_container_tree(&root);
@@ -253,8 +208,4 @@ impl Database {
         self.store.insert_subgraph(&parent.rid.clone(), child)?;
         Ok(cid)
     }
-}
-
-fn delete_folder(root_path: &Path) -> StdResult<(), trash::Error> {
-    trash::delete(root_path)
 }

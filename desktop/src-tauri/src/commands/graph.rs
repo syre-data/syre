@@ -1,6 +1,7 @@
 //! Graph commands.
 use crate::error::{DesktopSettingsError, Result};
 use crate::state::AppState;
+use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::error::{Error as CoreError, ResourceError};
@@ -8,10 +9,9 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
+use thot_local::error::{ContainerError, Error as LocalError};
 use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::container::UpdatePropertiesArgs;
-use thot_local_database::command::graph::NewChildArgs;
 use thot_local_database::command::{ContainerCommand, GraphCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;
 
@@ -116,15 +116,19 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
 #[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
-pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result<CoreContainer> {
-    let child = db
-        .send(GraphCommand::NewChild(NewChildArgs { name, parent }).into())
-        .expect("could not create child `Container`");
+pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result {
+    let path = db.send(ContainerCommand::Path(parent).into()).unwrap();
+    let Some(mut path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+        panic!("could not get container path");
+    };
 
-    let child: DbResult<CoreContainer> = serde_json::from_value(child)
-        .expect("could not convert `NewChild` result to a `Container`");
+    path.push(name);
+    if path.exists() {
+        return Err(LocalError::ContainerError(ContainerError::InvalidChildPath(path)).into());
+    }
 
-    Ok(child?)
+    fs::create_dir(path).unwrap();
+    Ok(())
 }
 
 /// Duplicates a [`Container`](LocalContainer) tree.
@@ -151,12 +155,11 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
 /// 1. Id of the root of the `Container` tree to remove.
 #[tauri::command]
 pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
-    let res = db
-        .send(GraphCommand::Remove(rid).into())
-        .expect("could not remove `Container` tree");
+    let path = db.send(ContainerCommand::Path(rid).into()).unwrap();
+    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+        panic!("could not get container path");
+    };
 
-    let res: DbResult = serde_json::from_value(res)
-        .expect("could not convert result of `Remove` to `Container` tree");
-
-    res.map_err(|err| err.into())
+    trash::delete(path).unwrap();
+    Ok(())
 }

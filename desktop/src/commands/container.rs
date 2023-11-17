@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container, ContainerProperties, ScriptAssociation};
 use thot_core::types::ResourceId;
-use thot_local_database::command::container::AddAssetInfo;
+use thot_desktop_lib::types::AddAssetInfo;
 
 /// Arguments for
 /// [`load_container_tree`](thot_desktop_tauri::commands::container::load_container_tree).

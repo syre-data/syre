@@ -133,7 +133,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let on_menu_event = {
         let app_state = app_state.clone();
-        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let rid = props.rid.clone();
         let show_create_assets = show_create_assets.clone();
@@ -208,40 +207,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 }
 
                 ContainerMenuEvent::Remove => {
-                    let app_state = app_state.clone();
-                    let canvas_state = canvas_state.clone();
-                    let graph_state = graph_state.clone();
-
                     spawn_local(async move {
                         invoke::<()>("remove_container_tree", ResourceIdArgs { rid: rid.clone() })
                             .await
                             .expect("could not invoke `remove_container_tree`");
-
-                        let mut graph = graph_state.graph.clone();
-                        match graph.remove(&rid) {
-                            Ok(removed) => {
-                                // unselect removed elements
-                                let mut rids = Vec::with_capacity(removed.nodes().len());
-                                for (cid, container) in removed.nodes() {
-                                    rids.push(cid.clone());
-                                    let mut aids = container
-                                        .assets
-                                        .keys()
-                                        .map(|rid| rid.clone())
-                                        .collect::<Vec<ResourceId>>();
-
-                                    rids.append(&mut aids);
-                                }
-
-                                canvas_state.dispatch(CanvasStateAction::UnselectMany(rids));
-                                graph_state.dispatch(GraphStateAction::SetGraph(graph));
-                            }
-                            Err(_) => {
-                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not remove tree",
-                                )));
-                            }
-                        }
                     });
                 }
             }
@@ -335,16 +304,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let onclick_asset_remove = {
         let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
-        let canvas_state = canvas_state.clone();
-        let container_id = props.rid.clone();
-
         Callback::from(move |rid: ResourceId| {
             let app_state = app_state.clone();
-            let graph_state = graph_state.clone();
-            let canvas_state = canvas_state.clone();
-            let container_id = container_id.clone();
-
             spawn_local(async move {
                 let Ok(_) = invoke::<()>("remove_asset", ResourceIdArgs { rid: rid.clone() }).await
                 else {
@@ -353,16 +314,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     )));
                     return;
                 };
-
-                let Some(_container) = graph_state.graph.get(&container_id).cloned() else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update container",
-                    )));
-                    return;
-                };
-
-                graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
-                canvas_state.dispatch(CanvasStateAction::Unselect(rid.clone()));
             });
         })
     };
@@ -404,7 +355,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let ondrop = {
-        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let container_id = props.rid.clone();
 
@@ -421,8 +371,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let file_reader = web_sys::FileReader::new().unwrap();
                 file_reader.read_as_array_buffer(&file).unwrap();
 
-                let app_state = app_state.clone();
-                let graph_state = graph_state.clone();
                 let container_id = container_id.clone();
                 let onload = Closure::<dyn FnMut(Event)>::new(move |e: Event| {
                     let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
@@ -432,14 +380,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let mut contents = vec![0; file.length() as usize];
                     file.copy_to(&mut contents);
 
-                    let app_state = app_state.clone();
-                    let graph_state = graph_state.clone();
                     let name = name.clone();
                     let container_id = container_id.clone();
                     spawn_local(async move {
                         // create assets
                         // TODO Handle buckets.
-                        let asset: Vec<ResourceId> = invoke(
+                        invoke::<()>(
                             "add_asset_windows",
                             AddAssetWindowsArgs {
                                 container: container_id.clone(),
@@ -449,34 +395,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         )
                         .await
                         .expect("could not invoke `add_asset_windows`");
-
-                        // update container
-                        let container: CoreContainer = invoke(
-                            "get_container",
-                            ResourceIdArgs {
-                                rid: container_id.clone(),
-                            },
-                        )
-                        .await
-                        .expect("could not invoke `get_container`");
-
-                        // update container
-                        let asset = container
-                            .assets
-                            .get(&asset[0])
-                            .expect("could not find `Asset`")
-                            .clone();
-
-                        graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                            container_id.clone(),
-                            vec![asset],
-                        ));
-
-                        app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                            Message::success("Added asset"),
-                            MESSAGE_TIMEOUT,
-                            app_state.clone(),
-                        ));
                     });
                 });
 

@@ -1,6 +1,5 @@
 //! Startup functionality.
 use crate::db::UpdateActor;
-use std::sync::mpsc;
 use std::thread;
 use tauri::{App, Manager};
 

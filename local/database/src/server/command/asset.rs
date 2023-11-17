@@ -2,10 +2,11 @@
 use super::super::Database;
 use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
 use crate::command::AssetCommand;
-use crate::Result;
+use crate::error::Result;
 use serde_json::Value as JsValue;
+use std::path::PathBuf;
 use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset as CoreAsset, AssetProperties, Container as CoreContainer};
+use thot_core::project::{Asset, AssetProperties, Container as CoreContainer};
 use thot_core::types::ResourceId;
 
 impl Database {
@@ -13,7 +14,7 @@ impl Database {
     pub fn handle_command_asset(&mut self, cmd: AssetCommand) -> JsValue {
         match cmd {
             AssetCommand::Get(rid) => {
-                let asset: Option<CoreAsset> = {
+                let asset: Option<Asset> = {
                     if let Some(container) = self.store.get_asset_container(&rid) {
                         container.assets.get(&rid).cloned().into()
                     } else {
@@ -38,9 +39,20 @@ impl Database {
 
                         Some(asset.clone())
                     })
-                    .collect::<Vec<CoreAsset>>();
+                    .collect::<Vec<Asset>>();
 
                 serde_json::to_value(assets).expect("could not convert `Vec<Asset>` to JSON")
+            }
+
+            AssetCommand::Path(asset) => {
+                let Some(container) = self.store.get_asset_container(&asset) else {
+                    let res: Option<PathBuf> = None;
+                    return serde_json::to_value(res).unwrap();
+                };
+
+                let asset = container.assets.get(&asset).unwrap();
+                let path = container.base_path().join(asset.path.as_path());
+                serde_json::to_value(Some(path)).unwrap()
             }
 
             AssetCommand::Parent(asset) => {
@@ -53,13 +65,8 @@ impl Database {
                 serde_json::to_value(container).expect("could not convert `Container` to JSON")
             }
 
-            AssetCommand::Add(asset, container) => {
+            AssetCommand::Add { asset, container } => {
                 let res = self.store.add_asset(asset, container);
-                serde_json::to_value(res).expect("could not convert result to JSON")
-            }
-
-            AssetCommand::Remove(rid) => {
-                let res = self.remove_asset(&rid);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
@@ -68,18 +75,12 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
-            AssetCommand::UpdatePath(from, to) => {
-                todo!();
-                // let res = self.store.update_asset_path(&from, to);
-                // serde_json::to_value(res).expect("could not convert result to JSON")
-            }
-
-            AssetCommand::Find(root, filter) => {
+            AssetCommand::Find { root, filter } => {
                 let assets = self.store.find_assets(&root, filter);
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }
 
-            AssetCommand::FindWithMetadata(root, filter) => {
+            AssetCommand::FindWithMetadata { root, filter } => {
                 let assets = self.store.find_assets_with_metadata(&root, filter);
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }

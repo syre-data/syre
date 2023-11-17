@@ -2,6 +2,7 @@
 use super::ContainerTree;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
+use crate::commands::container::AddAssetsArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
 use crate::components::canvas::canvas_state::ResourceType;
@@ -12,10 +13,10 @@ use futures::stream::StreamExt;
 use std::path::PathBuf;
 use std::str::FromStr;
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset, Container};
+use thot_core::project::Container;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::types::AssetFileAction;
-use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
 use thot_ui::types::ContainerPreview;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::ContainerPreviewSelect;
@@ -39,7 +40,7 @@ enum AnalysisState {
 // *****************
 
 /// Container tree with controls.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(ContainerTreeController)]
 pub fn container_tree_controller() -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
@@ -122,7 +123,7 @@ pub fn container_tree_controller() -> Html {
                         })
                         .collect::<Vec<AddAssetInfo>>();
 
-                    let assets: Vec<ResourceId> = invoke(
+                    invoke::<()>(
                         "add_assets",
                         AddAssetsArgs {
                             container: container_id.clone(),
@@ -131,45 +132,6 @@ pub fn container_tree_controller() -> Html {
                     )
                     .await
                     .expect("could not invoke `add_assets`");
-
-                    // update container
-                    let container: Container = invoke(
-                        "get_container",
-                        ResourceIdArgs {
-                            rid: container_id.clone(),
-                        },
-                    )
-                    .await
-                    .expect("could not invoke `get_container`");
-
-                    let assets = container
-                        .assets
-                        .into_values()
-                        .filter(|asset| assets.contains(&asset.rid))
-                        .collect::<Vec<Asset>>();
-
-                    // update container
-                    let num_assets = assets.len();
-                    graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                        container_id.clone(),
-                        assets,
-                    ));
-
-                    // notify user
-                    let num_assets_msg = if num_assets == 0 {
-                        "No assets added"
-                    } else if num_assets == 1 {
-                        "1 asset added"
-                    } else {
-                        // todo[3]: Display number of assets added.
-                        "Assets added"
-                    };
-
-                    app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                        Message::success(num_assets_msg),
-                        MESSAGE_TIMEOUT,
-                        app_state.clone(),
-                    ));
                 }
             });
         });

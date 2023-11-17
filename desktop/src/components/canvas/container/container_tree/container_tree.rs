@@ -91,12 +91,9 @@ pub struct ContainerTreeProps {
 }
 
 /// Container tree component.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(ContainerTree)]
 pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
-    let auth_state =
-        use_context::<AuthStateReducer>().expect("`AuthStateReducer` context not found");
-
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
@@ -133,21 +130,10 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
     let add_child = {
         let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
         let new_child_parent = new_child_parent.clone();
         let show_add_child_form = show_add_child_form.clone();
-        let uid = auth_state
-            .user
-            .as_ref()
-            .expect("`AuthState.user` should be set")
-            .rid
-            .clone();
-
         Callback::from(move |name: String| {
             let app_state = app_state.clone();
-            let graph_state = graph_state.clone();
-            let uid = uid.clone();
-
             show_add_child_form.set(false);
             let parent = (*new_child_parent)
                 .clone()
@@ -155,7 +141,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
             spawn_local(async move {
                 // create child
-                let Ok(mut child) = invoke::<Container>(
+                let Ok(_) = invoke::<()>(
                     "new_child",
                     NewChildArgs {
                         name,
@@ -169,21 +155,6 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     )));
                     return;
                 };
-
-                graph_state.dispatch(GraphStateAction::InsertChildContainer(
-                    parent,
-                    child.clone(),
-                ));
-
-                // set creator
-                child.properties.creator = Creator::User(Some(UserId::Id(uid)));
-
-                graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
-                    UpdatePropertiesArgs {
-                        rid: child.rid,
-                        properties: child.properties,
-                    },
-                ));
             });
         })
     };

@@ -1,10 +1,8 @@
 //! Implementation of `Container` related functionality.
 use super::super::Database;
-use crate::command::container::AddAssetInfo;
 use crate::command::container::{
-    AddAssetsArgs, BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationsArgs,
-    ContainerPropertiesUpdate, ScriptAssociationBulkUpdate, UpdatePropertiesArgs,
-    UpdateScriptAssociationsArgs,
+    BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationsArgs, ContainerPropertiesUpdate,
+    ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::ContainerCommand;
 use crate::Result;
@@ -20,7 +18,6 @@ use thot_core::types::ResourceId;
 use thot_local::common;
 use thot_local::error::ContainerError;
 use thot_local::error::Error as LocalError;
-use thot_local::project::asset::AssetBuilder;
 use thot_local::project::resources::Container;
 
 impl Database {
@@ -84,14 +81,8 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
-            ContainerCommand::AddAssets(AddAssetsArgs { container, assets }) => {
-                let asset_rids = self.add_assets(&container, assets);
-                serde_json::to_value(asset_rids)
-                    .expect("could not convert `Asset` `ResourceId`s to JSON")
-            }
-
-            // @todo: Handle errors.
-            ContainerCommand::GetPath(rid) => {
+            // TODO Handle errors.
+            ContainerCommand::Path(rid) => {
                 let path = self.get_container_path(&rid);
                 serde_json::to_value(path).expect("could not convert path to JsValue")
             }
@@ -261,49 +252,6 @@ impl Database {
         container.scripts = associations;
         container.save()?;
         Ok(())
-    }
-
-    fn add_assets(
-        &mut self,
-        container: &ResourceId,
-        assets: Vec<AddAssetInfo>,
-    ) -> Result<HashSet<ResourceId>> {
-        let Some(container) = self.store.get_container_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "`Script` does not exist",
-            ))
-            .into());
-        };
-
-        // TODO Ensure file is not an Asset with the Container already.
-        let mut asset_info = Vec::with_capacity(assets.len());
-        for AddAssetInfo {
-            path,
-            action,
-            bucket,
-        } in assets
-        {
-            // create asset
-            let mut asset = AssetBuilder::new(path.clone());
-            asset.set_container(container.base_path().into());
-            if let Some(bucket) = bucket {
-                asset.set_bucket(bucket);
-            }
-
-            let asset = asset.create(action)?;
-            asset_info.push((asset.rid.clone(), path));
-            container.insert_asset(asset);
-        }
-
-        container.save()?;
-        let cid = container.rid.clone();
-
-        for (aid, path) in asset_info.iter() {
-            self.store
-                .insert_asset_canonical(aid.clone(), path.clone(), cid.clone());
-        }
-
-        Ok(asset_info.into_iter().map(|(aid, _)| aid.clone()).collect())
     }
 
     fn get_container_path(&self, container: &ResourceId) -> Option<PathBuf> {

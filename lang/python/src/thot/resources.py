@@ -262,6 +262,11 @@ class Asset:
         if parent is None:
             return None
         
+        self._db._socket.send_json({"ContainerCommand": {"GetWithMetadata": parent["rid"]}})
+        parent = self._db._socket.recv_json()
+        if parent is None:
+            raise RuntimeError("Parent Container could not be retrieved")
+        
         return dict_to_container(parent, db = self._db)            
 
 def dict_to_container(d: Properties, db: OptDatabase = None) -> Container:

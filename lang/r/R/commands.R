@@ -30,17 +30,16 @@ send_cmd <- function(socket, cmd, result = TRUE) {
 #' @returns Whether a Thot database is available.
 database_available <- function() {
   server_up <- tryCatch({
-      socketConnection(port = THOT_PORT)
-      TRUE
-    },
-    error = function(cond) {
-      # port not open, no chance for server
-      FALSE
-    },
-    warning = function(cond) {
-      FALSE
-    }
-  )
+    socketConnection(port = THOT_PORT)
+    TRUE
+  },
+  error = function(cond) {
+    # port not open, no chance for server
+    FALSE
+  },
+  warning = function(cond) {
+    FALSE
+  })
 
   if (!server_up) {
     return(FALSE)

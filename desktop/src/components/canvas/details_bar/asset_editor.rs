@@ -1,6 +1,6 @@
 //! Asset editor.
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::asset::UpdatePropertiesArgs;
+use crate::commands::asset::UpdatePropertiesStringArgs;
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_asset;
@@ -36,9 +36,9 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
             spawn_local(async move {
                 let Ok(_) = invoke::<()>(
                     "update_asset_properties",
-                    &UpdatePropertiesArgs {
+                    &UpdatePropertiesStringArgs {
                         rid: asset.rid.clone(),
-                        properties: properties.clone(),
+                        properties: serde_json::to_string(&properties).unwrap(),
                     },
                 )
                 .await

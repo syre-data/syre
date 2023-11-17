@@ -144,10 +144,6 @@ container_from_json <- function(container) {
 #' container <- db |> find_container(type = "child")
 #' childs <- db |> children(container)
 children <- function(db, container) {
-  if (container@.rid == db@root) {
-    return(NULL)
-  }
-
   cmd <-
     sprintf('{"GraphCommand": {"Children": %s}}',
             to_json(container@.rid))

@@ -1,7 +1,6 @@
 //! Asset realated commands.
 use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use thot_core::db::StandardSearchFilter;
 use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
@@ -32,7 +31,10 @@ pub enum AssetCommand {
     Add { asset: Asset, container: ResourceId },
 
     /// Updates an [`Asset`].
-    UpdateProperties(ResourceId, AssetProperties),
+    UpdateProperties {
+        asset: ResourceId,
+        properties: AssetProperties,
+    },
 
     /// Retrieves [`Asset`]s based on a filter.
     ///

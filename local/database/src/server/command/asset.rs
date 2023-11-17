@@ -70,8 +70,8 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
-            AssetCommand::UpdateProperties(rid, properties) => {
-                let res = self.update_asset_properties(&rid, properties);
+            AssetCommand::UpdateProperties { asset, properties } => {
+                let res = self.update_asset_properties(&asset, properties);
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 

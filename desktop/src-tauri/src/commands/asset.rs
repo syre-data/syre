@@ -22,14 +22,17 @@ pub fn get_assets(
     serde_json::from_value(assets).expect("could not convert result of `GetAssets` to `Vec<Asset>`")
 }
 
-/// Update an `Asset`.
+/// Update an `Asset`'s properties.
 #[tauri::command]
-pub fn update_asset_properties(
-    db: State<DbClient>,
-    rid: ResourceId,
-    properties: AssetProperties,
-) -> Result {
-    db.send(AssetCommand::UpdateProperties(rid, properties).into())?;
+pub fn update_asset_properties(db: State<DbClient>, rid: ResourceId, properties: String) -> Result {
+    let properties: AssetProperties = serde_json::from_str(&properties).unwrap();
+    db.send(
+        AssetCommand::UpdateProperties {
+            asset: rid,
+            properties,
+        }
+        .into(),
+    )?;
     Ok(())
 }
 

@@ -54,22 +54,24 @@ pub fn sign_up() -> Html {
                 };
 
                 // create user account
-                let Ok(user) = invoke::<User>(
-                    "create_user",
-                    CreateUserArgs { email, name }
-                )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create user.")));
+                let Ok(user) = invoke::<User>("create_user", CreateUserArgs { email, name }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create user.",
+                    )));
                     return;
                 };
 
                 // authenticate user
                 let Ok(user) = invoke::<Option<User>>(
                     "authenticate_user",
-                    UserCredentials { email: user.email }
+                    UserCredentials { email: user.email },
                 )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not authenticate user.",
+                    )));
                     return;
                 };
 
@@ -101,7 +103,7 @@ pub fn sign_up() -> Html {
                 </div>
             </form>
             <div style={"text-align: center; margin-top: 2em;"}>
-                <Link<Route> to={Route::SignIn}>{ "Sign in" }</Link<Route>>
+                <Link<Route> to={Route::SignIn}>{ "< Back to sign in" }</Link<Route>>
             </div>
         </div>
         </>

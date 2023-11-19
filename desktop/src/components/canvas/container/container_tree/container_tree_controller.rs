@@ -303,7 +303,14 @@ pub fn container_tree_controller() -> Html {
         primary_analyze_btn_classes.push("with_options");
     }
 
+    let mut vtag = yew::virtual_dom::VTag::new("foreignObject");
+    let mut child = yew::virtual_dom::VTag::new("div");
+    let text = yew::virtual_dom::VText::new("hi");
+    child.add_child(yew::virtual_dom::VNode::VText(text));
+    vtag.add_child(yew::virtual_dom::VNode::VTag(child.into()));
+
     html! {
+
         <div ref={node_ref}
             class={classes!("container-tree-controller")}>
 
@@ -339,11 +346,11 @@ pub fn container_tree_controller() -> Html {
                 </div>
             </div>
 
-            <div class={classes!("container-tree")}>
+            <svg viewBox={"0 0 200 200"} xmlns={"http://www.w3.org/2000/svg"}>
                 <Suspense fallback={container_tree_fallback}>
                     <ContainerTree root={graph_state.graph.root().clone()} />
                 </Suspense>
-            </div>
+            </svg>
         </div>
     }
 }

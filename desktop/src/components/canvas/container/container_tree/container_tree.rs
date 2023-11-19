@@ -164,52 +164,53 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     // ----------
 
     // add connectors
-    {
-        let canvas_state = canvas_state.clone();
-        let root_ref = root_ref.clone();
-        let children_ref = children_ref.clone();
-        let connectors_ref = connectors_ref.clone();
+    // {
+    //     let canvas_state = canvas_state.clone();
+    //     let root_ref = root_ref.clone();
+    //     let children_ref = children_ref.clone();
+    //     let connectors_ref = connectors_ref.clone();
 
-        use_effect(move || {
-            create_connectors(
-                root_ref.clone(),
-                children_ref.clone(),
-                connectors_ref.clone(),
-                canvas_state.clone(),
-            );
-        });
-    }
-    {
-        let canvas_state = canvas_state.clone();
-        let root_ref = root_ref.clone();
-        let children_ref = children_ref.clone();
-        let connectors_ref = connectors_ref.clone();
+    //     use_effect(move || {
+    //         create_connectors(
+    //             root_ref.clone(),
+    //             children_ref.clone(),
+    //             connectors_ref.clone(),
+    //             canvas_state.clone(),
+    //         );
+    //     });
+    // }
+    // {
+    //     let canvas_state = canvas_state.clone();
+    //     let root_ref = root_ref.clone();
+    //     let children_ref = children_ref.clone();
+    //     let connectors_ref = connectors_ref.clone();
 
-        use_effect_with((), move |_| {
-            let window = web_sys::window().expect("could not get window");
-            let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
-                create_connectors(
-                    root_ref.clone(),
-                    children_ref.clone(),
-                    connectors_ref.clone(),
-                    canvas_state.clone(),
-                )
-            });
+    //     use_effect_with((), move |_| {
+    //         let window = web_sys::window().expect("could not get window");
+    //         let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
+    //             create_connectors(
+    //                 root_ref.clone(),
+    //                 children_ref.clone(),
+    //                 connectors_ref.clone(),
+    //                 canvas_state.clone(),
+    //             )
+    //         });
 
-            window
-                .add_event_listener_with_callback(
-                    "resize",
-                    create_connectors_cb.as_ref().unchecked_ref(),
-                )
-                .expect("could not add `resize` listener to `window`");
+    //         window
+    //             .add_event_listener_with_callback(
+    //                 "resize",
+    //                 create_connectors_cb.as_ref().unchecked_ref(),
+    //             )
+    //             .expect("could not add `resize` listener to `window`");
 
-            create_connectors_cb.forget();
-        });
-    }
+    //         create_connectors_cb.forget();
+    //     });
+    // }
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };
     Ok(html! {
-        <div class={classes!("container-tree")}>
+        <>
+        <svg x={"0"} y={"100"} class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>
                 <svg ref={connectors_ref}
                     class="container-tree-node-connectors">
@@ -234,7 +235,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     rid={props.root.clone()}
                     {onadd_child} />
 
-                <div ref={children_ref} class={classes!("children")}>
+                <g ref={children_ref} class={classes!("children")}>
                     { graph_state.graph
                         .children(&props.root)
                         .expect("`Container` children not found")
@@ -256,15 +257,16 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                         })
                         .collect::<Html>()
                     }
-                </div>
+                </g>
             </Suspense>
+        </svg>
 
-            if *show_add_child_form {
-                <ShadowBox title="Add child" onclose={close_add_child}>
-                    <NewChildName onsubmit={add_child} />
-                </ShadowBox>
-            }
-        </div>
+        if *show_add_child_form {
+            <ShadowBox title="Add child" onclose={close_add_child}>
+                <NewChildName onsubmit={add_child} />
+            </ShadowBox>
+        }
+        </>
     })
 }
 

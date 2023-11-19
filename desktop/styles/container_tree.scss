@@ -6,29 +6,18 @@ $control-button-size: 25px;
   position: relative;
   text-align: center;
   
-  .container-node {
+  .thot-ui-container-node {
     position: relative; // positioning for add child button
     display: inline-block;
 
     text-align: center;
-    background-color: t.$background-accent-color;
-
     min-width: t.$card-min-width;
 
     padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
-    border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
     margin: t.$padding-m t.$padding-m $control-button-size t.$padding-m;
 
     transition: border-color t.$transition-fast;
-
-    &.selected {
-      border-color: t.$primary-color;
-    }
-
-    &.dragover-active {
-      border-color: t.$primary-color;
-    }
 
     &:hover .container-menu-control,
     &:hover .add-child-container-control {
@@ -51,6 +40,22 @@ $control-button-size: 25px;
         box-shadow: none;
       }
     }     
+
+    .container-node-body {
+      fill: t.$background-accent-color;
+      stroke: t.$primary-color;
+      stroke-width: t.$border-width-m;
+      stroke-opacity: 0;
+      rx: 10%;
+    }
+
+    &.selected .container-node-body {
+      stroke-opacity: 1;
+    }
+
+    &.dragover-active .container-node-body {
+      stroke-opacity: 1;
+    }
 
     .container-name {
       font-family: t.$title-font-family;

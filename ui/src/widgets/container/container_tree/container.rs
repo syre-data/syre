@@ -256,13 +256,15 @@ pub fn container(props: &ContainerProps) -> Html {
         })
     });
 
-    let mut class = classes!("container-node", props.class.clone());
+    let mut class = classes!("thot-ui-container-node", props.class.clone());
     if *dragover_counter > 0 {
         class.push("dragover-active");
     }
 
     html! {
-        <div ref={props.r#ref.clone()}
+        <svg ref={props.r#ref.clone()}
+            width={"100"}
+            height={"100"}
             {class}
             onmousedown={props.onmousedown.clone()}
             onclick={props.onclick.clone()}
@@ -273,72 +275,80 @@ pub fn container(props: &ContainerProps) -> Html {
             {ondrop}
             data-rid={props.rid.clone()} >
 
-            if let Some(on_menu_event) = on_menu_event {
-                <div class={classes!("container-menu-control", "dropdown-group")}>
-                    <span class={classes!("container-menu-toggle")}>
-                        { "\u{22ee}" }
-                    </span>
+            <rect width={"100%"} height={"100%"} class={"container-node-body"}></rect>
 
-                    <ContainerMenu
-                        class={classes!("dropdown-menu")}
-                        r#ref={menu_ref}
-                        onclick={on_menu_event}
-                        is_root={props.is_root} />
-                </div>
+            if let Some(on_menu_event) = on_menu_event {
+                <g class={classes!("container-menu-control", "dropdown-group")}>
+                    <text class={classes!("container-menu-toggle")}>
+                        { "\u{22ee}" }
+                    </text>
+
+                    // <ContainerMenu
+                    //     class={classes!("dropdown-menu")}
+                    //     r#ref={menu_ref}
+                    //     onclick={on_menu_event}
+                    //     is_root={props.is_root} />
+                </g>
             }
 
-            <div class={classes!("container-name")}>
+            <text
+                x={"50%"}
+                y={"10%"}
+                text-anchor={"middle"}
+                alignment-baseline={"hanging"}
+                class={classes!("container-name")}>
+
                 { &props.properties.name }
-            </div>
+            </text>
 
-            <div class={classes!("container-preview")}>
-                { match props.preview {
-                    ContainerPreview::None => { html! { <></> } },
+            // <div class={classes!("container-preview")}>
+            //     { match props.preview {
+            //         ContainerPreview::None => { html! { <></> } },
 
-                    ContainerPreview::Type => { html! {
-                        if let Some(kind) = props.properties.kind.as_ref() {
-                            { &kind }
-                        } else {
-                            { "(no type)" }
-                        }
-                    }},
+            //         ContainerPreview::Type => { html! {
+            //             if let Some(kind) = props.properties.kind.as_ref() {
+            //                 { &kind }
+            //             } else {
+            //                 { "(no type)" }
+            //             }
+            //         }},
 
-                    ContainerPreview::Description => { html! {
-                        if let Some(description) = props.properties.description.as_ref() {
-                            { &description }
-                        } else {
-                            { "(no description)" }
-                        }
-                    }},
+            //         ContainerPreview::Description => { html! {
+            //             if let Some(description) = props.properties.description.as_ref() {
+            //                 { &description }
+            //             } else {
+            //                 { "(no description)" }
+            //             }
+            //         }},
 
-                    ContainerPreview::Tags => { html! {
-                        <Tags value={props.properties.tags.clone()} />
-                    }},
+            //         ContainerPreview::Tags => { html! {
+            //             <Tags value={props.properties.tags.clone()} />
+            //         }},
 
-                    ContainerPreview::Metadata => { html! {
-                        <MetadataPreview value={props.properties.metadata.clone()} />
-                    }},
+            //         ContainerPreview::Metadata => { html! {
+            //             <MetadataPreview value={props.properties.metadata.clone()} />
+            //         }},
 
-                    ContainerPreview::Assets => { html! {
-                        <AssetsPreview
-                            {assets}
-                            active={props.active_assets.clone()}
-                            onclick_asset={&props.onclick_asset}
-                            ondblclick_asset={&props.ondblclick_asset}
-                            onclick_asset_remove={&props.onclick_asset_remove}
-                            />
-                    }},
+            //         ContainerPreview::Assets => { html! {
+            //             <AssetsPreview
+            //                 {assets}
+            //                 active={props.active_assets.clone()}
+            //                 onclick_asset={&props.onclick_asset}
+            //                 ondblclick_asset={&props.ondblclick_asset}
+            //                 onclick_asset_remove={&props.onclick_asset_remove}
+            //                 />
+            //         }},
 
-                    ContainerPreview::Scripts => { html! {
-                        <ScriptAssociationsPreview
-                            scripts={props.scripts.clone()}
-                            names={props.script_names.clone()} />
-                    }},
-                }}
-            </div>
-            <div class={classes!("add-child-container-control")}>
-                <button onclick={onadd_child}>{ "+" }</button>
-            </div>
-       </div>
+            //         ContainerPreview::Scripts => { html! {
+            //             <ScriptAssociationsPreview
+            //                 scripts={props.scripts.clone()}
+            //                 names={props.script_names.clone()} />
+            //         }},
+            //     }}
+            // </div>
+            // <div class={classes!("add-child-container-control")}>
+            //     <button onclick={onadd_child}>{ "+" }</button>
+            // </div>
+       </svg>
     }
 }

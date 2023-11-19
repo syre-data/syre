@@ -168,35 +168,76 @@ impl Database {
         None
     }
 
+    /// Handles a moved file
+    /// A moved file has the same file name, but its base directory has changed.
     fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Option<thot::Event> {
-        if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
-            return Some(
-                thot::Asset::Moved {
-                    asset,
-                    path: to.clone(),
-                }
-                .into(),
-            );
-        };
-
-        let project = self.project_by_resource_path(&from).unwrap();
-        let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-        let script_path = from
-            .strip_prefix(project.analysis_root_path().unwrap())
-            .unwrap();
-
-        let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
-        if let Some(script) = scripts.by_path(&script_path) {
-            return Some(
-                thot::Script::Moved {
-                    script: script.rid.clone(),
-                    path: to.clone(),
-                }
-                .into(),
-            );
+        enum Location {
+            Data,
+            Analysis,
+            None,
         }
 
-        None
+        fn get_path_resource_type(project: &LocalProject, path: &PathBuf) -> Location {
+            if path.starts_with(project.data_root_path().unwrap()) {
+                return Location::Data;
+            } else if path.starts_with(project.analysis_root_path().unwrap()) {
+                return Location::Analysis;
+            }
+
+            Location::None
+        }
+
+        let project = self.project_by_resource_path(&from).unwrap();
+        let from_type = get_path_resource_type(project, from);
+        let to_type = get_path_resource_type(project, to);
+
+        match (from_type, to_type) {
+            (Location::Data, Location::Data) => {
+                if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
+                    return Some(
+                        thot::Asset::Moved {
+                            asset,
+                            path: to.clone(),
+                        }
+                        .into(),
+                    );
+                }
+
+                return Some(thot::File::Created(to.clone()).into());
+            }
+
+            (Location::Analysis, Location::Analysis) => {
+                let Some(ext) = to.extension() else {
+                    return None;
+                };
+
+                let ext = ext.to_ascii_lowercase();
+                let ext = ext.to_str().unwrap();
+                if !ScriptLang::supported_extensions().contains(&ext) {
+                    return None;
+                }
+
+                let from_script_path = from
+                    .strip_prefix(project.analysis_root_path().unwrap())
+                    .unwrap();
+
+                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
+                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                if let Some(script) = scripts.by_path(&from_script_path) {
+                    return Some(
+                        thot::Script::Moved {
+                            script: script.rid.clone(),
+                            path: to.clone(),
+                        }
+                        .into(),
+                    );
+                }
+
+                Some(thot::Script::Created(to.clone()).into())
+            }
+
+            _ => todo!(),
+        }
     }
 
     fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Option<thot::Event> {

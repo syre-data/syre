@@ -36,12 +36,14 @@ pub mod file_system {
         Removed(PathBuf),
 
         /// A file's name was changed.
+        /// Its base directory is unchanged.
         Renamed {
             from: PathBuf,
             to: PathBuf,
         },
 
         /// A file was moved to a different folder.
+        /// Its file name is unchanged.
         Moved {
             from: PathBuf,
             to: PathBuf,

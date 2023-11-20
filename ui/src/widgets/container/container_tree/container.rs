@@ -278,17 +278,17 @@ pub fn container(props: &ContainerProps) -> Html {
             <rect width={"100%"} height={"100%"} class={"container-node-body"}></rect>
 
             if let Some(on_menu_event) = on_menu_event {
-                <g class={classes!("container-menu-control", "dropdown-group")}>
-                    <text class={classes!("container-menu-toggle")}>
-                        { "\u{22ee}" }
-                    </text>
+                // <g class={classes!("container-menu-control", "dropdown-group")}>
+                //     <text class={classes!("container-menu-toggle")}>
+                //         { "\u{22ee}" }
+                //     </text>
 
                     // <ContainerMenu
                     //     class={classes!("dropdown-menu")}
                     //     r#ref={menu_ref}
                     //     onclick={on_menu_event}
                     //     is_root={props.is_root} />
-                </g>
+                // </g>
             }
 
             <text

@@ -46,16 +46,21 @@ features = [
     "DragEvent",
     "Event",
     "FocusEvent",
+    "HtmlCollection",
     "HtmlElement",
     "HtmlInputElement",
     "InputEvent",
     "SubmitEvent",
+    "SvgAnimatedRect",
     "SvgCircleElement",
     "SvggElement",
     "SvgForeignObjectElement",
     "SvgPolylineElement",
+    "SvgRect",
+    "SvgRectElement",
     "SvgsvgElement",
     "SvgUseElement",
+    "WheelEvent",
 ]
 
 [dependencies.yew_icons]

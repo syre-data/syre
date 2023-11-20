@@ -2,7 +2,6 @@
 
 .project-canvas {
   height: 100%;
-  margin-left: t.$margin-3xl;
   display: flex;
   justify-content: space-between;
 
@@ -50,7 +49,7 @@
 
   .project-canvas-content {
     flex: 1; /* This allows the content to fill the remaining space */
-    overflow: auto; /* This adds a scrollbar when the content overflows vertically */
+    // overflow: auto; /* This adds a scrollbar when the content overflows vertically */
     width: t.$canvas-width;
     height: t.$canvas-height;
     min-height: 100%;
@@ -58,6 +57,16 @@
 
     .project {
       flex-grow: 1;
+
+      .header {
+        padding-left: t.$margin-3xl;
+      }
+
+      .content {
+        .container-tree-controls {
+          padding-left: t.$margin-3xl;
+        }
+      }
     }
   }
 

@@ -7,6 +7,7 @@ use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
 use std::str::FromStr;
+use std::thread::current;
 use thot_core::project::Container;
 use thot_core::types::{Creator, ResourceId, UserId};
 use thot_ui::types::Message;
@@ -78,6 +79,10 @@ fn new_child_name(props: &NewChildNameProps) -> Html {
 // *** Container Tree ***
 // **********************
 
+static NODE_WIDTH: u8 = 100;
+static NODE_HEIGHT: u8 = 100;
+static CHILDREN_X_PADDING: u8 = 30;
+static CHILDREN_Y_PADDING: u8 = 30;
 static CONNECTOR_CLASS: &str = "container-tree-node-connector";
 static VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
 static VISIBILITY_CONTROL_SIZE: u8 = 20;
@@ -162,57 +167,34 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     // ----------
     // --- ui ---
     // ----------
+    {
+        let canvas_state = canvas_state.clone();
+        let root_ref = root_ref.clone();
+        let children_ref = children_ref.clone();
+        let connectors_ref = connectors_ref.clone();
 
-    // add connectors
-    // {
-    //     let canvas_state = canvas_state.clone();
-    //     let root_ref = root_ref.clone();
-    //     let children_ref = children_ref.clone();
-    //     let connectors_ref = connectors_ref.clone();
+        use_effect(move || {
+            arrange_nodes(root_ref.clone(), children_ref.clone());
+            create_connectors(
+                root_ref.clone(),
+                children_ref.clone(),
+                connectors_ref.clone(),
+                canvas_state.clone(),
+            );
+        });
+    }
 
-    //     use_effect(move || {
-    //         create_connectors(
-    //             root_ref.clone(),
-    //             children_ref.clone(),
-    //             connectors_ref.clone(),
-    //             canvas_state.clone(),
-    //         );
-    //     });
-    // }
-    // {
-    //     let canvas_state = canvas_state.clone();
-    //     let root_ref = root_ref.clone();
-    //     let children_ref = children_ref.clone();
-    //     let connectors_ref = connectors_ref.clone();
-
-    //     use_effect_with((), move |_| {
-    //         let window = web_sys::window().expect("could not get window");
-    //         let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
-    //             create_connectors(
-    //                 root_ref.clone(),
-    //                 children_ref.clone(),
-    //                 connectors_ref.clone(),
-    //                 canvas_state.clone(),
-    //             )
-    //         });
-
-    //         window
-    //             .add_event_listener_with_callback(
-    //                 "resize",
-    //                 create_connectors_cb.as_ref().unchecked_ref(),
-    //             )
-    //             .expect("could not add `resize` listener to `window`");
-
-    //         create_connectors_cb.forget();
-    //     });
-    // }
+    // NOTE Used to force tree positioning on original load.
+    // Otherwise it requires user interaction.
+    let force_update = use_force_update();
+    use_effect_with((), move |_| force_update.force_update());
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };
     Ok(html! {
         <>
-        <svg x={"0"} y={"100"} class={classes!("container-tree")}>
+        <svg class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>
-                <svg ref={connectors_ref}
+                <g ref={connectors_ref}
                     class="container-tree-node-connectors">
 
                     <defs>
@@ -228,36 +210,41 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                                 height={format!("{EYE_ICON_SIZE}")} />
                         </g>
                     </defs>
-                </svg>
+                </g>
 
                 <ContainerUi
                     r#ref={root_ref}
                     rid={props.root.clone()}
                     {onadd_child} />
 
-                <g ref={children_ref} class={classes!("children")}>
-                    { graph_state.graph
-                        .children(&props.root)
-                        .expect("`Container` children not found")
-                        .iter()
-                        .map(|rid| html! {
-                            if canvas_state.is_visible(rid) {
-                                <ContainerTree root={rid.clone()} />
-                            } else {
-                                <div class={classes!("child-node-marker")}
-                                    data-rid={rid.clone()}>
+                if graph_state.graph.children(&props.root).unwrap().len() > 0 {
+                    <svg ref={children_ref}
+                        y={format!("{}", NODE_HEIGHT + CHILDREN_Y_PADDING)}
+                        class={classes!("children")}>
 
-                                    { &graph_state.graph.get(&rid)
-                                        .expect("child `Container` not found")
-                                        .properties
-                                        .name
-                                    }
-                                </div>
-                            }
-                        })
-                        .collect::<Html>()
-                    }
-                </g>
+                        { graph_state.graph
+                            .children(&props.root)
+                            .unwrap()
+                            .iter()
+                            .map(|rid| html! {
+                                if canvas_state.is_visible(rid) {
+                                    <ContainerTree root={rid.clone()} />
+                                } else {
+                                    <div class={classes!("child-node-marker")}
+                                        data-rid={rid.clone()}>
+
+                                        { &graph_state.graph.get(&rid)
+                                            .unwrap()
+                                            .properties
+                                            .name
+                                        }
+                                    </div>
+                                }
+                            })
+                            .collect::<Html>()
+                        }
+                    </svg>
+                }
             </Suspense>
         </svg>
 
@@ -274,6 +261,43 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 // *** helpers ***
 // ***************
 
+fn arrange_nodes(root: NodeRef, children: NodeRef) {
+    let Some(children_elm) = children.cast::<web_sys::SvgsvgElement>() else {
+        return;
+    };
+
+    let n_children = children_elm.children().length();
+    let mut current_x_offset = 0.0;
+    let mut children_node_body_offsets = Vec::with_capacity(n_children as usize);
+    for index in 0..n_children {
+        let child = children_elm.children().item(index).unwrap();
+        let child = child.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        child
+            .set_attribute("x", &current_x_offset.to_string())
+            .unwrap();
+
+        let child_node_body = child
+            .query_selector(":scope > .thot-ui-container-node")
+            .unwrap()
+            .unwrap();
+
+        let child_node_body = child_node_body.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_node_body_x = child_node_body.get_attribute("x").unwrap_or("0".into());
+        let child_node_body_x: f32 = child_node_body_x.parse().unwrap();
+        children_node_body_offsets.push(current_x_offset + child_node_body_x);
+
+        let child_bbox = child.get_b_box().unwrap();
+        current_x_offset += child_bbox.width() + CHILDREN_X_PADDING as f32;
+    }
+
+    let root_elm = root.cast::<web_sys::SvgsvgElement>().unwrap();
+    let root_offset = children_node_body_offsets.iter().sum::<f32>() / (n_children as f32);
+    let root_offset = root_offset.max(0.0);
+    root_elm
+        .set_attribute("x", &root_offset.to_string())
+        .unwrap();
+}
+
 /// Creates connectors between `Container` nodes in a tree.
 fn create_connectors(
     root: NodeRef,
@@ -286,30 +310,21 @@ fn create_connectors(
         return;
     }
 
-    let root_elm = root
-        .cast::<web_sys::HtmlElement>()
-        .expect("could not cast root node to element");
-
-    let children_elm = children
-        .cast::<web_sys::HtmlElement>()
-        .expect("could cast children node to element");
-
-    let connectors_elm = connectors
-        .cast::<web_sys::HtmlElement>()
-        .expect("could not cast connectors node to element");
-
+    let root_elm = root.cast::<web_sys::SvgsvgElement>().unwrap();
+    let children_elm = children.cast::<web_sys::SvgsvgElement>().unwrap();
+    let connectors_elm = connectors.cast::<web_sys::SvggElement>().unwrap();
     let children = children_elm
         .query_selector_all(":scope > .container-tree")
-        .expect("could not query children");
+        .unwrap();
 
     let children_markers = children_elm
         .query_selector_all(":scope > .child-node-marker")
-        .expect("could not query children markers");
+        .unwrap();
 
     // clear connectors
     let current_elements = connectors_elm
         .query_selector_all(":scope > :not(defs)")
-        .expect("could not query current elements");
+        .unwrap();
 
     for index in 0..current_elements.length() {
         let Some(child_elm) = current_elements.get(index) else {
@@ -320,8 +335,11 @@ fn create_connectors(
     }
 
     // root position
-    let root_bottom = root_elm.offset_top() + root_elm.client_height();
-    let root_center = root_elm.offset_left() + root_elm.client_width() / 2;
+    let root_elm_bbox = root_elm.get_b_box().unwrap();
+    let root_bottom = root_elm_bbox.height();
+    let root_center = root_elm.get_attribute("x").unwrap_or("0".into());
+    let root_center = root_center.parse::<f32>().unwrap();
+    let root_center = root_center + root_elm_bbox.width() / 2.0;
 
     // add connectors to children
     for index in 0..children.length() {
@@ -329,25 +347,26 @@ fn create_connectors(
             continue;
         };
 
-        let child_elm = child_elm
-            .dyn_ref::<web_sys::HtmlElement>()
-            .expect("could not cast child node to element");
-
+        let child_elm = child_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
         let child_node_elm = child_elm
-            .query_selector(":scope > .container-node")
-            .expect("could not get child node")
-            .expect("child node not found");
+            .query_selector(":scope > .thot-ui-container-node")
+            .unwrap()
+            .unwrap();
 
-        let child_node_elm = child_node_elm
-            .dyn_ref::<web_sys::HtmlElement>()
-            .expect("could not cast child node to element");
+        let child_node_elm = child_node_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_node_elm_bbox = child_node_elm.get_b_box().unwrap();
 
-        let child_top = child_elm.offset_top() + child_node_elm.offset_top();
-        let child_center = child_elm.offset_left()
-            + child_node_elm.offset_left()
-            + child_node_elm.client_width() / 2;
+        let children_top = children_elm.get_attribute("y").unwrap_or("0".into());
+        let children_top = children_top.parse::<f32>().unwrap();
+        let child_top = children_top + child_node_elm_bbox.y();
 
-        let midgap = (root_bottom + child_top) / 2;
+        let child_center = child_elm.get_attribute("x").unwrap_or("0".into());
+        let child_center = child_center.parse::<f32>().unwrap();
+        let child_node_center = child_node_elm.get_attribute("x").unwrap_or("0".into());
+        let child_node_center = child_node_center.parse::<f32>().unwrap();
+        let child_center = child_center + child_node_center + child_node_elm_bbox.width() / 2.0;
+
+        let midgap = (root_bottom + child_top) / 2.0;
         let points_list = format!("{root_center},{root_bottom} {root_center},{midgap} {child_center},{midgap} {child_center},{child_top}");
 
         let connector = create_connector_element(&points_list);
@@ -356,17 +375,17 @@ fn create_connectors(
             .expect("could not add connector to document");
 
         // visibility toggle
-        let child_id = child_node_elm
-            .dataset()
-            .get("rid")
-            .expect("could not get `ResourceId` of child element");
+        // let child_id = child_node_elm
+        //     .dataset()
+        //     .get("rid")
+        //     .expect("could not get `ResourceId` of child element");
 
-        let visibility =
-            create_visibility_control_element(child_center, midgap, child_id, canvas_state.clone());
+        // let visibility =
+        //     create_visibility_control_element(child_center, midgap, child_id, canvas_state.clone());
 
-        connectors_elm
-            .append_child(&visibility)
-            .expect("could not add visibility control to document");
+        // connectors_elm
+        //     .append_child(&visibility)
+        //     .expect("could not add visibility control to document");
     }
 
     // add connectors to children markers
@@ -375,14 +394,11 @@ fn create_connectors(
             continue;
         };
 
-        let child_elm = child_elm
-            .dyn_ref::<web_sys::HtmlElement>()
-            .expect("could not cast child node to element");
-
-        let child_top = child_elm.offset_top();
-        let child_center = child_elm.offset_left() + child_elm.client_width() / 2;
-
-        let midgap = (root_bottom + child_top) / 2;
+        let child_elm = child_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_elm_bbox = child_elm.get_b_box().unwrap();
+        let child_top = child_elm_bbox.y();
+        let child_center = child_elm_bbox.x() + child_elm_bbox.width() / 2.0;
+        let midgap = (root_bottom + child_top) / 2.0;
         let points_list = format!("{root_center},{root_bottom} {root_center},{midgap} {child_center},{midgap} {child_center},{child_top}");
 
         let connector = create_connector_element(&points_list);
@@ -429,8 +445,8 @@ fn create_connector_element(points: &str) -> web_sys::SvgPolylineElement {
 }
 
 fn create_visibility_control_element(
-    cx: i32,
-    cy: i32,
+    cx: f32,
+    cy: f32,
     rid: String,
     canvas_state: CanvasStateReducer,
 ) -> web_sys::SvgsvgElement {
@@ -490,14 +506,6 @@ fn create_visibility_control_element(
         )
         .expect("could not set `y` on visibility icon");
 
-    // eye_icon
-    //     .set_attribute("width", "100%")
-    //     .expect("could not set `width` on visibility icon");
-
-    // eye_icon
-    //     .set_attribute("height", "100%")
-    //     .expect("could not set `height` on visibility icon");
-
     let visibility = document
         .create_element_ns(Some("http://www.w3.org/2000/svg"), "svg")
         .expect("could not create `svg`");
@@ -528,14 +536,14 @@ fn create_visibility_control_element(
     visibility
         .set_attribute(
             "x",
-            &format!("{}", cx - (VISIBILITY_CONTROL_SIZE / 2) as i32),
+            &format!("{}", cx - (VISIBILITY_CONTROL_SIZE as f32 / 2.0)),
         )
         .expect("could not set `x` on visibility control");
 
     visibility
         .set_attribute(
             "y",
-            &format!("{}", cy - (VISIBILITY_CONTROL_SIZE / 2) as i32),
+            &format!("{}", cy - (VISIBILITY_CONTROL_SIZE as f32 / 2.0)),
         )
         .expect("could not set `y` on visibility control");
 

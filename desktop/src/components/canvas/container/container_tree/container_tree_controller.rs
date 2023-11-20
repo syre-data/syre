@@ -53,6 +53,7 @@ pub fn container_tree_controller() -> Html {
     let analysis_state = use_state(|| AnalysisState::Standby);
     let node_ref = use_node_ref(); // @todo: Remove in favor of `graph_state.dragover_container`
                                    // See https://github.com/yewstack/yew/issues/3125.
+    let canvas_ref = use_node_ref();
 
     let show_analyze_options = use_state(|| false);
 
@@ -161,6 +162,41 @@ pub fn container_tree_controller() -> Html {
             show_analyze_options.set(true);
         })
     }
+
+    let onwheel = {
+        let canvas_ref = canvas_ref.clone();
+        Callback::from(move |event: WheelEvent| {
+            event.prevent_default();
+            let canvas_elm = canvas_ref.cast::<web_sys::SvgsvgElement>().unwrap();
+            let viewbox = canvas_elm.view_box().base_val().unwrap();
+
+            if event.ctrl_key() {
+                let zoom = 1.0 - (event.delta_y() as f32) / 1000.0;
+                let width = viewbox.width() * zoom;
+                let width = width.max(500.0);
+                let height = viewbox.height() * zoom;
+                let height = height.max(500.0);
+                canvas_elm
+                    .set_attribute(
+                        "viewBox",
+                        &format!("{} {} {} {}", viewbox.x(), viewbox.y(), width, height,),
+                    )
+                    .unwrap();
+            } else {
+                let x = viewbox.x() - (event.delta_x() as f32);
+                let x = x.max(0.0);
+                let y = viewbox.y() - (event.delta_y() as f32);
+                let y = y.max(0.0);
+
+                canvas_elm
+                    .set_attribute(
+                        "viewBox",
+                        &format!("{} {} {} {}", x, y, viewbox.width(), viewbox.height()),
+                    )
+                    .unwrap();
+            }
+        })
+    };
 
     let set_preview = {
         let canvas_state = canvas_state.clone();
@@ -310,7 +346,6 @@ pub fn container_tree_controller() -> Html {
     vtag.add_child(yew::virtual_dom::VNode::VTag(child.into()));
 
     html! {
-
         <div ref={node_ref}
             class={classes!("container-tree-controller")}>
 
@@ -346,11 +381,16 @@ pub fn container_tree_controller() -> Html {
                 </div>
             </div>
 
-            <svg viewBox={"0 0 200 200"} xmlns={"http://www.w3.org/2000/svg"}>
-                <Suspense fallback={container_tree_fallback}>
+            <Suspense fallback={container_tree_fallback}>
+                <svg ref={canvas_ref}
+                    viewBox={"0 0 1000 1000"}
+                    xmlns={"http://www.w3.org/2000/svg"}
+                    class={"container-tree-canvas"}
+                    {onwheel} >
+
                     <ContainerTree root={graph_state.graph.root().clone()} />
-                </Suspense>
-            </svg>
+                </svg>
+            </Suspense>
         </div>
     }
 }

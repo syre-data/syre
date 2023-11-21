@@ -15,6 +15,7 @@ use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::SvggElement;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -192,7 +193,7 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     let container_fallback = html! { <Loading text={"Loading container"} /> };
     Ok(html! {
         <>
-        <svg class={classes!("container-tree")}>
+        <g class={classes!("container-tree")}>
             <Suspense fallback={container_fallback}>
                 <g ref={connectors_ref}
                     class="container-tree-node-connectors">
@@ -218,8 +219,8 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                     {onadd_child} />
 
                 if graph_state.graph.children(&props.root).unwrap().len() > 0 {
-                    <svg ref={children_ref}
-                        y={format!("{}", NODE_HEIGHT + CHILDREN_Y_PADDING)}
+                    <g ref={children_ref}
+                        transform={format!("translate(0 {})", NODE_HEIGHT + CHILDREN_Y_PADDING)}
                         class={classes!("children")}>
 
                         { graph_state.graph
@@ -243,10 +244,10 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                             })
                             .collect::<Html>()
                         }
-                    </svg>
+                    </g>
                 }
             </Suspense>
-        </svg>
+        </g>
 
         if *show_add_child_form {
             <ShadowBox title="Add child" onclose={close_add_child}>
@@ -261,8 +262,18 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 // *** helpers ***
 // ***************
 
+fn get_translate(elm: &SvggElement) -> (f32, f32) {
+    match elm.transform().base_val().get_item(0) {
+        Ok(transform) => {
+            let matrix = transform.matrix();
+            (matrix.e(), matrix.f())
+        }
+        Err(_) => (0.0, 0.0),
+    }
+}
+
 fn arrange_nodes(root: NodeRef, children: NodeRef) {
-    let Some(children_elm) = children.cast::<web_sys::SvgsvgElement>() else {
+    let Some(children_elm) = children.cast::<web_sys::SvggElement>() else {
         return;
     };
 
@@ -271,9 +282,9 @@ fn arrange_nodes(root: NodeRef, children: NodeRef) {
     let mut children_node_body_offsets = Vec::with_capacity(n_children as usize);
     for index in 0..n_children {
         let child = children_elm.children().item(index).unwrap();
-        let child = child.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child = child.dyn_ref::<web_sys::SvggElement>().unwrap();
         child
-            .set_attribute("x", &current_x_offset.to_string())
+            .set_attribute("transform", &format!("translate({})", current_x_offset))
             .unwrap();
 
         let child_node_body = child
@@ -281,20 +292,19 @@ fn arrange_nodes(root: NodeRef, children: NodeRef) {
             .unwrap()
             .unwrap();
 
-        let child_node_body = child_node_body.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
-        let child_node_body_x = child_node_body.get_attribute("x").unwrap_or("0".into());
-        let child_node_body_x: f32 = child_node_body_x.parse().unwrap();
+        let child_node_body = child_node_body.dyn_ref::<web_sys::SvggElement>().unwrap();
+        let (child_node_body_x, _) = get_translate(&child_node_body);
         children_node_body_offsets.push(current_x_offset + child_node_body_x);
 
         let child_bbox = child.get_b_box().unwrap();
         current_x_offset += child_bbox.width() + CHILDREN_X_PADDING as f32;
     }
 
-    let root_elm = root.cast::<web_sys::SvgsvgElement>().unwrap();
+    let root_elm = root.cast::<web_sys::SvggElement>().unwrap();
     let root_offset = children_node_body_offsets.iter().sum::<f32>() / (n_children as f32);
     let root_offset = root_offset.max(0.0);
     root_elm
-        .set_attribute("x", &root_offset.to_string())
+        .set_attribute("transform", &format!("translate({})", &root_offset))
         .unwrap();
 }
 
@@ -310,8 +320,8 @@ fn create_connectors(
         return;
     }
 
-    let root_elm = root.cast::<web_sys::SvgsvgElement>().unwrap();
-    let children_elm = children.cast::<web_sys::SvgsvgElement>().unwrap();
+    let root_elm = root.cast::<web_sys::SvggElement>().unwrap();
+    let children_elm = children.cast::<web_sys::SvggElement>().unwrap();
     let connectors_elm = connectors.cast::<web_sys::SvggElement>().unwrap();
     let children = children_elm
         .query_selector_all(":scope > .container-tree")
@@ -337,8 +347,7 @@ fn create_connectors(
     // root position
     let root_elm_bbox = root_elm.get_b_box().unwrap();
     let root_bottom = root_elm_bbox.height();
-    let root_center = root_elm.get_attribute("x").unwrap_or("0".into());
-    let root_center = root_center.parse::<f32>().unwrap();
+    let (root_center, _) = get_translate(&root_elm);
     let root_center = root_center + root_elm_bbox.width() / 2.0;
 
     // add connectors to children
@@ -347,23 +356,20 @@ fn create_connectors(
             continue;
         };
 
-        let child_elm = child_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_elm = child_elm.dyn_ref::<web_sys::SvggElement>().unwrap();
         let child_node_elm = child_elm
             .query_selector(":scope > .thot-ui-container-node")
             .unwrap()
             .unwrap();
 
-        let child_node_elm = child_node_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_node_elm = child_node_elm.dyn_ref::<web_sys::SvggElement>().unwrap();
         let child_node_elm_bbox = child_node_elm.get_b_box().unwrap();
 
-        let children_top = children_elm.get_attribute("y").unwrap_or("0".into());
-        let children_top = children_top.parse::<f32>().unwrap();
+        let (_, children_top) = get_translate(&children_elm);
         let child_top = children_top + child_node_elm_bbox.y();
 
-        let child_center = child_elm.get_attribute("x").unwrap_or("0".into());
-        let child_center = child_center.parse::<f32>().unwrap();
-        let child_node_center = child_node_elm.get_attribute("x").unwrap_or("0".into());
-        let child_node_center = child_node_center.parse::<f32>().unwrap();
+        let (child_center, _) = get_translate(&child_elm);
+        let (child_node_center, _) = get_translate(&child_node_elm);
         let child_center = child_center + child_node_center + child_node_elm_bbox.width() / 2.0;
 
         let midgap = (root_bottom + child_top) / 2.0;
@@ -394,7 +400,7 @@ fn create_connectors(
             continue;
         };
 
-        let child_elm = child_elm.dyn_ref::<web_sys::SvgsvgElement>().unwrap();
+        let child_elm = child_elm.dyn_ref::<web_sys::SvggElement>().unwrap();
         let child_elm_bbox = child_elm.get_b_box().unwrap();
         let child_top = child_elm_bbox.y();
         let child_center = child_elm_bbox.x() + child_elm_bbox.width() / 2.0;
@@ -449,7 +455,7 @@ fn create_visibility_control_element(
     cy: f32,
     rid: String,
     canvas_state: CanvasStateReducer,
-) -> web_sys::SvgsvgElement {
+) -> web_sys::SvggElement {
     let window = web_sys::window().expect("could not get window");
     let document = window.document().expect("window should have a document");
 
@@ -511,7 +517,7 @@ fn create_visibility_control_element(
         .expect("could not create `svg`");
 
     let visibility = visibility
-        .dyn_ref::<web_sys::SvgsvgElement>()
+        .dyn_ref::<web_sys::SvggElement>()
         .expect("could not cast element as `svg`");
 
     visibility

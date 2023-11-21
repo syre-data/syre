@@ -169,13 +169,17 @@ pub fn container_tree_controller() -> Html {
             event.prevent_default();
             let canvas_elm = canvas_ref.cast::<web_sys::SvgsvgElement>().unwrap();
             let viewbox = canvas_elm.view_box().base_val().unwrap();
+            let canvas_bbox = canvas_elm.get_bounding_client_rect();
 
             if event.ctrl_key() {
+                const MIN_ZOOM_DIM: f32 = 300.0;
+                const MAX_ZOOM_DIM: f32 = 2000.0;
+
                 let zoom = 1.0 - (event.delta_y() as f32) / 1000.0;
                 let width = viewbox.width() * zoom;
-                let width = width.max(500.0);
+                let width = width.max(MIN_ZOOM_DIM).min(MAX_ZOOM_DIM);
                 let height = viewbox.height() * zoom;
-                let height = height.max(500.0);
+                let height = height.max(MIN_ZOOM_DIM).min(MAX_ZOOM_DIM);
                 canvas_elm
                     .set_attribute(
                         "viewBox",
@@ -183,10 +187,52 @@ pub fn container_tree_controller() -> Html {
                     )
                     .unwrap();
             } else {
+                const X_OFFSET: f32 = 50.0;
+                const Y_OFFSET: f32 = 50.0;
+
+                let nodes = canvas_elm
+                    .query_selector_all(".thot-ui-container-node")
+                    .unwrap();
+                let node = nodes.item(nodes.length() - 1).unwrap();
+                let node = node.dyn_ref::<web_sys::SvggElement>().unwrap();
+                let node_bbox = node.get_b_box().unwrap();
+                let node_matrix = node.get_screen_ctm().unwrap();
+                let node_x = node_matrix.a() * node_bbox.x()
+                    + node_matrix.c() * node_bbox.y()
+                    + node_matrix.e()
+                    - canvas_bbox.left() as f32;
+
+                let max_x = node_x - (viewbox.width() + X_OFFSET);
+                let max_x = max_x.max(0.0);
+
+                let nodes = canvas_elm
+                    .query_selector_all(
+                        ".thot-ui-container-node:not(:has(.thot-ui-container-node))",
+                    )
+                    .unwrap();
+                let mut max_y = 0.0;
+                for index in 0..nodes.length() {
+                    let node = nodes.item(index).unwrap();
+                    let node = node.dyn_ref::<web_sys::SvggElement>().unwrap();
+                    let node_bbox = node.get_b_box().unwrap();
+                    let node_matrix = node.get_screen_ctm().unwrap();
+                    let node_y = node_matrix.b() * node_bbox.x()
+                        + node_matrix.d() * node_bbox.y()
+                        + node_matrix.f()
+                        - canvas_bbox.top() as f32;
+
+                    if node_y > max_y {
+                        max_y = node_y;
+                    }
+                }
+                tracing::debug!(?node_x, ?max_y);
+                max_y -= viewbox.height() + Y_OFFSET;
+                let max_y = max_y.max(0.0);
+
                 let x = viewbox.x() - (event.delta_x() as f32);
-                let x = x.max(0.0);
+                let x = x.max(-X_OFFSET).min(max_x);
                 let y = viewbox.y() - (event.delta_y() as f32);
-                let y = y.max(0.0);
+                let y = y.max(-Y_OFFSET).min(max_y);
 
                 canvas_elm
                     .set_attribute(

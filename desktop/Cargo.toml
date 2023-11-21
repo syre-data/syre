@@ -42,8 +42,10 @@ thot-local-database = { path = "../local/database" }
 [dependencies.web-sys]
 version = "0.3"
 features = [
+    "DomRect",
     "DomStringMap",
     "DragEvent",
+    "Element",
     "Event",
     "FocusEvent",
     "HtmlCollection",
@@ -52,13 +54,18 @@ features = [
     "InputEvent",
     "SubmitEvent",
     "SvgAnimatedRect",
+    "SvgAnimatedTransformList",
     "SvgCircleElement",
     "SvggElement",
+    "SvgGraphicsElement",
     "SvgForeignObjectElement",
+    "SvgMatrix",
     "SvgPolylineElement",
     "SvgRect",
     "SvgRectElement",
     "SvgsvgElement",
+    "SvgTransform",
+    "SvgTransformList",
     "SvgUseElement",
     "WheelEvent",
 ]

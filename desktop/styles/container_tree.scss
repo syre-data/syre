@@ -50,7 +50,7 @@ $control-button-size: 25px;
       stroke: t.$primary-color;
       stroke-width: t.$border-width-m;
       stroke-opacity: 0;
-      rx: 10%;
+      rx: t.$border-radius-m;
     }
 
     &.selected .container-node-body {
@@ -247,6 +247,8 @@ $control-button-size: 25px;
 }
 
 .container-tree-controls {
+  padding: t.$padding-s 0;
+  
   .analyze-commands-group {
     display: inline-block;
     margin-left: t.$margin-l;

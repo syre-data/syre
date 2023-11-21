@@ -262,7 +262,7 @@ pub fn container(props: &ContainerProps) -> Html {
     }
 
     html! {
-        <svg ref={props.r#ref.clone()}
+        <g ref={props.r#ref.clone()}
             width={"100"}
             height={"100"}
             {class}
@@ -275,7 +275,7 @@ pub fn container(props: &ContainerProps) -> Html {
             {ondrop}
             data-rid={props.rid.clone()} >
 
-            <rect width={"100%"} height={"100%"} class={"container-node-body"}></rect>
+            <rect width={"100"} height={"100"} class={"container-node-body"}></rect>
 
             if let Some(on_menu_event) = on_menu_event {
                 // <g class={classes!("container-menu-control", "dropdown-group")}>
@@ -292,8 +292,8 @@ pub fn container(props: &ContainerProps) -> Html {
             }
 
             <text
-                x={"50%"}
-                y={"10%"}
+                x={"50"}
+                y={"10"}
                 text-anchor={"middle"}
                 alignment-baseline={"hanging"}
                 class={classes!("container-name")}>
@@ -301,54 +301,56 @@ pub fn container(props: &ContainerProps) -> Html {
                 { &props.properties.name }
             </text>
 
-            // <div class={classes!("container-preview")}>
-            //     { match props.preview {
-            //         ContainerPreview::None => { html! { <></> } },
+            <@{"foreignObject"} x="10" y="30">
+                <div class={classes!("container-preview")}>
+                    { match props.preview {
+                        ContainerPreview::None => { html! { <></> } },
 
-            //         ContainerPreview::Type => { html! {
-            //             if let Some(kind) = props.properties.kind.as_ref() {
-            //                 { &kind }
-            //             } else {
-            //                 { "(no type)" }
-            //             }
-            //         }},
+                        ContainerPreview::Type => { html! {
+                            if let Some(kind) = props.properties.kind.as_ref() {
+                                { &kind }
+                            } else {
+                                { "(no type)" }
+                            }
+                        }},
 
-            //         ContainerPreview::Description => { html! {
-            //             if let Some(description) = props.properties.description.as_ref() {
-            //                 { &description }
-            //             } else {
-            //                 { "(no description)" }
-            //             }
-            //         }},
+                        ContainerPreview::Description => { html! {
+                            if let Some(description) = props.properties.description.as_ref() {
+                                { &description }
+                            } else {
+                                { "(no description)" }
+                            }
+                        }},
 
-            //         ContainerPreview::Tags => { html! {
-            //             <Tags value={props.properties.tags.clone()} />
-            //         }},
+                        ContainerPreview::Tags => { html! {
+                            <Tags value={props.properties.tags.clone()} />
+                        }},
 
-            //         ContainerPreview::Metadata => { html! {
-            //             <MetadataPreview value={props.properties.metadata.clone()} />
-            //         }},
+                        ContainerPreview::Metadata => { html! {
+                            <MetadataPreview value={props.properties.metadata.clone()} />
+                        }},
 
-            //         ContainerPreview::Assets => { html! {
-            //             <AssetsPreview
-            //                 {assets}
-            //                 active={props.active_assets.clone()}
-            //                 onclick_asset={&props.onclick_asset}
-            //                 ondblclick_asset={&props.ondblclick_asset}
-            //                 onclick_asset_remove={&props.onclick_asset_remove}
-            //                 />
-            //         }},
+                        ContainerPreview::Assets => { html! {
+                            <AssetsPreview
+                                {assets}
+                                active={props.active_assets.clone()}
+                                onclick_asset={&props.onclick_asset}
+                                ondblclick_asset={&props.ondblclick_asset}
+                                onclick_asset_remove={&props.onclick_asset_remove}
+                                />
+                        }},
 
-            //         ContainerPreview::Scripts => { html! {
-            //             <ScriptAssociationsPreview
-            //                 scripts={props.scripts.clone()}
-            //                 names={props.script_names.clone()} />
-            //         }},
-            //     }}
-            // </div>
+                        ContainerPreview::Scripts => { html! {
+                            <ScriptAssociationsPreview
+                                scripts={props.scripts.clone()}
+                                names={props.script_names.clone()} />
+                        }},
+                    }}
+                </div>
+            </@>
             // <div class={classes!("add-child-container-control")}>
             //     <button onclick={onadd_child}>{ "+" }</button>
             // </div>
-       </svg>
+       </g>
     }
 }

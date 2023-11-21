@@ -35,12 +35,6 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
             class={classes!("project")}
             onclick={clear_selection} >
 
-            <div class={classes!("header")}>
-                <h1 class={classes!("title", "inline-block")}>{
-                    &project.name
-                }</h1>
-                <span>{ "\u{2699}" }</span>
-            </div>
             <div class={classes!("content")}>
                 <ContainerTreeController />
             </div>

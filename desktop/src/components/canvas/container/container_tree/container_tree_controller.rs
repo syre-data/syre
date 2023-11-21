@@ -193,16 +193,30 @@ pub fn container_tree_controller() -> Html {
                 let nodes = canvas_elm
                     .query_selector_all(".thot-ui-container-node")
                     .unwrap();
+
+                let canvas_node = canvas_ref.get().unwrap();
+                let mut parent_node = nodes.item(nodes.length() - 1).unwrap();
+                let mut x_translation = 0.0;
+                loop {
+                    if parent_node == canvas_node {
+                        break;
+                    }
+
+                    let parent = parent_node.dyn_ref::<web_sys::SvggElement>().unwrap();
+                    if let Some(transform) = parent.transform().base_val().consolidate().unwrap() {
+                        x_translation += transform.matrix().e();
+                    }
+
+                    let Some(parent) = parent.parent_node() else {
+                        break;
+                    };
+                    parent_node = parent;
+                }
+
                 let node = nodes.item(nodes.length() - 1).unwrap();
                 let node = node.dyn_ref::<web_sys::SvggElement>().unwrap();
                 let node_bbox = node.get_b_box().unwrap();
-                let node_matrix = node.get_screen_ctm().unwrap();
-                let node_x = node_matrix.a() * node_bbox.x()
-                    + node_matrix.c() * node_bbox.y()
-                    + node_matrix.e()
-                    - canvas_bbox.left() as f32;
-
-                let max_x = node_x - (viewbox.width() + X_OFFSET);
+                let max_x = x_translation + node_bbox.width() - (viewbox.width() - X_OFFSET);
                 let max_x = max_x.max(0.0);
 
                 let nodes = canvas_elm
@@ -212,21 +226,36 @@ pub fn container_tree_controller() -> Html {
                     .unwrap();
                 let mut max_y = 0.0;
                 for index in 0..nodes.length() {
+                    let mut parent_node = nodes.item(index).unwrap();
+                    let mut y_translation = 0.0;
+                    loop {
+                        if parent_node == canvas_node {
+                            break;
+                        }
+
+                        let parent = parent_node.dyn_ref::<web_sys::SvggElement>().unwrap();
+                        if let Some(transform) =
+                            parent.transform().base_val().consolidate().unwrap()
+                        {
+                            y_translation += transform.matrix().f();
+                        }
+
+                        let Some(parent) = parent.parent_node() else {
+                            break;
+                        };
+                        parent_node = parent;
+                    }
+
                     let node = nodes.item(index).unwrap();
                     let node = node.dyn_ref::<web_sys::SvggElement>().unwrap();
                     let node_bbox = node.get_b_box().unwrap();
-                    let node_matrix = node.get_screen_ctm().unwrap();
-                    let node_y = node_matrix.b() * node_bbox.x()
-                        + node_matrix.d() * node_bbox.y()
-                        + node_matrix.f()
-                        - canvas_bbox.top() as f32;
 
+                    let node_y = y_translation + node_bbox.height();
                     if node_y > max_y {
                         max_y = node_y;
                     }
                 }
-                tracing::debug!(?node_x, ?max_y);
-                max_y -= viewbox.height() + Y_OFFSET;
+                max_y -= viewbox.height() - Y_OFFSET;
                 let max_y = max_y.max(0.0);
 
                 let x = viewbox.x() - (event.delta_x() as f32);

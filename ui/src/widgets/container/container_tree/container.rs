@@ -301,53 +301,51 @@ pub fn container(props: &ContainerProps) -> Html {
                 { &props.properties.name }
             </text>
 
-            <@{"foreignObject"} x="10" y="30">
-                <div class={classes!("container-preview")}>
-                    { match props.preview {
-                        ContainerPreview::None => { html! { <></> } },
+            <g class={classes!("container-preview")}
+                transform={"translate(0, 30)"} >
+                { match props.preview {
+                    ContainerPreview::None => { html! { <></> } },
 
-                        ContainerPreview::Type => { html! {
-                            if let Some(kind) = props.properties.kind.as_ref() {
-                                { &kind }
-                            } else {
-                                { "(no type)" }
-                            }
-                        }},
+                    ContainerPreview::Type => { html! {
+                        if let Some(kind) = props.properties.kind.as_ref() {
+                            <text>{ &kind }</text>
+                        } else {
+                            <text>{ "(no type)" }</text>
+                        }
+                    }},
 
-                        ContainerPreview::Description => { html! {
-                            if let Some(description) = props.properties.description.as_ref() {
-                                { &description }
-                            } else {
-                                { "(no description)" }
-                            }
-                        }},
+                    ContainerPreview::Description => { html! {
+                        if let Some(description) = props.properties.description.as_ref() {
+                            <text>{ &description }</text>
+                        } else {
+                            <text>{ "(no description)" }</text>
+                        }
+                    }},
 
-                        ContainerPreview::Tags => { html! {
-                            <Tags value={props.properties.tags.clone()} />
-                        }},
+                    ContainerPreview::Tags => { html! {
+                        <Tags value={props.properties.tags.clone()} />
+                    }},
 
-                        ContainerPreview::Metadata => { html! {
-                            <MetadataPreview value={props.properties.metadata.clone()} />
-                        }},
+                    ContainerPreview::Metadata => { html! {
+                        <MetadataPreview value={props.properties.metadata.clone()} />
+                    }},
 
-                        ContainerPreview::Assets => { html! {
-                            <AssetsPreview
-                                {assets}
-                                active={props.active_assets.clone()}
-                                onclick_asset={&props.onclick_asset}
-                                ondblclick_asset={&props.ondblclick_asset}
-                                onclick_asset_remove={&props.onclick_asset_remove}
-                                />
-                        }},
+                    ContainerPreview::Assets => { html! {
+                        <AssetsPreview
+                            {assets}
+                            active={props.active_assets.clone()}
+                            onclick_asset={&props.onclick_asset}
+                            ondblclick_asset={&props.ondblclick_asset}
+                            onclick_asset_remove={&props.onclick_asset_remove} />
+                    }},
 
-                        ContainerPreview::Scripts => { html! {
-                            <ScriptAssociationsPreview
-                                scripts={props.scripts.clone()}
-                                names={props.script_names.clone()} />
-                        }},
-                    }}
-                </div>
-            </@>
+                    ContainerPreview::Scripts => { html! {
+                        <ScriptAssociationsPreview
+                            scripts={props.scripts.clone()}
+                            names={props.script_names.clone()} />
+                    }},
+                }}
+            </g>
             // <div class={classes!("add-child-container-control")}>
             //     <button onclick={onadd_child}>{ "+" }</button>
             // </div>

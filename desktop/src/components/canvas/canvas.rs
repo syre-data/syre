@@ -1,5 +1,6 @@
 //! Project canvas.
 use super::details_bar::DetailsBar;
+use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
 use super::{
     canvas_state::CanvasState, graph_state::GraphState, CanvasStateAction, CanvasStateReducer,
@@ -16,9 +17,11 @@ use thot_local_database::event::{
     Asset as AssetUpdate, Container as ContainerUpdate, Graph as GraphUpdate,
     Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
-use thot_ui::components::{Drawer, DrawerPosition};
+use thot_ui::components::{drawer, Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -214,17 +217,66 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         });
     }
 
+    {
+        // TODO Broken if multiple projects open.
+        let projects_state = projects_state.clone();
+        let canvas_state = canvas_state.clone();
+        let project = props.project.clone();
+
+        use_effect_with((), move |_| {
+            let onkeydown = {
+                Closure::<dyn Fn(KeyboardEvent)>::new(move |e: KeyboardEvent| {
+                    if !e.ctrl_key() {
+                        return;
+                    }
+
+                    if let Some(active_project) = projects_state.active_project.as_ref() {
+                        if active_project != &project {
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
+
+                    if e.key() == "\\" {
+                        canvas_state.dispatch(CanvasStateAction::ToggleDrawers);
+                    }
+                })
+            };
+
+            let window = web_sys::window().unwrap();
+            window
+                .add_event_listener_with_callback("keydown", onkeydown.as_ref().unchecked_ref())
+                .unwrap();
+
+            onkeydown.forget();
+        });
+    }
+
+    let drawers_visible = if canvas_state.drawers_visible {
+        None
+    } else {
+        Some("hidden")
+    };
+
     let fallback = html! { <Loading text={"Loading project"} /> };
     Ok(html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<GraphStateReducer> context={graph_state}>
         <div class={classes!("project-canvas", props.class.clone())}>
+
+            <Drawer class={classes!("layers-bar-drawer", drawers_visible)}
+                position={DrawerPosition::Left}
+                open={show_side_bars.clone()}>
+
+                <LayersBar />
+            </Drawer>
             <div class={classes!("project-canvas-content")} >
                 <Suspense {fallback}>
                     <ProjectUi rid={props.project.clone()} />
                 </Suspense>
             </div>
-            <Drawer class={classes!("details-bar-drawer")}
+            <Drawer class={classes!("details-bar-drawer", drawers_visible)}
                 position={DrawerPosition::Right}
                 open={show_side_bars}>
 

@@ -50,6 +50,9 @@ pub enum CanvasStateAction {
 
     /// Removes resource mappings.
     RemoveMany(Vec<ResourceId>),
+
+    /// Toggle canvas drawers visibility.
+    ToggleDrawers,
 }
 
 #[derive(Clone, PartialEq)]
@@ -65,6 +68,9 @@ pub struct CanvasState {
 
     /// Current preview view.
     pub preview: ContainerPreview,
+
+    /// If canvas drawers are visible.
+    pub drawers_visible: bool,
 
     /// `Container` tree visibility state.
     /// Key indicates the root of the hidden tree.
@@ -82,6 +88,7 @@ impl CanvasState {
             project,
             details_bar_widget: None,
             selected: HashSet::default(),
+            drawers_visible: true,
             visible: ResourceMap::default(),
             resource_types: ResourceMap::default(),
             show_side_bars,
@@ -210,6 +217,10 @@ impl Reducible for CanvasState {
                     current.remove(&rid);
                 }
                 current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::ToggleDrawers => {
+                current.drawers_visible = !current.drawers_visible;
             }
         }
 

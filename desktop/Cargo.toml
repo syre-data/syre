@@ -61,6 +61,8 @@ features = [
 [dependencies.yew_icons]
 version = "0.8"
 features = [
+    "FontAwesomeSolidCaretDown",
+    "FontAwesomeSolidCaretRight",
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",
 ]

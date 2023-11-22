@@ -49,14 +49,10 @@ pub fn drawer(props: &DrawerProps) -> Html {
         props.class.clone()
     );
 
-    let style = r"
-        display: flex;
-    ";
-
     let contents_style = if !*props.open { "display: none;" } else { "" };
 
     html! {
-        <div {class} {style}>
+        <div {class}>
             // <div class={classes!("drawer-toggle")}
             //     onclick={toggle_open}>
 

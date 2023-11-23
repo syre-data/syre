@@ -17,6 +17,7 @@ struct LayerProps {
     pub expanded: bool,
 }
 
+// TODO Assets?
 #[function_component(Layer)]
 fn layer(props: &LayerProps) -> Html {
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();
@@ -36,7 +37,7 @@ fn layer(props: &LayerProps) -> Html {
         })
     };
 
-    let onclick_layer = {
+    let onclick = {
         let canvas_state = canvas_state.clone();
         let root = props.root.clone();
         Callback::from(move |e: MouseEvent| {
@@ -61,8 +62,28 @@ fn layer(props: &LayerProps) -> Html {
         })
     };
 
-    // TODO Double click layer to center container.
-    // TODO Assets?
+    let ondblclick = {
+        let root = props.root.clone();
+        let project = canvas_state.project.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
+
+            let window = web_sys::window().unwrap();
+            let document = window.document().unwrap();
+            let container = document
+                .query_selector(&format!(
+                    ".project-canvas[data-rid=\"{project}\"] .container-node[data-rid=\"{root}\"]"
+                ))
+                .unwrap()
+                .unwrap();
+
+            let mut scroll_opts = web_sys::ScrollIntoViewOptions::new();
+            scroll_opts.behavior(web_sys::ScrollBehavior::Smooth);
+            scroll_opts.block(web_sys::ScrollLogicalPosition::Center);
+            scroll_opts.inline(web_sys::ScrollLogicalPosition::Center);
+            container.scroll_into_view_with_scroll_into_view_options(&scroll_opts);
+        })
+    };
 
     let mut classes = classes!("layer");
     if *expanded_state {
@@ -75,7 +96,8 @@ fn layer(props: &LayerProps) -> Html {
     html! {
         <div class={classes}>
             <div class={classes!("layer-title")}
-                onclick={onclick_layer}>
+                {onclick}
+                {ondblclick} >
 
                 if children.len() > 0 {
                     <span class={classes!("layer-expand")}

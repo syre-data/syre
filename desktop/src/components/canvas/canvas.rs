@@ -20,8 +20,6 @@ use thot_local_database::event::{
 use thot_ui::components::{drawer, Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -59,6 +57,8 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     use_load_project_scripts(&project.rid)?;
     let graph = use_project_graph(&project.rid)?;
     let graph_state = use_reducer(|| GraphState::new(graph));
+
+    let drawers_visible_state = use_state(|| None);
 
     {
         let canvas_state = canvas_state.clone();
@@ -217,55 +217,34 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         });
     }
 
-    {
-        // TODO Broken if multiple projects open.
-        let projects_state = projects_state.clone();
-        let canvas_state = canvas_state.clone();
-        let project = props.project.clone();
+    let onkeydown = {
+        let drawers_visible_state = drawers_visible_state.clone();
+        Callback::from(move |e: KeyboardEvent| {
+            tracing::debug!("key");
+            if !e.ctrl_key() {
+                return;
+            }
 
-        use_effect_with((), move |_| {
-            let onkeydown = {
-                Closure::<dyn Fn(KeyboardEvent)>::new(move |e: KeyboardEvent| {
-                    if !e.ctrl_key() {
-                        return;
-                    }
-
-                    if let Some(active_project) = projects_state.active_project.as_ref() {
-                        if active_project != &project {
-                            return;
-                        }
-                    } else {
-                        return;
-                    }
-
-                    if e.key() == "\\" {
-                        canvas_state.dispatch(CanvasStateAction::ToggleDrawers);
-                    }
-                })
-            };
-
-            let window = web_sys::window().unwrap();
-            window
-                .add_event_listener_with_callback("keydown", onkeydown.as_ref().unchecked_ref())
-                .unwrap();
-
-            onkeydown.forget();
-        });
-    }
-
-    let drawers_visible = if canvas_state.drawers_visible {
-        None
-    } else {
-        Some("hidden")
+            if e.key() == "\\" {
+                drawers_visible_state.set(if drawers_visible_state.is_some() {
+                    None
+                } else {
+                    Some("hidden")
+                });
+            }
+        })
     };
 
     let fallback = html! { <Loading text={"Loading project"} /> };
     Ok(html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<GraphStateReducer> context={graph_state}>
-        <div class={classes!("project-canvas", props.class.clone())}>
+        <div class={classes!("project-canvas", props.class.clone())}
+            tabIndex={"-1"}
+            onkeydown={onkeydown}
+            data-rid={props.project.clone()}>
 
-            <Drawer class={classes!("layers-bar-drawer", drawers_visible)}
+            <Drawer class={classes!("layers-bar-drawer", *drawers_visible_state)}
                 position={DrawerPosition::Left}
                 open={show_side_bars.clone()}>
 
@@ -276,7 +255,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                     <ProjectUi rid={props.project.clone()} />
                 </Suspense>
             </div>
-            <Drawer class={classes!("details-bar-drawer", drawers_visible)}
+            <Drawer class={classes!("details-bar-drawer", *drawers_visible_state)}
                 position={DrawerPosition::Right}
                 open={show_side_bars}>
 

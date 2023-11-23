@@ -61,7 +61,7 @@
 
     .layers-bar {
       user-select: none;
-      
+
       .layer:not(.expanded) .children {
         display: none;
       }
@@ -75,6 +75,7 @@
         }
 
         .layer-title {
+          padding: 0 t.$padding-m;
           border: solid t.$border-width-s transparent;
 
           &:hover {

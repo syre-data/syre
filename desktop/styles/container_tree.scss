@@ -133,6 +133,12 @@ $control-button-size: 25px;
           &.active {
             background-color: t.$primary-color;
           }
+
+          .thot-ui-asset-name {
+            overflow: hidden;
+            text-wrap: nowrap;
+            text-overflow: ellipsis;
+          }
         }
       }
 

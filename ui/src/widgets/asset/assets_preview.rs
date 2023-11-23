@@ -52,7 +52,8 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                             class.push("active");
                         }
 
-                       html! {
+                        let display_name = asset_display_name(&asset);
+                        html! {
                             <li key={asset.rid.clone()}
                                 {class}
                                 onclick={onclick_asset(
@@ -71,8 +72,9 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                         <Icon class={classes!("thot-ui-asset-icon")} icon_id={asset_icon_id(&asset)} />
                                     </div>
 
-                                    <div class={classes!("thot-ui-asset-name")}>
-                                        { asset_display_name(&asset) }
+                                    <div class={classes!("thot-ui-asset-name")}
+                                        title={display_name.clone()}>
+                                        { display_name }
                                     </div>
                                     if props.onclick_asset_remove.is_some() {
                                         <button onclick={onclick_asset_remove(
@@ -102,28 +104,11 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 /// # Returns
 /// The `name` if set, otherwise the `path`'s file name.
 fn asset_display_name(asset: &CoreAsset) -> String {
-    fn shorten_file_name(file_name: String) -> String {
-        //TODO[2]: not sure if this is the right place to max file length, should be centralized
-        if file_name.len() <= MAX_FILE_NAME_LENGTH {
-            return file_name;
-        }
-
-        let mut shortened = file_name
-            .chars()
-            .take(MAX_FILE_NAME_LENGTH - 3)
-            .collect::<String>();
-
-        shortened.push_str("...");
-        shortened
-    }
-
-    let name = if let Some(name) = asset.properties.name.as_ref() {
+    if let Some(name) = asset.properties.name.as_ref() {
         name.clone()
     } else {
         asset.path.as_path().to_str().unwrap().to_string()
-    };
-
-    shorten_file_name(name)
+    }
 }
 
 /// Gets the icon id to display for an [`Asset`](CoreAsset).

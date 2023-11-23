@@ -91,7 +91,7 @@ get_container <- function(socket, id) {
 #'
 #' @returns Container's path.
 container_path <- function(socket, id) {
-  cmd <- sprintf('{"ContainerCommand": {"GetPath": "%s"}}', id)
+  cmd <- sprintf('{"ContainerCommand": {"Path": "%s"}}', id)
   send_cmd(socket, cmd, result = FALSE)
 }
 

@@ -79,7 +79,7 @@ class Database:
             
             self._root_path: str = dev_root
         else:
-            self._socket.send_json({"ContainerCommand": {"GetPath": root_id}})
+            self._socket.send_json({"ContainerCommand": {"Path": root_id}})
             root_path = self._socket.recv_json()
             self._root_path: str = root_path
             

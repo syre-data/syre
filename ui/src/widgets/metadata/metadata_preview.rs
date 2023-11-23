@@ -13,8 +13,9 @@ pub fn metadata_preview(props: &MetadataPreviewProps) -> Html {
         <ol class={classes!("thot-ui-metadata-preview")}>
             { props.value.iter().map(|(name, value)| html! {
                 <li key={name.clone()}>
-                    <span class={classes!("metadatum-key")}>
-                            { &name }
+                    <span class={classes!("metadatum-key")}
+                        title={name.clone()}>
+                        { &name }
                     </span>
 
                     <span class={classes!("metadatum-value")}>

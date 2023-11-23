@@ -1,11 +1,12 @@
 //! UI for a `Container` preview within a [`Graph`](super::Graph).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
-use super::super::super::asset::CreateAssets;
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::commands::container::AddAssetWindowsArgs;
 use crate::common::invoke;
+use crate::components::canvas::asset::CreateAssets;
+use crate::components::canvas::selection_action::{selection_action, SelectionAction};
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
@@ -467,38 +468,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 // ***************
 // *** helpers ***
 // ***************
-
-enum SelectionAction {
-    SelectOnly,
-    Select,
-    Unselect,
-}
-
-/// Determines the selection action from the current action and state.
-///
-/// # Arguments
-/// 1. If the clicked resource is currently selected.
-/// 2. If at least one other resource is currently selected.
-/// 3. The [`MouseEvent`].
-fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
-    if e.shift_key() {
-        if selected {
-            return SelectionAction::Unselect;
-        } else {
-            return SelectionAction::Select;
-        }
-    }
-
-    if selected {
-        if multiple {
-            return SelectionAction::SelectOnly;
-        }
-
-        return SelectionAction::Unselect;
-    }
-
-    SelectionAction::SelectOnly
-}
 
 /// Gets an `Asset`.
 ///

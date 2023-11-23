@@ -7,6 +7,7 @@ $control-button-size: 25px;
   text-align: center;
   
   .container-node {
+    user-select: none;
     position: relative; // positioning for add child button
     display: inline-block;
 
@@ -131,6 +132,12 @@ $control-button-size: 25px;
         .thot-ui-asset-preview {
           &.active {
             background-color: t.$primary-color;
+          }
+
+          .thot-ui-asset-name {
+            overflow: hidden;
+            text-wrap: nowrap;
+            text-overflow: ellipsis;
           }
         }
       }

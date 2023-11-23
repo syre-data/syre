@@ -971,7 +971,7 @@ impl Datastore {
             for asset in root.data().assets.values() {
                 let mut asset = asset.clone();
                 for (key, value) in metadata.clone().into_iter() {
-                    asset.properties.metadata.insert(key, value);
+                    asset.properties.metadata.entry(key).or_insert(value);
                 }
 
                 if filter.matches(&asset) {

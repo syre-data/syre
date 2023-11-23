@@ -147,7 +147,6 @@ pub fn add_asset_windows(
     let path: Option<PathBuf> =
         serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
 
-    tracing::debug!(?path);
     let mut path = path.expect("could not get `Container` path");
     path.push(name);
     let path = unique_file_name(path).expect("could not create a unique file name");

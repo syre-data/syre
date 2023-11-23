@@ -1,5 +1,6 @@
 //! Project canvas.
 use super::details_bar::DetailsBar;
+use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
 use super::{
     canvas_state::CanvasState, graph_state::GraphState, CanvasStateAction, CanvasStateReducer,
@@ -16,7 +17,7 @@ use thot_local_database::event::{
     Asset as AssetUpdate, Container as ContainerUpdate, Graph as GraphUpdate,
     Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
-use thot_ui::components::{Drawer, DrawerPosition};
+use thot_ui::components::{drawer, Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen_futures::spawn_local;
@@ -56,6 +57,8 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     use_load_project_scripts(&project.rid)?;
     let graph = use_project_graph(&project.rid)?;
     let graph_state = use_reducer(|| GraphState::new(graph));
+
+    let drawers_visible_state = use_state(|| None);
 
     {
         let canvas_state = canvas_state.clone();
@@ -214,17 +217,45 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         });
     }
 
+    let onkeydown = {
+        let drawers_visible_state = drawers_visible_state.clone();
+        Callback::from(move |e: KeyboardEvent| {
+            tracing::debug!("key");
+            if !e.ctrl_key() {
+                return;
+            }
+
+            if e.key() == "\\" {
+                drawers_visible_state.set(if drawers_visible_state.is_some() {
+                    None
+                } else {
+                    Some("hidden")
+                });
+            }
+        })
+    };
+
     let fallback = html! { <Loading text={"Loading project"} /> };
     Ok(html! {
         <ContextProvider<CanvasStateReducer> context={canvas_state.clone()}>
         <ContextProvider<GraphStateReducer> context={graph_state}>
-        <div class={classes!("project-canvas", props.class.clone())}>
+        <div class={classes!("project-canvas", props.class.clone())}
+            tabIndex={"-1"}
+            onkeydown={onkeydown}
+            data-rid={props.project.clone()}>
+
+            <Drawer class={classes!("layers-bar-drawer", *drawers_visible_state)}
+                position={DrawerPosition::Left}
+                open={show_side_bars.clone()}>
+
+                <LayersBar />
+            </Drawer>
             <div class={classes!("project-canvas-content")} >
                 <Suspense {fallback}>
                     <ProjectUi rid={props.project.clone()} />
                 </Suspense>
             </div>
-            <Drawer class={classes!("details-bar-drawer")}
+            <Drawer class={classes!("details-bar-drawer", *drawers_visible_state)}
                 position={DrawerPosition::Right}
                 open={show_side_bars}>
 

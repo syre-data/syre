@@ -2,7 +2,6 @@
 
 .project-canvas {
   height: 100%;
-  margin-left: t.$margin-3xl;
   display: flex;
   justify-content: space-between;
 
@@ -16,15 +15,26 @@
     border-right: solid t.$border-width-s t.$frame-border-color;
   }
 
-  .details-bar-drawer {
+  .thot-ui-drawer {
     display: flex;
-    justify-content: center;
     width: t.$drawer-width;
     height: 100%;
     max-height: 100vh;
     overflow-y: scroll;
     background-color: t.$frame-background-color;
     box-sizing: border-box;
+
+    &.hidden {
+      display: none;
+    }
+
+    .drawer-contents {
+      overflow: auto;
+    }
+  }
+
+  .details-bar-drawer {
+    justify-content: center;
 
     .drawer-toggle {
       height: 100%;
@@ -35,15 +45,47 @@
       border-right: solid t.$border-width-s t.$frame-border-color;
     }
 
+
+    .project-canvas-details-bar {
+      margin: 0 t.$margin-l;
+    }
+  }
+
+  .layers-bar-drawer {
+    justify-content: left;
+    padding: t.$padding-s;
+
     .drawer-contents {
-      overflow: auto;
+      width: 100%;
+    }
 
-      .project-canvas-details-bar {
-        margin: 0 t.$margin-l;
+    .layers-bar {
+      user-select: none;
 
-        &.hidden {
-          display: none;
+      .layer:not(.expanded) .children {
+        display: none;
+      }
+
+      .layer {
+        cursor: pointer;
+        padding: t.$padding-s 0;
+
+        &.selected > .layer-title {
+          background-color: t.$background-accent-color;
         }
+
+        .layer-title {
+          padding: 0 t.$padding-m;
+          border: solid t.$border-width-s transparent;
+
+          &:hover {
+            border-color: t.$primary-color
+          }
+        }
+      }
+
+      .children {
+        padding-left: t.$padding-xxl;
       }
     }
   }

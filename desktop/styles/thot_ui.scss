@@ -127,6 +127,9 @@
     }
     .metadatum-key {
       width: t.$drawer-content-width-1-4;
+      overflow: hidden;
+      text-wrap: nowrap;
+      text-overflow: ellipsis;
     }
 
     .metadata-editor {

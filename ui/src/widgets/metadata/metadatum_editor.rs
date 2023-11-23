@@ -39,7 +39,8 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     html! {
         <div class={classes!("thot-ui-metadatum")}>
             <div class={classes!("metadatum-fields")}>
-                <span class={classes!("metadatum-key")}>
+                <span class={classes!("metadatum-key")}
+                    title={props.name.clone()}>
                     { &props.name }
                 </span>
 

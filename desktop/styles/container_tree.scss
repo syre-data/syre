@@ -8,6 +8,7 @@ $control-button-size: 25px;
   
   .container-node {
     user-select: none;
+    -webkit-user-select: none;
     position: relative; // positioning for add child button
     display: inline-block;
 
@@ -137,6 +138,7 @@ $control-button-size: 25px;
           .thot-ui-asset-name {
             overflow: hidden;
             text-wrap: nowrap;
+            white-space: nowrap;
             text-overflow: ellipsis;
           }
         }

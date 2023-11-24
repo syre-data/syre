@@ -50,7 +50,7 @@ features=[
 [dependencies.yew_icons]
 version = "0.8"
 features=[
-    "FontAwesomeSolidCode",
+    "FontAwesomeRegularFile",
     "FontAwesomeRegularFileAudio",
     "FontAwesomeRegularFileCode",
     "FontAwesomeRegularFileExcel",
@@ -61,12 +61,12 @@ features=[
     "FontAwesomeRegularFileVideo",
     "FontAwesomeRegularFileWord",
     "FontAwesomeRegularFileZipper",
-    "FontAwesomeRegularFile",
     "FontAwesomeSolidAngleDown",
     "FontAwesomeSolidAngleUp",
-    "OcticonsFileBinary24",
+    "FontAwesomeSolidCode",
     "HeroiconsSolidMinus",
     "HeroiconsSolidPlus",
+    "OcticonsFileBinary24",
 ]
 
 [dev-dependencies]

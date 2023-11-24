@@ -220,7 +220,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     let onkeydown = {
         let drawers_visible_state = drawers_visible_state.clone();
         Callback::from(move |e: KeyboardEvent| {
-            tracing::debug!("key");
             if !e.ctrl_key() {
                 return;
             }

@@ -1,4 +1,5 @@
 @use 'themes' as t;
+@use 'mixins';
 
 .thot-ui-shadow-box {
   z-index: 100;
@@ -127,10 +128,7 @@
     }
     .metadatum-key {
       width: t.$drawer-content-width-1-4;
-      overflow: hidden;
-      white-space: nowrap;
-      text-wrap: nowrap;
-      text-overflow: ellipsis;
+      @include mixins.hide-text-overflow;
     }
 
     .metadata-editor {

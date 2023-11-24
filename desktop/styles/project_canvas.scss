@@ -1,4 +1,5 @@
 @use 'themes' as t;
+@use 'mixins';
 
 .project-canvas {
   height: 100%;
@@ -63,14 +64,14 @@
       user-select: none;
       -webkit-user-select: none;
 
-      .layer:not(.expanded) .children {
+      .layer:not(.expanded) .children,
+      .layer.assets:not(.expanded) .layer-assets {
         display: none;
       }
 
       .layer {
         cursor: pointer;
         padding: t.$padding-s 0;
-
         &.selected > .layer-title {
           background-color: t.$background-accent-color;
         }
@@ -82,11 +83,39 @@
           &:hover {
             border-color: t.$primary-color
           }
+
+          .resource-icon {
+            padding-left: t.$padding-s;
+          }
+
+          .name {
+            padding-left: t.$padding-s;
+          }
         }
       }
-
-      .children {
+      
+      .children,
+      .layer.assets,
+      .layer-asset {
+        // TODO Use text-indent
         padding-left: t.$padding-xxl;
+      }
+
+      .layer-asset {
+        @include mixins.hide-text-overflow;
+        border: solid t.$border-width-s transparent;
+        
+        &:hover {
+          border-color: t.$primary-color
+        }
+
+        &.selected {
+          background-color: t.$background-accent-color;
+        }
+
+        .name {
+          padding-left: t.$padding-s;
+        }
       }
     }
   }

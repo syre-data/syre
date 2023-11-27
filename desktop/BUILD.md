@@ -28,7 +28,8 @@ Make sure XCode is installed, with it comes `altool`, you need to have this in y
 
 - `./build.sh`
 
-> When building from m1 to intel: `./build_from_m1_to_intel.sh`
+> If building from m1 to intel: `./build_x86_64.sh`
+> If building from intel to m1: `./build_aarch64.sh`
 
 ### On Windows
 
@@ -47,7 +48,8 @@ If you haven't already, go back to the root path `cd ../../`.
 - `cd desktop`
 - `cargo tauri build`
 
-> When building from m1 to intel: `cargo tauri build --target x86_64-apple-darwin`
+> If building from m1 to intel: `cargo tauri build --target x86_64-apple-darwin`
+> If building from intel to m1: `cargo tauri build --target aarch64-apple-darwin`
 
 ## FAQ
 

@@ -7,7 +7,7 @@ use thot_local::project::{container, project, resources::Container};
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {
-    #[clap(long, parse(from_os_str))]
+    #[clap(long)]
     path: Option<PathBuf>,
 
     #[clap(long, default_value_t = true)]

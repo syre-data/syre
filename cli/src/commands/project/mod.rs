@@ -33,10 +33,9 @@ enum Command {
 
 #[derive(Debug, Args)]
 pub struct AddScriptArgs {
-    #[clap(parse(from_os_str))]
     path: PathBuf,
 
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     project: Option<PathBuf>,
     // TODO Allow path type to be specified
     // #[clap(long, value_enum)]

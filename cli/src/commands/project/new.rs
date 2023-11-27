@@ -8,7 +8,7 @@ use thot_local::project::project;
 pub struct NewArgs {
     name: String,
 
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     root: Option<PathBuf>,
 }
 

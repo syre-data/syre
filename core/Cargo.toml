@@ -15,21 +15,20 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aquamarine = "0.1"
+aquamarine = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "3.1", optional = true }
-cluFlock = "1.2"
+clap = { workspace = true, optional = true }
 derivative = "2.2"
-directories = "4.0"
-indexmap = { version = "1.9.2", features = ["serde"] }
+directories = "5.0"
+indexmap = { workspace = true, features = ["serde"] }
 regex = "1"
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0" }
-thiserror = "1.0.44"
-tracing = "0.1.37"
-uuid = { version = "1.2", features = ["serde", "v4"] }
-validator = "0.14"
-yew = { version = "0.21", optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v4"] }
+validator = "0.16"
+yew = { workspace = true, optional = true }
 
 has_id = { path = "../has_id", features = ["derive"] }
 
@@ -38,7 +37,7 @@ rand = "0.8"
 fake = "2.4"
 mockall = { version = "0.11", features = ["nightly"] }
 mockall_double = "0.3"
-ntest = "0.7"
+ntest = "0.9"
 dev_utils = { path = "../dev_utils" }
 lazy_static = "1.4"
 

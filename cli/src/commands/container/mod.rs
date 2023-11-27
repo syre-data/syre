@@ -27,7 +27,7 @@ enum Command {
 
 #[derive(Debug, Args)]
 pub struct InitArgs {
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     path: Option<PathBuf>,
 
     /// Do not add files as Assets.
@@ -41,16 +41,14 @@ pub struct InitArgs {
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
-    #[clap(parse(from_os_str))]
     path: PathBuf,
 }
 
 #[derive(Debug, Args)]
 pub struct AssociateScriptArgs {
-    #[clap(parse(from_os_str))]
     path: PathBuf,
 
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     container: Option<PathBuf>,
 
     #[clap(short, long)]

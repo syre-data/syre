@@ -131,6 +131,13 @@ pub enum RunnerError {
     /// 3. Error message from the script.
     #[error("Script `{0}` running over Container `{1}` errored: {2}")]
     ScriptError(ResourceId, ResourceId, String),
+
+    #[error("Error running `{cmd}` from script `{script}` on container `{container}`")]
+    CommandError{
+        script: ResourceId,
+        container: ResourceId,
+        cmd: String,
+    }
 }
 
 // ******************

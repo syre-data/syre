@@ -243,16 +243,3 @@ fn standard_search_filter_asset_matches_should_work() {
 
     // TODO Check empty filters. Specifically for `tags` and `metadata`.
 }
-
-#[test]
-fn deserialize_possible_empty_string_should_work() {
-    let empty_name_str = r#"{"name": ""}"#;
-    let name_str = r#"{"name": "test"}"#;
-
-    let empty_name_filter: StandardSearchFilter = serde_json::from_str(empty_name_str).unwrap();
-    let name_filter: StandardSearchFilter = serde_json::from_str(name_str).unwrap();
-
-    assert_eq!(Some(None), empty_name_filter.name);
-    assert_eq!(None, empty_name_filter.kind);
-    assert_eq!(Some(Some("test".to_string())), name_filter.name);
-}

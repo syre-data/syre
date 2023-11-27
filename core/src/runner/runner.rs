@@ -168,6 +168,7 @@ impl Runner {
     /// 1. Container tree to evaluate.
     /// 2. Root of subtree.
     /// 3. Maximum number of analysis tasks to run at once.
+    #[tracing::instrument(skip(self, tree))]
     fn evaluate_tree(
         &self,
         tree: &mut ContainerTree,
@@ -195,6 +196,7 @@ impl Runner {
     ///     Otherwise a [`HashSet`] of the scripts to run.
     /// + `ignore_errors`: Whether to continue running on a script error.
     /// + `verbose`: Output state.
+    #[tracing::instrument(skip(self, tree))]
     fn evaluate_container(
         &self,
         tree: &mut ContainerTree,
@@ -255,6 +257,7 @@ impl Runner {
     ///    ignore_errors -- "true" --> post_script
     ///    ignore_errors -- "false" ---> break("return Err(_)")
     /// ```
+    #[tracing::instrument(skip(self))]
     fn run_scripts(
         &self,
         scripts: Vec<Script>,
@@ -315,6 +318,7 @@ impl Runner {
     ///
     /// # Errors
     /// + [`RunnerError`]: The script returned a `status` other than `0`.
+    #[tracing::instrument(skip(self))]
     fn run_script(&self, script: Script, container: &Container) -> Result<process::Output> {
         #[cfg(target_os = "windows")]
         let mut out = process::Command::new("cmd");
@@ -325,13 +329,22 @@ impl Runner {
         #[cfg(not(target_os = "windows"))]
         let mut out = process::Command::new(&script.env.cmd);
 
-        let out = out
+        let out = match out
             .arg(script.path.as_path())
             .args(&script.env.args)
             .env(CONTAINER_ID_KEY, container.rid.clone().to_string())
             .envs(&script.env.env)
-            .output()
-            .expect("failed to execute command");
+            .output() {
+                Ok(out) => out,
+                Err(err) => {
+                    tracing::debug!(?err);
+                    return Err(RunnerError::CommandError{
+                        script: script.rid.clone(),
+                        container: container.rid.clone(),
+                        cmd: format!("{out:?}")
+                    }.into())
+                }
+            };
 
         if !out.status.success() {
             let stderr = str::from_utf8(out.stderr.as_slice())

@@ -8,10 +8,9 @@ use thot_local::system::projects;
 
 #[derive(Debug, Args)]
 pub struct MoveArgs {
-    #[clap(parse(from_os_str))]
     to: PathBuf,
 
-    #[clap(long, parse(from_os_str))]
+    #[clap(long)]
     from: Option<PathBuf>,
 }
 

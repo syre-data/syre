@@ -6,15 +6,15 @@ use thot_local::project;
 
 #[derive(Debug, Args)]
 pub struct InitArgs {
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     root: Option<PathBuf>,
 
     /// Relative path to the data root.
-    #[clap(long, parse(from_os_str), default_value = "data")]
+    #[clap(long, default_value = "data")]
     data_root: PathBuf,
 
     /// Relative path to the analysis root.
-    #[clap(long, parse(from_os_str), default_value = "analysis")]
+    #[clap(long, default_value = "analysis")]
     analysis_root: PathBuf,
 }
 

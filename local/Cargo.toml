@@ -15,9 +15,9 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aquamarine = "0.1"  # @todo: Only needed for documentation.
+aquamarine = "0.3"  # @todo: Only needed for documentation.
 derivative = "2.2"
-directories = { version = "4.0", optional = true }
+directories = { version = "5.0", optional = true }
 glob = { version = "0.3.1", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
@@ -25,7 +25,7 @@ regex = "1.9.5"
 thiserror = "1.0.44"
 tracing = "0.1.37"
 uuid = { version = "1.2.1", features = ["serde", "v4"] }
-validator = "0.14"
+validator = "0.16"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
 thot-core = { path = "../core", features = ["serde"] }

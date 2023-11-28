@@ -64,7 +64,7 @@
       user-select: none;
       -webkit-user-select: none;
 
-      .layer:not(.expanded) .children,
+      .layer:not(.expanded) .resources,
       .layer.assets:not(.expanded) .layer-assets {
         display: none;
       }
@@ -72,6 +72,7 @@
       .layer {
         cursor: pointer;
         padding: t.$padding-s 0;
+
         &.selected > .layer-title {
           background-color: t.$background-accent-color;
         }

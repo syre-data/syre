@@ -78,11 +78,16 @@
         }
 
         .layer-title {
+          position: relative;
           padding: 0 t.$padding-m;
           border: solid t.$border-width-s transparent;
 
           &:hover {
             border-color: t.$primary-color
+          }
+
+          & > * {
+            vertical-align: middle;
           }
 
           .resource-icon {
@@ -91,6 +96,14 @@
 
           .name {
             padding-left: t.$padding-s;
+          }
+
+          .visibility-toggle {
+            position: absolute;
+            right: t.$padding-m;
+            top: 50%;
+            line-height: 0;
+            transform: translateY(-50%);
           }
         }
       }

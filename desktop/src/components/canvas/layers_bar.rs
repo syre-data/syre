@@ -9,6 +9,7 @@ use yew_icons::{Icon, IconId};
 
 const EXPAND_ICON_SIZE: u8 = 16;
 const RESOURCE_ICON_SIZE: u8 = 16;
+const EYE_ICON_SIZE: u8 = 16;
 
 /// Properties for [`Assets`].
 #[derive(Properties, PartialEq)]
@@ -206,6 +207,18 @@ fn layer(props: &LayerProps) -> Html {
         })
     };
 
+    let onclick_toggle_visibility = {
+        let root = root.rid.clone();
+        use_callback(canvas_state.clone(), move |e: MouseEvent, canvas_state| {
+            e.stop_propagation();
+
+            canvas_state.dispatch(CanvasStateAction::SetVisibility(
+                root.clone(),
+                !canvas_state.is_visible(&root),
+            ))
+        })
+    };
+
     let mut class = classes!("layer");
     if *expanded_state {
         class.push("expanded")
@@ -240,6 +253,18 @@ fn layer(props: &LayerProps) -> Html {
                         height={RESOURCE_ICON_SIZE.to_string()} />
                 </span>
                 <span class={classes!("name")}>{ &root.properties.name }</span>
+                <span class={classes!("visibility-toggle")}
+                    onclick={onclick_toggle_visibility}>
+                    if canvas_state.is_visible(&root.rid) {
+                        <Icon icon_id={IconId::FontAwesomeRegularEye}
+                            width={RESOURCE_ICON_SIZE.to_string()}
+                            height={RESOURCE_ICON_SIZE.to_string()} />
+                    } else {
+                        <Icon icon_id={IconId::FontAwesomeRegularEyeSlash}
+                            width={RESOURCE_ICON_SIZE.to_string()}
+                            height={RESOURCE_ICON_SIZE.to_string()} />
+                    }
+                </span>
             </div>
             <div class={classes!("resources")}>
                 if root.assets.len() > 0 {

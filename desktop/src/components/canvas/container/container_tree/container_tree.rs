@@ -78,10 +78,10 @@ fn new_child_name(props: &NewChildNameProps) -> Html {
 // *** Container Tree ***
 // **********************
 
-static CONNECTOR_CLASS: &str = "container-tree-node-connector";
-static VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
-static VISIBILITY_CONTROL_SIZE: u8 = 20;
-static EYE_ICON_SIZE: u8 = 16;
+const CONNECTOR_CLASS: &str = "container-tree-node-connector";
+const VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
+const VISIBILITY_CONTROL_SIZE: u8 = 20;
+const EYE_ICON_SIZE: u8 = 16;
 
 /// Properties for a [`ContainerTree`].
 #[derive(Properties, PartialEq, Debug)]

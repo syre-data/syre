@@ -1,11 +1,10 @@
 //! Common error types.
-// use crate::db::error::Error as DbError;
 use crate::types::{ResourceId, ResourcePath};
 use std::convert::From;
-use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{self, Deserialize, Serialize};
@@ -15,11 +14,26 @@ use serde::{self, Deserialize, Serialize};
 // **********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ResourceError {
-    DoesNotExist(&'static str),
+    #[error("resource `{0}` does not exist")]
+    DoesNotExist(String),
+
+    #[error("id `{0}` already exists")]
     DuplicateId(ResourceId),
-    AlreadyExists(&'static str),
+
+    #[error("resource `{0}` already exists")]
+    AlreadyExists(String),
+}
+
+impl ResourceError {
+    pub fn does_not_exist(msg: impl Into<String>) -> Self {
+        Self::DoesNotExist(msg.into())
+    }
+
+    pub fn already_exists(msg: impl Into<String>) -> Self {
+        Self::AlreadyExists(msg.into())
+    }
 }
 
 // **********************
@@ -27,10 +41,19 @@ pub enum ResourceError {
 // **********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ProjectError {
+    #[error("Project is not registered")]
     NotRegistered(Option<ResourceId>, Option<PathBuf>),
-    Misconfigured(&'static str),
+
+    #[error("Project is misconfigured: {0}")]
+    Misconfigured(String),
+}
+
+impl ProjectError {
+    pub fn misconfigured(msg: impl Into<String>) -> Self {
+        Self::Misconfigured(msg.into())
+    }
 }
 
 // ******************
@@ -38,19 +61,16 @@ pub enum ProjectError {
 // ******************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GraphError {
-    InvalidGraph(&'static str),
+    #[error("invalid graph: {0}")]
+    InvalidGraph(String),
 }
 
-// ***********************
-// *** Container Error ***
-// ***********************
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
-pub enum ContainerError {
-    MissingChild(ResourceId),
+impl GraphError {
+    pub fn invalid_graph(msg: impl Into<String>) -> Self {
+        Self::InvalidGraph(msg.into())
+    }
 }
 
 // *******************
@@ -58,9 +78,12 @@ pub enum ContainerError {
 // *******************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AssetError {
+    #[error("Asset not registered")]
     NotRegistered(Option<ResourceId>, Option<ResourcePath>),
+
+    #[error("Asset path is not set")]
     PathNotSet,
 }
 
@@ -68,10 +91,11 @@ pub enum AssetError {
 // *** Script Error ***
 // ********************
 
-// @todo: serde features.
-#[derive(Debug)]
+#[derive(Error, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ScriptError {
-    UnknownLanguage(Option<OsString>),
+    #[error("unknown language `{0:?}`")]
+    UnknownLanguage(Option<String>),
 }
 
 // ***************************
@@ -79,9 +103,16 @@ pub enum ScriptError {
 // ***************************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ResourcePathError {
-    CouldNotParseMetalevel(&'static str),
+    #[error("{0}")]
+    CouldNotParseMetalevel(String),
+}
+
+impl ResourcePathError {
+    pub fn could_not_parse_meta_level(msg: impl Into<String>) -> Self {
+        Self::CouldNotParseMetalevel(msg.into())
+    }
 }
 
 // ********************
@@ -89,7 +120,7 @@ pub enum ResourcePathError {
 // ********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum RunnerError {
     /// An error occured when running the script
     /// on the specified `Container`.
@@ -98,30 +129,63 @@ pub enum RunnerError {
     /// 1. [`ResourceId`] of the `Script`.
     /// 2. [`ResourceId`] of the `Container`.
     /// 3. Error message from the script.
+    #[error("Script `{0}` running over Container `{1}` errored: {2}")]
     ScriptError(ResourceId, ResourceId, String),
+
+    #[error("Error running `{cmd}` from script `{script}` on container `{container}`")]
+    CommandError{
+        script: ResourceId,
+        container: ResourceId,
+        cmd: String,
+    }
 }
 
 // ******************
 // *** Thot Error ***
 // ******************
 
-// @todo[3]: Put behind correct features.
-#[derive(Debug)]
+// TODO Put behind correct features.
+#[derive(Error, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Error {
+    #[error("{0}")]
     AssetError(AssetError),
-    ContainerError(ContainerError),
-    // DbError(DbError),
+
+    #[error("{0}")]
+    #[cfg_attr(feature = "serde", serde(skip))]
     IoError(io::Error),
+
+    #[error("{0}")]
     ProjectError(ProjectError),
+
+    #[error("{0}")]
     ResourceError(ResourceError),
+
+    #[error("{0}")]
     GraphError(GraphError),
+
+    #[error("{0}")]
     ResourcePathError(ResourcePathError),
+
+    #[error("{0}")]
     RunnerError(RunnerError),
+
+    #[error("{0}")]
     ScriptError(ScriptError),
+
+    #[error("{0}")]
+    #[cfg_attr(feature = "serde", serde(skip))]
     SerdeError(serde_json::Error),
 
     /// Invalid value encountered.
-    ValueError(&'static str),
+    #[error("{0}")]
+    Value(String),
+}
+
+impl Error {
+    pub fn value(msg: impl Into<String>) -> Self {
+        Self::Value(msg.into())
+    }
 }
 
 impl From<io::Error> for Error {
@@ -154,15 +218,9 @@ impl From<GraphError> for Error {
     }
 }
 
-// @todo: Make better.
-#[cfg(feature = "serde")]
-impl Serialize for Error {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        let msg = format!("{:?}", self);
-        serializer.serialize_str(msg.as_ref())
+impl From<ScriptError> for Error {
+    fn from(err: ScriptError) -> Self {
+        Self::ScriptError(err)
     }
 }
 

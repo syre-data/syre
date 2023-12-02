@@ -44,7 +44,7 @@ impl AssetFileAction {
             "move" => Ok(AssetFileAction::Move),
             "copy" => Ok(AssetFileAction::Copy),
             "reference" => Ok(AssetFileAction::Reference),
-            _ => Err(CoreError::ValueError("invalid `AssetFileAction` string").into()),
+            _ => Err(CoreError::value("invalid `AssetFileAction` string").into()),
         }
     }
 }

@@ -1,13 +1,14 @@
 //! Bulk editor for `Asset`s.
 use super::super::{GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::BulkUpdatePropertiesArgs;
-use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
+use crate::commands::common::BulkUpdateResourcePropertiesArgs;
+use crate::commands::types::{MetadataAction, ResourcePropertiesUpdate, TagsAction};
 use crate::common::invoke;
 use std::collections::HashSet;
+use thot_core::project::ResourceProperties;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::StandardPropertiesBulkEditor;
+use thot_ui::widgets::bulk_editor::ResourcePropertiesBulkEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -19,7 +20,6 @@ pub struct MixedBulkEditorProps {
 #[function_component(MixedBulkEditor)]
 pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-
     let graph_state =
         use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
 
@@ -53,10 +53,10 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
     let mut properties = containers
         .iter()
-        .map(|c| c.properties.clone())
-        .collect::<Vec<_>>();
+        .map(|c| c.properties.clone().into())
+        .collect::<Vec<ResourceProperties>>();
 
-    properties.extend(assets.iter().map(|a| a.properties.clone()));
+    properties.extend(assets.iter().map(|a| a.properties.clone().into()));
 
     // **********************
     // *** event handlers ***
@@ -72,20 +72,20 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |name| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             update.name = Some(name);
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -93,6 +93,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -101,6 +102,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -122,20 +124,20 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |kind| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             update.kind = Some(kind);
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -143,6 +145,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -151,6 +154,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -172,20 +176,20 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |description| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             update.description = Some(description);
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -193,6 +197,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -201,6 +206,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -226,22 +232,22 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             let asset_rids = asset_rids.clone();
             let rids = rids.clone();
 
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.insert = tags;
             update.tags = tags_update;
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -249,6 +255,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -257,6 +264,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -278,22 +286,22 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |tag| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.remove.push(tag);
             update.tags = tags_update;
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -301,6 +309,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -309,6 +318,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -330,22 +340,22 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -353,6 +363,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -361,6 +372,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -382,22 +394,22 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |key| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.remove.push(key);
             update.metadata = metadata_update;
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -405,6 +417,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -413,6 +426,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -434,22 +448,22 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = ResourcePropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
 
-            let container_update = BulkUpdatePropertiesArgs {
+            let container_update = BulkUpdateResourcePropertiesArgs {
                 rids: container_rids.clone(),
                 update: update.clone(),
             };
 
-            let asset_update = BulkUpdatePropertiesArgs {
+            let asset_update = BulkUpdateResourcePropertiesArgs {
                 rids: asset_rids.clone(),
                 update: update.clone(),
             };
 
-            let update = BulkUpdatePropertiesArgs {
+            let update = BulkUpdateResourcePropertiesArgs {
                 rids: rids.clone(),
                 update,
             };
@@ -457,6 +471,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
             spawn_local(async move {
                 let res = invoke::<()>("bulk_update_container_properties", container_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Containers",
                     )));
@@ -465,6 +480,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
                 let res = invoke::<()>("bulk_update_asset_properties", asset_update).await;
                 if let Err(err) = res {
+                    tracing::debug!(?err);
                     app_state.dispatch(AppStateAction::AddMessage(Message::error(
                         "Could not update Assets",
                     )));
@@ -478,7 +494,8 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
-            <StandardPropertiesBulkEditor
+            <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
+            <ResourcePropertiesBulkEditor
                 {properties}
                 {onchange_name}
                 {onchange_kind}

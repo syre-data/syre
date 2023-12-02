@@ -1,23 +1,16 @@
 //! Common use functions.
 use crate::constants::*;
 use crate::{Error, Result};
+use regex::Regex;
 use std::fs;
-use std::path::{Path, PathBuf};
-
-/// Canonicalizes a path.
-///
-/// # Notes
-/// Currently delegates to std::fs::canonicalize, but reserved for
-/// easy future changes.
-pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    match fs::canonicalize(path) {
-        Ok(path) => Ok(path),
-        Err(err) => Err(Error::from(err)),
-    }
-}
+use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
+    if !path.exists() {
+        return Ok(path);
+    }
+
     // get file name
     let Some(file_prefix) = path.file_prefix() else {
         return Err(Error::InvalidPath(path.to_path_buf()));
@@ -38,18 +31,104 @@ pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
 
     let ext = &ext[file_prefix.len()..];
 
-    // create unique file name
-    let mut u_path = path.to_path_buf();
-    let mut counter: usize = 0;
-    while u_path.exists() {
-        counter += 1;
-        let u_file_name = format!("{file_prefix}-{counter}{ext}");
+    let Some(parent) = path.parent() else {
+        return Err(Error::InvalidPath(path.to_path_buf()));
+    };
 
-        u_path = path.to_path_buf();
-        u_path.set_file_name(u_file_name);
+    // get highest counter
+    let name_pattern = Regex::new(&format!(r" \((\d+)\){ext}$")).unwrap();
+    let mut highest = None;
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+
+        let Some(entry_path_str) = entry_path.to_str() else {
+            continue;
+        };
+
+        let Some(captures) = name_pattern.captures(entry_path_str) else {
+            continue;
+        };
+
+        if let Some(n) = captures.get(1) {
+            let Ok(n) = n.as_str().parse::<u32>() else {
+                continue;
+            };
+
+            match highest {
+                None => {
+                    let n = std::cmp::max(n, 1);
+                    let _ = highest.insert(n);
+                }
+                Some(m) if n > m => {
+                    let _ = highest.insert(n);
+                }
+                _ => {}
+            }
+        }
     }
 
-    Ok(u_path)
+    // set unique file name
+    let mut file_name = file_prefix.to_string();
+    match highest {
+        None => file_name.push_str(" (1)"),
+
+        Some(n) => {
+            let match_len = &format!("({n})").len();
+            let replace_range = (file_prefix.len() - match_len)..;
+            file_name.replace_range(replace_range, &format!("({})", n + 1));
+        }
+    };
+    file_name.push_str(ext);
+
+    let mut unique_path = path.clone();
+    unique_path.set_file_name(file_name);
+    Ok(unique_path)
+}
+
+/// Replaces any non-alphanumeric or standard characters with underscore (_).
+pub fn sanitize_file_path(path: impl Into<String>) -> String {
+    let path: String = path.into();
+    let char_whitelist = vec!['-', '_', '.', ' ', '(', ')', '[', ']'];
+    path.chars()
+        .map(|char| {
+            if char.is_ascii_alphanumeric() || char_whitelist.contains(&char) {
+                char
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// Normalizes path separators to the current systems.
+///
+/// On Windows this is `\\`.
+/// On all other systems this is `/`.
+pub fn normalize_path_separators(path: impl AsRef<Path>) -> PathBuf {
+    path.as_ref()
+        .components()
+        .fold(PathBuf::new(), |path, component| match component {
+            Component::RootDir => path.join(MAIN_SEPARATOR.to_string()),
+            Component::Prefix(prefix) => path.join(prefix.as_os_str()),
+            Component::Normal(segment) => path.join(segment),
+            _ => {
+                panic!("invalid path component");
+            }
+        })
+}
+
+/// Prefixes the path with the [Windows UNC](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#unc-paths) path if it is not already there.
+pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
+    let path: PathBuf = path.into();
+    if path.to_str().unwrap().starts_with(WINDOWS_UNC_PREFIX) {
+        path
+    } else {
+        // Must prefix UNC path as `str` because using `Path`s strips it.
+        let mut p = WINDOWS_UNC_PREFIX.to_string();
+        p.push_str(path.to_str().unwrap());
+        PathBuf::from(p)
+    }
 }
 
 // ******************

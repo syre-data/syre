@@ -1,28 +1,49 @@
 /// Asset and Assets.
-use super::standard_properties::StandardProperties;
-use crate::common::assets_file;
+use crate::common;
+use crate::file_resource::LocalResource;
+use crate::system::settings::UserSettings;
 use crate::Result;
-use cluFlock::FlockLock;
-use settings_manager::local_settings::{Components, Loader, LocalSettings};
-use settings_manager::Settings;
-use std::fs::File;
+use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::container::AssetMap;
-use thot_core::project::Asset as CoreAsset;
+use thot_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
+use thot_core::types::{Creator, UserId};
 use thot_core::types::{ResourceId, ResourcePath};
+
+// ******************************
+// *** Local Asset Properties ***
+// ******************************
+
+pub struct AssetProperties;
+impl AssetProperties {
+    /// Creates a new [`AssetProperties`](CoreAssetProperties) with fields actively filled from system settings.
+    pub fn new() -> Result<CoreAssetProperties> {
+        let settings = UserSettings::load()?;
+        let creator = match settings.active_user.as_ref() {
+            Some(uid) => Some(UserId::Id(uid.clone().into())),
+            None => None,
+        };
+
+        let creator = Creator::User(creator);
+        let mut props = CoreAssetProperties::new();
+        props.creator = creator;
+
+        Ok(props)
+    }
+}
 
 // *******************
 // *** Local Asset ***
 // *******************
 
 pub struct Asset;
-
 impl Asset {
-    /// Creates an [] with the `properties` field filled actively from
+    /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].
     pub fn new(path: ResourcePath) -> Result<CoreAsset> {
-        let props = StandardProperties::new()?;
+        let props = AssetProperties::new()?;
         Ok(CoreAsset {
             rid: ResourceId::new(),
             properties: props,
@@ -41,14 +62,30 @@ impl Asset {
 /// + A [`Container`] may only reference a file in a single [`Asset`].
 /// This functionality is enforced in the `insert_asset` method, which
 /// should be prefered over `insert`.
-#[derive(Settings)]
 pub struct Assets {
-    #[settings(file_lock = "AssetMap")]
-    file_lock: FlockLock<File>,
     base_path: PathBuf,
-
-    #[settings(priority = "Local")]
     assets: AssetMap,
+}
+
+impl Assets {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = base_path.into();
+        let path = base_path.join(Self::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        let assets = serde_json::from_reader(reader)?;
+
+        Ok(Self { base_path, assets })
+    }
+
+    pub fn save(&self) -> Result {
+        let file = fs::OpenOptions::new().write(true).open(self.path())?;
+        Ok(serde_json::to_writer_pretty(file, &self.assets)?)
+    }
+
+    pub fn insert(&mut self, asset: CoreAsset) -> Option<CoreAsset> {
+        self.assets.insert(asset.rid.clone(), asset)
+    }
 }
 
 impl Deref for Assets {
@@ -65,27 +102,12 @@ impl DerefMut for Assets {
     }
 }
 
-impl LocalSettings<AssetMap> for Assets {
+impl LocalResource<AssetMap> for Assets {
     fn rel_path() -> PathBuf {
-        assets_file()
+        common::assets_file()
     }
 
     fn base_path(&self) -> &Path {
         &self.base_path
     }
 }
-
-impl From<Loader<AssetMap>> for Assets {
-    fn from(loader: Loader<AssetMap>) -> Self {
-        let loader: Components<AssetMap> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            base_path: loader.base_path,
-            assets: loader.data,
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

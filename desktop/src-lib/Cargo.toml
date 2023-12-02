@@ -14,8 +14,8 @@ rust-version = "1.57"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-indexmap = { version = "1.9", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
+indexmap = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
 
 thot-core = { path = "../../core", features = ["serde"] }
 thot-local = { path = "../../local", default-features = false }

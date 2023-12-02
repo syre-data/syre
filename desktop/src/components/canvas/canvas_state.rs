@@ -28,6 +28,9 @@ pub enum CanvasStateAction {
     /// Mark an `Asset` as selected.
     SelectAsset(ResourceId),
 
+    /// Set `Asset` as only selected.
+    SelectAssetOnly(ResourceId),
+
     /// Mark a resource as unselected.
     /// Updates the details bar as needed.
     Unselect(ResourceId),
@@ -41,6 +44,30 @@ pub enum CanvasStateAction {
 
     /// Set the visibility state of a `Container`.
     SetVisibility(ResourceId, bool),
+
+    /// Removes a resource's mappings.
+    Remove(ResourceId),
+
+    /// Removes resource mappings.
+    RemoveMany(Vec<ResourceId>),
+
+    /// Toggle canvas drawers visibility.
+    ToggleDrawers,
+
+    /// Adds a flag to a resource.
+    AddFlag {
+        resource: ResourceId,
+        message: String,
+    },
+
+    /// Removes the flag at the given index for the resource.
+    RemoveFlag { resource: ResourceId, index: usize },
+
+    /// Clears all the flags for the given resource.
+    ClearResourceFlags(ResourceId),
+
+    /// Clears all flags.
+    ClearFlags,
 }
 
 #[derive(Clone, PartialEq)]
@@ -56,6 +83,12 @@ pub struct CanvasState {
 
     /// Current preview view.
     pub preview: ContainerPreview,
+
+    /// If canvas drawers are visible.
+    pub drawers_visible: bool,
+
+    /// Flag messages for each resource.
+    pub flags: ResourceMap<Vec<String>>,
 
     /// `Container` tree visibility state.
     /// Key indicates the root of the hidden tree.
@@ -73,7 +106,9 @@ impl CanvasState {
             project,
             details_bar_widget: None,
             selected: HashSet::default(),
+            drawers_visible: true,
             visible: ResourceMap::default(),
+            flags: ResourceMap::default(),
             resource_types: ResourceMap::default(),
             show_side_bars,
         }
@@ -87,6 +122,13 @@ impl CanvasState {
     /// Returns the ResourceType of a given ResourceId
     pub fn resource_type(&self, rid: &ResourceId) -> Option<ResourceType> {
         self.resource_types.get(rid).cloned()
+    }
+
+    /// Remove a resource from mappings.
+    pub fn remove(&mut self, rid: &ResourceId) {
+        self.selected.remove(rid);
+        self.visible.remove(rid);
+        self.resource_types.remove(rid);
     }
 
     #[tracing::instrument(skip(self))]
@@ -156,6 +198,13 @@ impl Reducible for CanvasState {
                 current.details_bar_widget = current.details_bar_widget_from_selected();
             }
 
+            CanvasStateAction::SelectAssetOnly(rid) => {
+                current.selected.clear();
+                current.selected.insert(rid.clone());
+                current.resource_types.insert(rid, ResourceType::Asset);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
             CanvasStateAction::Unselect(rid) => {
                 current.selected.remove(&rid);
                 current.details_bar_widget = current.details_bar_widget_from_selected();
@@ -165,7 +214,6 @@ impl Reducible for CanvasState {
                 for rid in rids {
                     current.selected.remove(&rid);
                 }
-
                 current.details_bar_widget = current.details_bar_widget_from_selected();
             }
 
@@ -176,6 +224,41 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::SetVisibility(rid, visible) => {
                 current.visible.insert(rid, visible);
+            }
+
+            CanvasStateAction::Remove(rid) => {
+                current.remove(&rid);
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::RemoveMany(rids) => {
+                for rid in rids {
+                    current.remove(&rid);
+                }
+                current.details_bar_widget = current.details_bar_widget_from_selected();
+            }
+
+            CanvasStateAction::ToggleDrawers => {
+                current.drawers_visible = !current.drawers_visible;
+            }
+
+            CanvasStateAction::AddFlag { resource, message } => {
+                let resource_flags = current.flags.entry(resource).or_insert(Vec::new());
+                resource_flags.push(message);
+            }
+
+            CanvasStateAction::RemoveFlag { resource, index } => {
+                if let Some(resource_flags) = current.flags.get_mut(&resource) {
+                    resource_flags.remove(index);
+                }
+            }
+
+            CanvasStateAction::ClearResourceFlags(resource) => {
+                current.flags.remove(&resource);
+            }
+
+            CanvasStateAction::ClearFlags => {
+                current.flags.clear();
             }
         }
 

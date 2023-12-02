@@ -1,10 +1,10 @@
 //! Projects collection.
+use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use cluFlock::FlockLock;
-use derivative::{self, Derivative};
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::Settings;
-use std::fs::File;
+use crate::Result;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::types::ResourceMap;
@@ -12,49 +12,54 @@ use thot_core::types::ResourceMap;
 /// Map from a [`Project`]'s id to its path.
 pub type ProjectMap = ResourceMap<PathBuf>;
 
-// ****************
-// *** Projects ***
-// ****************
+#[derive(Deserialize, Serialize, Default, Debug)]
+#[serde(transparent)]
+pub struct Projects(ProjectMap);
 
-#[derive(Derivative, Settings)]
-#[derivative(Debug)]
-pub struct Projects {
-    #[settings(file_lock = "ProjectMap")]
-    file_lock: FlockLock<File>,
+impl Projects {
+    pub fn load() -> Result<Self> {
+        let file = fs::File::open(Self::path())?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
 
-    #[settings(priority = "User")]
-    projects: ProjectMap,
+    pub fn load_or_default() -> Result<Self> {
+        match fs::File::open(Self::path()) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                Ok(serde_json::from_reader(reader)?)
+            }
+
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    pub fn save(&self) -> Result {
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
+    }
 }
 
 impl Deref for Projects {
     type Target = ProjectMap;
 
     fn deref(&self) -> &Self::Target {
-        &self.projects
+        &self.0
     }
 }
 
 impl DerefMut for Projects {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.projects
+        &mut self.0
     }
 }
 
-impl SystemSettings<ProjectMap> for Projects {
+impl SystemResource<ProjectMap> for Projects {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
         settings_dir.join("projects.json")
-    }
-}
-
-impl From<Loader<ProjectMap>> for Projects {
-    fn from(loader: Loader<ProjectMap>) -> Projects {
-        let loader: Components<ProjectMap> = loader.into();
-        Projects {
-            file_lock: loader.file_lock,
-            projects: loader.data,
-        }
     }
 }
 

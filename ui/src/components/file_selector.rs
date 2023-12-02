@@ -99,22 +99,19 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
         let oncancel = props.oncancel.clone();
         let path = path.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                if select_on_open {
-                    spawn_local(async move {
-                        let user_path = get_user_path(title.as_str(), action, default_path).await;
-                        if user_path.is_some() {
-                            path.set(user_path);
-                        } else {
-                            // canceled
-                            oncancel.emit(());
-                        }
-                    });
-                }
-            },
-            (),
-        );
+        use_effect_with((), move |_| {
+            if select_on_open {
+                spawn_local(async move {
+                    let user_path = get_user_path(title.as_str(), action, default_path).await;
+                    if user_path.is_some() {
+                        path.set(user_path);
+                    } else {
+                        // canceled
+                        oncancel.emit(());
+                    }
+                });
+            }
+        });
     }
 
     html! {

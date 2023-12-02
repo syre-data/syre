@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// Information about the temporary folder.
 #[derive(Debug)]
 pub struct TempDir {
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
     pub children: HashMap<PathBuf, Self>,
     pub files: HashMap<PathBuf, tempfile::NamedTempFile>,
 }
@@ -17,21 +17,21 @@ impl TempDir {
     pub fn new() -> Result<Self> {
         let td = tempfile::tempdir()?;
         Ok(TempDir {
-            _dir: td,
+            dir: td,
             children: HashMap::new(),
             files: HashMap::new(),
         })
     }
 
     pub fn path(&self) -> &Path {
-        self._dir.path()
+        self.dir.path()
     }
 
     /// Create a subdirectory.
     pub fn mkdir(&mut self) -> Result<PathBuf> {
-        let td = tempfile::tempdir_in(self._dir.path())?;
+        let td = tempfile::tempdir_in(self.dir.path())?;
         let tdir = TempDir {
-            _dir: td,
+            dir: td,
             children: HashMap::new(),
             files: HashMap::new(),
         };
@@ -42,23 +42,29 @@ impl TempDir {
     }
 
     /// Add a file to the directory.
-    ///
-    /// # See also
-    /// + `mkfile_with_extension`
     pub fn mkfile(&mut self) -> Result<PathBuf> {
-        let f = tempfile::NamedTempFile::new_in(self._dir.path())?;
+        let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
         let path = f.path().to_path_buf();
         self.files.insert(path.clone(), f);
 
         Ok(path)
     }
 
+    /// Add a file to the directory with a given name.
+    pub fn mkfile_with_name<S: AsRef<OsStr>>(&mut self, file_name: S) -> Result<PathBuf> {
+        let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
+        let mut dst = f.path().to_path_buf();
+        dst.set_file_name(file_name);
+
+        fs::rename(f.path(), &dst)?;
+        self.files.insert(dst.clone(), f);
+
+        Ok(dst)
+    }
+
     /// Add a file to the directory with a given extension.
-    ///
-    /// # See also
-    /// + `mkfile`
     pub fn mkfile_with_extension<S: AsRef<OsStr>>(&mut self, ext: S) -> Result<PathBuf> {
-        let f = tempfile::NamedTempFile::new_in(self._dir.path())?;
+        let f = tempfile::NamedTempFile::new_in(self.dir.path())?;
         let mut dst = f.path().to_path_buf();
         dst.set_extension(ext);
 

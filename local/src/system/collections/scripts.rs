@@ -1,11 +1,11 @@
 //! Script collection for the system.
+use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use cluFlock::FlockLock;
-use derivative::{self, Derivative};
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::Settings;
+use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::project::Script as CoreScript;
@@ -13,21 +13,22 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 
-// ****************
-// *** Scripts ***
-// ****************
-
-#[derive(Derivative, Settings)]
-#[derivative(Debug)]
-pub struct Scripts {
-    #[settings(file_lock = "ScriptMap")]
-    file_lock: FlockLock<File>,
-
-    #[settings(priority = "User")]
-    scripts: ScriptMap,
-}
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(transparent)]
+pub struct Scripts(ScriptMap);
 
 impl Scripts {
+    pub fn load() -> Result<Self> {
+        let file = fs::File::open(Self::path())?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
+
+    pub fn save(&self) -> Result {
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
+    }
+
     /// Returns whether a script with the given path is registered.
     pub fn contains_path(&self, path: &ResourcePath) -> bool {
         self.by_path(path).len() > 0
@@ -45,31 +46,21 @@ impl Deref for Scripts {
     type Target = ScriptMap;
 
     fn deref(&self) -> &Self::Target {
-        &self.scripts
+        &self.0
     }
 }
 
 impl DerefMut for Scripts {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.scripts
+        &mut self.0
     }
 }
 
-impl SystemSettings<ScriptMap> for Scripts {
+impl SystemResource<ScriptMap> for Scripts {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
         settings_dir.join("scripts.json")
-    }
-}
-
-impl From<Loader<ScriptMap>> for Scripts {
-    fn from(loader: Loader<ScriptMap>) -> Self {
-        let loader: Components<ScriptMap> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            scripts: loader.data,
-        }
     }
 }
 

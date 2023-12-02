@@ -1,10 +1,9 @@
 //! `Error`s and `Result`s
 use serde::{Deserialize, Serialize};
-use settings_manager::Error as SettingsError;
-use std::error::Error as StdErrorTrait;
+use std::io;
 use std::result::Result as StdResult;
-use std::{fmt, io};
 use tauri::Error as TauriError;
+use thiserror::Error;
 use thot_core::Error as CoreError;
 use thot_local::Error as LocalError;
 use thot_local_database::error::Error as DbError;
@@ -13,12 +12,14 @@ use thot_local_database::error::Error as DbError;
 // *** Desktop Settings Error ***
 // ******************************
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum DesktopSettingsError {
     /// The desired update can not be performed.
+    #[error("{0}")]
     InvalidUpdate(String),
 
     /// An active user is not set.
+    #[error("no user activated")]
     NoUser,
 }
 
@@ -26,14 +27,27 @@ pub enum DesktopSettingsError {
 // *** Error ***
 // *************
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("{0}")]
     CoreError(CoreError),
+
+    #[error("{0}")]
     DesktopSettingsError(DesktopSettingsError),
+
+    #[error("{0}")]
+    SerdeError(serde_json::Error),
+
+    #[error("{0}")]
     IoError(io::Error),
+
+    #[error("{0}")]
     LocalError(LocalError),
-    SettingsError(SettingsError),
+
+    #[error("{0}")]
     TauriError(TauriError),
+
+    #[error("{0}")]
     LocalDatabaseError(DbError),
 }
 
@@ -46,6 +60,12 @@ impl From<DesktopSettingsError> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Self::IoError(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::SerdeError(err)
     }
 }
 
@@ -67,25 +87,11 @@ impl From<DbError> for Error {
     }
 }
 
-impl From<SettingsError> for Error {
-    fn from(err: SettingsError) -> Self {
-        Self::SettingsError(err)
-    }
-}
-
 impl From<TauriError> for Error {
     fn from(err: TauriError) -> Self {
         Self::TauriError(err)
     }
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> StdResult<(), fmt::Error> {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl StdErrorTrait for Error {}
 
 impl serde::Serialize for Error {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>

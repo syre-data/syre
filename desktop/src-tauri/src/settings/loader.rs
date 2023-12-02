@@ -1,6 +1,6 @@
 //! User settings loader.
 use serde::{de::DeserializeOwned, Serialize};
-use settings_manager::user_settings::{Loader as UserLoader, UserSettings};
+use settings_manager::locked::user_settings::{Loader as UserLoader, UserSettings};
 use settings_manager::Result;
 use std::marker::PhantomData;
 use std::path::PathBuf;

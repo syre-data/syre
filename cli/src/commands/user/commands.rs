@@ -1,7 +1,6 @@
 use super::{AddArgs, EditUserFields};
-use crate::result::Result;
-use thot_core::result::{Error as CoreError, ResourceError};
-use settings_manager::{ListSetting, SystemSettings};
+use crate::Result;
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::system::User;
 use thot_core::types::UserId;
 use thot_local::system::collections::Users;
@@ -12,7 +11,7 @@ use thot_local::system::users;
 /// If verbose, output is of the form `name <email> (id)` with each user on a new line.
 /// If not verbose, output is of the form `name <email>` with each user on a new line.
 pub fn list(verbose: bool) -> Result {
-    let mut users = match Users::load() {
+    let users = match Users::load() {
         Ok(sets) => sets,
         Err(err) => panic!("Something went wrong: {:?}", err),
     };
@@ -28,21 +27,13 @@ pub fn list(verbose: bool) -> Result {
         },
     };
 
-    let users: Vec<String> = users.items().iter().map(user_str).collect();
-
-    let mut out = String::new();
+    let users = users.values().map(user_str).collect::<Vec<_>>();
     if users.len() == 0 {
-        out.push_str("No users");
-    } else {
-        for user in users {
-            out.push_str(user.as_str());
-            out.push('\n');
-        }
-
-        out.pop(); // remove last new line
+        println!("No users");
+        return Ok(());
     }
 
-    println!("{}", out);
+    println!("{}", users.join("\n"));
     Ok(())
 }
 
@@ -79,14 +70,23 @@ pub fn delete(id: UserId) -> Result {
 pub fn edit(id: UserId, edits: EditUserFields) -> Result {
     let mut user: User = match id {
         UserId::Id(uid) => match users::user_by_id(&uid) {
-            Ok(u) => u,
+            Ok(Some(user)) => user,
+            Ok(None) => {
+                return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                    "user does not exist",
+                ))
+                .into());
+            }
             Err(err) => return Err(err.into()),
         },
         UserId::Email(email) => match users::user_by_email(&email) {
-            Ok(u) => match u {
-                None => return Err(CoreError::ResourceError(ResourceError::DoesNotExist("user with email `{email}` is not registered".to_string())).into()),
-                Some(u) => u,
-            },
+            Ok(Some(user)) => user,
+            Ok(None) => {
+                return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                    "user with email `{email}` is not registered".to_string(),
+                ))
+                .into());
+            }
             Err(err) => return Err(err.into()),
         },
     };

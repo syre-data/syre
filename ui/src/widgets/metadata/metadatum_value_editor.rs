@@ -26,19 +26,26 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
     // interpreted correctly. It may be better to return an error instead,
     // although this situation should likely never arise due to their types.
     let value = use_state(|| props.value.clone());
+    let value_str = use_state(|| {
+        serde_json::to_string_pretty(&props.value).expect("could not stringify value")
+    });
+    let number_step = use_state(|| match value_str.split_once('.') {
+        None => 1_f64,
+        Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
+    });
     let kind_ref = use_node_ref();
     let value_ref = use_node_ref();
 
     {
         // update states if prop value changes
         let value = value.clone();
+        let value_str = value_str.clone();
 
-        use_effect_with_deps(
-            move |val| {
-                value.set(val.clone());
-            },
-            props.value.clone(),
-        );
+        use_effect_with(props.value.clone(), move |val| {
+            let val_str = serde_json::to_string_pretty(val).expect("could not stringify value");
+            value_str.set(val_str);
+            value.set(val.clone());
+        });
     }
 
     {
@@ -46,13 +53,38 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         let onchange = props.onchange.clone();
         let value = value.clone();
 
-        use_effect_with_deps(
-            move |value| {
-                onchange.emit((**value).clone());
-            },
-            value,
-        );
+        use_effect_with(value, move |value| {
+            onchange.emit((**value).clone());
+        });
     }
+
+    {
+        let value_str = value_str.clone();
+        let number_step = number_step.clone();
+
+        use_effect_with(value_str, move |value_str| {
+            let step = match value_str.split_once('.') {
+                None => 1_f64,
+                Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
+            };
+        
+            number_step.set(step);
+        });
+    }
+
+    let oninput_number = {
+        let value_str = value_str.clone();
+        let value_ref = value_ref.clone();
+
+        Callback::from(move |_: InputEvent| {
+            let v_in = value_ref
+                .cast::<web_sys::HtmlInputElement>()
+                .expect("could not convert value node ref into input");
+
+            let val_str = v_in.value().trim().to_owned();
+            value_str.set(val_str);
+        })
+    };
 
     let onchange_kind = {
         let value = value.clone();
@@ -89,7 +121,6 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
             // get value
             if let Ok(val) = common::value_from_input(value_ref.clone(), &kind) {
                 if kind == MetadatumType::Number && val == JsValue::Null {
-                    // invalid number input
                     onerror.emit("Invalid number".to_string());
                     return;
                 }
@@ -126,7 +157,6 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
 
     // ui
     let class = classes!("thot-ui-metadatum-value-editor", props.class.clone());
-
     html! {
         <span {class}>
             <select ref={kind_ref} onchange={onchange_kind.clone()}>
@@ -142,11 +172,13 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                         onchange={onchange_value.clone()} />
                 },
 
-                JsValue::Number(value) => html! {
+                JsValue::Number(_value) => html! {
                     <input
                         ref={value_ref}
                         type={"number"}
-                        value={value.to_string()}
+                        step={number_step.to_string()}
+                        value={(*value_str).clone()}
+                        oninput={oninput_number}
                         onchange={onchange_value.clone()} />
                 },
 

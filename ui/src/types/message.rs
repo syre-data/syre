@@ -12,6 +12,9 @@ pub enum MessageType {
 
     /// Error message.
     Error,
+
+    /// Warning message.
+    Warning,
 }
 
 /// A Message.
@@ -57,6 +60,16 @@ impl Message {
             message: message.into(),
             details: None,
             kind: MessageType::Error,
+        }
+    }
+
+    /// Create a `Message` with a `kind` of [`MessageType::Warning`].
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            message: message.into(),
+            details: None,
+            kind: MessageType::Warning,
         }
     }
 

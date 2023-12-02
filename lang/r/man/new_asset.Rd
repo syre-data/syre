@@ -18,7 +18,7 @@ new_asset(file, name = NULL, type = NULL, tags = list(), metadata = list())
 \item{metadata}{Named list of metadata the Asset has to match.}
 }
 \value{
-New core Asset as a list.
+NewAsset as a list.
 }
 \description{
 Creates a new core Asset.

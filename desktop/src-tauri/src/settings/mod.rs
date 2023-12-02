@@ -1,5 +1,5 @@
 //! Settings for Thot desktop app.
-pub mod loader;
+// pub mod loader;
 pub mod user_app_state;
 pub mod user_settings;
 

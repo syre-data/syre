@@ -4,14 +4,26 @@
 \alias{Asset}
 \title{Create a new Asset.}
 \usage{
-Asset(file, name = NULL, type = NULL, tags = list(), metadata = list())
+Asset(
+  rid,
+  file,
+  name = NULL,
+  type = NULL,
+  description = NULL,
+  tags = list(),
+  metadata = list()
+)
 }
 \arguments{
+\item{rid}{Resource id.}
+
 \item{file}{File path.}
 
 \item{name}{Name.}
 
 \item{type}{Type.}
+
+\item{description}{Description.}
 
 \item{tags}{List of tags.}
 

@@ -1,4 +1,4 @@
-use crate::result::Result;
+use crate::Result;
 use thot_core::types::UserId;
 use thot_local::system::users;
 

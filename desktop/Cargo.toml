@@ -1,6 +1,6 @@
 [package]
 name = "thot-desktop"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
@@ -13,24 +13,25 @@ categories = [ "gui", "science" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-aquamarine = "0.1" # TODO: Only needed for documentation.
+aquamarine = { workspace = true } # TODO: Only needed for documentation.
 futures = "0.3"
-gloo-storage = "0.2"
-gloo-timers = "0.2.6"
-indexmap = "1.9"
-js-sys = "0.3"
-serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.4"
-tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", features = ["dialog", "event", "path"] }
+gloo-storage = "0.3"
+gloo-timers = "0.3"
+indexmap = { workspace = true }
+js-sys = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true } # TODO: Only required for https://github.com/tauri-apps/tauri/issues/6078.
+serde-wasm-bindgen = { workspace = true }
+tauri-sys = { workspace = true, features = ["dialog", "event", "path"] }
 time = { version = "0.3", features = ["wasm-bindgen"] }
-tracing = "0.1.37"
+tracing = { workspace = true }
 tracing-subscriber = { version = "0.3.16", features = ["time"] }
 tracing-web = "0.1.2"
-uuid = { version = "1.2", features = ["serde", "v4"] }
-wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
-wasm-bindgen-futures = "0.4"
-yew = { version = "0.20", features = ["csr"] }
-yew-router = "0.17"
+uuid = { workspace = true, features = ["js", "serde", "v4"] }
+wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
+wasm-bindgen-futures = { workspace = true }
+yew = { workspace = true, features = ["csr"] }
+yew-router = { workspace = true }
 
 thot-core = { path = "../core", features = ["yew", "serde"] }
 thot-local = { path = "../local", default-features = false }
@@ -38,10 +39,8 @@ thot-ui = { path = "../ui" }
 thot-desktop-lib = { path = "src-lib" }
 thot-local-database = { path = "../local/database" }
 
-serde_json = "1.0" # TODO: Only required for https://github.com/tauri-apps/tauri/issues/6078.
-
 [dependencies.web-sys]
-version = "0.3"
+workspace = true
 features = [
     "DomStringMap",
     "DragEvent",
@@ -50,6 +49,9 @@ features = [
     "HtmlElement",
     "HtmlInputElement",
     "InputEvent",
+    "ScrollBehavior",
+    "ScrollIntoViewOptions",
+    "ScrollLogicalPosition",
     "SubmitEvent",
     "SvgCircleElement",
     "SvggElement",
@@ -60,8 +62,13 @@ features = [
 ]
 
 [dependencies.yew_icons]
-version = "0.7"
+workspace = true
 features = [
+    "BootstrapExclamationTriangle",
+    "BootstrapFiles",
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",
+    "FontAwesomeRegularFolder",
+    "FontAwesomeSolidCaretDown",
+    "FontAwesomeSolidCaretRight",
 ]

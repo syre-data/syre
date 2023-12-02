@@ -1,44 +1,86 @@
 //! Project and project settings.
-use super::super::types::ProjectSettings as PrjSettings;
 use crate::common::{project_file, project_settings_file};
+use crate::file_resource::LocalResource;
+use crate::types::ProjectSettings;
 use crate::Result;
-use cluFlock::FlockLock;
-use settings_manager::error::Result as SettingsResult;
-use settings_manager::local_settings::{Components, Loader as LocalLoader, LocalSettings};
-use settings_manager::Settings;
-use std::fs::File;
+use std::fs;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::Project as CoreProject;
 
-// ***************
-// *** Project ***
-// ***************
-
 /// Represents a Thot project.
-#[derive(Settings, Debug)]
 pub struct Project {
-    #[settings(file_lock = "CoreProject")]
-    project_file_lock: FlockLock<File>,
-
-    #[settings(file_lock = "PrjSettings")]
-    settings_file_lock: FlockLock<File>,
-
     base_path: PathBuf,
-
-    #[settings(priority = "Local")]
     project: CoreProject,
-
-    #[settings(priority = "Local")]
-    settings: PrjSettings,
+    settings: ProjectSettings,
 }
 
 impl Project {
-    pub fn settings(&self) -> &PrjSettings {
+    /// Create a new `Project` with the given path.
+    /// Name of the `Project` is taken from the last component of the path.
+    pub fn new(path: PathBuf) -> Result<Self> {
+        let Some(name) = path.file_name() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be extracted from path",
+            )
+            .into());
+        };
+
+        let Some(name) = name.to_str() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be converted to string",
+            )
+            .into());
+        };
+
+        let name = name.to_string();
+        Ok(Self {
+            base_path: path,
+            project: CoreProject::new(name),
+            settings: ProjectSettings::default(),
+        })
+    }
+
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = fs::canonicalize(base_path.into())?;
+        let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+        let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
+
+        let project_file = fs::File::open(project_path)?;
+        let settings_file = fs::File::open(settings_path)?;
+
+        let project_reader = BufReader::new(project_file);
+        let settings_reader = BufReader::new(settings_file);
+
+        let project = serde_json::from_reader(project_reader)?;
+        let settings = serde_json::from_reader(settings_reader)?;
+
+        Ok(Self {
+            base_path,
+            project,
+            settings,
+        })
+    }
+
+    /// Save all data.
+    pub fn save(&self) -> Result {
+        let project_path = <Project as LocalResource<CoreProject>>::path(self);
+        let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
+
+        fs::create_dir_all(project_path.parent().expect("invalid path"))?;
+        fs::write(project_path, serde_json::to_string_pretty(&self.project)?)?;
+        fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
+        Ok(())
+    }
+
+    pub fn settings(&self) -> &ProjectSettings {
         &self.settings
     }
 
-    pub fn settings_mut(&mut self) -> &mut PrjSettings {
+    pub fn settings_mut(&mut self) -> &mut ProjectSettings {
         &mut self.settings
     }
 
@@ -46,11 +88,22 @@ impl Project {
         self.base_path.as_path()
     }
 
-    /// Save all data.
-    pub fn save(&mut self) -> Result {
-        <Project as Settings<CoreProject>>::save(self)?;
-        <Project as Settings<PrjSettings>>::save(self)?;
-        Ok(())
+    /// Get the full path of the data root.
+    pub fn data_root_path(&self) -> Option<PathBuf> {
+        let Some(data_root) = self.data_root.as_ref() else {
+            return None;
+        };
+
+        Some(self.base_path.join(data_root))
+    }
+
+    /// Get the full path of the analysis root.
+    pub fn analysis_root_path(&self) -> Option<PathBuf> {
+        let Some(analysis_root) = self.analysis_root.as_ref() else {
+            return None;
+        };
+
+        Some(self.base_path.join(analysis_root))
     }
 }
 
@@ -74,8 +127,7 @@ impl Into<CoreProject> for Project {
     }
 }
 
-// --- Core Project ---
-impl LocalSettings<CoreProject> for Project {
+impl LocalResource<CoreProject> for Project {
     fn rel_path() -> PathBuf {
         project_file()
     }
@@ -85,9 +137,7 @@ impl LocalSettings<CoreProject> for Project {
     }
 }
 
-// --- Project Settings ---
-
-impl LocalSettings<PrjSettings> for Project {
+impl LocalResource<ProjectSettings> for Project {
     fn rel_path() -> PathBuf {
         project_settings_file()
     }
@@ -96,78 +146,3 @@ impl LocalSettings<PrjSettings> for Project {
         &self.base_path
     }
 }
-
-impl From<Loader> for Project {
-    fn from(loader: Loader) -> Self {
-        Self {
-            project_file_lock: loader.project_file_lock,
-            settings_file_lock: loader.settings_file_lock,
-
-            base_path: loader.base_path,
-            project: loader.project,
-            settings: loader.settings,
-        }
-    }
-}
-
-// ************************
-// *** Project Settings ***
-// ************************
-
-/// Settings for a Thot project.
-#[derive(Settings)]
-pub struct ProjectSettings {
-    #[settings(file_lock = "PrjSettings")]
-    file_lock: FlockLock<File>,
-    base_path: PathBuf,
-
-    #[settings(priority = "Local")]
-    settings: PrjSettings,
-}
-
-impl LocalSettings<PrjSettings> for ProjectSettings {
-    fn rel_path() -> PathBuf {
-        project_settings_file()
-    }
-
-    fn base_path(&self) -> &Path {
-        &self.base_path
-    }
-}
-
-// **************
-// *** Loader ***
-// **************
-
-pub struct Loader {
-    project_file_lock: FlockLock<File>,
-    settings_file_lock: FlockLock<File>,
-
-    base_path: PathBuf,
-    project: CoreProject,
-    settings: PrjSettings,
-}
-
-impl Loader {
-    pub fn load_or_create(path: impl Into<PathBuf>) -> SettingsResult<Self> {
-        let path = path.into();
-        let project_loader = LocalLoader::load_or_create::<Project>(path.clone())?;
-        let settings_loader = LocalLoader::load_or_create::<ProjectSettings>(path)?;
-
-        let project_loader: Components<CoreProject> = project_loader.into();
-        let settings_loader: Components<PrjSettings> = settings_loader.into();
-
-        Ok(Self {
-            project_file_lock: project_loader.file_lock,
-            settings_file_lock: settings_loader.file_lock,
-
-            base_path: project_loader.base_path,
-            project: project_loader.data,
-            settings: settings_loader.data,
-        })
-    }
-}
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

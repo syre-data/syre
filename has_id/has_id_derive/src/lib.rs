@@ -27,7 +27,3 @@ pub fn has_id_serde_derive(input: TokenStream) -> TokenStream {
 
     derive_serde::impl_has_id(&ast)
 }
-
-#[cfg(test)]
-#[path = "lib_test.rs"]
-mod lib_test;

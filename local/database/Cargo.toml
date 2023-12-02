@@ -1,6 +1,6 @@
 [package]
 name = "thot-local-database"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
@@ -15,27 +15,30 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures = "0.3.28"
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true}
+notify-debouncer-full = { version = "0.3", default-features = false, optional = true}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+thiserror = "1.0.44"
 tracing = "0.1.37"
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
-trash = { version = "3.0.2", optional = true }
+trash = { version = "3.0", optional = true }
 zmq = { version = "0.10", optional = true }
 
 has_id = { path = "../../has_id", optional = true }
-settings_manager = { path = "../../settings_manager", optional = true }
 thot-core = { path = "../../core" }
 thot-local = { path = "..", default-features = false }
-
+indexmap = { version = "2.1.0", features = ["serde"] }
 
 [dev-dependencies]
 rand = "0.8"
 fake = "2.4"
 lazy_static = "1.4"
 
-dev_utils = { path = "../../dev_utils" }
+dev_utils = { path = "../../dev_utils", features = ["thot_core"] }
 
 [features]
-server = ["dep:zmq", "dep:settings_manager", "thot-local/fs", "dep:has_id", "dep:trash"]
+server = ["dep:zmq", "thot-local/fs", "dep:has_id", "dep:trash", "dep:notify", "dep:notify-debouncer-full"]
 client = ["dep:zmq"]

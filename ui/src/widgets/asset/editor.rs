@@ -1,6 +1,6 @@
 //! [`Asset`](thot_core::project::Asset) editor.
-use crate::widgets::StandardPropertiesEditor;
-use thot_core::project::{Asset as CoreAsset, StandardProperties};
+use super::AssetPropertiesEditor;
+use thot_core::project::{Asset, AssetProperties};
 use yew::prelude::*;
 
 /// Properties for [`AssetEditor`].
@@ -9,9 +9,9 @@ pub struct AssetEditorProps {
     #[prop_or_default]
     pub class: Classes,
 
-    pub asset: CoreAsset,
+    pub asset: Asset,
 
-    pub onchange_properties: Callback<StandardProperties>,
+    pub onchange_properties: Callback<AssetProperties>,
 }
 
 /// [`Asset`](thot_core::project::Asset)s editor.
@@ -21,7 +21,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let class = classes!("thot-ui-asset-editor", props.class.clone());
     html! {
         <div key={props.asset.rid.clone()} {class}>
-            <StandardPropertiesEditor
+            <AssetPropertiesEditor
                 properties={props.asset.properties.clone()}
                 onchange={props.onchange_properties.clone()}/>
 
@@ -31,7 +31,3 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./editor_test.rs"]
-mod editor_test;

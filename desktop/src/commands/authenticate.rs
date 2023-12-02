@@ -13,7 +13,3 @@ pub struct CreateUserArgs {
     pub name: Option<String>,
     pub email: String,
 }
-
-#[cfg(test)]
-#[path = "./authenticate_test.rs"]
-mod authenticate_test;

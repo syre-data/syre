@@ -28,6 +28,14 @@ impl ScriptAssociation {
             priority: 0,
         }
     }
+
+    pub fn new_with_params(script: ResourceId, params: RunParameters) -> Self {
+        ScriptAssociation {
+            script,
+            autorun: params.autorun,
+            priority: params.priority,
+        }
+    }
 }
 
 impl Into<RunParameters> for ScriptAssociation {

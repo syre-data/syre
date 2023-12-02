@@ -11,7 +11,3 @@ pub trait HasIdSerde<'de> {
 
     fn id(&self) -> &Self::Id;
 }
-
-#[cfg(test)]
-#[path = "./has_id_serde_test.rs"]
-mod has_id_serde_test;

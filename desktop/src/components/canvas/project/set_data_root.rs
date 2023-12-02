@@ -1,7 +1,8 @@
 //! Set the data root of a project.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
+use crate::commands::common::ResourceIdArgs;
 use crate::commands::graph::InitProjectGraphArgs;
-use crate::commands::project::{GetProjectPathArgs, UpdateProjectArgs};
+use crate::commands::project::UpdateProjectArgs;
 use crate::common::invoke;
 use crate::hooks::use_project;
 use std::path::PathBuf;
@@ -46,19 +47,15 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         let project_path = project_path.clone();
         let pid = props.project.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                spawn_local(async move {
-                    let path =
-                        invoke::<PathBuf>("get_project_path", GetProjectPathArgs { id: pid })
-                            .await
-                            .expect("could not invoke `get_project_path`");
+        use_effect_with((), move |_| {
+            spawn_local(async move {
+                let path = invoke::<PathBuf>("get_project_path", ResourceIdArgs { rid: pid })
+                    .await
+                    .expect("could not invoke `get_project_path`");
 
-                    project_path.set(Some(path));
-                })
-            },
-            (),
-        )
+                project_path.set(Some(path));
+            })
+        })
     }
 
     let onsuccess = {
@@ -76,7 +73,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let project = project.rid.clone();
                 let path = path.clone();
                 spawn_local(async move {
-                    let rid = invoke::<ContainerTree>(
+                    let _rid = invoke::<ContainerTree>(
                         "init_project_graph",
                         InitProjectGraphArgs { path, project },
                     )
@@ -93,7 +90,7 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let res = invoke::<()>(
+                    let _res = invoke::<()>(
                         "update_project",
                         UpdateProjectArgs {
                             project: project.clone(),
@@ -128,7 +125,3 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./set_data_root_test.rs"]
-mod set_data_root_test;

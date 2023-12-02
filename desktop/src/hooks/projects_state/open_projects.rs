@@ -15,17 +15,10 @@ pub fn use_open_projects() -> UseStateHandle<IndexSet<ResourceId>> {
         let projects_state = projects_state.clone();
         let open_projects = open_projects.clone();
 
-        use_effect_with_deps(
-            move |projects_state| {
-                open_projects.set(projects_state.open_projects.clone());
-            },
-            projects_state,
-        );
+        use_effect_with(projects_state, move |projects_state| {
+            open_projects.set(projects_state.open_projects.clone());
+        });
     };
 
     open_projects
 }
-
-#[cfg(test)]
-#[path = "./open_projects_test.rs"]
-mod open_projects_test;

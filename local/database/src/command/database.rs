@@ -10,7 +10,3 @@ pub enum DatabaseCommand {
     /// Used to identify the running `Database`.
     Id,
 }
-
-#[cfg(test)]
-#[path = "./database_test.rs"]
-mod database_test;

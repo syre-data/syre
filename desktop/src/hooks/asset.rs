@@ -26,40 +26,30 @@ pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
             .expect("`Asset` not found")
             .clone()
     });
-    tracing::debug!(?asset);
 
     {
         let rid = rid.clone();
         let asset = asset.clone();
         let graph_state = graph_state.clone();
-        use_effect_with_deps(
-            move |(rid, graph_state)| {
-                let container = graph_state
-                    .asset_map
+        use_effect_with((rid, graph_state), move |(rid, graph_state)| {
+            let container = graph_state
+                .asset_map
+                .get(rid)
+                .expect("`Asset`'s `Container` not found");
+
+            let container = graph_state
+                .graph
+                .get(container)
+                .expect("`Container` not found");
+
+            asset.set(
+                container
+                    .assets
                     .get(rid)
-                    .expect("`Asset`'s `Container` not found");
-
-                let container = graph_state
-                    .graph
-                    .get(container)
-                    .expect("`Container` not found");
-
-                asset.set(
-                    container
-                        .assets
-                        .get(rid)
-                        .expect("`Asset` not found")
-                        .clone(),
-                );
-
-                tracing::debug!("Asset updated via use effect {:?}", asset);
-            },
-            (rid, graph_state),
-        )
+                    .expect("`Asset` not found")
+                    .clone(),
+            );
+        })
     }
     asset
 }
-
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;

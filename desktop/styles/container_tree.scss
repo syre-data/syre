@@ -1,4 +1,5 @@
 @use 'themes' as t;
+@use 'mixins';
 
 $control-button-size: 25px;
 
@@ -7,6 +8,8 @@ $control-button-size: 25px;
   text-align: center;
   
   .container-node {
+    user-select: none;
+    -webkit-user-select: none;
     position: relative; // positioning for add child button
     display: inline-block;
 
@@ -49,33 +52,6 @@ $control-button-size: 25px;
         padding: 0;
         border: none;
         box-shadow: none;
-      }
-
-      .container-menu {
-        position: absolute;
-        z-index: 100;
-
-        background-color: t.$background-accent-color;
-        padding: 5px;
-        border: t.$border-width-s t.$shadow-medium solid;
-        border-radius: t.$border-radius-m;
-
-        ul {
-          list-style: none;
-          margin: 0;
-          padding: 5px;
-
-          li {
-            text-align: left;
-            white-space: nowrap;
-            border-bottom: t.$border-width-s t.$background-color solid;
-
-            &:hover {
-              // @todo: Darken background.
-              filter: brightness(t.$darker); 
-            }
-          }
-        }
       }
     }     
 
@@ -147,9 +123,6 @@ $control-button-size: 25px;
           content: ":";
         }
       }
-
-      // .metadatum-value {
-      // }
     }
 
     .assets-preview {
@@ -161,6 +134,10 @@ $control-button-size: 25px;
         .thot-ui-asset-preview {
           &.active {
             background-color: t.$primary-color;
+          }
+
+          .thot-ui-asset-name {
+            @include mixins.hide-text-overflow;
           }
         }
       }
@@ -216,9 +193,6 @@ $control-button-size: 25px;
             margin-left: t.$margin-m;
           }
 
-          // .script-name {
-          // }
-
           .script-priority {
             display: inline-block;
             margin-left: t.$margin-l;
@@ -269,6 +243,67 @@ $control-button-size: 25px;
 
       &:hover {
         opacity: 1;
+      }
+    }
+  }
+}
+
+.container-tree-controls {
+  .analyze-commands-group {
+    display: inline-block;
+    margin-left: t.$margin-l;
+
+    .primary-analyze-btn {
+      &.with_options {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+    }
+
+    .dropdown {
+      position: relative;
+      display: inline-block;
+      
+      .dropdown-btn {
+        padding-left: t.$padding-s;
+        padding-right: t.$padding-s;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: t.$border-width-s black solid;
+      }
+
+      .dropdown-content {
+        display: none;
+        position: absolute;
+        z-index: 1;
+
+        background-color: t.$background-accent-color;
+        border-radius: t.$border-radius-s;
+
+        list-style: none;
+        margin: 0;
+        padding-left: 0;
+
+        li {
+          display: block;
+          color: t.$body-text-color;
+          text-decoration: none;
+
+          padding: t.$padding-s t.$padding-xxl;
+
+          &:not(:last-child) {
+            border-bottom: t.$border-width-s t.$frame-border-color solid;
+          }
+
+          &:hover {
+            color: t.$primary-button-hover-color;
+            background-color: t.$primary-button-hover-background-color;
+          }
+        }
+      }
+
+      &:hover .dropdown-content {
+        display: block;
       }
     }
   }

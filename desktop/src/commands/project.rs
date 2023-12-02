@@ -10,13 +10,6 @@ pub struct LoadUserProjectsArgs {
     pub user: ResourceId,
 }
 
-/// Arguments for [`get_project_path`](thot_desktop_tauri::commands::project::get_project_path).
-#[derive(Serialize)]
-pub struct GetProjectPathArgs {
-    /// Id of the [`Project`](thot_core::project::Project).
-    pub id: ResourceId,
-}
-
 /// Arguments for creating a [`new_project`](thot_desktop_tauri::commands::project::new_project).
 #[derive(Serialize)]
 pub struct NewProjectArgs<'a> {
@@ -40,7 +33,3 @@ pub struct AnalyzeArgs {
     /// Maximum number of allowed tasks.
     pub max_tasks: Option<usize>,
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

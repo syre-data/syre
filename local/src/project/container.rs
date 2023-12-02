@@ -1,84 +1,304 @@
 //! High level functionality related to Containers.
 use super::project;
-use super::resources::container::{Container, Loader};
-use crate::common::{container_file_of, thot_dir_of};
-use crate::error::ContainerError;
-use crate::{Error, Result};
-use std::path::{Path, PathBuf};
+use super::resources::Container;
+use crate::common::{container_file_of, thot_dir};
+use crate::Result;
+use std::path::{self, Path, PathBuf};
 use std::{fs, io};
-use thot_core::project::Container as CoreContainer;
-use thot_core::types::ResourceId;
+use thot_core::error::{Error as CoreError, ResourceError};
+use thot_core::project::{Asset, ContainerProperties};
+use thot_core::types::{ResourceId, ResourcePath};
 
-/// Create a new Container, returning the [`ResourceId`].
-/// Creates directories as needed.
-///
-/// # Errors
-/// + [`io::ErrorKind::IsADirectory`]: A directory at the given path already exists.
-///
-/// # See also
-/// + [`init`]
-pub fn new(path: &Path) -> Result<ResourceId> {
-    if path.exists() {
-        return Err(io::Error::new(io::ErrorKind::IsADirectory, "path already exists").into());
-    }
+// ***************
+// *** Builder ***
+// ***************
 
-    fs::create_dir_all(path)?;
-    init(path)
+#[derive(Default)]
+pub struct InitNew {
+    properties: Option<ContainerProperties>,
 }
 
-/// Initialize folder as a [`Container`](CoreContainer).
-///
-/// # Errors
-/// + [`io::ErrorKind::NotADirectory`]: The given path does not exist.
-///
-/// # See also
-/// + [`init_from`]
-pub fn init(path: &Path) -> Result<ResourceId> {
-    if !path.exists() {
-        return Err(io::Error::new(io::ErrorKind::NotADirectory, "path does not exist").into());
+impl InitNew {
+    pub fn properties(&self) -> Option<&ContainerProperties> {
+        self.properties.as_ref()
     }
 
-    // check if path is already a resource
-    if project::path_is_resource(path) {
-        if path_is_container(path) {
-            // path is already a container
-            // return resource id
-            let container: Container = Loader::load_or_create(path.to_path_buf())?.into();
-            return Ok(container.rid.clone());
+    pub fn set_properties(&mut self, properties: ContainerProperties) {
+        self.properties = Some(properties);
+    }
+
+    pub fn unset_properties(&mut self) {
+        self.properties = None;
+    }
+}
+
+#[derive(Default)]
+pub struct InitExisting {
+    recursive: bool,
+
+    /// glob patterns to ignore.
+    ignore: Vec<String>,
+}
+
+impl InitExisting {
+    pub fn set_recursive(&mut self, recursive: bool) {
+        self.recursive = recursive;
+    }
+
+    pub fn ignored(&self) -> &Vec<String> {
+        &self.ignore
+    }
+
+    pub fn ignore(&mut self, pattern: impl Into<String>) {
+        self.ignore.push(pattern.into());
+    }
+}
+
+#[derive(Default)]
+pub struct InitOptions<I> {
+    init: I,
+    init_assets: bool,
+}
+
+impl<I> InitOptions<I> {
+    /// Initialize files as `Asset`s.
+    pub fn with_assets(&mut self) {
+        self.init_assets = true;
+    }
+
+    /// Do not initialize files as `Asset`s.
+    pub fn without_assets(&mut self) {
+        self.init_assets = false;
+    }
+}
+
+impl InitOptions<InitNew> {
+    /// Create a new folder as a `Container``.
+    pub fn new() -> Self {
+        InitOptions::default()
+    }
+
+    /// Use the given properties to initialize the `Container`.
+    ///
+    /// # Notes
+    /// + `name` is ignored and will be replaced by the folder's name.
+    pub fn properties(&mut self, properties: ContainerProperties) {
+        self.init.set_properties(properties);
+    }
+
+    /// Clears proeprties to set from.
+    pub fn unset_properties(&mut self) {
+        self.init.unset_properties();
+    }
+
+    /// Run the intialization.
+    ///
+    /// # Returns
+    /// [`ResourceId`] of the [`Container`](CoreContainer).
+    pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
+        let path = path.as_ref();
+        if path.exists() && project::path_is_resource(path) {
+            return Err(CoreError::ResourceError(ResourceError::already_exists(
+                "path is already a resource",
+            ))
+            .into());
         }
-    } else {
-        // path is not a thot resource,
-        // initialize as resource
-        let thot_dir = thot_dir_of(path);
-        fs::create_dir(&thot_dir)?;
+
+        let mut container = Container::new(path);
+        if let Some(properties) = self.init.properties() {
+            container.properties = properties.clone();
+        }
+
+        container.properties.name = container
+            .base_path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        if self.init_assets {
+            for entry in fs::read_dir(container.base_path()).unwrap() {
+                let entry = entry.unwrap();
+                let entry_path = entry.path();
+                if entry_path.is_file() {
+                    let asset = Asset::new(ResourcePath::new(entry_path)?);
+                    container.insert_asset(asset);
+                }
+            }
+        }
+
+        container.save()?;
+        Ok(container.rid.clone())
     }
-
-    // initialize container
-    // assets included
-    let mut container: Container = Loader::load_or_create(path.to_path_buf())?.into();
-    container.save()?;
-
-    Ok(container.rid.clone())
 }
 
-/// Initializes folder as a [`Container`](CoreContainer)
-/// with initial values.
+impl InitOptions<InitExisting> {
+    /// Initialize an existing folder or folder tree as a `Container`.
+    pub fn init() -> Self {
+        InitOptions::default()
+    }
+
+    /// Set whether to recurse into subfolders.
+    pub fn recurse(&mut self, recursive: bool) {
+        self.init.set_recursive(recursive);
+    }
+
+    /// Ignore a path and it's subfolders when recursing.
+    /// Ignored if `recurse` is `false`.
+    ///
+    /// # Arguments
+    /// + `pattern`: A glob pattern to ignore, relative to the
+    /// `Container` graph root.
+    pub fn ignore(&mut self, pattern: impl Into<String>) {
+        self.init.ignore(pattern);
+    }
+
+    /// Run the intialization.
+    ///
+    /// # Returns
+    /// [`ResourceId`] of the root [`Container`](CoreContainer).
+    ///
+    /// # Errors
+    /// + If a path is already a resource but can not be loaded as a Container.
+    ///
+    /// # Notes
+    /// + If `path` is already initialized as a `Container` it is re-initialized,
+    /// with all properties being maintained, but `Asset`s being updated.
+    ///  - If `recurse` is `true`, this applies for folders within the subtree, too.
+    ///
+    /// + `Container` name will be updated to match the folder.
+    pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
+        /// Initialize a path as a Container.
+        /// Used to recurse.
+        ///
+        /// # Arguments
+        /// + `ignore`: Absolute paths to ignore.
+        /// Ignored if `recurse` is `false`.
+        fn init_container(
+            path: impl AsRef<Path>,
+            init_assets: bool,
+            recurse: bool,
+            ignore: &Vec<PathBuf>,
+        ) -> Result<ResourceId> {
+            let path = path.as_ref();
+            // TODO What if path is a project?
+            let mut container = if path_is_container(path) {
+                Container::load_from(path)?
+            } else {
+                Container::new(path)
+            };
+
+            container.properties.name = container
+                .base_path()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
+
+            let mut dirs = Vec::new();
+            let mut files = Vec::new();
+            for entry in fs::read_dir(container.base_path()).unwrap() {
+                let entry = entry.unwrap();
+                let entry_path = entry.path();
+                if entry_path.is_file() {
+                    files.push(entry_path);
+                } else if entry_path.is_dir() {
+                    if entry_path.components().any(|seg| match seg {
+                        path::Component::Normal(seg) => seg == thot_dir(),
+                        _ => false,
+                    }) {
+                        continue;
+                    }
+
+                    dirs.push(entry_path);
+                }
+            }
+
+            let container_path = fs::canonicalize(container.base_path()).unwrap();
+            let asset_paths = container
+                .assets
+                .values()
+                .map(|asset| {
+                    let asset_path = container.base_path().join(asset.path.as_path());
+                    fs::canonicalize(asset_path).unwrap()
+                })
+                .collect::<Vec<_>>();
+
+            if init_assets {
+                for file_path in files {
+                    let file_path = fs::canonicalize(file_path).unwrap();
+                    if asset_paths.contains(&file_path) {
+                        continue;
+                    }
+
+                    let rel_path = file_path
+                        .strip_prefix(&container_path)
+                        .unwrap()
+                        .to_path_buf();
+
+                    let asset = Asset::new(ResourcePath::new(rel_path)?);
+                    container.insert_asset(asset);
+                }
+            }
+            container.save()?;
+
+            if recurse {
+                for dir_path in dirs.into_iter().filter(|path| !ignore.contains(path)) {
+                    init_container(dir_path, init_assets, recurse, ignore)?;
+                }
+            }
+
+            Ok(container.rid.clone())
+        }
+
+        // main
+        let path = path.as_ref();
+        if !path.exists() {
+            return Err(io::Error::new(io::ErrorKind::NotADirectory, "path does not exist").into());
+        }
+
+        let ignore = self
+            .init
+            .ignored()
+            .iter()
+            .map(|pattern| {
+                let pattern = path.join(pattern).to_str().unwrap().to_string();
+                let mut match_options = glob::MatchOptions::new();
+                match_options.case_sensitive = false;
+
+                glob::glob_with(&pattern, match_options)
+                    .unwrap()
+                    .map(|path| PathBuf::from(path.unwrap()))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect();
+
+        init_container(path, self.init_assets, self.init.recursive, &ignore)
+    }
+}
+
+// *****************
+// *** Functions ***
+// *****************
+
+/// Convenience function to create a new folder as a `Container`.
 ///
-/// # See also
-/// + [`init`]
-pub fn init_from(path: &Path, container: CoreContainer) -> Result {
-    init(path)?;
-    let mut cont: Container = Loader::load_or_create(path.into())?.into();
-
-    *cont = container;
-    cont.save()?;
-
-    Ok(())
+/// Equivalent to
+/// ```
+/// let builder = InitOptions::new();
+/// builder.build(path)?;
+/// ```
+pub fn new(path: impl AsRef<Path>) -> Result<ResourceId> {
+    let builder = InitOptions::new();
+    builder.build(path.as_ref())
 }
 
 /// Move a Container, including all its resources (children, assets, settings,
 /// etc.) a to a new location.
-pub fn mv(rid: ResourceId, to: &Path) -> Result {
+pub fn mv(rid: ResourceId, to: impl AsRef<Path>) -> Result {
     todo!();
 }
 
@@ -112,85 +332,6 @@ pub fn update(container: Container) -> Result {
 pub fn path_is_container(path: &Path) -> bool {
     let c_path = container_file_of(path);
     c_path.exists()
-}
-
-/// Initialize an existing folder as a child.
-/// Initializes the child folder as a Container, then registers it with its parent as a child.
-///
-/// # Arguments
-/// + `child`: Path to the child directory.
-/// + `container`: Path to the parent Container, or None to use the child's parent directory.
-///
-/// # Errors
-/// + If `child` is not a child of the `container` directory.
-///
-/// # Notes
-/// + Currently `child` must be a child of the `container` directory.
-///     Both are provided for future proofing if children are ever allowed to
-///     not be children of their parent Container's directory.
-///
-/// # See also
-/// + `new_child`
-pub fn init_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> {
-    // check child is valid
-    if !child.is_dir() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotADirectory,
-            "child path is not a directory",
-        )
-        .into());
-    }
-
-    let parent = match child.parent() {
-        Some(p) => p,
-        None => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidFilename,
-                "invalid path for container",
-            )
-            .into())
-        }
-    };
-
-    let container = match container {
-        None => parent,
-        Some(p) => p,
-    };
-
-    // ensure container and parent are the same
-    // can be removed if restriction is lifted
-    if parent != container {
-        return Err(Error::ContainerError(ContainerError::InvalidChildPath(
-            PathBuf::from(child),
-        )));
-    }
-
-    if !path_is_container(container) {
-        return Err(Error::ContainerError(ContainerError::PathNotAContainer(
-            PathBuf::from(container),
-        )));
-    }
-
-    // init and register
-    let rid = init(child)?;
-    let mut container: Container = Loader::load_or_create(container.to_path_buf())?.into();
-    container.save()?;
-
-    Ok(rid)
-}
-
-/// Create a new folder at the given path, initialize it as a [`Container`],
-/// and add it as a child to the given parent.
-///
-/// # Arguments
-/// + `child`: Path to the child directory.
-/// + `container`: Path to the parent `Container`, or `None` to use the child's parent directory.
-///
-/// # See also
-/// + `init_child`
-pub fn new_child(child: &Path, container: Option<&Path>) -> Result<ResourceId> {
-    fs::create_dir(child)?;
-    init_child(child, container)
 }
 
 #[cfg(test)]

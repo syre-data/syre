@@ -1,17 +1,14 @@
 //! Local [`Script`].
 use crate::common::scripts_file;
+use crate::file_resource::LocalResource;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
-use cluFlock::FlockLock;
-use settings_manager::local_settings::{Components, Loader};
-use settings_manager::{system_settings::Loader as SystemLoader, LocalSettings, Settings};
-use std::borrow::Cow;
-use std::fs::File;
+use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Script as CoreScript, Scripts as CoreScripts};
-use thot_core::types::{ResourceMap, ResourcePath};
+use thot_core::types::ResourcePath;
 
 // **************
 // *** Script ***
@@ -21,10 +18,14 @@ pub struct Script;
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
     pub fn new(path: ResourcePath) -> Result<CoreScript> {
-        let settings: UserSettings = SystemLoader::load_or_create::<UserSettings>()?.into();
+        let settings = UserSettings::load()?;
         let creator = settings.active_user.clone().map(|c| c.into());
 
-        let mut script = CoreScript::new(path)?;
+        let mut script = match CoreScript::new(path) {
+            Ok(script) => script,
+            Err(err) => return Err(CoreError::ScriptError(err).into()),
+        };
+
         script.creator = creator;
         Ok(script)
     }
@@ -34,17 +35,33 @@ impl Script {
 // *** Scripts ***
 // ***************
 
-#[derive(Settings, Debug)]
 pub struct Scripts {
-    #[settings(file_lock = "CoreScripts")]
-    file_lock: FlockLock<File>,
     base_path: PathBuf,
-
-    #[settings(priority = "Local")]
     scripts: CoreScripts,
 }
 
 impl Scripts {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            base_path: path,
+            scripts: CoreScripts::default(),
+        }
+    }
+
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+        let base_path = base_path.into();
+        let path = base_path.join(Self::rel_path());
+        let fh = fs::OpenOptions::new().read(true).open(path)?;
+        let scripts = serde_json::from_reader(fh)?;
+
+        Ok(Self { base_path, scripts })
+    }
+
+    pub fn save(&self) -> Result {
+        fs::write(self.path(), serde_json::to_string_pretty(&self.scripts)?)?;
+        Ok(())
+    }
+
     /// Inserts a script.
     ///
     /// # Errors
@@ -52,7 +69,7 @@ impl Scripts {
     /// already present.
     pub fn insert_script(&mut self, script: CoreScript) -> Result {
         if self.scripts.contains_path(&script.path) {
-            return Err(CoreError::ResourceError(ResourceError::AlreadyExists(
+            return Err(CoreError::ResourceError(ResourceError::already_exists(
                 "`Script` with same path is already present",
             ))
             .into());
@@ -64,16 +81,16 @@ impl Scripts {
 }
 
 impl Deref for Scripts {
-    type Target = ResourceMap<CoreScript>;
+    type Target = CoreScripts;
 
     fn deref(&self) -> &Self::Target {
-        &*self.scripts
+        &self.scripts
     }
 }
 
 impl DerefMut for Scripts {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.scripts
+        &mut self.scripts
     }
 }
 
@@ -83,24 +100,13 @@ impl Into<CoreScripts> for Scripts {
     }
 }
 
-impl LocalSettings<CoreScripts> for Scripts {
+impl LocalResource<CoreScripts> for Scripts {
     fn rel_path() -> PathBuf {
         scripts_file()
     }
 
     fn base_path(&self) -> &Path {
         &self.base_path
-    }
-}
-
-impl From<Loader<CoreScripts>> for Scripts {
-    fn from(loader: Loader<CoreScripts>) -> Self {
-        let loader: Components<CoreScripts> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            base_path: loader.base_path,
-            scripts: loader.data,
-        }
     }
 }
 

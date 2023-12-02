@@ -1,17 +1,15 @@
 //! Common functionality.
-use settings_manager::Result;
-use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_local::system::common;
-
 use crate::identifier::Identifier;
 use directories::ProjectDirs;
-use settings_manager::{Error as SettingsError, Result as SettingsResult};
 use std::io;
+use std::path::PathBuf;
 use thot_core::identifier::Identifier as CoreIdentifier;
+use thot_core::types::ResourceId;
+use thot_core::Result;
+use thot_local::system::common;
 
 /// Returns directories for the user's Thot.
-pub fn system_dirs() -> SettingsResult<ProjectDirs> {
+pub fn system_dirs() -> Result<ProjectDirs> {
     let dirs_opt = ProjectDirs::from(
         &CoreIdentifier::qualifier(),
         &CoreIdentifier::organization(),
@@ -20,15 +18,16 @@ pub fn system_dirs() -> SettingsResult<ProjectDirs> {
 
     match dirs_opt {
         Some(dirs) => Ok(dirs),
-        None => Err(SettingsError::IoError(io::Error::new(
+        None => Err(io::Error::new(
             io::ErrorKind::NotFound,
             "system settings directory not found",
-        ))),
+        )
+        .into()),
     }
 }
 
 /// Returns the path to the user's config directory for Thot.
-pub fn config_dir_path() -> SettingsResult<PathBuf> {
+pub fn config_dir_path() -> Result<PathBuf> {
     let dirs = system_dirs()?;
     let path = dirs.config_dir();
     Ok(path.to_path_buf())
@@ -47,7 +46,3 @@ pub fn user_config_dir(user: &ResourceId) -> Result<PathBuf> {
     path.push(user.to_string());
     Ok(path)
 }
-
-#[cfg(test)]
-#[path = "./common_test.rs"]
-mod common_test;

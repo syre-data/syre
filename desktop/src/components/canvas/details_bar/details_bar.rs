@@ -1,18 +1,31 @@
 //! Project workspace details bar.
+use super::asset_bulk_editor::AssetBulkEditor;
 use super::asset_editor::AssetEditor;
+use super::container_bulk_editor::ContainerBulkEditor;
 use super::container_editor::ContainerEditor;
+use super::mixed_bulk_editor::MixedBulkEditor;
 use super::project_actions::ProjectActions;
 use crate::components::canvas::CanvasStateReducer;
+use std::collections::HashSet;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DetailsBarWidget {
-    /// Asset editor.
+    /// `Asset` editor.
     AssetEditor(ResourceId),
 
-    /// Container editor.
+    /// `Container` editor.
     ContainerEditor(ResourceId),
+
+    /// `Container` bulk editor.
+    ContainerBulkEditor(HashSet<ResourceId>),
+
+    /// `Asset` bulk editor.
+    AssetBulkEditor(HashSet<ResourceId>),
+
+    /// Mixed bulk editor.
+    MixedBulkEditor(HashSet<ResourceId>),
 }
 
 #[function_component(DetailsBar)]
@@ -30,7 +43,19 @@ pub fn details_bar() -> Html {
 
                     DetailsBarWidget::ContainerEditor(rid) => html! {
                         <ContainerEditor {rid} />
-                    }
+                    },
+
+                    DetailsBarWidget::ContainerBulkEditor(containers) => html! {
+                        <ContainerBulkEditor {containers} />
+                    },
+
+                    DetailsBarWidget::AssetBulkEditor(assets) => html! {
+                        <AssetBulkEditor {assets} />
+                    },
+
+                    DetailsBarWidget::MixedBulkEditor(resources) => html! {
+                        <MixedBulkEditor {resources} />
+                    },
                 }}
             } else {{
                 // default
@@ -41,7 +66,3 @@ pub fn details_bar() -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./details_bar_test.rs"]
-mod details_bar_test;

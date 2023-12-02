@@ -1,8 +1,9 @@
 //! Handle main menu events.
 use crate::error::Result;
-use settings_manager::system_settings::Loader;
+use std::path::Path;
 use tauri::{Window, WindowMenuEvent};
-use thot_local::system::{common::config_dir_path, settings::RunnerSettings};
+use thot_local::file_resource::SystemResource;
+use thot_local::system::settings::RunnerSettings;
 
 /// Direct menu events to the correct function.
 pub fn handle_menu_event(event: WindowMenuEvent) {
@@ -17,20 +18,12 @@ pub fn handle_menu_event(event: WindowMenuEvent) {
 }
 
 /// Emit an `open_settings` event.
-pub fn open_developer_settings(window: &Window) -> Result {
-    Loader::load_or_create::<RunnerSettings>()?;
-    match config_dir_path() {
-        Ok(path) => {
-            open::that(path)?;
-        }
-        Err(_) => {
-            //TODO[l]: Display error message
-        }
-    };
-    window.emit("thot://open-settings", ())?;
-    Ok(())
-}
+pub fn open_developer_settings(_window: &Window) -> Result {
+    let path = RunnerSettings::path();
+    if !Path::exists(&path) {
+        let settings = RunnerSettings::default();
+        settings.save()?;
+    }
 
-#[cfg(test)]
-#[path = "./events_test.rs"]
-mod events_test;
+    Ok(open::that(path)?)
+}

@@ -58,7 +58,3 @@ pub fn project_list(props: &ProjectListProps) -> HtmlResult {
         </ol>
     })
 }
-
-#[cfg(test)]
-#[path = "./project_list_test.rs"]
-mod project_list_test;

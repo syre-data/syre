@@ -42,14 +42,11 @@ where
         let active = active.clone();
         let input_ref = input_ref.clone();
 
-        use_effect_with_deps(
-            move |_active| {
-                if let Some(input) = input_ref.cast::<web_sys::HtmlInputElement>() {
-                    input.focus().expect("could not focus input");
-                }
-            },
-            active,
-        );
+        use_effect_with(active, move |_active| {
+            if let Some(input) = input_ref.cast::<web_sys::HtmlInputElement>() {
+                input.focus().expect("could not focus input");
+            }
+        });
     }
 
     let activate = {
@@ -125,7 +122,3 @@ where
        </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./inline_input_test.rs"]
-mod inline_input_test;

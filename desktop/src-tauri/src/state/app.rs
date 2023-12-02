@@ -29,7 +29,3 @@ impl AppState {
         Self::default()
     }
 }
-
-#[cfg(test)]
-#[path = "./app_test.rs"]
-mod app_test;

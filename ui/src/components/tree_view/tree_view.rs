@@ -54,7 +54,3 @@ where
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./tree_view_test.rs"]
-mod tree_view_test;

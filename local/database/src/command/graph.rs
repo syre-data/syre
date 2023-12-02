@@ -11,14 +11,14 @@ pub enum GraphCommand {
     /// Gets a subtree.
     Get(ResourceId),
 
-    /// Remove a graph from its root.
-    Remove(ResourceId),
-
-    /// Insert a child into the graph.
-    NewChild(NewChildArgs),
-
     /// Duplicate a graph from its root.
     Duplicate(ResourceId),
+
+    /// Get the children of the Container.
+    Children(ResourceId),
+
+    /// Get the parent of the Container.
+    Parent(ResourceId),
 }
 
 /// Arguments for [`Command::NewChild`].
@@ -27,7 +27,3 @@ pub struct NewChildArgs {
     pub name: String,
     pub parent: ResourceId,
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

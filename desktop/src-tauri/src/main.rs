@@ -15,12 +15,12 @@ mod ui;
 
 use commands::*;
 use std::io;
-use tauri::RunEvent;
+// use tauri::RunEvent;
 use thot_local_database::client::Client as DbClient;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::time::UtcTime;
-use tracing_subscriber::fmt::Subscriber;
+// use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{Layer, Registry};
 
@@ -57,7 +57,7 @@ fn main() {
     db::functions::verify_database();
 
     // create app
-    let app = tauri::Builder::default()
+    let _app = tauri::Builder::default()
         .system_tray(system_tray())
         .on_system_tray_event(|app, event| handle_system_tray_event(app, event))
         .menu(main_menu())
@@ -86,11 +86,11 @@ fn main() {
             add_project,
             get_project_path,
             init_project,
+            init_project_from,
             set_active_project,
             load_project,
             load_user_projects,
             get_project,
-            // new_project, @todo: Possibly remove.
             update_project,
             analyze,
             // graph
@@ -99,6 +99,8 @@ fn main() {
             // container
             add_assets,
             add_asset_windows,
+            bulk_update_container_properties,
+            bulk_update_container_script_associations,
             get_container,
             get_container_path,
             new_child,
@@ -107,6 +109,7 @@ fn main() {
             duplicate_container_tree,
             remove_container_tree,
             // asset
+            bulk_update_asset_properties,
             get_assets,
             update_asset_properties,
             remove_asset,
@@ -116,19 +119,21 @@ fn main() {
             remove_script,
         ])
         .setup(setup::setup)
-        .build(tauri::generate_context!())
+        // .build(tauri::generate_context!()) // TODO Handle events
+        .run(tauri::generate_context!())
         .expect("could not build app");
 
-    app.run(move |_app, event| match event {
-        RunEvent::ExitRequested { api, .. } => {
-            // @todo: Appears that `database` process is killed automatically
-            // when parent is killed. May have to manually kill if detached.
-            // if let Some((_rx_database, proc_database)) = db_handler {
-            //     proc_database
-            //         .kill()
-            //         .expect("could not kill `database` process");
-            // }
-        }
-        _ => {}
-    });
+    // TODO Handle events
+    // app.run(move |_app, event| match event {
+    //     RunEvent::ExitRequested { api, .. } => {
+    // TODO Appears that `database` process is killed automatically
+    // when parent is killed. May have to manually kill if detached.
+    // if let Some((_rx_database, proc_database)) = db_handler {
+    //     proc_database
+    //         .kill()
+    //         .expect("could not kill `database` process");
+    // }
+    // }
+    // _ => {}
+    // });
 }

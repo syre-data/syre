@@ -12,7 +12,3 @@ pub struct InitProjectGraphArgs {
     /// Project id.
     pub project: ResourceId,
 }
-
-#[cfg(test)]
-#[path = "./graph_test.rs"]
-mod graph_test;

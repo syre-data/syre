@@ -5,7 +5,7 @@ use super::*;
 // ***************
 
 #[test]
-fn project_new_w_defaults() {
+fn project_new_should_work() {
     let p_name = String::from("test");
     let prj = Project::new(p_name.as_str());
 

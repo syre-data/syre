@@ -20,7 +20,7 @@ pub struct ShadowBoxProps {
 }
 
 const CONTAINER_STYLE: &str = "
-    position: absolute;
+    position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
@@ -74,7 +74,3 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
 
     create_portal(out, host.into())
 }
-
-#[cfg(test)]
-#[path = "./shadow_box_test.rs"]
-mod shadow_box_test;

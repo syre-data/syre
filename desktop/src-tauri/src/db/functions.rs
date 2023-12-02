@@ -23,7 +23,3 @@ fn init_database() -> (Receiver<CommandEvent>, CommandChild) {
         .spawn()
         .expect("failed to spawn sidecar")
 }
-
-#[cfg(test)]
-#[path = "./functions_test.rs"]
-mod functions_test;

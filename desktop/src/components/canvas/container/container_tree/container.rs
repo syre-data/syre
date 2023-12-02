@@ -1,11 +1,12 @@
 //! UI for a `Container` preview within a [`Graph`](super::Graph).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
-use super::super::super::asset::CreateAssets;
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::commands::container::AddAssetWindowsArgs;
 use crate::common::invoke;
+use crate::components::canvas::asset::CreateAssets;
+use crate::components::canvas::selection_action::{selection_action, SelectionAction};
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
@@ -42,7 +43,7 @@ pub struct ContainerProps {
     pub onadd_child: Option<Callback<ResourceId>>,
 }
 
-#[tracing::instrument(level = "debug", skip(props), fields(?props.rid))]
+#[tracing::instrument(skip(props), fields(?props.rid))]
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------
@@ -64,7 +65,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let multiple_selected = canvas_state.selected.len() > 1;
 
     let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Project scripts not loaded")));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+            "Project scripts not loaded",
+        )));
         navigator.push(&Route::Dashboard);
         return Ok(html! {{ "Project scripts not loaded. Redirecting to home." }});
     };
@@ -93,6 +96,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- interaction ---
     // -------------------
 
+    let onmousedown = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+    });
+
     let onclick = {
         let rid = props.rid.clone();
         let canvas_state = canvas_state.clone();
@@ -101,6 +108,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
+            e.prevent_default();
 
             let rid = rid.clone();
             match selection_action(selected, multiple_selected, e) {
@@ -126,7 +134,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let on_menu_event = {
         let app_state = app_state.clone();
-        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let rid = props.rid.clone();
         let show_create_assets = show_create_assets.clone();
@@ -201,41 +208,10 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 }
 
                 ContainerMenuEvent::Remove => {
-                    let app_state = app_state.clone();
-                    let canvas_state = canvas_state.clone();
-                    let graph_state = graph_state.clone();
-
                     spawn_local(async move {
                         invoke::<()>("remove_container_tree", ResourceIdArgs { rid: rid.clone() })
                             .await
                             .expect("could not invoke `remove_container_tree`");
-
-                        let mut graph = graph_state.graph.clone();
-
-                        match graph.remove(&rid) {
-                            Ok(removed) => {
-                                // unselect removed elements
-                                let mut rids = Vec::with_capacity(removed.nodes().len());
-                                for (cid, container) in removed.nodes() {
-                                    rids.push(cid.clone());
-                                    let mut aids = container
-                                        .assets
-                                        .keys()
-                                        .map(|rid| rid.clone())
-                                        .collect::<Vec<ResourceId>>();
-
-                                    rids.append(&mut aids);
-                                }
-
-                                canvas_state.dispatch(CanvasStateAction::UnselectMany(rids));
-                                graph_state.dispatch(GraphStateAction::SetGraph(graph));
-                            }
-                            Err(_) => {
-                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not remove tree",
-                                )));
-                            }
-                        }
                     });
                 }
             }
@@ -262,7 +238,11 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                    Message::error("Could not load asset"),
+                    MESSAGE_TIMEOUT,
+                    app_state.clone(),
+                ));
                 return;
             };
 
@@ -270,8 +250,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             let selected = canvas_state.selected.contains(&rid);
             match selection_action(selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
-                    canvas_state.dispatch(CanvasStateAction::ClearSelected);
-                    canvas_state.dispatch(CanvasStateAction::SelectAsset(rid));
+                    canvas_state.dispatch(CanvasStateAction::SelectAssetOnly(rid));
                 }
 
                 SelectionAction::Select => {
@@ -291,65 +270,51 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         let rid = props.rid.clone();
 
         Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+            e.stop_propagation();
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(Message::error("Could not load asset"), MESSAGE_TIMEOUT, app_state.clone()));
+                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                    Message::error("Could not load asset"),
+                    MESSAGE_TIMEOUT,
+                    app_state.clone(),
+                ));
                 return;
             };
 
             let app_state = app_state.clone();
             spawn_local(async move {
-                let Ok(mut path) = invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid })
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get container path")));
-                        return;
-                    };
+                let Ok(mut path) =
+                    invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not get container path",
+                    )));
+                    return;
+                };
 
                 path.push(asset.path.clone());
-                let Ok(_) = invoke::<()>("open_file", PathBufArgs { path })
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not open file")));
-                        return;
-                    };
+                let Ok(_) = invoke::<()>("open_file", PathBufArgs { path }).await else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not open file",
+                    )));
+                    return;
+                };
             });
         })
     };
 
     let onclick_asset_remove = {
         let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
-        let canvas_state = canvas_state.clone();
-        let container_id = props.rid.clone();
-
         Callback::from(move |rid: ResourceId| {
             let app_state = app_state.clone();
-            let graph_state = graph_state.clone();
-            let canvas_state = canvas_state.clone();
-            let container_id = container_id.clone();
-
             spawn_local(async move {
-                let Ok(_) = invoke::<()>("remove_asset", ResourceIdArgs { rid: rid.clone() })
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not remove asset")));
-                        return;
-                    };
-
-                let Some(container) = graph_state
-                    .graph
-                    .get(&container_id)
-                    .cloned() else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not update container")));
-                        return;
-                    };
-
-                let mut assets = container.assets.clone();
-                assets.retain(|asset, _| asset != &rid);
-                graph_state.dispatch(GraphStateAction::UpdateContainerAssets(
-                    container_id.clone(),
-                    assets,
-                ));
-
-                canvas_state.dispatch(CanvasStateAction::Unselect(rid.clone()));
+                let Ok(_) = invoke::<()>("remove_asset", ResourceIdArgs { rid: rid.clone() }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not remove asset",
+                    )));
+                    return;
+                };
             });
         })
     };
@@ -370,7 +335,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
-    // @note: Used for Windows machines.
+    // NOTE Used for Windows machines.
     //      For *nix and macOS machine, look in the `ContainerTreeController` component.
 
     let ondragenter = {
@@ -391,7 +356,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let ondrop = {
-        let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let container_id = props.rid.clone();
 
@@ -408,8 +372,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let file_reader = web_sys::FileReader::new().unwrap();
                 file_reader.read_as_array_buffer(&file).unwrap();
 
-                let app_state = app_state.clone();
-                let graph_state = graph_state.clone();
                 let container_id = container_id.clone();
                 let onload = Closure::<dyn FnMut(Event)>::new(move |e: Event| {
                     let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
@@ -419,14 +381,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let mut contents = vec![0; file.length() as usize];
                     file.copy_to(&mut contents);
 
-                    let app_state = app_state.clone();
-                    let graph_state = graph_state.clone();
                     let name = name.clone();
                     let container_id = container_id.clone();
                     spawn_local(async move {
                         // create assets
-                        // @todo: Handle buckets.
-                        let asset: Vec<ResourceId> = invoke(
+                        // TODO Handle buckets.
+                        invoke::<()>(
                             "add_asset_windows",
                             AddAssetWindowsArgs {
                                 container: container_id.clone(),
@@ -436,34 +396,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         )
                         .await
                         .expect("could not invoke `add_asset_windows`");
-
-                        // update container
-                        let container: CoreContainer = invoke(
-                            "get_container",
-                            ResourceIdArgs {
-                                rid: container_id.clone(),
-                            },
-                        )
-                        .await
-                        .expect("could not invoke `get_container`");
-
-                        // update container
-                        let asset = container
-                            .assets
-                            .get(&asset[0])
-                            .expect("could not find `Asset`")
-                            .clone();
-                        graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                            container_id.clone(),
-                            vec![asset],
-                        ));
-
-                        // notify user
-                        app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                            Message::success("Added asset"),
-                            MESSAGE_TIMEOUT,
-                            app_state.clone(),
-                        ));
                     });
                 });
 
@@ -501,6 +433,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 scripts: container.scripts.clone(),
                 script_names,
                 preview: canvas_state.preview.clone(),
+                onmousedown,
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
@@ -513,10 +446,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             }
     };
 
-    let container_name = match container.properties.name.clone() {
-        None => "(no name)".to_string(),
-        Some(name) => name,
-    };
+    let container_name = &container.properties.name;
 
     Ok(html! {
         <>
@@ -539,49 +469,15 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 // *** helpers ***
 // ***************
 
-enum SelectionAction {
-    SelectOnly,
-    Select,
-    Unselect,
-}
-
-/// Determines the selection action from the current action and state.
-///
-/// # Arguments
-/// 1. If the clicked resource is currently selected.
-/// 2. If at least one other resource is currently selected.
-/// 3. The [`MouseEvent`].
-fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
-    if e.ctrl_key() {
-        if selected {
-            return SelectionAction::Unselect;
-        } else {
-            return SelectionAction::Select;
-        }
-    }
-
-    if selected {
-        if multiple {
-            return SelectionAction::SelectOnly;
-        }
-
-        return SelectionAction::Unselect;
-    }
-
-    SelectionAction::SelectOnly
-}
-
 /// Gets an `Asset`.
 ///
 /// # Arguments
 /// 1. `Asset`'s `ResourceId`.
 /// 2. Tree state.
 fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<CoreAsset> {
-    let Some(container) = graph_state
-                .asset_map
-                .get(&rid) else {
-                    return None;
-                };
+    let Some(container) = graph_state.asset_map.get(&rid) else {
+        return None;
+    };
 
     let container = graph_state
         .graph
@@ -590,7 +486,3 @@ fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<CoreAss
 
     container.assets.get(&rid).cloned()
 }
-
-#[cfg(test)]
-#[path = "./container_test.rs"]
-mod container_test;

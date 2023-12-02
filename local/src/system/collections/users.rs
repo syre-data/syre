@@ -1,11 +1,11 @@
 //! User collection.
+use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use cluFlock::FlockLock;
-use derivative::{self, Derivative};
-use settings_manager::system_settings::{Components, Loader, SystemSettings};
-use settings_manager::Settings;
+use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs;
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use thot_core::system::User;
@@ -13,48 +13,52 @@ use thot_core::types::ResourceId;
 
 pub type UserMap = HashMap<ResourceId, User>;
 
-#[derive(Derivative, Settings)]
-#[derivative(Debug)]
-pub struct Users {
-    #[settings(file_lock = "UserMap")]
-    file_lock: FlockLock<File>,
+#[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(transparent)]
+pub struct Users(UserMap);
 
-    #[settings(priority = "User")]
-    pub users: UserMap,
+impl Users {
+    pub fn load() -> Result<Self> {
+        let file = fs::File::open(Self::path())?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
+
+    pub fn load_or_default() -> Result<Self> {
+        match fs::File::open(Self::path()) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                Ok(serde_json::from_reader(reader)?)
+            }
+
+            Err(_) => Ok(Self::default()),
+        }
+    }
+
+    pub fn save(&self) -> Result {
+        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        Ok(())
+    }
 }
 
 impl Deref for Users {
     type Target = UserMap;
 
     fn deref(&self) -> &Self::Target {
-        &self.users
+        &self.0
     }
 }
 
 impl DerefMut for Users {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.users
+        &mut self.0
     }
 }
 
-impl SystemSettings<UserMap> for Users {
+impl SystemResource<UserMap> for Users {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
         settings_dir.join("users.json")
     }
 }
-
-impl From<Loader<UserMap>> for Users {
-    fn from(loader: Loader<UserMap>) -> Self {
-        let loader: Components<UserMap> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            users: loader.data,
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "./users_test.rs"]
-mod users_test;

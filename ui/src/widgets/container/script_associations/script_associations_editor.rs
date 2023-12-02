@@ -1,19 +1,19 @@
 //! Editor for [`ScriptAssociation`]s.
-use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::RunParameters;
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
-pub type NameMap = HashMap<ResourceId, String>;
+pub type NameMap = ResourceMap<String>;
 
 // **************************
 // *** Association Editor ***
 // **************************
 
 pub enum ScriptAssociationStateAction {
+    SetValue(RunParameters),
     SetPriority(i32),
     SetAutorun(bool),
 }
@@ -29,9 +29,14 @@ impl Reducible for ScriptAssociationState {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
+            ScriptAssociationStateAction::SetValue(params) => {
+                current.run_parameters = params;
+            }
+
             ScriptAssociationStateAction::SetPriority(priority) => {
                 current.run_parameters.priority = priority;
             }
+
             ScriptAssociationStateAction::SetAutorun(autorun) => {
                 current.run_parameters.autorun = autorun;
             }
@@ -56,25 +61,36 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     let association_state = use_reducer(|| ScriptAssociationState {
         run_parameters: props.run_parameters.clone(),
     });
+
     let priority_ref = use_node_ref();
     let autorun_ref = use_node_ref();
+
+    {
+        let association_state = association_state.clone();
+        let dirty_state = dirty_state.clone();
+
+        use_effect_with(props.run_parameters.clone(), move |run_parameters| {
+            association_state.dispatch(ScriptAssociationStateAction::SetValue(
+                run_parameters.clone(),
+            ));
+        
+            dirty_state.set(false);
+        });
+    }
 
     {
         let onchange = props.onchange.clone();
         let dirty_state = dirty_state.clone();
         let association_state = association_state.clone();
 
-        use_effect_with_deps(
-            move |association_state| {
-                if !*dirty_state {
-                    return;
-                }
-
-                onchange.emit(association_state.run_parameters.clone());
-                dirty_state.set(false);
-            },
-            association_state,
-        );
+        use_effect_with(association_state, move |association_state| {
+            if !*dirty_state {
+                return;
+            }
+        
+            onchange.emit(association_state.run_parameters.clone());
+            dirty_state.set(false);
+        });
     }
 
     let onchange_priority = {
@@ -205,7 +221,3 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         </form>
     }
 }
-
-#[cfg(test)]
-#[path = "./script_associations_editor_test.rs"]
-mod script_associations_editor_test;

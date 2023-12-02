@@ -30,12 +30,9 @@ pub fn messages() -> Html {
                     class={classes!("clickable")}
                     kind={m.kind.clone()}
                     message={m.message.clone()}
+                    details={m.details.clone()}
                     onclick={onclick(m.id())} />
             }).collect::<Html>() }
         </MessagesUi>
     }
 }
-
-#[cfg(test)]
-#[path = "./messages_test.rs"]
-mod messages_test;

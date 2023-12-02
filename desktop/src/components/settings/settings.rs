@@ -11,7 +11,3 @@ pub fn settings() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./settings_test.rs"]
-mod settings_test;

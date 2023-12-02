@@ -4,7 +4,7 @@ use serde_json::Value as JsValue;
 use std::collections::HashSet;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumBuilderProps {
     /// Initial name.
     #[prop_or_default]
@@ -25,9 +25,10 @@ pub struct MetadatumBuilderProps {
     pub oncancel: Callback<()>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumBuilder)]
 pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
-    // @note: `kind` and `value` are set to default values if they can not be
+    // NOTE `kind` and `value` are set to default values if they can not be
     // interpreted correctly. It may be better to return an error instead,
     // although this situation should likely never arise due to their types.
     let value = use_state(|| props.value.clone());
@@ -44,13 +45,12 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not cast node ref to input");
 
-            key.set(key_input.value());
+            key.set(key_input.value().trim().into());
         })
     };
 
     let onchange_value = {
         let value = value.clone();
-
         Callback::from(move |val| {
             value.set(val);
         })
@@ -58,9 +58,8 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
 
     let onerror = {
         let error = error.clone();
-
         Callback::from(move |message: String| {
-            error.set(Some(message));
+            error.set(message.into());
         })
     };
 
@@ -85,50 +84,51 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 return;
             }
 
+            if (*error).is_some() {
+                return;
+            }
+
             onsave.emit(((*key).clone(), (*value).clone()));
         })
     };
 
     let oncancel = {
         let oncancel = props.oncancel.clone();
-
         Callback::from(move |_: MouseEvent| {
             oncancel.emit(());
         })
     };
 
     html! {
-        <form class={classes!("thot-ui-metadatum-builder")} {onsubmit}>
-            <div class={classes!("form-fields")}>
-                <input
-                    ref={key_ref}
-                    placeholder="Name"
-                    value={(*key).clone()}
-                    minlength="1"
-                    onchange={onchange_key}
-                    required={true} />
+        <div class={classes!("thot-ui-metadatum-builder")}>
+            <form {onsubmit}>
+                <div class={classes!("form-fields")}>
+                    <input
+                        ref={key_ref}
+                        placeholder="Name"
+                        value={(*key).clone()}
+                        minlength="1"
+                        onchange={onchange_key}
+                        required={true} />
 
-                <MetadatumValueEditor
-                    class={classes!("metadatum-value")}
-                    value={props.value.clone()}
-                    onchange={onchange_value}
-                    {onerror} />
+                    <MetadatumValueEditor
+                        class={classes!("metadatum-value")}
+                        value={props.value.clone()}
+                        onchange={onchange_value}
+                        {onerror} />
 
-                <div class={classes!("error")}>
-                    if let Some(msg) = error.as_ref() {
-                        { msg }
-                    }
+                    <div class={classes!("form-controls")}>
+                        <button>{ "Add" }</button>
+                        <button type="button" onclick={oncancel}>{ "Cancel" }</button>
+                    </div>
                 </div>
-            </div>
+            </form>
 
-            <div class={classes!("form-controls")}>
-                <button>{ "Add" }</button>
-                <button type="button" onclick={oncancel}>{ "Cancel" }</button>
+            <div class={classes!("error")}>
+                if let Some(msg) = error.as_ref() {
+                    { msg }
+                }
             </div>
-        </form>
+        </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadatum_builder_test.rs"]
-mod metadatum_builder_test;

@@ -1,7 +1,6 @@
 use super::collections::users::Users;
 use super::settings::user_settings::UserSettings;
 use crate::error::{Error, Result, UsersError};
-use settings_manager::{system_settings::Loader, Settings};
 use std::collections::HashMap;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::system::User;
@@ -14,7 +13,7 @@ use validator;
 
 /// Returns a user by the given id if it exists, otherwise returns an error.
 pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
-    let users: Users = Loader::load_or_create::<Users>()?.into();
+    let users = Users::load()?;
     Ok(users.get(&rid).cloned())
 }
 
@@ -23,7 +22,7 @@ pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
 /// # Errors
 /// + [`UsersError::DuplicateEmail`]: If multiple users are registered with the given email.
 pub fn user_by_email(email: &str) -> Result<Option<User>> {
-    let users: Users = Loader::load_or_create::<Users>()?.into();
+    let users = Users::load()?;
     let users: Vec<&User> = users.values().filter(|user| user.email == email).collect();
 
     match users.len() {
@@ -42,7 +41,7 @@ pub fn add_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users: Users = Loader::load_or_create::<Users>()?.into();
+    let mut users = Users::load_or_default()?;
 
     // check if email already exists
     let user_count = user_count_by_email(&user.email, &users);
@@ -61,8 +60,8 @@ pub fn add_user(user: User) -> Result {
 
 /// Delete a user by id.
 pub fn delete_user(rid: &ResourceId) -> Result {
-    let mut users: Users = Loader::load_or_create::<Users>()?.into();
-    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+    let mut users = Users::load()?;
+    let mut settings = UserSettings::load()?;
 
     users.remove(&rid);
 
@@ -95,7 +94,7 @@ pub fn update_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users: Users = Loader::load_or_create::<Users>()?.into();
+    let mut users = Users::load()?;
     validate_id_is_present(&user.rid, &users)?;
 
     users.insert(user.rid.clone(), user);
@@ -105,7 +104,7 @@ pub fn update_user(user: User) -> Result {
 
 /// Gets the active user.
 pub fn get_active_user() -> Result<Option<User>> {
-    let user_settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+    let user_settings = UserSettings::load_or_default()?;
     let Some(active_user) = user_settings.active_user.as_ref() else {
         return Ok(None);
     };
@@ -119,12 +118,12 @@ pub fn get_active_user() -> Result<Option<User>> {
 /// + If the user represented by the id is not registered.
 pub fn set_active_user(rid: &ResourceId) -> Result {
     // ensure valid users
-    let users: Users = Loader::load_or_create::<Users>()?.into();
+    let users = Users::load()?;
     validate_id_is_present(&rid, &users)?;
 
     // set active user
-    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
-    settings.active_user = Some((*rid).clone().into());
+    let mut settings = UserSettings::load_or_default()?;
+    settings.active_user = Some(rid.clone());
     settings.save()?;
     Ok(())
 }
@@ -137,11 +136,11 @@ pub fn set_active_user_by_email(email: &str) -> Result {
     let user = user_by_email(email)?;
     let Some(user) = user else {
         return Err(Error::CoreError(CoreError::ResourceError(
-            ResourceError::DoesNotExist("email does not exist"),
+            ResourceError::does_not_exist("email does not exist"),
         )));
     };
 
-    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+    let mut settings = UserSettings::load()?;
     settings.active_user = Some(user.rid.into());
     settings.save()?;
     Ok(())
@@ -149,7 +148,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
 
 /// Unsets the active user.
 pub fn unset_active_user() -> Result {
-    let mut settings: UserSettings = Loader::load_or_create::<UserSettings>()?.into();
+    let mut settings = UserSettings::load()?;
     settings.active_user = None;
     settings.save()?;
     Ok(())
@@ -173,7 +172,7 @@ fn user_count_by_email(email: &str, users: &Users) -> usize {
 fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -> Result {
     // validate id
     if !store.contains_key(&rid) {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`User` does not exist.",
         ))
         .into());

@@ -1,5 +1,6 @@
 //! Create an [`Asset`](thot_core::project::Asset).
 use crate::commands::common::ResourceIdArgs;
+use crate::commands::container::AddAssetsArgs;
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_container_path;
@@ -7,8 +8,8 @@ use std::path::PathBuf;
 use tauri_sys::dialog::FileDialogBuilder;
 use thot_core::project::Container;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::types::AssetFileAction;
-use thot_local_database::command::container::{AddAssetInfo, AddAssetsArgs};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -185,6 +186,3 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
         </div>
     })
 }
-
-#[path = "./create_assets_test.rs"]
-mod create_assets_test;

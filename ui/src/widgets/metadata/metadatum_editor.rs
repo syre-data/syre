@@ -3,7 +3,7 @@ use super::MetadatumValueEditor;
 use serde_json::Value as JsValue;
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumEditorProps {
     pub name: String,
 
@@ -14,14 +14,14 @@ pub struct MetadatumEditorProps {
     pub onchange: Callback<JsValue>,
 }
 
+#[tracing::instrument]
 #[function_component(MetadatumEditor)]
 pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let error = use_state(|| None);
     let onerror = {
         let error = error.clone();
-
         Callback::from(move |message: String| {
-            error.set(Some(message));
+            error.set(message.into());
         })
     };
 
@@ -37,16 +37,19 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
 
     // ui
     html! {
-        <div class={classes!("metadatum")}>
-            <span class={classes!("metadatum-key")}>
-                { &props.name }
-            </span>
+        <div class={classes!("thot-ui-metadatum")}>
+            <div class={classes!("metadatum-fields")}>
+                <span class={classes!("metadatum-key")}
+                    title={props.name.clone()}>
+                    { &props.name }
+                </span>
 
-            <MetadatumValueEditor
-                class={classes!("metadatum-value")}
-                value={props.value.clone()}
-                {onchange}
-                {onerror} />
+                <MetadatumValueEditor
+                    class={classes!("metadatum-value")}
+                    value={props.value.clone()}
+                    {onchange}
+                    {onerror} />
+            </div>
 
             if let Some(msg) = error.as_ref() {
                 <span class={classes!("error")}>{ msg }</span>
@@ -54,7 +57,3 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadatum_editor_test.rs"]
-mod metadatum_editor_test;

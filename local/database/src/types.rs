@@ -15,7 +15,3 @@ pub enum SocketType {
     /// [`zmq::SocketType::REP`]
     REP,
 }
-
-#[cfg(test)]
-#[path = "./types_test.rs"]
-mod types_test;

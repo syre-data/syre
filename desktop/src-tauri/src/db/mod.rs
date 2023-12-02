@@ -1,6 +1,5 @@
 //! Interaction with a [`Database`](thot_local::db::Database).
 pub mod functions;
+pub mod update_actor;
 
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;
+pub use update_actor::UpdateActor;

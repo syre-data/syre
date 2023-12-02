@@ -42,58 +42,15 @@ impl ResourcePath {
     /// ## Root paths
     /// Only the relative path from the root is stored for root paths.
     pub fn new(path: PathBuf) -> Result<Self> {
-        if Self::is_root(&path) {
-            // parse metalevel
-            let path_str = path.to_str();
-            if path_str.is_none() {
-                return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel("could not convert path to string"),
-                ));
-            }
-
-            let rd_pattern = Self::root_drive_regex();
-            let caps = rd_pattern.captures(path_str.unwrap());
-            if caps.is_none() {
-                return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel("path did not match root pattern"),
-                ));
-            }
-
-            let caps = caps.unwrap();
-            let metalevel = match caps.get(1) {
-                None => 0, // metalevel not set, default ot 0
-                Some(m) => match m.as_str().parse::<usize>() {
-                    Err(_) => {
-                        return Err(Error::ResourcePathError(
-                            ResourcePathError::CouldNotParseMetalevel(
-                                "invalid metalevel, could not parse as integer",
-                            ),
-                        ))
-                    }
-                    Ok(ml) => ml,
-                },
-            };
-
-            // extract relative path
-            let prefix = caps.get(0).unwrap().as_str();
-            let rel_path = path.strip_prefix(prefix);
-            if rel_path.is_err() {
-                return Err(Error::ResourcePathError(
-                    ResourcePathError::CouldNotParseMetalevel(
-                        "could not remove root drive from path",
-                    ),
-                ));
-            }
-
-            let rel_path = rel_path.unwrap().to_path_buf();
+        if let Some((metalevel, rel_path)) = Self::parse_root_path(&path)? {
             return Ok(Self::Root(rel_path, metalevel));
-        }
-
-        if Self::is_relative(&path) {
+        } else if Self::is_relative(&path) {
             return Ok(Self::Relative(path));
-        } else {
+        } else if Self::is_absolute(&path) {
             return Ok(Self::Absolute(path));
         }
+
+        unreachable!("could not parse path as a resource path");
     }
 
     /// Coerces to a [`Path`] slice.
@@ -101,32 +58,57 @@ impl ResourcePath {
         self.as_ref()
     }
 
-    /// Returns whether a path is a root path.
+    /// Attempts to parse a path as a Root path.
     ///
-    /// # See also
-    /// + [`Self.is_realtive_path`]
-    /// + [`Self.is_absolute_path`]
-    pub fn is_root(path: &Path) -> bool {
+    /// # Returns
+    /// `Some((meta level, relative path))` if successfully parsed, otherwise `None`.
+    pub fn parse_root_path(path: &Path) -> Result<Option<(usize, PathBuf)>> {
         let path_str = path.to_str().unwrap();
-        path_str.starts_with(ROOT_DRIVE_ID)
+        let rd_pattern = Self::root_drive_regex();
+        let Some(caps) = rd_pattern.captures(path_str) else {
+            return Ok(None);
+        };
+
+        let metalevel = match caps.get(1) {
+            None => 0, // metalevel not set, default ot 0
+            Some(m) => match m.as_str().parse::<usize>() {
+                Err(_) => {
+                    return Err(Error::ResourcePathError(
+                        ResourcePathError::could_not_parse_meta_level(
+                            "invalid metalevel, could not parse as integer",
+                        ),
+                    ));
+                }
+                Ok(ml) => ml,
+            },
+        };
+
+        // extract relative path
+        let prefix = caps.get(0).unwrap().as_str();
+        let Ok(rel_path) = path.strip_prefix(prefix) else {
+            return Err(Error::ResourcePathError(
+                ResourcePathError::could_not_parse_meta_level(
+                    "could not remove root drive from path",
+                ),
+            ));
+        };
+
+        Ok(Some((metalevel, rel_path.to_path_buf())))
+    }
+
+    /// Returns whether a path is a root path.
+    pub fn is_root(path: &Path) -> bool {
+        Self::parse_root_path(path).unwrap().is_some()
     }
 
     /// Returns whether a path is a relative path.
-    ///
-    /// # See also
-    /// + [`Self.is_root_path`]
-    /// + [`Self.is_absolute_path`]
     pub fn is_relative(path: &Path) -> bool {
         !Self::is_root(path) && path.is_relative()
     }
 
     /// Returns whether a path is an absolute path.
-    ///
-    /// # See also
-    /// + [`Self.is_root_path`]
-    /// + [`Self.is_relative_path`]
     pub fn is_absolute(path: &Path) -> bool {
-        !(Self::is_root(path) || path.is_relative())
+        !Self::is_root(path) && path.is_absolute()
     }
 
     /// Returns a regex for matching a root path.

@@ -62,7 +62,3 @@ pub fn sidebar() -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./sidebar_test.rs"]
-mod sidebar_test;

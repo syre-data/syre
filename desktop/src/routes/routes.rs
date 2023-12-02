@@ -52,12 +52,8 @@ pub fn switch(routes: Route) -> Html {
         Route::Home => html! { <AuthGuard><Home /></AuthGuard> },
         Route::Settings => html! { <AuthGuard><Settings /></AuthGuard> },
         Route::Dashboard => html! { <AuthGuard><Dashboard /></AuthGuard> },
-        Route::Projects => html! { <AuthGuard><Dashboard /></AuthGuard> }, // @todo: Create dedicated page.
+        Route::Projects => html! { <AuthGuard><Dashboard /></AuthGuard> }, // TODO Create dedicated page.
         Route::Workspace => html! { <AuthGuard><Workspace /></AuthGuard> },
         Route::NotFound => html! { <NotFound /> },
     }
 }
-
-#[cfg(test)]
-#[path = "./routes_test.rs"]
-mod routes_test;

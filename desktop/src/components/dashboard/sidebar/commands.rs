@@ -66,7 +66,3 @@ pub fn commands() -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./commands_test.rs"]
-mod commands_test;

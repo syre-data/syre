@@ -1,5 +1,4 @@
 #![feature(trait_alias)]
-pub mod common;
 pub mod components;
 pub mod error;
 pub mod hooks;

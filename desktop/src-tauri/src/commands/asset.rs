@@ -1,18 +1,15 @@
-//! [`Asset`](CoreAsset) functionality.
+//! `Asset` functionality.
 use crate::error::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::State;
-use thot_core::project::StandardProperties;
+use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
 use thot_local_database::client::Client as DbClient;
+use thot_local_database::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
 use thot_local_database::command::AssetCommand;
 
-/// Gets [`Asset`](CoreAsset)s.
-///
-/// # Returns
-/// `Vec<[Asset](CoreAsset)>` where [`Asset`](CoreAsset)s that
-/// are not found are ignored.
+/// Gets `Asset`s.
 #[tauri::command]
 pub fn get_assets(
     db: State<DbClient>,
@@ -25,24 +22,44 @@ pub fn get_assets(
     serde_json::from_value(assets).expect("could not convert result of `GetAssets` to `Vec<Asset>`")
 }
 
-/// Update an [`Asset`](CoreAsset).
+/// Update an `Asset`'s properties.
 #[tauri::command]
-pub fn update_asset_properties(
-    db: State<DbClient>,
-    rid: ResourceId,
-    properties: StandardProperties,
-) -> Result {
-    db.send(AssetCommand::UpdateProperties(rid, properties).into());
+pub fn update_asset_properties(db: State<DbClient>, rid: ResourceId, properties: String) -> Result {
+    let properties: AssetProperties = serde_json::from_str(&properties).unwrap();
+    db.send(
+        AssetCommand::UpdateProperties {
+            asset: rid,
+            properties,
+        }
+        .into(),
+    )?;
     Ok(())
 }
 
-/// Remove an [`Asset`](CoreAsset).
+/// Remove an `Asset`.
 #[tauri::command]
 pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> Result {
-    db.send(AssetCommand::Remove(rid).into());
+    let path = db.send(AssetCommand::Path(rid).into())?;
+    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+        panic!("asset not found");
+    };
+
+    trash::delete(path).unwrap();
     Ok(())
 }
 
-#[cfg(test)]
-#[path = "./asset_test.rs"]
-mod asset_test;
+/// Bulk update the porperties of `Asset`s.
+#[tauri::command]
+pub fn bulk_update_asset_properties(
+    db: State<DbClient>,
+    rids: Vec<ResourceId>,
+    update: AssetPropertiesUpdate,
+) -> Result {
+    let res = db.send(
+        AssetCommand::BulkUpdateProperties(BulkUpdateAssetPropertiesArgs { rids, update }).into(),
+    );
+
+    // TODO Handle errors.
+    res.expect("could not update `Asset`s");
+    Ok(())
+}

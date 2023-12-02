@@ -48,7 +48,7 @@ where
     /// and tabs can not be closed.
     #[prop_or_default]
     pub onclick_tab_close: Option<Callback<TabCloseInfo<K>>>,
-    // @todo
+    // TODO
     // /// Allow tabs to be reordered.
     // #[prop_or(false)]
     // reorder: bool,

@@ -23,7 +23,3 @@ pub mod scripts;
 pub mod users;
 
 pub mod resources;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

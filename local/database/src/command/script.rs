@@ -39,7 +39,3 @@ pub enum ScriptCommand {
     /// Gets the `Project` of a `Script`.
     GetProject(ResourceId),
 }
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

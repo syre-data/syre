@@ -1,7 +1,7 @@
 @use 'themes' as t;
+@use 'mixins';
 
 .project-scripts-widget {
-
   button {
     width: t.$drawer-content-width; 
     background-color: t.$project-script-button-background-color;
@@ -11,38 +11,37 @@
       }
   }
 
-  span {
-    width: 80%;
-    overflow: auto;
-  }
-
-  li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
   ul {
     list-style: none;
     padding: 0 0 t.$padding-m 0;
 
-    button {
-      all: unset;
+    li {
       display: flex;
       align-items: center;
-      padding: t.$padding-s;
-      box-sizing: border-box;
-
-      .thot-ui-add-remove-icon {
-        width: t.$add-remove-icon-size;
-        height: t.$add-remove-icon-size;
-      }
-
+      justify-content: space-between;
+    
       &:hover {
         cursor: pointer;
         background-color: t.$secondary-button-hover-background-color;
       }
 
+      .name {
+        @include mixins.hide-text-overflow;
+        flex-grow: 1;
+      }
+
+      button {
+        all: unset;
+        display: flex;
+        align-items: center;
+        padding: t.$padding-s;
+        box-sizing: border-box;
+
+        .thot-ui-add-remove-icon {
+          width: t.$add-remove-icon-size;
+          height: t.$add-remove-icon-size;
+        }
+      }
     }
 
   }

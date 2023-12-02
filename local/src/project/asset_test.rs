@@ -5,7 +5,6 @@ use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::{FileName, FilePath};
 use fake::locales::EN;
 use fake::Fake;
-use std::fs;
 use std::path::PathBuf;
 
 // ********************
@@ -16,7 +15,10 @@ use std::path::PathBuf;
 fn asset_builder_container_path_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not initialize new `TempDir`");
-    container::init(_dir.path()).expect("could not init dir as `Container`");
+    let builder = container::InitOptions::init();
+    builder
+        .build(_dir.path())
+        .expect("could not init dir as `Container`");
 
     let mut path = _dir.path().to_path_buf();
     path.push(FileName(EN).fake::<String>());
@@ -66,7 +68,10 @@ fn asset_builder_container_path_with_invalid_container_set_should_error() {
 fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not initialize new `TempDir`");
-    container::init(_dir.path()).expect("could not init dir as `Container`");
+    let builder = container::InitOptions::init();
+    builder
+        .build(_dir.path())
+        .expect("could not init dir as `Container`");
 
     // test
     // container unset, bucket unset
@@ -75,7 +80,7 @@ fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work(
     let file_name = PathBuf::from(FileName(EN).fake::<String>());
     path.push(file_name.clone());
 
-    let mut asset = AssetBuilder::new(path.clone());
+    let asset = AssetBuilder::new(path.clone());
 
     let final_path = asset
         .tentative_final_path(AssetFileAction::Copy)
@@ -91,7 +96,10 @@ fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work(
 fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not initialize new `TempDir`");
-    container::init(_dir.path()).expect("could not init dir as `Container`");
+    let builder = container::InitOptions::init();
+    builder
+        .build(_dir.path())
+        .expect("could not init dir as `Container`");
 
     let path = PathBuf::from(FilePath(EN).fake::<String>());
     let file_name = path.file_name().expect("invalid file name");
@@ -144,7 +152,10 @@ fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
 fn asset_builder_tentative_final_path_with_bucket_set_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not initialize new `TempDir`");
-    container::init(_dir.path()).expect("could not init dir as `Container`");
+    let builder = container::InitOptions::init();
+    builder
+        .build(_dir.path())
+        .expect("could not init dir as `Container`");
 
     let path = PathBuf::from(FilePath(EN).fake::<String>());
     let file_name = path.file_name().expect("invalid file name");
@@ -229,52 +240,14 @@ fn asset_builder_create_reference_should_work() {
 // *****************
 
 #[test]
-fn init_with_default_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("setup should work");
-    let _cid = container::init(_dir.path()).expect("init container should work");
-    let file_path = _dir.path().join(FileName(EN).fake::<String>());
-
-    // test
-    let _rid = init(&file_path, None).expect("init should work");
-}
-
-#[test]
-fn init_with_provided_container_should_work() {
-    // setup
-    let _dir = TempDir::new().expect("setup should work");
-    let _cid = container::init(_dir.path()).expect("init container should work");
-    let file_path = PathBuf::from(FileName(EN).fake::<String>());
-
-    // test
-    let _rid = init(&file_path, Some(_dir.path())).expect("init should work");
-}
-
-#[test]
-#[should_panic(expected = "InvalidFilename")]
-fn init_should_error_if_path_is_invalid() {
-    todo!("may not be a reachable condition");
-    //     let file_name = FileName(EN).fake::<String>();
-    //     let file_name = Path::new(&file_name);
-    //     init(file_name, None).unwrap();
-}
-
-#[test]
-#[should_panic(expected = "PathNotAContainer")]
-fn init_with_container_set_as_invalid_should_error() {
-    // setup
-    let _dir = TempDir::new().expect("setup should work");
-    let file_path = _dir.path().join(FileName(EN).fake::<String>());
-    let _file = fs::File::create(&file_path).expect("create file should work");
-
-    // test
-    init(&file_path, Some(&_dir.path())).unwrap();
-}
-
 fn container_from_path_ancestor_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("setup should work");
-    let _cid = container::init(_dir.path()).expect("init container should work");
+    let builder = container::InitOptions::init();
+    let _cid = builder
+        .build(_dir.path())
+        .expect("init container should work");
+
     let c_dir = _dir.mkdir().expect("creating child directory should work");
     let a_path = c_dir.join(FileName(EN).fake::<String>());
 

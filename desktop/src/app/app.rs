@@ -8,8 +8,9 @@ use crate::common::invoke;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
+use futures::stream::StreamExt;
 use thot_core::project::Project;
-use thot_local::project::types::ProjectSettings;
+use thot_local::types::ProjectSettings;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -32,7 +33,6 @@ use yew_router::prelude::*;
 ///      sign_in -- New user --> create_account(Create account)
 ///      create_account --> set_state
 /// ```
-#[tracing::instrument]
 #[function_component(App)]
 pub fn app() -> Html {
     let auth_state = use_reducer(|| AuthState::default());
@@ -45,33 +45,46 @@ pub fn app() -> Html {
         let app_state = app_state.clone();
         let projects_state = projects_state.clone();
 
-        use_effect_with_deps(
-            move |auth_state| {
-                let Some(user) = auth_state.user.as_ref() else {
+        use_effect_with(auth_state, move |auth_state| {
+            let Some(user) = auth_state.user.as_ref() else {
+                return;
+            };
+
+            let user_id = user.rid.clone();
+            let projects_state = projects_state.clone();
+
+            spawn_local(async move {
+                let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
+                    "load_user_projects",
+                    LoadUserProjectsArgs { user: user_id },
+                )
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not load user projects",
+                    )));
                     return;
                 };
 
-                let user_id = user.rid.clone();
-                let projects_state = projects_state.clone();
-
-                spawn_local(async move {
-                    let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
-                        "load_user_projects",
-                        LoadUserProjectsArgs { user: user_id }
-                    )
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not load user projects")));
-                            return;
-                    };
-
-                    projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
-                });
-            },
-            auth_state,
-        )
+                projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
+            });
+        })
     }
 
-    // @todo: Respond to `open_settings` event.
+    // TODO Respond to `open_settings` event.
+    // use_effect_with((), move |_| {
+    //     spawn_local(async move {
+    //         let mut events =
+    //             tauri_sys::event::listen::<thot_local_database::Update>("thot://settings")
+    //                 .await
+    //                 .expect("could not create `thot://settings` listener");
+
+    //         while let Some(event) = events.next().await {
+    //             tracing::debug!(?event);
+    //             handle_event(event.payload).unwrap();
+    //         }
+    //     });
+    // });
 
     html! {
         <BrowserRouter>
@@ -98,7 +111,3 @@ pub fn app() -> Html {
         </BrowserRouter>
     }
 }
-
-#[cfg(test)]
-#[path = "./app_test.rs"]
-mod app_test;

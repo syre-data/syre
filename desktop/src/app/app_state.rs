@@ -12,6 +12,9 @@ pub enum AppWidget {
     /// Create a new project.
     CreateProject,
 
+    /// Intiailize an existing folder as a project.
+    InitializeProject,
+
     /// Import a project.
     ImportProject,
 
@@ -21,17 +24,17 @@ pub enum AppWidget {
 
 /// Actions available to modify the [`AppState`].
 #[derive(Debug)]
-pub enum AppStateAction<'a> {
+pub enum AppStateAction {
     /// Sets the active widget.
     SetActiveWidget(Option<AppWidget>),
 
     /// Add a message to display.
-    AddMessage(Message<'a>),
+    AddMessage(Message),
 
-    // @todo: Remove requirement to pass `AppStateReducer`.
+    // TODO Remove requirement to pass `AppStateReducer`.
     /// Adda a message to display,
     /// disappering after some time.
-    AddMessageWithTimeout(Message<'a>, u32, AppStateReducer<'static>),
+    AddMessageWithTimeout(Message, u32, AppStateReducer<'static>),
 
     /// Removes a message.
     RemoveMessage(Uuid),
@@ -51,13 +54,13 @@ pub enum AppStateAction<'a> {
 
 /// Application state.
 #[derive(Default, Debug, Clone, PartialEq)]
-pub struct AppState<'a> {
+pub struct AppState {
     /// Active widget
     pub app_widget: Option<AppWidget>,
 
     /// Messages for the user.
     /// `([Message], timeout).
-    pub messages: Vec<Rc<Message<'a>>>,
+    pub messages: Vec<Rc<Message>>,
 
     /// User's application state.
     pub user_app_state: Option<UserAppState>,
@@ -66,10 +69,10 @@ pub struct AppState<'a> {
     pub user_settings: Option<UserSettings>,
 }
 
-impl Reducible for AppState<'static> {
-    type Action = AppStateAction<'static>;
+impl Reducible for AppState {
+    type Action = AppStateAction;
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
@@ -114,13 +117,8 @@ impl Reducible for AppState<'static> {
             }
         };
 
-        tracing::debug!(app_state = ?current);
         current.into()
     }
 }
 
-pub type AppStateReducer<'a> = UseReducerHandle<AppState<'a>>;
-
-#[cfg(test)]
-#[path = "./app_state_test.rs"]
-mod app_state_test;
+pub type AppStateReducer<'a> = UseReducerHandle<AppState>;

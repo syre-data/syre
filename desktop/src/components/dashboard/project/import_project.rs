@@ -4,9 +4,8 @@ use crate::commands::common::PathBufArgs;
 use crate::common::invoke;
 use crate::routes::Route;
 use std::path::PathBuf;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Container, Project};
-use thot_local::project::types::ProjectSettings;
+use thot_core::project::Project;
+use thot_local::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -17,8 +16,6 @@ use yew_router::prelude::*;
 // ********************************
 // *** Import Project Component ***
 // ********************************
-
-type ContainerTree = ResourceTree<Container>;
 
 /// Import project component.
 #[function_component(ImportProject)]
@@ -42,12 +39,18 @@ pub fn import_project() -> Html {
 
             // import and go to project
             spawn_local(async move {
-                let Ok(project) = invoke::<(Project, ProjectSettings)>("add_project", PathBufArgs { path: path.clone() })
-                    .await else {
-                        web_sys::console::error_1(&"could not add project".into());
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not import project")));
-                        return;
-                    };
+                let Ok(project) = invoke::<(Project, ProjectSettings)>(
+                    "add_project",
+                    PathBufArgs { path: path.clone() },
+                )
+                .await
+                else {
+                    web_sys::console::error_1(&"could not add project".into());
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not import project",
+                    )));
+                    return;
+                };
 
                 // update ui
                 let rid = project.0.rid.clone();
@@ -82,7 +85,3 @@ pub fn import_project() -> Html {
         <FileSelector ..props />
     }
 }
-
-#[cfg(test)]
-#[path = "./import_project_test.rs"]
-mod import_project_test;

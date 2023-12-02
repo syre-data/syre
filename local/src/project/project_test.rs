@@ -1,12 +1,12 @@
 use super::*;
 use crate::common::{project_file_of, project_settings_file_of, thot_dir_of};
-use crate::project::resources::project::Project;
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
 use fake::Fake;
 use serde_json;
 use std::fs;
+use thot_core::project::Project as CoreProject;
 
 // ******************
 // *** new + init ***
@@ -37,7 +37,7 @@ fn new_should_work() {
     // ensure meta level is 0
     let prj_file = project_file_of(root);
     let prj_json = fs::read_to_string(prj_file.as_path()).expect("could not read project file");
-    let prj: Project = serde_json::from_str(&prj_json).expect("project should be valid json");
+    let prj: CoreProject = serde_json::from_str(&prj_json).expect("project should be valid json");
     assert_eq!(0, prj.meta_level, "project should have meta level 0");
 }
 
@@ -73,7 +73,7 @@ fn init_should_work() {
     // ensure project has meta level 0
     let prj_file = project_file_of(root);
     let prj_json = fs::read_to_string(prj_file).expect("could not read project file");
-    let prj: Project = serde_json::from_str(&prj_json).expect("project should be valid json");
+    let prj: CoreProject = serde_json::from_str(&prj_json).expect("project should be valid json");
     assert_eq!(0, prj.meta_level, "project has incorrect meta level");
 }
 
@@ -116,15 +116,15 @@ fn mv_moves_project_to_new_location_and_updates_resources() {
     mv(&rid, &n_root).expect("move should work");
 
     // test
-    let prj = projects::project_by_id(&rid)
-        .expect("project_by_id should work")
-        .unwrap();
-    assert_eq!(&n_root, &prj.path, "path was not updated in registry");
+    let projects = Projects::load().unwrap();
+    let prj_path = projects.get(&rid).unwrap();
+
+    assert_eq!(&n_root, prj_path, "path was not updated in registry");
     assert!(n_root.exists(), "project was not moved to new path");
 
     let prj_file = project_file_of(&n_root);
     let prj_json = fs::read_to_string(prj_file).expect("could not read project file");
-    let prj: Project =
+    let prj: CoreProject =
         serde_json::from_str(&prj_json).expect("project file should be parsable json");
 
     assert_eq!(rid, prj.rid, "resource ids do not match");
@@ -163,11 +163,10 @@ fn project_root_path_should_work_for_root() {
     // test
     let found = project_root_path(root).expect("project_root_path should work");
 
-    let prj = projects::project_by_id(&rid)
-        .expect("project_by_id should work")
-        .unwrap();
+    let projects = Projects::load().unwrap();
+    let prj_path = projects.get(&rid).unwrap();
 
-    assert_eq!(prj.path, found, "project path is incorrect");
+    assert_eq!(prj_path, &found, "project path is incorrect");
 }
 
 #[test]
@@ -226,11 +225,10 @@ fn project_resource_root_path_for_root_should_work() {
     // test
     let found = project_resource_root_path(root).expect("project_root_path should work");
 
-    let prj = projects::project_by_id(&rid)
-        .expect("project_by_id should work")
-        .unwrap();
+    let projects = Projects::load().unwrap();
+    let prj_path = projects.get(&rid).unwrap();
 
-    assert_eq!(prj.path, found, "project path is incorrect");
+    assert_eq!(prj_path, &found, "project path is incorrect");
 }
 
 #[test]
@@ -248,39 +246,5 @@ fn project_resource_root_path_should_error_if_path_is_not_in_a_project() {
 #[test]
 #[should_panic(expected = "Misconfigured")]
 fn project_resource_root_path_should_error_if_no_root_is_found() {
-    todo!();
-}
-
-// ****************************
-// *** project registration ***
-// ****************************
-
-#[test]
-fn project_registration_should_work_for_root() {
-    // setup
-    let _dir = TempDir::new().expect("setup should work");
-    let root = _dir.path();
-    let rid = init(root).expect("init should work");
-
-    // test
-    let prj = project_registration(root).expect("project_registration should work");
-    assert_eq!(rid, prj.rid, "ids do not match");
-}
-
-#[test]
-fn project_registration_should_work_for_descendents() {
-    todo!();
-}
-
-#[test]
-#[should_panic(expected = "PathNotInProject")]
-fn project_registration_should_error_if_path_is_not_in_project() {
-    let root: PathBuf = DirPath(EN).fake();
-    project_registration(root.as_path()).unwrap();
-}
-
-#[test]
-#[should_panic(expected = "Misconfigured")]
-fn project_registration_should_error_if_project_does_not_have_root() {
     todo!();
 }

@@ -7,7 +7,3 @@ pub mod project;
 pub use details_bar_widget::use_details_bar_widget;
 pub use graph::use_project_graph;
 pub use project::use_canvas_project;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

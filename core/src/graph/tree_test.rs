@@ -167,6 +167,57 @@ fn root_should_work() {
 }
 
 #[test]
+fn ancestors_should_work() {
+    // setup
+    let root = Data::new();
+    let mut tree = ResourceTree::new(root);
+
+    let c1 = Data::new();
+    let c2 = Data::new();
+    let c11 = Data::new();
+
+    let c1_id = c1.id().clone();
+    let c2_id = c2.id().clone();
+    let c11_id = c11.id().clone();
+
+    tree.insert(tree.root().clone(), c1)
+        .expect("could not insert root child `Node`");
+
+    tree.insert(tree.root().clone(), c2)
+        .expect("could not insert root child `Node`");
+
+    tree.insert(c1_id.clone(), c11)
+        .expect("could not insert `Node`");
+
+    // test
+    let blank_ans = tree.ancestors(&ResourceId::new());
+    assert_eq!(0, blank_ans.len(), "unfound node should have no ancestors");
+
+    let root_ans = tree.ancestors(tree.root());
+    assert_eq!(
+        vec![tree.root().clone()],
+        root_ans,
+        "root ancestors should only be self"
+    );
+
+    let c1_ans = tree.ancestors(&c1_id);
+    assert_eq!(2, c1_ans.len(), "incorrect ancestor path length");
+    assert_eq!(c1_id, c1_ans[0], "ancestors should start with self");
+    assert_eq!(tree.root(), &c1_ans[1], "ancestors should end with root");
+
+    let c2_ans = tree.ancestors(&c2_id);
+    assert_eq!(2, c2_ans.len(), "incorrect ancestor path length");
+    assert_eq!(c2_id, c2_ans[0], "ancestors should start with self");
+    assert_eq!(tree.root(), &c2_ans[1], "ancestors should end with root");
+
+    let c11_ans = tree.ancestors(&c11_id);
+    assert_eq!(3, c11_ans.len(), "incorrect ancestor path length");
+    assert_eq!(c11_id, c11_ans[0], "ancestors should start with self");
+    assert_eq!(c1_id, c11_ans[1], "ancestors should contain parent");
+    assert_eq!(tree.root(), &c11_ans[2], "ancestors should end with root");
+}
+
+#[test]
 fn descendants_should_work() {
     // setup
     let root = Data::new();
@@ -447,8 +498,6 @@ fn move_index_should_work() {
         .get_index(0)
         .expect("could not get child `Node` by index")
         .clone();
-
-    drop(children);
 
     // test
     tree.move_index(&c1, 1)

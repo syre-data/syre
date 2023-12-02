@@ -52,16 +52,14 @@ impl clap::FromArgMatches for UserId {
 
 // @todo [1]: Write tests and implement properly
 impl clap::Args for UserId {
-    fn augment_args(cmd: clap::Command<'_>) -> clap::Command<'_> {
+    fn augment_args(cmd: clap::Command) -> clap::Command {
         cmd.arg(clap::Arg::new("user"))
     }
 
-    fn augment_args_for_update(cmd: clap::Command<'_>) -> clap::Command<'_> {
+    fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
         cmd.arg(clap::Arg::new("user"))
     }
 }
-
-// helper functions
 
 /// Extracts the `arg_name` arg from a clap::ArgMatches.
 fn arg_from_arg_matches(
@@ -70,8 +68,8 @@ fn arg_from_arg_matches(
     cmd: &mut clap::Command,
 ) -> Result<String, clap::error::Error> {
     let mut arg: Option<String> = None;
-    if matches.is_present(arg_name) {
-        match matches.value_of(arg_name) {
+    if matches.contains_id(arg_name) {
+        match matches.get_one::<String>(arg_name) {
             Some(id_res) => {
                 arg = Some(id_res.to_string());
             }
@@ -86,7 +84,7 @@ fn arg_from_arg_matches(
 
     if arg.is_none() {
         return Err(cmd.error(
-            clap::error::ErrorKind::ArgumentNotFound,
+            clap::error::ErrorKind::MissingRequiredArgument,
             "No valid user id found.",
         ));
     }

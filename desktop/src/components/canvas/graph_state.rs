@@ -1,49 +1,103 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::common::UpdatePropertiesArgs;
-use crate::commands::container::UpdateScriptAssociationsArgs;
+use crate::commands::asset::{
+    AssetPropertiesUpdate, BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
+};
+use crate::commands::common::BulkUpdateResourcePropertiesArgs;
+use crate::commands::container::{
+    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationArgs,
+    ContainerPropertiesUpdate, ScriptAssociationsBulkUpdate,
+    UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
+};
 use std::collections::HashMap;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
-use thot_core::project::{container::AssetMap, Asset, Container};
-use thot_core::types::ResourceId;
+use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
+use thot_core::types::{ResourceId, ResourcePath};
 use yew::prelude::*;
 
 type ContainerTree = ResourceTree<Container>;
-
 pub type AssetContainerMap = HashMap<ResourceId, ResourceId>;
 
 pub enum GraphStateAction {
     ///  Sets the [`ContainerTree`].
     SetGraph(ContainerTree),
 
-    /// Update a [`Container`](Container)'s [`StandardProperties`](thot_::project::StandardProperties).
-    UpdateContainerProperties(UpdatePropertiesArgs),
+    /// Removes a `Container` subtree from the graph.
+    RemoveSubtree(ResourceId),
 
-    /// Add a [`Container`](Container) as a child.
+    /// Move a subtree.
+    ///
+    /// # Fields
+    /// `parent`: New parent.
+    /// `root`: Root of the subtree to move.
+    /// `name`: Name of the root `Container`.
+    MoveSubtree {
+        parent: ResourceId,
+        root: ResourceId,
+        name: String,
+    },
+
+    /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
+    UpdateContainerProperties(UpdateContainerPropertiesArgs),
+
+    /// Add a [`Container`] as a child.
     ///
     /// # Fields
     /// #. `parent`: `ResourceId` of the parent.
     /// #. `child`: Child `Container`.
     InsertChildContainer(ResourceId, Container),
 
-    /// Update [`Asset`](CoreAsset)s of a [`Container`](CoreContainer).
-    UpdateContainerAssets(ResourceId, AssetMap),
+    /// Insert the graph as a child of `parent.`
+    InsertSubtree {
+        parent: ResourceId,
+        graph: ContainerTree,
+    },
 
-    /// Insert [`Asset`](Asset)s into a [`Container`](Container).
+    /// Set a [`Container`]'s [`Asset`]s.
+    SetContainerAssets(ResourceId, AssetMap),
+
+    /// Insert [`Asset`]s into a [`Container`].
     InsertContainerAssets(ResourceId, Vec<Asset>),
 
-    /// Update a [`Container`](Container)'s
-    /// [`ScriptAssociation`](thot_::project::ScriptAssociation)s.
+    /// Update a [`Container`]'s
+    /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
 
-    /// Remove all associations with `Script` from [`Container`](CoreContainer)'s
+    /// Remove all associations with `Script` from [`Container`]'s.
     RemoveContainerScriptAssociations(ResourceId),
 
-    /// Update an [`Asset`](Asset).
+    // Remove an [`Asset`].
+    RemoveAsset(ResourceId),
+
+    /// Update an [`Asset`].
     UpdateAsset(Asset),
+
+    UpdateAssetPath {
+        asset: ResourceId,
+        path: ResourcePath,
+    },
+
+    /// Move an `Asset` to another `Container`.  
+    MoveAsset {
+        asset: ResourceId,
+        container: ResourceId,
+        path: ResourcePath,
+    },
 
     SetDragOverContainer(ResourceId),
     ClearDragOverContainer,
+
+    /// Bulk update `Container`s.
+    BulkUpdateContainerProperties(BulkUpdateContainerPropertiesArgs),
+
+    /// Bulk update `Asset`s.
+    BulkUpdateAssetProperties(BulkUpdateAssetPropertiesArgs),
+
+    /// Bulk update resource properties.
+    BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs),
+
+    /// Bulk update `Container` `ScriptAssociation`s.
+    BulkUpdateContainerScriptAssociations(BulkUpdateScriptAssociationArgs),
 }
 
 #[derive(PartialEq, Clone)]
@@ -73,6 +127,153 @@ impl GraphState {
             dragover_container: None,
         }
     }
+
+    /// Update a `Container`'s properties.
+    #[tracing::instrument(skip(self))]
+    fn update_container_properties_from_update(
+        &mut self,
+        rid: &ResourceId,
+        update: &ContainerPropertiesUpdate,
+    ) {
+        let container = self
+            .graph
+            .get_mut(&rid)
+            .expect("could not find `Container`");
+
+        // basic properties
+        if let Some(name) = update.name.as_ref() {
+            container.properties.name = name.clone();
+        }
+
+        if let Some(kind) = update.kind.as_ref() {
+            container.properties.kind = kind.clone();
+        }
+
+        if let Some(description) = update.description.as_ref() {
+            container.properties.description = description.clone();
+        }
+
+        // tags
+        container
+            .properties
+            .tags
+            .append(&mut update.tags.insert.clone());
+
+        container.properties.tags.sort();
+        container.properties.tags.dedup();
+        container
+            .properties
+            .tags
+            .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        container
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            container.properties.metadata.remove(key);
+        }
+    }
+
+    /// Update an `Assets`'s properties.
+    #[tracing::instrument(skip(self))]
+    fn update_asset_properties_from_update(
+        &mut self,
+        rid: &ResourceId,
+        update: &AssetPropertiesUpdate,
+    ) {
+        let container = self.asset_map.get(rid).expect("`Asset` map not found");
+        let container = self
+            .graph
+            .get_mut(container)
+            .expect("could not find `Container`");
+
+        let asset = container.assets.get_mut(rid).expect("`Asset` not found");
+
+        // basic properties
+        if let Some(name) = update.name.as_ref() {
+            asset.properties.name = name.clone();
+        }
+
+        if let Some(kind) = update.kind.as_ref() {
+            asset.properties.kind = kind.clone();
+        }
+
+        if let Some(description) = update.description.as_ref() {
+            asset.properties.description = description.clone();
+        }
+
+        // tags
+        asset
+            .properties
+            .tags
+            .append(&mut update.tags.insert.clone());
+
+        asset.properties.tags.sort();
+        asset.properties.tags.dedup();
+        asset
+            .properties
+            .tags
+            .retain(|tag| !update.tags.remove.contains(tag));
+
+        // metadata
+        asset
+            .properties
+            .metadata
+            .extend(update.metadata.insert.clone());
+
+        for key in update.metadata.remove.iter() {
+            asset.properties.metadata.remove(key);
+        }
+    }
+
+    /// Update a `Container`'s `ScriptAssociations`.
+    ///
+    /// # Note
+    /// Updates are processed in the following order:
+    /// 1. New associations are added.
+    /// 2. Present associations are updated.
+    /// 3. Associations are removed.
+    pub fn update_container_script_associations_from_update(
+        &mut self,
+        rid: &ResourceId,
+        update: &ScriptAssociationsBulkUpdate,
+    ) {
+        let container = self
+            .graph
+            .get_mut(&rid)
+            .expect("could not find `Container`");
+
+        for assoc in update.add.iter() {
+            container.scripts.insert(
+                assoc.script.clone(),
+                RunParameters {
+                    priority: assoc.priority.clone(),
+                    autorun: assoc.autorun.clone(),
+                },
+            );
+        }
+
+        for u in update.update.iter() {
+            let Some(script) = container.scripts.get_mut(&u.script) else {
+                continue;
+            };
+
+            if let Some(priority) = u.priority.as_ref() {
+                script.priority = priority.clone();
+            }
+
+            if let Some(autorun) = u.autorun.as_ref() {
+                script.autorun = autorun.clone();
+            }
+        }
+
+        for script in update.remove.iter() {
+            container.scripts.remove(script);
+        }
+    }
 }
 
 impl Reducible for GraphState {
@@ -87,15 +288,29 @@ impl Reducible for GraphState {
 
         match action {
             GraphStateAction::SetGraph(graph) => {
-                let mut asset_map = AssetContainerMap::new();
+                current.asset_map.clear();
                 for container in graph.nodes().values() {
                     for aid in container.assets.keys() {
-                        asset_map.insert(aid.clone(), container.rid.clone());
+                        current.asset_map.insert(aid.clone(), container.rid.clone());
                     }
                 }
 
                 current.graph = graph;
-                current.asset_map = asset_map;
+            }
+
+            GraphStateAction::RemoveSubtree(root) => {
+                let graph = current.graph.remove(&root).unwrap();
+                for container in graph.nodes().values() {
+                    for asset in container.assets.keys() {
+                        current.asset_map.remove(asset);
+                    }
+                }
+            }
+
+            GraphStateAction::MoveSubtree { parent, root, name } => {
+                current.graph.mv(&root, &parent).unwrap();
+                let root = current.graph.get_mut(&root).unwrap();
+                root.properties.name = name;
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
@@ -139,6 +354,30 @@ impl Reducible for GraphState {
                     .expect("could not insert child node");
             }
 
+            GraphStateAction::InsertSubtree { parent, graph } => {
+                for container in graph.nodes().values() {
+                    for aid in container.assets.keys() {
+                        current.asset_map.insert(aid.clone(), container.rid.clone());
+                    }
+                }
+
+                current.graph.insert_tree(&parent, graph).unwrap();
+            }
+
+            GraphStateAction::SetContainerAssets(container_rid, assets) => {
+                let Some(container) = current.graph.get_mut(&container_rid) else {
+                    panic!("`Container` not found")
+                };
+
+                container.assets = assets;
+                current.asset_map.clear();
+                for asset in container.assets.keys() {
+                    current
+                        .asset_map
+                        .insert(asset.clone(), container.rid.clone());
+                }
+            }
+
             GraphStateAction::InsertContainerAssets(container, assets) => {
                 let container = current
                     .graph
@@ -154,15 +393,15 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::UpdateContainerAssets(container_rid, assets) => {
-                let Some(container) = current
+            GraphStateAction::RemoveAsset(asset) => {
+                let container = current.asset_map.get(&asset).unwrap();
+                let container = current
                     .graph
-                    .get_mut(&container_rid)
-                     else {
-                        panic!("`Container` not found")
-                    };
+                    .get_mut(container)
+                    .expect("`Container` not found");
 
-                container.assets = assets;
+                container.assets.remove(&asset);
+                current.asset_map.remove(&asset);
             }
 
             GraphStateAction::UpdateAsset(asset) => {
@@ -176,8 +415,32 @@ impl Reducible for GraphState {
                     .get_mut(&container)
                     .expect("`Container` not found");
 
-                // @todo: Ensure `Asset` exists in `Container` before update.
+                // TODO Ensure `Asset` exists in `Container` before update.
                 container.assets.insert(asset.rid.clone(), asset.clone());
+            }
+
+            GraphStateAction::UpdateAssetPath { asset, path } => {
+                let container = current.asset_map.get(&asset).unwrap();
+                let container = current.graph.get_mut(container).unwrap();
+                let asset = container.assets.get_mut(&asset).unwrap();
+                asset.path = path;
+            }
+
+            GraphStateAction::MoveAsset {
+                asset,
+                container,
+                path,
+            } => {
+                let container_old = current.asset_map.get(&asset).unwrap();
+                let container_old = current.graph.get_mut(container_old).unwrap();
+                let mut asset = container_old.assets.remove(&asset).unwrap();
+                asset.path = path;
+                current.asset_map.remove(&asset.rid);
+
+                let container = current.graph.get_mut(&container).unwrap();
+                let aid = asset.rid.clone();
+                container.insert_asset(asset);
+                current.asset_map.insert(aid, container.rid.clone());
             }
 
             GraphStateAction::SetDragOverContainer(rid) => {
@@ -187,6 +450,45 @@ impl Reducible for GraphState {
             GraphStateAction::ClearDragOverContainer => {
                 current.dragover_container = None;
             }
+
+            GraphStateAction::BulkUpdateContainerProperties(
+                BulkUpdateContainerPropertiesArgs { rids, update },
+            ) => {
+                for rid in rids {
+                    current.update_container_properties_from_update(&rid, &update);
+                }
+            }
+
+            GraphStateAction::BulkUpdateAssetProperties(BulkUpdateAssetPropertiesArgs {
+                rids,
+                update,
+            }) => {
+                for rid in rids {
+                    current.update_asset_properties_from_update(&rid, &update);
+                }
+            }
+
+            GraphStateAction::BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs {
+                rids,
+                update,
+            }) => {
+                for rid in rids {
+                    if self.asset_map.contains_key(&rid) {
+                        current.update_asset_properties_from_update(&rid, &update.clone().into());
+                    } else {
+                        current
+                            .update_container_properties_from_update(&rid, &update.clone().into());
+                    }
+                }
+            }
+
+            GraphStateAction::BulkUpdateContainerScriptAssociations(
+                BulkUpdateScriptAssociationArgs { containers, update },
+            ) => {
+                for container in containers {
+                    current.update_container_script_associations_from_update(&container, &update);
+                }
+            }
         };
 
         current.into()
@@ -194,7 +496,3 @@ impl Reducible for GraphState {
 }
 
 pub type GraphStateReducer = UseReducerHandle<GraphState>;
-
-#[cfg(test)]
-#[path = "./graph_state_test.rs"]
-mod graph_state_test;

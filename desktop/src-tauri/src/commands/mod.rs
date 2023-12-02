@@ -19,7 +19,3 @@ pub use project::*;
 pub use script::*;
 pub use settings::*;
 pub use user::*;
-
-#[cfg(test)]
-#[path = "./mod_test.rs"]
-mod mod_test;

@@ -29,10 +29,8 @@ pub fn dashboard() -> HtmlResult {
 
     let projects = use_user_projects(&user.rid);
 
-    // create project
     let create_project = {
         let app_state = app_state.clone();
-
         Callback::from(move |_: MouseEvent| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::CreateProject,
@@ -40,13 +38,20 @@ pub fn dashboard() -> HtmlResult {
         })
     };
 
-    // import project
     let import_project = {
         let app_state = app_state.clone();
-
         Callback::from(move |_: MouseEvent| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::ImportProject,
+            )));
+        })
+    };
+
+    let init_project = {
+        let app_state = app_state.clone();
+        Callback::from(move |_: MouseEvent| {
+            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
+                AppWidget::InitializeProject,
             )));
         })
     };
@@ -69,33 +74,33 @@ pub fn dashboard() -> HtmlResult {
         <>
             <MainNavigation />
             <div id={"dashboard"}>
-                if projects.len() == 0 {
-                    <div class={classes!("align-center")}>
-                        <h2>{ "Get started" }</h2>
-                        <div>
-                            <button onclick={create_project.clone()}>{ "Create your first project" }</button>
-                        </div>
-                        <div>
-                            <button class={classes!("btn-secondary")} onclick={import_project.clone()}>{ "Import project" }</button>
-                        </div>
-                    </div>
-                } else {
                     <div id={"dashboard-container"}>
                         <div id={"dashboard-header"}>
                             <h1 class={classes!("title")}>
                                 { "Dashboard" }
                             </h1>
-                            <div class={classes!("new-project")}>
+                            <div>
                                 <button
                                     class={classes!("btn-primary")}
+                                    title={"Create a new project."}
                                     onclick={create_project}>
 
                                     { "New" }
                                 </button>
                             </div>
-                            <div class={classes!("import-project")}>
+                            <div>
                                 <button
                                     class={classes!("btn-secondary")}
+                                    title={"Initialize an existing folder as a project."}
+                                    onclick={init_project}>
+
+                                    { "Initialize" }
+                                </button>
+                            </div>
+                            <div>
+                                <button
+                                    class={classes!("btn-secondary")}
+                                    title={"Import an existing project."}
                                     onclick={import_project}>
 
                                     { "Import" }
@@ -104,12 +109,7 @@ pub fn dashboard() -> HtmlResult {
                         </div>
                         <ProjectDeck items={(*projects).clone()} {onclick_card} />
                     </div>
-                }
             </div>
         </>
     })
 }
-
-#[cfg(test)]
-#[path = "./dashboard_test.rs"]
-mod dashboard_test;

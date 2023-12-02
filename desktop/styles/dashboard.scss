@@ -1,7 +1,6 @@
 @use 'themes' as t;
 
 #dashboard {
-
   #dashboard-container {
     display: flex;
     flex-direction: column;
@@ -40,8 +39,6 @@
     height: 7rem;
     background-color: t.$card-background-color;
     border-radius: t.$border-radius-l;
-    //@todo[3]: Should we remove margin from
-    // the .card in the main.scss?
     margin: 0px;
     padding: 1.3rem;
 

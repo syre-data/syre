@@ -1,6 +1,6 @@
 //! Client to interact with a [`Database`].
-use crate::command::Command;
-use crate::command::{Command as DbCommand, DatabaseCommand};
+use crate::command::{Command, DatabaseCommand};
+use crate::common;
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::types::PortNumber;
 use crate::Result;
@@ -25,7 +25,7 @@ impl Client {
         // TODO: May be able to move creation of `req_socket` to `#new`, but may run into `Sync` issues.
         let req_socket = self
             .zmq_context
-            .socket(zmq::SocketType::REQ)
+            .socket(zmq::REQ)
             .expect("could not create `REQ` socket");
 
         req_socket
@@ -37,7 +37,7 @@ impl Client {
             .expect("could not set socket timeout");
 
         req_socket
-            .connect(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
+            .connect(&common::zmq_url(zmq::REQ).unwrap())
             .expect("socket could not connect");
 
         req_socket
@@ -78,12 +78,12 @@ impl Client {
             .expect("could not set socket timeout");
 
         req_socket
-            .connect(&format!("tcp://{LOCALHOST}:{REQ_REP_PORT}"))
+            .connect(&common::zmq_url(zmq::REQ).unwrap())
             .expect("socket could not connect");
 
         req_socket
             .send(
-                &serde_json::to_string(&DbCommand::DatabaseCommand(DatabaseCommand::Id))
+                &serde_json::to_string(&Command::DatabaseCommand(DatabaseCommand::Id))
                     .expect("could not serialize `Command`"),
                 0,
             )
@@ -92,7 +92,7 @@ impl Client {
         let mut msg = zmq::Message::new();
         let res = req_socket.recv(&mut msg, 0);
         if res.is_err() {
-            // @todo: Check error type for timeout.
+            // TODO Check error type for timeout.
             return false;
         }
 
@@ -119,7 +119,3 @@ impl Default for Client {
 fn port_is_free(port: PortNumber) -> bool {
     TcpListener::bind(format!("{LOCALHOST}:{port}")).is_ok()
 }
-
-#[cfg(test)]
-#[path = "./client_test.rs"]
-mod client_test;

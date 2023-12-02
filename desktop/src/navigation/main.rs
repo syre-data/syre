@@ -37,17 +37,14 @@ pub fn main_navigation() -> Html {
         let open_projects = open_projects.clone();
         let user_projects = user_projects.clone();
 
-        use_effect_with_deps(
-            move |open_projects| {
-                let projects = user_projects
-                    .iter()
-                    .filter(|prj| open_projects.contains(&prj.rid))
-                    .collect::<Vec<&Project>>();
-
-                tabs.set(projects_to_tabs(projects));
-            },
-            open_projects,
-        );
+        use_effect_with(open_projects, move |open_projects| {
+            let projects = user_projects
+                .iter()
+                .filter(|prj| open_projects.contains(&prj.rid))
+                .collect::<Vec<&Project>>();
+        
+            tabs.set(projects_to_tabs(projects));
+        });
     }
 
     // -----------------
@@ -112,7 +109,3 @@ fn projects_to_tabs(projects: Vec<&Project>) -> IndexMap<ResourceId, String> {
         .map(|p| (p.rid.clone(), p.name.clone()))
         .collect::<IndexMap<ResourceId, String>>()
 }
-
-#[cfg(test)]
-#[path = "./main_test.rs"]
-mod main_test;

@@ -47,7 +47,3 @@ pub enum ProjectCommand {
     /// Get's the project root path of a resource given its path.
     ResourceRootPath(PathBuf),
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

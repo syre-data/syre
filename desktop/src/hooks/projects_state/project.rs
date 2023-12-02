@@ -18,17 +18,10 @@ pub fn use_project(rid: &ResourceId) -> UseStateHandle<Option<Project>> {
         let projects_state = projects_state.clone();
         let project = project.clone();
 
-        use_effect_with_deps(
-            move |projects_state| {
-                project.set(projects_state.projects.get(&rid).cloned());
-            },
-            projects_state,
-        );
+        use_effect_with(projects_state, move |projects_state| {
+            project.set(projects_state.projects.get(&rid).cloned());
+        });
     }
 
     project
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

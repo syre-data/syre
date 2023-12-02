@@ -42,7 +42,10 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
     let Some(project) = project else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` not loaded",
+        ))
+        .into());
     };
 
     let project_path = db
@@ -52,11 +55,17 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
         serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
 
     let Some(project_path) = project_path else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` not loaded")).into());
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` not loaded",
+        ))
+        .into());
     };
 
     let Some(analysis_root) = project.analysis_root.clone() else {
-        return Err(CoreError::ProjectError(ProjectError::Misconfigured("`Project` does not have an analysis root set")).into());
+        return Err(CoreError::ProjectError(ProjectError::misconfigured(
+            "`Project` does not have an analysis root set",
+        ))
+        .into());
     };
 
     let script_name = path.file_name().expect("invalid `Script` file");
@@ -96,7 +105,3 @@ pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceI
     res.expect("error removing `Script`");
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

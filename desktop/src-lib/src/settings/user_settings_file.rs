@@ -5,7 +5,3 @@ pub trait UserSettingsFile {
     /// The file should reside at <config_dir>/<users_dir>/<settings_file>.
     fn settings_file() -> PathBuf;
 }
-
-#[cfg(test)]
-#[path = "./user_settings_file_test.rs"]
-mod user_settings_file_test;

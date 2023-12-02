@@ -1,7 +1,7 @@
 use super::*;
 use crate::error::{Error, ProjectError, RunnerError};
+use crate::project::Container;
 use crate::project::Script;
-use crate::project::{Container, ScriptAssociation};
 use crate::types::{ResourceId, ResourcePath};
 use dev_utils::fs::temp_file;
 use dev_utils::{create_lock, lock::get_lock};
@@ -9,7 +9,6 @@ use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use mockall::*;
-use rand::Rng;
 use std::collections::HashSet;
 use std::result::Result as StdResult;
 use std::{fs, str};
@@ -50,7 +49,7 @@ fn runner_run_script_should_work() {
     let key: String = Word(EN).fake();
     fs::write(&script.path, format!("print('{}')", key)).expect("could not write to file");
     let runner = Runner::new(create_default_runner_hooks());
-    let container = Container::default();
+    let container = Container::new(Word(EN).fake::<String>());
 
     // test
     let out = runner
@@ -73,7 +72,7 @@ fn runner_run_script_if_script_errors_should_err() {
     fs::write(&script.path, prg).expect("could not write to file");
 
     let runner = Runner::new(create_default_runner_hooks());
-    let container = Container::default();
+    let container = Container::new(Word(EN).fake::<String>());
 
     let sid = script.rid.clone();
     let cid = container.rid.clone();
@@ -82,7 +81,7 @@ fn runner_run_script_if_script_errors_should_err() {
     let res = runner.run_script(script, &container);
 
     assert!(res.is_err(), "runner did not error");
-    let Err(Error::RunnerError(RunnerError::ScriptError(e_sid, e_cid, msg))) = res else {
+    let Err(Error::RunnerError(RunnerError::ScriptError(e_sid, e_cid, _msg))) = res else {
         panic!("incorrect error type");
     };
 
@@ -104,10 +103,7 @@ fn runner_run_scripts_should_work() {
     let prg = format!("print('{}')", key);
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -145,10 +141,7 @@ fn runner_run_scripts_with_unhandled_error_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -181,10 +174,7 @@ fn runner_run_scripts_with_handled_error_that_returns_ok_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -226,10 +216,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_should_halt() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -269,10 +256,7 @@ fn runner_run_scripts_with_unhandled_error_ignored_should_work() {
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -292,7 +276,7 @@ fn runner_run_scripts_with_unhandled_error_ignored_should_work() {
     assets_added_ctx.expect().times(num_scripts);
     post_script_ctx.expect().times(num_scripts);
 
-    let res = runner
+    let _res = runner
         .run_scripts(scripts, &container, true, false)
         .expect("`run_scripts` should work");
 }
@@ -306,10 +290,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_ignored_should_work() 
     let prg = format!("raise RuntimeError()");
     fs::write(&script.path, prg).expect("could not write program to file");
 
-    let container = Container::default();
-    let sid = script.rid.clone();
-    let cid = container.rid.clone();
-
+    let container = Container::new(Word(EN).fake::<String>());
     let scripts = vec![script];
     let num_scripts = scripts.len();
 
@@ -354,25 +335,6 @@ fn create_default_runner_hooks() -> RunnerHooks {
     }
 
     RunnerHooks::new(get_script)
-}
-
-/// Creates a random number of [`ScriptAssociation`]s with random properties.
-fn create_script_associations() -> HashSet<ScriptAssociation> {
-    let mut rng = rand::thread_rng();
-    let n_assocs = 20;
-    let p_rng = (-n_assocs / 2)..(n_assocs / 2);
-
-    let n_assocs = rng.gen_range(1..n_assocs);
-    let mut assocs = HashSet::new();
-    for _ in 0..n_assocs {
-        let mut assoc = ScriptAssociation::new(ResourceId::new());
-        assoc.priority = rng.gen_range(p_rng.clone());
-        assoc.autorun = rng.gen();
-
-        assocs.insert(assoc);
-    }
-
-    assocs
 }
 
 /// Create a script to run.

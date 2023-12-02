@@ -15,17 +15,10 @@ pub fn use_canvas_project() -> UseStateHandle<ResourceId> {
         let canvas_state = canvas_state.clone();
         let project = project.clone();
 
-        use_effect_with_deps(
-            move |canvas_state| {
-                project.set(canvas_state.project.clone());
-            },
-            canvas_state,
-        );
+        use_effect_with(canvas_state, move |canvas_state| {
+            project.set(canvas_state.project.clone());
+        });
     };
 
     project
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

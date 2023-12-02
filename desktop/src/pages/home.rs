@@ -20,23 +20,21 @@ use yew_router::prelude::*;
 #[tracing::instrument]
 #[function_component(HomeComponent)]
 pub fn home_component() -> HtmlResult {
-    tracing::debug!("home");
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let navigator = use_navigator().expect("navigator not found");
     let user = use_user();
 
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+            "Could not get user.",
+        )));
         return Ok(html! {});
     };
 
     let projects = use_user_projects(&user.rid);
-
-    // create project
     let create_project = {
         let app_state = app_state.clone();
-
         Callback::from(move |_: MouseEvent| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::CreateProject,
@@ -44,10 +42,17 @@ pub fn home_component() -> HtmlResult {
         })
     };
 
-    // import project
+    let initialize_project = {
+        let app_state = app_state.clone();
+        Callback::from(move |_: MouseEvent| {
+            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
+                AppWidget::InitializeProject,
+            )));
+        })
+    };
+
     let import_project = {
         let app_state = app_state.clone();
-
         Callback::from(move |_: MouseEvent| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::ImportProject,
@@ -60,12 +65,15 @@ pub fn home_component() -> HtmlResult {
             if projects.len() == 0 {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
-                    <div>
+                    <div class={classes!("mb-4")}>
                         <button class={classes!("btn-primary")} onclick={create_project}>{ "Create your first project" }</button>
                     </div>
-                    <div>
-                        <button class={classes!("btn-secondary")} onclick={import_project}>{ "Import project" }</button>
+                    <div class={classes!("mb-4")}>
+                        <button class={classes!("btn-secondary")} onclick={initialize_project}>{ "Initialize an existing folder" }</button>
                     </div>
+                    <div>
+                    <button class={classes!("btn-secondary")} onclick={import_project}>{ "Import a project" }</button>
+                </div>
 
                 </div>
             } else {
@@ -87,43 +95,48 @@ pub fn home() -> Html {
     let user = use_user();
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
+        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+            "Could not get user.",
+        )));
         return html! {};
     };
 
     {
-        // user settings
-        let app_state = app_state.clone();
-        let rid = user.rid.clone();
-
-        spawn_local(async move {
-            let Ok(user_settings) = invoke::<UserSettings>("load_user_settings", ResourceIdArgs { rid }).await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user settings.")));
-                        return;
-            };
-
-            app_state.dispatch(AppStateAction::SetUserSettings(Some(user_settings)));
-        });
-    }
-
-    {
-        // user app state
         let app_state = app_state.clone();
         let navigator = navigator.clone();
         let rid = user.rid.clone();
 
-        spawn_local(async move {
-            let Ok(user_app_state) = invoke::<UserAppState>(
-                "load_user_app_state",
-                ResourceIdArgs { rid }
-            )
-            .await else {
-                navigator.push(&Route::SignIn);
-                app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user app state.")));
-                return;
-            };
+        use_effect_with((), move |_| {
+            let navigator = navigator.clone();
+            let app_state = app_state.clone();
+            let rid = rid.clone();
 
-            app_state.dispatch(AppStateAction::SetUserAppState(Some(user_app_state)));
+            spawn_local(async move {
+                let Ok(user_app_state) = invoke::<UserAppState>(
+                    "load_user_app_state",
+                    ResourceIdArgs { rid: rid.clone() },
+                )
+                .await
+                else {
+                    navigator.push(&Route::SignIn);
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not get user app state.",
+                    )));
+                    return;
+                };
+
+                let Ok(user_settings) =
+                    invoke::<UserSettings>("load_user_settings", ResourceIdArgs { rid }).await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not get user settings.",
+                    )));
+                    return;
+                };
+
+                app_state.dispatch(AppStateAction::SetUserAppState(Some(user_app_state)));
+                app_state.dispatch(AppStateAction::SetUserSettings(Some(user_settings)));
+            });
         });
     }
 
@@ -138,7 +151,3 @@ pub fn home() -> Html {
         </>
     }
 }
-
-#[cfg(test)]
-#[path = "./home_test.rs"]
-mod home_test;

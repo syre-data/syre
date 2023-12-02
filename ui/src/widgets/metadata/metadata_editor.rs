@@ -94,8 +94,8 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
         <div {class}>
             <div class={classes!("metadata-header")}>
                 <h3>{ "Metadata" }</h3>
-                <button classes={ "add-button" } type="button" onclick={show_add_metadatum}>
-                    <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                <button class={classes!("add-button")} type="button" onclick={show_add_metadatum}>
+                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
                 </button>
             </div>
             <div class={classes!("add-metadatum-controls")}>
@@ -114,8 +114,8 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                             {value}
                             onchange={onchange(name.clone())}/>
 
-                        <button classes={ "add-button" } type="button" onclick={remove_metadatum(name)}>
-                            <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                        <button class={classes!("remove-button")} type="button" onclick={remove_metadatum(name)}>
+                            <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
                         </button>
                     </li>
                 }).collect::<Html>() }
@@ -123,7 +123,3 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
         </div>
     }
 }
-
-#[cfg(test)]
-#[path = "./metadata_editor_test.rs"]
-mod metadata_editor_test;

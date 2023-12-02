@@ -57,7 +57,3 @@ pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
 
     gen.into()
 }
-
-#[cfg(test)]
-#[path = "./derive_serde_test.rs"]
-mod derive_serde_test;

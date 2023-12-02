@@ -1,6 +1,6 @@
 [package]
 name = "thot-desktop-tauri"
-version = "0.10.0"
+version = "0.10.1"
 description = "Thot desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 
@@ -17,19 +17,19 @@ rust-version = "1.57"
 tauri-build = { version = "1.1", features = [] }
 
 [dependencies]
-cluFlock = "1.2"
-directories = "4.0"
-open = "3.2"
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-tracing = "0.1.37"
+directories = { workspace = true }
+open = "5.0"
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tauri = { version = "1.5", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
+thiserror = { workspace = true }
+tracing = {  workspace = true}
 tracing-appender = "0.2.2"
-tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
-uuid = { version = "1.2", features = ["serde", "v4"] }
-tauri = { version = "1.3", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
-zmq = "0.10.0"
+tracing-subscriber = { version = "0.3", features = ["time", "json"] }
+trash = "3.1.2"
+uuid = { workspace = true , features = ["serde", "v4"] }
+zmq = { workspace = true }
 
-settings_manager = { path = "../../settings_manager" }
 thot-core = { path = "../../core", features = ["serde"] }
 thot-desktop-lib = { path = "../src-lib" }
 thot-local = { path = "../../local" }

@@ -58,7 +58,3 @@ impl Default for AnalysisUserPreferences {
         Self {}
     }
 }
-
-#[cfg(test)]
-#[path = "./user_preferences_test.rs"]
-mod user_preferences_test;

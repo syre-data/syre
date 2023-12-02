@@ -46,7 +46,3 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./load_project_scripts_test.rs"]
-mod load_project_scripts_test;

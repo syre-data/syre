@@ -23,19 +23,16 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<Project>> {
         let user = user.clone();
         let user_projects = user_projects.clone();
 
-        use_effect_with_deps(
-            move |projects_state| {
-                let projects =
-                    filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
-                        .clone()
-                        .into_iter()
-                        .map(|project| project.clone())
-                        .collect();
-
-                user_projects.set(projects);
-            },
-            projects_state,
-        );
+        use_effect_with(projects_state, move |projects_state| {
+            let projects =
+                filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
+                    .clone()
+                    .into_iter()
+                    .map(|project| project.clone())
+                    .collect();
+        
+            user_projects.set(projects);
+        });
     }
 
     user_projects
@@ -63,7 +60,3 @@ fn filter_user_projects<'a>(
         })
         .collect::<Vec<&Project>>()
 }
-
-#[cfg(test)]
-#[path = "./user_projects_test.rs"]
-mod user_projects_test;

@@ -1,4 +1,5 @@
 @use 'themes' as t;
+@use 'mixins';
 
 .thot-ui-shadow-box {
   z-index: 100;
@@ -11,8 +12,11 @@
   position: absolute;
   bottom:0;
   right: t.$margin-l;
+  text-align: right;
+  max-width: 50%;
 
   .thot-ui-message {
+    text-align: left;
     color: t.$message-font-color;
     padding: t.$padding-m;
     border-radius: t.$border-radius-m;
@@ -28,6 +32,16 @@
 
     &.message-error {
       background-color: t.$error-color;
+    }
+
+    &.message-warning {
+      background-color: t.$warning-color;
+    }
+
+
+    .details-body {
+      max-height: 25vh;
+      overflow: auto;
     }
   }
 }
@@ -94,13 +108,16 @@
   }
 }
 
-.thot-ui-standard-properties-editor {
-
+.thot-ui-container-properties-editor,
+.thot-ui-asset-properties-editor,
+.thot-ui-bulk-container-properties-editor,
+.thot-ui-bulk-asset-properties-editor,
+.thot-ui-bulk-resource-properties-editor {
   .thot-ui-metadata-editor {
-
     margin-top: t.$margin-l;
+
     input {
-      all:unset;
+      all: unset;
       appearance: auto;
       width: t.$drawer-content-width-1-4;
       border: solid t.$border-width-s transparent;
@@ -109,12 +126,14 @@
         outline: none;
         border: solid t.$border-width-s t.$hover-border-color;
       }
+
       &:hover {
         border: solid t.$border-width-s t.$hover-border-color;
       }
     }
     .metadatum-key {
       width: t.$drawer-content-width-1-4;
+      @include mixins.hide-text-overflow;
     }
 
     .metadata-editor {
@@ -127,16 +146,47 @@
         justify-content: space-between; 
       }
 
-      .metadatum, .thot-ui-metadatum-value-editor {
+      .thot-ui-metadatum .metadatum-fields, 
+      .thot-ui-metadatum-value-editor {
         display: flex;
         align-items: center;
         gap: t.$gap-s;
+
       }
+    }
+
+    .thot-ui-metadatum-builder .error,
+    .thot-ui-metadatum .error {
+      display: block;
+      color: t.$error-color;
     }
 
     .form-fields, .form-controls, .metadatum-value {
       display: flex;
       gap: t.$gap-s;
+    }
+  }
+}
+
+.thot-ui-bulk-container-properties-editor,
+.thot-ui-bulk-asset-properties-editor,
+.thot-ui-bulk-resource-properties-editor {
+  .thot-ui-bulk-tag-editor {
+    list-style: none;
+    padding: 0;
+
+    ul {
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between; 
+    }
+
+    .add-tags {
+      display: flex;
     }
   }
 }

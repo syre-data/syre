@@ -1,5 +1,4 @@
-use crate::result::Result;
-use crate::types::ResourcePathType;
+use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 mod commands;
@@ -34,13 +33,11 @@ enum Command {
 
 #[derive(Debug, Args)]
 pub struct AddScriptArgs {
-    #[clap(parse(from_os_str))]
     path: PathBuf,
 
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     project: Option<PathBuf>,
-
-    // @todo: Allow path type to be specified
+    // TODO Allow path type to be specified
     // #[clap(long, value_enum)]
     // path_type: Option<ResourcePathType>,
 }

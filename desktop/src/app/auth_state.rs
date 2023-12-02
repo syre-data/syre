@@ -48,7 +48,7 @@ impl Reducible for AuthState {
                 //      See also `AppStateAction::UnsetUser`.
                 let store_res = LocalStorage::set("user", user_email);
                 if let Err(err) = store_res {
-                    // @todo: Alert user could not store log in.
+                    // TODO Alert user could not store log in.
                     web_sys::console::debug_1(&format!("Could not store user: {:#?}", err).into());
                 }
 
@@ -60,13 +60,8 @@ impl Reducible for AuthState {
             }
         };
 
-        tracing::debug!(auth_state = ?current);
         current.into()
     }
 }
 
 pub type AuthStateReducer = UseReducerHandle<AuthState>;
-
-#[cfg(test)]
-#[path = "./auth_state_test.rs"]
-mod auth_state_test;

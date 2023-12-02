@@ -31,7 +31,3 @@ pub fn use_container_path(rid: ResourceId) -> SuspensionResult<PathBuf> {
 
     Err(s)
 }
-
-#[cfg(test)]
-#[path = "./container_path_test.rs"]
-mod container_path_test;

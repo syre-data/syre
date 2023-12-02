@@ -99,7 +99,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
     };
 
     Ok(html! {
-        <div class={classes!("project-scripts-widget")}>
+        <div class={"project-scripts-widget"}>
             if let Some(onadd) = props.onadd.as_ref() {
                 <CreateScript oncreate={onadd.clone()} />
             }
@@ -119,16 +119,17 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
 
                     html! {
                         <li key={script.rid.clone()}>
-                            <span class={classes!("clickable")}
+                            <span class={"name clickable"}
+                                title={name.clone()}
                                 ondblclick={ondblclick_script(script.rid.clone())}>
-
                                 { name }
                             </span>
+
                             if props.onremove.is_some() {
-                                <button class={classes!("btn-icon")} type={"button"}
+                                <button class={"btn-icon"} type={"button"}
                                     onclick={onclick_remove(script.rid.clone())}>
 
-                                    <Icon class={classes!("thot-ui-add-remove-icon")}
+                                    <Icon class={"thot-ui-add-remove-icon"}
                                         icon_id={IconId::HeroiconsSolidMinus}/>
                                 </button>
                             }

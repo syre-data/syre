@@ -30,6 +30,7 @@ pub enum Project {
     Container(Container),
     Asset(Asset),
     Script(Script),
+    Analysis(Analysis),
 }
 
 impl From<Graph> for Project {
@@ -53,6 +54,12 @@ impl From<Asset> for Project {
 impl From<Script> for Project {
     fn from(update: Script) -> Self {
         Self::Script(update)
+    }
+}
+
+impl From<Analysis> for Project {
+    fn from(update: Analysis) -> Self {
+        Self::Analysis(update)
     }
 }
 
@@ -102,7 +109,7 @@ pub enum Container {
 // *** Asset ***
 // *************
 
-/// Container updates.
+/// Asset updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Asset {
     Created {
@@ -130,7 +137,7 @@ pub enum Asset {
 // *** Script ***
 // **************
 
-/// Container updates.
+/// Script updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Script {
     Created(CoreScript),
@@ -143,5 +150,18 @@ pub enum Script {
     Moved {
         script: ResourceId,
         path: ResourcePath,
+    },
+}
+
+// ****************
+// *** Analysis ***
+// ****************
+
+/// Analysis updates.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Analysis {
+    Flag {
+        resource: ResourceId,
+        message: String,
     },
 }

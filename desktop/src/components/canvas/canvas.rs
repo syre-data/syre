@@ -1,4 +1,5 @@
 //! Project canvas.
+use super::canvas_state::ResourceType;
 use super::details_bar::DetailsBar;
 use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
@@ -14,11 +15,12 @@ use crate::routes::Route;
 use futures::stream::StreamExt;
 use thot_core::types::ResourceId;
 use thot_local_database::event::{
-    Asset as AssetUpdate, Container as ContainerUpdate, Graph as GraphUpdate,
-    Project as ProjectUpdate, Script as ScriptUpdate, Update,
+    Analysis as AnalysisUpdate, Asset as AssetUpdate, Container as ContainerUpdate,
+    Graph as GraphUpdate, Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
 use thot_ui::components::{drawer, Drawer, DrawerPosition};
 use thot_ui::types::Message;
+use thot_ui::widgets::common::asset as asset_ui;
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -183,6 +185,36 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                                     script: script.clone(),
                                     path,
                                 });
+                            }
+                        },
+
+                        ProjectUpdate::Analysis(update) => match update {
+                            AnalysisUpdate::Flag { resource, message } => {
+                                let name = if let Some(container) = graph_state.graph.get(&resource)
+                                {
+                                    container.properties.name.clone()
+                                } else if let Some(container) = graph_state.asset_map.get(&resource)
+                                {
+                                    let container = graph_state.graph.get(&container).unwrap();
+                                    let asset = container.assets.get(&resource).unwrap();
+                                    asset_ui::asset_display_name(asset)
+                                } else {
+                                    tracing::debug!("could not find resource `{resource:?}`");
+                                    let mut msg = Message::error("Could not find resource");
+                                    msg.set_details("Could not find `{resource:?}` when flagging");
+                                    app_state.dispatch(AppStateAction::AddMessage(msg));
+                                    return;
+                                };
+
+                                canvas_state.dispatch(CanvasStateAction::AddFlag {
+                                    resource,
+                                    message: message.clone(),
+                                });
+
+                                let mut msg =
+                                    Message::warning(format!("Resource `{name}` was flagged"));
+                                msg.set_details(message);
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
                         },
                     }

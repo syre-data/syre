@@ -252,3 +252,24 @@ add_asset <- function(db,
              showWarnings = FALSE)
   path
 }
+
+#' Flags a resource (Container or Asset).
+#'
+#' @param db Thot database connection.
+#' @param resource Resource to flag.
+#' @param message Flag message.
+#'
+#' @export
+#'
+#' @examples
+#' db <- database()
+#' asset <- db |> find_asset()
+#' db |> flag(asset, "Check me!")
+flag <- function(db, resource, message) {
+  args <- to_json(list(
+    resource = resource@.rid,
+    message = message
+  ))
+  cmd <- sprintf('{"AnalysisCommand": {"Flag": %s}}', args)
+  send_cmd(db@socket, cmd)
+}

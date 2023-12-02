@@ -53,6 +53,21 @@ pub enum CanvasStateAction {
 
     /// Toggle canvas drawers visibility.
     ToggleDrawers,
+
+    /// Adds a flag to a resource.
+    AddFlag {
+        resource: ResourceId,
+        message: String,
+    },
+
+    /// Removes the flag at the given index for the resource.
+    RemoveFlag { resource: ResourceId, index: usize },
+
+    /// Clears all the flags for the given resource.
+    ClearResourceFlags(ResourceId),
+
+    /// Clears all flags.
+    ClearFlags,
 }
 
 #[derive(Clone, PartialEq)]
@@ -72,6 +87,9 @@ pub struct CanvasState {
     /// If canvas drawers are visible.
     pub drawers_visible: bool,
 
+    /// Flag messages for each resource.
+    pub flags: ResourceMap<Vec<String>>,
+
     /// `Container` tree visibility state.
     /// Key indicates the root of the hidden tree.
     visible: ResourceMap<bool>,
@@ -90,6 +108,7 @@ impl CanvasState {
             selected: HashSet::default(),
             drawers_visible: true,
             visible: ResourceMap::default(),
+            flags: ResourceMap::default(),
             resource_types: ResourceMap::default(),
             show_side_bars,
         }
@@ -221,6 +240,25 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::ToggleDrawers => {
                 current.drawers_visible = !current.drawers_visible;
+            }
+
+            CanvasStateAction::AddFlag { resource, message } => {
+                let resource_flags = current.flags.entry(resource).or_insert(Vec::new());
+                resource_flags.push(message);
+            }
+
+            CanvasStateAction::RemoveFlag { resource, index } => {
+                if let Some(resource_flags) = current.flags.get_mut(&resource) {
+                    resource_flags.remove(index);
+                }
+            }
+
+            CanvasStateAction::ClearResourceFlags(resource) => {
+                current.flags.remove(&resource);
+            }
+
+            CanvasStateAction::ClearFlags => {
+                current.flags.clear();
             }
         }
 

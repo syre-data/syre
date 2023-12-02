@@ -112,6 +112,7 @@ impl Database {
             Command::GraphCommand(cmd) => self.handle_command_graph(cmd),
             Command::ScriptCommand(cmd) => self.handle_command_script(cmd),
             Command::UserCommand(cmd) => self.handle_command_user(cmd),
+            Command::AnalysisCommand(cmd) => self.handle_command_analysis(cmd),
         }
     }
 

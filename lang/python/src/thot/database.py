@@ -352,6 +352,16 @@ class Database:
         os.makedirs(os.path.dirname(path), exist_ok=True) # ensure bucket directory exists
         return path
     
+    def flag(self, resource: Union[Container, Asset], message: str):
+        """Add a flag to the resource.
+
+        Args:
+            resource (Union[Container, Asset]): Resource to flag.
+            message (str): Message to display.
+        """
+        self._socket.send_json({"AnalysisCommand": {"Flag": {"resource": resource._rid, "message": message}}})
+        res = self._socket.recv_json()
+    
     def clone(self) -> 'Database':
         """Clones the Database.
         For use in multithreaded applications.

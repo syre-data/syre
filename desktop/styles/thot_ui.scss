@@ -34,6 +34,11 @@
       background-color: t.$error-color;
     }
 
+    &.message-warning {
+      background-color: t.$warning-color;
+    }
+
+
     .details-body {
       max-height: 25vh;
       overflow: auto;

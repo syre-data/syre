@@ -64,6 +64,7 @@ features = [
 [dependencies.yew_icons]
 workspace = true
 features = [
+    "BootstrapExclamationTriangle",
     "BootstrapFiles",
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",

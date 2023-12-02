@@ -48,6 +48,7 @@ pub fn message(props: &MessageProps) -> Html {
         MessageType::Info => "message-info",
         MessageType::Success => "message-success",
         MessageType::Error => "message-error",
+        MessageType::Warning => "message-warning",
     };
 
     let class = classes!("thot-ui-message", kind_class, props.class.clone());

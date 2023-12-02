@@ -7,9 +7,7 @@ use thot_ui::widgets::common::asset as asset_ui;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
-const EXPAND_ICON_SIZE: u8 = 16;
-const RESOURCE_ICON_SIZE: u8 = 16;
-const EYE_ICON_SIZE: u8 = 16;
+const ICON_SIZE: u8 = 16;
 
 /// Properties for [`Assets`].
 #[derive(Properties, PartialEq)]
@@ -48,6 +46,7 @@ fn asset(props: &AssetProps) -> Html {
         })
     };
 
+    let name = asset_ui::asset_display_name(&props.asset);
     let mut class = classes!("layer-asset");
     if selected {
         class.push("selected");
@@ -55,16 +54,28 @@ fn asset(props: &AssetProps) -> Html {
 
     html! {
         <div {class} {onclick}>
+            <div class={"info-group"}>
+                <span class={"resource-icon"} style={asset_ui::asset_icon_color(&props.asset)}>
+                    <Icon icon_id={asset_ui::asset_icon_id(&props.asset)}
+                        width={ICON_SIZE.to_string()}
+                        height={ICON_SIZE.to_string()} />
+                </span>
 
-            <span class={classes!("resource-icon")} style={ asset_ui::asset_icon_color(&props.asset) }>
-                <Icon icon_id={asset_ui::asset_icon_id(&props.asset)}
-                    width={RESOURCE_ICON_SIZE.to_string()}
-                    height={RESOURCE_ICON_SIZE.to_string()} />
-            </span>
+                <span class={"name"} title={name.clone()}>
+                    { name }
+                </span>
+            </div>
+            <div class={"controls-group"}>
+                if let Some(flags) = canvas_state.flags.get(&props.asset.rid) {
+                    <span class={"alert-icon"}
+                        title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
 
-            <span class={classes!("name")}>
-                { asset_ui::asset_display_name(&props.asset) }
-            </span>
+                        <Icon icon_id={IconId::BootstrapExclamationTriangle}
+                            width={ICON_SIZE.to_string()}
+                            height={ICON_SIZE.to_string()} />
+                    </span>
+                }
+            </div>
         </div>
     }
 }
@@ -98,30 +109,30 @@ fn assets(props: &AssetsProps) -> Html {
 
     html! {
         <div {class}>
-            <div class={classes!("layer-title")}>
-                <span class={classes!("layer-expand")}
+            <div class={"layer-title"}>
+                <span class={"layer-expand"}
                     onclick={toggle_expanded_state}>
                     if *expanded_state {
                         <Icon icon_id={IconId::FontAwesomeSolidCaretDown}
-                            width={EXPAND_ICON_SIZE.to_string()}
-                            height={EXPAND_ICON_SIZE.to_string()} />
+                            width={ICON_SIZE.to_string()}
+                            height={ICON_SIZE.to_string()} />
                     } else {
                         <Icon icon_id={IconId::FontAwesomeSolidCaretRight}
-                            width={EXPAND_ICON_SIZE.to_string()}
-                            height={EXPAND_ICON_SIZE.to_string()} />
+                            width={ICON_SIZE.to_string()}
+                            height={ICON_SIZE.to_string()} />
                     }
                 </span>
 
-                <span class={classes!("resource-icon")}>
+                <span class={"resource-icon"}>
                     <Icon icon_id={IconId::BootstrapFiles}
-                        width={RESOURCE_ICON_SIZE.to_string()}
-                        height={RESOURCE_ICON_SIZE.to_string()} />
+                        width={ICON_SIZE.to_string()}
+                        height={ICON_SIZE.to_string()} />
                 </span>
 
-                <span class={classes!("name")}>{ "Assets" }</span>
+                <span class={"name"}>{ "Assets" }</span>
             </div>
 
-            <div class={classes!("layer-assets")}>
+            <div class={"layer-assets"}>
                 { props.assets.iter().map(|asset| html! {
                     <Asset asset={asset.clone()} />
                 }).collect::<Html>()}
@@ -229,50 +240,66 @@ fn layer(props: &LayerProps) -> Html {
 
     html! {
         <div {class}>
-            <div class={classes!("layer-title")}
+            <div class={"layer-title"}
                 {onclick}
                 {ondblclick} >
 
-                if children.len() > 0 {
-                    <span class={classes!("layer-expand")}
-                        onclick={toggle_expanded_state}>
-                        if *expanded_state {
-                            <Icon icon_id={IconId::FontAwesomeSolidCaretDown}
-                                width={EXPAND_ICON_SIZE.to_string()}
-                                height={EXPAND_ICON_SIZE.to_string()} />
+                <div class={"info-group"}>
+                    if children.len() > 0 || root.assets.len() > 0 {
+                        <span class={"layer-expand"}
+                            onclick={toggle_expanded_state}>
+                            if *expanded_state {
+                                <Icon icon_id={IconId::FontAwesomeSolidCaretDown}
+                                    width={ICON_SIZE.to_string()}
+                                    height={ICON_SIZE.to_string()} />
+                            } else {
+                                <Icon icon_id={IconId::FontAwesomeSolidCaretRight}
+                                    width={ICON_SIZE.to_string()}
+                                    height={ICON_SIZE.to_string()} />
+                            }
+                        </span>
+                    }
+                    <span class={"resource-icon"}>
+                        <Icon icon_id={IconId::FontAwesomeRegularFolder}
+                            width={ICON_SIZE.to_string()}
+                            height={ICON_SIZE.to_string()} />
+                    </span>
+                    <span class={"name"}
+                        title={root.properties.name.clone()}>
+                        { &root.properties.name }
+                    </span>
+                </div>
+                <div class={"controls-group"}>
+                    if let Some(flags) = canvas_state.flags.get(&props.root) {
+                        <span class={"alert-icon"}
+                            title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
+
+                            <Icon icon_id={IconId::BootstrapExclamationTriangle}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
+                        </span>
+                    }
+                    <span class={"visibility-toggle"}
+                        onclick={onclick_toggle_visibility}>
+                        if canvas_state.is_visible(&root.rid) {
+                            <Icon icon_id={IconId::FontAwesomeRegularEye}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
                         } else {
-                            <Icon icon_id={IconId::FontAwesomeSolidCaretRight}
-                                width={EXPAND_ICON_SIZE.to_string()}
-                                height={EXPAND_ICON_SIZE.to_string()} />
+                            <Icon icon_id={IconId::FontAwesomeRegularEyeSlash}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
                         }
                     </span>
-                }
-                <span class={classes!("resource-icon")}>
-                    <Icon icon_id={IconId::FontAwesomeRegularFolder}
-                        width={RESOURCE_ICON_SIZE.to_string()}
-                        height={RESOURCE_ICON_SIZE.to_string()} />
-                </span>
-                <span class={classes!("name")}>{ &root.properties.name }</span>
-                <span class={classes!("visibility-toggle")}
-                    onclick={onclick_toggle_visibility}>
-                    if canvas_state.is_visible(&root.rid) {
-                        <Icon icon_id={IconId::FontAwesomeRegularEye}
-                            width={RESOURCE_ICON_SIZE.to_string()}
-                            height={RESOURCE_ICON_SIZE.to_string()} />
-                    } else {
-                        <Icon icon_id={IconId::FontAwesomeRegularEyeSlash}
-                            width={RESOURCE_ICON_SIZE.to_string()}
-                            height={RESOURCE_ICON_SIZE.to_string()} />
-                    }
-                </span>
+                </div>
             </div>
-            <div class={classes!("resources")}>
+            <div class={"resources"}>
                 if root.assets.len() > 0 {
                     <Assets assets={root.assets.values().map(|asset| asset.clone()).collect::<Vec<_>>()} />
                 }
 
                 if children.len() > 0 {
-                    <div class={classes!("children")}>
+                    <div class={"children"}>
                         { children.iter().map(|child| html!{
                             <Layer key={format!("layer-{child}")}
                                 root={child.clone()} />
@@ -289,7 +316,7 @@ pub fn layers_bar() -> Html {
     let graph_state = use_context::<GraphStateReducer>().unwrap();
     let root = graph_state.graph.root();
     html! {
-        <div class={classes!("layers-bar")}>
+        <div class={"layers-bar"}>
             <Layer root={root.clone()} expanded={true} />
         </div>
     }

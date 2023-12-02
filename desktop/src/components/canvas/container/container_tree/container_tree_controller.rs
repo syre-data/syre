@@ -5,7 +5,7 @@ use crate::commands::common::ResourceIdArgs;
 use crate::commands::container::AddAssetsArgs;
 use crate::commands::project::AnalyzeArgs;
 use crate::common::invoke;
-use crate::components::canvas::canvas_state::ResourceType;
+use crate::components::canvas::canvas_state::{self, ResourceType};
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
@@ -172,6 +172,7 @@ pub fn container_tree_controller() -> Html {
 
     let analyze = {
         let app_state = app_state.clone();
+        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
         let canvas_state = canvas_state.clone();
@@ -181,6 +182,8 @@ pub fn container_tree_controller() -> Html {
             let graph_state = graph_state.clone();
             let analysis_state = analysis_state.clone();
             let project_id = canvas_state.project.clone();
+
+            canvas_state.dispatch(CanvasStateAction::ClearFlags);
 
             spawn_local(async move {
                 let root = graph_state.graph.root();
@@ -232,6 +235,7 @@ pub fn container_tree_controller() -> Html {
 
     let analyze_container = {
         let app_state = app_state.clone();
+        let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
         let canvas_state = canvas_state.clone();
@@ -248,6 +252,19 @@ pub fn container_tree_controller() -> Html {
                 .next()
                 .expect("a container should be selected")
                 .clone();
+
+            if let Some(descendants) = graph_state.graph.descendants(&selected_rid) {
+                for descendant in descendants {
+                    let descendant = graph_state.graph.get(&descendant).unwrap();
+                    for asset in descendant.assets.keys() {
+                        canvas_state.dispatch(CanvasStateAction::ClearResourceFlags(asset.clone()));
+                    }
+
+                    canvas_state.dispatch(CanvasStateAction::ClearResourceFlags(
+                        descendant.rid.clone(),
+                    ));
+                }
+            }
 
             spawn_local(async move {
                 let root = selected_rid;

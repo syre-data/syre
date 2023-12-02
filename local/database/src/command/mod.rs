@@ -1,4 +1,5 @@
 //! Commands and their related arguments and responses.
+pub mod analysis;
 pub mod asset;
 pub mod command;
 pub mod container;
@@ -10,6 +11,7 @@ pub mod types;
 pub mod user;
 
 // Re-exports
+pub use analysis::AnalysisCommand;
 pub use asset::AssetCommand;
 pub use command::Command;
 pub use container::ContainerCommand;

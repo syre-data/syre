@@ -10,7 +10,7 @@ use thot_core::project::{Asset, AssetProperties, Container as CoreContainer};
 use thot_core::types::ResourceId;
 
 impl Database {
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(skip(self))]
     pub fn handle_command_asset(&mut self, cmd: AssetCommand) -> JsValue {
         match cmd {
             AssetCommand::Get(rid) => {

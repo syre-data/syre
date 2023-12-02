@@ -1,8 +1,7 @@
 //! Container tree UI.
 use super::Container as ContainerUi;
 use crate::app::{AppStateAction, AppStateReducer, AuthStateReducer, ShadowBox};
-use crate::commands::common::UpdatePropertiesArgs;
-use crate::commands::container::NewChildArgs;
+use crate::commands::container::{NewChildArgs, UpdatePropertiesArgs};
 use crate::common::invoke;
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
@@ -79,10 +78,10 @@ fn new_child_name(props: &NewChildNameProps) -> Html {
 // *** Container Tree ***
 // **********************
 
-static CONNECTOR_CLASS: &str = "container-tree-node-connector";
-static VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
-static VISIBILITY_CONTROL_SIZE: u8 = 20;
-static EYE_ICON_SIZE: u8 = 16;
+const CONNECTOR_CLASS: &str = "container-tree-node-connector";
+const VISIBILITY_CONTROL_CLASS: &str = "container-tree-visibility-control";
+const VISIBILITY_CONTROL_SIZE: u8 = 20;
+const EYE_ICON_SIZE: u8 = 16;
 
 /// Properties for a [`ContainerTree`].
 #[derive(Properties, PartialEq, Debug)]
@@ -92,12 +91,9 @@ pub struct ContainerTreeProps {
 }
 
 /// Container tree component.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(ContainerTree)]
 pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
-    let auth_state =
-        use_context::<AuthStateReducer>().expect("`AuthStateReducer` context not found");
-
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
@@ -134,21 +130,10 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
     let add_child = {
         let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
         let new_child_parent = new_child_parent.clone();
         let show_add_child_form = show_add_child_form.clone();
-        let uid = auth_state
-            .user
-            .as_ref()
-            .expect("`AuthState.user` should be set")
-            .rid
-            .clone();
-
         Callback::from(move |name: String| {
             let app_state = app_state.clone();
-            let graph_state = graph_state.clone();
-            let uid = uid.clone();
-
             show_add_child_form.set(false);
             let parent = (*new_child_parent)
                 .clone()
@@ -156,32 +141,20 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
             spawn_local(async move {
                 // create child
-                let Ok(mut child) = invoke::<Container>(
+                let Ok(_) = invoke::<()>(
                     "new_child",
                     NewChildArgs {
                         name,
                         parent: parent.clone(),
                     },
                 )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create child")));
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not create child",
+                    )));
                     return;
                 };
-
-                graph_state.dispatch(GraphStateAction::InsertChildContainer(
-                    parent,
-                    child.clone(),
-                ));
-
-                // set creator
-                child.properties.creator = Creator::User(Some(UserId::Id(uid)));
-
-                graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
-                    UpdatePropertiesArgs {
-                        rid: child.rid,
-                        properties: child.properties,
-                    },
-                ));
             });
         })
     };
@@ -212,29 +185,26 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
 
-        use_effect_with_deps(
-            move |_| {
-                let window = web_sys::window().expect("could not get window");
-                let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
-                    create_connectors(
-                        root_ref.clone(),
-                        children_ref.clone(),
-                        connectors_ref.clone(),
-                        canvas_state.clone(),
-                    )
-                });
+        use_effect_with((), move |_| {
+            let window = web_sys::window().expect("could not get window");
+            let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
+                create_connectors(
+                    root_ref.clone(),
+                    children_ref.clone(),
+                    connectors_ref.clone(),
+                    canvas_state.clone(),
+                )
+            });
 
-                window
-                    .add_event_listener_with_callback(
-                        "resize",
-                        create_connectors_cb.as_ref().unchecked_ref(),
-                    )
-                    .expect("could not add `resize` listener to `window`");
+            window
+                .add_event_listener_with_callback(
+                    "resize",
+                    create_connectors_cb.as_ref().unchecked_ref(),
+                )
+                .expect("could not add `resize` listener to `window`");
 
-                create_connectors_cb.forget();
-            },
-            (),
-        );
+            create_connectors_cb.forget();
+        });
     }
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };
@@ -276,14 +246,10 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                                 <div class={classes!("child-node-marker")}
                                     data-rid={rid.clone()}>
 
-                                    { match graph_state.graph.get(&rid)
+                                    { &graph_state.graph.get(&rid)
                                         .expect("child `Container` not found")
                                         .properties
                                         .name
-                                        .clone() {
-                                            Some(name) => name,
-                                            None => "(no name)".to_string()
-                                        }
                                     }
                                 </div>
                             }

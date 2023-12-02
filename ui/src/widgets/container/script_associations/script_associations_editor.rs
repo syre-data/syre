@@ -69,16 +69,13 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
         let association_state = association_state.clone();
         let dirty_state = dirty_state.clone();
 
-        use_effect_with_deps(
-            move |run_parameters| {
-                association_state.dispatch(ScriptAssociationStateAction::SetValue(
-                    run_parameters.clone(),
-                ));
-
-                dirty_state.set(false);
-            },
-            props.run_parameters.clone(),
-        );
+        use_effect_with(props.run_parameters.clone(), move |run_parameters| {
+            association_state.dispatch(ScriptAssociationStateAction::SetValue(
+                run_parameters.clone(),
+            ));
+        
+            dirty_state.set(false);
+        });
     }
 
     {
@@ -86,17 +83,14 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
         let dirty_state = dirty_state.clone();
         let association_state = association_state.clone();
 
-        use_effect_with_deps(
-            move |association_state| {
-                if !*dirty_state {
-                    return;
-                }
-
-                onchange.emit(association_state.run_parameters.clone());
-                dirty_state.set(false);
-            },
-            association_state,
-        );
+        use_effect_with(association_state, move |association_state| {
+            if !*dirty_state {
+                return;
+            }
+        
+            onchange.emit(association_state.run_parameters.clone());
+            dirty_state.set(false);
+        });
     }
 
     let onchange_priority = {

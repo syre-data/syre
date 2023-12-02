@@ -1,6 +1,5 @@
 //! Search filter functionality.
-use super::StandardResource;
-use crate::project::Metadata;
+use crate::project::{Asset, Container, Metadata};
 use crate::types::ResourceId;
 use std::collections::HashSet;
 
@@ -57,20 +56,80 @@ pub struct StandardSearchFilter {
     pub metadata: Option<Metadata>,
 }
 
-impl<T> SearchFilter<T> for StandardSearchFilter
-where
-    T: StandardResource,
-{
-    // TODO Should just pass `StandardProperties`.
-    // Then can remove `StandardResource` trait.
-    fn matches(&self, resource: &T) -> bool {
+// ************************
+// *** Container Filter ***
+// ************************
+
+impl SearchFilter<Container> for StandardSearchFilter {
+    fn matches(&self, container: &Container) -> bool {
         if let Some(s_rid) = self.rid.as_ref() {
-            if s_rid != resource.id() {
+            if s_rid != &container.rid {
                 return false;
             }
         }
 
-        let props = resource.properties();
+        let props = &container.properties;
+        if let Some(s_name) = self.name.as_ref() {
+            if let Some(s_name) = s_name.as_ref() {
+                if s_name != &props.name {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        if let Some(s_kind) = self.kind.as_ref() {
+            if s_kind != &props.kind {
+                return false;
+            }
+        }
+
+        if let Some(s_tags) = self.tags.as_ref() {
+            for s_tag in s_tags {
+                if !props.tags.contains(s_tag) {
+                    return false;
+                }
+            }
+        }
+
+        if let Some(s_md) = self.metadata.as_ref() {
+            for (s_key, s_val) in s_md {
+                let Some(f_val) = props.metadata.get(s_key) else {
+                    return false;
+                };
+
+                // only compare number values, not types
+                if f_val.is_number() && s_val.is_number() {
+                    if f_val.as_f64() != s_val.as_f64() {
+                        return false;
+                    }
+                } else {
+                    if f_val != s_val {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // all search criteria matched
+        true
+    }
+}
+
+// ********************
+// *** Asset Filter ***
+// ********************
+
+impl SearchFilter<Asset> for StandardSearchFilter {
+    fn matches(&self, asset: &Asset) -> bool {
+        if let Some(s_rid) = self.rid.as_ref() {
+            if s_rid != &asset.rid {
+                return false;
+            }
+        }
+
+        let props = &asset.properties;
         if let Some(s_name) = self.name.as_ref() {
             if s_name != &props.name {
                 return false;

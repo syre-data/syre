@@ -1,13 +1,13 @@
 //! Bulk editor for `Asset`s.
 use super::super::{GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::BulkUpdatePropertiesArgs;
-use crate::commands::types::{MetadataAction, StandardPropertiesUpdate, TagsAction};
+use crate::commands::asset::{AssetPropertiesUpdate, BulkUpdatePropertiesArgs};
+use crate::commands::types::{MetadataAction, TagsAction};
 use crate::common::invoke;
 use std::collections::HashSet;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::StandardPropertiesBulkEditor;
+use thot_ui::widgets::bulk_editor::AssetPropertiesBulkEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -59,7 +59,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |name| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             update.name = Some(name);
             let update = BulkUpdatePropertiesArgs {
                 rids: rids.clone(),
@@ -88,7 +88,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |kind| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             update.kind = Some(kind);
             let update = BulkUpdatePropertiesArgs {
                 rids: rids.clone(),
@@ -117,7 +117,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |description| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             update.description = Some(description);
             let update = BulkUpdatePropertiesArgs {
                 rids: rids.clone(),
@@ -146,7 +146,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |tags| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.insert = tags;
             update.tags = tags_update;
@@ -177,7 +177,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |tag| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.remove.push(tag);
             update.tags = tags_update;
@@ -208,7 +208,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
@@ -239,7 +239,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |key| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.remove.push(key);
             update.metadata = metadata_update;
@@ -270,7 +270,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = StandardPropertiesUpdate::default();
+            let mut update = AssetPropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
@@ -295,7 +295,8 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
-            <StandardPropertiesBulkEditor
+            <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
+            <AssetPropertiesBulkEditor
                 {properties}
                 {onchange_name}
                 {onchange_kind}

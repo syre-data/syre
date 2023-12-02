@@ -3,8 +3,7 @@ import typing
 from typing import Any, Iterable, Union
 from functools import partial
 
-from .asset import Asset
-from .container import Container
+from .resources import Container, Asset
 
 Resource = Union[Asset, Container]
 

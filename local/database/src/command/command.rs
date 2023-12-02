@@ -1,7 +1,8 @@
 //! Commands.
 use super::{
-    asset::AssetCommand, container::ContainerCommand, database::DatabaseCommand,
-    graph::GraphCommand, project::ProjectCommand, script::ScriptCommand, user::UserCommand,
+    analysis::AnalysisCommand, asset::AssetCommand, container::ContainerCommand,
+    database::DatabaseCommand, graph::GraphCommand, project::ProjectCommand, script::ScriptCommand,
+    user::UserCommand,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,7 @@ pub enum Command {
     DatabaseCommand(DatabaseCommand),
     ScriptCommand(ScriptCommand),
     UserCommand(UserCommand),
+    AnalysisCommand(AnalysisCommand),
 }
 
 impl From<AssetCommand> for Command {
@@ -56,5 +58,11 @@ impl From<ScriptCommand> for Command {
 impl From<UserCommand> for Command {
     fn from(cmd: UserCommand) -> Self {
         Self::UserCommand(cmd)
+    }
+}
+
+impl From<AnalysisCommand> for Command {
+    fn from(cmd: AnalysisCommand) -> Self {
+        Self::AnalysisCommand(cmd)
     }
 }

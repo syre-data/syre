@@ -1,8 +1,7 @@
 //! Commands to interact with [`UserSettings`].
 use crate::error::{DesktopSettingsError, Result};
-use crate::settings::{loader::Loader, UserSettings as AppUserSettings};
+use crate::settings::UserSettings as AppUserSettings;
 use crate::state::AppState;
-use settings_manager::Settings;
 use tauri::State;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
@@ -28,8 +27,7 @@ pub fn load_user_settings(
         }
     }
 
-    let user_settings: AppUserSettings =
-        Loader::load_or_create_with::<AppUserSettings>(&rid)?.into();
+    let user_settings = AppUserSettings::load_or_new(&rid)?;
     let desktop_settings: DesktopUserSettings = user_settings.clone().into();
     *settings = Some(user_settings);
 

@@ -15,23 +15,35 @@ pub enum ContainerPreview {
     Scripts,
 }
 
-impl Into<String> for ContainerPreview {
-    fn into(self) -> String {
+impl ContainerPreview {
+    pub fn as_str(&self) -> &str {
         match self {
-            ContainerPreview::None => "None".to_string(),
-            ContainerPreview::Type => "Type".to_string(),
-            ContainerPreview::Description => "Description".to_string(),
-            ContainerPreview::Tags => "Tags".to_string(),
-            ContainerPreview::Metadata => "Metadata".to_string(),
-            ContainerPreview::Assets => "Data".to_string(),
-            ContainerPreview::Scripts => "Scripts".to_string(),
+            ContainerPreview::None => "None",
+            ContainerPreview::Type => "Type",
+            ContainerPreview::Description => "Description",
+            ContainerPreview::Tags => "Tags",
+            ContainerPreview::Metadata => "Metadata",
+            ContainerPreview::Assets => "Data",
+            ContainerPreview::Scripts => "Scripts",
         }
+    }
+}
+
+impl AsRef<str> for ContainerPreview {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl ToHtml for ContainerPreview {
+    fn to_html(&self) -> Html {
+        self.as_str().into_html()
     }
 }
 
 impl Into<AttrValue> for ContainerPreview {
     fn into(self) -> AttrValue {
-        Into::<String>::into(self).into()
+        self.to_string().into()
     }
 }
 
@@ -57,6 +69,6 @@ impl From<String> for ContainerPreview {
 
 impl fmt::Display for ContainerPreview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", Into::<String>::into(self.clone()))
+        write!(f, "{}", self.as_str())
     }
 }

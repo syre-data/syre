@@ -4,7 +4,6 @@ use super::resources::asset::{Asset as LocalAsset, Assets};
 use crate::error::AssetError;
 use crate::types::AssetFileAction;
 use crate::{common, Error, Result};
-use settings_manager::{local_settings::Loader, Settings};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Asset as CoreAsset;
@@ -100,7 +99,11 @@ impl AssetBuilder {
         // calculate paths
         let mut rel_path = self.bucket.clone().unwrap_or(PathBuf::new());
         let Some(file_name) = self.path.file_name() else {
-            return Err(AssetError::InvalidPath(self.path.clone(), "could not get file name".to_string()).into());
+            return Err(AssetError::InvalidPath(
+                self.path.clone(),
+                "could not get file name".to_string(),
+            )
+            .into());
         };
 
         rel_path.push(file_name);
@@ -198,8 +201,8 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
-        assets.insert(asset.rid.clone(), asset);
+        let mut assets = Assets::load_from(container)?;
+        assets.insert(asset);
         assets.save()?;
         Ok(rid)
     }
@@ -262,8 +265,8 @@ impl AssetBuilder {
 
         // insert asset
         let container = self.container_path()?;
-        let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
-        assets.insert(asset.rid.clone(), asset.clone());
+        let mut assets = Assets::load_from(container)?;
+        assets.insert(asset.clone());
         assets.save()?;
 
         Ok(asset)
@@ -319,8 +322,8 @@ pub fn init(path: &Path, container: Option<&Path>) -> Result<ResourceId> {
     let rid = asset.rid.clone();
 
     // insert asset
-    let mut assets: Assets = Loader::load_or_create::<Assets>(container)?.into();
-    assets.insert(asset.rid.clone(), asset);
+    let mut assets = Assets::load_from(container)?;
+    assets.insert(asset);
     assets.save()?;
     Ok(rid)
 }
@@ -352,7 +355,8 @@ pub fn path_is_asset(path: &Path, container: &Path) -> bool {
     todo!();
 }
 
-/// Moves up the path until the first Container is reached.
+// TODO Return `Option` instead of `Result`.
+/// Moves up the path until the first `Container` is reached.
 pub fn container_from_path_ancestor(path: &Path) -> Result<PathBuf> {
     match path.ancestors().find(|p| path_is_container(p)) {
         None => {

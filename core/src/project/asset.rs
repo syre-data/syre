@@ -1,6 +1,6 @@
 /// Asset.
-use super::{standard_properties::Builder as PropertiesBuilder, Metadata, StandardProperties};
-use crate::db::{Resource, StandardResource};
+use super::{asset_properties::Builder as PropertiesBuilder, AssetProperties, Metadata};
+use crate::db::Resource;
 use crate::types::{Creator, ResourceId, ResourcePath};
 use chrono::prelude::*;
 use has_id::HasId;
@@ -21,7 +21,7 @@ use has_id::HasIdSerde;
 pub struct Asset {
     #[id]
     pub rid: ResourceId,
-    pub properties: StandardProperties,
+    pub properties: AssetProperties,
 
     /// Path to the `Asset`'s resource file.
     pub path: ResourcePath,
@@ -31,7 +31,7 @@ impl Asset {
     pub fn new(path: ResourcePath) -> Asset {
         Asset {
             rid: ResourceId::new(),
-            properties: StandardProperties::new(),
+            properties: AssetProperties::new(),
             path,
         }
     }
@@ -61,16 +61,6 @@ impl Hash for Asset {
 }
 
 impl Resource for Asset {}
-
-impl StandardResource for Asset {
-    fn properties(&self) -> &StandardProperties {
-        &self.properties
-    }
-
-    fn properties_mut(&mut self) -> &mut StandardProperties {
-        &mut self.properties
-    }
-}
 
 // ***************
 // *** Builder ***

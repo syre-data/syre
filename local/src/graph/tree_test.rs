@@ -9,13 +9,21 @@ fn container_tree_load_should_work() {
     let c1_dir = dir.mkdir().expect("could not create child dir");
     let c2_dir = dir.mkdir().expect("could not create child dir");
 
-    let rid = container::init(dir.path()).expect("could not init root `Container`");
-    let cid_1 = container::init(&c1_dir).expect("could not init child `Container`");
-    let cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
+    let builder = container::InitOptions::init();
+    let rid = builder
+        .build(dir.path())
+        .expect("could not init root `Container`");
+
+    let cid_1 = builder
+        .build(&c1_dir)
+        .expect("could not init child `Container`");
+
+    let cid_2 = builder
+        .build(&c2_dir)
+        .expect("could not init child `Container`");
 
     // test
-    let graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
+    let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     assert_eq!(&rid, graph.root(), "incorrect root");
     assert!(
@@ -40,11 +48,13 @@ fn container_tree_load_should_work() {
 }
 
 #[test]
-fn container_tree_duplicate_should_work() {
+fn container_tree_duplicate_without_assets_to_should_work() {
     // setup
     let mut dir = TempDir::new().expect("could not create temp dir");
     let c1_dir = dir.mkdir().expect("could not create child dir");
     let c2_dir = dir.mkdir().expect("could not create child dir");
+    let dup_dir = TempDir::new().unwrap();
+    let dup_child_dir = TempDir::new().unwrap();
 
     let c1_tdir = dir
         .children
@@ -54,118 +64,90 @@ fn container_tree_duplicate_should_work() {
     let c11_dir = c1_tdir.mkdir().expect("could not create child dir");
     let c12_dir = c1_tdir.mkdir().expect("could not create child dir");
 
-    let _rid = container::init(dir.path()).expect("could not init root `Container`");
-    let cid_1 = container::init(&c1_dir).expect("could not init child `Container`");
-    let _cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
-    let _cid_11 = container::init(&c11_dir).expect("could not init grandchild `Container`");
-    let _cid_12 = container::init(&c12_dir).expect("could not init grandchild `Container`");
+    let builder = container::InitOptions::init();
+    let _rid = builder
+        .build(dir.path())
+        .expect("could not init root `Container`");
 
-    let graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
+    let cid_1 = builder
+        .build(&c1_dir)
+        .expect("could not init child `Container`");
+
+    let _cid_2 = builder
+        .build(&c2_dir)
+        .expect("could not init child `Container`");
+
+    let _cid_11 = builder
+        .build(&c11_dir)
+        .expect("could not init grandchild `Container`");
+
+    let _cid_12 = builder
+        .build(&c12_dir)
+        .expect("could not init grandchild `Container`");
+
+    let graph = ContainerTreeLoader::load(dir.path()).expect("could not load `Container` tree");
 
     // test
-    let dup = graph
-        .duplicate(graph.root())
-        .expect("could not duplicate tree from root");
+    // root
+    let dup =
+        ContainerTreeDuplicator::duplicate_without_assets_to(dup_dir.path(), &graph, graph.root())
+            .expect("could not duplicate tree from root");
 
     let root_children = dup
-        .children(graph.root())
+        .children(dup.root())
         .expect("could not get root children");
 
-    assert_eq!(2, root_children.len(), "incorrect number of children");
+    assert_eq!(
+        graph.children(graph.root()).unwrap().len(),
+        root_children.len(),
+        "incorrect number of children"
+    );
 
-    let c_dup = graph
-        .duplicate(&cid_1)
-        .expect("could not duplicate tree from root");
+    assert_eq!(
+        graph.get(graph.root()).unwrap().properties.name,
+        dup.get(dup.root()).unwrap().properties.name
+    );
+
+    let mut c_names = child_names(graph.root(), &graph);
+    let mut cdup_names = child_names(dup.root(), &dup);
+    c_names.sort();
+    cdup_names.sort();
+    assert_eq!(c_names, cdup_names);
+
+    // child
+    let c_dup =
+        ContainerTreeDuplicator::duplicate_without_assets_to(dup_child_dir.path(), &graph, &cid_1)
+            .expect("could not duplicate tree from root");
 
     let c1_children = c_dup
-        .children(graph.root())
+        .children(c_dup.root())
         .expect("could not get root children");
 
-    assert_eq!(2, c1_children.len(), "incorrect number of children");
+    assert_eq!(
+        graph.children(&cid_1).unwrap().len(),
+        c1_children.len(),
+        "incorrect number of children"
+    );
+
+    let mut c_names = child_names(&cid_1, &graph);
+    let mut cdup_names = child_names(c_dup.root(), &c_dup);
+    c_names.sort();
+    cdup_names.sort();
+    assert_eq!(c_names, cdup_names);
 }
 
-#[test]
-fn container_tree_set_base_path_should_work() {
-    // setup
-    let mut dir = TempDir::new().expect("could not create temp dir");
-    let c1_dir = dir.mkdir().expect("could not create child dir");
-    let c2_dir = dir.mkdir().expect("could not create child dir");
+// ***************
+// *** helpers ***
+// ***************
 
-    let c1_tdir = dir
-        .children
-        .get_mut(&c1_dir)
-        .expect("could not get child dhirectory");
-
-    let c11_dir = c1_tdir.mkdir().expect("could not create child dir");
-    let c12_dir = c1_tdir.mkdir().expect("could not create child dir");
-    let c1_dir_new = dir.mkdir().expect("could not create child dir");
-    let mut c11_dir_new = c1_dir_new.clone();
-    let mut c12_dir_new = c1_dir_new.clone();
-    c11_dir_new.push(c11_dir.file_name().expect("could not get file name"));
-    c12_dir_new.push(c12_dir.file_name().expect("could not get file name"));
-
-    let _rid = container::init(dir.path()).expect("could not init root `Container`");
-    let cid_1 = container::init(&c1_dir).expect("could not init child `Container`");
-    let cid_2 = container::init(&c2_dir).expect("could not init child `Container`");
-    let cid_11 = container::init(&c11_dir).expect("could not init grandchild `Container`");
-    let cid_12 = container::init(&c12_dir).expect("could not init grandchild `Container`");
-
-    let mut graph =
-        ResourceTree::<Container>::load(dir.path()).expect("could not load `Container` tree");
-
-    // test
+fn child_names(parent: &ResourceId, graph: &ContainerTree) -> Vec<String> {
     graph
-        .set_base_path(&cid_1, c1_dir_new.clone())
-        .expect("could not set new base path");
-
-    assert_eq!(
-        dir.path(),
-        &graph
-            .get(graph.root())
-            .expect("could not get graph root")
-            .base_path()
-            .expect("base path not set"),
-        "root path should not change"
-    );
-
-    assert_eq!(
-        c1_dir,
-        graph
-            .get(&cid_1)
-            .expect("could not get `Container`")
-            .base_path()
-            .expect("base path not set"),
-        "child dir path should be changed"
-    );
-
-    assert_eq!(
-        c2_dir,
-        graph
-            .get(&cid_2)
-            .expect("could not get `Container`")
-            .base_path()
-            .expect("base path not set"),
-        "child dir path should not be changed"
-    );
-
-    assert_eq!(
-        c11_dir_new,
-        graph
-            .get(&cid_11)
-            .expect("could not get `Container`")
-            .base_path()
-            .expect("base path not set"),
-        "grandchild dir path should be changed"
-    );
-
-    assert_eq!(
-        c12_dir,
-        graph
-            .get(&cid_12)
-            .expect("could not get `Container`")
-            .base_path()
-            .expect("base path not set"),
-        "grandchild dir path should be changed"
-    );
+        .children(parent)
+        .unwrap()
+        .iter()
+        .map(|cid| {
+            let child = graph.get(cid).unwrap();
+            child.properties.name.clone()
+        })
+        .collect()
 }

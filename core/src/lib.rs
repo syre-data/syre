@@ -6,7 +6,6 @@
 //! # Thot Core
 //!
 //! This package represents core functionality of the Thot software suite.
-// pub mod api; // REMOVE
 pub mod common;
 pub mod constants;
 pub mod error;

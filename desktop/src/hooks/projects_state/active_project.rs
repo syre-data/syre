@@ -14,12 +14,9 @@ pub fn use_active_project() -> UseStateHandle<Option<ResourceId>> {
         let projects_state = projects_state.clone();
         let active_project = active_project.clone();
 
-        use_effect_with_deps(
-            move |projects_state| {
-                active_project.set(projects_state.active_project.clone());
-            },
-            projects_state,
-        );
+        use_effect_with(projects_state, move |projects_state| {
+            active_project.set(projects_state.active_project.clone());
+        });
     };
 
     active_project

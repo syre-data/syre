@@ -1,4 +1,4 @@
-use crate::result::Result;
+use crate::Result;
 use clap::{ArgGroup, Args, Subcommand};
 use thot_core::types::UserId;
 mod commands;

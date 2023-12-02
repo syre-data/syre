@@ -4,17 +4,20 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::State;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, StandardProperties};
+use thot_core::project::{Container, ContainerProperties};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
+use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::common::unique_file_name;
 use thot_local::types::AssetFileAction;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::{
-    AddAssetInfo, AddAssetsArgs, BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate,
-    UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    BulkUpdateContainerPropertiesArgs, ContainerPropertiesUpdate,
 };
-use thot_local_database::command::types::{BulkUpdatePropertiesArgs, StandardPropertiesUpdate};
+use thot_local_database::command::container::{
+    BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate, UpdatePropertiesArgs,
+    UpdateScriptAssociationsArgs,
+};
 use thot_local_database::command::ContainerCommand;
 use thot_local_database::Result as DbResult;
 
@@ -34,12 +37,12 @@ pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<Container> 
 pub fn update_container_properties(
     db: State<DbClient>,
     rid: ResourceId,
-    properties: String, // @todo: Issue with deserializing `HashMap` of `metadata`. perform manually.
+    properties: String, // TODO Issue with deserializing `HashMap` of `metadata`. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/6078
-                        // properties: StandardProperties,
+                        // properties: ContainerProperties,
 ) -> LibResult {
-    let properties: StandardProperties =
-        serde_json::from_str(&properties).expect("could not deserialize into `StandardProperties`");
+    let properties: ContainerProperties = serde_json::from_str(&properties)
+        .expect("could not deserialize into `ContainerProperties`");
 
     let res = db
         .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
@@ -85,7 +88,7 @@ pub fn update_container_script_associations(
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
     let path = db
-        .send(ContainerCommand::GetPath(rid).into())
+        .send(ContainerCommand::Path(rid).into())
         .expect("could not get `Container` path");
 
     let path: Option<PathBuf> = serde_json::from_value(path)
@@ -96,19 +99,37 @@ pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBu
 
 /// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).
 #[tauri::command]
-pub fn add_assets(
-    db: State<DbClient>,
-    container: ResourceId,
-    assets: Vec<AddAssetInfo>,
-) -> Result<Vec<ResourceId>> {
-    let asset_rids = db
-        .send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into())
-        .expect("could not add `Asset`s to `Container`");
+pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAssetInfo>) -> Result {
+    let container_path = db.send(ContainerCommand::Path(container).into()).unwrap();
+    let Some(container_path) = serde_json::from_value::<Option<PathBuf>>(container_path).unwrap()
+    else {
+        panic!("could not get container path");
+    };
 
-    let asset_rids: DbResult<Vec<ResourceId>> = serde_json::from_value(asset_rids)
-        .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");
+    for AddAssetInfo {
+        path,
+        action,
+        bucket,
+    } in assets
+    {
+        let mut asset_path = container_path.clone();
+        if let Some(bucket) = bucket {
+            todo!();
+            asset_path.push(bucket);
+            fs::create_dir_all(asset_path)?; // will trigger folder to be created as container by database.
+        }
+        asset_path.push(path.file_name().unwrap());
 
-    Ok(asset_rids?)
+        match action {
+            AssetFileAction::Copy => {
+                fs::copy(path, asset_path)?;
+            }
+            AssetFileAction::Move => todo!(),
+            AssetFileAction::Reference => todo!(),
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -117,10 +138,10 @@ pub fn add_asset_windows(
     container: ResourceId,
     name: String,
     contents: Vec<u8>,
-) -> Result<Vec<ResourceId>> {
+) -> Result {
     // create file
     let path = db
-        .send(ContainerCommand::GetPath(container.clone()).into())
+        .send(ContainerCommand::Path(container.clone()).into())
         .expect("could not get `Container` path");
 
     let path: Option<PathBuf> =
@@ -130,32 +151,18 @@ pub fn add_asset_windows(
     path.push(name);
     let path = unique_file_name(path).expect("could not create a unique file name");
     fs::write(&path, contents).expect("could not write to file");
-
-    // add asset
-    let assets = vec![AddAssetInfo {
-        path,
-        action: AssetFileAction::Move,
-        bucket: None,
-    }];
-
-    let asset_rids = db
-        .send(ContainerCommand::AddAssets(AddAssetsArgs { container, assets }).into())
-        .expect("could not add `Asset`s");
-
-    let asset_rids: DbResult<Vec<ResourceId>> = serde_json::from_value(asset_rids)
-        .expect("could not convert `AddAssets` result to `Vec<ResourceId>`");
-
-    Ok(asset_rids?)
+    Ok(())
 }
 
 #[tauri::command]
 pub fn bulk_update_container_properties(
     db: State<DbClient>,
     rids: Vec<ResourceId>,
-    update: StandardPropertiesUpdate,
+    update: ContainerPropertiesUpdate,
 ) -> Result {
     let res = db.send(
-        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }).into(),
+        ContainerCommand::BulkUpdateProperties(BulkUpdateContainerPropertiesArgs { rids, update })
+            .into(),
     );
 
     // TODO Handle errors.

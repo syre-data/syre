@@ -1,12 +1,12 @@
-use super::{AddAssetArgs, AddChildArgs, AddScriptArgs, InitArgs, NewArgs, NewChildArgs};
+use super::{AssociateScriptArgs, InitArgs, NewArgs};
 use crate::common::abs_path;
-use crate::result::Result;
-use settings_manager::local_settings::LocalSettings;
+use crate::Result;
 use std::env;
-use thot_core::result::{Error as CoreError, ProjectError as CoreProjectError};
-use thot_local::project::resources::{Container, ScriptAssociation};
+use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::project::ScriptAssociation;
+use thot_local::error::{ContainerError as LocalContainerError, Error as LocalError};
+use thot_local::project::resources::{Container, Scripts};
 use thot_local::project::{container, project, script};
-use thot_local::result::{ContainerError as LocalContainerError, Error as LocalError};
 
 pub fn init(args: InitArgs, verbose: bool) -> Result {
     let path = match args.path {
@@ -14,78 +14,35 @@ pub fn init(args: InitArgs, verbose: bool) -> Result {
         Some(path) => path,
     };
 
-    let rid = container::init(path.as_path())?;
+    let mut builder = container::InitOptions::init();
+    builder.recurse(!args.no_recurse);
+    if args.no_assets {
+        builder.without_assets();
+    } else {
+        builder.with_assets();
+    }
+
+    let rid = builder.build(&path)?;
     if verbose {
-        println!("Initialized {:?} as a Container with {:?}", &path, &rid);
+        println!("Initialized {path:?} as a Container with {rid:?}");
     }
 
     Ok(())
 }
 
 pub fn new(args: NewArgs, verbose: bool) -> Result {
-    let rid = container::new(args.name.as_path())?;
+    let path = abs_path(args.path)?;
+    let builder = container::InitOptions::new();
+    builder.build(&path)?;
     if verbose {
-        println!("Created new Container at {:?} with {:?}", &args.name, &rid);
-    }
-
-    Ok(())
-}
-
-pub fn add_child(args: AddChildArgs, verbose: bool) -> Result {
-    let child = abs_path(args.path)?;
-    let parent = match args.parent {
-        None => env::current_dir()?,
-        Some(p) => abs_path(p)?,
-    };
-
-    let _rid = container::init_child(&child, Some(&parent))?;
-    if verbose {
-        println!("Added {:?} as a child to {:?}", &child, &parent);
-    }
-
-    Ok(())
-}
-
-pub fn new_child(args: NewChildArgs, verbose: bool) -> Result {
-    let parent = match args.parent {
-        None => env::current_dir()?,
-        Some(p) => abs_path(p)?,
-    };
-
-    let mut child = args.path;
-    if child.is_relative() {
-        let cwd = env::current_dir()?;
-        child = cwd.join(child);
-    }
-
-    let _rid = container::new_child(&child, Some(&parent))?;
-    if verbose {
-        println!("Created {:?} as a child of {:?}", &child, &parent);
-    }
-
-    Ok(())
-}
-
-pub fn add_asset(args: AddAssetArgs, verbose: bool) -> Result {
-    let asset = abs_path(args.path)?;
-    let parent = match args.parent {
-        None => env::current_dir()?,
-        Some(p) => abs_path(p)?,
-    };
-
-    let mut container = Container::load(&parent)?;
-    container.add_asset(&asset)?;
-    container.save()?;
-
-    if verbose {
-        println!("Added {:?} as an Asset to {:?}", &asset, &parent);
+        println!("Initialized `{path:?}` as a Container");
     }
 
     Ok(())
 }
 
 /// Add a script association to the container.
-pub fn add_script(args: AddScriptArgs, verbose: bool) -> Result {
+pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
     // validate container and script, if required
     let cont = match args.container {
         None => env::current_dir()?,
@@ -99,28 +56,52 @@ pub fn add_script(args: AddScriptArgs, verbose: bool) -> Result {
     }
 
     let prj_path = project::project_root_path(&cont)?;
-    let script_id;
-    if !script::path_is_registered(&args.path, Some(&prj_path))? {
-        if !args.register {
-            return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
-                None,
-                Some(args.path),
+    let project = match thot_local::project::project::project_id(&prj_path)? {
+        Some(project) => project,
+        None => {
+            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                "path is not a project",
             ))
-            .into());
-        } else {
-            script_id = script::init(&args.path, Some(&prj_path))?;
-            if verbose {
-                println!(
-                    "Path initialized as a Script with {:?} for Project {:?}",
-                    &script_id, &prj_path
-                );
+            .into())
+        }
+    };
+
+    let scripts = Scripts::load_from(&prj_path)?;
+    let script = scripts
+        .values()
+        .filter_map(|script| {
+            if script.path.as_path() == args.path.as_path() {
+                Some(script.rid.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let script_id = match script.as_slice() {
+        [] => {
+            if !args.register {
+                return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
+                    None,
+                    Some(args.path),
+                ))
+                .into());
+            } else {
+                let script_id = script::init(project, args.path.clone())?;
+                if verbose {
+                    println!(
+                        "Path initialized as a Script with {script_id:?} for Project {prj_path:?}"
+                    );
+                }
+
+                script_id
             }
         }
-    } else {
-        script_id = script::id_by_path(&args.path, Some(&prj_path))?;
-    }
+        [script_id] => script_id.clone(),
+        _ => panic!("path registered as script multiple times"),
+    };
 
-    let mut container = Container::load(&cont)?;
+    let mut container = Container::load_from(&cont)?;
     let mut assoc = ScriptAssociation::new(script_id);
     if args.priority.is_some() {
         assoc.priority = args.priority.unwrap();
@@ -134,7 +115,3 @@ pub fn add_script(args: AddScriptArgs, verbose: bool) -> Result {
     container.save()?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./commands_test.rs"]
-mod commands_test;

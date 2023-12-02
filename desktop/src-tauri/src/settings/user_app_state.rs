@@ -1,29 +1,67 @@
 //! Application state for startup.
 use crate::common;
 use crate::error::{DesktopSettingsError, Result};
-use cluFlock::FlockLock;
-use settings_manager::user_settings::{
-    Components, Loader as UserLoader, UserSettings as UserSettingsInterface,
-};
-use settings_manager::Settings;
-use std::fs::File;
+use std::fs;
+use std::io::{self, BufReader};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::UserSettingsFile;
 use thot_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
+use thot_local::file_resource::UserResource;
 
-#[derive(Settings)]
+#[derive(Clone, Debug)]
 pub struct UserAppState {
-    #[settings(file_lock = "DesktopUserAppState")]
-    file_lock: FlockLock<File>,
-
     rel_path: PathBuf,
-
-    #[settings(priority = "User")]
     app_state: DesktopUserAppState,
 }
 
 impl UserAppState {
+    pub fn load(user: &ResourceId) -> Result<Self> {
+        let rel_path = PathBuf::from(user.to_string());
+        let rel_path = rel_path.join(Self::settings_file());
+
+        let path = Self::base_path().join(&rel_path);
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        let app_state = serde_json::from_reader(reader)?;
+
+        Ok(Self {
+            rel_path: rel_path.into(),
+            app_state,
+        })
+    }
+
+    pub fn load_or_new(user: &ResourceId) -> Result<Self> {
+        let rel_path = PathBuf::from(user.to_string());
+        let rel_path = rel_path.join(Self::settings_file());
+
+        let path = Self::base_path().join(&rel_path);
+        match fs::File::open(path) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let app_state = serde_json::from_reader(reader)?;
+
+                Ok(Self {
+                    rel_path: rel_path.into(),
+                    app_state,
+                })
+            }
+
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self {
+                rel_path: rel_path.into(),
+                app_state: DesktopUserAppState::new(user.clone()),
+            }),
+
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    pub fn save(&self) -> Result {
+        fs::write(self.path(), serde_json::to_string_pretty(&self.app_state)?)?;
+        Ok(())
+    }
+
     /// Updates the app state.
     pub fn update(&mut self, app_state: DesktopUserAppState) -> Result {
         // verify correct user
@@ -52,7 +90,7 @@ impl Into<DesktopUserAppState> for UserAppState {
     }
 }
 
-impl UserSettingsInterface<DesktopUserAppState> for UserAppState {
+impl UserResource<DesktopUserAppState> for UserAppState {
     fn base_path() -> PathBuf {
         common::users_config_dir().expect("could not get config path")
     }
@@ -67,18 +105,3 @@ impl UserSettingsFile for UserAppState {
         PathBuf::from("desktop_app_state.json")
     }
 }
-
-impl From<UserLoader<DesktopUserAppState>> for UserAppState {
-    fn from(loader: UserLoader<DesktopUserAppState>) -> Self {
-        let loader: Components<DesktopUserAppState> = loader.into();
-        Self {
-            file_lock: loader.file_lock,
-            rel_path: loader.rel_path,
-            app_state: loader.data,
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "./user_app_state_test.rs"]
-mod user_app_state_test;

@@ -19,27 +19,35 @@ use yew::prelude::NodeRef;
 /// + If the value can not be parsed as a number.
 #[tracing::instrument]
 pub fn str_to_number(input: &str) -> StdResult<JsValue, <f64 as FromStr>::Err> {
-    tracing::debug!(?input);
+    fn parse_as_int(input: &str) -> Option<JsValue> {
+        if let Ok(val) = input.parse::<u64>() {
+            return Some(JsValue::from(val));
+        }
+
+        if let Ok(val) = input.parse::<i64>() {
+            return Some(JsValue::from(val));
+        }
+
+        None
+    }
+
     if input.is_empty() {
-        tracing::debug!("empty");
         return Ok(JsValue::from(0 as u64));
     }
 
-    if let Ok(val) = input.parse::<u64>() {
-        tracing::debug!("u");
-        return Ok(JsValue::from(val));
-    }
-
-    if let Ok(val) = input.parse::<i64>() {
-        tracing::debug!("i");
-        return Ok(JsValue::from(val));
-    }
-
-    let val = input.parse::<f64>()?;
-    tracing::debug!(?val);
-    match val.is_nan() {
-        true => Ok(JsValue::Null),
-        false => Ok(JsValue::from(val)),
+    match input.split_once('.') {
+        None => Ok(parse_as_int(input).expect("could not parse as number")),
+        Some((_, decs)) => {
+            if decs.is_empty() {
+                Ok(parse_as_int(input).expect("could not parse as number"))
+            } else {
+                let val = input.parse::<f64>()?;
+                match val.is_nan() {
+                    true => Ok(JsValue::Null),
+                    false => Ok(JsValue::from(val)),
+                }
+            }
+        }
     }
 }
 

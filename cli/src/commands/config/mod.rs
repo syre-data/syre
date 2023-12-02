@@ -1,4 +1,4 @@
-use crate::result::Result;
+use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 use thot_core::types::UserId;

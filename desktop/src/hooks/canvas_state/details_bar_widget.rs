@@ -14,12 +14,9 @@ pub fn use_details_bar_widget() -> UseStateHandle<Option<DetailsBarWidget>> {
         let canvas_state = canvas_state.clone();
         let details_bar_widget = details_bar_widget.clone();
 
-        use_effect_with_deps(
-            move |canvas_state| {
-                details_bar_widget.set(canvas_state.details_bar_widget.clone());
-            },
-            canvas_state,
-        );
+        use_effect_with(canvas_state, move |canvas_state| {
+            details_bar_widget.set(canvas_state.details_bar_widget.clone());
+        });
     };
 
     details_bar_widget

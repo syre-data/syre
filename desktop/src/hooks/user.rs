@@ -14,12 +14,9 @@ pub fn use_user() -> UseStateHandle<Option<User>> {
         let auth_state = auth_state.clone();
         let user = user.clone();
 
-        use_effect_with_deps(
-            move |auth_state| {
-                user.set(auth_state.user.clone());
-            },
-            auth_state,
-        );
+        use_effect_with(auth_state, move |auth_state| {
+            user.set(auth_state.user.clone());
+        });
     }
 
     user

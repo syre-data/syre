@@ -14,7 +14,6 @@ struct ScriptAssociationPreviewProps {
 
 #[function_component(ScriptAssociationPreview)]
 fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
-    // TODO Add `RunParameters` functionality.
     let mut class = classes!("thot-ui-script-association-preview");
     if props.run_parameters.autorun {
         class.push("autorun-true");
@@ -35,24 +34,33 @@ pub struct ScriptAssociationsPreviewProps {
     pub scripts: ScriptMap,
     pub names: ResourceMap<String>,
 
-    /// MAp from `Script` id to name.
+    /// Map from `Script` id to name.
     #[prop_or_default]
     pub name_map: Option<NameMap>,
 }
 
 #[function_component(ScriptAssociationsPreview)]
 pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Html {
+    let mut scripts = props.scripts.iter().collect::<Vec<_>>();
+    scripts.sort_by(
+        |(_, RunParameters { priority: p1, .. }), (_, RunParameters { priority: p2, .. })| {
+            p2.cmp(p1)
+        },
+    );
+
     html! {
         <div class={classes!("thot-ui-script-associations-preview")}>
             if props.scripts.len() == 0 {
                 { "(no scripts)" }
             } else {
                 <ol class={classes!("thot-ui-script-associations-list")}>
-                    { props.scripts.iter().map(|(script, run_parameters)| {
+                    { scripts.into_iter().map(|(script, run_parameters)| {
                         let name = props.names.get(script).expect("script name not found.");
                         html! {
                             <li>
-                                <ScriptAssociationPreview name={name.clone()} run_parameters={run_parameters.clone()} />
+                                <ScriptAssociationPreview
+                                    name={name.clone()}
+                                    run_parameters={run_parameters.clone()} />
                             </li>
                         }
                     }).collect::<Html>() }

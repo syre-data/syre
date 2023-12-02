@@ -1,13 +1,13 @@
 //! Container editor widget.
 use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
+use crate::commands::container::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
 use crate::common::invoke;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
-use thot_core::project::StandardProperties;
+use thot_core::project::ContainerProperties;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
-use thot_ui::widgets::StandardPropertiesEditor;
+use thot_ui::widgets::container::ContainerPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -19,7 +19,7 @@ pub struct ContainerEditorProps {
     pub onsave: Callback<()>,
 }
 
-#[tracing::instrument(level = "debug", skip(props), fields(?props.rid))]
+#[tracing::instrument(skip(props), fields(?props.rid))]
 #[function_component(ContainerEditor)]
 pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
@@ -38,13 +38,10 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         let dirty_state = dirty_state.clone();
         let properties = properties.clone();
 
-        use_effect_with_deps(
-            move |container| {
-                properties.set(container.properties.clone());
-                dirty_state.set(false);
-            },
-            container.clone(),
-        );
+        use_effect_with(container.clone(), move |container| {
+            properties.set(container.properties.clone());
+            dirty_state.set(false);
+        });
     }
 
     {
@@ -55,51 +52,48 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
         let dirty_state = dirty_state.clone();
         let properties = properties.clone();
 
-        use_effect_with_deps(
-            move |properties| {
-                if !*dirty_state {
-                    return;
-                }
+        use_effect_with(properties, move |properties| {
+            if !*dirty_state {
+                return;
+            }
 
-                let properties = properties.clone();
-                spawn_local(async move {
-                    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-                    // See https://github.com/tauri-apps/tauri/issues/6078
-                    let properties_str = serde_json::to_string(&*properties)
-                        .expect("could not serialize `StandardProperties`");
+            let properties = properties.clone();
+            spawn_local(async move {
+                // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+                // See https://github.com/tauri-apps/tauri/issues/6078
+                let properties_str = serde_json::to_string(&*properties)
+                    .expect("could not serialize `ContainerProperties`");
 
-                    let update_str = UpdatePropertiesStringArgs {
-                        rid: rid.clone(),
-                        properties: properties_str,
-                    };
+                let update_str = UpdatePropertiesStringArgs {
+                    rid: rid.clone(),
+                    properties: properties_str,
+                };
 
-                    let update = UpdatePropertiesArgs {
-                        rid,
-                        properties: (*properties).clone(),
-                    };
+                let update = UpdatePropertiesArgs {
+                    rid,
+                    properties: (*properties).clone(),
+                };
 
-                    match invoke::<()>("update_container_properties", update_str).await {
-                        Err(err) => {
-                            tracing::debug!(?err);
-                            app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                "Could not save resource",
-                            )));
-                        }
-                        Ok(_) => {
-                            graph_state
-                                .dispatch(GraphStateAction::UpdateContainerProperties(update));
-                        }
+                match invoke::<()>("update_container_properties", update_str).await {
+                    Err(err) => {
+                        tracing::debug!(?err);
+                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                            "Could not save resource",
+                        )));
                     }
-                });
-            },
-            properties,
-        );
+                    Ok(_) => {
+                        graph_state.dispatch(GraphStateAction::UpdateContainerProperties(update));
+                    }
+                }
+            });
+        });
     }
 
     let onchange = {
         let properties = properties.clone();
 
-        Callback::from(move |update: StandardProperties| {
+        Callback::from(move |update: ContainerProperties| {
+            tracing::debug!("properties changed");
             properties.set(update);
             dirty_state.set(true);
         })
@@ -107,7 +101,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-editor")}>
-            <StandardPropertiesEditor
+            <ContainerPropertiesEditor
                 properties={(*properties).clone()}
                 onchange={onchange} />
 

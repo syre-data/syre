@@ -118,51 +118,42 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
     {
         // update states if prop value changes
         let state = state.clone();
-        use_effect_with_deps(
-            move |value| {
-                state.dispatch(MetadatumStateAction::New(value.clone()));
-            },
-            props.value.clone(),
-        );
+        use_effect_with(props.value.clone(), move |value| {
+            state.dispatch(MetadatumStateAction::New(value.clone()));
+        });
     }
 
     {
         let state = state.clone();
         let value_ref = value_ref.clone();
 
-        use_effect_with_deps(
-            move |(state, value_ref)| {
-                if state.kind() != Some(MetadatumType::Bool) {
-                    return;
+        use_effect_with((state, value_ref), move |(state, value_ref)| {
+            if state.kind() != Some(MetadatumType::Bool) {
+                return;
+            }
+        
+            match state.value() {
+                &BulkValue::EqualValue(_) => {}
+                _ => {
+                    let input = value_ref
+                        .cast::<web_sys::HtmlInputElement>()
+                        .expect("could not cast node ref to input element");
+        
+                    input.set_indeterminate(true);
                 }
-
-                match state.value() {
-                    &BulkValue::EqualValue(_) => {}
-                    _ => {
-                        let input = value_ref
-                            .cast::<web_sys::HtmlInputElement>()
-                            .expect("could not cast node ref to input element");
-
-                        input.set_indeterminate(true);
-                    }
-                };
-            },
-            (state, value_ref),
-        );
+            };
+        });
     }
 
     {
         // emit changes
         let onchange = props.onchange.clone();
         let state = state.clone();
-        use_effect_with_deps(
-            move |state| {
-                if let BulkValue::EqualValue(value) = state.value() {
-                    onchange.emit(value.clone());
-                }
-            },
-            state,
-        );
+        use_effect_with(state, move |state| {
+            if let BulkValue::EqualValue(value) = state.value() {
+                onchange.emit(value.clone());
+            }
+        });
     }
 
     let onchange_kind = {

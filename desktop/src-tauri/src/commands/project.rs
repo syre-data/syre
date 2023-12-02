@@ -12,9 +12,9 @@ use thot_desktop_lib::error::{
     DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
 };
 use thot_local::project::project;
-use thot_local::project::resources::project::{Loader as ProjectLoader, Project as LocalProject};
-use thot_local::project::types::ProjectSettings;
+use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::projects as sys_projects;
+use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
 use thot_local_database::Result as DbResult;
@@ -61,7 +61,7 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, Proj
 // *** add project ***
 // *******************
 
-/// Adds a [`Project`].
+/// Adds an existing [`Project`] to the users vault.
 #[tauri::command]
 pub fn add_project(
     app_state: State<AppState>,
@@ -80,6 +80,7 @@ pub fn add_project(
     let project = db
         .send(ProjectCommand::Add(path, user.rid.clone()).into())
         .expect("could not add `Project`");
+
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 
@@ -89,6 +90,7 @@ pub fn add_project(
 // *******************
 // *** get project ***
 // *******************
+
 /// Gets a [`Project`].
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
@@ -124,30 +126,6 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
     Ok(())
 }
 
-// *******************
-// *** new project ***
-// *******************
-
-// @todo: Can possibly remove.
-//
-// /// Creates a new project.
-// #[tauri::command]
-// pub fn new_project(app_state: State<AppState>, name: &str) -> Result<Project> {
-//     // create new project
-//     let project = LocalProject::new(name)?;
-//     let prj_props = (*project).clone();
-
-//     // store project
-//     let mut project_store = app_state
-//         .projects
-//         .lock()
-//         .expect("could not lock `AppState.projects`");
-
-//     project_store.insert(prj.properties.rid.clone(), prj);
-
-//     Ok(prj_props)
-// }
-
 // ********************
 // *** init project ***
 // ********************
@@ -157,21 +135,23 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 pub fn init_project(path: &Path) -> Result<ResourceId> {
     let rid = project::init(path)?;
 
-    // @todo: Move to frontend.
     // create analysis folder
     let analysis_root = "analysis";
     let mut analysis = path.to_path_buf();
     analysis.push(analysis_root);
     fs::create_dir(&analysis).expect("could not create analysis directory");
 
-    let mut project: LocalProject = ProjectLoader::load_or_create(path)
-        .expect("Could not load `Project`")
-        .into();
-
+    let mut project = LocalProject::load_from(path)?;
     project.analysis_root = Some(PathBuf::from(analysis_root));
     project.save()?;
 
     Ok(rid)
+}
+
+// remember to call `.manage(MyState::default())`
+#[tauri::command]
+pub fn init_project_from(path: &Path) -> Result<ResourceId> {
+    Ok(thot_local::project::init(path, "data", "analysis")?)
 }
 
 // ************************
@@ -179,10 +159,10 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 // ************************
 
 #[tauri::command]
-pub fn get_project_path(id: ResourceId) -> Result<PathBuf> {
-    let Some(path) = sys_projects::get_path(&id)? else {
+pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
+    let Some(path) = sys_projects::get_path(&rid)? else {
         return Err(CoreError::ProjectError(ProjectError::NotRegistered(
-            Some(ResourceId::from(id.clone())),
+            Some(ResourceId::from(rid.clone())),
             None,
         ))
         .into());
@@ -222,7 +202,8 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
         serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
 
     let Some(mut graph) = graph else {
-        let error = CoreError::ResourceError(ResourceError::DoesNotExist("root `Container` not loaded"));
+        let error =
+            CoreError::ResourceError(ResourceError::does_not_exist("root `Container` not loaded"));
         return Err(LibError::Database(format!("{error:?}")));
     };
 

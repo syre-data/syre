@@ -23,18 +23,15 @@ pub fn use_container(rid: ResourceId) -> UseStateHandle<CoreContainer> {
         let tree_state = tree_state.clone();
         let container = container.clone();
 
-        use_effect_with_deps(
-            move |(rid, tree_state)| {
-                container.set(
-                    tree_state
-                        .tree
-                        .get(&rid)
-                        .cloned()
-                        .expect("`Container` not found"),
-                )
-            },
-            (rid, tree_state),
-        )
+        use_effect_with((rid, tree_state), move |(rid, tree_state)| {
+            container.set(
+                tree_state
+                    .tree
+                    .get(&rid)
+                    .cloned()
+                    .expect("`Container` not found"),
+            )
+        })
     }
 
     container

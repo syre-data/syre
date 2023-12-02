@@ -28,7 +28,7 @@ pub struct MetadatumBuilderProps {
 #[tracing::instrument]
 #[function_component(MetadatumBuilder)]
 pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
-    // @note: `kind` and `value` are set to default values if they can not be
+    // NOTE `kind` and `value` are set to default values if they can not be
     // interpreted correctly. It may be better to return an error instead,
     // although this situation should likely never arise due to their types.
     let value = use_state(|| props.value.clone());
@@ -59,7 +59,7 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
     let onerror = {
         let error = error.clone();
         Callback::from(move |message: String| {
-            error.set(Some(message));
+            error.set(message.into());
         })
     };
 

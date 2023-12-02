@@ -20,7 +20,7 @@ pub struct ShadowBoxProps {
 }
 
 const CONTAINER_STYLE: &str = "
-    position: absolute;
+    position: fixed;
     top: 0;
     bottom: 0;
     left: 0;

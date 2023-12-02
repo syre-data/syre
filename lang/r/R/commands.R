@@ -30,17 +30,16 @@ send_cmd <- function(socket, cmd, result = TRUE) {
 #' @returns Whether a Thot database is available.
 database_available <- function() {
   server_up <- tryCatch({
-      socketConnection(port = THOT_PORT)
-      TRUE
-    },
-    error = function(cond) {
-      # port not open, no chance for server
-      FALSE
-    },
-    warning = function(cond) {
-      FALSE
-    }
-  )
+    socketConnection(port = THOT_PORT)
+    TRUE
+  },
+  error = function(cond) {
+    # port not open, no chance for server
+    FALSE
+  },
+  warning = function(cond) {
+    FALSE
+  })
 
   if (!server_up) {
     return(FALSE)
@@ -92,7 +91,7 @@ get_container <- function(socket, id) {
 #'
 #' @returns Container's path.
 container_path <- function(socket, id) {
-  cmd <- sprintf('{"ContainerCommand": {"GetPath": "%s"}}', id)
+  cmd <- sprintf('{"ContainerCommand": {"Path": "%s"}}', id)
   send_cmd(socket, cmd, result = FALSE)
 }
 

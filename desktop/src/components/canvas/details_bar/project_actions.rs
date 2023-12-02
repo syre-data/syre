@@ -36,7 +36,8 @@ pub fn project_actions() -> HtmlResult {
         Callback::from(move |paths: HashSet<PathBuf>| {
             let project = project.clone();
             let projects_state = projects_state.clone();
-            let Some(mut project_scripts) = projects_state.project_scripts.get(&project).cloned() else {
+            let Some(mut project_scripts) = projects_state.project_scripts.get(&project).cloned()
+            else {
                 panic!("`Project`'s `Scripts` not loaded");
             };
 
@@ -77,7 +78,9 @@ pub fn project_actions() -> HtmlResult {
             let project = project.clone();
 
             let Some(mut scripts) = projects_state.project_scripts.get(&project).cloned() else {
-                app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not remove script")));
+                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                    "Could not remove script",
+                )));
                 return;
             };
 
@@ -90,12 +93,15 @@ pub fn project_actions() -> HtmlResult {
                         script: rid.clone(),
                     },
                 )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not remove script")));
+                .await
+                else {
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not remove script",
+                    )));
                     return;
                 };
 
-                // @note: Program order does not follow logical order, should first remove from
+                // NOTE Program order does not follow logical order, should first remove from
                 // containers and then projects, else containers might contain stale scripts.
                 // however doing the right order makes the program crash due to `Script` not
                 // found error.

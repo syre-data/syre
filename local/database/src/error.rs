@@ -1,53 +1,50 @@
 //! Errors
 use serde::{Deserialize, Serialize};
 use std::result::Result as StdResult;
+use thiserror::Error;
 use thot_core::Error as CoreError;
 use thot_local::Error as LocalError;
 
 #[cfg(feature = "server")]
 use crate::types::SocketType;
 
-#[cfg(feature = "server")]
-use settings_manager::Error as SettingsError;
-
 // **************
 // ***  Error ***
 // **************
 
 /// [`Database`](crate::db) related errors.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum Error {
     /// A ZMQ [`Context`](zmq::Context) does not exist where expected.
+    #[error("ZMQ context does not exist")]
     ContextDoesNotExist,
 
-    // @todo: Serialize using `message`.
     /// A ZMQ error.
+    #[error("{0}")]
     ZMQ(String),
 
     /// A type of socket is required, but has not yet been created.
     #[cfg(feature = "server")]
+    #[error("{0:?}")]
     SocketDoesNotExist(SocketType),
 
-    // @todo: Serialize correctly.
     #[cfg(feature = "server")]
+    #[error("{0}")]
     SettingsError(String),
 
-    // @todo: Serialize correctly.
-    CoreError(String),
+    #[error("core error")]
+    CoreError(CoreError),
 
-    // @todo: Serialize correctly.
+    #[error("{0}")]
     LocalError(String),
 
     /// Issue with the database.
+    #[error("{0}")]
     DatabaseError(String),
-}
 
-#[cfg(feature = "server")]
-impl From<SettingsError> for Error {
-    fn from(err: SettingsError) -> Self {
-        // @todo: Serialize correctly.
-        Error::SettingsError(format!("{err:?}"))
-    }
+    /// The database has become out of sync.
+    #[error("out of sync")]
+    OutOfSync,
 }
 
 impl From<zmq::Error> for Error {
@@ -58,7 +55,7 @@ impl From<zmq::Error> for Error {
 
 impl From<CoreError> for Error {
     fn from(err: CoreError) -> Self {
-        Error::CoreError(format!("{err:?}"))
+        Error::CoreError(err)
     }
 }
 

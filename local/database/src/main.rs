@@ -20,7 +20,6 @@ fn main() {
         .with_writer(file_logger)
         .with_timer(UtcTime::rfc_3339())
         .json()
-        // .pretty()
         .with_filter(MAX_LOG_LEVEL);
 
     let console_logger = fmt::layer()
@@ -30,10 +29,9 @@ fn main() {
         .with_filter(MAX_LOG_LEVEL);
 
     let subscriber = Registry::default().with(console_logger).with(file_logger);
-
     tracing::subscriber::set_global_default(subscriber).expect("could not create logger");
 
     // run database
     let mut db = Database::new();
-    db.listen_for_commands();
+    db.start();
 }

@@ -1,26 +1,17 @@
 //! Project template.
+use crate::file_resource::UserResource;
 use crate::system::common::config_dir_path;
 use crate::Result;
-use cluFlock::FlockLock;
 use has_id::{HasId, HasIdSerde};
-use serde::{Deserialize, Serialize};
-use settings_manager::error::Result as SettingsResult;
-use settings_manager::{Priority as SettingsPriority, Settings, UserSettings};
-use std::borrow::Cow;
-use std::fs::File;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::graph::ResourceTree;
 use thot_core::project::Project as CoreProject;
-use thot_core::system::template::{Project as ProjectTemplate, ResourceTree as TreeTemplate};
+use thot_core::system::template::Project as ProjectTemplate;
 use thot_core::types::ResourceId;
 
-#[derive(Settings)]
 pub struct Project {
-    #[settings(file_lock = "ProjectTemplate")]
-    file_lock: FlockLock<File>,
     rel_path: PathBuf,
-    #[settings(priority = "System")]
     project: ProjectTemplate,
 }
 
@@ -57,7 +48,7 @@ impl DerefMut for Project {
     }
 }
 
-impl UserSettings<ProjectTemplate> for Project {
+impl UserResource<ProjectTemplate> for Project {
     /// Returns the base path to the settings file.
     fn base_path() -> PathBuf {
         let mut path = config_dir_path().expect("could not get config path");

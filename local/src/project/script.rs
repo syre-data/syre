@@ -1,17 +1,11 @@
 //! High level functionality for handling `Scripts`.
 use super::container;
-use super::resources::{
-    container::ContainerProperties, Script as ProjectScript, Scripts as ProjectScripts,
-};
+use super::resources::{Container, Script as ProjectScript, Scripts as ProjectScripts};
 use crate::error::{ContainerError, Result};
-use crate::system::collections::Projects;
-use crate::system::collections::Scripts as SystemScripts;
-use settings_manager::{
-    local_settings::Loader as LocalLoader, system_settings::Loader as SystemLoader, Settings,
-};
+use crate::system::collections::{Projects, Scripts as SystemScripts};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
-use thot_core::project::RunParameters;
+use thot_core::project::ScriptAssociation;
 use thot_core::types::{ResourceId, ResourcePath};
 
 // ***************
@@ -20,14 +14,15 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 /// Initialize a file as a [`Script`](CoreScript).
 pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
-    let projects: Projects = SystemLoader::load_or_create::<Projects>()?.into();
+    let projects = Projects::load()?;
     let Some(project) = projects.get(&project) else {
-        return Err(CoreError::ResourceError(ResourceError::DoesNotExist("`Project` does not exist")).into());
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` does not exist",
+        ))
+        .into());
     };
 
-    let mut scripts: ProjectScripts =
-        LocalLoader::load_or_create::<ProjectScripts>(project.clone())?.into();
-
+    let mut scripts = ProjectScripts::load_from(project.clone())?;
     let path = ResourcePath::new(path)?;
     let script = ProjectScript::new(path)?;
 
@@ -58,22 +53,19 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
     }
 
     // get script
-    let scripts: SystemScripts = SystemLoader::load_or_create::<SystemScripts>()?.into();
+    let scripts = SystemScripts::load()?;
     let Some(script) = scripts.get(script) else {
-        return Err(CoreError::ProjectError(
-            CoreProjectError::NotRegistered(Some(script.clone()), None)).into()
-        )
+        return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
+            Some(script.clone()),
+            None,
+        ))
+        .into());
     };
 
     // add association
-    let mut container: ContainerProperties =
-        LocalLoader::load_or_create::<ContainerProperties>(container.into())?.into();
-    container
-        .scripts_mut()
-        .insert(script.rid.clone(), RunParameters::new());
-
-    container.save()?;
-    Ok(())
+    let mut container = Container::load_from(container)?;
+    container.add_script_association(ScriptAssociation::new(script.rid.clone()))?;
+    container.save()
 }
 
 #[cfg(test)]

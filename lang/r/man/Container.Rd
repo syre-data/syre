@@ -2,20 +2,26 @@
 % Please edit documentation in R/resources.R
 \name{Container}
 \alias{Container}
-\title{Create a new Asset.}
+\title{Create a new Container.}
 \usage{
 Container(
+  rid,
   name = NULL,
   type = NULL,
+  description = NULL,
   tags = list(),
   metadata = list(),
   assets = list()
 )
 }
 \arguments{
+\item{rid}{Resource id.}
+
 \item{name}{Name.}
 
 \item{type}{Type.}
+
+\item{description}{Description.}
 
 \item{tags}{List of tags.}
 
@@ -24,5 +30,5 @@ Container(
 \item{assets}{List of Assets.}
 }
 \description{
-Create a new Asset.
+Create a new Container.
 }

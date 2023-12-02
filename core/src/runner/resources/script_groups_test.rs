@@ -1,6 +1,6 @@
 use super::*;
 use crate::project::ScriptAssociation;
-use crate::types::{ResourceId, ResourcePath};
+use crate::types::ResourceId;
 use dev_utils::fs::TempDir;
 use rand::Rng;
 use std::collections::HashSet;
@@ -9,7 +9,7 @@ use std::collections::HashSet;
 fn from_hashset_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("setup shoudl work");
-    let assocs = create_script_associations(&mut _dir);
+    let assocs = create_script_associations();
     let groups = ScriptGroups::from(assocs);
 
     // test
@@ -27,7 +27,7 @@ fn from_hashset_should_work() {
 fn into_vec_should_work() {
     // setup
     let mut _dir = TempDir::new().expect("setup shoudl work");
-    let assocs = create_script_associations(&mut _dir);
+    let assocs = create_script_associations();
     let groups = ScriptGroups::from(assocs);
 
     // test
@@ -63,7 +63,7 @@ fn iter_should_work() {
 // *** helper functions ***
 // ************************
 
-fn create_script_associations(dir: &mut TempDir) -> HashSet<ScriptAssociation> {
+fn create_script_associations() -> HashSet<ScriptAssociation> {
     let mut rng = rand::thread_rng();
     let n_assocs = 20;
     let p_rng = (-n_assocs / 2)..(n_assocs / 2);
@@ -71,13 +71,6 @@ fn create_script_associations(dir: &mut TempDir) -> HashSet<ScriptAssociation> {
     let n_assocs = rng.gen_range(1..n_assocs);
     let mut assocs = HashSet::new();
     for _ in 0..n_assocs {
-        let path = dir
-            .mkfile_with_extension(".py")
-            .expect("mkfile should work");
-
-        let path = ResourcePath::new(path).expect("path to resource path should work");
-
-        // let script = Script::new(path).expect("new script should work");
         let script = ResourceId::new();
         let priority = rng.gen_range(p_rng.clone());
         let autorun = rng.gen();

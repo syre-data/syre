@@ -13,4 +13,7 @@ license = 'GPL-3.0'
 fake = "2.5.0"
 lazy_static = "1.4.0"
 tempfile = "3.3"
-thot-core = { path = "../core" }
+thot-core = { path = "../core" , optional = true}
+
+[features]
+thot_core = ["dep:thot-core"]

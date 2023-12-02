@@ -41,15 +41,12 @@ fn funnel_step(props: &FunnelStepProps) -> Html {
         let step_state = step_state.clone();
         let index = props.index.clone();
 
-        use_effect_with_deps(
-            move |funnel_state| {
-                let active = funnel_state.active_step == index;
-                step_state.set(FunnelStepState { index, active });
-
-                || {}
-            },
-            funnel_state,
-        );
+        use_effect_with(funnel_state, move |funnel_state| {
+            let active = funnel_state.active_step == index;
+            step_state.set(FunnelStepState { index, active });
+        
+            || {}
+        });
     }
 
     html! {

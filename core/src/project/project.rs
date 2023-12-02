@@ -28,26 +28,10 @@ pub struct Project {
 
 impl Project {
     /// Creates a new Project.
-    pub fn new(name: &str) -> Project {
+    pub fn new(name: impl Into<String>) -> Project {
         Project {
             rid: ResourceId::new(),
-            name: String::from(name),
-            creator: Creator::User(None),
-            created: Utc::now(),
-            description: None,
-            data_root: None,
-            universal_root: None,
-            analysis_root: None,
-            meta_level: 0,
-        }
-    }
-}
-
-impl Default for Project {
-    fn default() -> Project {
-        Project {
-            rid: ResourceId::new(),
-            name: String::from(""),
+            name: name.into(),
             creator: Creator::User(None),
             created: Utc::now(),
             description: None,

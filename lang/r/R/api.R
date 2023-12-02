@@ -34,7 +34,13 @@ database <- function(dev_root = NULL) {
   root <- container_by_path(socket, escape_str(root_path))
 
   stopifnot(!is.null(root))
-  db <- new("Database", root = root$rid, root_path = root_path, socket = socket)
+  db <-
+    new(
+      "Database",
+      root = root$rid,
+      root_path = root_path,
+      socket = socket
+    )
 }
 
 #' Gets the root Container of the database.
@@ -67,16 +73,27 @@ root <- function(db) {
 #' @examples
 #' db <- database()
 #' containers <- find_containers(db, type = "my_container")
-find_containers <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NULL) {
-  args <- to_json(list(
-    db@root,
-    list(name = name, kind = type, tags = tags, metadata = metadata)
-  ))
+find_containers <-
+  function(db,
+           name = NULL,
+           type = NULL,
+           tags = NULL,
+           metadata = NULL) {
+    args <- to_json(list(
+      db@root,
+      list(
+        name = name,
+        kind = type,
+        tags = tags,
+        metadata = metadata
+      )
+    ))
 
-  cmd <- sprintf('{"ContainerCommand": {"FindWithMetadata": %s}}', args)
-  containers <- send_cmd(db@socket, cmd, result = FALSE)
-  containers |> map(container_from_json)
-}
+    cmd <-
+      sprintf('{"ContainerCommand": {"FindWithMetadata": %s}}', args)
+    containers <- send_cmd(db@socket, cmd, result = FALSE)
+    containers |> map(container_from_json)
+  }
 
 #' Finds a single Container matching the given filter criteria.
 #' If multiple matching Containers are found, a random one is returned.
@@ -93,14 +110,26 @@ find_containers <- function(db, name = NULL, type = NULL, tags = NULL, metadata 
 #' @examples
 #' db <- database()
 #' container <- find_container(db, name = "My Container")
-find_container <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NULL) {
-  containers <- find_containers(db, name = name, type = type, tags = tags, metadata = metadata)
-  if (length(containers) > 0) {
-    return(containers[[1]])
-  }
+find_container <-
+  function(db,
+           name = NULL,
+           type = NULL,
+           tags = NULL,
+           metadata = NULL) {
+    containers <-
+      find_containers(
+        db,
+        name = name,
+        type = type,
+        tags = tags,
+        metadata = metadata
+      )
+    if (length(containers) > 0) {
+      return(containers[[1]])
+    }
 
-  NULL
-}
+    NULL
+  }
 
 #' Find Assets matching the given filter criteria.
 #'
@@ -116,16 +145,26 @@ find_container <- function(db, name = NULL, type = NULL, tags = NULL, metadata =
 #' @examples
 #' db <- database()
 #' assets <- find_assets(db, type = "my_asset")
-find_assets <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NULL) {
-  args <- to_json(list(
-    db@root,
-    list(name = name, kind = type, tags = tags, metadata = metadata)
-  ))
+find_assets <-
+  function(db,
+           name = NULL,
+           type = NULL,
+           tags = NULL,
+           metadata = NULL) {
+    args <- to_json(list(
+      db@root,
+      list(
+        name = name,
+        kind = type,
+        tags = tags,
+        metadata = metadata
+      )
+    ))
 
-  cmd <- sprintf('{"AssetCommand": {"FindWithMetadata": %s}}', args)
-  assets <- send_cmd(db@socket, cmd, result = FALSE)
-  assets |> map(asset_from_json)
-}
+    cmd <- sprintf('{"AssetCommand": {"FindWithMetadata": %s}}', args)
+    assets <- send_cmd(db@socket, cmd, result = FALSE)
+    assets |> map(asset_from_json)
+  }
 
 #' Finds a single Asset matching the given filter criteria.
 #' If multiple matching Assets are found, a random one is returned.
@@ -142,14 +181,26 @@ find_assets <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NU
 #' @examples
 #' db <- database()
 #' asset <- find_asset(db, name = "My Asset")
-find_asset <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NULL) {
-  assets <- find_assets(db, name = name, type = type, tags = tags, metadata = metadata)
-  if (length(assets) > 0) {
-    return(assets[[1]])
-  }
+find_asset <-
+  function(db,
+           name = NULL,
+           type = NULL,
+           tags = NULL,
+           metadata = NULL) {
+    assets <-
+      find_assets(
+        db,
+        name = name,
+        type = type,
+        tags = tags,
+        metadata = metadata
+      )
+    if (length(assets) > 0) {
+      return(assets[[1]])
+    }
 
-  NULL
-}
+    NULL
+  }
 
 #' Adds an Asset to the Thot project.
 #' The associated data should be saved at the return path.
@@ -159,7 +210,7 @@ find_asset <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NUL
 #' Use relative paths to place the Asset in a bucket.
 #' @param name Name of the Asset.
 #' @param type Type of the Asset.
-#' @param description Description of the Asset. 
+#' @param description Description of the Asset.
 #' @param tags List of tags for the Asset.
 #' @param metadata Named list of metadata for the Asset.
 #'
@@ -170,15 +221,13 @@ find_asset <- function(db, name = NULL, type = NULL, tags = NULL, metadata = NUL
 #' db <- database()
 #' path <- add_asset(db, "my_file.txt", name = "My Text File")
 #' cat("Hello!", path)
-add_asset <- function(
-  db,
-  file,
-  name = NULL,
-  type = NULL,
-  description = NULL,
-  tags = list(),
-  metadata = list()
-) {
+add_asset <- function(db,
+                      file,
+                      name = NULL,
+                      type = NULL,
+                      description = NULL,
+                      tags = list(),
+                      metadata = list()) {
   asset <- new_asset(
     file,
     name = name,
@@ -198,6 +247,29 @@ add_asset <- function(
   }
 
   # ensure bucket is created
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  dir.create(dirname(path),
+             recursive = TRUE,
+             showWarnings = FALSE)
   path
+}
+
+#' Flags a resource (Container or Asset).
+#'
+#' @param db Thot database connection.
+#' @param resource Resource to flag.
+#' @param message Flag message.
+#'
+#' @export
+#'
+#' @examples
+#' db <- database()
+#' asset <- db |> find_asset()
+#' db |> flag(asset, "Check me!")
+flag <- function(db, resource, message) {
+  args <- to_json(list(
+    resource = resource@.rid,
+    message = message
+  ))
+  cmd <- sprintf('{"AnalysisCommand": {"Flag": %s}}', args)
+  send_cmd(db@socket, cmd)
 }

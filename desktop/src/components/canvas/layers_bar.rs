@@ -102,6 +102,13 @@ fn assets(props: &AssetsProps) -> Html {
         })
     };
 
+    let mut assets = props.assets.clone();
+    assets.sort_by(|a, b| {
+        let a_name = asset_ui::asset_display_name(a);
+        let b_name = asset_ui::asset_display_name(b);
+        a_name.cmp(&b_name)
+    });
+
     let mut class = classes!("layer", "assets");
     if *expanded_state {
         class.push("expanded")
@@ -133,8 +140,8 @@ fn assets(props: &AssetsProps) -> Html {
             </div>
 
             <div class={"layer-assets"}>
-                { props.assets.iter().map(|asset| html! {
-                    <Asset asset={asset.clone()} />
+                { assets.into_iter().map(|asset| html! {
+                    <Asset {asset} />
                 }).collect::<Html>()}
             </div>
         </div>

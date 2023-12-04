@@ -23,8 +23,8 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
 
     html! {
         <div {class}>
-            <span class={classes!("script-name")}>{ &props.name }</span>
-            <span class={classes!("script-priority")}>{ props.run_parameters.priority }</span>
+            <span class={"script-name"} title={props.name.clone()}>{ &props.name }</span>
+            <span class={"script-priority"}>{ props.run_parameters.priority }</span>
         </div>
     }
 }

@@ -73,7 +73,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
             association_state.dispatch(ScriptAssociationStateAction::SetValue(
                 run_parameters.clone(),
             ));
-        
+
             dirty_state.set(false);
         });
     }
@@ -87,7 +87,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
             if !*dirty_state {
                 return;
             }
-        
+
             onchange.emit(association_state.run_parameters.clone());
             dirty_state.set(false);
         });
@@ -131,7 +131,8 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 
     html! {
         <div class={classes!("thot-ui-script-association-editor")}>
-            <label class={classes!("script-association-script")}>
+            <label class={classes!("script-association-script")}
+                title={props.name.clone()}>
                 { &props.name }
             </label>
             <input

@@ -35,7 +35,11 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
     // otherwise removing an asset may trigger double click.
     let clicked_asset = use_state(|| None);
     let mut assets = props.assets.clone();
-    assets.sort_by(|a, b| a.path.as_path().cmp(b.path.as_path()));
+    assets.sort_by(|a, b| {
+        let a_name = common::asset_display_name(a);
+        let b_name = common::asset_display_name(b);
+        a_name.cmp(&b_name)
+    });
 
     html! {
         <div class={classes!("assets-preview")}>

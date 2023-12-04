@@ -131,10 +131,6 @@
         border: solid t.$border-width-s t.$hover-border-color;
       }
     }
-    .metadatum-key {
-      width: t.$drawer-content-width-1-4;
-      @include mixins.hide-text-overflow;
-    }
 
     .metadata-editor {
       list-style: none;
@@ -142,11 +138,24 @@
 
       li {
         display: flex;
-        align-items: center;
-        justify-content: space-between; 
       }
 
-      .thot-ui-metadatum .metadatum-fields, 
+      .thot-ui-metadatum {
+        flex-grow: 1;
+
+        .metadatum-fields {
+          display: flex;
+          align-items: center;
+          gap: t.$gap-s;
+
+          .metadatum-key {
+            @include mixins.hide-text-overflow;
+            flex-grow: 1;
+            width: t.$drawer-content-width-1-4;
+          }      
+        }
+      }
+
       .thot-ui-metadatum-value-editor {
         display: flex;
         align-items: center;
@@ -207,22 +216,20 @@
 }
 
 .thot-ui-script-associations-editor {
-
   .script-association {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
   }
 
   // NOTE! This is note the same as the associations editor.
   .thot-ui-script-association-editor {
     display: flex;
-    gap: t.$gap-m;
     align-items: center;
+    flex-grow: 1;
   }
 
   .script-association-script {
-    overflow: auto;
+    @include mixins.hide-text-overflow;
+    flex-grow: 1;
     width: t.$drawer-content-width-1-4;
   }
 

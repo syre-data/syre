@@ -183,6 +183,8 @@ $control-button-size: 25px;
         padding: 0;
 
         .thot-ui-script-association-preview {
+          @include mixins.hide-text-overflow;
+
           &.autorun-true::after {
             content: "\2605";
             margin-left: t.$margin-m;

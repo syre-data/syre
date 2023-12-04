@@ -10,7 +10,7 @@ use crate::components::canvas::selection_action::{selection_action, SelectionAct
 use crate::components::canvas::{
     CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
 };
-use crate::constants::{MESSAGE_TIMEOUT, SCRIPT_DISPLAY_NAME_MAX_LENGTH};
+use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::path::PathBuf;
 use thot_core::graph::ResourceTree;
@@ -83,10 +83,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     .expect("could not convert file name to str")
                     .to_string(),
             );
-
-            if name.len() > SCRIPT_DISPLAY_NAME_MAX_LENGTH {
-                name.replace_range(0..(SCRIPT_DISPLAY_NAME_MAX_LENGTH + 3), "...");
-            };
 
             (rid.clone(), name)
         })

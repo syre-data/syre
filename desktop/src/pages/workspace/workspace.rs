@@ -30,10 +30,9 @@ pub fn workspace() -> Html {
 
                 html! {
                     <Suspense fallback={fallback.clone()}>
-                        <ProjectCanvas
+                        <ProjectCanvas {class}
                             key={rid.clone()}
-                            project={rid.clone()}
-                            {class} />
+                            project={rid.clone()} />
                     </Suspense>
                 }
             }).collect::<Html>() }

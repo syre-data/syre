@@ -10,7 +10,7 @@ pub struct ProjectProps {
     pub rid: ResourceId,
 }
 
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(Project)]
 pub fn project(props: &ProjectProps) -> HtmlResult {
     let canvas_state =

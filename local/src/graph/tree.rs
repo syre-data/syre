@@ -68,7 +68,13 @@ impl ContainerTreeLoader {
     /// Load a `Container` tree into a [`ResourceTree`].
     pub fn load(path: impl AsRef<Path>) -> Result<ContainerTree> {
         let path = path.as_ref();
-        let root = Container::load_from(path)?;
+        let root = match Container::load_from(path) {
+            Ok(container) => container,
+            Err(err) => {
+                tracing::debug!("[{path:?}] {err:?}");
+                return Err(err.into());
+            }
+        };
         let rid = root.id().clone();
         let mut graph = ResourceTree::new(root);
 

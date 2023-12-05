@@ -151,9 +151,11 @@ pub fn container_tree_controller() -> Html {
                 .next()
                 .clone()
                 .expect("selected has 1 item");
+
             let item_type = canvas_state
                 .resource_type(item)
                 .expect("item should have type");
+
             if item_type != ResourceType::Container {
                 show_analyze_options.set(false);
                 return;

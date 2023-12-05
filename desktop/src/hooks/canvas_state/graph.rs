@@ -13,7 +13,7 @@ use yew::suspense::{Suspension, SuspensionResult};
 type ContainerTree = ResourceTree<Container>;
 
 /// Gets a `Project`'s graph.
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[hook]
 pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree> {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
@@ -32,10 +32,13 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree
         spawn_local(async move {
             let Ok(p_graph) =
                 invoke::<ContainerTree>("load_project_graph", ResourceIdArgs { rid: project })
-                    .await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get project's graph")));
-                        return;
-                    };
+                    .await
+            else {
+                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                    "Could not get project's graph",
+                )));
+                return;
+            };
 
             graph.set(Some(p_graph));
             handle.resume();

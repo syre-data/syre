@@ -125,7 +125,7 @@ pub fn project_actions() -> HtmlResult {
 
     Ok(html! {
         <div>
-            <ProjectScripts onadd={onadd_scripts} onadd_excel_template={onadd_excel_template} onremove={onremove_script} />
+            <ProjectScripts onadd={onadd_scripts} onadd_excel_template={None} onremove={onremove_script} />
         </div>
     })
 }

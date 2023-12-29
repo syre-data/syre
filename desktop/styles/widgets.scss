@@ -43,6 +43,41 @@
         }
       }
     }
+  }
+}
 
+.excel-template-builder {
+  .excel-template {
+    .workbook {
+      position: relative;
+
+      .spreadsheet {
+        position: absolute;
+        top: 0;
+        left: 0;
+        
+        &:not(.active) {
+          visibility: hidden;
+        }
+
+        table{
+          border-collapse: collapse;
+          
+          th, td {
+            @include mixins.hide-text-overflow;
+            padding: t.$padding-m t.$padding-xl;
+            border: t.$border-width-s t.$background-accent-color solid;
+          }
+        }
+      }
+    }
+
+    .spreadsheet-tab {
+      padding: t.$padding-s t.$padding-l;
+
+      &.active {
+        background-color: t.$background-accent-color;
+      }
+    }
   }
 }

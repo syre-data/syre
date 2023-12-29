@@ -2,10 +2,12 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::{PathBufArgs, ResourceIdArgs};
 use crate::common::invoke;
+use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::excel_template;
 use thot_ui::types::Message;
 use thot_ui::widgets::script::CreateScript;
 use wasm_bindgen_futures::spawn_local;
@@ -17,6 +19,10 @@ pub struct ProjectScriptsProps {
     /// Called when a user adds `Script`s to the `Project`.
     #[prop_or_default]
     pub onadd: Option<Callback<HashSet<PathBuf>>>,
+
+    /// Called when a user adds Excel Templates to the `Project`.
+    #[prop_or_default]
+    pub onadd_excel_template: Option<Callback<excel_template::ExcelTemplate>>,
 
     /// Called when a user removes a `Script`.
     #[prop_or_default]
@@ -102,6 +108,9 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
         <div class={"project-scripts-widget"}>
             if let Some(onadd) = props.onadd.as_ref() {
                 <CreateScript oncreate={onadd.clone()} />
+            }
+            if let Some(onadd_template) = props.onadd_excel_template.as_ref() {
+                <CreateExcelTemplate oncreate={onadd_template.clone()} />
             }
 
             <ul>

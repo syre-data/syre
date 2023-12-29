@@ -4,7 +4,6 @@ use clap::FromArgMatches;
 use fake::faker::internet::raw::FreeEmail;
 use fake::locales::EN;
 use fake::Fake;
-use uuid::Uuid;
 
 #[test]
 fn user_id_should_implement_clap_from_arg_matches_for_email() {

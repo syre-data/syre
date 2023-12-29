@@ -9,3 +9,20 @@
 .align-center {
     text-align: center; 
 }
+
+.clickable {
+    cursor: pointer;
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.row {
+    display: flex;
+    justify-content: center;
+}

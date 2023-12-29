@@ -2,6 +2,7 @@
 //! between the front- and back-end
 //! of the Thot Desktop app.
 pub mod error;
+pub mod excel_template;
 pub mod settings;
 pub mod types;
 

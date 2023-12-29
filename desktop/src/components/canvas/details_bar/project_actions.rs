@@ -65,6 +65,10 @@ pub fn project_actions() -> HtmlResult {
         })
     };
 
+    let onadd_excel_template = use_callback((), |_template, _| {
+        tracing::debug!("[TODO] Added Ecelt Template")
+    });
+
     let onremove_script = {
         let app_state = app_state.clone();
         let projects_state = projects_state.clone();
@@ -121,7 +125,7 @@ pub fn project_actions() -> HtmlResult {
 
     Ok(html! {
         <div>
-            <ProjectScripts onadd={onadd_scripts} onremove={onremove_script} />
+            <ProjectScripts onadd={onadd_scripts} onadd_excel_template={None} onremove={onremove_script} />
         </div>
     })
 }

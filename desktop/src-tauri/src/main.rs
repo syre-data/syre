@@ -117,6 +117,9 @@ fn main() {
             get_project_scripts,
             add_script,
             remove_script,
+            // spreadsheet
+            load_excel,
+            load_csv,
         ])
         .setup(setup::setup)
         // .build(tauri::generate_context!()) // TODO Handle events

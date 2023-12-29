@@ -43,19 +43,6 @@ main {
   flex-direction: column;
 }
 
-.clickable {
-    cursor: pointer;
-}
-
-.inline-block {
-    display: inline-block;
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
 a {
   color: t.$link-text-color;
   text-decoration: inherit;

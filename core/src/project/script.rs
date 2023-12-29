@@ -1,6 +1,5 @@
 use crate::error::ScriptError;
 use crate::types::{ResourceId, ResourceMap, ResourcePath};
-use crate::{Error, Result};
 use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;

@@ -42,11 +42,16 @@ thot-local-database = { path = "../local/database" }
 [dependencies.web-sys]
 workspace = true
 features = [
+    "Document",
+    "DomRect",
     "DomStringMap",
     "DragEvent",
+    "Element",
     "Event",
     "FocusEvent",
+    "FormData",
     "HtmlElement",
+    "HtmlFormElement",
     "HtmlInputElement",
     "InputEvent",
     "ScrollBehavior",
@@ -59,6 +64,7 @@ features = [
     "SvgPolylineElement",
     "SvgsvgElement",
     "SvgUseElement",
+    "Window",
 ]
 
 [dependencies.yew_icons]

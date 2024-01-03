@@ -36,7 +36,10 @@ pub enum Error {
     CoreError(CoreError),
 
     #[error("{0}")]
-    LocalError(String),
+    LocalError(LocalError),
+
+    #[error("{0}")]
+    TrashError(String),
 
     /// Issue with the database.
     #[error("{0}")]
@@ -61,14 +64,26 @@ impl From<CoreError> for Error {
 
 impl From<LocalError> for Error {
     fn from(err: LocalError) -> Self {
-        Error::LocalError(format!("{err:?}"))
+        Error::LocalError(err)
+    }
+}
+
+impl From<thot_local::error::LoadError> for Error {
+    fn from(err: thot_local::error::LoadError) -> Self {
+        Error::LocalError(err.into())
+    }
+}
+
+impl From<thot_local::error::LoaderErrors> for Error {
+    fn from(err: thot_local::error::LoaderErrors) -> Self {
+        Error::LocalError(err.into())
     }
 }
 
 #[cfg(feature = "server")]
 impl From<trash::Error> for Error {
     fn from(err: trash::Error) -> Self {
-        Error::LocalError(format!("{err:?}"))
+        Error::TrashError(format!("{err:?}"))
     }
 }
 

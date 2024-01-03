@@ -1,10 +1,10 @@
 //! Common error types.
+use crate::graph::error::LoaderError;
 use serde::{self, Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
-// use thot_core::types::ResourceId;
 use thot_core::Error as CoreError;
 
 // ***********************
@@ -12,7 +12,7 @@ use thot_core::Error as CoreError;
 // ***********************
 
 #[cfg(feature = "fs")]
-#[derive(Error, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum SettingsFileError {
     #[error("could not load `{0}`")]
     CouldNotLoad(PathBuf),
@@ -25,6 +25,26 @@ pub enum SettingsFileError {
 pub enum SettingsValidationError {
     #[error("invalid settings")]
     InvalidSetting,
+}
+
+// ******************
+// *** Load Error ***
+// ******************
+
+#[cfg(feature = "fs")]
+pub type LoaderErrors = Vec<LoaderError>;
+
+#[cfg(feature = "fs")]
+#[derive(Serialize, Deserialize, Error, Debug)]
+pub enum LoadError {
+    #[error("`{0}` does not exist")]
+    DoesNotExist(PathBuf),
+
+    #[error("could not open `{0}`")]
+    CouldNotOpen(PathBuf),
+
+    #[error("invalid json `{0}`")]
+    InvalidJson(PathBuf),
 }
 
 // **********************
@@ -136,7 +156,7 @@ pub enum UsersError {
 // *** Local Error ***
 // *******************
 
-#[derive(Error, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum Error {
     #[error("{0}")]
     CoreError(CoreError),
@@ -149,6 +169,14 @@ pub enum Error {
 
     #[error("{0}")]
     UsersError(UsersError),
+
+    #[cfg(feature = "fs")]
+    #[error("{0}")]
+    LoadError(LoadError),
+
+    #[cfg(feature = "fs")]
+    #[error("{0:?}")]
+    LoaderErrors(LoaderErrors),
 
     #[cfg(feature = "fs")]
     #[error("{0}")]
@@ -170,6 +198,20 @@ pub enum Error {
 impl From<CoreError> for Error {
     fn from(err: CoreError) -> Self {
         Error::CoreError(err)
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<LoadError> for Error {
+    fn from(err: LoadError) -> Self {
+        Error::LoadError(err)
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<LoaderErrors> for Error {
+    fn from(err: LoaderErrors) -> Self {
+        Error::LoaderErrors(err)
     }
 }
 
@@ -206,16 +248,6 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl Serialize for Error {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        let msg = format!("{:?}", self);
-        serializer.serialize_str(msg.as_ref())
-    }
-}
-
 // *******************
 // *** Thot Result ***
 // *******************
@@ -226,6 +258,53 @@ impl From<Error> for Result {
     fn from(err: Error) -> Self {
         Err(err)
     }
+}
+
+/// Copy of [`io::ErrorKind`] for `serde` de/serialization.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "io::ErrorKind")]
+pub enum IoErrorKind {
+    NotFound,
+    PermissionDenied,
+    ConnectionRefused,
+    ConnectionReset,
+    HostUnreachable,
+    NetworkUnreachable,
+    ConnectionAborted,
+    NotConnected,
+    AddrInUse,
+    AddrNotAvailable,
+    NetworkDown,
+    BrokenPipe,
+    AlreadyExists,
+    WouldBlock,
+    NotADirectory,
+    IsADirectory,
+    DirectoryNotEmpty,
+    ReadOnlyFilesystem,
+    FilesystemLoop,
+    StaleNetworkFileHandle,
+    InvalidInput,
+    InvalidData,
+    TimedOut,
+    WriteZero,
+    StorageFull,
+    NotSeekable,
+    FilesystemQuotaExceeded,
+    FileTooLarge,
+    ResourceBusy,
+    ExecutableFileBusy,
+    Deadlock,
+    CrossesDevices,
+    TooManyLinks,
+    InvalidFilename,
+    ArgumentListTooLong,
+    Interrupted,
+    Unsupported,
+    UnexpectedEof,
+    OutOfMemory,
+    Other,
 }
 
 #[cfg(test)]

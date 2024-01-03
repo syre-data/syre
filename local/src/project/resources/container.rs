@@ -1,6 +1,7 @@
 //! Container and container settings.
 use crate::common;
-use crate::error::{Error, Result};
+use std::result::Result as StdResult;
+use crate::error::{Error, Result, LoadError};
 use crate::file_resource::LocalResource;
 use crate::system::settings::UserSettings;
 use crate::types::ContainerSettings;
@@ -95,8 +96,12 @@ impl Container {
         }
     }
 
-    pub fn load_from(base_path: impl AsRef<Path>) -> thot_core::Result<Self> {
-        let base_path = fs::canonicalize(base_path.as_ref())?;
+    pub fn load_from(base_path: impl AsRef<Path>) -> StdResult<Self, LoadError> {
+        let base_path = base_path.as_ref();
+        let Ok(base_path) = fs::canonicalize(base_path) else {
+            return Err(LoadError::DoesNotExist(base_path.to_path_buf()));
+        };
+
         let properties_path =
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 
@@ -104,17 +109,34 @@ impl Container {
         let settings_path =
             base_path.join(<Container as LocalResource<ContainerSettings>>::rel_path());
 
-        let properties_file = fs::File::open(properties_path)?;
-        let assets_file = fs::File::open(assets_path)?;
-        let settings_file = fs::File::open(settings_path)?;
+        let Ok(properties_file) = fs::File::open(&properties_path) else {
+            return Err(LoadError::CouldNotOpen(properties_path));
+        };
+
+        let Ok(assets_file) = fs::File::open(&assets_path) else {
+            return Err(LoadError::CouldNotOpen(assets_path));
+        };
+
+        let Ok(settings_file) = fs::File::open(&settings_path) else {
+            return Err(LoadError::CouldNotOpen(settings_path));
+        };
 
         let properties_reader = BufReader::new(properties_file);
         let assets_reader = BufReader::new(assets_file);
         let settings_reader = BufReader::new(settings_file);
 
-        let container: StoredContainerProperties = serde_json::from_reader(properties_reader)?;
-        let assets = serde_json::from_reader(assets_reader)?;
-        let settings = serde_json::from_reader(settings_reader)?;
+        let Ok(container) = serde_json::from_reader::<_, StoredContainerProperties>(properties_reader) else {
+            return Err(LoadError::InvalidJson(properties_path));
+        };
+
+        let Ok(assets) = serde_json::from_reader(assets_reader) else {
+            return Err(LoadError::InvalidJson(assets_path));
+        };
+
+        let Ok(settings) = serde_json::from_reader(settings_reader) else {
+            return Err(LoadError::InvalidJson(settings_path));
+        };
+
 
         let container = CoreContainer {
             rid: container.rid,

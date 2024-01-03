@@ -122,13 +122,7 @@ impl Database {
             self.store.insert_project_graph(pid.clone(), graph);
         }
 
-        let Some(graph) = self.store.get_project_graph(pid) else {
-            return Err(Error::LocalError(
-                "could not load `Project` graph".to_string(),
-            ));
-        };
-
-        Ok(graph)
+        Ok(self.store.get_project_graph(pid).unwrap())
     }
 
     /// Duplicates a tree in its parent.

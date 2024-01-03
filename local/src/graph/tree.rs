@@ -1,11 +1,14 @@
 //! Local [`ResourceTree`](CoreTres).
+use super::error::LoaderError;
 use crate::common;
+use crate::error::{LoaderErrors, Result};
 use crate::project::container;
 use crate::project::resources::Container;
-use crate::Result;
 use has_id::HasId;
+use rayon::prelude::*;
 use std::fs;
 use std::path::Path;
+use std::result::Result as StdResult;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::tree::{EdgeMap, NodeMap};
 use thot_core::graph::{ResourceNode, ResourceTree};
@@ -63,24 +66,74 @@ impl ContainerTreeTransformer {
 // **************
 // *** Loader ***
 // **************
+
 pub struct ContainerTreeLoader;
 impl ContainerTreeLoader {
     /// Load a `Container` tree into a [`ResourceTree`].
-    pub fn load(path: impl AsRef<Path>) -> Result<ContainerTree> {
+    pub fn load(path: impl AsRef<Path>) -> StdResult<ContainerTree, LoaderErrors> {
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(10)
+            .build()
+            .unwrap();
         let path = path.as_ref();
-        let root = Container::load_from(path)?;
+        return thread_pool.install(move || Self::load_tree(path));
+    }
+
+    fn load_tree(path: impl AsRef<Path>) -> StdResult<ContainerTree, LoaderErrors> {
+        let path = path.as_ref();
+        let root = match Container::load_from(path) {
+            Ok(root) => root,
+            Err(err) => return Err(vec![err.into()]),
+        };
+
         let rid = root.id().clone();
         let mut graph = ResourceTree::new(root);
 
-        for entry in fs::read_dir(path)? {
-            let dir = entry?;
+        let mut children = Vec::new();
+        let entries = match fs::read_dir(path) {
+            Ok(entries) => entries,
+            Err(err) => {
+                return Err(vec![LoaderError::Io {
+                    path: path.to_path_buf(),
+                    kind: err.kind(),
+                }])
+            }
+        };
+
+        for entry in entries {
+            let dir = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    return Err(vec![LoaderError::Io {
+                        path: path.to_path_buf(),
+                        kind: err.kind(),
+                    }])
+                }
+            };
+
             if container::path_is_container(&dir.path()) {
-                let c_tree = Self::load(&dir.path())?;
-                graph.insert_tree(&rid, c_tree)?;
+                children.push(dir.path());
             }
         }
 
-        Ok(graph)
+        let children = children
+            .into_par_iter()
+            .map(|path| Self::load_tree(path))
+            .collect::<Vec<_>>();
+
+        let mut errors = Vec::new();
+        for child in children {
+            match child {
+                Ok(child) => graph.insert_tree(&rid, child).unwrap(),
+                Err(mut err) => errors.append(&mut err),
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(graph)
+        } else {
+            Err(errors)
+        }
     }
 }
 

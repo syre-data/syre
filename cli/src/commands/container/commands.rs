@@ -101,7 +101,11 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
         _ => panic!("path registered as script multiple times"),
     };
 
-    let mut container = Container::load_from(&cont)?;
+    let mut container = match Container::load_from(&cont) {
+        Ok(container) => container,
+        Err(err) => return Err(LocalError::LoadError(err).into()),
+    };
+
     let mut assoc = ScriptAssociation::new(script_id);
     if args.priority.is_some() {
         assoc.priority = args.priority.unwrap();

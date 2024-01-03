@@ -4562,6 +4562,7 @@ dependencies = [
  "has_id",
  "lazy_static",
  "rand 0.8.5",
+ "rayon",
  "regex",
  "serde",
  "serde_json",

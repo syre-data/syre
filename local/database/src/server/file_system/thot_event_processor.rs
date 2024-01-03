@@ -339,13 +339,17 @@ impl Database {
                 }
             }
 
-            Err(LocalError::CoreError(CoreError::IoError(err)))
-                if err.kind() == io::ErrorKind::NotFound =>
-            {
-                Ok(Some(thot::Folder::Created(path.clone()).into()))
-            }
-
-            Err(err) => return Err(err.into()),
+            Err(errs) =>
+                if let [thot_local::graph::error::LoaderError::Io{path, kind}] = &errs[..] {
+                    if kind == &io::ErrorKind::NotFound {
+                        return Ok(Some(thot::Folder::Created(path.clone()).into()));
+                    } else {
+                        return Err(errs.into());
+                    }
+                    
+                } else {
+                    return Err(errs.into());
+                }
         }
     }
 

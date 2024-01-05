@@ -21,3 +21,4 @@ serde = { workspace = true, features = ["derive"] }
 
 thot-core = { path = "../../core", features = ["serde"] }
 thot-local = { path = "../../local", default-features = false }
+thot-local-database = { path = "../../local/database" }

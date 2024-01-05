@@ -84,7 +84,8 @@ pub fn add_project(
     let project: DbResult<(Project, ProjectSettings)> =
         serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
 
-    project.map_err(|err| LibError::Database(format!("{:?}", err)))
+    // project.map_err(|err| LibError::Database(format!("{:?}", err)))
+    Ok(project?)
 }
 
 // *******************
@@ -204,7 +205,10 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
     let Some(mut graph) = graph else {
         let error =
             CoreError::ResourceError(ResourceError::does_not_exist("root `Container` not loaded"));
-        return Err(LibError::Database(format!("{error:?}")));
+        return Err(LibError::Database(thot_local_database::Error::CoreError(
+            error,
+        )));
+        // return Err(LibError::Database(format!("{error:?}")));
     };
 
     let runner = Runner::new();
@@ -213,9 +217,11 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
         Some(max_tasks) => runner.run_with_tasks(&mut graph, max_tasks),
     };
 
-    if res.is_err() {
-        return Err(LibError::Database(format!("{res:?}")));
-    }
+    Ok(res?)
 
-    Ok(())
+    // if res.is_err() {
+    //     return Err(LibError::Database(format!("{res:?}")));
+    // }
+
+    // Ok(())
 }

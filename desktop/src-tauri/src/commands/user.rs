@@ -10,9 +10,8 @@ use thot_local::system::users;
 /// Get the active user.
 /// Retrieves the active user from [system settings](users::get_active_user).
 #[tauri::command]
-pub fn get_active_user() -> Result<Option<User>> {
-    let active_user = users::get_active_user()?;
-    Ok(active_user)
+pub fn get_active_user() -> thot_local::Result<Option<User>> {
+    users::get_active_user()
 }
 
 /// Set the active user.

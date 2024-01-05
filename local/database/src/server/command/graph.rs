@@ -28,6 +28,7 @@ impl Database {
                 let graph = match self.load_project_graph(&project) {
                     Ok(graph) => graph,
                     Err(err) => {
+                        let err: Result<ResourceTree<CoreContainer>> = Err(err);
                         return serde_json::to_value(err)
                             .expect("could not convert `Result` to JsValue");
                     }

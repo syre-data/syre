@@ -71,7 +71,7 @@ impl Loader {
         for child in children {
             match child {
                 Ok(child) => graph.insert_tree(&rid, child).unwrap(),
-                Err(mut err) => errors.extend(err),
+                Err(err) => errors.extend(err),
             }
         }
 

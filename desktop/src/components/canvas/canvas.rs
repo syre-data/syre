@@ -57,7 +57,18 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     };
 
     use_load_project_scripts(&project.rid)?;
-    let graph = use_project_graph(&project.rid)?;
+    let graph = match use_project_graph(&project.rid)? {
+        Ok(graph) => graph,
+        Err(err) => {
+            return Ok(html! {
+                <div>
+                    <h1>{ "Could not get project's graph" }</h1>
+                    <div>{ err }</div>
+                </div>
+            });
+        }
+    };
+
     let graph_state = use_reducer(|| GraphState::new(graph));
 
     let drawers_visible_state = use_state(|| None);

@@ -104,8 +104,8 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
     let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
         .expect("could not convert `Load` result to a `ContainerTree`");
 
-    let graph = graph.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    Ok(graph)
+    // let graph = graph.map_err(|err| LibError::Database(format!("{err:?}")))?;
+    Ok(graph?)
 }
 
 /// Creates a new child [`Container`](LocalContainer).
@@ -145,8 +145,8 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResu
     let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
         .expect("could not convert result of `Dupilcate` to `Container` tree");
 
-    let dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    Ok(dup)
+    // let dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
+    Ok(dup?)
 }
 
 /// Removes a [`Container`](LocalContainer) tree.

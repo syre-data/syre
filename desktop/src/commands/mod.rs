@@ -8,3 +8,4 @@ pub mod project;
 pub mod script;
 pub mod settings;
 pub mod types;
+pub mod user;

@@ -1,9 +1,7 @@
 //! Index page.
 use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateReducer};
-use crate::commands::common::{EmptyArgs, ResourceIdArgs};
-use crate::common::invoke;
+use crate::commands::user::{get_active_user, set_active_user};
 use crate::routes::Route;
-use thot_core::system::User;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -29,27 +27,30 @@ pub fn index() -> Html {
         use_effect_with(auth_state, |auth_state| {
             let auth_state = auth_state.clone();
             spawn_local(async move {
-                let Ok(active_user) = invoke::<Option<User>>("get_active_user", EmptyArgs {}).await else {
+                let Ok(active_user) = get_active_user().await else {
                     navigator.push(&Route::SignIn);
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not get user.")));
+                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                        "Could not get user.",
+                    )));
                     return;
                 };
-        
+
                 match active_user {
                     None => navigator.push(&Route::SignIn),
                     Some(user) => {
                         // set active user on backend
-                        let _active_res = invoke::<()>(
-                            "set_active_user",
-                            ResourceIdArgs {
-                                rid: user.rid.clone(),
-                            },
-                        )
-                        .await;
-        
-                        // set active user on front end
-                        auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
-                        navigator.push(&Route::Home);
+                        match set_active_user(user.rid.clone()).await {
+                            Ok(_) => {
+                                // set active user on front end
+                                auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
+                                navigator.push(&Route::Home);
+                            }
+                            Err(err) => {
+                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                                    "Could not set user.",
+                                )));
+                            }
+                        };
                     }
                 }
             });

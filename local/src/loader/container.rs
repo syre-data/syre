@@ -81,7 +81,7 @@ impl Loader {
 
         let reader = BufReader::new(file);
         match serde_json::from_reader(reader) {
-            Ok(obj) => obj,
+            Ok(obj) => Ok(obj),
             Err(err) => Err(PropertiesError::Serde {
                 path,
                 err: err.to_string(),

@@ -15,10 +15,10 @@ type ContainerTree = ResourceTree<Container>;
 /// Gets a `Project`'s graph.
 #[tracing::instrument]
 #[hook]
-pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree> {
+pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<Result<ContainerTree, String>> {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
 
-    let graph: UseStateHandle<Option<ContainerTree>> = use_state(|| None);
+    let graph: UseStateHandle<Option<Result<ContainerTree, String>>> = use_state(|| None);
     if let Some(graph) = (*graph).clone() {
         return Ok(graph);
     }
@@ -30,18 +30,22 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<ContainerTree
         let graph = graph.clone();
 
         spawn_local(async move {
-            let Ok(p_graph) =
-                invoke::<ContainerTree>("load_project_graph", ResourceIdArgs { rid: project })
-                    .await
-            else {
-                app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                    "Could not get project's graph",
-                )));
-                return;
-            };
+            match invoke::<ContainerTree>("load_project_graph", ResourceIdArgs { rid: project })
+                .await
+            {
+                Ok(project_graph) => {
+                    graph.set(Some(Ok(project_graph)));
+                    handle.resume();
+                }
 
-            graph.set(Some(p_graph));
-            handle.resume();
+                Err(err) => {
+                    graph.set(Some(Err(format!("{err:?}"))));
+
+                    // app_state.dispatch(AppStateAction::AddMessage(Message::error(
+                    //     "Could not get project's graph",
+                    // )));
+                }
+            };
         });
     }
 

@@ -4571,6 +4571,7 @@ dependencies = [
  "serde",
  "thot-core",
  "thot-local",
+ "thot-local-database",
 ]
 
 [[package]]

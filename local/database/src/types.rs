@@ -1,5 +1,8 @@
 //! Types.
+use has_id::HasId;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Convenience type to indicate valid port numbers.
 pub type PortNumber = u16;
@@ -14,4 +17,9 @@ pub type PortNumber = u16;
 pub enum SocketType {
     /// [`zmq::SocketType::REP`]
     REP,
+}
+
+pub struct PartialLoadGraph<T: HasId<Id = thot_core::types::ResourceId>> {
+    errors: HashMap<PathBuf, thot_local::loader::container::Error>,
+    graph: Option<thot_core::graph::ResourceTree<T>>,
 }

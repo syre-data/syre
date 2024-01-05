@@ -49,6 +49,9 @@ pub enum Error {
 
     #[error("{0}")]
     LocalDatabaseError(DbError),
+
+    #[error("{0}")]
+    Save(thot_local::error::Save),
 }
 
 impl From<DesktopSettingsError> for Error {
@@ -90,6 +93,12 @@ impl From<DbError> for Error {
 impl From<TauriError> for Error {
     fn from(err: TauriError) -> Self {
         Self::TauriError(err)
+    }
+}
+
+impl From<thot_local::error::Save> for Error {
+    fn from(value: thot_local::error::Save) -> Self {
+        Self::Save(value)
     }
 }
 

@@ -4,15 +4,17 @@ use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
-// use thot_core::types::ResourceId;
 use thot_core::Error as CoreError;
+
+#[cfg(feature = "fs")]
+use crate::loader::container::Error as LoadContainer;
 
 // ***********************
 // *** Settings Errors ***
 // ***********************
 
 #[cfg(feature = "fs")]
-#[derive(Error, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum SettingsFileError {
     #[error("could not load `{0}`")]
     CouldNotLoad(PathBuf),
@@ -113,30 +115,43 @@ pub enum UsersError {
     InvalidEmail(String),
 }
 
-// // ****************************
-// // *** Resource Store Error ***
-// // ****************************
+// ***************
+// *** SerdeIo ***
+// ***************
 
-// #[cfg(feature = "fs")]
-// #[derive(Serialize, Deserialize, Error, Debug)]
-// pub enum ResourceStoreError {
-//     /// If a [`ResourceId`] is expected to be present as a map key, but is not.
-//     #[error("resource with id `{0}` is not present")]
-//     IdNotPresent(ResourceId),
+#[cfg(feature = "fs")]
+#[derive(Serialize, Deserialize, Error, Debug)]
+pub enum Save {
+    #[error("{0:?}")]
+    Io(#[serde(with = "IoErrorKind")] io::ErrorKind),
 
-//     /// If trying to get an empty value.
-//     #[
-//     LoadEmptyValue,
+    #[error("{0}")]
+    Serde(String),
+}
 
-//     /// If trying to set a value but the resource is already loaded.
-//     ResourceAlreadyLoaded,
-// }
+#[cfg(feature = "fs")]
+impl From<io::Error> for Save {
+    fn from(value: io::Error) -> Self {
+        Self::Io(value.kind())
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<serde_json::Error> for Save {
+    fn from(value: serde_json::Error) -> Self {
+        if let Some(kind) = value.io_error_kind() {
+            Self::Io(kind)
+        } else {
+            Self::Serde(value.to_string())
+        }
+    }
+}
 
 // *******************
 // *** Local Error ***
 // *******************
 
-#[derive(Error, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug)]
 pub enum Error {
     #[error("{0}")]
     CoreError(CoreError),
@@ -165,6 +180,14 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("{0}")]
     SettingsFileError(SettingsFileError),
+
+    #[cfg(feature = "fs")]
+    #[error("{0}")]
+    Save(Save),
+
+    #[cfg(feature = "fs")]
+    #[error("{0}")]
+    LoadContainer(LoadContainer),
 }
 
 impl From<CoreError> for Error {
@@ -194,25 +217,33 @@ impl From<ProjectError> for Error {
     }
 }
 
+// TODO: Probably shouldn't cast to CoreError.
+// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::CoreError(CoreError::IoError(err))
     }
 }
 
+// TODO: Probably shouldn't cast to CoreError.
+// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Error::CoreError(CoreError::SerdeError(err))
     }
 }
 
-impl Serialize for Error {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        let msg = format!("{:?}", self);
-        serializer.serialize_str(msg.as_ref())
+#[cfg(feature = "fs")]
+impl From<Save> for Error {
+    fn from(value: Save) -> Self {
+        Self::Save(value)
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<LoadContainer> for Error {
+    fn from(value: LoadContainer) -> Self {
+        Self::LoadContainer(value)
     }
 }
 
@@ -226,6 +257,53 @@ impl From<Error> for Result {
     fn from(err: Error) -> Self {
         Err(err)
     }
+}
+
+/// Copy of [`io::ErrorKind`] for `serde` de/serialization.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "io::ErrorKind")]
+pub enum IoErrorKind {
+    NotFound,
+    PermissionDenied,
+    ConnectionRefused,
+    ConnectionReset,
+    HostUnreachable,
+    NetworkUnreachable,
+    ConnectionAborted,
+    NotConnected,
+    AddrInUse,
+    AddrNotAvailable,
+    NetworkDown,
+    BrokenPipe,
+    AlreadyExists,
+    WouldBlock,
+    NotADirectory,
+    IsADirectory,
+    DirectoryNotEmpty,
+    ReadOnlyFilesystem,
+    FilesystemLoop,
+    StaleNetworkFileHandle,
+    InvalidInput,
+    InvalidData,
+    TimedOut,
+    WriteZero,
+    StorageFull,
+    NotSeekable,
+    FilesystemQuotaExceeded,
+    FileTooLarge,
+    ResourceBusy,
+    ExecutableFileBusy,
+    Deadlock,
+    CrossesDevices,
+    TooManyLinks,
+    InvalidFilename,
+    ArgumentListTooLong,
+    Interrupted,
+    Unsupported,
+    UnexpectedEof,
+    OutOfMemory,
+    Other,
 }
 
 #[cfg(test)]

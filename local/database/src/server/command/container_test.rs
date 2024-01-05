@@ -7,7 +7,8 @@ use fake::locales::EN;
 use fake::Fake;
 use std::path::Path;
 use thot_core::project::{Container as CoreContainer, ContainerProperties};
-use thot_local::project::resources::{Container as LocalContainer, Project as LocalProject};
+use thot_local::loader::container::Loader as ContainerLoader;
+use thot_local::project::resources::Project as LocalProject;
 use thot_local::project::{container, project};
 
 #[test]
@@ -52,7 +53,7 @@ fn database_command_update_container_properties_without_name_should_work() {
         );
     }
 
-    let saved = LocalContainer::load_from(dir.path()).expect("could not load `Container`");
+    let saved = ContainerLoader::load(dir.path()).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
         "incorrect name persisted"
@@ -108,7 +109,7 @@ fn database_command_update_container_name_should_work() {
 
     assert_eq!(&data_dir, stored.base_path(), "root path should not change");
 
-    let saved = LocalContainer::load_from(&data_dir).expect("could not load `Container`");
+    let saved = ContainerLoader::load(&data_dir).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
         "incorrect name persisted"

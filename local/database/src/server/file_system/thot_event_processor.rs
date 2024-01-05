@@ -9,7 +9,11 @@ use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, Res
 use thot_core::project::ScriptLang;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
-use thot_local::graph::ContainerTreeLoader;
+use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::tree::incremental::{
+    Loader as ContainerTreeIncrementalLoader, PartialLoad,
+};
+use thot_local::loader::tree::{Error as ContainerTreeLoaderError, Loader as ContainerTreeLoader};
 use thot_local::project::project;
 use thot_local::project::project::project_root_path;
 use thot_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};
@@ -320,7 +324,7 @@ impl Database {
         }
 
         // handle if unregistered container
-        match ContainerTreeLoader::load(&path) {
+        match ContainerTreeIncrementalLoader::load(path) {
             Ok(graph) => {
                 let Some(loaded_container) = self.store.get_container(graph.root()) else {
                     return Ok(Some(thot::Graph::Inserted(graph).into()));
@@ -339,13 +343,16 @@ impl Database {
                 }
             }
 
-            Err(LocalError::CoreError(CoreError::IoError(err)))
-                if err.kind() == io::ErrorKind::NotFound =>
-            {
-                Ok(Some(thot::Folder::Created(path.clone()).into()))
-            }
+            Err(PartialLoad { errors, graph }) => {
+                if let Some(ContainerTreeLoaderError::Dir(err)) = errors.get(path) {
+                    if err == &io::ErrorKind::NotFound {
+                        return Ok(Some(thot::Folder::Created(path.clone()).into()));
+                    }
+                }
 
-            Err(err) => return Err(err.into()),
+                let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
+                return Err(Error::LoadPartial { errors, graph });
+            }
         }
     }
 

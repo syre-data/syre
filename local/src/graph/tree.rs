@@ -1,10 +1,7 @@
 //! Local [`ResourceTree`](CoreTres).
 use crate::common;
-use crate::project::container;
+use crate::error::Result;
 use crate::project::resources::Container;
-use crate::Result;
-use has_id::HasId;
-use std::fs;
 use std::path::Path;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::tree::{EdgeMap, NodeMap};
@@ -57,36 +54,6 @@ impl ContainerTreeTransformer {
             ResourceTree::from_components(core_nodes, edges).expect("could not reconstuct graph");
 
         Some(graph)
-    }
-}
-
-// **************
-// *** Loader ***
-// **************
-pub struct ContainerTreeLoader;
-impl ContainerTreeLoader {
-    /// Load a `Container` tree into a [`ResourceTree`].
-    pub fn load(path: impl AsRef<Path>) -> Result<ContainerTree> {
-        let path = path.as_ref();
-        let root = match Container::load_from(path) {
-            Ok(container) => container,
-            Err(err) => {
-                tracing::debug!("[{path:?}] {err:?}");
-                return Err(err.into());
-            }
-        };
-        let rid = root.id().clone();
-        let mut graph = ResourceTree::new(root);
-
-        for entry in fs::read_dir(path)? {
-            let dir = entry?;
-            if container::path_is_container(&dir.path()) {
-                let c_tree = Self::load(&dir.path())?;
-                graph.insert_tree(&rid, c_tree)?;
-            }
-        }
-
-        Ok(graph)
     }
 }
 

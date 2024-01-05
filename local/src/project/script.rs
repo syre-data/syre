@@ -2,6 +2,7 @@
 use super::container;
 use super::resources::{Container, Script as ProjectScript, Scripts as ProjectScripts};
 use crate::error::{ContainerError, Result};
+use crate::loader::container::Loader as ContainerLoader;
 use crate::system::collections::{Projects, Scripts as SystemScripts};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
@@ -63,9 +64,9 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
     };
 
     // add association
-    let mut container = Container::load_from(container)?;
+    let mut container = ContainerLoader::load(container)?;
     container.add_script_association(ScriptAssociation::new(script.rid.clone()))?;
-    container.save()
+    Ok(container.save()?)
 }
 
 #[cfg(test)]

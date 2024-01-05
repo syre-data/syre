@@ -3,7 +3,9 @@ use dev_utils::fs::TempDir;
 use dev_utils::path::resource_path::resource_path;
 use thot_core::db::StandardSearchFilter as StdFilter;
 use thot_core::types::ResourceId;
-use thot_local::graph::ContainerTreeLoader;
+use thot_local::loader::{
+    container::Loader as ContainerLoader, tree::Loader as ContainerTreeLoader,
+};
 use thot_local::project::resources::{
     Asset as LocalAsset, Container as LocalContainer, Project as LocalProject,
     Scripts as LocalScripts,
@@ -45,9 +47,8 @@ fn insert_project_graph_should_work() {
     let mut dir = TempDir::new().expect("new `TempDir` should work");
     let child_dir = dir.mkdir().expect("mkdir should work");
 
-    let mut root = LocalContainer::load_from(dir.path()).expect("load `Container` should work");
-    let mut child =
-        LocalContainer::load_from(&child_dir).expect("load child `Container` should work");
+    let mut root = ContainerLoader::load(dir.path()).expect("load `Container` should work");
+    let mut child = ContainerLoader::load(&child_dir).expect("load child `Container` should work");
 
     let a0 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
     let a1 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");

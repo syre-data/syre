@@ -19,5 +19,8 @@ pub mod graph;
 #[cfg(feature = "fs")]
 pub mod file_resource;
 
+#[cfg(feature = "fs")]
+pub mod loader;
+
 // Re-exports
 pub use error::{Error, Result};

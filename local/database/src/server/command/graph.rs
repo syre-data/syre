@@ -12,7 +12,11 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
 use thot_local::common::unique_file_name;
-use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeLoader, ContainerTreeTransformer};
+use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
+use thot_local::loader::container::Loader as ContainerLoader;
+use thot_local::loader::tree::incremental::{
+    Loader as ContainerTreeLoader, PartialLoad as LocalPartialLoad,
+};
 use thot_local::project::container;
 use thot_local::project::resources::container::Container;
 
@@ -24,7 +28,6 @@ impl Database {
                 let graph = match self.load_project_graph(&project) {
                     Ok(graph) => graph,
                     Err(err) => {
-                        let err: Result<ResourceTree<CoreContainer>> = Err(err.into());
                         return serde_json::to_value(err)
                             .expect("could not convert `Result` to JsValue");
                     }
@@ -118,7 +121,15 @@ impl Database {
 
         if self.store.get_project_graph(pid).is_none() {
             let path = project.base_path().join(data_root);
-            let graph: ContainerTree = ContainerTreeLoader::load(&path)?;
+            let graph = match ContainerTreeLoader::load(&path) {
+                Ok(graph) => graph,
+                Err(LocalPartialLoad { errors, graph }) => {
+                    tracing::debug!(?errors);
+                    let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
+                    return Err(Error::LoadPartial { errors, graph });
+                }
+            };
+
             self.store.insert_project_graph(pid.clone(), graph);
         }
 
@@ -193,7 +204,7 @@ impl Database {
         // TODO Ensure unique and valid path.
         let child_path = unique_file_name(parent.base_path().join(&name))?;
         let cid = container::new(&child_path)?;
-        let mut child = Container::load_from(child_path)?;
+        let mut child = ContainerLoader::load(child_path)?;
         child.properties.name = name;
         child.save()?;
 

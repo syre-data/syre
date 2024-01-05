@@ -2,6 +2,7 @@
 use super::project;
 use super::resources::Container;
 use crate::common::{container_file_of, thot_dir};
+use crate::loader::container::Loader as ContainerLoader;
 use crate::Result;
 use std::path::{self, Path, PathBuf};
 use std::{fs, io};
@@ -184,7 +185,7 @@ impl InitOptions<InitExisting> {
             let path = path.as_ref();
             // TODO What if path is a project?
             let mut container = if path_is_container(path) {
-                Container::load_from(path)?
+                ContainerLoader::load(path)?
             } else {
                 Container::new(path)
             };

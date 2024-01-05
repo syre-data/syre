@@ -5,7 +5,8 @@ use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local::graph::{ContainerTreeLoader, ContainerTreeTransformer};
+use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::tree::Loader as ContainerTreeLoader;
 use thot_local::project::container;
 use thot_local::project::resources::Asset;
 
@@ -109,7 +110,7 @@ impl Database {
         builder.build(&path)?;
 
         // insert into graph
-        let graph = ContainerTreeLoader::load(path)?;
+        let graph = ContainerTreeLoader::load(path).unwrap();
         let root = graph.root().clone();
         self.store.insert_subgraph(&parent, graph)?;
 

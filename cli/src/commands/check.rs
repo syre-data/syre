@@ -2,8 +2,9 @@
 use crate::Result;
 use clap::Args;
 use std::path::{Path, PathBuf};
-use std::{env, fs, io};
-use thot_local::project::{container, project, resources::Container};
+use std::{env, fs};
+use thot_local::loader::container::Loader as ContainerLoader;
+use thot_local::project::container;
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {
@@ -39,7 +40,7 @@ fn check_path(path: impl AsRef<Path>, recurse: bool) -> Result<bool> {
     let path = path.as_ref();
     let mut is_healthy = true;
     if container::path_is_container(path) {
-        match Container::load_from(path) {
+        match ContainerLoader::load(path) {
             Ok(_) => {}
             Err(err) => {
                 is_healthy = false;

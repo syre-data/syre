@@ -1,11 +1,13 @@
 //! Common error types.
-use crate::graph::error::LoaderError;
 use serde::{self, Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
 use thot_core::Error as CoreError;
+
+#[cfg(feature = "fs")]
+use crate::loader::container::Error as LoadContainer;
 
 // ***********************
 // *** Settings Errors ***
@@ -25,26 +27,6 @@ pub enum SettingsFileError {
 pub enum SettingsValidationError {
     #[error("invalid settings")]
     InvalidSetting,
-}
-
-// ******************
-// *** Load Error ***
-// ******************
-
-#[cfg(feature = "fs")]
-pub type LoaderErrors = Vec<LoaderError>;
-
-#[cfg(feature = "fs")]
-#[derive(Serialize, Deserialize, Error, Debug)]
-pub enum LoadError {
-    #[error("`{0}` does not exist")]
-    DoesNotExist(PathBuf),
-
-    #[error("could not open `{0}`")]
-    CouldNotOpen(PathBuf),
-
-    #[error("invalid json `{0}`")]
-    InvalidJson(PathBuf),
 }
 
 // **********************
@@ -133,24 +115,37 @@ pub enum UsersError {
     InvalidEmail(String),
 }
 
-// // ****************************
-// // *** Resource Store Error ***
-// // ****************************
+// ***************
+// *** SerdeIo ***
+// ***************
 
-// #[cfg(feature = "fs")]
-// #[derive(Serialize, Deserialize, Error, Debug)]
-// pub enum ResourceStoreError {
-//     /// If a [`ResourceId`] is expected to be present as a map key, but is not.
-//     #[error("resource with id `{0}` is not present")]
-//     IdNotPresent(ResourceId),
+#[cfg(feature = "fs")]
+#[derive(Serialize, Deserialize, Error, Debug)]
+pub enum Save {
+    #[error("{0:?}")]
+    Io(#[serde(with = "IoErrorKind")] io::ErrorKind),
 
-//     /// If trying to get an empty value.
-//     #[
-//     LoadEmptyValue,
+    #[error("{0}")]
+    Serde(String),
+}
 
-//     /// If trying to set a value but the resource is already loaded.
-//     ResourceAlreadyLoaded,
-// }
+#[cfg(feature = "fs")]
+impl From<io::Error> for Save {
+    fn from(value: io::Error) -> Self {
+        Self::Io(value.kind())
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<serde_json::Error> for Save {
+    fn from(value: serde_json::Error) -> Self {
+        if let Some(kind) = value.io_error_kind() {
+            Self::Io(kind)
+        } else {
+            Self::Serde(value.to_string())
+        }
+    }
+}
 
 // *******************
 // *** Local Error ***
@@ -172,14 +167,6 @@ pub enum Error {
 
     #[cfg(feature = "fs")]
     #[error("{0}")]
-    LoadError(LoadError),
-
-    #[cfg(feature = "fs")]
-    #[error("{0:?}")]
-    LoaderErrors(LoaderErrors),
-
-    #[cfg(feature = "fs")]
-    #[error("{0}")]
     AssetError(AssetError),
 
     #[cfg(feature = "fs")]
@@ -193,25 +180,19 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("{0}")]
     SettingsFileError(SettingsFileError),
+
+    #[cfg(feature = "fs")]
+    #[error("{0}")]
+    Save(Save),
+
+    #[cfg(feature = "fs")]
+    #[error("{0}")]
+    LoadContainer(LoadContainer),
 }
 
 impl From<CoreError> for Error {
     fn from(err: CoreError) -> Self {
         Error::CoreError(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<LoadError> for Error {
-    fn from(err: LoadError) -> Self {
-        Error::LoadError(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<LoaderErrors> for Error {
-    fn from(err: LoaderErrors) -> Self {
-        Error::LoaderErrors(err)
     }
 }
 
@@ -236,15 +217,33 @@ impl From<ProjectError> for Error {
     }
 }
 
+// TODO: Probably shouldn't cast to CoreError.
+// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::CoreError(CoreError::IoError(err))
     }
 }
 
+// TODO: Probably shouldn't cast to CoreError.
+// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Error::CoreError(CoreError::SerdeError(err))
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<Save> for Error {
+    fn from(value: Save) -> Self {
+        Self::Save(value)
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<LoadContainer> for Error {
+    fn from(value: LoadContainer) -> Self {
+        Self::LoadContainer(value)
     }
 }
 

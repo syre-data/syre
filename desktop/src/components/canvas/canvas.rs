@@ -62,7 +62,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         Err(err) => {
             return Ok(html! {
                 <div>
-                    <h1>{ "Could not get project's graph" }</h1>
+                    <h1>{ "Could not load project's graph" }</h1>
                     <div>{ err }</div>
                 </div>
             });

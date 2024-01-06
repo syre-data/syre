@@ -10,6 +10,7 @@ use thot_core::project::ScriptLang;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
 use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::error::container::Error as ContainerLoaderError;
 use thot_local::loader::error::tree::Error as ContainerTreeLoaderError;
 use thot_local::loader::tree::incremental::{
     Loader as ContainerTreeIncrementalLoader, PartialLoad,
@@ -344,16 +345,20 @@ impl Database {
                 }
             }
 
-            Err(PartialLoad { errors, graph }) => {
-                if let Some(ContainerTreeLoaderError::Dir(err)) = errors.get(path) {
-                    if err == &io::ErrorKind::NotFound {
-                        return Ok(Some(thot::Folder::Created(path.clone()).into()));
-                    }
+            Err(PartialLoad { errors, graph }) => match errors.get(path) {
+                Some(ContainerTreeLoaderError::Dir(err)) if err == &io::ErrorKind::NotFound => {
+                    return Ok(Some(thot::Folder::Created(path.clone()).into()));
                 }
 
-                let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
-                return Err(Error::LoadPartial { errors, graph });
-            }
+                Some(ContainerTreeLoaderError::Load(ContainerLoaderError::NotResource)) => {
+                    return Ok(Some(thot::Folder::Created(path.clone()).into()));
+                }
+
+                _ => {
+                    let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
+                    return Err(Error::LoadPartial { errors, graph });
+                }
+            },
         }
     }
 

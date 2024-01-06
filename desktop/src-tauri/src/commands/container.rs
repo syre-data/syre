@@ -147,14 +147,10 @@ pub fn bulk_update_container_properties(
     db: State<DbClient>,
     rids: Vec<ResourceId>,
     update: PropertiesUpdate,
-) -> Result {
-    let res = db.send(
-        ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }).into(),
-    );
-
-    // TODO Handle errors.
-    res.expect("could not update Containers");
-    Ok(())
+) -> DbResult {
+    let update = ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update });
+    let res = db.send(update.into()).unwrap();
+    serde_json::from_value(res).unwrap()
 }
 
 #[tauri::command]
@@ -162,15 +158,12 @@ pub fn bulk_update_container_script_associations(
     db: State<DbClient>,
     containers: Vec<ResourceId>,
     update: ScriptAssociationBulkUpdate,
-) -> Result {
-    // TODO Handle errors.
-    db.send(
-        ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
-            containers,
-            update,
-        })
-        .into(),
-    )
-    .unwrap();
-    Ok(())
+) -> DbResult {
+    let update = ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
+        containers,
+        update,
+    });
+
+    let res = db.send(update.into()).unwrap();
+    serde_json::from_value(res).unwrap()
 }

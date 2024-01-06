@@ -23,7 +23,7 @@ pub async fn bulk_update_properties(
     update: impl Into<PropertiesUpdate>,
 ) -> Result<(), String> {
     invoke_result(
-        "bulk_update_properties",
+        "bulk_update_asset_properties",
         BulkUpdatePropertiesArgs {
             rids: assets,
             update: update.into(),

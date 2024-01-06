@@ -54,7 +54,6 @@ pub enum ProjectError {
 // *** Container Error ***
 // ***********************
 
-#[cfg(feature = "fs")]
 #[derive(Serialize, Deserialize, Error, Debug)]
 pub enum ContainerError {
     #[error("`{0}` is not a child Container")]
@@ -74,7 +73,6 @@ pub enum ContainerError {
 // *** Asset Error ***
 // *******************
 
-#[cfg(feature = "fs")]
 #[derive(Serialize, Deserialize, Error, Debug)]
 pub enum AssetError {
     #[error("`{0}` is not a Container")]
@@ -165,11 +163,9 @@ pub enum Error {
     #[error("{0}")]
     IoSerde(IoSerde),
 
-    #[cfg(feature = "fs")]
     #[error("{0}")]
     AssetError(AssetError),
 
-    #[cfg(feature = "fs")]
     #[error("{0}")]
     ContainerError(ContainerError),
 

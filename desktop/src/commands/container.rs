@@ -65,7 +65,7 @@ pub async fn bulk_update_script_associations(
     containers: Vec<ResourceId>,
     update: ScriptAssociationBulkUpdate,
 ) -> DbResult {
-    invoke(
+    invoke_result(
         "bulk_update_container_script_associations",
         BulkUpdateScriptAssociationsArgs { containers, update },
     )

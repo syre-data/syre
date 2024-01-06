@@ -349,6 +349,7 @@ impl Database {
         containers: &Vec<ResourceId>,
         update: &ScriptAssociationBulkUpdate,
     ) -> Result {
+        // TODO Collect errors
         for rid in containers {
             self.update_container_script_associations_from_update(rid, update)?;
         }

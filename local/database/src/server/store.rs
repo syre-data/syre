@@ -76,7 +76,7 @@ impl<T> PathMap<T> {
     pub fn remove_canonical(&mut self, key: &Path) -> Option<T> {
         let key = match fs::canonicalize(key) {
             Ok(key) => key,
-            Err(_) => key.to_path_buf(),
+            Err(_) => key.to_path_buf(), // TODO: This should probably error here.
         };
 
         self.0.remove(&key)
@@ -432,13 +432,23 @@ impl Datastore {
 
             descendant.set_base_path(new_path.clone());
             let descendant_path = descendant.base_path().to_owned();
-            self.container_paths.remove_canonical(&old_path).unwrap();
+            match self.container_paths.remove_canonical(&old_path) {
+                Some(_) => {}
+                None => {
+                    // entry was not present
+                    // this is likely because only the capitalization of the path changed
+                    // and the file has already been moved
+                    // so the canonicalized path is referring to the new capitalization scheme
+                    // stranding the old path key stranded when using canonicalization
+                    self.container_paths.remove(&old_path).unwrap();
+                }
+            };
+
             self.container_paths
                 .insert_canonical(new_path, descendant_id);
 
             for (aid, asset_path) in assets {
                 self.asset_paths.remove(&old_path.join(&asset_path));
-
                 self.asset_paths
                     .insert(descendant_path.join(asset_path), aid);
             }

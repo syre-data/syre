@@ -15,8 +15,6 @@ type ContainerTree = ResourceTree<Container>;
 #[tracing::instrument]
 #[hook]
 pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<Result<ContainerTree, String>> {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-
     let graph: UseStateHandle<Option<Result<ContainerTree, String>>> = use_state(|| None);
     if let Some(graph) = (*graph).clone() {
         return Ok(graph);
@@ -24,7 +22,6 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<Result<Contai
 
     let (s, handle) = Suspension::new();
     {
-        let app_state = app_state.clone();
         let project = project.clone();
         let graph = graph.clone();
 
@@ -36,11 +33,7 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<Result<Contai
                 }
 
                 Err(err) => {
-                    graph.set(Some(Err(format!("{err:?}"))));
-
-                    // app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                    //     "Could not get project's graph",
-                    // )));
+                    graph.set(Some(Err(err)));
                 }
             };
         });

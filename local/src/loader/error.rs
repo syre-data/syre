@@ -6,8 +6,13 @@ pub mod container {
 
     #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
     pub enum Error {
+        /// Something ocurred at the root path.
         #[error("{0}")]
         Root(#[serde(with = "crate::error::IoErrorKind")] io::ErrorKind),
+
+        /// The root path does not contain a `.thot` folder.
+        #[error("path is not a resource")]
+        NotResource,
 
         #[error("container: {container:?}, assets: {assets:?}, settings: {settings:?}")]
         Properties {

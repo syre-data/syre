@@ -127,7 +127,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.name = Some(name);
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -146,7 +146,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.kind = Some(kind);
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -165,7 +165,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.description = Some(description);
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -186,7 +186,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.tags = tags_update;
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -207,7 +207,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.tags = tags_update;
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -228,7 +228,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.metadata = metadata_update;
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -249,7 +249,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.metadata = metadata_update;
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -270,7 +270,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             update.metadata = metadata_update;
 
             spawn_local(async move {
-                update_properties(containers, update, app_state, graph_state);
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };

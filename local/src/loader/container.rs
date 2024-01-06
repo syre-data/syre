@@ -18,6 +18,10 @@ impl Loader {
             Err(err) => return Err(Error::Root(err.kind())),
         };
 
+        if !crate::common::thot_dir_of(&base_path).exists() {
+            return Err(Error::NotResource);
+        }
+
         let properties_path =
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 

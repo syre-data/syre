@@ -2,13 +2,16 @@
 use crate::constants::*;
 use crate::{Error, Result};
 use regex::Regex;
-use std::fs;
 use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
+use std::{fs, io};
 
 /// Creates a unique file name.
 pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
-    if !path.exists() {
-        return Ok(path);
+    match fs::canonicalize(&path) {
+        Ok(canon_path) if path != canon_path => return Ok(path),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(path),
+        Err(err) => return Err(err.into()),
+        _ => {}
     }
 
     // get file name

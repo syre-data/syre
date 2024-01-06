@@ -1,10 +1,9 @@
 //! New user sign up.
 use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateReducer};
-use crate::commands::authenticate::{CreateUserArgs, UserCredentials};
+use crate::commands::authenticate::{authenticate_user, create_user};
 use crate::commands::common::ResourceIdArgs;
 use crate::common::invoke;
 use crate::routes::Route;
-use thot_core::system::User;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -54,23 +53,25 @@ pub fn sign_up() -> Html {
                 };
 
                 // create user account
-                let Ok(user) = invoke::<User>(
-                    "create_user",
-                    CreateUserArgs { email, name }
-                )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not create user.")));
-                    return;
+                let user = match create_user(email, name).await {
+                    Ok(user) => user,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not create user.");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 // authenticate user
-                let Ok(user) = invoke::<Option<User>>(
-                    "authenticate_user",
-                    UserCredentials { email: user.email }
-                )
-                .await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error("Could not authenticate user.")));
-                    return;
+                let user = match authenticate_user(user.email).await {
+                    Ok(user) => user,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not authenticate user.");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 auth_state.dispatch(AuthStateAction::SetUser(user.clone()));

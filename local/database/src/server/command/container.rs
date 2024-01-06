@@ -1,7 +1,7 @@
 //! Implementation of `Container` related functionality.
 use super::super::Database;
 use crate::command::container::{
-    BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationsArgs, ContainerPropertiesUpdate,
+    BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationsArgs, PropertiesUpdate,
     ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use crate::command::ContainerCommand;
@@ -97,10 +97,7 @@ impl Database {
                 serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
             }
 
-            ContainerCommand::BulkUpdateProperties(BulkUpdateContainerPropertiesArgs {
-                rids,
-                update,
-            }) => {
+            ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
                 let res = self.bulk_update_container_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
@@ -284,7 +281,7 @@ impl Database {
     fn bulk_update_container_properties(
         &mut self,
         containers: &Vec<ResourceId>,
-        update: &ContainerPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         for container in containers {
             self.update_container_properties_from_update(container, update)?;
@@ -298,7 +295,7 @@ impl Database {
     fn update_container_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &ContainerPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(

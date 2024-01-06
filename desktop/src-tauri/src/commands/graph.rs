@@ -1,5 +1,5 @@
 //! Graph commands.
-use crate::error::{DesktopSettingsError, Result};
+use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::PathBuf;
@@ -8,7 +8,7 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
-use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
+use thot_desktop_lib::error::Result as LibResult;
 use thot_local::error::{ContainerError, Error as LocalError};
 use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
@@ -96,7 +96,7 @@ pub fn init_project_graph(
 /// 1. `Project` id.
 #[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
-pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
+pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> Result<ContainerTree> {
     let graph = db
         .send(GraphCommand::Load(rid).into())
         .expect("could not load graph");
@@ -104,7 +104,6 @@ pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> LibResult<Con
     let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
         .expect("could not convert `Load` result to a `ContainerTree`");
 
-    // let graph = graph.map_err(|err| LibError::Database(format!("{err:?}")))?;
     Ok(graph?)
 }
 
@@ -137,16 +136,12 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 /// 1. Id of the root of the `Container` tree to duplicate.
 #[tracing::instrument(skip(db))]
 #[tauri::command]
-pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> LibResult<ContainerTree> {
+pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> DbResult<ContainerTree> {
     let dup = db
         .send(GraphCommand::Duplicate(rid).into())
         .expect("could not duplicate graph");
 
-    let dup: DbResult<ContainerTree> = serde_json::from_value(dup)
-        .expect("could not convert result of `Dupilcate` to `Container` tree");
-
-    // let dup = dup.map_err(|err| LibError::Database(format!("{err:?}")))?;
-    Ok(dup?)
+    serde_json::from_value(dup).unwrap()
 }
 
 /// Removes a [`Container`](LocalContainer) tree.

@@ -1,13 +1,11 @@
 //! Common error types.
+use crate::loader::error::container::Error as LoadContainer;
 use serde::{self, Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
 use thot_core::Error as CoreError;
-
-#[cfg(feature = "fs")]
-use crate::loader::container::Error as LoadContainer;
 
 // ***********************
 // *** Settings Errors ***
@@ -116,12 +114,11 @@ pub enum UsersError {
 }
 
 // ***************
-// *** SerdeIo ***
+// *** IoSerde ***
 // ***************
 
-#[cfg(feature = "fs")]
 #[derive(Serialize, Deserialize, Error, Debug)]
-pub enum Save {
+pub enum IoSerde {
     #[error("{0:?}")]
     Io(#[serde(with = "IoErrorKind")] io::ErrorKind),
 
@@ -130,14 +127,14 @@ pub enum Save {
 }
 
 #[cfg(feature = "fs")]
-impl From<io::Error> for Save {
+impl From<io::Error> for IoSerde {
     fn from(value: io::Error) -> Self {
         Self::Io(value.kind())
     }
 }
 
 #[cfg(feature = "fs")]
-impl From<serde_json::Error> for Save {
+impl From<serde_json::Error> for IoSerde {
     fn from(value: serde_json::Error) -> Self {
         if let Some(kind) = value.io_error_kind() {
             Self::Io(kind)
@@ -165,6 +162,9 @@ pub enum Error {
     #[error("{0}")]
     UsersError(UsersError),
 
+    #[error("{0}")]
+    IoSerde(IoSerde),
+
     #[cfg(feature = "fs")]
     #[error("{0}")]
     AssetError(AssetError),
@@ -180,10 +180,6 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("{0}")]
     SettingsFileError(SettingsFileError),
-
-    #[cfg(feature = "fs")]
-    #[error("{0}")]
-    Save(Save),
 
     #[cfg(feature = "fs")]
     #[error("{0}")]
@@ -234,9 +230,9 @@ impl From<serde_json::Error> for Error {
 }
 
 #[cfg(feature = "fs")]
-impl From<Save> for Error {
-    fn from(value: Save) -> Self {
-        Self::Save(value)
+impl From<IoSerde> for Error {
+    fn from(value: IoSerde) -> Self {
+        Self::IoSerde(value)
     }
 }
 

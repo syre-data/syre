@@ -58,11 +58,11 @@ pub enum AssetCommand {
     },
 
     /// Update multiple [`Asset`]s' properties.
-    BulkUpdateProperties(BulkUpdateAssetPropertiesArgs),
+    BulkUpdateProperties(BulkUpdatePropertiesArgs),
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct AssetPropertiesUpdate {
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct PropertiesUpdate {
     pub name: Option<Option<String>>,
     pub kind: Option<Option<String>>,
     pub description: Option<Option<String>>,
@@ -70,8 +70,8 @@ pub struct AssetPropertiesUpdate {
     pub metadata: MetadataAction,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BulkUpdateAssetPropertiesArgs {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BulkUpdatePropertiesArgs {
     pub rids: Vec<ResourceId>,
-    pub update: AssetPropertiesUpdate,
+    pub update: PropertiesUpdate,
 }

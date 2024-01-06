@@ -2,9 +2,10 @@
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
-use crate::commands::common::{PathBufArgs, ResourceIdArgs};
-use crate::commands::container::AddAssetWindowsArgs;
-use crate::common::invoke;
+use crate::commands::asset::remove_asset;
+use crate::commands::common::open_file;
+use crate::commands::container::{add_asset_windows, get_container_path};
+use crate::commands::graph::{duplicate_container_tree, remove_container_tree};
 use crate::components::canvas::asset::CreateAssets;
 use crate::components::canvas::selection_action::{selection_action, SelectionAction};
 use crate::components::canvas::{
@@ -143,18 +144,17 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let app_state = app_state.clone();
 
                     spawn_local(async move {
-                        match invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid }).await
-                        {
-                            Ok(path) => {
-                                match invoke::<()>("open_file", PathBufArgs { path }).await {
-                                    Ok(_) => {}
-                                    Err(_err) => app_state.dispatch(AppStateAction::AddMessage(
-                                        Message::error("Could not open file"),
-                                    )),
+                        match get_container_path(rid).await {
+                            Some(path) => match open_file(path).await {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    let mut msg = Message::error("Could not open file");
+                                    msg.set_details(err);
+                                    app_state.dispatch(AppStateAction::AddMessage(msg));
                                 }
-                            }
+                            },
 
-                            Err(_err) => {
+                            None => {
                                 app_state.dispatch(AppStateAction::AddMessage(Message::error(
                                     "Could not get file path",
                                 )));
@@ -168,19 +168,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     let graph_state = graph_state.clone();
 
                     spawn_local(async move {
-                        let dup = invoke::<Graph>(
-                            "duplicate_container_tree",
-                            ResourceIdArgs { rid: rid.clone() },
-                        )
-                        .await;
-
-                        let dup = match dup {
+                        let dup = match duplicate_container_tree(rid.clone()).await {
                             Ok(dup) => dup,
                             Err(err) => {
-                                web_sys::console::error_1(&format!("{err:?}").into());
-                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not duplicate tree",
-                                )));
+                                let mut msg = Message::error("Could not duplicate tree");
+                                msg.set_details(format!("{err:?}"));
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
                                 return;
                             }
                         };
@@ -205,9 +198,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                 ContainerMenuEvent::Remove => {
                     spawn_local(async move {
-                        invoke::<()>("remove_container_tree", ResourceIdArgs { rid: rid.clone() })
-                            .await
-                            .expect("could not invoke `remove_container_tree`");
+                        match remove_container_tree(rid.clone()).await {
+                            Ok(_) => {}
+                            Err(err) => {
+                                tracing::debug!(err);
+                                panic!("{err}");
+                            }
+                        }
                     });
                 }
             }
@@ -279,21 +276,23 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             let app_state = app_state.clone();
             spawn_local(async move {
-                let Ok(mut path) =
-                    invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid }).await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not get container path",
-                    )));
-                    return;
+                let mut path = match get_container_path(rid).await {
+                    Some(path) => path,
+                    None => {
+                        let mut msg = Message::error("Could not get container path");
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 path.push(asset.path.clone());
-                let Ok(_) = invoke::<()>("open_file", PathBufArgs { path }).await else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not open file",
-                    )));
-                    return;
+                match open_file(path).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not open file");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
                 };
             });
         })
@@ -304,12 +303,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         Callback::from(move |rid: ResourceId| {
             let app_state = app_state.clone();
             spawn_local(async move {
-                let Ok(_) = invoke::<()>("remove_asset", ResourceIdArgs { rid: rid.clone() }).await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not remove asset",
-                    )));
-                    return;
+                match remove_asset(rid.clone()).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not remove asset");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
                 };
             });
         })
@@ -382,16 +382,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     spawn_local(async move {
                         // create assets
                         // TODO Handle buckets.
-                        invoke::<()>(
-                            "add_asset_windows",
-                            AddAssetWindowsArgs {
-                                container: container_id.clone(),
-                                name,
-                                contents,
-                            },
-                        )
-                        .await
-                        .expect("could not invoke `add_asset_windows`");
+                        match add_asset_windows(container_id.clone(), name, contents).await {
+                            Ok(_) => {}
+                            Err(err) => {
+                                tracing::debug!(err);
+                                panic!("{err}");
+                            }
+                        }
                     });
                 });
 

@@ -14,9 +14,9 @@ pub enum Error {
     Core(CoreError),
     Io(io::Error),
     Local(LocalError),
-    LoadContainer(thot_local::loader::container::Error),
-    LoadTree(thot_local::loader::tree::Error),
-    Save(thot_local::error::Save),
+    LoadContainer(thot_local::loader::error::container::Error),
+    LoadTree(thot_local::loader::error::tree::Error),
+    IoSerde(thot_local::error::IoSerde),
 }
 
 impl From<ClapError> for Error {
@@ -43,21 +43,21 @@ impl From<LocalError> for Error {
     }
 }
 
-impl From<thot_local::loader::container::Error> for Error {
-    fn from(value: thot_local::loader::container::Error) -> Self {
+impl From<thot_local::loader::error::container::Error> for Error {
+    fn from(value: thot_local::loader::error::container::Error) -> Self {
         Self::LoadContainer(value)
     }
 }
 
-impl From<thot_local::loader::tree::Error> for Error {
-    fn from(value: thot_local::loader::tree::Error) -> Self {
+impl From<thot_local::loader::error::tree::Error> for Error {
+    fn from(value: thot_local::loader::error::tree::Error) -> Self {
         Self::LoadTree(value)
     }
 }
 
-impl From<thot_local::error::Save> for Error {
-    fn from(value: thot_local::error::Save) -> Self {
-        Self::Save(value)
+impl From<thot_local::error::IoSerde> for Error {
+    fn from(value: thot_local::error::IoSerde) -> Self {
+        Self::IoSerde(value)
     }
 }
 

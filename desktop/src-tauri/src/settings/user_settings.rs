@@ -1,13 +1,15 @@
 //! All settings.
 use crate::common;
-use crate::error::{DesktopSettingsError, Result};
+use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::UserSettingsFile;
 use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
+use thot_local::error::IoSerde;
 use thot_local::file_resource::UserResource;
 
 pub struct UserSettings {
@@ -17,7 +19,7 @@ pub struct UserSettings {
 
 impl UserSettings {
     /// Loads the settings for the given user.
-    pub fn load(user: &ResourceId) -> Result<Self> {
+    pub fn load(user: &ResourceId) -> StdResult<Self, IoSerde> {
         let rel_path = PathBuf::from(user.to_string());
         let rel_path = rel_path.join(Self::settings_file());
 
@@ -32,7 +34,7 @@ impl UserSettings {
         })
     }
 
-    pub fn load_or_new(user: &ResourceId) -> Result<Self> {
+    pub fn load_or_new(user: &ResourceId) -> StdResult<Self, IoSerde> {
         let rel_path = PathBuf::from(user.to_string());
         let rel_path = rel_path.join(Self::settings_file());
 
@@ -57,7 +59,7 @@ impl UserSettings {
         }
     }
 
-    pub fn save(&self) -> Result {
+    pub fn save(&self) -> StdResult<(), IoSerde> {
         fs::write(self.path(), serde_json::to_string_pretty(&self.settings)?)?;
         Ok(())
     }

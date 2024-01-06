@@ -1,7 +1,6 @@
 //! Main navigation for authenticated users.
 use crate::app::{AppStateAction, AppStateReducer, AppWidget, AuthStateAction, AuthStateReducer};
-use crate::commands::common::EmptyArgs;
-use crate::common::invoke;
+use crate::commands::user::unset_active_user;
 use crate::routes::Route;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -28,12 +27,13 @@ pub fn commands() -> Html {
             auth_state.dispatch(AuthStateAction::UnsetUser);
 
             spawn_local(async move {
-                let res = invoke::<()>("unset_active_user", EmptyArgs {}).await;
-
-                if res.is_err() {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not log out",
-                    )));
+                match unset_active_user().await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not log out");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
                 }
             });
         })

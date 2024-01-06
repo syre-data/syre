@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
 use thot_core::Error as CoreError;
-use thot_local::error::{Error as LocalError, Save};
+use thot_local::error::{Error as LocalError, IoSerde};
 
 #[cfg(feature = "server")]
 use crate::types::SocketType;
@@ -48,21 +48,22 @@ pub enum Error {
     OutOfSync,
 
     #[error("{0}")]
-    LoadContainer(thot_local::loader::container::Error),
+    IoSerde(IoSerde),
+
+    #[error("{0}")]
+    LoadContainer(thot_local::loader::error::container::Error),
 
     #[error("{0:?}")]
-    LoadTree(HashMap<PathBuf, thot_local::loader::tree::Error>),
+    LoadTree(HashMap<PathBuf, thot_local::loader::error::tree::Error>),
 
     #[error("{errors:?}")]
     LoadPartial {
-        errors: HashMap<PathBuf, thot_local::loader::tree::Error>,
+        errors: HashMap<PathBuf, thot_local::loader::error::tree::Error>,
         graph: Option<thot_core::graph::ResourceTree<thot_core::project::Container>>,
     },
-
-    #[error("{0}")]
-    Save(Save),
 }
 
+#[cfg(any(feature = "server", feature = "client"))]
 impl From<zmq::Error> for Error {
     fn from(err: zmq::Error) -> Self {
         Self::ZMQ(err.message().to_string())
@@ -81,20 +82,22 @@ impl From<LocalError> for Error {
     }
 }
 
-impl From<Save> for Error {
-    fn from(value: Save) -> Self {
-        Self::Save(value)
+impl From<IoSerde> for Error {
+    fn from(value: IoSerde) -> Self {
+        Self::IoSerde(value)
     }
 }
 
-impl From<thot_local::loader::container::Error> for Error {
-    fn from(value: thot_local::loader::container::Error) -> Self {
+#[cfg(feature = "server")]
+impl From<thot_local::loader::error::container::Error> for Error {
+    fn from(value: thot_local::loader::error::container::Error) -> Self {
         Self::LoadContainer(value)
     }
 }
 
-impl From<HashMap<PathBuf, thot_local::loader::tree::Error>> for Error {
-    fn from(value: HashMap<PathBuf, thot_local::loader::tree::Error>) -> Self {
+#[cfg(feature = "server")]
+impl From<HashMap<PathBuf, thot_local::loader::error::tree::Error>> for Error {
+    fn from(value: HashMap<PathBuf, thot_local::loader::error::tree::Error>) -> Self {
         Self::LoadTree(value)
     }
 }

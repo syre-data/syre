@@ -10,7 +10,7 @@ pub mod constants;
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod common;
 
-#[cfg(any(feature = "client", feature = "server"))]
+#[cfg(any(feature = "client", feature = "server", feature = "error"))]
 pub mod error;
 
 #[cfg(any(feature = "client", feature = "server"))]
@@ -30,7 +30,7 @@ pub use command::{
 
 pub use event::Update;
 
-#[cfg(any(feature = "client", feature = "server"))]
+#[cfg(any(feature = "client", feature = "server", feature = "error"))]
 pub use error::{Error, Result};
 
 #[cfg(feature = "client")]

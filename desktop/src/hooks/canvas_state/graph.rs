@@ -1,7 +1,6 @@
 //! Loads a `Project`'s graph.
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::ResourceIdArgs;
-use crate::common::invoke;
+use crate::commands::graph::load_project_graph;
 use thot_core::graph::ResourceTree;
 use thot_core::project::Container;
 use thot_core::types::ResourceId;
@@ -30,9 +29,7 @@ pub fn use_project_graph(project: &ResourceId) -> SuspensionResult<Result<Contai
         let graph = graph.clone();
 
         spawn_local(async move {
-            match invoke::<ContainerTree>("load_project_graph", ResourceIdArgs { rid: project })
-                .await
-            {
+            match load_project_graph(project).await {
                 Ok(project_graph) => {
                     graph.set(Some(Ok(project_graph)));
                     handle.resume();

@@ -20,6 +20,6 @@ pub enum SocketType {
 }
 
 pub struct PartialLoadGraph<T: HasId<Id = thot_core::types::ResourceId>> {
-    errors: HashMap<PathBuf, thot_local::loader::container::Error>,
+    errors: HashMap<PathBuf, thot_local::loader::error::container::Error>,
     graph: Option<thot_core::graph::ResourceTree<T>>,
 }

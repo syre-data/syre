@@ -1,14 +1,10 @@
 //! Container tree UI.
 use super::Container as ContainerUi;
-use crate::app::{AppStateAction, AppStateReducer, AuthStateReducer, ShadowBox};
-use crate::commands::container::{NewChildArgs, UpdatePropertiesArgs};
-use crate::common::invoke;
-use crate::components::canvas::{
-    CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer,
-};
+use crate::app::{AppStateAction, AppStateReducer, ShadowBox};
+use crate::commands::graph::new_child;
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer, GraphStateReducer};
 use std::str::FromStr;
-use thot_core::project::Container;
-use thot_core::types::{Creator, ResourceId, UserId};
+use thot_core::types::ResourceId;
 use thot_ui::types::Message;
 use thot_ui::widgets::suspense::Loading;
 use wasm_bindgen::prelude::Closure;
@@ -141,19 +137,13 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
 
             spawn_local(async move {
                 // create child
-                let Ok(_) = invoke::<()>(
-                    "new_child",
-                    NewChildArgs {
-                        name,
-                        parent: parent.clone(),
-                    },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not create child",
-                    )));
-                    return;
+                match new_child(name, parent.clone()).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not create child");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
                 };
             });
         })

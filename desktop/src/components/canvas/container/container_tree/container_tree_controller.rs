@@ -2,8 +2,9 @@
 use super::ContainerTree;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::common::ResourceIdArgs;
-use crate::commands::container::AddAssetsArgs;
-use crate::commands::project::AnalyzeArgs;
+use crate::commands::container::add_assets;
+use crate::commands::graph::load_project_graph;
+use crate::commands::project::analyze;
 use crate::common::invoke;
 use crate::components::canvas::canvas_state::{self, ResourceType};
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
@@ -12,7 +13,7 @@ use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
 use std::path::PathBuf;
 use std::str::FromStr;
-use thot_core::graph::ResourceTree;
+use thot_core::graph::{self, ResourceTree};
 use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::types::AddAssetInfo;
@@ -123,15 +124,13 @@ pub fn container_tree_controller() -> Html {
                         })
                         .collect::<Vec<AddAssetInfo>>();
 
-                    invoke::<()>(
-                        "add_assets",
-                        AddAssetsArgs {
-                            container: container_id.clone(),
-                            assets,
-                        },
-                    )
-                    .await
-                    .expect("could not invoke `add_assets`");
+                    match add_assets(container_id.clone(), assets).await {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::debug!(err);
+                            panic!("{err}");
+                        }
+                    }
                 }
             });
         });
@@ -172,7 +171,7 @@ pub fn container_tree_controller() -> Html {
         })
     };
 
-    let analyze = {
+    let analyze_cb = {
         let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
@@ -190,7 +189,6 @@ pub fn container_tree_controller() -> Html {
             spawn_local(async move {
                 let root = graph_state.graph.root();
 
-                let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                     Message::info("Running analysis"),
@@ -198,37 +196,30 @@ pub fn container_tree_controller() -> Html {
                     app_state.clone(),
                 ));
 
-                let res = invoke(
-                    "analyze",
-                    &AnalyzeArgs {
-                        root: root.clone(),
-                        max_tasks,
-                    },
-                )
-                .await;
+                let analysis_result = analyze(root.clone()).await;
 
                 // update tree
-                let update: ResourceTree<Container> =
-                    invoke("load_project_graph", &ResourceIdArgs { rid: project_id })
-                        .await
-                        .expect("could not `load_project_graph");
+                let update = match load_project_graph(project_id).await {
+                    Ok(graph) => graph,
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
                 analysis_state.set(AnalysisState::Complete);
 
-                match res {
-                    Err(err) => {
-                        web_sys::console::error_1(&format!("{err:?}").into());
-
-                        let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(format!("{err:?}"));
-                        app_state.dispatch(AppStateAction::AddMessage(msg));
-                    }
-
-                    Ok(()) => {
+                match analysis_result {
+                    Ok(_) => {
                         app_state.dispatch(AppStateAction::AddMessage(Message::success(
                             "Analysis complete",
                         )));
+                    }
+                    Err(err) => {
+                        let mut msg = Message::error("Error while analyzing");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
                 }
             })
@@ -270,8 +261,6 @@ pub fn container_tree_controller() -> Html {
 
             spawn_local(async move {
                 let root = selected_rid;
-
-                let max_tasks = None;
                 analysis_state.set(AnalysisState::Analyzing);
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                     Message::info("Running analysis"),
@@ -279,37 +268,30 @@ pub fn container_tree_controller() -> Html {
                     app_state.clone(),
                 ));
 
-                let res = invoke(
-                    "analyze",
-                    &AnalyzeArgs {
-                        root: root.clone(),
-                        max_tasks,
-                    },
-                )
-                .await;
+                let analysis_result = analyze(root.clone()).await;
 
                 // update tree
-                let update: ResourceTree<Container> =
-                    invoke("load_project_graph", &ResourceIdArgs { rid: project_id })
-                        .await
-                        .expect("could not `load_project_graph");
+                let update = match load_project_graph(project_id).await {
+                    Ok(graph) => graph,
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
 
                 graph_state.dispatch(GraphStateAction::SetGraph(update));
                 analysis_state.set(AnalysisState::Complete);
 
-                match res {
-                    Err(err) => {
-                        web_sys::console::error_1(&format!("{err:?}").into());
-
-                        let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(format!("{err:?}"));
-                        app_state.dispatch(AppStateAction::AddMessage(msg));
-                    }
-
-                    Ok(()) => {
+                match analysis_result {
+                    Ok(_) => {
                         app_state.dispatch(AppStateAction::AddMessage(Message::success(
                             "Analysis complete",
                         )));
+                    }
+                    Err(err) => {
+                        let mut msg = Message::error("Error while analyzing");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
                 }
             })
@@ -331,7 +313,7 @@ pub fn container_tree_controller() -> Html {
                 <div class={classes!("analyze-commands-group")}>
                     <button
                         class={primary_analyze_btn_classes}
-                        onclick={analyze.clone()}
+                        onclick={analyze_cb.clone()}
                         disabled={*analysis_state == AnalysisState::Analyzing}>
 
                         { "Analyze" }
@@ -345,7 +327,7 @@ pub fn container_tree_controller() -> Html {
                             </button>
                             <ul class={classes!("dropdown-content")}>
                                 <li class={classes!("clickable")}
-                                    onclick={analyze.clone()}>
+                                    onclick={analyze_cb.clone()}>
                                     { "Project" }
                                 </li>
                                 <li class={classes!("clickable")}

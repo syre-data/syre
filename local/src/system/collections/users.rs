@@ -1,7 +1,7 @@
 //! User collection.
+use crate::error::IoSerde;
 use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
-use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -18,13 +18,13 @@ pub type UserMap = HashMap<ResourceId, User>;
 pub struct Users(UserMap);
 
 impl Users {
-    pub fn load() -> Result<Self> {
+    pub fn load() -> Result<Self, IoSerde> {
         let file = fs::File::open(Self::path())?;
         let reader = BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
     }
 
-    pub fn load_or_default() -> Result<Self> {
+    pub fn load_or_default() -> Result<Self, IoSerde> {
         match fs::File::open(Self::path()) {
             Ok(file) => {
                 let reader = BufReader::new(file);
@@ -35,7 +35,7 @@ impl Users {
         }
     }
 
-    pub fn save(&self) -> Result {
+    pub fn save(&self) -> Result<(), IoSerde> {
         fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }

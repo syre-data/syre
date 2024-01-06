@@ -1,13 +1,11 @@
 //! Project actions detail widget bar.
 use super::project_scripts::ProjectScripts;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::script::{AddScriptArgs, RemoveScriptArgs};
-use crate::common::invoke;
+use crate::commands::script::{add_script, remove_script};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::hooks::use_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use thot_core::project::Script;
 use thot_core::types::ResourceId;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -44,15 +42,13 @@ pub fn project_actions() -> HtmlResult {
             spawn_local(async move {
                 for path in paths {
                     let project = project.clone();
-                    let script = invoke::<Script>(
-                        "add_script",
-                        AddScriptArgs {
-                            project: project.clone(),
-                            path,
-                        },
-                    )
-                    .await
-                    .expect("could not invoke `add_script`");
+                    let script = match add_script(project.clone(), path).await {
+                        Ok(script) => script,
+                        Err(err) => {
+                            tracing::debug!(err);
+                            panic!("{err}");
+                        }
+                    };
 
                     project_scripts.insert(script.rid.clone(), script);
                 }
@@ -85,20 +81,15 @@ pub fn project_actions() -> HtmlResult {
             };
 
             spawn_local(async move {
-                let project = project.clone();
-                let Ok(_) = invoke::<()>(
-                    "remove_script",
-                    RemoveScriptArgs {
-                        project: project.clone(),
-                        script: rid.clone(),
-                    },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not remove script",
-                    )));
-                    return;
+                match remove_script(project.clone(), rid.clone()).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not remove script");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+
+                        return;
+                    }
                 };
 
                 // NOTE Program order does not follow logical order, should first remove from

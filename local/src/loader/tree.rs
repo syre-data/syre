@@ -1,7 +1,6 @@
-pub use error::Error;
-
 use super::container::{AssetValidator as ContainerAssetValidator, Loader as ContainerLoader};
-use crate::loader::container::error::AssetFile as AssetFileError;
+use super::error::container::AssetFile as AssetFileError;
+use super::error::tree::Error;
 use crate::project::container;
 use crate::project::resources::Container;
 use has_id::HasId;
@@ -111,7 +110,7 @@ impl AssetValidator {
 }
 
 pub mod incremental {
-    use super::error::Error;
+    use super::Error;
     use super::{container, ContainerLoader, ContainerTree};
     use has_id::HasId;
     use rayon::prelude::*;
@@ -211,21 +210,6 @@ pub mod incremental {
                 })
             }
         }
-    }
-}
-
-pub mod error {
-    use crate::loader::container::error::Error as LoaderError;
-    use serde::{Deserialize, Serialize};
-    use std::io;
-
-    #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
-    pub enum Error {
-        #[error("{0}")]
-        Dir(#[serde(with = "crate::error::IoErrorKind")] io::ErrorKind),
-
-        #[error("{0}")]
-        Load(LoaderError),
     }
 }
 

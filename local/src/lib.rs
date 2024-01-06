@@ -7,6 +7,7 @@ pub mod common;
 pub mod constants;
 pub mod error;
 pub mod identifier;
+pub mod loader;
 pub mod system;
 pub mod types;
 
@@ -18,9 +19,6 @@ pub mod graph;
 
 #[cfg(feature = "fs")]
 pub mod file_resource;
-
-#[cfg(feature = "fs")]
-pub mod loader;
 
 // Re-exports
 pub use error::{Error, Result};

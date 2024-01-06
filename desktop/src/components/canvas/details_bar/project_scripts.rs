@@ -1,7 +1,7 @@
 //! Project scripts editor.
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
-use crate::commands::common::{PathBufArgs, ResourceIdArgs};
-use crate::common::invoke;
+use crate::commands::common::open_file;
+use crate::commands::project::get_project_path;
 use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
@@ -67,23 +67,26 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                 let script_path = script_path.clone();
 
                 spawn_local(async move {
-                    let Ok(mut path) =
-                        invoke::<PathBuf>("get_project_path", ResourceIdArgs { rid: pid }).await
-                    else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Could not get project path",
-                        )));
-                        return;
+                    let mut path = match get_project_path(pid).await {
+                        Ok(path) => path,
+                        Err(err) => {
+                            let mut msg = Message::error("Could not get project path");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            return;
+                        }
                     };
 
                     path.push(analysis_root);
                     path.push(script_path.as_path());
-
-                    let Ok(_) = invoke::<()>("open_file", PathBufArgs { path }).await else {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Could not open file",
-                        )));
-                        return;
+                    match open_file(path).await {
+                        Ok(_) => {}
+                        Err(err) => {
+                            let mut msg = Message::error("Could not open file");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            return;
+                        }
                     };
                 });
             })

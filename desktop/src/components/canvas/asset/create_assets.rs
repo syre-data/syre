@@ -1,7 +1,5 @@
 //! Create an [`Asset`](thot_core::project::Asset).
-use crate::commands::common::ResourceIdArgs;
-use crate::commands::container::AddAssetsArgs;
-use crate::common::invoke;
+use crate::commands::container::{add_assets, get_container};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_container_path;
 use std::path::PathBuf;
@@ -59,37 +57,13 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
             let container_id = container_id.clone();
             spawn_local(async move {
                 // create assets
-                let assets = invoke::<Vec<ResourceId>>(
-                    "add_assets",
-                    AddAssetsArgs {
-                        container: container_id.clone(),
-                        assets,
-                    },
-                )
-                .await
-                .expect("could not invoke `add_assets`");
-
-                // update container
-                let container = invoke::<Container>(
-                    "get_container",
-                    ResourceIdArgs {
-                        rid: container_id.clone(),
-                    },
-                )
-                .await
-                .expect("could not invoke `add_assets`");
-
-                let assets = container
-                    .assets
-                    .into_values()
-                    .filter(|asset| assets.contains(&asset.rid))
-                    .collect();
-
-                // update container
-                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                    container_id,
-                    assets,
-                ));
+                match add_assets(container_id.clone(), assets).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
             });
         })
     };

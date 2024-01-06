@@ -1,12 +1,8 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::PathBufArgs;
-use crate::common::invoke;
+use crate::commands::project::{init_project_from, load_project};
 use crate::hooks::use_user;
 use crate::routes::Route;
 use std::path::PathBuf;
-use thot_core::project::Project;
-use thot_core::types::ResourceId;
-use thot_local::types::ProjectSettings;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -44,26 +40,24 @@ pub fn initialize_project() -> Html {
 
             app_state.dispatch(AppStateAction::SetActiveWidget(None)); // close self
             spawn_local(async move {
-                let Ok(_rid) =
-                    invoke::<ResourceId>("init_project_from", PathBufArgs { path: path.clone() })
-                        .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not create project",
-                    )));
-                    return;
+                match init_project_from(path.clone()).await {
+                    Ok(_rid) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not create project");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
-                let Ok((mut project, settings)) = invoke::<(Project, ProjectSettings)>(
-                    "load_project",
-                    PathBufArgs { path: path.clone() },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not load project",
-                    )));
-                    return;
+                let (mut project, settings) = match load_project(path).await {
+                    Ok(project) => project,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not load project");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 // update ui

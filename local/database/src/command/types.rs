@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use thot_core::project::Metadata;
 
 /// Actions to be taken on tags.
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct TagsAction {
     /// Values to insert.
     pub insert: Vec<String>,
@@ -13,7 +13,7 @@ pub struct TagsAction {
 }
 
 /// Actions to be taken on metadata.
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct MetadataAction {
     /// Values to insert, either adding new, or updating.
     pub insert: Metadata,

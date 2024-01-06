@@ -3,7 +3,7 @@ use super::{
     app_state::AppState, auth_state::AuthState, projects_state::ProjectsState, AppStateAction,
     AppStateReducer, AuthStateReducer, ProjectsStateAction, ProjectsStateReducer,
 };
-use crate::commands::project::LoadUserProjectsArgs;
+use crate::commands::project::load_user_projects;
 use crate::common::invoke;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
@@ -54,19 +54,17 @@ pub fn app() -> Html {
             let projects_state = projects_state.clone();
 
             spawn_local(async move {
-                let Ok(projects) = invoke::<Vec<(Project, ProjectSettings)>>(
-                    "load_user_projects",
-                    LoadUserProjectsArgs { user: user_id },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not load user projects",
-                    )));
-                    return;
+                match load_user_projects(user_id).await {
+                    Ok(projects) => {
+                        projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
+                    }
+                    Err(err) => {
+                        let mut msg = Message::error("Could not load user projects");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
-
-                projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
             });
         })
     }

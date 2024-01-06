@@ -4,13 +4,17 @@ use std::path::PathBuf;
 use thot_desktop_lib::excel_template;
 
 #[tauri::command]
-pub fn load_excel(path: PathBuf) -> excel_template::Workbook {
-    let workbook: Xlsx<_> = open_workbook(path).unwrap();
-    excel_template::Workbook::from(workbook)
+pub fn load_excel(path: PathBuf) -> Result<excel_template::Workbook, String> {
+    match open_workbook::<Xlsx<_>, _>(path) {
+        Ok(workbook) => Ok(excel_template::Workbook::from(workbook)),
+        Err(err) => Err(format!("{err:?}")),
+    }
 }
 
 #[tauri::command]
-pub fn load_csv(path: PathBuf) -> excel_template::Spreadsheet {
-    let reader = csv::Reader::from_path(path).unwrap();
-    excel_template::Spreadsheet::from(reader)
+pub fn load_csv(path: PathBuf) -> Result<excel_template::Spreadsheet, String> {
+    match csv::Reader::from_path(path) {
+        Ok(reader) => Ok(excel_template::Spreadsheet::from(reader)),
+        Err(err) => Err(format!("{err:?}")),
+    }
 }

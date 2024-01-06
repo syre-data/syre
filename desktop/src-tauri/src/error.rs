@@ -13,7 +13,7 @@ use thot_local_database::error::Error as DbError;
 // ******************************
 
 #[derive(Serialize, Deserialize, Error, Debug)]
-pub enum DesktopSettingsError {
+pub enum DesktopSettings {
     /// The desired update can not be performed.
     #[error("{0}")]
     InvalidUpdate(String),
@@ -33,7 +33,7 @@ pub enum Error {
     CoreError(CoreError),
 
     #[error("{0}")]
-    DesktopSettingsError(DesktopSettingsError),
+    DesktopSettings(DesktopSettings),
 
     #[error("{0}")]
     SerdeError(serde_json::Error),
@@ -51,12 +51,12 @@ pub enum Error {
     LocalDatabaseError(DbError),
 
     #[error("{0}")]
-    Save(thot_local::error::Save),
+    IoSerde(thot_local::error::IoSerde),
 }
 
-impl From<DesktopSettingsError> for Error {
-    fn from(err: DesktopSettingsError) -> Self {
-        Self::DesktopSettingsError(err)
+impl From<DesktopSettings> for Error {
+    fn from(err: DesktopSettings) -> Self {
+        Self::DesktopSettings(err)
     }
 }
 
@@ -96,9 +96,9 @@ impl From<TauriError> for Error {
     }
 }
 
-impl From<thot_local::error::Save> for Error {
-    fn from(value: thot_local::error::Save) -> Self {
-        Self::Save(value)
+impl From<thot_local::error::IoSerde> for Error {
+    fn from(value: thot_local::error::IoSerde) -> Self {
+        Self::IoSerde(value)
     }
 }
 

@@ -1,6 +1,6 @@
 //! Container and container settings.
 use crate::common;
-use crate::error::{Error, Result, Save as SaveError};
+use crate::error::{Error, IoSerde as IoSerdeError, Result};
 use crate::file_resource::LocalResource;
 use crate::system::settings::UserSettings;
 use crate::types::ContainerSettings;
@@ -96,7 +96,7 @@ impl Container {
     }
 
     /// Save all data.
-    pub fn save(&self) -> StdResult<(), SaveError> {
+    pub fn save(&self) -> StdResult<(), IoSerdeError> {
         let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);

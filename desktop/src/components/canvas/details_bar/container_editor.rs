@@ -1,8 +1,7 @@
 //! Container editor widget.
 use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::container::{UpdatePropertiesArgs, UpdatePropertiesStringArgs};
-use crate::common::invoke;
+use crate::commands::container::{update_properties, UpdatePropertiesArgs};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use thot_core::project::ContainerProperties;
 use thot_core::types::ResourceId;
@@ -59,30 +58,19 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
 
             let properties = properties.clone();
             spawn_local(async move {
-                // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-                // See https://github.com/tauri-apps/tauri/issues/6078
-                let properties_str = serde_json::to_string(&*properties)
-                    .expect("could not serialize `ContainerProperties`");
-
-                let update_str = UpdatePropertiesStringArgs {
-                    rid: rid.clone(),
-                    properties: properties_str,
-                };
-
-                let update = UpdatePropertiesArgs {
-                    rid,
-                    properties: (*properties).clone(),
-                };
-
-                match invoke::<()>("update_container_properties", update_str).await {
-                    Err(err) => {
-                        tracing::debug!(?err);
-                        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                            "Could not save resource",
-                        )));
-                    }
+                match update_properties(rid.clone(), (*properties).clone()).await {
                     Ok(_) => {
+                        let update = UpdatePropertiesArgs {
+                            rid,
+                            properties: (*properties).clone(),
+                        };
+
                         graph_state.dispatch(GraphStateAction::UpdateContainerProperties(update));
+                    }
+                    Err(err) => {
+                        let mut msg = Message::error("Could not save resource");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
                 }
             });

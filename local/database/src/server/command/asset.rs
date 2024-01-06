@@ -1,6 +1,6 @@
 //! Handle `Asset` related functionality.
 use super::super::Database;
-use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
+use crate::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use crate::command::AssetCommand;
 use crate::error::Result;
 use serde_json::Value as JsValue;
@@ -85,7 +85,7 @@ impl Database {
                 serde_json::to_value(assets).expect("could not convert result to JSON")
             }
 
-            AssetCommand::BulkUpdateProperties(BulkUpdateAssetPropertiesArgs { rids, update }) => {
+            AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
                 let res = self.bulk_update_asset_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
@@ -134,7 +134,7 @@ impl Database {
     fn bulk_update_asset_properties(
         &mut self,
         assets: &Vec<ResourceId>,
-        update: &AssetPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         for asset in assets {
             self.update_asset_properties_from_update(asset, update)?;
@@ -148,7 +148,7 @@ impl Database {
     fn update_asset_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &AssetPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(

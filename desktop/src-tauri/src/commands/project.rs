@@ -1,5 +1,5 @@
 //! Commands related to projects.
-use crate::error::Result;
+use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,9 +8,7 @@ use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{
-    DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
-};
+use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local::project::project;
 use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::projects as sys_projects;
@@ -46,15 +44,12 @@ pub fn load_user_projects(
 
 /// Loads a [`Project`].
 #[tauri::command]
-pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, ProjectSettings)> {
+pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, ProjectSettings)> {
     let project = db
         .send(ProjectCommand::LoadWithSettings(path).into())
         .expect("could not load `Project`");
 
-    let project: DbResult<(Project, ProjectSettings)> =
-        serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
-
-    Ok(project?)
+    serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap()
 }
 
 // *******************
@@ -67,7 +62,7 @@ pub fn add_project(
     app_state: State<AppState>,
     db: State<DbClient>,
     path: PathBuf,
-) -> LibResult<(Project, ProjectSettings)> {
+) -> Result<(Project, ProjectSettings)> {
     let user = app_state
         .user
         .lock()
@@ -81,10 +76,7 @@ pub fn add_project(
         .send(ProjectCommand::Add(path, user.rid.clone()).into())
         .expect("could not add `Project`");
 
-    let project: DbResult<(Project, ProjectSettings)> =
-        serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
-
-    // project.map_err(|err| LibError::Database(format!("{:?}", err)))
+    let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
     Ok(project?)
 }
 
@@ -149,10 +141,9 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
     Ok(rid)
 }
 
-// remember to call `.manage(MyState::default())`
 #[tauri::command]
-pub fn init_project_from(path: &Path) -> Result<ResourceId> {
-    Ok(thot_local::project::init(path, "data", "analysis")?)
+pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
+    thot_local::project::init(path, "data", "analysis")
 }
 
 // ************************
@@ -179,14 +170,12 @@ pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
 /// Updates a project.
 #[tracing::instrument(skip(db))]
 #[tauri::command]
-pub fn update_project(db: State<DbClient>, project: Project) -> Result {
+pub fn update_project(db: State<DbClient>, project: Project) -> DbResult {
     let res = db
         .send(ProjectCommand::Update(project).into())
         .expect("could not update `Project`");
 
-    let res: DbResult = serde_json::from_value(res).expect("could not convert from `Update`");
-
-    Ok(res?)
+    serde_json::from_value(res).unwrap()
 }
 
 // ***************
@@ -194,7 +183,7 @@ pub fn update_project(db: State<DbClient>, project: Project) -> Result {
 // ***************
 
 #[tauri::command]
-pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> LibResult {
+pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> Result {
     let graph = db
         .send(GraphCommand::Get(root.clone()).into())
         .expect("could not get graph");
@@ -205,10 +194,8 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
     let Some(mut graph) = graph else {
         let error =
             CoreError::ResourceError(ResourceError::does_not_exist("root `Container` not loaded"));
-        return Err(LibError::Database(thot_local_database::Error::CoreError(
-            error,
-        )));
-        // return Err(LibError::Database(format!("{error:?}")));
+
+        return Err(thot_local_database::Error::CoreError(error).into());
     };
 
     let runner = Runner::new();
@@ -218,10 +205,4 @@ pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) 
     };
 
     Ok(res?)
-
-    // if res.is_err() {
-    //     return Err(LibError::Database(format!("{res:?}")));
-    // }
-
-    // Ok(())
 }

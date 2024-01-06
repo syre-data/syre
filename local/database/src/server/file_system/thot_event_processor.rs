@@ -10,10 +10,11 @@ use thot_core::project::ScriptLang;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
 use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::error::tree::Error as ContainerTreeLoaderError;
 use thot_local::loader::tree::incremental::{
     Loader as ContainerTreeIncrementalLoader, PartialLoad,
 };
-use thot_local::loader::tree::{Error as ContainerTreeLoaderError, Loader as ContainerTreeLoader};
+use thot_local::loader::tree::Loader as ContainerTreeLoader;
 use thot_local::project::project;
 use thot_local::project::project::project_root_path;
 use thot_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};

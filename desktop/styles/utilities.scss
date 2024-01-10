@@ -1,3 +1,5 @@
+@use 'themes' as t;
+
 .m-0 {
     margin: 0;
 }
@@ -25,4 +27,8 @@
 .row {
     display: flex;
     justify-content: center;
+}
+
+.c-warning {
+    color: t.$warning-color;
 }

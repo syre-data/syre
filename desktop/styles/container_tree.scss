@@ -142,11 +142,8 @@ $control-button-size: 25px;
         }
       }
 
-
       .thot-ui-asset {
-        display: grid;
-        grid-template-columns: 15px 100px 20px;
-        align-items: center;
+        display: flex;
         gap: 4px;
 
         .thot-ui-asset-icon {
@@ -154,14 +151,14 @@ $control-button-size: 25px;
           height: t.$asset-icon-size;
         }
 
-         &:hover .thot-ui-asset-remove {
-             opacity: 1;
-         }
+        .thot-ui-asset-name {
+          flex-grow: 1;
+        }
 
-         &:hover .thot-ui-asset-name {
-           color: t.$hover-text-color;
-         }
- 
+        .alert-icon svg {
+          vertical-align: middle;
+        }
+
         .thot-ui-asset-remove {
           opacity: 0;
           display: flex;
@@ -173,6 +170,13 @@ $control-button-size: 25px;
           font-size: 10px;      
         }
 
+        &:hover .thot-ui-asset-remove {
+          opacity: 1;
+        }
+
+        &:hover .thot-ui-asset-name {
+          color: t.$hover-text-color;
+        }
       }
     }
 

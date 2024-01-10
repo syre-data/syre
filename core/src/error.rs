@@ -41,8 +41,8 @@ impl ResourceError {
 // **********************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Error, Debug)]
-pub enum ProjectError {
+#[derive(Error, Clone, Debug)]
+pub enum Project {
     #[error("Project is not registered")]
     NotRegistered(Option<ResourceId>, Option<PathBuf>),
 
@@ -50,7 +50,7 @@ pub enum ProjectError {
     Misconfigured(String),
 }
 
-impl ProjectError {
+impl Project {
     pub fn misconfigured(msg: impl Into<String>) -> Self {
         Self::Misconfigured(msg.into())
     }
@@ -133,11 +133,11 @@ pub enum RunnerError {
     ScriptError(ResourceId, ResourceId, String),
 
     #[error("Error running `{cmd}` from script `{script}` on container `{container}`")]
-    CommandError{
+    CommandError {
         script: ResourceId,
         container: ResourceId,
         cmd: String,
-    }
+    },
 }
 
 // ******************
@@ -156,7 +156,7 @@ pub enum Error {
     IoError(io::Error),
 
     #[error("{0}")]
-    ProjectError(ProjectError),
+    Project(Project),
 
     #[error("{0}")]
     ResourceError(ResourceError),

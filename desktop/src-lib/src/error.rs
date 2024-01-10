@@ -1,11 +1,36 @@
 //! Errors
 use serde::{Deserialize, Serialize};
 use std::result::Result as StdResult;
+use thiserror::Error;
 use thot_core::error::Error as CoreError;
 
-// ******************************
-// *** Desktop Settings Error ***
-// ******************************
+#[derive(Serialize, Deserialize, thiserror::Error, Debug)]
+pub enum Trash {
+    /// File was not found.
+    #[error{"not found"}]
+    NotFound,
+
+    #[error("{0}")]
+    Other(String),
+}
+
+#[derive(Serialize, Deserialize, Error, Debug)]
+pub enum RemoveAsset {
+    #[error("{0}")]
+    ZMQ(String),
+
+    #[error("{0}")]
+    Trash(Trash),
+
+    #[error("{0}")]
+    Database(String),
+}
+
+impl From<Trash> for RemoveAsset {
+    fn from(value: Trash) -> Self {
+        Self::Trash(value)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum DesktopSettings {

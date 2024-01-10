@@ -1,14 +1,16 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
+use crate::constants;
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use thot_core::project::container::{AssetMap, ScriptMap};
-use thot_core::project::{Asset as CoreAsset, ContainerProperties};
+use thot_core::project::{Asset, ContainerProperties};
 use thot_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 // ************
 // *** Menu ***
@@ -96,6 +98,12 @@ fn container_menu(props: &ContainerMenuProps) -> Html {
 // *** Container ***
 // *****************
 
+#[derive(PartialEq, Default)]
+pub struct Flags {
+    pub container: Vec<String>,
+    pub assets: HashMap<ResourceId, Vec<String>>,
+}
+
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
     pub rid: ResourceId,
@@ -115,6 +123,9 @@ pub struct ContainerProps {
 
     #[prop_or(false)]
     pub is_root: bool,
+
+    #[prop_or_default]
+    pub flags: Flags,
 
     #[prop_or(ContainerPreview::Assets)]
     pub preview: ContainerPreview,
@@ -141,7 +152,7 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub ondblclick_asset: Option<Callback<(ResourceId, MouseEvent)>>,
 
-    /// Callback when an [`Asset`](CoreAsset) is to be deleted.
+    /// Callback when an [`Asset`] is to be deleted.
     #[prop_or_default]
     pub onclick_asset_remove: Option<Callback<ResourceId>>,
 
@@ -185,8 +196,8 @@ pub fn container(props: &ContainerProps) -> Html {
     let assets = props
         .assets
         .iter()
-        .map(|(_rid, asset): (&ResourceId, &CoreAsset)| asset.clone())
-        .collect::<Vec<CoreAsset>>();
+        .map(|(_rid, asset): (&ResourceId, &Asset)| asset.clone())
+        .collect::<Vec<Asset>>();
 
     let ondragenter = {
         let ondragenter = props.ondragenter.clone();
@@ -280,61 +291,74 @@ pub fn container(props: &ContainerProps) -> Html {
                     </span>
 
                     <ContainerMenu
-                        class={classes!("dropdown-menu")}
+                        class={"dropdown-menu"}
                         r#ref={menu_ref}
                         onclick={on_menu_event}
                         is_root={props.is_root} />
                 </div>
             }
 
-            <div class={classes!("container-name")}>
-                { &props.properties.name }
+            <div class={"header"}>
+                <div class={"container-name"}>
+                    { &props.properties.name }
+                </div>
+                if props.flags.container.len() > 0 {
+                    <span class={"alert-icon c-warning"}
+                        title={props.flags.container.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
+
+                        <Icon icon_id={IconId::BootstrapExclamationTriangle}
+                            width={constants::ICON_SIZE.to_string()}
+                            height={constants::ICON_SIZE.to_string()} />
+                    </span>
+                }
             </div>
 
-            <div class={classes!("container-preview")}>
-                { match props.preview {
-                    ContainerPreview::None => { html! { <></> } },
+            <div class={"body"}>
+                <div class={"container-preview"}>
+                    { match props.preview {
+                        ContainerPreview::None => { html! { <></> } },
 
-                    ContainerPreview::Type => { html! {
-                        if let Some(kind) = props.properties.kind.as_ref() {
-                            { &kind }
-                        } else {
-                            { "(no type)" }
-                        }
-                    }},
+                        ContainerPreview::Type => { html! {
+                            if let Some(kind) = props.properties.kind.as_ref() {
+                                { &kind }
+                            } else {
+                                { "(no type)" }
+                            }
+                        }},
 
-                    ContainerPreview::Description => { html! {
-                        if let Some(description) = props.properties.description.as_ref() {
-                            { &description }
-                        } else {
-                            { "(no description)" }
-                        }
-                    }},
+                        ContainerPreview::Description => { html! {
+                            if let Some(description) = props.properties.description.as_ref() {
+                                { &description }
+                            } else {
+                                { "(no description)" }
+                            }
+                        }},
 
-                    ContainerPreview::Tags => { html! {
-                        <Tags value={props.properties.tags.clone()} />
-                    }},
+                        ContainerPreview::Tags => { html! {
+                            <Tags value={props.properties.tags.clone()} />
+                        }},
 
-                    ContainerPreview::Metadata => { html! {
-                        <MetadataPreview value={props.properties.metadata.clone()} />
-                    }},
+                        ContainerPreview::Metadata => { html! {
+                            <MetadataPreview value={props.properties.metadata.clone()} />
+                        }},
 
-                    ContainerPreview::Assets => { html! {
-                        <AssetsPreview
-                            {assets}
-                            active={props.active_assets.clone()}
-                            onclick_asset={&props.onclick_asset}
-                            ondblclick_asset={&props.ondblclick_asset}
-                            onclick_asset_remove={&props.onclick_asset_remove}
-                            />
-                    }},
+                        ContainerPreview::Assets => { html! {
+                            <AssetsPreview
+                                {assets}
+                                flags={props.flags.assets.clone()}
+                                active={props.active_assets.clone()}
+                                onclick_asset={&props.onclick_asset}
+                                ondblclick_asset={&props.ondblclick_asset}
+                                onclick_asset_remove={&props.onclick_asset_remove} />
+                        }},
 
-                    ContainerPreview::Scripts => { html! {
-                        <ScriptAssociationsPreview
-                            scripts={props.scripts.clone()}
-                            names={props.script_names.clone()} />
-                    }},
-                }}
+                        ContainerPreview::Scripts => { html! {
+                            <ScriptAssociationsPreview
+                                scripts={props.scripts.clone()}
+                                names={props.script_names.clone()} />
+                        }},
+                    }}
+                </div>
             </div>
             <div class={classes!("add-child-container-control")}>
                 <button onclick={onadd_child}>{ "+" }</button>

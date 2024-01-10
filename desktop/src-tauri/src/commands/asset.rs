@@ -2,9 +2,11 @@
 use crate::error::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use tauri::State;
-use thot_core::project::AssetProperties;
+use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::{RemoveAsset, Trash as TrashError};
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use thot_local_database::command::AssetCommand;
@@ -46,14 +48,55 @@ pub fn update_asset_properties(
 
 /// Remove an `Asset`.
 #[tauri::command]
-pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> Result {
-    let path = db.send(AssetCommand::Path(rid).into())?;
-    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
-        panic!("asset not found");
+pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveAsset> {
+    let path = match db.send(AssetCommand::Remove(rid).into()) {
+        Ok(res) => match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res).unwrap()
+        {
+            Ok(Some((_asset, path))) => path,
+            Ok(None) => return Err(RemoveAsset::Database("asset does not exist".to_string())),
+            Err(err) => return Err(RemoveAsset::Database(format!("{err:?}"))),
+        },
+
+        Err(err) => return Err(RemoveAsset::ZMQ(format!("{err:?}"))),
     };
 
-    trash::delete(path).unwrap();
-    Ok(())
+    match trash::delete(path) {
+        Ok(_) => Ok(()),
+
+        Err(trash::Error::CanonicalizePath { original: _ }) => Err(TrashError::NotFound.into()),
+
+        #[cfg(all(
+            unix,
+            not(target_os = "macos"),
+            not(target_os = "ios"),
+            not(target_os = "android")
+        ))]
+        Err(trash::Error::FileSystem { path, source })
+            if source.kind() == io::ErrorKind::NotFound =>
+        {
+            Err(TrashError::NotFound.into())
+        }
+
+        Err(trash::Error::Unknown { description }) => {
+            // all windows os errors are mapped to `Unknown`.
+            // Can parse string for error code to map.
+            // See https://github.com/Byron/trash-rs/issues/96.
+            // See https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
+            let re = regex::Regex::new(r"os error (\d+)").unwrap();
+            match re.captures(&description) {
+                None => Err(TrashError::Other(description).into()),
+                Some(captures) => {
+                    let code: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
+                    match code {
+                        2 | 3 => Err(TrashError::NotFound.into()),
+                        _ => Err(TrashError::Other(description).into()),
+                    }
+                }
+            }
+        }
+
+        Err(err) => Err(TrashError::Other(format!("{err:?}")).into()),
+    }
 }
 
 /// Bulk update the porperties of `Asset`s.

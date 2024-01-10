@@ -1,5 +1,5 @@
 use super::*;
-use crate::error::{Error, ProjectError, RunnerError};
+use crate::error::{Error, Project, RunnerError};
 use crate::project::Container;
 use crate::project::Script;
 use crate::types::{ResourceId, ResourcePath};
@@ -20,7 +20,7 @@ use std::{fs, str};
 #[test]
 fn runner_hooks_new_should_work() {
     fn get_script(rid: &ResourceId) -> Result<Script> {
-        Err(Error::ProjectError(ProjectError::NotRegistered(
+        Err(Error::Project(Project::NotRegistered(
             Some(rid.clone()),
             None,
         )))
@@ -328,7 +328,7 @@ fn runner_run_scripts_with_handled_error_that_returns_err_ignored_should_work() 
 /// Creates default runner hooks.
 fn create_default_runner_hooks() -> RunnerHooks {
     fn get_script(rid: &ResourceId) -> Result<Script> {
-        Err(Error::ProjectError(ProjectError::NotRegistered(
+        Err(Error::Project(Project::NotRegistered(
             Some(rid.clone()),
             None,
         )))

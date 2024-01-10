@@ -1,5 +1,7 @@
 //! Project canvas.
-use super::canvas_state::ResourceType;
+use std::io;
+
+use super::canvas_state::{self, ResourceType};
 use super::details_bar::DetailsBar;
 use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
@@ -14,10 +16,12 @@ use crate::hooks::{use_load_project_scripts, use_project_graph};
 use crate::routes::Route;
 use futures::stream::StreamExt;
 use thot_core::types::ResourceId;
+use thot_local_database::error::server::LoadProjectGraph;
 use thot_local_database::event::{
     Analysis as AnalysisUpdate, Asset as AssetUpdate, Container as ContainerUpdate,
     Graph as GraphUpdate, Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
+use thot_local_database::Error as DbError;
 use thot_ui::components::{drawer, Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::common::asset as asset_ui;
@@ -57,34 +61,76 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
     };
 
     use_load_project_scripts(&project.rid)?;
-    let graph = match use_project_graph(&project.rid)? {
-        Ok(graph) => graph,
-        Err(err) => {
+    let (graph, asset_errors) = match use_project_graph(&project.rid)? {
+        Ok(graph) => (graph, None),
+        Err(LoadProjectGraph::ProjectNotFound) => {
             return Ok(html! {
                 <div>
-                    <h1>{ "Could not load project's graph" }</h1>
-                    <div>{ err }</div>
+                    <h1>{ "Project not loaded" }</h1>
                 </div>
             });
+        }
+        Err(LoadProjectGraph::Project(err)) => {
+            return Ok(html! {
+                <div>
+                    <h1>{ "Project error" }</h1>
+                    <div>{ format!("{err:?}") }</div>
+                </div>
+            });
+        }
+        Err(LoadProjectGraph::Load { errors, graph: _ }) => {
+            return Ok(html! {
+                <div>
+                    <h1>{ "Could not load graph" }</h1>
+                    <div>{ format!("{errors:?}") }</div>
+                </div>
+            });
+        }
+        Err(LoadProjectGraph::InsertContainers(errors)) => {
+            return Ok(html! {
+                <div>
+                    <h1>{ "Could not load graph" }</h1>
+                    <div>{ format!("{errors:?}") }</div>
+                </div>
+            });
+        }
+        Err(LoadProjectGraph::InsertAssets { errors, graph }) => {
+            tracing::debug!(?errors);
+            (graph, Some(errors))
         }
     };
 
     let graph_state = use_reducer(|| GraphState::new(graph));
-
     let drawers_visible_state = use_state(|| None);
 
-    {
+    use_effect_with((), {
+        let canvas_state = canvas_state.clone();
+        move |_| {
+            let Some(asset_errors) = asset_errors else {
+                return;
+            };
+
+            for (asset, err) in asset_errors {
+                let message = match err {
+                    io::ErrorKind::NotFound => "File not found".to_string(),
+                    _ => format!("{err:?}"),
+                };
+
+                canvas_state.dispatch(CanvasStateAction::AddFlag {
+                    resource: asset,
+                    message,
+                });
+            }
+        }
+    });
+
+    use_effect_with((), {
+        let app_state = app_state.clone();
         let canvas_state = canvas_state.clone();
         let projects_state = projects_state.clone();
         let graph_state = graph_state.clone();
         let pid = project.rid.clone();
-
-        use_effect_with((), move |_| {
-            let canvas_state = canvas_state.clone();
-            let projects_state = projects_state.clone();
-            let graph_state = graph_state.clone();
-            let pid = pid.clone();
-
+        move |_| {
             spawn_local(async move {
                 let mut events = tauri_sys::event::listen::<thot_local_database::Update>(&format!(
                     "thot://database/update/project/{pid}"
@@ -98,141 +144,18 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
                     tracing::debug!(?event.payload);
                     let Update::Project { project, update } = event.payload;
                     assert!(project == pid);
-
-                    match update {
-                        ProjectUpdate::Container(update) => match update {
-                            ContainerUpdate::Properties {
-                                container,
-                                properties,
-                            } => graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
-                                UpdateContainerPropertiesArgs {
-                                    rid: container,
-                                    properties,
-                                },
-                            )),
-                        },
-
-                        ProjectUpdate::Graph(update) => match update {
-                            GraphUpdate::Created { parent, graph } => {
-                                graph_state
-                                    .dispatch(GraphStateAction::InsertSubtree { parent, graph });
-                            }
-
-                            GraphUpdate::Removed(graph) => {
-                                let mut rids = Vec::with_capacity(graph.nodes().len());
-                                for (cid, container) in graph.nodes() {
-                                    rids.push(cid.clone());
-                                    for aid in container.assets.keys() {
-                                        rids.push(aid.clone());
-                                    }
-                                }
-
-                                canvas_state.dispatch(CanvasStateAction::RemoveMany(rids));
-                                graph_state.dispatch(GraphStateAction::RemoveSubtree(
-                                    graph.root().clone(),
-                                ));
-                            }
-
-                            GraphUpdate::Moved { parent, root, name } => {
-                                graph_state.dispatch(GraphStateAction::MoveSubtree {
-                                    parent,
-                                    root,
-                                    name,
-                                });
-                            }
-                        },
-
-                        ProjectUpdate::Asset(update) => match update {
-                            AssetUpdate::Created { container, asset } => {
-                                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                                    container.clone(),
-                                    vec![asset],
-                                ));
-                            }
-
-                            AssetUpdate::Moved {
-                                asset,
-                                container,
-                                path,
-                            } => {
-                                graph_state.dispatch(GraphStateAction::MoveAsset {
-                                    asset,
-                                    container,
-                                    path,
-                                });
-                            }
-
-                            AssetUpdate::Removed(asset) => {
-                                canvas_state.dispatch(CanvasStateAction::Remove(asset.clone()));
-                                graph_state.dispatch(GraphStateAction::RemoveAsset(asset));
-                            }
-
-                            AssetUpdate::PathChanged { asset, path } => {
-                                graph_state
-                                    .dispatch(GraphStateAction::UpdateAssetPath { asset, path });
-                            }
-                        },
-
-                        ProjectUpdate::Script(update) => match update {
-                            ScriptUpdate::Created(script) => {
-                                projects_state.dispatch(ProjectsStateAction::InsertProjectScript {
-                                    project: pid.clone(),
-                                    script,
-                                });
-                            }
-
-                            ScriptUpdate::Removed(script) => {
-                                projects_state.dispatch(ProjectsStateAction::RemoveProjectScript(
-                                    script.clone(),
-                                ));
-
-                                graph_state.dispatch(
-                                    GraphStateAction::RemoveContainerScriptAssociations(script),
-                                );
-                            }
-
-                            ScriptUpdate::Moved { script, path } => {
-                                projects_state.dispatch(ProjectsStateAction::MoveProjectScript {
-                                    script: script.clone(),
-                                    path,
-                                });
-                            }
-                        },
-
-                        ProjectUpdate::Analysis(update) => match update {
-                            AnalysisUpdate::Flag { resource, message } => {
-                                let name = if let Some(container) = graph_state.graph.get(&resource)
-                                {
-                                    container.properties.name.clone()
-                                } else if let Some(container) = graph_state.asset_map.get(&resource)
-                                {
-                                    let container = graph_state.graph.get(&container).unwrap();
-                                    let asset = container.assets.get(&resource).unwrap();
-                                    asset_ui::asset_display_name(asset)
-                                } else {
-                                    tracing::debug!("could not find resource `{resource:?}`");
-                                    let mut msg = Message::error("Could not find resource");
-                                    msg.set_details("Could not find `{resource:?}` when flagging");
-                                    app_state.dispatch(AppStateAction::AddMessage(msg));
-                                    return;
-                                };
-
-                                canvas_state.dispatch(CanvasStateAction::AddFlag {
-                                    resource,
-                                    message: message.clone(),
-                                });
-
-                                let mut msg =
-                                    Message::warning(format!("Resource `{name}` was flagged"));
-                                msg.set_details(message);
-                                app_state.dispatch(AppStateAction::AddMessage(msg));
-                            }
-                        },
-                    }
+                    handle_file_system_event(
+                        update,
+                        project,
+                        &app_state,
+                        &projects_state,
+                        &canvas_state,
+                        &graph_state,
+                    );
                 }
             });
-        });
-    }
+        }
+    });
 
     {
         let canvas_state = canvas_state.clone();
@@ -307,4 +230,127 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
         </ContextProvider<GraphStateReducer>>
         </ContextProvider<CanvasStateReducer>>
     })
+}
+
+fn handle_file_system_event(
+    update: thot_local_database::event::Project,
+    project: ResourceId,
+    app_state: &AppStateReducer,
+    projects_state: &ProjectsStateReducer,
+    canvas_state: &CanvasStateReducer,
+    graph_state: &GraphStateReducer,
+) {
+    match update {
+        ProjectUpdate::Container(update) => match update {
+            ContainerUpdate::Properties {
+                container,
+                properties,
+            } => graph_state.dispatch(GraphStateAction::UpdateContainerProperties(
+                UpdateContainerPropertiesArgs {
+                    rid: container,
+                    properties,
+                },
+            )),
+        },
+
+        ProjectUpdate::Graph(update) => match update {
+            GraphUpdate::Created { parent, graph } => {
+                graph_state.dispatch(GraphStateAction::InsertSubtree { parent, graph });
+            }
+
+            GraphUpdate::Removed(graph) => {
+                let mut rids = Vec::with_capacity(graph.nodes().len());
+                for (cid, container) in graph.nodes() {
+                    rids.push(cid.clone());
+                    for aid in container.assets.keys() {
+                        rids.push(aid.clone());
+                    }
+                }
+
+                canvas_state.dispatch(CanvasStateAction::RemoveMany(rids));
+                graph_state.dispatch(GraphStateAction::RemoveSubtree(graph.root().clone()));
+            }
+
+            GraphUpdate::Moved { parent, root, name } => {
+                graph_state.dispatch(GraphStateAction::MoveSubtree { parent, root, name });
+            }
+        },
+
+        ProjectUpdate::Asset(update) => match update {
+            AssetUpdate::Created { container, asset } => {
+                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
+                    container.clone(),
+                    vec![asset],
+                ));
+            }
+
+            AssetUpdate::Moved {
+                asset,
+                container,
+                path,
+            } => {
+                graph_state.dispatch(GraphStateAction::MoveAsset {
+                    asset,
+                    container,
+                    path,
+                });
+            }
+
+            AssetUpdate::Removed(asset) => {
+                canvas_state.dispatch(CanvasStateAction::Remove(asset.clone()));
+                graph_state.dispatch(GraphStateAction::RemoveAsset(asset));
+            }
+
+            AssetUpdate::PathChanged { asset, path } => {
+                graph_state.dispatch(GraphStateAction::UpdateAssetPath { asset, path });
+            }
+        },
+
+        ProjectUpdate::Script(update) => match update {
+            ScriptUpdate::Created(script) => {
+                projects_state
+                    .dispatch(ProjectsStateAction::InsertProjectScript { project, script });
+            }
+
+            ScriptUpdate::Removed(script) => {
+                projects_state.dispatch(ProjectsStateAction::RemoveProjectScript(script.clone()));
+
+                graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(script));
+            }
+
+            ScriptUpdate::Moved { script, path } => {
+                projects_state.dispatch(ProjectsStateAction::MoveProjectScript {
+                    script: script.clone(),
+                    path,
+                });
+            }
+        },
+
+        ProjectUpdate::Analysis(update) => match update {
+            AnalysisUpdate::Flag { resource, message } => {
+                let name = if let Some(container) = graph_state.graph.get(&resource) {
+                    container.properties.name.clone()
+                } else if let Some(container) = graph_state.asset_map.get(&resource) {
+                    let container = graph_state.graph.get(&container).unwrap();
+                    let asset = container.assets.get(&resource).unwrap();
+                    asset_ui::asset_display_name(asset)
+                } else {
+                    tracing::debug!("could not find resource `{resource:?}`");
+                    let mut msg = Message::error("Could not find resource");
+                    msg.set_details("Could not find `{resource:?}` when flagging");
+                    app_state.dispatch(AppStateAction::AddMessage(msg));
+                    return;
+                };
+
+                canvas_state.dispatch(CanvasStateAction::AddFlag {
+                    resource,
+                    message: message.clone(),
+                });
+
+                let mut msg = Message::warning(format!("Resource `{name}` was flagged"));
+                msg.set_details(message);
+                app_state.dispatch(AppStateAction::AddMessage(msg));
+            }
+        },
+    }
 }

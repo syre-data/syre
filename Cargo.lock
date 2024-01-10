@@ -4527,6 +4527,7 @@ dependencies = [
  "thot-core",
  "thot-local",
  "thot-local-database",
+ "zmq",
 ]
 
 [[package]]
@@ -4569,6 +4570,7 @@ dependencies = [
  "csv",
  "indexmap 2.1.0",
  "serde",
+ "thiserror",
  "thot-core",
  "thot-local",
  "thot-local-database",
@@ -4582,6 +4584,7 @@ dependencies = [
  "csv",
  "directories",
  "open",
+ "regex",
  "serde",
  "serde_json",
  "tauri",
@@ -4617,6 +4620,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror",
  "thot-core",
  "tracing",
@@ -4639,6 +4643,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror",
  "thot-core",
  "thot-local",
@@ -4981,9 +4986,9 @@ dependencies = [
 
 [[package]]
 name = "trash"
-version = "3.1.2"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c646008e5144d988005bec12b1e56f5e0a951e957176686815eba8b025e0418"
+checksum = "6e7b1a28f9550f43ac27987f2144d7798520c6dee6a7eb1dedfe3131e3c257e3"
 dependencies = [
  "chrono",
  "libc",

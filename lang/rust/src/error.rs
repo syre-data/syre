@@ -14,11 +14,19 @@ pub enum Error {
 
     /// `thot_local_database` error.
     Database(DbError),
+
+    ZMQ(zmq::Error),
 }
 
 impl From<DbError> for Error {
     fn from(err: DbError) -> Self {
         Self::Database(err)
+    }
+}
+
+impl From<zmq::Error> for Error {
+    fn from(value: zmq::Error) -> Self {
+        Self::ZMQ(value)
     }
 }
 

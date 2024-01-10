@@ -1,20 +1,16 @@
 //! A container tree.
 use super::ContainerTree;
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::common::ResourceIdArgs;
 use crate::commands::container::add_assets;
 use crate::commands::graph::load_project_graph;
 use crate::commands::project::analyze;
-use crate::common::invoke;
-use crate::components::canvas::canvas_state::{self, ResourceType};
+use crate::components::canvas::canvas_state::ResourceType;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::constants::MESSAGE_TIMEOUT;
 use futures::stream::StreamExt;
 use std::path::PathBuf;
 use std::str::FromStr;
-use thot_core::graph::{self, ResourceTree};
-use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::types::AssetFileAction;
@@ -202,8 +198,8 @@ pub fn container_tree_controller() -> Html {
                 let update = match load_project_graph(project_id).await {
                     Ok(graph) => graph,
                     Err(err) => {
-                        tracing::debug!(err);
-                        panic!("{err}");
+                        tracing::debug!(?err);
+                        panic!("{err:?}");
                     }
                 };
 
@@ -274,8 +270,8 @@ pub fn container_tree_controller() -> Html {
                 let update = match load_project_graph(project_id).await {
                     Ok(graph) => graph,
                     Err(err) => {
-                        tracing::debug!(err);
-                        panic!("{err}");
+                        tracing::debug!(?err);
+                        panic!("{err:?}");
                     }
                 };
 

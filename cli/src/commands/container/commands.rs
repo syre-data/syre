@@ -2,7 +2,7 @@ use super::{AssociateScriptArgs, InitArgs, NewArgs};
 use crate::common::abs_path;
 use crate::Result;
 use std::env;
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptAssociation;
 use thot_local::error::{ContainerError as LocalContainerError, Error as LocalError};
 use thot_local::loader::container::Loader as ContainerLoader;
@@ -82,7 +82,7 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
     let script_id = match script.as_slice() {
         [] => {
             if !args.register {
-                return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
+                return Err(CoreError::Project(CoreProjectError::NotRegistered(
                     None,
                     Some(args.path),
                 ))

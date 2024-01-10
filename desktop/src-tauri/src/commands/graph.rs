@@ -3,12 +3,12 @@ use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use tauri::State;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
-use thot_desktop_lib::error::Result as LibResult;
 use thot_local::error::{ContainerError, Error as LocalError};
 use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
@@ -96,15 +96,12 @@ pub fn init_project_graph(
 /// 1. `Project` id.
 #[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
-pub fn load_project_graph(db: State<DbClient>, rid: ResourceId) -> Result<ContainerTree> {
-    let graph = db
-        .send(GraphCommand::Load(rid).into())
-        .expect("could not load graph");
-
-    let graph: DbResult<ContainerTree> = serde_json::from_value(graph)
-        .expect("could not convert `Load` result to a `ContainerTree`");
-
-    Ok(graph?)
+pub fn load_project_graph(
+    db: State<DbClient>,
+    rid: ResourceId,
+) -> StdResult<ContainerTree, thot_local_database::error::server::LoadProjectGraph> {
+    let res = db.send(GraphCommand::Load(rid).into()).unwrap();
+    serde_json::from_value(res).unwrap()
 }
 
 /// Creates a new child [`Container`](LocalContainer).

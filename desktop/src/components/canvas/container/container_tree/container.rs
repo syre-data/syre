@@ -13,14 +13,14 @@ use crate::components::canvas::{
 };
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset as CoreAsset, Container as CoreContainer};
+use thot_core::project::Asset;
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_desktop_lib::error::{RemoveAsset, Trash as TrashError};
 use thot_ui::types::Message;
-use thot_ui::widgets::container::container_tree::{
-    container::ContainerMenuEvent, container::ContainerProps as ContainerUiProps,
-    Container as ContainerUi,
+use thot_ui::widgets::container::container_tree::container::{
+    Container as ContainerUi, ContainerMenuEvent, ContainerProps as ContainerUiProps, Flags,
 };
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
@@ -29,8 +29,6 @@ use web_sys::FileReader;
 use yew::prelude::*;
 use yew::props;
 use yew_router::prelude::*;
-
-type Graph = ResourceTree<CoreContainer>;
 
 #[derive(Properties, PartialEq)]
 pub struct ContainerProps {
@@ -298,22 +296,40 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         })
     };
 
-    let onclick_asset_remove = {
+    let onclick_asset_remove = use_callback((), {
+        let graph_state = graph_state.clone();
         let app_state = app_state.clone();
-        Callback::from(move |rid: ResourceId| {
+
+        move |rid: ResourceId, _| {
+            let graph_state = graph_state.clone();
             let app_state = app_state.clone();
+
             spawn_local(async move {
                 match remove_asset(rid.clone()).await {
                     Ok(_) => {}
-                    Err(err) => {
-                        let mut msg = Message::error("Could not remove asset");
-                        msg.set_details(err);
-                        app_state.dispatch(AppStateAction::AddMessage(msg));
-                    }
+                    Err(err) => match err {
+                        RemoveAsset::ZMQ(err) => {
+                            let mut msg = Message::error("Could not remove asset");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                        }
+
+                        RemoveAsset::Trash(TrashError::NotFound) => {
+                            let msg = Message::warning("Asset file was not found");
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
+                        }
+
+                        RemoveAsset::Trash(TrashError::Other(err)) => {
+                            let mut msg = Message::error("Could not remove asset");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                        }
+                    },
                 };
             });
-        })
-    };
+        }
+    });
 
     let onadd_assets = {
         let show_create_assets = show_create_assets.clone();
@@ -413,6 +429,24 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         class.push("selected");
     }
 
+    let container_flags = canvas_state
+        .flags
+        .get(&props.rid)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut asset_flags = HashMap::new();
+    for asset in container.assets.keys() {
+        if let Some(a_flags) = canvas_state.flags.get(asset) {
+            asset_flags.insert(asset.clone(), a_flags.clone());
+        }
+    }
+
+    let flags = Flags {
+        container: container_flags,
+        assets: asset_flags,
+    };
+
     let c_props = props! {
             ContainerUiProps {
                 r#ref: props.r#ref.clone(),
@@ -422,6 +456,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 rid: props.rid.clone(),
                 properties: container.properties.clone(),
                 assets: container.assets.clone(),
+                flags,
                 active_assets: canvas_state.selected.clone(),
                 scripts: container.scripts.clone(),
                 script_names,
@@ -467,7 +502,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 /// # Arguments
 /// 1. `Asset`'s `ResourceId`.
 /// 2. Tree state.
-fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<CoreAsset> {
+fn get_asset(rid: &ResourceId, graph_state: GraphStateReducer) -> Option<Asset> {
     let Some(container) = graph_state.asset_map.get(&rid) else {
         return None;
     };

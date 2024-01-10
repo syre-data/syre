@@ -2,7 +2,7 @@ use crate::Result;
 use clap::Args;
 use std::path::PathBuf;
 use std::{env, fs};
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError};
 use thot_local::project::project;
 use thot_local::system::projects;
 
@@ -32,7 +32,7 @@ pub fn main(args: MoveArgs, verbose: bool) -> Result {
         Some(pid) => pid,
         None => {
             return Err(
-                CoreError::ProjectError(CoreProjectError::NotRegistered(None, Some(from))).into(),
+                CoreError::Project(CoreProjectError::NotRegistered(None, Some(from))).into(),
             )
         }
     };

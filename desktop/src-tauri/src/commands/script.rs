@@ -3,10 +3,9 @@ use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
 use tauri::State;
-use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
 use thot_core::project::{Project, Script};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{ProjectCommand, ScriptCommand};
 use thot_local_database::Result as DbResult;
@@ -62,7 +61,7 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
     };
 
     let Some(analysis_root) = project.analysis_root.clone() else {
-        return Err(CoreError::ProjectError(ProjectError::misconfigured(
+        return Err(CoreError::Project(ProjectError::misconfigured(
             "`Project` does not have an analysis root set",
         ))
         .into());

@@ -4,7 +4,7 @@ use crate::state::AppState;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
-use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
@@ -153,7 +153,7 @@ pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
 #[tauri::command]
 pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
     let Some(path) = sys_projects::get_path(&rid)? else {
-        return Err(CoreError::ProjectError(ProjectError::NotRegistered(
+        return Err(CoreError::Project(ProjectError::NotRegistered(
             Some(ResourceId::from(rid.clone())),
             None,
         ))

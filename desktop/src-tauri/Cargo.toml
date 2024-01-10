@@ -21,6 +21,7 @@ calamine = { workspace = true }
 csv = { workspace = true }
 directories = { workspace = true }
 open = "5.0"
+regex = { workspace = true } # TODO: Only needed for parsing errors in commands/assets.
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tauri = { version = "1.5", features = ["dialog-open", "process-command-api", "shell-sidecar", "system-tray", "updater"] }
@@ -28,7 +29,7 @@ thiserror = { workspace = true }
 tracing = {  workspace = true}
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3", features = ["time", "json"] }
-trash = "3.1.2"
+trash = { workspace = true }
 uuid = { workspace = true , features = ["serde", "v4"] }
 zmq = { workspace = true }
 

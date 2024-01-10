@@ -3,7 +3,6 @@ use crate::command::{Command, DatabaseCommand};
 use crate::common;
 use crate::constants::{DATABASE_ID, REQ_REP_PORT};
 use crate::types::PortNumber;
-use crate::Result;
 use serde_json::Value as JsValue;
 use std::net::{Ipv4Addr, TcpListener};
 
@@ -21,7 +20,7 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn send(&self, cmd: Command) -> Result<JsValue> {
+    pub fn send(&self, cmd: Command) -> Result<JsValue, zmq::Error> {
         // TODO: May be able to move creation of `req_socket` to `#new`, but may run into `Sync` issues.
         let req_socket = self
             .zmq_context

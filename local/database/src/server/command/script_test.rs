@@ -76,7 +76,7 @@ fn remove_script_should_work() {
         .expect("could not insert `Project`");
 
     db.store
-        .insert_project_graph(pid.clone(), graph)
+        .insert_project_graph_canonical(pid.clone(), graph)
         .expect("could not insert `Container`");
 
     db.store.insert_project_scripts(pid.clone(), scripts);

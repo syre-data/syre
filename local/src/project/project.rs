@@ -6,7 +6,7 @@ use crate::system::collections::Projects;
 use crate::system::projects;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::ResourceId;
 
@@ -170,7 +170,7 @@ pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
         }
     }
 
-    Err(CoreError::ProjectError(CoreProjectError::misconfigured("project has no root.")).into())
+    Err(CoreError::Project(CoreProjectError::misconfigured("project has no root.")).into())
 }
 
 /// # Returns

@@ -1,14 +1,21 @@
 //! Errors
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
+use thot_core::types::ResourceId;
 use thot_core::Error as CoreError;
-use thot_local::error::{Error as LocalError, IoSerde};
+use thot_local::error::{Error as Local, IoSerde};
+use thot_local::loader::error::container::AssetFile;
+use thot_local::loader::error::container::Error as ContainerLoader;
+use thot_local::loader::error::tree::Error as ContainerTreeLoader;
 
 #[cfg(feature = "server")]
 use crate::types::SocketType;
+
+type ContainerTree = thot_core::graph::ResourceTree<thot_core::project::Container>;
 
 /// [`Database`](crate::db) related errors.
 #[derive(Serialize, Deserialize, Error, Debug)]
@@ -34,7 +41,7 @@ pub enum Error {
     CoreError(CoreError),
 
     #[error("{0}")]
-    LocalError(LocalError),
+    Local(Local),
 
     #[error("{0}")]
     TrashError(String),
@@ -51,15 +58,21 @@ pub enum Error {
     IoSerde(IoSerde),
 
     #[error("{0}")]
-    LoadContainer(thot_local::loader::error::container::Error),
+    LoadContainer(ContainerLoader),
 
     #[error("{0:?}")]
-    LoadTree(HashMap<PathBuf, thot_local::loader::error::tree::Error>),
+    LoadTree(HashMap<PathBuf, ContainerTreeLoader>),
 
     #[error("{errors:?}")]
     LoadPartial {
-        errors: HashMap<PathBuf, thot_local::loader::error::tree::Error>,
-        graph: Option<thot_core::graph::ResourceTree<thot_core::project::Container>>,
+        errors: HashMap<PathBuf, ContainerTreeLoader>,
+        graph: Option<ContainerTree>,
+    },
+
+    #[error("{errors:?}")]
+    AssetValidation {
+        errors: HashMap<ResourceId, Vec<AssetFile>>,
+        graph: ContainerTree,
     },
 }
 
@@ -76,9 +89,9 @@ impl From<CoreError> for Error {
     }
 }
 
-impl From<LocalError> for Error {
-    fn from(err: LocalError) -> Self {
-        Self::LocalError(err)
+impl From<Local> for Error {
+    fn from(err: Local) -> Self {
+        Self::Local(err)
     }
 }
 
@@ -88,16 +101,22 @@ impl From<IoSerde> for Error {
     }
 }
 
+impl From<io::Error> for Error {
+    fn from(value: io::Error) -> Self {
+        Self::Local(value.into())
+    }
+}
+
 #[cfg(feature = "server")]
-impl From<thot_local::loader::error::container::Error> for Error {
-    fn from(value: thot_local::loader::error::container::Error) -> Self {
+impl From<ContainerLoader> for Error {
+    fn from(value: ContainerLoader) -> Self {
         Self::LoadContainer(value)
     }
 }
 
 #[cfg(feature = "server")]
-impl From<HashMap<PathBuf, thot_local::loader::error::tree::Error>> for Error {
-    fn from(value: HashMap<PathBuf, thot_local::loader::error::tree::Error>) -> Self {
+impl From<HashMap<PathBuf, ContainerTreeLoader>> for Error {
+    fn from(value: HashMap<PathBuf, ContainerTreeLoader>) -> Self {
         Self::LoadTree(value)
     }
 }
@@ -106,6 +125,48 @@ impl From<HashMap<PathBuf, thot_local::loader::error::tree::Error>> for Error {
 impl From<trash::Error> for Error {
     fn from(err: trash::Error) -> Self {
         Error::TrashError(format!("{err:?}"))
+    }
+}
+
+pub mod server {
+    use serde::{Deserialize, Serialize};
+    use serde_with::serde_as;
+    use std::collections::HashMap;
+    use std::io;
+    use std::path::PathBuf;
+    use thiserror::Error;
+    use thot_core::error::Project;
+    use thot_core::types::ResourceId;
+
+    type CoreContainerTree = thot_core::graph::ResourceTree<thot_core::project::Container>;
+
+    #[serde_with::serde_as]
+    #[derive(Serialize, Deserialize, Clone, Error, Debug)]
+    pub enum LoadProjectGraph {
+        #[error("project not found")]
+        ProjectNotFound,
+
+        #[error("{0:?}")]
+        Project(Project),
+
+        #[error("{errors:?}")]
+        Load {
+            errors: HashMap<PathBuf, thot_local::loader::error::tree::Error>,
+            graph: Option<CoreContainerTree>,
+        },
+
+        #[error("{0:?}")]
+        InsertContainers(
+            #[serde_as(as = "HashMap<_, thot_local::error::IoErrorKind>")]
+            HashMap<PathBuf, io::ErrorKind>,
+        ),
+
+        #[error("{errors:?}")]
+        InsertAssets {
+            #[serde_as(as = "HashMap<_, thot_local::error::IoErrorKind>")]
+            errors: HashMap<ResourceId, io::ErrorKind>,
+            graph: CoreContainerTree,
+        },
     }
 }
 

@@ -22,7 +22,7 @@ impl Database {
                     }
                 };
 
-                serde_json::to_value(asset).expect("could not convert `Asset` to JSON")
+                serde_json::to_value(asset).unwrap()
             }
 
             AssetCommand::GetMany(rids) => {
@@ -62,27 +62,32 @@ impl Database {
                     .get_asset_container(&asset)
                     .map(|container| (*container).clone().into());
 
-                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+                serde_json::to_value(container).unwrap()
             }
 
             AssetCommand::Add { asset, container } => {
                 let res = self.store.add_asset(asset, container);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                serde_json::to_value(res).unwrap()
+            }
+
+            AssetCommand::Remove(asset) => {
+                let res = self.store.remove_asset(&asset);
+                serde_json::to_value(res).unwrap()
             }
 
             AssetCommand::UpdateProperties { asset, properties } => {
                 let res = self.update_asset_properties(&asset, properties);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                serde_json::to_value(res).unwrap()
             }
 
             AssetCommand::Find { root, filter } => {
                 let assets = self.store.find_assets(&root, filter);
-                serde_json::to_value(assets).expect("could not convert result to JSON")
+                serde_json::to_value(assets).unwrap()
             }
 
             AssetCommand::FindWithMetadata { root, filter } => {
                 let assets = self.store.find_assets_with_metadata(&root, filter);
-                serde_json::to_value(assets).expect("could not convert result to JSON")
+                serde_json::to_value(assets).unwrap()
             }
 
             AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {

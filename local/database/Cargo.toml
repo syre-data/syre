@@ -16,21 +16,22 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 futures = "0.3.28"
+indexmap = { workspace = true, features = ["serde"] }
 notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true}
 notify-debouncer-full = { version = "0.3", default-features = false, optional = true}
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "1.0.44"
-tracing = "0.1.37"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
 trash = { version = "3.0", optional = true }
-zmq = { version = "0.10", optional = true }
+zmq = { workspace = true, optional = true }
 
 has_id = { path = "../../has_id", optional = true }
 thot-core = { path = "../../core" }
 thot-local = { path = "..", default-features = false }
-indexmap = { version = "2.1.0", features = ["serde"] }
 
 [dev-dependencies]
 rand = "0.8"

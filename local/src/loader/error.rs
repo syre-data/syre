@@ -4,7 +4,7 @@ pub mod container {
     use std::path::PathBuf;
     use thot_core::types::ResourceId;
 
-    #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
+    #[derive(Serialize, Deserialize, thiserror::Error, Clone, Debug)]
     pub enum Error {
         /// Something ocurred at the root path.
         #[error("{0}")]
@@ -22,7 +22,7 @@ pub mod container {
         },
     }
 
-    #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
+    #[derive(Serialize, Deserialize, thiserror::Error, Clone, Debug)]
     pub enum Properties {
         #[error("{path:?} {kind:?}")]
         Io {
@@ -36,7 +36,7 @@ pub mod container {
         Serde { path: PathBuf, err: String },
     }
 
-    #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
+    #[derive(Serialize, Deserialize, thiserror::Error, Clone, Debug)]
     #[error("file for Asset {asset} {kind:?}")]
     pub struct AssetFile {
         pub(crate) asset: ResourceId,
@@ -51,7 +51,7 @@ pub mod tree {
     use serde::{Deserialize, Serialize};
     use std::io;
 
-    #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
+    #[derive(Serialize, Deserialize, thiserror::Error, Clone, Debug)]
     pub enum Error {
         #[error("{0}")]
         Dir(#[serde(with = "crate::error::IoErrorKind")] io::ErrorKind),

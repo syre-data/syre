@@ -1,6 +1,6 @@
 //! Database for storing resources.
 #[path = "./command/mod.rs"]
-mod command;
+pub(super) mod command;
 
 #[path = "./file_system/mod.rs"]
 mod file_system;

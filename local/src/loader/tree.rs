@@ -84,12 +84,14 @@ impl Loader {
 
 pub struct AssetValidator {}
 impl AssetValidator {
-    pub fn validate(graph: ContainerTree) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
+    pub fn validate(graph: &ContainerTree) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
         let thread_pool = rayon::ThreadPoolBuilder::new().build().unwrap();
         return thread_pool.install(move || Self::validate_tree(graph));
     }
 
-    fn validate_tree(graph: ContainerTree) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
+    fn validate_tree(
+        graph: &ContainerTree,
+    ) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
         let errors = graph
             .nodes()
             .par_iter()

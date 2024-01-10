@@ -30,6 +30,10 @@ pub enum AssetCommand {
     /// Insert's an [`Asset`] into a [`Container`](thot_core::project::Container).
     Add { asset: Asset, container: ResourceId },
 
+    /// Removes an Asset from its Container.
+    /// Does not interat with the file system. (e.g. Deleting the associated file.)
+    Remove(ResourceId),
+
     /// Updates an [`Asset`].
     UpdateProperties {
         asset: ResourceId,

@@ -5,7 +5,7 @@ use crate::error::{ContainerError, Result};
 use crate::loader::container::Loader as ContainerLoader;
 use crate::system::collections::{Projects, Scripts as SystemScripts};
 use std::path::{Path, PathBuf};
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptAssociation;
 use thot_core::types::{ResourceId, ResourcePath};
 
@@ -56,7 +56,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
     // get script
     let scripts = SystemScripts::load()?;
     let Some(script) = scripts.get(script) else {
-        return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
+        return Err(CoreError::Project(CoreProjectError::NotRegistered(
             Some(script.clone()),
             None,
         ))

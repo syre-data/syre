@@ -1,5 +1,5 @@
 //! Database for storing resources.
-use crate::error::Result;
+use crate::Result;
 use has_id::HasId;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
@@ -57,12 +57,9 @@ impl<T> PathMap<T> {
     ///
     /// # Notes
     /// + Canonicalizes the `key` path.
-    pub fn insert_canonical(&mut self, key: PathBuf, value: T) -> Option<T> {
-        let Ok(key) = fs::canonicalize(&key) else {
-            panic!("could not canonicalize path `{:?}`", key);
-        };
-
-        self.0.insert(key, value)
+    pub fn insert_canonical(&mut self, key: PathBuf, value: T) -> StdResult<Option<T>, io::Error> {
+        let key = fs::canonicalize(&key)?;
+        Ok(self.0.insert(key, value))
     }
 
     pub fn remove(&mut self, key: &Path) -> Option<T> {
@@ -73,13 +70,9 @@ impl<T> PathMap<T> {
     ///
     /// # Notes
     /// + Canonicalizes the `key` path.
-    pub fn remove_canonical(&mut self, key: &Path) -> Option<T> {
-        let key = match fs::canonicalize(key) {
-            Ok(key) => key,
-            Err(_) => key.to_path_buf(), // TODO: This should probably error here.
-        };
-
-        self.0.remove(&key)
+    pub fn remove_canonical(&mut self, key: &Path) -> StdResult<Option<T>, io::Error> {
+        let key = fs::canonicalize(key)?;
+        Ok(self.0.remove(&key))
     }
 }
 
@@ -177,7 +170,7 @@ impl Datastore {
         let project_path = project.base_path().to_path_buf();
 
         self.projects.insert(pid.clone(), project);
-        self.project_paths.insert_canonical(project_path, pid);
+        self.project_paths.insert_canonical(project_path, pid)?;
 
         Ok(())
     }
@@ -271,32 +264,94 @@ impl Datastore {
 
     // TODO: DRY `insert_project_graph` and `insert_sub_graph`.
     /// Inserts a [`Project`](LocalProjet)'s [`ContainerTree`].
-    ///
-    /// # Arguments
-    /// 1. [`ResourceId`] of the [`Project`](LocalProjet).
-    /// 2. The [`ContainerTree`].
+    /// Canonicalizes paths.
     ///
     /// # Returns
-    /// The old [`ContainerTree`].
-    pub fn insert_project_graph(
+    /// + The old [`ContainerTree`].
+    pub fn insert_project_graph_canonical(
         &mut self,
-        rid: ResourceId,
+        project: ResourceId,
         graph: ContainerTree,
-    ) -> Option<ContainerTree> {
+    ) -> Result<Option<ContainerTree>> {
         // map containers
         for (cid, node) in graph.nodes().iter() {
-            self.container_projects.insert(cid.clone(), rid.clone());
+            self.container_projects.insert(cid.clone(), project.clone());
             self.container_paths
-                .insert_canonical(node.base_path().into(), cid.clone());
+                .insert_canonical(node.base_path().into(), cid.clone())?;
 
             // map assets
             for (aid, asset) in node.data().assets.iter() {
                 let asset_path = node.base_path().join(asset.path.as_path());
-                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone())
+                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone())?;
             }
         }
 
-        self.graphs.insert(rid, graph)
+        Ok(self.graphs.insert(project, graph))
+    }
+
+    /// Inserts a [`Project`](LocalProjet)'s [`ContainerTree`].
+    /// Attempts tp canonicalize paths.
+    /// If an error occurs canonicalizing a Container path, nothing is inserted.
+    /// If an error occurs canonicalizing an Asset path, the Asset is inserted with the
+    /// non-canonicalized path. An `Err` value is returned.
+    ///
+    /// # Returns
+    /// + On success, the old [`ContainerTree`].
+    /// + If errors, the old [`ContainerTree`] with error information.
+    pub fn insert_project_graph(
+        &mut self,
+        project: ResourceId,
+        graph: ContainerTree,
+    ) -> StdResult<Option<ContainerTree>, error::InsertProjectGraph> {
+        // map containers
+        let mut errors = HashMap::new();
+        for (cid, node) in graph.nodes().iter() {
+            match self
+                .container_paths
+                .insert_canonical(node.base_path().into(), cid.clone())
+            {
+                Ok(_) => {
+                    self.container_projects.insert(cid.clone(), project.clone());
+                }
+                Err(err) => {
+                    errors.insert(node.base_path().to_path_buf(), err.kind());
+                }
+            };
+        }
+
+        if !errors.is_empty() {
+            for (cid, container) in graph.iter_nodes() {
+                self.container_paths.remove(container.base_path());
+                self.container_projects.remove(cid);
+            }
+
+            return Err(error::InsertProjectGraph::Tree(errors));
+        }
+
+        let mut errors = HashMap::new();
+        for (cid, node) in graph.nodes().iter() {
+            // map assets
+            for (aid, asset) in node.data().assets.iter() {
+                let asset_path = node.base_path().join(asset.path.as_path());
+                match self.insert_asset_canonical(aid.clone(), asset_path.clone(), cid.clone()) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        errors.insert(aid.clone(), err.kind());
+                        self.insert_asset(aid.clone(), asset_path, cid.clone());
+                    }
+                };
+            }
+        }
+
+        let old_graph = self.graphs.insert(project, graph);
+        if errors.is_empty() {
+            Ok(old_graph)
+        } else {
+            Err(error::InsertProjectGraph::Assets(error::AssetsGraph {
+                assets: errors,
+                graph: old_graph,
+            }))
+        }
     }
 
     /// Insert a graph into another.
@@ -322,12 +377,12 @@ impl Datastore {
 
             // map path to container
             self.container_paths
-                .insert_canonical(container.base_path().into(), cid.clone());
+                .insert_canonical(container.base_path().into(), cid.clone())?;
 
             // map assets
             for (aid, asset) in container.assets.iter() {
                 let asset_path = container.base_path().join(asset.path.as_path());
-                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone());
+                self.insert_asset_canonical(aid.clone(), asset_path, cid.clone())?;
             }
         }
 
@@ -384,13 +439,13 @@ impl Datastore {
             // remove maps
             self.container_projects.remove(cid);
             self.container_paths
-                .remove_canonical(&container.base_path());
+                .remove_canonical(&container.base_path())?;
 
             for (aid, asset) in container.assets.iter() {
                 self.asset_containers.remove(aid);
 
                 let asset_path = container.base_path().join(asset.path.as_path());
-                self.asset_paths.remove_canonical(&asset_path);
+                self.asset_paths.remove_canonical(&asset_path)?;
             }
         }
 
@@ -433,8 +488,8 @@ impl Datastore {
             descendant.set_base_path(new_path.clone());
             let descendant_path = descendant.base_path().to_owned();
             match self.container_paths.remove_canonical(&old_path) {
-                Some(_) => {}
-                None => {
+                Ok(_) => {}
+                Err(_) => {
                     // entry was not present
                     // this is likely because only the capitalization of the path changed
                     // and the file has already been moved
@@ -445,7 +500,7 @@ impl Datastore {
             };
 
             self.container_paths
-                .insert_canonical(new_path, descendant_id);
+                .insert_canonical(new_path, descendant_id)?;
 
             for (aid, asset_path) in assets {
                 self.asset_paths.remove(&old_path.join(&asset_path));
@@ -711,9 +766,14 @@ impl Datastore {
     }
 
     /// Inserts maps for an [`Asset`].
-    pub fn insert_asset(&mut self, asset: ResourceId, path: PathBuf, container: ResourceId) {
+    pub fn insert_asset(
+        &mut self,
+        asset: ResourceId,
+        path: PathBuf,
+        container: ResourceId,
+    ) -> Option<ResourceId> {
         self.asset_containers.insert(asset.clone(), container);
-        self.asset_paths.insert(path, asset);
+        self.asset_paths.insert(path, asset)
     }
 
     /// Inserts maps for an [`Asset`].
@@ -723,9 +783,9 @@ impl Datastore {
         asset: ResourceId,
         path: PathBuf,
         container: ResourceId,
-    ) {
+    ) -> StdResult<Option<ResourceId>, io::Error> {
         self.asset_containers.insert(asset.clone(), container);
-        self.asset_paths.insert_canonical(path, asset);
+        self.asset_paths.insert_canonical(path, asset)
     }
 
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
@@ -823,7 +883,7 @@ impl Datastore {
                     }
                 }
 
-                Err(err) => panic!("{err}"),
+                Err(err) => panic!("unhandled error {err}"),
             };
             self.asset_paths.remove(&path);
 
@@ -853,10 +913,10 @@ impl Datastore {
         container.save()?;
 
         let old_asset_path = container_path.join(&asset_path);
-        self.asset_paths.remove_canonical(&old_asset_path);
+        self.asset_paths.remove_canonical(&old_asset_path)?;
 
         let path = container_path.join(path);
-        self.asset_paths.insert_canonical(path, aid);
+        self.asset_paths.insert_canonical(path, aid)?;
         Ok(())
     }
 
@@ -1139,6 +1199,37 @@ impl Datastore {
         };
 
         scripts.get_mut(&script)
+    }
+}
+
+pub mod error {
+    use std::collections::HashMap;
+    use std::io;
+    use std::path::PathBuf;
+    use thiserror::Error;
+    use thot_core::graph::ResourceTree;
+    use thot_core::types::ResourceId;
+    use thot_local::project::resources::Container;
+
+    type ContainerTree = ResourceTree<Container>;
+
+    #[derive(Error, Debug)]
+    #[error("{assets:?}")]
+    pub struct AssetsGraph {
+        /// Assets that error on canonicalization.
+        pub assets: HashMap<ResourceId, io::ErrorKind>,
+
+        /// Old graph
+        pub graph: Option<ResourceTree<Container>>,
+    }
+
+    #[derive(Error, Debug)]
+    pub enum InsertProjectGraph {
+        #[error("{0:?}")]
+        Tree(HashMap<PathBuf, io::ErrorKind>),
+
+        #[error("{0:?}")]
+        Assets(AssetsGraph),
     }
 }
 

@@ -74,7 +74,7 @@ fn insert_project_graph_should_work() {
     let mut db = Datastore::new();
 
     // test
-    db.insert_project_graph(pid.clone(), graph)
+    db.insert_project_graph_canonical(pid.clone(), graph)
         .expect("load container tree should work");
 
     // containers
@@ -111,7 +111,7 @@ fn get_container_should_work() {
     let rid = container.rid.clone();
     let graph = ResourceTree::new(container);
 
-    db.insert_project_graph(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph);
 
     // test
     let found = db.get_container(&rid);
@@ -136,7 +136,7 @@ fn get_asset_container_should_work() {
     container.insert_asset(asset);
 
     let graph = ResourceTree::new(container);
-    db.insert_project_graph(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph);
 
     // test
     let Some(found) = db.get_asset_container(&aid) else {
@@ -179,7 +179,7 @@ fn find_containers_should_work() {
     let mut graph = ResourceTree::new(root);
     graph.insert(root_rid.clone(), child_1).unwrap();
     graph.insert(root_rid.clone(), child_2).unwrap();
-    db.insert_project_graph(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph);
 
     let mut find_filter = StdFilter::default();
     find_filter.kind = Some(find_kind);
@@ -270,7 +270,7 @@ fn find_assets_should_work() {
     let mut db = Datastore::new();
     let mut graph = ResourceTree::new(root);
     graph.insert(root_rid.clone(), child).unwrap();
-    db.insert_project_graph(ResourceId::new(), graph)
+    db.insert_project_graph_canonical(ResourceId::new(), graph)
         .expect("load container tree should work");
 
     let mut kind_filter = StdFilter::default();

@@ -5,7 +5,7 @@ use crate::server::store::ContainerTree;
 use crate::server::Database;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptLang;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::error::{Error as LocalError, ProjectError};
@@ -472,10 +472,9 @@ impl Database {
     fn ensure_project_graph_loaded(&mut self, project: &ResourceId) -> Result {
         let project = self.store.get_project(project).unwrap();
         let Some(data_root) = project.data_root.as_ref() else {
-            return Err(CoreError::ProjectError(CoreProjectError::misconfigured(
-                "data root not set",
-            ))
-            .into());
+            return Err(
+                CoreError::Project(CoreProjectError::misconfigured("data root not set")).into(),
+            );
         };
 
         if self.store.is_project_graph_loaded(&project.rid) {
@@ -484,7 +483,8 @@ impl Database {
 
         let path = project.base_path().join(data_root);
         let graph: ContainerTree = ContainerTreeLoader::load(&path)?;
-        self.store.insert_project_graph(project.rid.clone(), graph);
+        self.store
+            .insert_project_graph_canonical(project.rid.clone(), graph)?;
 
         Ok(())
     }

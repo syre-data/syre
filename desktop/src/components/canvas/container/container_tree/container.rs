@@ -325,6 +325,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             msg.set_details(err);
                             app_state.dispatch(AppStateAction::AddMessage(msg));
                         }
+
+                        RemoveAsset::Database(err) =>  {
+                            let mut msg = Message::error("Could not remove asset");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                        }
                     },
                 };
             });

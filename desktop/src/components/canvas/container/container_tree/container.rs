@@ -307,31 +307,34 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             spawn_local(async move {
                 match remove_asset(rid.clone()).await {
                     Ok(_) => {}
-                    Err(err) => match err {
-                        RemoveAsset::ZMQ(err) => {
-                            let mut msg = Message::error("Could not remove asset");
-                            msg.set_details(err);
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
-                        }
+                    Err(err) => {
+                        tracing::debug!(?err);
+                        match err {
+                            RemoveAsset::ZMQ(err) => {
+                                let mut msg = Message::error("Could not remove asset");
+                                msg.set_details(err);
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                            }
 
-                        RemoveAsset::Trash(TrashError::NotFound) => {
-                            let msg = Message::warning("Asset file was not found");
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
-                            graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
-                        }
+                            RemoveAsset::Trash(TrashError::NotFound) => {
+                                let msg = Message::warning("Asset file was not found");
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                                graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
+                            }
 
-                        RemoveAsset::Trash(TrashError::Other(err)) => {
-                            let mut msg = Message::error("Could not remove asset");
-                            msg.set_details(err);
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
-                        }
+                            RemoveAsset::Trash(TrashError::Other(err)) => {
+                                let mut msg = Message::error("Could not remove asset");
+                                msg.set_details(err);
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                            }
 
-                        RemoveAsset::Database(err) =>  {
-                            let mut msg = Message::error("Could not remove asset");
-                            msg.set_details(err);
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            RemoveAsset::Database(err) => {
+                                let mut msg = Message::error("Could not remove asset");
+                                msg.set_details(err);
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                            }
                         }
-                    },
+                    }
                 };
             });
         }

@@ -78,20 +78,14 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
         }
 
         Err(trash::Error::Unknown { description }) => {
-            // all windows os errors are mapped to `Unknown`.
-            // Can parse string for error code to map.
-            // See https://github.com/Byron/trash-rs/issues/96.
-            // See https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
-            let re = regex::Regex::new(r"os error (\d+)").unwrap();
-            match re.captures(&description) {
-                None => Err(TrashError::Other(description).into()),
-                Some(captures) => {
-                    let code: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
-                    match code {
-                        2 | 3 => Err(TrashError::NotFound.into()),
-                        _ => Err(TrashError::Other(description).into()),
-                    }
-                }
+            if cfg!(target_os = "windows") {
+                let err = handle_trash_error_unknown_windows(description);
+                Err(err.into())
+            } else if cfg!(target_os = "macos") {
+                let err = handle_trash_error_unknown_macos(description);
+                Err(err.into())
+            } else {
+                Err(TrashError::Other(description).into())
             }
         }
 
@@ -112,4 +106,36 @@ pub fn bulk_update_asset_properties(
     // TODO Handle errors.
     res.expect("could not update `Asset`s");
     Ok(())
+}
+
+fn handle_trash_error_unknown_windows(description: String) -> TrashError {
+    // all windows os errors are mapped to `Unknown`.
+    // Can parse string for error code to map.
+    // See https://github.com/Byron/trash-rs/issues/96.
+    // See https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
+    let re = regex::Regex::new(r"os error (\d+)").unwrap();
+    match re.captures(&description) {
+        None => TrashError::Other(description),
+        Some(captures) => {
+            let code: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
+            match code {
+                2 | 3 => TrashError::NotFound,
+                _ => TrashError::Other(description),
+            }
+        }
+    }
+}
+
+fn handle_trash_error_unknown_macos(description: String) -> TrashError {
+    let re = regex::Regex::new(r"\((-?\d+)\)\s*$").unwrap();
+    match re.captures(&description) {
+        None => TrashError::Other(description),
+        Some(captures) => {
+            let code: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
+            match code {
+                -10010 => TrashError::NotFound,
+                _ => TrashError::Other(description),
+            }
+        }
+    }
 }

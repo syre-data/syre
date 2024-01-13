@@ -11,6 +11,9 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         .spawn(move || update_actor.run())
         .unwrap();
 
+    // dev tools
+    // app.get_window("main").unwrap().open_devtools();
+
     Ok(())
 }
 

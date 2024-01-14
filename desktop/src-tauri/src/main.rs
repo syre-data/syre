@@ -96,6 +96,7 @@ fn main() {
             // graph
             init_project_graph,
             load_project_graph,
+            get_or_load_project_graph,
             // container
             add_assets,
             add_asset_windows,

@@ -80,7 +80,7 @@ pub fn init_project_graph(
 
     // load and store container
     let graph = db
-        .send(GraphCommand::Load(pid).into())
+        .send(GraphCommand::GetOrLoad(pid).into())
         .expect("could not load graph");
 
     let graph: DbResult<ContainerTree> =
@@ -89,12 +89,11 @@ pub fn init_project_graph(
     Ok(graph?)
 }
 
-/// Loads a [`Container`]Tree from path.
-/// Adds containers into the [`ContainerStore`].
+/// Loads a Container graph from path.
 ///
 /// # Argments
 /// 1. `Project` id.
-#[tracing::instrument(level = "debug", skip(db))]
+#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn load_project_graph(
     db: State<DbClient>,
@@ -104,8 +103,21 @@ pub fn load_project_graph(
     serde_json::from_value(res).unwrap()
 }
 
+/// Gets a Container graph from path, loading it if needed.
+///
+/// # Argments
+/// 1. `Project` id.
+#[tracing::instrument(skip(db))]
+#[tauri::command]
+pub fn get_or_load_project_graph(
+    db: State<DbClient>,
+    rid: ResourceId,
+) -> StdResult<ContainerTree, thot_local_database::error::server::LoadProjectGraph> {
+    let res = db.send(GraphCommand::GetOrLoad(rid).into()).unwrap();
+    serde_json::from_value(res).unwrap()
+}
+
 /// Creates a new child [`Container`](LocalContainer).
-/// Adds the child into the [`ContainerStore`].
 ///
 /// # Arguments
 /// 1. `name`: Name of the child.

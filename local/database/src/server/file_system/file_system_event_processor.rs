@@ -16,10 +16,10 @@ impl FileSystemEventProcessor {
     ///
     /// # Notes
     /// + When canonicalizing paths:
-    /// Assume that relative segments are resolved in file paths.
-    /// On Windows, paths are canonicalized to UNC.
-    /// However, `fs::canonicalize` can not be used on `from` paths because file no longer exists,
-    /// so must canonicalize by hand.
+    ///     Assume that relative segments are resolved in file paths.
+    ///     On Windows, paths are canonicalized to UNC.
+    ///     However, `fs::canonicalize` can not be used on `from` paths because file no longer exists,
+    ///     so must canonicalize by hand.
     pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
         let events = Self::filter_events(events);
         let events = Self::filter_hidden(events);

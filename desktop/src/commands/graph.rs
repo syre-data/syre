@@ -26,6 +26,16 @@ pub async fn load_project_graph(project: ResourceId) -> Result<ContainerTree, Lo
     .await
 }
 
+pub async fn get_or_load_project_graph(
+    project: ResourceId,
+) -> Result<ContainerTree, LoadProjectGraph> {
+    invoke_result::<ContainerTree, LoadProjectGraph>(
+        "get_or_load_project_graph",
+        ResourceIdArgs { rid: project },
+    )
+    .await
+}
+
 pub async fn duplicate_container_tree(root: ResourceId) -> DbResult<ContainerTree> {
     invoke_result("duplicate_container_tree", ResourceIdArgs { rid: root }).await
 }

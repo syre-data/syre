@@ -354,6 +354,32 @@ impl Datastore {
         }
     }
 
+    /// Removes a `Project`'s graph.
+    pub fn remove_project_graph(&mut self, project: &ResourceId) -> Option<ContainerTree> {
+        let Some(graph) = self.graphs.remove(project) else {
+            return None;
+        };
+
+        for (_, container) in graph.iter_nodes() {
+            for asset in container.assets.values() {
+                let asset_path = container.base_path().join(asset.path.as_path());
+                self.asset_paths
+                    .remove_canonical(&asset_path)
+                    .unwrap_or_else(|_| self.asset_paths.remove(&asset_path));
+
+                self.asset_containers.remove(&asset.rid);
+            }
+
+            self.container_paths
+                .remove_canonical(container.base_path())
+                .unwrap_or_else(|_| self.container_paths.remove(container.base_path()));
+
+            self.container_projects.remove(&container.rid);
+        }
+
+        Some(graph)
+    }
+
     /// Insert a graph into another.
     pub fn insert_subgraph(
         &mut self,
@@ -913,7 +939,7 @@ impl Datastore {
         container.save()?;
 
         let old_asset_path = container_path.join(&asset_path);
-        self.asset_paths.remove_canonical(&old_asset_path)?;
+        self.asset_paths.remove(&old_asset_path);
 
         let path = container_path.join(path);
         self.asset_paths.insert_canonical(path, aid)?;

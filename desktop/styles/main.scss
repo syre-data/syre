@@ -1,4 +1,4 @@
-@use 'themes' as t;
+@use "themes" as t;
 
 :root {
   font-family: t.$body-font-family;
@@ -53,7 +53,7 @@ a {
 }
 
 .align-center {
-    text-align: center;
+  text-align: center;
 }
 
 h1 {
@@ -75,6 +75,11 @@ button {
   &:focus {
     border-color: t.$primary-color;
   }
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 input[type="number"] {
@@ -120,27 +125,27 @@ input {
 }
 
 .card {
-    display: inline-block;
-    padding: 0.5em;
-    margin: 0.5em;
+  display: inline-block;
+  padding: 0.5em;
+  margin: 0.5em;
 }
 
 .inline-form-element {
-    display: inline-block;
+  display: inline-block;
 
-    &:not(.active):hover {
-        cursor: pointer;
-        border-radius: t.$border-radius-s;
-        padding: 0.25em 0.5em;
-        box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
-    }
+  &:not(.active):hover {
+    cursor: pointer;
+    border-radius: t.$border-radius-s;
+    padding: 0.25em 0.5em;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .tag {
-    padding: 0.25em 0.50em;
-    border-radius: t.$border-radius-s;
-    margin: 0 0.15em;
-    background-color: t.$background-accent-color;
+  padding: 0.25em 0.5em;
+  border-radius: t.$border-radius-s;
+  margin: 0 0.15em;
+  background-color: t.$background-accent-color;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -152,17 +157,21 @@ input {
     padding: 0.25em 1.5em 0.25em 0.5em;
     border: solid t.$border-width-s transparent;
     border-radius: 0;
-      
-    background-image: linear-gradient(t.$select-background-color, t.$select-background-color),
-        linear-gradient(-135deg, transparent 55%, t.$select-background-color 50%),
-        linear-gradient(-225deg, transparent 55%, t.$select-background-color 50%),
-        linear-gradient(transparent 42%, t.$background-contrast-color 42%);
+
+    background-image: linear-gradient(
+        t.$select-background-color,
+        t.$select-background-color
+      ),
+      linear-gradient(-135deg, transparent 55%, t.$select-background-color 50%),
+      linear-gradient(-225deg, transparent 55%, t.$select-background-color 50%),
+      linear-gradient(transparent 42%, t.$background-contrast-color 42%);
     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
     background-size: 1px 100%, 20px 22px, 20px 22px, 20px 100%;
-    background-position: right 20px center, right bottom, right bottom, right bottom;
+    background-position: right 20px center, right bottom, right bottom,
+      right bottom;
 
     option {
-        background-color: t.$background-accent-color;
+      background-color: t.$background-accent-color;
     }
 
     &:hover {

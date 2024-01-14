@@ -63,10 +63,10 @@ pub fn home_component() -> HtmlResult {
             if projects.len() == 0 {
                 <div class={classes!("align-center")}>
                     <h2>{ "Get started" }</h2>
-                    <div class={classes!("mb-4")}>
+                    <div class={classes!("mb-1rem")}>
                         <button class={classes!("btn-primary")} onclick={create_project}>{ "Create your first project" }</button>
                     </div>
-                    <div class={classes!("mb-4")}>
+                    <div class={classes!("mb-1rem")}>
                         <button class={classes!("btn-secondary")} onclick={initialize_project}>{ "Initialize an existing folder" }</button>
                     </div>
                     <div>

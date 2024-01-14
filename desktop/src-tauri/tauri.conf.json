@@ -77,8 +77,8 @@
       {
         "fullscreen": false,
         "height": 640,
-        "width": 800,
-        "minWidth": 640,
+        "width": 900,
+        "minWidth": 900,
         "minHeight": 640,
         "resizable": true,
         "title": "Thot",

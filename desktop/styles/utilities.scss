@@ -1,34 +1,38 @@
-@use 'themes' as t;
+@use "themes" as t;
 
 .m-0 {
-    margin: 0;
+  margin: 0;
 }
 
-.mb-4 {
-    margin-bottom: 1rem;
+.ml-xl {
+  margin-left: t.$margin-xl;
+}
+
+.mb-1rem {
+  margin-bottom: 1rem;
 }
 
 .align-center {
-    text-align: center; 
+  text-align: center;
 }
 
 .clickable {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .inline-block {
-    display: inline-block;
+  display: inline-block;
 }
 
 .d-flex {
-    display: flex;
+  display: flex;
 }
 
 .row {
-    display: flex;
-    justify-content: center;
+  display: flex;
+  justify-content: center;
 }
 
 .c-warning {
-    color: t.$warning-color;
+  color: t.$warning-color;
 }

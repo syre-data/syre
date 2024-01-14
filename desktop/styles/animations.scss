@@ -1,0 +1,9 @@
+@keyframes spinner-xmirror {
+  0% {
+    transform: scale(-1, 1) rotate(0deg);
+  }
+
+  100% {
+    transform: scale(-1, 1) rotate(-359deg);
+  }
+}

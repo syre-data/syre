@@ -74,7 +74,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let script_names = project_scripts
         .iter()
         .map(|(rid, script)| {
-            let mut name = script.name.clone().unwrap_or(
+            let name = script.name.clone().unwrap_or(
                 Into::<PathBuf>::into(script.path.clone())
                     .file_name()
                     .expect("could not get `Script`'s file name")
@@ -277,7 +277,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let mut path = match get_container_path(rid).await {
                     Some(path) => path,
                     None => {
-                        let mut msg = Message::error("Could not get container path");
+                        let msg = Message::error("Could not get container path");
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                         return;
                     }
@@ -306,7 +306,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             spawn_local(async move {
                 match remove_asset(rid.clone()).await {
-                    Ok(_) => {}
+                    Ok(_) => {
+                        // NOTE: File removal should be picked up by file system watcher
+                        //  which will trigger an event taking care of remvong from grpah.
+                        //  May want to add graph state removal here anyways in case file removal not picked up.
+                        // graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
+                    }
+
                     Err(err) => {
                         tracing::debug!(?err);
                         match err {

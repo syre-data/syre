@@ -5,8 +5,12 @@ use thot_core::types::ResourceId;
 /// Graph related commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GraphCommand {
-    /// Load a `Project`'s graph.
+    /// Loads a `Project`'s graph.
+    /// Reloads it if is already loaded.
     Load(ResourceId),
+
+    /// Gets a `Project`'s graph, loading it if needed.
+    GetOrLoad(ResourceId),
 
     /// Gets a subtree.
     Get(ResourceId),

@@ -49,12 +49,27 @@ pub fn update_asset_properties(
 /// Remove an `Asset`.
 #[tauri::command]
 pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveAsset> {
-    let path = match db.send(AssetCommand::Remove(rid).into()) {
-        Ok(res) => match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res).unwrap()
-        {
-            Ok(Some((_asset, path))) => path,
-            Ok(None) => return Err(RemoveAsset::Database("asset does not exist".to_string())),
-            Err(err) => return Err(RemoveAsset::Database(format!("{err:?}"))),
+    let remove_asset_from_db = |rid: ResourceId| -> StdResult<PathBuf, RemoveAsset> {
+        match db.send(AssetCommand::Remove(rid).into()) {
+            Ok(res) => match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res)
+                .unwrap()
+            {
+                Ok(Some((_asset, path))) => Ok(path),
+                Ok(None) => return Err(RemoveAsset::Database("asset does not exist".to_string())),
+                Err(err) => return Err(RemoveAsset::Database(format!("{err:?}"))),
+            },
+
+            Err(err) => return Err(RemoveAsset::ZMQ(format!("{err:?}"))),
+        }
+    };
+
+    let path = match db.send(AssetCommand::Path(rid.clone()).into()) {
+        Ok(res) => match serde_json::from_value::<Option<PathBuf>>(res).unwrap() {
+            Some(path) => path,
+            None => {
+                tracing::debug!("asset {rid:?} path not found");
+                return Err(RemoveAsset::Database("Could not get Asset's path".into()));
+            }
         },
 
         Err(err) => return Err(RemoveAsset::ZMQ(format!("{err:?}"))),
@@ -78,14 +93,21 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
         }
 
         Err(trash::Error::Unknown { description }) => {
-            if cfg!(target_os = "windows") {
-                let err = handle_trash_error_unknown_windows(description);
-                Err(err.into())
+            let err = if cfg!(target_os = "windows") {
+                handle_trash_error_unknown_windows(description)
             } else if cfg!(target_os = "macos") {
-                let err = handle_trash_error_unknown_macos(description);
-                Err(err.into())
+                handle_trash_error_unknown_macos(description)
             } else {
-                Err(TrashError::Other(description).into())
+                TrashError::Other(description).into()
+            };
+
+            match err {
+                TrashError::NotFound => {
+                    remove_asset_from_db(rid)?;
+                    Err(TrashError::NotFound.into())
+                }
+
+                err => Err(err.into()),
             }
         }
 

@@ -1,28 +1,24 @@
 //! Project canvas.
-use std::io;
-
-use super::canvas_state::{self, ResourceType};
 use super::details_bar::DetailsBar;
 use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
 use super::{
     canvas_state::CanvasState, graph_state::GraphState, CanvasStateAction, CanvasStateReducer,
-    GraphStateAction, GraphStateReducer,
+    GraphStateAction, GraphStateReducer, ProjectControls,
 };
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
-use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::{use_load_project_scripts, use_project_graph};
 use crate::routes::Route;
 use futures::stream::StreamExt;
+use std::io;
 use thot_core::types::ResourceId;
 use thot_local_database::error::server::LoadProjectGraph;
 use thot_local_database::event::{
     Analysis as AnalysisUpdate, Asset as AssetUpdate, Container as ContainerUpdate,
     Graph as GraphUpdate, Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
-use thot_local_database::Error as DbError;
-use thot_ui::components::{drawer, Drawer, DrawerPosition};
+use thot_ui::components::{Drawer, DrawerPosition};
 use thot_ui::types::Message;
 use thot_ui::widgets::common::asset as asset_ui;
 use thot_ui::widgets::suspense::Loading;
@@ -41,15 +37,12 @@ pub struct ProjectCanvasProps {
 #[tracing::instrument]
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
+    let navigator = use_navigator().unwrap();
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let show_side_bars = use_state(|| true);
-    let navigator = use_navigator().expect("could not get navigator");
-
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
     let canvas_state =
         use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
-
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
     let project = projects_state.projects.get(&props.project);
     let Some(project) = project else {
@@ -209,23 +202,28 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> HtmlResult {
             onkeydown={onkeydown}
             data-rid={props.project.clone()}>
 
-            <Drawer class={classes!("layers-bar-drawer", *drawers_visible_state)}
-                position={DrawerPosition::Left}
-                open={show_side_bars.clone()}>
+            <ProjectControls project={props.project.clone()} />
+            <div class={"canvas"}>
+                <Drawer class={classes!("layers-bar-drawer", *drawers_visible_state)}
+                    position={DrawerPosition::Left}
+                    open={show_side_bars.clone()}>
 
-                <LayersBar />
-            </Drawer>
-            <div class={classes!("project-canvas-content")} >
-                <Suspense {fallback}>
-                    <ProjectUi rid={props.project.clone()} />
-                </Suspense>
+                    <LayersBar />
+                </Drawer>
+
+                <div class={classes!("project-canvas-content")} >
+                    <Suspense {fallback}>
+                        <ProjectUi rid={props.project.clone()} />
+                    </Suspense>
+                </div>
+
+                <Drawer class={classes!("details-bar-drawer", *drawers_visible_state)}
+                    position={DrawerPosition::Right}
+                    open={show_side_bars}>
+
+                    <DetailsBar />
+                </Drawer>
             </div>
-            <Drawer class={classes!("details-bar-drawer", *drawers_visible_state)}
-                position={DrawerPosition::Right}
-                open={show_side_bars}>
-
-                <DetailsBar />
-            </Drawer>
         </div>
         </ContextProvider<GraphStateReducer>>
         </ContextProvider<CanvasStateReducer>>

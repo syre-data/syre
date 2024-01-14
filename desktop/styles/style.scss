@@ -1,11 +1,12 @@
-@use 'utilities';
-@use 'main';
-@use 'sidebar';
-@use 'thot_ui';
+@use "utilities";
+@use "animations";
+@use "main";
+@use "sidebar";
+@use "thot_ui";
 
-@use 'navigation';
-@use 'dashboard';
-@use 'workspace';
-@use 'project_canvas';
-@use 'container_tree';
-@use 'widgets';
+@use "navigation";
+@use "dashboard";
+@use "workspace";
+@use "project_canvas";
+@use "container_tree";
+@use "widgets";

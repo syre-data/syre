@@ -21,62 +21,17 @@ impl Database {
     #[tracing::instrument(skip(self))]
     pub fn handle_command_graph(&mut self, cmd: GraphCommand) -> JsValue {
         match cmd {
-            GraphCommand::Load(project) => match self.load_project_graph(&project) {
-                Ok(graph) => {
+            GraphCommand::Load(project) => self.handle_load_project_graph(&project),
+
+            GraphCommand::GetOrLoad(project) => {
+                if let Some(graph) = self.store.get_project_graph(&project) {
                     let graph = ContainerTreeTransformer::local_to_core(graph);
                     let res: Result<ResourceTree<CoreContainer>> = Ok(graph);
-                    serde_json::to_value(res).unwrap()
+                    return serde_json::to_value(res).unwrap();
                 }
 
-                Err(error::LoadProjectGraph_Local::ProjectNotFound) => {
-                    let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
-                        LoadProjectGraph::ProjectNotFound,
-                    );
-
-                    serde_json::to_value(err).unwrap()
-                }
-
-                Err(error::LoadProjectGraph_Local::Project(err)) => {
-                    let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
-                        LoadProjectGraph::Project(err),
-                    );
-
-                    serde_json::to_value(err).unwrap()
-                }
-
-                Err(error::LoadProjectGraph_Local::Load(PartialLoad { errors, graph })) => {
-                    let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
-                    let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
-                        LoadProjectGraph::Load { errors, graph },
-                    );
-
-                    serde_json::to_value(err).unwrap()
-                }
-
-                Err(error::LoadProjectGraph_Local::InsertContainers(errors)) => {
-                    let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
-                        LoadProjectGraph::InsertContainers(errors.into()),
-                    );
-
-                    serde_json::to_value(err).unwrap()
-                }
-
-                Err(error::LoadProjectGraph_Local::InsertAssets(store::error::AssetsGraph {
-                    assets: errors,
-                    graph: _,
-                })) => {
-                    let graph = self.store.get_project_graph(&project).unwrap();
-                    let graph = ContainerTreeTransformer::local_to_core(graph);
-                    let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
-                        LoadProjectGraph::InsertAssets {
-                            errors: errors.into(),
-                            graph,
-                        },
-                    );
-
-                    serde_json::to_value(err).unwrap()
-                }
-            },
+                self.handle_load_project_graph(&project)
+            }
 
             GraphCommand::Get(root) => {
                 let Some(graph) = self.store.get_container_graph(&root) else {
@@ -144,6 +99,66 @@ impl Database {
         }
     }
 
+    /// Convenience function to handle loading a project graph and its errors.
+    fn handle_load_project_graph(&mut self, project: &ResourceId) -> JsValue {
+        match self.load_project_graph(project) {
+            Ok(graph) => {
+                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let res: Result<ResourceTree<CoreContainer>> = Ok(graph);
+                serde_json::to_value(res).unwrap()
+            }
+
+            Err(error::LoadProjectGraph_Local::ProjectNotFound) => {
+                let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
+                    LoadProjectGraph::ProjectNotFound,
+                );
+
+                serde_json::to_value(err).unwrap()
+            }
+
+            Err(error::LoadProjectGraph_Local::Project(err)) => {
+                let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
+                    LoadProjectGraph::Project(err),
+                );
+
+                serde_json::to_value(err).unwrap()
+            }
+
+            Err(error::LoadProjectGraph_Local::Load(PartialLoad { errors, graph })) => {
+                let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
+                let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
+                    LoadProjectGraph::Load { errors, graph },
+                );
+
+                serde_json::to_value(err).unwrap()
+            }
+
+            Err(error::LoadProjectGraph_Local::InsertContainers(errors)) => {
+                let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
+                    LoadProjectGraph::InsertContainers(errors.into()),
+                );
+
+                serde_json::to_value(err).unwrap()
+            }
+
+            Err(error::LoadProjectGraph_Local::InsertAssets(store::error::AssetsGraph {
+                assets: errors,
+                graph: _,
+            })) => {
+                let graph = self.store.get_project_graph(&project).unwrap();
+                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
+                    LoadProjectGraph::InsertAssets {
+                        errors: errors.into(),
+                        graph,
+                    },
+                );
+
+                serde_json::to_value(err).unwrap()
+            }
+        }
+    }
+
     /// Loads a `Project`'s [`Container`](LocalContainer) tree from settings.
     fn load_project_graph(
         &mut self,
@@ -157,20 +172,19 @@ impl Database {
             return Err(ProjectError::misconfigured("data root not set").into());
         };
 
-        if self.store.get_project_graph(pid).is_none() {
-            let path = project.base_path().join(data_root);
-            let graph = match ContainerTreeLoader::load(&path) {
-                Ok(graph) => graph,
-                Err(PartialLoad { errors, graph }) => {
-                    tracing::debug!(?errors);
-                    return Err(PartialLoad { errors, graph }.into());
-                }
-            };
-
-            match self.store.insert_project_graph(pid.clone(), graph) {
-                Ok(_old_graph) => {}
-                Err(err) => return Err(err.into()),
+        let path = project.base_path().join(data_root);
+        let graph = match ContainerTreeLoader::load(&path) {
+            Ok(graph) => graph,
+            Err(PartialLoad { errors, graph }) => {
+                tracing::debug!(?errors);
+                return Err(PartialLoad { errors, graph }.into());
             }
+        };
+
+        self.store.remove_project_graph(pid);
+        match self.store.insert_project_graph(pid.clone(), graph) {
+            Ok(_old_graph) => {}
+            Err(err) => return Err(err.into()),
         }
 
         Ok(self.store.get_project_graph(pid).unwrap())

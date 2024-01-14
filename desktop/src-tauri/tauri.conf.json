@@ -76,9 +76,9 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 640,
         "width": 900,
         "minWidth": 900,
+        "height": 640,
         "minHeight": 640,
         "resizable": true,
         "title": "Thot",

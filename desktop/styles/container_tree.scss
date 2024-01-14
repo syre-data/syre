@@ -1,12 +1,12 @@
-@use 'themes' as t;
-@use 'mixins';
+@use "themes" as t;
+@use "mixins";
 
 $control-button-size: 25px;
 
 .container-tree {
   position: relative;
   text-align: center;
-  
+
   .container-node {
     user-select: none;
     -webkit-user-select: none;
@@ -18,7 +18,8 @@ $control-button-size: 25px;
 
     min-width: t.$card-min-width;
 
-    padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
+    padding: t.$padding-m t.$padding-xl calc(0.5 * #{$control-button-size})
+      t.$padding-xl; // give room for add child button
     border: solid t.$border-width-m transparent;
     border-radius: t.$border-radius-m;
     margin: t.$padding-m t.$padding-m $control-button-size t.$padding-m;
@@ -38,11 +39,11 @@ $control-button-size: 25px;
       display: inherit;
       opacity: 1;
     }
-      
+
     .container-menu-control {
       position: absolute;
       top: t.$padding-m;
-      right: t.$padding-m;     
+      right: t.$padding-m;
 
       opacity: 0;
       transition: opacity t.$transition-fast;
@@ -53,7 +54,7 @@ $control-button-size: 25px;
         border: none;
         box-shadow: none;
       }
-    }     
+    }
 
     .container-name {
       font-family: t.$title-font-family;
@@ -69,7 +70,7 @@ $control-button-size: 25px;
       background-color: t.$background-color;
 
       svg {
-        width: calc(0.7* #{$control-button-size});
+        width: calc(0.7 * #{$control-button-size});
       }
     }
 
@@ -97,12 +98,12 @@ $control-button-size: 25px;
   }
 
   .children {
-      display: flex;
-      justify-content: space-evenly;
+    display: flex;
+    justify-content: space-evenly;
 
-      .child-node-marker {
-        font-family: t.$title-font-family;
-      }
+    .child-node-marker {
+      font-family: t.$title-font-family;
+    }
   }
 
   .container-preview {
@@ -161,13 +162,7 @@ $control-button-size: 25px;
 
         .thot-ui-asset-remove {
           opacity: 0;
-          display: flex;
-          justify-content: center; 
-          align-items: center; 
-          //TODO: Will be gone once we change from remove to menu
-          width: 20px;
-          height: 20px;
-          font-size: 10px;      
+          font-size: t.$font-size-xs;
         }
 
         &:hover .thot-ui-asset-remove {

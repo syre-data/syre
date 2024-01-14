@@ -50,7 +50,9 @@ pub fn project_actions() -> HtmlResult {
                         }
                     };
 
-                    project_scripts.insert(script.rid.clone(), script);
+                    if let Some(script) = script {
+                        project_scripts.insert(script.rid.clone(), script);
+                    }
                 }
 
                 projects_state.dispatch(ProjectsStateAction::InsertProjectScripts(
@@ -111,8 +113,8 @@ pub fn project_actions() -> HtmlResult {
     };
 
     Ok(html! {
-        <div>
-            <ProjectScripts onadd={onadd_scripts} onremove={onremove_script} />
-        </div>
+        <ProjectScripts
+            onadd={onadd_scripts}
+            onremove={onremove_script} />
     })
 }

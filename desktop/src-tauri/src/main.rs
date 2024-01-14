@@ -117,6 +117,7 @@ fn main() {
             // script
             get_project_scripts,
             add_script,
+            add_script_windows,
             remove_script,
             // spreadsheet
             load_excel,

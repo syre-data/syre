@@ -2,6 +2,7 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
+use crate::commands::script::add_script_windows;
 use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
@@ -10,7 +11,10 @@ use thot_core::types::ResourceId;
 use thot_desktop_lib::excel_template;
 use thot_ui::types::Message;
 use thot_ui::widgets::script::CreateScript;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::FileReader;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -39,6 +43,8 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
     let Some(project_scripts) = projects_state.project_scripts.get(&*project) else {
         panic!("`Project`'s `Scripts` not loaded");
     };
+
+    let drag_over_state = use_state(|| 0);
 
     let ondblclick_script = {
         let app_state = app_state.clone();
@@ -107,8 +113,116 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
         }
     };
 
+    let ondragenter = use_callback(drag_over_state.clone(), {
+        move |e: DragEvent, drag_over_state| {
+            e.prevent_default();
+            drag_over_state.set(**drag_over_state + 1);
+        }
+    });
+
+    let ondragover = use_callback((), move |e: DragEvent, _| {
+        e.prevent_default();
+    });
+
+    let ondragleave = use_callback(drag_over_state.clone(), {
+        move |e: DragEvent, drag_over_state| {
+            e.prevent_default();
+            drag_over_state.set(**drag_over_state - 1);
+        }
+    });
+
+    let ondrop = use_callback(
+        (project.clone(), drag_over_state.clone()),
+        move |e: DragEvent, (project, drag_over_state)| {
+            e.prevent_default();
+            e.stop_propagation();
+            drag_over_state.set(0);
+
+            let drop_data = e.data_transfer().unwrap();
+            let files = drop_data.files().unwrap();
+
+            let supported_ext = thot_core::project::ScriptLang::supported_extensions();
+            let mut scripts = Vec::with_capacity(files.length() as usize);
+            let mut invalid = Vec::with_capacity(files.length() as usize);
+            for index in 0..files.length() {
+                let file = files.item(index).expect("could not get `File`");
+                let file_name = PathBuf::from(file.name());
+                match file_name.extension() {
+                    Some(ext)
+                        if supported_ext.contains(&ext.to_ascii_lowercase().to_str().unwrap()) =>
+                    {
+                        scripts.push(index);
+                    }
+
+                    _ => {
+                        invalid.push(index);
+                    }
+                }
+            }
+
+            if invalid.len() > 0 {
+                let details = invalid
+                    .into_iter()
+                    .map(|index| {
+                        let file = files.item(index).unwrap();
+                        file.name()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let details = format!("The files {details} are not supported as scripts.");
+                let mut message = Message::error("Could not create scripts.");
+                message.set_details(details);
+                app_state.dispatch(AppStateAction::AddMessage(message));
+            }
+
+            for index in scripts {
+                let file = files.item(index).unwrap();
+                let file_name = file.name();
+
+                let file_reader = web_sys::FileReader::new().unwrap();
+                file_reader.read_as_array_buffer(&file).unwrap();
+                let project = (**project).clone();
+                let onload = Closure::<dyn FnMut(Event)>::new(move |e: Event| {
+                    let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
+                    let file = file_reader.result().unwrap();
+                    let file = js_sys::Uint8Array::new(&file);
+
+                    let mut contents = vec![0; file.length() as usize];
+                    file.copy_to(&mut contents);
+
+                    let file_name = file_name.clone();
+                    let project = project.clone();
+                    spawn_local(async move {
+                        match add_script_windows(project, PathBuf::from(file_name), contents).await
+                        {
+                            Ok(_) => {}
+                            Err(err) => {
+                                tracing::debug!(err);
+                                panic!("{err}");
+                            }
+                        }
+                    });
+                });
+
+                file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+                onload.forget();
+            }
+        },
+    );
+
+    let mut class = classes!("project-scripts-widget");
+    if *drag_over_state > 0 {
+        class.push("dragover-active");
+    }
+
     Ok(html! {
-        <div class={"project-scripts-widget"}>
+        <div {class}
+            {ondragenter}
+            {ondragover}
+            {ondragleave}
+            {ondrop} >
+
             if let Some(onadd) = props.onadd.as_ref() {
                 <CreateScript oncreate={onadd.clone()} />
             }

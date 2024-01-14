@@ -3,10 +3,12 @@
       "windows": [
         {
           "fullscreen": false,
-          "height": 600,
           "resizable": true,
+          "width": 900,
+          "minWidth": 900,
+          "height": 640,
+          "minHeight": 640,
           "title": "Thot",
-          "width": 800,
           "visible": true,
           "fileDropEnabled": false
         }

@@ -6,6 +6,7 @@ use tauri::State;
 use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
 use thot_core::project::{Project, Script};
 use thot_core::types::ResourceId;
+use thot_local::common;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{ProjectCommand, ScriptCommand};
 use thot_local_database::Result as DbResult;
@@ -30,35 +31,60 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<S
 // *** add script ***
 // ******************
 
+/// Adds a Script to the Project.
+///
+/// # Returns
+/// + `None` if the Script was not already in the Project's analysis path,
+///     so was copied in and the file system watcher will handle it.
+/// + `Some(Script)` if the Script was already in the Project's analysis path,
+///     so was only added to the Project with no file system interaction.
 #[tauri::command]
-pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Result<Script> {
+pub fn add_script(
+    db: State<DbClient>,
+    project: ResourceId,
+    path: PathBuf,
+) -> Result<Option<Script>> {
     // copy script to analysis root
-    let project = db
-        .send(ProjectCommand::Get(project.clone()).into())
-        .expect("could not get `Project`");
-
-    let project: Option<Project> =
-        serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
-
-    let Some(project) = project else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` not loaded",
+    let project = get_project(&db, project)?;
+    let project_path = get_project_path(&db, project.rid.clone())?;
+    let Some(analysis_root) = project.analysis_root.clone() else {
+        return Err(CoreError::Project(ProjectError::misconfigured(
+            "`Project` does not have an analysis root set",
         ))
         .into());
     };
 
-    let project_path = db
-        .send(ProjectCommand::GetPath(project.rid.clone()).into())
-        .expect("could not get `Project` path");
-    let project_path: Option<PathBuf> =
-        serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
+    let file_name = path.file_name().unwrap();
+    let file_name = PathBuf::from(file_name);
 
-    let Some(project_path) = project_path else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` not loaded",
-        ))
-        .into());
-    };
+    let mut to_path = project_path;
+    to_path.push(analysis_root);
+    to_path.push(file_name.clone());
+
+    let from_path = fs::canonicalize(path.clone()).unwrap_or(path);
+    if to_path != from_path {
+        fs::copy(&from_path, to_path)?;
+        Ok(None)
+    } else {
+        // add script to project
+        let script = db
+            .send(ScriptCommand::Add(project.rid.clone(), file_name).into())
+            .unwrap();
+
+        let script: DbResult<Script> = serde_json::from_value(script).unwrap();
+        Ok(Some(script?))
+    }
+}
+
+#[tauri::command]
+pub fn add_script_windows(
+    db: State<DbClient>,
+    project: ResourceId,
+    file_name: PathBuf,
+    contents: Vec<u8>,
+) -> Result {
+    let project = get_project(&db, project)?;
+    let project_path = get_project_path(&db, project.rid.clone())?;
 
     let Some(analysis_root) = project.analysis_root.clone() else {
         return Err(CoreError::Project(ProjectError::misconfigured(
@@ -67,25 +93,13 @@ pub fn add_script(db: State<DbClient>, project: ResourceId, path: PathBuf) -> Re
         .into());
     };
 
-    let script_name = path.file_name().expect("invalid `Script` file");
-    let script_name = PathBuf::from(script_name);
-
     let mut to_path = project_path;
     to_path.push(analysis_root);
-    to_path.push(script_name.clone());
+    to_path.push(file_name);
+    let to_path = common::unique_file_name(to_path)?;
 
-    if to_path != path {
-        fs::copy(&path, to_path)?;
-    }
-
-    // add script to project
-    let script = db
-        .send(ScriptCommand::Add(project.rid.clone(), script_name).into())
-        .expect("could not add `Script`");
-    let script: DbResult<Script> =
-        serde_json::from_value(script).expect("could not convert `AddScript` result to `Script`");
-
-    Ok(script?)
+    fs::write(&to_path, contents)?;
+    Ok(())
 }
 
 // *********************
@@ -103,4 +117,40 @@ pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceI
 
     res.expect("error removing `Script`");
     Ok(())
+}
+
+fn get_project(db: &State<DbClient>, project: ResourceId) -> Result<Project> {
+    let project = db
+        .send(ProjectCommand::Get(project.clone()).into())
+        .expect("could not get `Project`");
+
+    let project: Option<Project> =
+        serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
+
+    let Some(project) = project else {
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` not loaded",
+        ))
+        .into());
+    };
+
+    Ok(project)
+}
+
+fn get_project_path(db: &State<DbClient>, project: ResourceId) -> Result<PathBuf> {
+    let project_path = db
+        .send(ProjectCommand::GetPath(project).into())
+        .expect("could not get `Project` path");
+
+    let project_path: Option<PathBuf> =
+        serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
+
+    let Some(project_path) = project_path else {
+        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            "`Project` not loaded",
+        ))
+        .into());
+    };
+
+    Ok(project_path)
 }

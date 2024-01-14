@@ -253,6 +253,15 @@
     }
   }
 
+  .project-scripts-widget {
+    padding-top: t.$padding-m;
+    border: t.$border-width-s transparent solid;
+
+    &.dragover-active {
+      border-color: t.$primary-color;
+    }
+  }
+
   .project-canvas-content {
     flex: 1; /* This allows the content to fill the remaining space */
     overflow: auto; /* This adds a scrollbar when the content overflows vertically */

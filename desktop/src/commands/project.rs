@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::Project;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::Analysis as AnalysisError;
 use thot_local::types::ProjectSettings;
 use thot_local_database::Result as DbResult;
 
@@ -40,7 +41,7 @@ pub async fn get_project_path(project: ResourceId) -> Result<PathBuf, String> {
     invoke_result("get_project_path", ResourceIdArgs { rid: project }).await
 }
 
-pub async fn analyze(root: ResourceId) -> Result<(), String> {
+pub async fn analyze(root: ResourceId) -> Result<(), AnalysisError> {
     invoke_result(
         "analyze",
         &AnalyzeArgs {

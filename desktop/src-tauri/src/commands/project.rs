@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 use tauri::State;
-use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as ProjectError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;

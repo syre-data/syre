@@ -1,11 +1,13 @@
 use super::{CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer};
-use crate::app::{AppStateAction, AppStateReducer};
+use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::graph::{get_or_load_project_graph, load_project_graph};
 use crate::commands::project::analyze;
 use crate::components::canvas::canvas_state::ResourceType;
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::use_project;
+use thot_core::error::Runner as RunnerError;
 use thot_core::types::ResourceId;
+use thot_desktop_lib::error::Analysis as AnalysisError;
 use thot_ui::types::ContainerPreview;
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::ContainerPreviewSelect;
@@ -32,6 +34,7 @@ pub struct ProjectControlsProps {
 #[function_component(ProjectControls)]
 pub fn project_controls(props: &ProjectControlsProps) -> Html {
     let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();
     let graph_state = use_context::<GraphStateReducer>().unwrap();
     let analysis_state = use_state(|| AnalysisState::Standby);
@@ -50,6 +53,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
 
     let analyze_cb = {
         let app_state = app_state.clone();
+        let projects_state = projects_state.clone();
         let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
@@ -57,6 +61,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
+            let projects_state = projects_state.clone();
             let graph_state = graph_state.clone();
             let analysis_state = analysis_state.clone();
             let project_id = canvas_state.project.clone();
@@ -76,7 +81,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
                 let analysis_result = analyze(root.clone()).await;
 
                 // update tree
-                let update = match get_or_load_project_graph(project_id).await {
+                let update = match get_or_load_project_graph(project_id.clone()).await {
                     Ok(graph) => graph,
                     Err(err) => {
                         tracing::debug!(?err);
@@ -94,8 +99,16 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
                         )));
                     }
                     Err(err) => {
+                        tracing::debug!(?err);
+                        let details = detail_message_from_analysis_error(
+                            err,
+                            &project_id,
+                            &graph_state,
+                            &projects_state,
+                        );
+
                         let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(err);
+                        msg.set_details(details);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
                 }
@@ -105,6 +118,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
 
     let analyze_container = {
         let app_state = app_state.clone();
+        let projects_state = projects_state.clone();
         let canvas_state = canvas_state.clone();
         let graph_state = graph_state.clone();
         let analysis_state = analysis_state.clone();
@@ -112,6 +126,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
 
         Callback::from(move |_: MouseEvent| {
             let app_state = app_state.clone();
+            let projects_state = projects_state.clone();
             let graph_state = graph_state.clone();
             let analysis_state = analysis_state.clone();
             let project_id = canvas_state.project.clone();
@@ -148,7 +163,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
                 let analysis_result = analyze(root.clone()).await;
 
                 // update tree
-                let update = match get_or_load_project_graph(project_id).await {
+                let update = match get_or_load_project_graph(project_id.clone()).await {
                     Ok(graph) => graph,
                     Err(err) => {
                         tracing::debug!(?err);
@@ -166,8 +181,15 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
                         )));
                     }
                     Err(err) => {
+                        let details = detail_message_from_analysis_error(
+                            err,
+                            &project_id,
+                            &graph_state,
+                            &projects_state,
+                        );
+
                         let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(err);
+                        msg.set_details(details);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
                 }
@@ -297,5 +319,109 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
             </button>
         </div>
     </div>
+    }
+}
+
+fn detail_message_from_analysis_error(
+    error: AnalysisError,
+    project: &ResourceId,
+    graph_state: &GraphStateReducer,
+    projects_state: &ProjectsStateReducer,
+) -> String {
+    match error {
+        AnalysisError::ZMQ(err) => {
+            format!("Could not connect to database: {err:?}")
+        }
+
+        AnalysisError::GraphNotFound => "Container was not found in the graph".to_string(),
+
+        AnalysisError::Analysis(err) => match err {
+            RunnerError::LoadScripts(errs) => errs
+                .iter()
+                .map(|(script, description)| {
+                    let s_name = match script_name(script, project, &projects_state.project_scripts)
+                    {
+                        None => format!("{script}"),
+                        Some(name) => name,
+                    };
+
+                    format!("{s_name}: {description}")
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+
+            RunnerError::ContainerNotFound(container) => {
+                let ancestors = ancestor_names(&container, &graph_state);
+                let container_name = if ancestors.len() == 0 {
+                    format!("{container}")
+                } else {
+                    ancestors.join("/")
+                };
+
+                format!("Could not get Container {container_name}.")
+            }
+
+            RunnerError::CommandError {
+                script,
+                container,
+                cmd,
+            } => {
+                let ancestors = ancestor_names(&container, &graph_state);
+                let container_name = if ancestors.len() == 0 {
+                    format!("{container}")
+                } else {
+                    ancestors.join("/")
+                };
+
+                format!("Could run command `{cmd}` on Container {container_name}.")
+            }
+
+            RunnerError::ScriptError {
+                script,
+                container,
+                description,
+            } => {
+                let s_name = match script_name(&script, project, &projects_state.project_scripts) {
+                    None => format!("{script}"),
+                    Some(name) => name,
+                };
+
+                let ancestors = ancestor_names(&container, &graph_state);
+                let container_name = if ancestors.len() == 0 {
+                    format!("{container}")
+                } else {
+                    ancestors.join("/")
+                };
+
+                format!(
+                    "Error while running `{s_name}` on Container {container_name}: {description}"
+                )
+            }
+        },
+    }
+}
+
+/// Gets the names of the Container's ancestors.
+fn ancestor_names(container: &ResourceId, graph_state: &GraphStateReducer) -> Vec<String> {
+    graph_state
+        .graph
+        .ancestors(container)
+        .iter()
+        .map(|cid| graph_state.graph.get(cid).unwrap().properties.name.clone())
+        .collect()
+}
+
+fn script_name(
+    script: &ResourceId,
+    project: &ResourceId,
+    project_scripts: &crate::app::projects_state::ProjectScriptsMap,
+) -> Option<String> {
+    match project_scripts.get(project) {
+        None => None,
+
+        Some(scripts) => match scripts.get(script) {
+            None => None,
+            Some(script) => Some(script.path.as_path().to_string_lossy().to_string()),
+        },
     }
 }

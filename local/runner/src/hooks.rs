@@ -1,7 +1,6 @@
 //! Local runner hooks.
 use std::path::PathBuf;
-use thot_core::error::{ResourceError, Result as CoreResult};
-use thot_core::project::{Project, Script as CoreScript, ScriptLang};
+use thot_core::project::{Project, Script, ScriptLang};
 use thot_core::runner::RunnerHooks as CoreRunnerHooks;
 use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::system::settings::RunnerSettings;
@@ -9,17 +8,16 @@ use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
 #[tracing::instrument]
-pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
+pub fn get_script(rid: &ResourceId) -> Result<Script, String> {
     let db = DbClient::new();
     let script = db
         .send(ScriptCommand::Get(rid.clone()).into())
         .expect("could not retrieve `Script`");
 
-    let script: Option<CoreScript> =
-        serde_json::from_value(script).expect("could not convert result of `Get` to `Script`");
+    let script: Option<Script> = serde_json::from_value(script).unwrap();
 
     let Some(mut script) = script else {
-        return Err(ResourceError::does_not_exist("`Script` not loaded").into());
+        return Err("`Script` not loaded".to_string());
     };
 
     // get absolute path to script
@@ -56,7 +54,7 @@ pub fn get_script(rid: &ResourceId) -> CoreResult<CoreScript> {
             abs_path.push(analysis_root);
             abs_path.push(path);
 
-            let abs_path = ResourcePath::new(abs_path)?;
+            let abs_path = ResourcePath::new(abs_path).unwrap();
             script.path = abs_path;
         }
 

@@ -32,6 +32,24 @@ impl From<Trash> for RemoveAsset {
     }
 }
 
+#[derive(Serialize, Deserialize, Error, Debug)]
+pub enum Analysis {
+    #[error("{0}")]
+    ZMQ(String),
+
+    #[error("could not find graph")]
+    GraphNotFound,
+
+    #[error("{0}")]
+    Analysis(thot_core::error::Runner),
+}
+
+impl From<thot_core::error::Runner> for Analysis {
+    fn from(value: thot_core::error::Runner) -> Self {
+        Self::Analysis(value)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum DesktopSettings {
     /// The desired update can not be performed.

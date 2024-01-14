@@ -1,5 +1,6 @@
 //! Common error types.
 use crate::types::{ResourceId, ResourcePath};
+use std::collections::HashMap;
 use std::convert::From;
 use std::io;
 use std::path::PathBuf;
@@ -121,18 +122,24 @@ impl ResourcePathError {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Error, Debug)]
-pub enum RunnerError {
+pub enum Runner {
+    #[error("{0:?}")]
+    LoadScripts(HashMap<ResourceId, String>),
+
+    /// The `Container` could not be found in the graph.
+    #[error("Container {0} not found")]
+    ContainerNotFound(ResourceId),
+
     /// An error occured when running the script
     /// on the specified `Container`.
-    ///
-    /// # Fields
-    /// 1. [`ResourceId`] of the `Script`.
-    /// 2. [`ResourceId`] of the `Container`.
-    /// 3. Error message from the script.
-    #[error("Script `{0}` running over Container `{1}` errored: {2}")]
-    ScriptError(ResourceId, ResourceId, String),
+    #[error("Script `{script}` running over Container `{container}` errored: {description}")]
+    ScriptError {
+        script: ResourceId,
+        container: ResourceId,
+        description: String,
+    },
 
-    #[error("Error running `{cmd}` from script `{script}` on container `{container}`")]
+    #[error("error running `{cmd}` from script `{script}` on container `{container}`")]
     CommandError {
         script: ResourceId,
         container: ResourceId,
@@ -168,7 +175,7 @@ pub enum Error {
     ResourcePathError(ResourcePathError),
 
     #[error("{0}")]
-    RunnerError(RunnerError),
+    Runner(Runner),
 
     #[error("{0}")]
     ScriptError(ScriptError),
@@ -206,9 +213,9 @@ impl From<ResourceError> for Error {
     }
 }
 
-impl From<RunnerError> for Error {
-    fn from(err: RunnerError) -> Self {
-        Self::RunnerError(err)
+impl From<Runner> for Error {
+    fn from(err: Runner) -> Self {
+        Self::Runner(err)
     }
 }
 

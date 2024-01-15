@@ -1,4 +1,5 @@
 //! Project scripts editor.
+use crate::actions::container::Action as ContainerAction;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
@@ -111,6 +112,20 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                 }
             })
         }
+    };
+
+    let ondragstart_script = move |script: ResourceId| {
+        Callback::from(move |e: DragEvent| {
+            let data_transfer = e.data_transfer().unwrap();
+            data_transfer.clear_data().unwrap();
+            data_transfer
+                .set_data(
+                    "application/json",
+                    &serde_json::to_string(&ContainerAction::AddScriptAssociation(script.clone()))
+                        .unwrap(),
+                )
+                .unwrap();
+        })
     };
 
     let ondragenter = use_callback(drag_over_state.clone(), {
@@ -244,10 +259,14 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                     };
 
                     html! {
-                        <li key={script.rid.clone()}>
+                        <li key={script.rid.clone()}
+                            data-rid={format!("{}", script.rid)}>
+
                             <span class={"name clickable"}
                                 title={name.clone()}
-                                ondblclick={ondblclick_script(script.rid.clone())}>
+                                ondblclick={ondblclick_script(script.rid.clone())}
+                                ondragstart={ondragstart_script(script.rid.clone())}
+                                draggable={"true"} >
                                 { name }
                             </span>
 

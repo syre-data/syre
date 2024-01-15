@@ -20,21 +20,6 @@ pub async fn get_container_path(container: ResourceId) -> Option<PathBuf> {
     invoke("get_container_path", ResourceIdArgs { rid: container }).await
 }
 
-pub async fn update_container_script_associations(
-    container: ResourceId,
-    associations: ScriptMap,
-) -> DbResult {
-    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
-    // See https://github.com/tauri-apps/tauri/issues/6078
-    let associations_str = serde_json::to_string(&associations).unwrap();
-    let update = UpdateScriptAssociationsStringArgs {
-        rid: container,
-        associations: associations_str,
-    };
-
-    invoke_result("update_container_script_associations", update).await
-}
-
 pub async fn update_properties(rid: ResourceId, properties: ContainerProperties) -> DbResult {
     // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
     // See https://github.com/tauri-apps/tauri/issues/6078
@@ -59,6 +44,21 @@ pub async fn bulk_update_properties(
         },
     )
     .await
+}
+
+pub async fn update_script_associations(
+    container: ResourceId,
+    associations: ScriptMap,
+) -> DbResult {
+    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let associations_str = serde_json::to_string(&associations).unwrap();
+    let update = UpdateScriptAssociationsStringArgs {
+        rid: container,
+        associations: associations_str,
+    };
+
+    invoke_result("update_container_script_associations", update).await
 }
 
 pub async fn bulk_update_script_associations(

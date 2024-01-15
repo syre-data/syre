@@ -1,8 +1,6 @@
 //! Edit a [`Container`]'s [`ScriptAssociation`]s.
 use crate::app::ProjectsStateReducer;
-use crate::commands::container::{
-    update_container_script_associations, UpdateScriptAssociationsArgs,
-};
+use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{RunParameters, Script as CoreScript};
@@ -150,12 +148,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
             let associations = associations.clone();
 
             spawn_local(async move {
-                match update_container_script_associations(
-                    container.clone(),
-                    (*associations).clone(),
-                )
-                .await
-                {
+                match update_script_associations(container.clone(), (*associations).clone()).await {
                     Ok(_) => {}
                     Err(err) => {
                         tracing::debug!(?err);

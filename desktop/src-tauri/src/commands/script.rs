@@ -61,7 +61,7 @@ pub fn add_script(
     to_path.push(analysis_root);
     to_path.push(file_name.clone());
 
-    let from_path = fs::canonicalize(path.clone()).unwrap_or(path);
+    let from_path = fs::canonicalize(path).unwrap();
     if to_path != from_path {
         fs::copy(&from_path, to_path)?;
         Ok(None)

@@ -1,10 +1,13 @@
 //! UI for a `Container` preview within a [`Graph`](super::Graph).
 //! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
+use crate::actions::container::Action as ContainerAction;
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::asset::remove_asset;
 use crate::commands::common::open_file;
-use crate::commands::container::{add_asset_windows, get_container_path};
+use crate::commands::container::{
+    add_asset_windows, get_container_path, update_script_associations, UpdateScriptAssociationsArgs,
+};
 use crate::commands::graph::{duplicate_container_tree, remove_container_tree};
 use crate::components::canvas::asset::CreateAssets;
 use crate::components::canvas::selection_action::{selection_action, SelectionAction};
@@ -15,7 +18,7 @@ use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use thot_core::project::Asset;
+use thot_core::project::{Asset, RunParameters};
 use thot_core::types::{ResourceId, ResourceMap};
 use thot_desktop_lib::error::{RemoveAsset, Trash as TrashError};
 use thot_ui::types::Message;
@@ -391,6 +394,53 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             // drag and drop on Windows
             let drop_data = e.data_transfer().unwrap();
+
+            let action = drop_data.get_data("application/json").unwrap();
+            let action: Option<ContainerAction> = serde_json::from_str(&action).ok();
+            if let Some(action) = action {
+                match action {
+                    ContainerAction::AddScriptAssociation(script) => 'add_script: {
+                        let container = graph_state.graph.get(&container_id).unwrap();
+                        if container.scripts.contains_key(&script) {
+                            break 'add_script;
+                        }
+
+                        let mut associations = container.scripts.clone();
+                        associations.insert(script, RunParameters::new());
+
+                        let app_state = app_state.dispatcher();
+                        let graph_state = graph_state.dispatcher();
+                        let container_id = container_id.clone();
+                        spawn_local(async move {
+                            match update_script_associations(
+                                container_id.clone(),
+                                associations.clone(),
+                            )
+                            .await
+                            {
+                                Ok(_) => {
+                                    graph_state.dispatch(
+                                        GraphStateAction::UpdateContainerScriptAssociations(
+                                            UpdateScriptAssociationsArgs {
+                                                rid: container_id,
+                                                associations,
+                                            },
+                                        ),
+                                    );
+                                }
+
+                                Err(err) => {
+                                    let mut msg =
+                                        Message::error("Could not add Script association.");
+                                    msg.set_details(format!("{err}"));
+                                    app_state.dispatch(AppStateAction::AddMessage(msg));
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
             let files = drop_data.files().unwrap();
             for index in 0..files.length() {
                 let file = files.item(index).expect("could not get `File`");

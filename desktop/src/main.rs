@@ -1,5 +1,6 @@
 #![feature(mutex_unlock)]
 //! User interface for Thot Desktop.
+mod actions;
 mod app;
 mod commands;
 mod common;

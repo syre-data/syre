@@ -88,7 +88,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("thot-ui-editor")}>
+        <div class={"thot-ui-editor px-xl"}>
             <ContainerPropertiesEditor
                 properties={(*properties).clone()}
                 onchange={onchange} />

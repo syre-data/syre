@@ -132,7 +132,6 @@
   }
 
   .thot-ui-drawer {
-    display: flex;
     width: t.$drawer-width;
     height: 100%;
     max-height: 100vh;
@@ -150,19 +149,12 @@
   }
 
   .details-bar-drawer {
-    justify-content: center;
-
-    .drawer-toggle {
+    .drawer-contents {
       height: 100%;
-      line-height: 100%;
-      vertical-align: middle;
-      cursor: pointer;
-
-      border-right: solid t.$border-width-s t.$frame-border-color;
     }
 
     .project-canvas-details-bar {
-      margin: 0 t.$margin-l;
+      height: 100%;
     }
   }
 
@@ -255,7 +247,7 @@
 
   .project-scripts-widget {
     padding-top: t.$padding-m;
-    border: t.$border-width-s transparent solid;
+    border: t.$border-width-m transparent solid;
 
     &.dragover-active {
       border-color: t.$primary-color;

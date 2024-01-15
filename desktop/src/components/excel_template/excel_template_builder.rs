@@ -72,7 +72,7 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
         }
     });
 
-    let mut template_step_class = classes!("builder-step", "excel-template", "d-flex");
+    let mut template_step_class = classes!("builder-step", "excel-template", "flex");
     let mut input_step_class = classes!("builder-step", "input-data");
     let mut output_step_class = classes!("builder-step", "output-asset");
     let mut review_step_class = classes!("builder-step", "review");

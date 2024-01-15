@@ -50,6 +50,8 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
     };
 
     html! {
-        <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
+        <div class={"thot-ui-editor px-xl"}>
+            <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
+        </div>
     }
 }

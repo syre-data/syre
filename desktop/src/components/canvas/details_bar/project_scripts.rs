@@ -185,7 +185,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                let details = format!("The files {details} are not supported as scripts.");
+                let details = format!("{details} are not supported as scripts.");
                 let mut message = Message::error("Could not create scripts.");
                 message.set_details(details);
                 app_state.dispatch(AppStateAction::AddMessage(message));
@@ -226,7 +226,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
         },
     );
 
-    let mut class = classes!("project-scripts-widget");
+    let mut class = classes!("project-scripts-widget", "px-xl", "h-100", "box-border");
     if *drag_over_state > 0 {
         class.push("dragover-active");
     }
@@ -239,7 +239,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
             {ondrop} >
 
             if let Some(onadd) = props.onadd.as_ref() {
-                <CreateScript oncreate={onadd.clone()} />
+                <CreateScript class={"block mx-auto"} oncreate={onadd.clone()} />
             }
             if let Some(onadd_template) = props.onadd_excel_template.as_ref() {
                 <CreateExcelTemplate oncreate={onadd_template.clone()} />

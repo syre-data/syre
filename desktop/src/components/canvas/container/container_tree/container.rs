@@ -6,7 +6,8 @@ use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::asset::remove_asset;
 use crate::commands::common::open_file;
 use crate::commands::container::{
-    add_asset_windows, get_container_path, update_script_associations, UpdateScriptAssociationsArgs,
+    add_asset_from_contents, get_container_path, update_script_associations,
+    UpdateScriptAssociationsArgs,
 };
 use crate::commands::graph::{duplicate_container_tree, remove_container_tree};
 use crate::components::canvas::asset::CreateAssets;
@@ -396,6 +397,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             let drop_data = e.data_transfer().unwrap();
 
             let action = drop_data.get_data("application/json").unwrap();
+            tracing::debug!(?action);
             let action: Option<ContainerAction> = serde_json::from_str(&action).ok();
             if let Some(action) = action {
                 match action {
@@ -463,7 +465,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     spawn_local(async move {
                         // create assets
                         // TODO Handle buckets.
-                        match add_asset_windows(container_id.clone(), name, contents).await {
+                        match add_asset_from_contents(container_id.clone(), name, contents).await {
                             Ok(_) => {}
                             Err(err) => {
                                 tracing::debug!(err);

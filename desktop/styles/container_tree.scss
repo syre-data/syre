@@ -161,9 +161,23 @@ $control-button-size: 25px;
           vertical-align: middle;
         }
 
-        .thot-ui-asset-remove {
+        button.thot-ui-asset-remove {
+          all: unset;
           opacity: 0;
-          font-size: t.$font-size-xs;
+          display: flex;
+          align-items: center;
+          padding: t.$padding-s;
+          box-sizing: border-box;
+
+          .thot-ui-add-remove-icon {
+            width: t.$add-remove-icon-size;
+            height: t.$add-remove-icon-size;
+          }
+
+          &:hover {
+            cursor: pointer;
+            background-color: t.$secondary-button-hover-background-color;
+          }
         }
 
         &:hover .thot-ui-asset-remove {

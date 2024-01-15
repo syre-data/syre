@@ -351,29 +351,31 @@ fn detail_message_from_analysis_error(
                 .join("\n"),
 
             RunnerError::ContainerNotFound(container) => {
-                let ancestors = ancestor_names(&container, &graph_state);
+                let mut ancestors = ancestor_names(&container, &graph_state);
                 let container_name = if ancestors.len() == 0 {
                     format!("{container}")
                 } else {
+                    ancestors.reverse();
                     ancestors.join("/")
                 };
 
-                format!("Could not get Container {container_name}.")
+                format!("Could not get {container_name}.")
             }
 
             RunnerError::CommandError {
-                script,
+                script: _,
                 container,
                 cmd,
             } => {
-                let ancestors = ancestor_names(&container, &graph_state);
+                let mut ancestors = ancestor_names(&container, &graph_state);
                 let container_name = if ancestors.len() == 0 {
                     format!("{container}")
                 } else {
+                    ancestors.reverse();
                     ancestors.join("/")
                 };
 
-                format!("Could run command `{cmd}` on Container {container_name}.")
+                format!("Could run command `{cmd}` on {container_name}.")
             }
 
             RunnerError::ScriptError {
@@ -386,16 +388,15 @@ fn detail_message_from_analysis_error(
                     Some(name) => name,
                 };
 
-                let ancestors = ancestor_names(&container, &graph_state);
+                let mut ancestors = ancestor_names(&container, &graph_state);
                 let container_name = if ancestors.len() == 0 {
                     format!("{container}")
                 } else {
+                    ancestors.reverse();
                     ancestors.join("/")
                 };
 
-                format!(
-                    "Error while running `{s_name}` on Container {container_name}: {description}"
-                )
+                format!("Error while running `{s_name}` on {container_name}: {description}")
             }
         },
     }

@@ -72,18 +72,25 @@ pub async fn bulk_update_script_associations(
     .await
 }
 
-pub async fn add_assets(container: ResourceId, assets: Vec<AddAssetInfo>) -> Result<(), String> {
-    invoke_result("add_assets", AddAssetsArgs { container, assets }).await
+pub async fn add_assets_from_info(
+    container: ResourceId,
+    assets: Vec<AddAssetInfo>,
+) -> Result<(), String> {
+    invoke_result(
+        "add_assets_from_info",
+        AddAssetsInfoArgs { container, assets },
+    )
+    .await
 }
 
-pub async fn add_asset_windows(
+pub async fn add_asset_from_contents(
     container: ResourceId,
     name: String,
     contents: Vec<u8>,
 ) -> Result<(), String> {
     invoke_result(
-        "add_asset_windows",
-        AddAssetWindowsArgs {
+        "add_asset_from_contents",
+        AddAssetContentsArgs {
             container,
             name,
             contents,
@@ -161,7 +168,7 @@ pub struct UpdateScriptAssociationsStringArgs {
 
 /// Arguments for [`add_assets`](thot_desktop_tauri::commands::container::add_assets).
 #[derive(Serialize, Debug)]
-pub struct AddAssetsArgs {
+pub struct AddAssetsInfoArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
@@ -171,7 +178,7 @@ pub struct AddAssetsArgs {
 
 /// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows).
 #[derive(Serialize)]
-pub struct AddAssetWindowsArgs {
+pub struct AddAssetContentsArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 

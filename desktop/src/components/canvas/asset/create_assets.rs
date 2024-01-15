@@ -1,5 +1,5 @@
 //! Create an [`Asset`](thot_core::project::Asset).
-use crate::commands::container::{add_assets, get_container};
+use crate::commands::container::{add_assets_from_info, get_container};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_container_path;
 use std::path::PathBuf;
@@ -57,7 +57,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
             let container_id = container_id.clone();
             spawn_local(async move {
                 // create assets
-                match add_assets(container_id.clone(), assets).await {
+                match add_assets_from_info(container_id.clone(), assets).await {
                     Ok(_) => {}
                     Err(err) => {
                         tracing::debug!(err);

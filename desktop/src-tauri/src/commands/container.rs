@@ -87,7 +87,11 @@ pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBu
 
 /// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).
 #[tauri::command]
-pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAssetInfo>) -> Result {
+pub fn add_assets_from_info(
+    db: State<DbClient>,
+    container: ResourceId,
+    assets: Vec<AddAssetInfo>,
+) -> Result {
     let container_path = db.send(ContainerCommand::Path(container).into()).unwrap();
     let Some(container_path) = serde_json::from_value::<Option<PathBuf>>(container_path).unwrap()
     else {
@@ -121,7 +125,7 @@ pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAss
 }
 
 #[tauri::command]
-pub fn add_asset_windows(
+pub fn add_asset_from_contents(
     db: State<DbClient>,
     container: ResourceId,
     name: String,

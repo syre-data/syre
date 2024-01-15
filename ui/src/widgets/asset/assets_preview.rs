@@ -94,13 +94,24 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                     }
 
                                     if props.onclick_asset_remove.is_some() {
-                                        <button onclick={onclick_asset_remove(
-                                            asset.rid.clone(),
-                                            props.onclick_asset_remove.clone(),
-                                            clicked_asset.clone(),
-                                        )} class={classes!("thot-ui-asset-remove")}>
-                                            { "X" }
+                                        <button class={"thot-ui-asset-remove btn-icon"} type={"button"}
+                                            onclick={onclick_asset_remove(
+                                                asset.rid.clone(),
+                                                props.onclick_asset_remove.clone(),
+                                                clicked_asset.clone(),
+                                            )}>
+
+                                            <Icon class={"thot-ui-add-remove-icon"}
+                                                icon_id={IconId::HeroiconsSolidMinus}/>
                                         </button>
+
+                                        // <button onclick={onclick_asset_remove(
+                                        //     asset.rid.clone(),
+                                        //     props.onclick_asset_remove.clone(),
+                                        //     clicked_asset.clone(),
+                                        // )} class={"thot-ui-asset-remove"}>
+                                        //     { "X" }
+                                        // </button>
                                     }
                                 </div>
                             </li>

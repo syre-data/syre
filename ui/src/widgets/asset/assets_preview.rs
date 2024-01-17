@@ -104,14 +104,6 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                             <Icon class={"thot-ui-add-remove-icon"}
                                                 icon_id={IconId::HeroiconsSolidMinus}/>
                                         </button>
-
-                                        // <button onclick={onclick_asset_remove(
-                                        //     asset.rid.clone(),
-                                        //     props.onclick_asset_remove.clone(),
-                                        //     clicked_asset.clone(),
-                                        // )} class={"thot-ui-asset-remove"}>
-                                        //     { "X" }
-                                        // </button>
                                     }
                                 </div>
                             </li>

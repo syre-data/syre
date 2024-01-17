@@ -1,5 +1,5 @@
-@use 'themes' as t;
-@use 'mixins';
+@use "themes" as t;
+@use "mixins";
 
 .thot-ui-shadow-box {
   z-index: 100;
@@ -11,34 +11,65 @@
 
 .thot-ui-messages {
   position: absolute;
-  bottom:0;
+  bottom: 0;
   right: t.$margin-l;
   text-align: right;
   max-width: 50%;
 
   .thot-ui-message {
-    text-align: left;
+    display: flex;
     color: t.$message-font-color;
-    padding: t.$padding-m;
     border-radius: t.$border-radius-m;
     margin-bottom: t.$margin-l;
 
     &.message-info {
       background-color: t.$info-color;
+
+      .close-btn {
+        border-left-color: t.$info-border-color;
+      }
     }
 
     &.message-success {
       background-color: t.$success-color;
+
+      .close-btn {
+        border-left-color: t.$success-border-color;
+      }
     }
 
     &.message-error {
       background-color: t.$error-color;
+
+      .close-btn {
+        border-left-color: t.$error-border-color;
+      }
     }
 
     &.message-warning {
       background-color: t.$warning-color;
+
+      .close-btn {
+        border-left-color: t.$warning-border-color;
+      }
     }
 
+    .content {
+      flex-grow: 1;
+      text-align: left;
+      padding: t.$padding-m t.$padding-xl t.$padding-m t.$padding-3xl;
+    }
+
+    .close-btn {
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+
+      padding: 0 t.$padding-m;
+      border-left: solid;
+      border-left-width: t.$border-width-s;
+    }
 
     .details-body {
       max-height: 25vh;
@@ -52,13 +83,14 @@
 }
 
 .thot-ui-asset-editor {
-    .thot-ui-asset-file_name {
-      overflow: auto;
-      max-width: t.$drawer-content-width;
-    }
+  .thot-ui-asset-file_name {
+    overflow: auto;
+    max-width: t.$drawer-content-width;
+  }
 }
 
-.thot-ui-editor, .thot-ui-asset-editor {
+.thot-ui-editor,
+.thot-ui-asset-editor {
   font-size: t.$font-size-xs;
   margin-bottom: t.$margin-l;
 
@@ -66,7 +98,8 @@
     margin: 0;
   }
 
-  .metadata-header, .script-association-header {
+  .metadata-header,
+  .script-association-header {
     display: flex;
     justify-content: space-between;
   }
@@ -88,19 +121,20 @@
       background-color: t.$secondary-button-hover-background-color;
     }
   }
-  
-  input, textarea {
-      display: block;
-      width: t.$drawer-content-width; //Using % gives centering issues.
-      padding: t.$input-padding-y t.$input-padding-x;
-      border: t.$input-border-color t.$border-width-m solid;
-      background-color: t.$input-background-color;
-      box-shadow: none;
-      overflow: auto;
-      outline: none;
-      resize: none; /*remove the resize handle on the bottom right*/
+
+  input,
+  textarea {
+    display: block;
+    width: t.$drawer-content-width; //Using % gives centering issues.
+    padding: t.$input-padding-y t.$input-padding-x;
+    border: t.$input-border-color t.$border-width-m solid;
+    background-color: t.$input-background-color;
+    box-shadow: none;
+    overflow: auto;
+    outline: none;
+    resize: none; /*remove the resize handle on the bottom right*/
   }
-  
+
   .script-add-cancel-buttons {
     display: flex;
     gap: t.$gap-s;
@@ -152,7 +186,7 @@
             @include mixins.hide-text-overflow;
             flex-grow: 1;
             width: t.$drawer-content-width-1-4;
-          }      
+          }
         }
       }
 
@@ -160,7 +194,6 @@
         display: flex;
         align-items: center;
         gap: t.$gap-s;
-
       }
     }
 
@@ -170,7 +203,9 @@
       color: t.$error-color;
     }
 
-    .form-fields, .form-controls, .metadatum-value {
+    .form-fields,
+    .form-controls,
+    .metadatum-value {
       display: flex;
       gap: t.$gap-s;
     }
@@ -191,7 +226,7 @@
     li {
       display: flex;
       align-items: center;
-      justify-content: space-between; 
+      justify-content: space-between;
     }
 
     .add-tags {
@@ -239,7 +274,7 @@
   }
 
   input {
-    all:unset;
+    all: unset;
     width: t.$input-number-width;
     appearance: auto;
     border: solid t.$border-width-s transparent;

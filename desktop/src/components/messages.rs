@@ -27,7 +27,6 @@ pub fn messages() -> Html {
         <MessagesUi>
             { app_state.messages.iter().map(|m| html! {
                 <Message
-                    class={classes!("clickable")}
                     kind={m.kind.clone()}
                     message={m.message.clone()}
                     details={m.details.clone()}

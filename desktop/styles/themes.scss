@@ -1,4 +1,4 @@
-@use 'variables' as vars;
+@use "variables" as vars;
 
 // ************
 // *** font ***
@@ -59,9 +59,13 @@ $project-script-button-hover-background-color: vars.$secondary-color-700;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
+$info-border-color: vars.$primary-color-400;
 $success-color: vars.$utility-green-300;
+$success-border-color: vars.$utility-green-400;
 $error-color: vars.$utility-red-300;
+$error-border-color: vars.$utility-red-400;
 $warning-color: vars.$utility-yellow-300;
+$warning-border-color: vars.$utility-yellow-400;
 
 $shadow-light: rgba(0, 0, 0, 0.2);
 $shadow-medium: rgba(0, 0, 0, 0.4);
@@ -98,6 +102,7 @@ $padding-m: 5px;
 $padding-l: 8px;
 $padding-xl: 12px;
 $padding-xxl: 16px;
+$padding-3xl: 20px;
 
 $border-radius-s: 3px;
 $border-radius-m: 5px;
@@ -130,8 +135,8 @@ $input-padding-y: 0.2em;
 $input-padding-x: 0.6em;
 $input-number-width: 3em;
 
-$drawer-content-width-1-4:40px;
-$drawer-content-width:170px;
+$drawer-content-width-1-4: 40px;
+$drawer-content-width: 170px;
 $drawer-width: 240px;
 
 $canvas-width: 400px;

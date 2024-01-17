@@ -62,12 +62,8 @@ pub fn message(props: &MessageProps) -> Html {
     };
 
     html! {
-        <div {class}>
-            <span class={"close-btn"}
-                onclick={onclose}>
-
-                { "X" }
-            </span>
+    <div {class}>
+        <div class={"content"}>
             <div class={"message"}>
                 { &props.message }
             </div>
@@ -85,5 +81,12 @@ pub fn message(props: &MessageProps) -> Html {
                 </div>
             }
         </div>
+        <div class={"close-btn"}
+            onclick={onclose}>
+
+            <Icon class={"thot-ui-add-remove-icon"}
+                icon_id={IconId::FontAwesomeSolidXmark}/>
+        </div>
+    </div>
     }
 }

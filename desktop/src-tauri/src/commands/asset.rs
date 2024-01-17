@@ -6,7 +6,7 @@ use std::result::Result as StdResult;
 use tauri::State;
 use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{RemoveAsset, Trash as TrashError};
+use thot_desktop_lib::error::{RemoveResource as RemoveResourceError, Trash as TrashError};
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use thot_local_database::command::AssetCommand;
@@ -48,18 +48,21 @@ pub fn update_asset_properties(
 
 /// Remove an `Asset`.
 #[tauri::command]
-pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveAsset> {
-    let remove_asset_from_db = |rid: ResourceId| -> StdResult<PathBuf, RemoveAsset> {
-        match db.send(AssetCommand::Remove(rid).into()) {
-            Ok(res) => match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res)
-                .unwrap()
-            {
-                Ok(Some((_asset, path))) => Ok(path),
-                Ok(None) => return Err(RemoveAsset::Database("asset does not exist".to_string())),
-                Err(err) => return Err(RemoveAsset::Database(format!("{err:?}"))),
-            },
+pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveResourceError> {
+    let remove_asset_from_db = |rid: ResourceId| -> StdResult<PathBuf, RemoveResourceError> {
+        let res = match db.send(AssetCommand::Remove(rid).into()) {
+            Ok(res) => res,
+            Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
+        };
 
-            Err(err) => return Err(RemoveAsset::ZMQ(format!("{err:?}"))),
+        match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res).unwrap() {
+            Ok(Some((_asset, path))) => Ok(path),
+            Ok(None) => {
+                return Err(RemoveResourceError::Database(
+                    "asset does not exist".to_string(),
+                ))
+            }
+            Err(err) => return Err(RemoveResourceError::Database(format!("{err:?}"))),
         }
     };
 
@@ -68,11 +71,13 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
             Some(path) => path,
             None => {
                 tracing::debug!("asset {rid:?} path not found");
-                return Err(RemoveAsset::Database("Could not get Asset's path".into()));
+                return Err(RemoveResourceError::Database(
+                    "Could not get Asset's path".into(),
+                ));
             }
         },
 
-        Err(err) => return Err(RemoveAsset::ZMQ(format!("{err:?}"))),
+        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
     };
 
     match trash::delete(path) {

@@ -130,15 +130,29 @@ impl From<trash::Error> for Error {
 
 pub mod server {
     use serde::{Deserialize, Serialize};
-    use serde_with::serde_as;
     use std::collections::HashMap;
     use std::io;
     use std::path::PathBuf;
     use thiserror::Error;
-    use thot_core::error::Project;
+    use thot_core::error::Project as ProjectError;
+    use thot_core::project::Project;
     use thot_core::types::ResourceId;
+    use thot_local::error::IoSerde;
+    use thot_local::types::ProjectSettings;
 
     type CoreContainerTree = thot_core::graph::ResourceTree<thot_core::project::Container>;
+
+    #[derive(Serialize, Deserialize, Error, Debug)]
+    pub enum LoadUserProjects {
+        #[error("could not load project manifest: {0}")]
+        LoadProjectsManifest(IoSerde),
+
+        #[error("{errors:?}")]
+        LoadProjects {
+            projects: Vec<(Project, ProjectSettings)>,
+            errors: HashMap<PathBuf, IoSerde>,
+        },
+    }
 
     #[serde_with::serde_as]
     #[derive(Serialize, Deserialize, Clone, Error, Debug)]
@@ -147,7 +161,7 @@ pub mod server {
         ProjectNotFound,
 
         #[error("{0:?}")]
-        Project(Project),
+        Project(ProjectError),
 
         #[error("{errors:?}")]
         Load {

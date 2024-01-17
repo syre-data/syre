@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::{Asset, AssetProperties};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::RemoveAsset;
+use thot_desktop_lib::error::RemoveResource;
 use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use thot_local_database::Result as DbResult;
 
@@ -34,7 +34,7 @@ pub async fn bulk_update_properties(
     .await
 }
 
-pub async fn remove_asset(asset: ResourceId) -> Result<Option<(Asset, PathBuf)>, RemoveAsset> {
+pub async fn remove_asset(asset: ResourceId) -> Result<Option<(Asset, PathBuf)>, RemoveResource> {
     invoke_result("remove_asset", ResourceIdArgs { rid: asset }).await
 }
 

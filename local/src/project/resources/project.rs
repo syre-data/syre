@@ -1,5 +1,6 @@
 //! Project and project settings.
 use crate::common::{project_file, project_settings_file};
+use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
@@ -7,6 +8,7 @@ use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use thot_core::project::Project as CoreProject;
 
 /// Represents a Thot project.
@@ -44,7 +46,7 @@ impl Project {
         })
     }
 
-    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerdeError> {
         let base_path = fs::canonicalize(base_path.into())?;
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());

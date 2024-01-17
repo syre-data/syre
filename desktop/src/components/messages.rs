@@ -9,7 +9,7 @@ pub fn messages() -> Html {
     let app_state =
         use_context::<AppStateReducer>().expect("could not find `AppStateReducer` context");
 
-    let onclick = {
+    let onclose = {
         let app_state = app_state.clone();
 
         move |id: &Uuid| {
@@ -31,7 +31,7 @@ pub fn messages() -> Html {
                     kind={m.kind.clone()}
                     message={m.message.clone()}
                     details={m.details.clone()}
-                    onclick={onclick(m.id())} />
+                    onclose={onclose(m.id())} />
             }).collect::<Html>() }
         </MessagesUi>
     }

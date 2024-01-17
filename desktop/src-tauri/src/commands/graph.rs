@@ -9,6 +9,7 @@ use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container as CoreContainer, Project};
 use thot_core::types::{Creator, ResourceId, UserId};
+use thot_desktop_lib::error::RemoveResource as RemoveResourceError;
 use thot_local::error::{ContainerError, Error as LocalError};
 use thot_local::project::resources::Container as LocalContainer;
 use thot_local_database::client::Client as DbClient;
@@ -158,12 +159,23 @@ pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> DbResul
 /// # Arguments
 /// 1. Id of the root of the `Container` tree to remove.
 #[tauri::command]
-pub fn remove_container_tree(db: State<DbClient>, rid: ResourceId) -> Result {
-    let path = db.send(ContainerCommand::Path(rid).into()).unwrap();
-    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
-        panic!("could not get container path");
+pub fn remove_container_tree(
+    db: State<DbClient>,
+    rid: ResourceId,
+) -> StdResult<(), RemoveResourceError> {
+    let path = match db.send(ContainerCommand::Path(rid).into()) {
+        Ok(path) => path,
+        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
     };
 
-    trash::delete(path).unwrap();
-    Ok(())
+    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+        return Err(RemoveResourceError::Database(
+            "Could not get Container's path".to_string(),
+        ));
+    };
+
+    match trash::delete(path) {
+        Ok(_) => Ok(()),
+        Err(err) => todo!(), // See asset.rs
+    }
 }

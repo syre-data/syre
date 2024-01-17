@@ -107,8 +107,8 @@ pub fn add_assets_from_info(
         let mut asset_path = container_path.clone();
         if let Some(bucket) = bucket {
             todo!();
-            asset_path.push(bucket);
-            fs::create_dir_all(asset_path)?; // will trigger folder to be created as container by database.
+            // asset_path.push(bucket);
+            // fs::create_dir_all(asset_path)?; // will trigger folder to be created as container by database.
         }
         asset_path.push(path.file_name().unwrap());
 

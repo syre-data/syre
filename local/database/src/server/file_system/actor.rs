@@ -61,16 +61,14 @@ impl FileSystemActor {
         event_tx: mpsc::Sender<Event>,
         command_rx: mpsc::Receiver<FileSystemActorCommand>,
     ) -> Self {
-        let watcher = {
-            notify_debouncer_full::new_debouncer(
-                DEBOUNCE_TIMEOUT,
-                None,
-                move |event: DebounceEventResult| {
-                    event_tx.send(Event::FileSystem(event)).unwrap();
-                },
-            )
-            .unwrap()
-        };
+        let watcher = notify_debouncer_full::new_debouncer(
+            DEBOUNCE_TIMEOUT,
+            None,
+            move |event: DebounceEventResult| {
+                event_tx.send(Event::FileSystem(event)).unwrap();
+            },
+        )
+        .unwrap();
 
         Self {
             command_rx,

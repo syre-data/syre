@@ -7,6 +7,7 @@ use thot_core::project::Project;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::Analysis as AnalysisError;
 use thot_local::types::ProjectSettings;
+use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
 use thot_local_database::Result as DbResult;
 
 pub async fn init_project(path: PathBuf) -> Result<ResourceId, String> {
@@ -25,7 +26,7 @@ pub async fn load_project(
 
 pub async fn load_user_projects(
     user: ResourceId,
-) -> Result<Vec<(Project, ProjectSettings)>, String> {
+) -> Result<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> {
     invoke_result("load_user_projects", LoadUserProjectsArgs { user }).await
 }
 

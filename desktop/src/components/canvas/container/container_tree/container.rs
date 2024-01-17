@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use thot_core::project::{Asset, RunParameters};
 use thot_core::types::{ResourceId, ResourceMap};
-use thot_desktop_lib::error::{RemoveAsset, Trash as TrashError};
+use thot_desktop_lib::error::{RemoveResource, Trash as TrashError};
 use thot_ui::types::Message;
 use thot_ui::widgets::container::container_tree::container::{
     Container as ContainerUi, ContainerMenuEvent, ContainerProps as ContainerUiProps, Flags,
@@ -320,25 +320,25 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     Err(err) => {
                         tracing::debug!(?err);
                         match err {
-                            RemoveAsset::ZMQ(err) => {
+                            RemoveResource::ZMQ(err) => {
                                 let mut msg = Message::error("Could not remove asset");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
 
-                            RemoveAsset::Trash(TrashError::NotFound) => {
+                            RemoveResource::Trash(TrashError::NotFound) => {
                                 let msg = Message::warning("Asset file was not found");
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                                 graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
                             }
 
-                            RemoveAsset::Trash(TrashError::Other(err)) => {
+                            RemoveResource::Trash(TrashError::Other(err)) => {
                                 let mut msg = Message::error("Could not remove asset");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
 
-                            RemoveAsset::Database(err) => {
+                            RemoveResource::Database(err) => {
                                 let mut msg = Message::error("Could not remove asset");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));

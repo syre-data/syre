@@ -162,10 +162,7 @@ impl Datastore {
     ///
     /// # Returns
     /// Reference to the inserted `Project`(LocalProject).
-    ///
-    /// # Panics
-    /// + If `project.path()` returns an error.
-    pub fn insert_project(&mut self, project: LocalProject) -> Result {
+    pub fn insert_project(&mut self, project: LocalProject) -> StdResult<(), io::Error> {
         let pid = project.rid.clone();
         let project_path = project.base_path().to_path_buf();
 
@@ -465,13 +462,16 @@ impl Datastore {
             // remove maps
             self.container_projects.remove(cid);
             self.container_paths
-                .remove_canonical(&container.base_path())?;
+                .remove_canonical(&container.base_path())
+                .unwrap_or_else(|_| self.container_paths.remove(&container.base_path()));
 
             for (aid, asset) in container.assets.iter() {
                 self.asset_containers.remove(aid);
 
                 let asset_path = container.base_path().join(asset.path.as_path());
-                self.asset_paths.remove_canonical(&asset_path)?;
+                self.asset_paths
+                    .remove_canonical(&asset_path)
+                    .unwrap_or_else(|_| self.asset_paths.remove(&asset_path));
             }
         }
 

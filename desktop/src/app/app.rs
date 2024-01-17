@@ -4,13 +4,10 @@ use super::{
     AppStateReducer, AuthStateReducer, ProjectsStateAction, ProjectsStateReducer,
 };
 use crate::commands::project::load_user_projects;
-use crate::common::invoke;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
-use futures::stream::StreamExt;
-use thot_core::project::Project;
-use thot_local::types::ProjectSettings;
+use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -38,14 +35,15 @@ pub fn app() -> Html {
     let auth_state = use_reducer(|| AuthState::default());
     let app_state = use_reducer(|| AppState::default());
     let projects_state = use_reducer(|| ProjectsState::default());
+    let project_manifest_state = use_state(|| Ok(()));
 
-    {
-        // load user projects
-        let auth_state = auth_state.clone();
+    // load user projects
+    use_effect_with(auth_state.clone(), {
         let app_state = app_state.clone();
         let projects_state = projects_state.clone();
+        let project_manifest_state = project_manifest_state.setter();
 
-        use_effect_with(auth_state, move |auth_state| {
+        move |auth_state| {
             let Some(user) = auth_state.user.as_ref() else {
                 return;
             };
@@ -56,20 +54,36 @@ pub fn app() -> Html {
             spawn_local(async move {
                 match load_user_projects(user_id).await {
                     Ok(projects) => {
+                        project_manifest_state.set(Ok(()));
                         projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
                     }
-                    Err(err) => {
-                        let mut msg = Message::error("Could not load user projects");
-                        msg.set_details(err);
+
+                    Err(LoadUserProjectsError::LoadProjectsManifest(err)) => {
+                        project_manifest_state.set(Err(err));
+                    }
+
+                    Err(LoadUserProjectsError::LoadProjects { projects, errors }) => {
+                        let details = errors
+                            .iter()
+                            .map(|(path, err)| format!("{path:?}: {err}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+
+                        let mut msg = Message::error("Some projects could not be loaded.");
+                        msg.set_details(details);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
-                        return;
+                        project_manifest_state.set(Ok(()));
+                        projects_state.dispatch(ProjectsStateAction::InsertProjects(projects));
                     }
                 };
             });
-        })
-    }
+        }
+    });
 
     // TODO Respond to `open_settings` event.
+    // use futures::stream::StreamExt;
+    // use thot_core::project::Project;
+    // use thot_local::types::ProjectSettings;
     // use_effect_with((), move |_| {
     //     spawn_local(async move {
     //         let mut events =
@@ -83,6 +97,15 @@ pub fn app() -> Html {
     //         }
     //     });
     // });
+
+    if let Err(err) = (*project_manifest_state).as_ref() {
+        return html! {
+            <div>
+                <h1>{"Could not load project manifest"}</h1>
+                <div>{ format!("Error: {err}") }</div>
+            </div>
+        };
+    }
 
     html! {
         <BrowserRouter>

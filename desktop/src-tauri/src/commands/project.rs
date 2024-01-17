@@ -16,6 +16,7 @@ use thot_local::system::projects as sys_projects;
 use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
+use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
 use thot_local_database::Result as DbResult;
 use thot_local_runner::Runner;
 
@@ -28,13 +29,10 @@ use thot_local_runner::Runner;
 pub fn load_user_projects(
     db: State<DbClient>,
     user: ResourceId,
-) -> Result<Vec<(Project, ProjectSettings)>> {
-    let projects = db
-        .send(ProjectCommand::LoadUser(user).into())
-        .expect("could not load user `Project`s");
-
-    let projects: DbResult<Vec<(Project, ProjectSettings)>> = serde_json::from_value(projects)
-        .expect("could not convert `GetUserProjects` result to `Vec<(Project, ProjectSettings)>`");
+) -> StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> {
+    let projects = db.send(ProjectCommand::LoadUser(user).into()).unwrap();
+    let projects: StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> =
+        serde_json::from_value(projects).unwrap();
 
     Ok(projects?)
 }

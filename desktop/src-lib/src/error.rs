@@ -15,7 +15,7 @@ pub enum Trash {
 }
 
 #[derive(Serialize, Deserialize, Error, Debug)]
-pub enum RemoveAsset {
+pub enum RemoveResource {
     #[error("{0}")]
     ZMQ(String),
 
@@ -26,7 +26,7 @@ pub enum RemoveAsset {
     Database(String),
 }
 
-impl From<Trash> for RemoveAsset {
+impl From<Trash> for RemoveResource {
     fn from(value: Trash) -> Self {
         Self::Trash(value)
     }

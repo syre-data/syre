@@ -67,6 +67,10 @@ impl Database {
                         .collect()
                 }
 
+                file_system::Event::File(file_system::File::Modified(path)) => {
+                    vec![]
+                }
+
                 file_system::Event::Folder(file_system::Folder::Created(path)) => {
                     let path = normalize_path_root(path);
                     self.ensure_project_resources_loaded(&path).unwrap();
@@ -106,6 +110,10 @@ impl Database {
                         .collect()
                 }
 
+                file_system::Event::Folder(file_system::Folder::Modified(path)) => {
+                    vec![]
+                }
+
                 file_system::Event::Any(file_system::Any::Created(path)) => {
                     let path = normalize_path_root(path);
                     self.ensure_project_resources_loaded(&path).unwrap();
@@ -118,8 +126,13 @@ impl Database {
 
                 file_system::Event::Any(file_system::Any::Removed(path)) => {
                     let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_any_removed(&path)
+                    match self.ensure_project_resources_loaded(&path) {
+                        Ok(_) => self.handle_any_removed(&path),
+                        Err(Error::Local(LocalError::ProjectError(
+                            ProjectError::PathNotInProject(_),
+                        ))) => self.handle_any_removed_path_not_in_project(path),
+                        Err(_) => todo!(),
+                    }
                 }
             };
 
@@ -508,6 +521,25 @@ impl Database {
         vec![]
     }
 
+    fn handle_any_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<thot::Event> {
+        let path = path.as_ref();
+        if let Some(project) = self.store.get_path_project(path) {
+            return vec![thot::Project::Removed(project.clone()).into()];
+        }
+
+        if let Some(file_name) = path.file_name() {
+            if file_name == thot_local::common::thot_dir() {
+                if let Some(project_path) = path.parent() {
+                    if let Some(project) = self.store.get_path_project(project_path) {
+                        return vec![thot::Project::Removed(project.clone()).into()];
+                    }
+                }
+            }
+        }
+
+        vec![]
+    }
+
     /// Get a `Project` by a path within it.
     fn project_by_resource_path(&self, path: impl AsRef<Path>) -> Result<&LocalProject> {
         let path = path.as_ref();
@@ -524,7 +556,7 @@ impl Database {
         };
 
         let Some(project) = self.store.get_project(project) else {
-            return Err(Error::DatabaseError("Project not loaded".into()));
+            return Err(Error::Database("Project not loaded".into()));
         };
 
         Ok(project)

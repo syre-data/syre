@@ -59,13 +59,13 @@ $project-script-button-hover-background-color: vars.$secondary-color-700;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;
-$info-border-color: vars.$primary-color-400;
+$info-border-color: vars.$primary-color-500;
 $success-color: vars.$utility-green-300;
-$success-border-color: vars.$utility-green-400;
+$success-border-color: vars.$utility-green-500;
 $error-color: vars.$utility-red-300;
-$error-border-color: vars.$utility-red-400;
+$error-border-color: vars.$utility-red-500;
 $warning-color: vars.$utility-yellow-300;
-$warning-border-color: vars.$utility-yellow-400;
+$warning-border-color: vars.$utility-yellow-500;
 
 $shadow-light: rgba(0, 0, 0, 0.2);
 $shadow-medium: rgba(0, 0, 0, 0.4);
@@ -128,6 +128,7 @@ $gap-xl: 30px;
 $card-min-width: 10rem;
 $card-height: 6.5rem;
 
+$default-icon-size: 15px;
 $asset-icon-size: 15px;
 $add-remove-icon-size: 15px;
 

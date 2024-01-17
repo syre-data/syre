@@ -1,4 +1,5 @@
 //! Database for storing resources.
+use super::types::ProjectResources;
 use crate::Result;
 use has_id::HasId;
 use std::collections::{HashMap, HashSet};
@@ -25,6 +26,10 @@ pub struct PathMap<T>(HashMap<PathBuf, T>);
 impl<T> PathMap<T> {
     pub fn new() -> Self {
         Self(HashMap::new())
+    }
+
+    pub fn get(&self, key: &Path) -> Option<&T> {
+        self.0.get(key)
     }
 
     /// Gets an item.
@@ -172,6 +177,24 @@ impl Datastore {
         Ok(())
     }
 
+    /// Removes a `Project` and its resources.
+    ///
+    /// # Notes
+    /// Removes the graph, and all mappings associated with the `Project``.
+    pub fn remove_project(&mut self, project: &ResourceId) -> ProjectResources {
+        let project = self.projects.remove(project);
+        let graph = match project.as_ref() {
+            None => None,
+            Some(project) => self.remove_project_graph(&project.rid),
+        };
+
+        if let Some(project) = project.as_ref() {
+            self.project_paths.remove(&project.base_path());
+        }
+
+        ProjectResources { project, graph }
+    }
+
     /// Gets a [`Project`](LocalProject) from the database if it exists,
     /// otherwise `None`.
     pub fn get_project(&self, rid: &ResourceId) -> Option<&LocalProject> {
@@ -193,6 +216,11 @@ impl Datastore {
         path: &Path,
     ) -> StdResult<Option<&ResourceId>, io::Error> {
         self.project_paths.get_canonical(path)
+    }
+
+    /// Gets the `Project` associated to the given path.
+    pub fn get_path_project(&self, path: &Path) -> Option<&ResourceId> {
+        self.project_paths.get(path)
     }
 
     /// Gets the `Project` the `Container` belongs to.

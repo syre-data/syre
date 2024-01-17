@@ -48,6 +48,8 @@ pub mod file_system {
             from: PathBuf,
             to: PathBuf,
         },
+
+        Modified(PathBuf),
     }
 
     #[derive(Debug)]
@@ -69,6 +71,8 @@ pub mod file_system {
             from: PathBuf,
             to: PathBuf,
         },
+
+        Modified(PathBuf),
     }
 
     #[derive(Debug)]
@@ -86,12 +90,19 @@ pub mod thot {
 
     #[derive(Debug)]
     pub enum Event {
+        Project(Project),
         Graph(Graph),
         Container(Container),
         Asset(Asset),
         Script(Script),
         File(File),
         Folder(Folder),
+    }
+
+    impl From<Project> for Event {
+        fn from(event: Project) -> Self {
+            Self::Project(event)
+        }
     }
 
     impl From<Graph> for Event {
@@ -128,6 +139,12 @@ pub mod thot {
         fn from(event: Folder) -> Self {
             Self::Folder(event)
         }
+    }
+
+    #[derive(Debug)]
+    pub enum Project {
+        /// The project was deleted.
+        Removed(ResourceId),
     }
 
     #[derive(Debug)]

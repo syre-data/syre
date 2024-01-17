@@ -71,6 +71,17 @@
       border-left-width: t.$border-width-s;
     }
 
+    .details-title {
+      cursor: pointer;
+
+      svg {
+        width: t.$default-icon-size;
+        height: t.$default-icon-size;
+        padding-left: t.$padding-m;
+        vertical-align: middle;
+      }
+    }
+
     .details-body {
       max-height: 25vh;
       overflow: auto;

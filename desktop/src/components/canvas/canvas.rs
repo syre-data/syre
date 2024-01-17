@@ -239,6 +239,10 @@ fn handle_file_system_event(
     graph_state: &GraphStateReducer,
 ) {
     match update {
+        ProjectUpdate::Removed => {
+            tracing::debug!("removed");
+        }
+
         ProjectUpdate::Container(update) => match update {
             ContainerUpdate::Properties {
                 container,

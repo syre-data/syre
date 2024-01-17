@@ -26,6 +26,8 @@ pub enum Update {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {
+    Removed,
+
     Graph(Graph),
     Container(Container),
     Asset(Asset),

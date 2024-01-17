@@ -69,7 +69,8 @@ pub fn message(props: &MessageProps) -> Html {
             </div>
             if {props.details.is_some()} {
                 <div class={details_class}>
-                    <span onclick={toggle_details}>
+                    <span class={"details-title"}
+                        onclick={toggle_details}>
                         { "Details" }
                         <Icon icon_id={details_icon} />
                     </span>

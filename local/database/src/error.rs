@@ -48,7 +48,7 @@ pub enum Error {
 
     /// Issue with the database.
     #[error("{0}")]
-    DatabaseError(String),
+    Database(String),
 
     /// The database has become out of sync.
     #[error("database out of sync")]

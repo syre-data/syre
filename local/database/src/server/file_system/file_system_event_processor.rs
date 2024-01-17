@@ -5,8 +5,8 @@ use super::event::file_system::{
 use notify::event::{CreateKind, EventKind, ModifyKind, RemoveKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
+use std::{fs, io};
 use thot_local::common;
 
 pub struct FileSystemEventProcessor;
@@ -54,7 +54,8 @@ impl FileSystemEventProcessor {
             .filter(|event| match event.kind {
                 EventKind::Create(_)
                 | EventKind::Remove(_)
-                | EventKind::Modify(ModifyKind::Name(_)) => true,
+                | EventKind::Modify(ModifyKind::Name(_))
+                | EventKind::Modify(ModifyKind::Any) => true,
 
                 _ => false,
             })
@@ -466,6 +467,7 @@ impl FileSystemEventProcessor {
 
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
                 let [from, to] = &event.paths[..] else {
+                    tracing::debug!("invalid paths");
                     panic!("invalid paths");
                 };
 
@@ -480,6 +482,35 @@ impl FileSystemEventProcessor {
                     Some(FileEvent::Renamed { from, to }.into())
                 } else if to.is_dir() {
                     Some(FolderEvent::Renamed { from, to }.into())
+                } else {
+                    None
+                }
+            }
+
+            EventKind::Modify(ModifyKind::Any) => {
+                let [path] = &event.paths[..] else {
+                    tracing::debug!("invalid paths");
+                    panic!("invalid paths");
+                };
+
+                let path = match fs::canonicalize(path) {
+                    Ok(path) => path,
+                    Err(err) => match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            return Some(AnyEvent::Removed(path.clone()).into());
+                        }
+
+                        _ => {
+                            tracing::debug!("failed to canonicalize path `{path:?}`: {err:?}");
+                            return None;
+                        }
+                    },
+                };
+
+                if path.is_file() {
+                    Some(FileEvent::Modified(path).into())
+                } else if path.is_dir() {
+                    Some(FolderEvent::Modified(path).into())
                 } else {
                     None
                 }

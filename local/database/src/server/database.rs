@@ -139,7 +139,7 @@ impl Database {
                         _ => true,
                     }) {
                         tracing::debug!("watch error: {errs:?}");
-                        return Err(crate::Error::DatabaseError(format!("{errs:?}")));
+                        return Err(crate::Error::Database(format!("{errs:?}")));
                     }
 
                     Vec::new()
@@ -147,7 +147,7 @@ impl Database {
                 #[cfg(not(target_os = "macos"))]
                 {
                     tracing::debug!("watch error: {errs:?}");
-                    return Err(crate::Error::DatabaseError(format!("{errs:?}")));
+                    return Err(crate::Error::Database(format!("{errs:?}")));
                 }
             }
         };

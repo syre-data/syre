@@ -27,7 +27,7 @@ impl Database {
 
                     self.publish_update(&Update::Project {
                         project: project.rid.clone(),
-                        update: ProjectUpdate::Removed,
+                        update: ProjectUpdate::Removed(Some(project.into())),
                     })?;
                 }
 

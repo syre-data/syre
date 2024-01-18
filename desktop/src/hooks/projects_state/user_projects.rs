@@ -19,21 +19,21 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<Project>> {
             .collect()
     });
 
-    {
+    use_effect_with(projects_state, {
         let user = user.clone();
         let user_projects = user_projects.clone();
 
-        use_effect_with(projects_state, move |projects_state| {
+        move |projects_state| {
             let projects =
                 filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
                     .clone()
                     .into_iter()
                     .map(|project| project.clone())
                     .collect();
-        
+
             user_projects.set(projects);
-        });
-    }
+        }
+    });
 
     user_projects
 }

@@ -27,7 +27,9 @@ pub fn dashboard() -> HtmlResult {
         return Ok(html! {{ "Redirecting to login" }});
     };
 
+    tracing::debug!("3a");
     let projects = use_user_projects(&user.rid);
+    tracing::debug!("3b");
 
     let create_project = {
         let app_state = app_state.clone();

@@ -500,3 +500,4 @@ impl Reducible for GraphState {
 }
 
 pub type GraphStateReducer = UseReducerHandle<GraphState>;
+pub type GraphStateDispatcher = UseReducerDispatcher<GraphState>;

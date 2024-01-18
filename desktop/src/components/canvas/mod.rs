@@ -12,6 +12,6 @@ pub mod selection_action;
 
 // Re-exports
 pub use canvas::ProjectCanvas;
-pub use canvas_state::{CanvasStateAction, CanvasStateReducer};
-pub use graph_state::{GraphStateAction, GraphStateReducer};
+pub use canvas_state::{CanvasStateAction, CanvasStateDispatcher, CanvasStateReducer};
+pub use graph_state::{GraphStateAction, GraphStateDispatcher, GraphStateReducer};
 pub use project_controls::ProjectControls;

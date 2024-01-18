@@ -4,7 +4,9 @@
 //! e.g. `project:123-4567-890
 use serde::{Deserialize, Serialize};
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Container as CoreContainer, ContainerProperties, Script as CoreScript};
+use thot_core::project::{
+    Container as CoreContainer, ContainerProperties, Project as CoreProject, Script as CoreScript,
+};
 use thot_core::types::{ResourceId, ResourcePath};
 
 // **************
@@ -26,7 +28,7 @@ pub enum Update {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {
-    Removed,
+    Removed(Option<CoreProject>),
 
     Graph(Graph),
     Container(Container),

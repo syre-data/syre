@@ -122,3 +122,4 @@ impl Reducible for AppState {
 }
 
 pub type AppStateReducer<'a> = UseReducerHandle<AppState>;
+pub type AppStateDispatcher = UseReducerDispatcher<AppState>;

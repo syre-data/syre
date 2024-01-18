@@ -12,16 +12,13 @@ pub fn use_project(rid: &ResourceId) -> UseStateHandle<Option<Project>> {
         use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
 
     let project = use_state(|| projects_state.projects.get(&rid).cloned());
-
-    {
+    use_effect_with(projects_state.clone(), {
         let rid = rid.clone();
-        let projects_state = projects_state.clone();
         let project = project.clone();
-
-        use_effect_with(projects_state, move |projects_state| {
+        move |projects_state| {
             project.set(projects_state.projects.get(&rid).cloned());
-        });
-    }
+        }
+    });
 
     project
 }

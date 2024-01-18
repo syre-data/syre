@@ -12,12 +12,11 @@ pub fn workspace() -> Html {
 
     if open_projects.is_empty() {
         return html! {
-            { "No project open" }
+            <h1 class={"align-center"}>{ "No project open" }</h1>
         };
     }
 
     let fallback = html! { <Loading text={"Loading project"} /> };
-
     html! {
         <div id={"workspace"}>
             { open_projects.iter().map(|rid| {

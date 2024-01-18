@@ -30,7 +30,9 @@ pub fn home_component() -> HtmlResult {
         return Ok(html! {});
     };
 
+    tracing::debug!("2a");
     let projects = use_user_projects(&user.rid);
+    tracing::debug!("2b");
     let create_project = {
         let app_state = app_state.clone();
         Callback::from(move |_: MouseEvent| {

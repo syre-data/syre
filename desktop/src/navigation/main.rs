@@ -31,50 +31,44 @@ pub fn main_navigation() -> Html {
         projects_to_tabs(projects)
     });
 
-    {
-        // update tabs when open projects change
+    // update tabs when open projects change
+    use_effect_with(open_projects.clone(), {
         let tabs = tabs.clone();
-        let open_projects = open_projects.clone();
         let user_projects = user_projects.clone();
 
-        use_effect_with(open_projects, move |open_projects| {
+        move |open_projects| {
             let projects = user_projects
                 .iter()
                 .filter(|prj| open_projects.contains(&prj.rid))
                 .collect::<Vec<&Project>>();
-        
+
             tabs.set(projects_to_tabs(projects));
-        });
-    }
+        }
+    });
 
     // -----------------
     // --- callbacks ---
     // -----------------
 
-    let activate_project = {
-        let projects_state = projects_state.clone();
+    let activate_project = use_callback((), {
+        let projects_state = projects_state.dispatcher();
         let navigator = navigator.clone();
 
-        Callback::from(move |pid: ResourceId| {
+        move |pid: ResourceId, _| {
             projects_state.dispatch(ProjectsStateAction::SetActiveProject(pid));
             navigator.push(&Route::Workspace);
-        })
-    };
+        }
+    });
 
-    let close_project = {
-        let projects_state = projects_state.clone();
+    let close_project = use_callback(projects_state.clone(), {
         let navigator = navigator.clone();
-
-        Callback::from(move |TabCloseInfo { closing, next }| {
+        move |TabCloseInfo { closing, next }, projects_state| {
             projects_state.dispatch(ProjectsStateAction::RemoveOpenProject(closing, next));
-
-            // @todo: State becomes stale after dispatch.
-            // See https://github.com/yewstack/yew/issues/3125
             if projects_state.open_projects.len() == 1 {
                 navigator.push(&Route::Dashboard);
             }
-        })
-    };
+        }
+    });
 
     html! {
         <div id={"main-navigation-tabs"}>

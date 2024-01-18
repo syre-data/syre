@@ -267,3 +267,4 @@ impl Reducible for CanvasState {
 }
 
 pub type CanvasStateReducer = UseReducerHandle<CanvasState>;
+pub type CanvasStateDispatcher = UseReducerDispatcher<CanvasState>;

@@ -274,6 +274,10 @@ fn handle_file_system_event(
     graph_state: &GraphStateReducer,
 ) {
     match update {
+        ProjectUpdate::Moved(path) => {
+            todo!();
+        }
+
         ProjectUpdate::Removed(prj) => {
             projects_state.dispatch(ProjectsStateAction::RemoveProject(project.clone()));
 

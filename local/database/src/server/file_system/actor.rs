@@ -1,6 +1,6 @@
 use crate::server::Event;
 use notify::{self, RecursiveMode, Watcher};
-use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdMap};
+use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -15,6 +15,12 @@ type FileSystemWatcher = notify::RecommendedWatcher;
 pub enum FileSystemActorCommand {
     Watch(PathBuf),
     Unwatch(PathBuf),
+
+    /// Gets the final path of the given path if it is being tracked.
+    FinalPath {
+        path: PathBuf,
+        tx: mpsc::Sender<Option<PathBuf>>,
+    },
 }
 
 pub struct FileSystemActor {
@@ -81,6 +87,7 @@ impl FileSystemActor {
             match self.command_rx.recv().unwrap() {
                 FileSystemActorCommand::Watch(path) => self.watch(path),
                 FileSystemActorCommand::Unwatch(path) => self.unwatch(path),
+                FileSystemActorCommand::FinalPath { path, tx } => self.final_path(path, tx),
             }
         }
     }
@@ -101,5 +108,33 @@ impl FileSystemActor {
         let path = path.as_ref();
         self.watcher.watcher().unwatch(path).unwrap();
         self.watcher.cache().remove_root(path);
+    }
+
+    fn final_path(&mut self, path: impl AsRef<Path>, tx: mpsc::Sender<Option<PathBuf>>) {
+        let path = path.as_ref();
+        let cache = self.watcher.cache();
+        let Some(id) = cache.cached_file_id(path) else {
+            tracing::debug!("`{path:?}` not cached");
+            match tx.send(None) {
+                Ok(_) => {}
+                Err(err) => tracing::debug!(?err),
+            };
+            return;
+        };
+
+        let path = match file_path_from_id::path_from_id(id) {
+            Ok(path) => Some(path),
+            Err(err) => {
+                tracing::debug!("could not get path: {err:?}");
+                None
+            }
+        };
+
+        match tx.send(path) {
+            Ok(_) => {}
+            Err(err) => {
+                tracing::debug!(?err);
+            }
+        }
     }
 }

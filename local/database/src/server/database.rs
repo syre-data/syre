@@ -82,6 +82,19 @@ impl Database {
             .unwrap();
     }
 
+    /// Gets the final path of a file from the file system watcher.
+    fn get_final_path(&self, path: impl Into<PathBuf>) -> Option<PathBuf> {
+        let (tx, rx) = mpsc::channel();
+        self.file_system_tx
+            .send(FileSystemActorCommand::FinalPath {
+                path: path.into(),
+                tx,
+            })
+            .unwrap();
+
+        rx.recv().unwrap()
+    }
+
     /// Publish an update to subscribers.
     /// Triggered by file system events.
     fn publish_update(&self, update: &Update) -> zmq::Result<()> {

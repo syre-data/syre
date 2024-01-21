@@ -1008,7 +1008,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "file-path-from-id"
+name = "file_path_from_id"
 version = "0.0.1"
 dependencies = [
  "file-id",
@@ -4644,6 +4644,7 @@ version = "0.0.2"
 dependencies = [
  "dev_utils",
  "fake",
+ "file_path_from_id",
  "futures",
  "has_id",
  "indexmap 2.1.0",

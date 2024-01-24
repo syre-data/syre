@@ -41,7 +41,8 @@ impl ResourcePath {
     /// # Notes
     /// ## Root paths
     /// Only the relative path from the root is stored for root paths.
-    pub fn new(path: PathBuf) -> Result<Self> {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
+        let path: PathBuf = path.into();
         if let Some((metalevel, rel_path)) = Self::parse_root_path(&path)? {
             return Ok(Self::Root(rel_path, metalevel));
         } else if Self::is_relative(&path) {

@@ -1,5 +1,5 @@
 //! Handle [`thot::File`](FileEvent) events.
-use super::event::thot::File as FileEvent;
+use super::event::app::File as FileEvent;
 use crate::event::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
@@ -11,7 +11,7 @@ use thot_local::project::container;
 use thot_local::project::resources::Asset;
 
 impl Database {
-    pub fn handle_thot_event_file(&mut self, event: FileEvent) -> Result {
+    pub fn handle_thot_event_file(&mut self, event: &FileEvent) -> Result {
         match event {
             FileEvent::Created(path) => {
                 let container_path =

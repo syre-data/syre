@@ -19,7 +19,7 @@ pub enum FileSystemActorCommand {
     /// Gets the final path of the given path if it is being tracked.
     FinalPath {
         path: PathBuf,
-        tx: mpsc::Sender<Option<PathBuf>>,
+        tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
     },
 }
 
@@ -110,31 +110,36 @@ impl FileSystemActor {
         self.watcher.cache().remove_root(path);
     }
 
-    fn final_path(&mut self, path: impl AsRef<Path>, tx: mpsc::Sender<Option<PathBuf>>) {
+    /// Gets the final path of a file.
+    ///
+    /// # Returns
+    /// + `None` if the path is not in the watcher's cache.
+    ///
+    /// # Errors
+    /// + If the final path could not be obtained.
+    fn final_path(
+        &mut self,
+        path: impl AsRef<Path>,
+        tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
+    ) {
         let path = path.as_ref();
         let cache = self.watcher.cache();
         let Some(id) = cache.cached_file_id(path) else {
-            tracing::debug!("`{path:?}` not cached");
-            match tx.send(None) {
+            match tx.send(Ok(None)) {
                 Ok(_) => {}
                 Err(err) => tracing::debug!(?err),
             };
             return;
         };
 
-        let path = match file_path_from_id::path_from_id(id) {
-            Ok(path) => Some(path),
-            Err(err) => {
-                tracing::debug!("could not get path: {err:?}");
-                None
-            }
+        let path_res = match file_path_from_id::path_from_id(id) {
+            Ok(path) => Ok(Some(path)),
+            Err(err) => Err(err),
         };
 
-        match tx.send(path) {
+        match tx.send(path_res) {
             Ok(_) => {}
-            Err(err) => {
-                tracing::debug!(?err);
-            }
+            Err(err) => tracing::debug!(?err),
         }
     }
 }

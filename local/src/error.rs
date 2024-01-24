@@ -34,7 +34,7 @@ pub enum SettingsValidationError {
 
 #[cfg(feature = "fs")]
 #[derive(Serialize, Deserialize, Error, Debug)]
-pub enum ProjectError {
+pub enum Project {
     #[error("`{0}` already registered")]
     DuplicatePath(PathBuf),
 
@@ -172,7 +172,7 @@ pub enum Error {
 
     #[cfg(feature = "fs")]
     #[error("{0}")]
-    ProjectError(ProjectError),
+    Project(Project),
 
     #[cfg(feature = "fs")]
     #[error("{0}")]
@@ -204,9 +204,9 @@ impl From<ContainerError> for Error {
 }
 
 #[cfg(feature = "fs")]
-impl From<ProjectError> for Error {
-    fn from(err: ProjectError) -> Self {
-        Error::ProjectError(err)
+impl From<Project> for Error {
+    fn from(err: Project) -> Self {
+        Error::Project(err)
     }
 }
 

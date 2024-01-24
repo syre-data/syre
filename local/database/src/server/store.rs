@@ -10,7 +10,9 @@ use std::{fs, io};
 use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset, Container as CoreContainer, Metadata, Script as CoreScript};
+use thot_core::project::{
+    asset, Asset, Container as CoreContainer, Metadata, Script as CoreScript,
+};
 use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
@@ -164,6 +166,7 @@ impl Datastore {
     // ***************
 
     /// Inserts a [`Project`](LocalProject) into the database.
+    /// Canonicalizes the path.
     ///
     /// # Returns
     /// Reference to the inserted `Project`(LocalProject).
@@ -193,6 +196,85 @@ impl Datastore {
         }
 
         ProjectResources { project, graph }
+    }
+
+    /// Updates a `Project`s path amp and all it's resources' path maps.
+    /// Canonicalizes paths.
+    ///
+    /// # Returns
+    /// `Project`'s old path.
+    pub fn update_project_path(
+        &mut self,
+        project: &ResourceId,
+        to: impl Into<PathBuf>,
+    ) -> StdResult<PathBuf, error::UpdateProjectPath> {
+        let to: PathBuf = to.into();
+        let Some(project) = self.projects.get_mut(project) else {
+            return Err(error::UpdateProjectPath::NotFound);
+        };
+
+        let pid = project.rid.clone();
+        let old_project_path = project.base_path().to_path_buf();
+        project.set_base_path(to.clone());
+
+        self.project_paths.remove(&old_project_path);
+        if let Err(err) = self
+            .project_paths
+            .insert_canonical(project.base_path().to_path_buf(), pid.clone())
+        {
+            return Err(error::UpdateProjectPath::Canonicalize(err.kind()));
+        }
+
+        let mut container_paths_map = Vec::new();
+        let mut asset_path_maps = Vec::new();
+        if let Some(graph) = self.get_project_graph_mut(&pid) {
+            for (_, container) in graph.iter_nodes_mut() {
+                let old_container_path = container.base_path().to_path_buf();
+                let container_relative_path =
+                    old_container_path.strip_prefix(&old_project_path).unwrap();
+
+                let container_path = to.join(container_relative_path);
+                container.set_base_path(container_path.clone());
+                container_paths_map.push((
+                    container.rid.clone(),
+                    old_container_path.clone(),
+                    container_path.clone(),
+                ));
+
+                for (_, asset) in container.assets.iter() {
+                    asset_path_maps.push((
+                        asset.rid.clone(),
+                        old_container_path.join(asset.path.as_path()),
+                        container_path.join(asset.path.as_path()),
+                    ));
+                }
+            }
+        }
+
+        for (cid, old_container_path, container_path) in container_paths_map {
+            self.container_paths.remove(&old_container_path);
+            if let Err(err) = self
+                .container_paths
+                .insert_canonical(container_path, cid.clone())
+            {
+                return Err(error::UpdateProjectPath::CanonicalizeResource {
+                    resource: cid,
+                    error: err.kind(),
+                });
+            };
+        }
+
+        for (aid, old_asset_path, asset_path) in asset_path_maps {
+            self.asset_paths.remove(&old_asset_path);
+            if let Err(err) = self.asset_paths.insert_canonical(asset_path, aid.clone()) {
+                return Err(error::UpdateProjectPath::CanonicalizeResource {
+                    resource: aid,
+                    error: err.kind(),
+                });
+            }
+        }
+
+        Ok(old_project_path.to_path_buf())
     }
 
     /// Gets a [`Project`](LocalProject) from the database if it exists,
@@ -1266,6 +1348,21 @@ pub mod error {
     use thot_local::project::resources::Container;
 
     type ContainerTree = ResourceTree<Container>;
+
+    #[derive(Debug)]
+    pub enum UpdateProjectPath {
+        /// The `Project` was not found.
+        NotFound,
+
+        /// The `Project`'s new path could not be canonicalized.
+        Canonicalize(io::ErrorKind),
+
+        /// A `Container`'s or `Asset`'s path in the `Project`'s graph could not be canonicalized.
+        CanonicalizeResource {
+            resource: ResourceId,
+            error: io::ErrorKind,
+        },
+    }
 
     #[derive(Error, Debug)]
     #[error("{assets:?}")]

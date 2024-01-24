@@ -161,14 +161,11 @@ impl Database {
     }
 
     fn get_path_project(&self, path: &Path) -> Option<&LocalProject> {
-        if let Some(pid) = self.store.get_path_project_canonical(&path).unwrap() {
-            if let Some(project) = self.store.get_project(pid) {
-                // already loaded
-                return Some(project);
-            }
-        }
+        let Ok(Some(project)) = self.store.get_path_project_canonical(&path) else {
+            return None;
+        };
 
-        None
+        self.store.get_project(project)
     }
 
     fn get_project_path(&self, rid: &ResourceId) -> Option<&Path> {

@@ -1,6 +1,7 @@
 use super::*;
 use dev_utils::fs::TempDir;
 use dev_utils::path::resource_path::resource_path;
+use std::fs;
 use thot_core::db::StandardSearchFilter as StdFilter;
 use thot_core::types::ResourceId;
 use thot_local::loader::{
@@ -41,31 +42,93 @@ fn insert_project_should_work() {
 }
 
 #[test]
+fn update_project_path_should_work() {
+    // setup
+    let dir = tempfile::tempdir().unwrap();
+    let prj = dir.path().join("project");
+    let root = prj.join("data");
+    let child = root.join("child");
+    let root_asset = root.join("asset");
+    let child_asset = child.join("asset");
+
+    fs::create_dir(&prj).unwrap();
+    fs::create_dir(&root).unwrap();
+    fs::create_dir(&child).unwrap();
+    fs::write(&root_asset, "").unwrap();
+    fs::write(&child_asset, "").unwrap();
+
+    let mut project = LocalProject::new(dir.path().join(prj)).unwrap();
+    project.data_root = Some(root.clone());
+    project.save().unwrap();
+    let pid = project.rid.clone();
+    let project_path = project.base_path().to_path_buf();
+
+    let mut root = LocalContainer::new(project.data_root_path().unwrap());
+    let asset = LocalAsset::new(ResourcePath::new("asset").unwrap()).unwrap();
+    root.insert_asset(asset);
+    root.save().unwrap();
+
+    let mut child = LocalContainer::new(root.base_path().join(child));
+    let asset = LocalAsset::new(ResourcePath::new("asset").unwrap()).unwrap();
+    child.insert_asset(asset);
+    child.save().unwrap();
+
+    let mut graph = ResourceTree::new(root);
+    graph.insert(graph.root().clone(), child).unwrap();
+
+    let mut db = Datastore::new();
+    db.insert_project(project).unwrap();
+    db.insert_project_graph(pid.clone(), graph).unwrap();
+
+    // test
+    let mut prj = project_path.clone();
+    prj.set_file_name("new");
+
+    let root = prj.join("data");
+    let child = root.join("child");
+    let root_asset = root.join("asset");
+    let child_asset = child.join("asset");
+
+    fs::rename(project_path, &prj).unwrap();
+    db.update_project_path(&pid, &prj).unwrap();
+
+    assert_eq!(&pid, db.get_path_project_canonical(&prj).unwrap().unwrap());
+    assert!(db.get_path_container_canonical(&root).unwrap().is_some());
+    assert!(db.get_path_container_canonical(&child).unwrap().is_some());
+    assert!(db
+        .get_path_asset_id_canonical(&root_asset)
+        .unwrap()
+        .is_some());
+
+    assert!(db
+        .get_path_asset_id_canonical(&child_asset)
+        .unwrap()
+        .is_some());
+}
+
+#[test]
 fn insert_project_graph_should_work() {
     // setup
     let pid = ResourceId::new();
-    let mut dir = TempDir::new().expect("new `TempDir` should work");
-    let child_dir = dir.mkdir().expect("mkdir should work");
+    let mut dir = TempDir::new().unwrap();
+    let child_dir = dir.mkdir().unwrap();
 
-    let mut root = ContainerLoader::load(dir.path()).expect("load `Container` should work");
-    let mut child = ContainerLoader::load(&child_dir).expect("load child `Container` should work");
+    let mut root = ContainerLoader::load(dir.path()).unwrap();
+    let mut child = ContainerLoader::load(&child_dir).unwrap();
 
-    let a0 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
-    let a1 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
+    let a0 = LocalAsset::new(resource_path(Some("py"))).unwrap();
+    let a1 = LocalAsset::new(resource_path(Some("py"))).unwrap();
 
     let c_root_rid = root.rid.clone();
     let c_child_rid = child.rid.clone();
     let aids = vec![a0.rid.clone(), a1.rid.clone()];
 
-    root.insert_asset(a0)
-        .expect("could not insert `Asset` into root `Container`");
+    root.insert_asset(a0).unwrap();
 
-    child
-        .insert_asset(a1)
-        .expect("could not insert `Asset` into child `Container`");
+    child.insert_asset(a1).unwrap();
 
-    root.save().expect("could not save root `Container`");
-    child.save().expect("could not save child `Container`");
+    root.save().unwrap();
+    child.save().unwrap();
 
     drop(root);
     drop(child);
@@ -75,7 +138,7 @@ fn insert_project_graph_should_work() {
 
     // test
     db.insert_project_graph_canonical(pid.clone(), graph)
-        .expect("load container tree should work");
+        .unwrap();
 
     // containers
     assert!(db.graphs.contains_key(&pid), "`Project` not inserted");
@@ -111,7 +174,8 @@ fn get_container_should_work() {
     let rid = container.rid.clone();
     let graph = ResourceTree::new(container);
 
-    db.insert_project_graph_canonical(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph)
+        .unwrap();
 
     // test
     let found = db.get_container(&rid);
@@ -136,7 +200,8 @@ fn get_asset_container_should_work() {
     container.insert_asset(asset);
 
     let graph = ResourceTree::new(container);
-    db.insert_project_graph_canonical(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph)
+        .unwrap();
 
     // test
     let Some(found) = db.get_asset_container(&aid) else {
@@ -179,7 +244,8 @@ fn find_containers_should_work() {
     let mut graph = ResourceTree::new(root);
     graph.insert(root_rid.clone(), child_1).unwrap();
     graph.insert(root_rid.clone(), child_2).unwrap();
-    db.insert_project_graph_canonical(ResourceId::new(), graph);
+    db.insert_project_graph_canonical(ResourceId::new(), graph)
+        .unwrap();
 
     let mut find_filter = StdFilter::default();
     find_filter.kind = Some(find_kind);
@@ -329,8 +395,8 @@ fn find_assets_should_work() {
 #[test]
 fn insert_project_scripts_should_work() {
     // setup
-    let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    let project = LocalProject::load_from(_dir.path()).expect("load `Project` should work");
+    let mut _dir = TempDir::new().unwrap();
+    let project = LocalProject::load_from(_dir.path()).unwrap();
     let pid = project.rid.clone();
 
     let db = Datastore::new();

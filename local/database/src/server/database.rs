@@ -16,6 +16,7 @@ use crate::{common, constants, Result};
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use std::sync::mpsc;
 use std::thread;
 
@@ -83,7 +84,10 @@ impl Database {
     }
 
     /// Gets the final path of a file from the file system watcher.
-    fn get_final_path(&self, path: impl Into<PathBuf>) -> Option<PathBuf> {
+    fn get_final_path(
+        &self,
+        path: impl Into<PathBuf>,
+    ) -> StdResult<Option<PathBuf>, file_path_from_id::Error> {
         let (tx, rx) = mpsc::channel();
         self.file_system_tx
             .send(FileSystemActorCommand::FinalPath {
@@ -165,9 +169,15 @@ impl Database {
             }
         };
 
-        let events = FileSystemEventProcessor::process(events);
-        let events = self.process_file_system_events_to_thot_events(&events);
-        self.handle_thot_events(events)?;
+        let events = self.rectify_event_paths(events);
+        let mut events = FileSystemEventProcessor::process(events);
+        events.sort_by(|a, b| a.time.cmp(&b.time));
+        for event in events {
+            if let Err(_err) = self.process_file_system_event(&event) {
+                tracing::debug!(?event);
+            };
+        }
+
         Ok(())
     }
 }

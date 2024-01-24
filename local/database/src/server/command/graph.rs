@@ -70,7 +70,7 @@ impl Database {
             GraphCommand::Parent(rid) => {
                 let Some(graph) = self.store.get_container_graph(&rid) else {
                     let err: Result<Option<ResourceId>> =
-                        Err(Error::CoreError(CoreError::ResourceError(
+                        Err(Error::Core(CoreError::ResourceError(
                             ResourceError::does_not_exist("`Container` does not exist"),
                         )));
 

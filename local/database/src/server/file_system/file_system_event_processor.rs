@@ -12,14 +12,9 @@ use thot_local::common;
 pub struct FileSystemEventProcessor;
 impl FileSystemEventProcessor {
     /// Process [`notify_debouncer_full::DebouncedEvent`]s into [`file_system::Event`](FileSystemEvent)s.
-    /// Paths are canonicalized.
     ///
     /// # Notes
-    /// + When canonicalizing paths:
-    ///     Assume that relative segments are resolved in file paths.
-    ///     On Windows, paths are canonicalized to UNC.
-    ///     However, `fs::canonicalize` can not be used on `from` paths because file no longer exists,
-    ///     so must canonicalize by hand.
+    /// Events are assumed to have already been preprocessed with paths rectified.
     pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
         let events = Self::filter_events(events);
         let events = Self::filter_hidden(events);
@@ -225,6 +220,12 @@ impl FileSystemEventProcessor {
 
             match (&from_name_events[..], &to_name_events[..]) {
                 ([from_name_event], [to_name_event]) => {
+                    let time = vec![from_name_event.time, to_name_event.time]
+                        .iter()
+                        .min()
+                        .unwrap()
+                        .clone();
+
                     if to_name_event.paths[0].is_file() {
                         let from = if cfg!(target_os = "windows") {
                             common::ensure_windows_unc(&from_name_event.paths[0])
@@ -232,14 +233,12 @@ impl FileSystemEventProcessor {
                             from_name_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FileEvent::Renamed {
-                                from,
-                                to: fs::canonicalize(&to_name_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FileEvent::Renamed {
+                            from,
+                            to: fs::canonicalize(&to_name_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_rename_keys.push(parent.to_owned());
                     } else if to_name_event.paths[0].is_dir() {
                         let from = if cfg!(target_os = "windows") {
@@ -248,14 +247,12 @@ impl FileSystemEventProcessor {
                             from_name_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FolderEvent::Moved {
-                                from,
-                                to: fs::canonicalize(&to_name_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FolderEvent::Moved {
+                            from,
+                            to: fs::canonicalize(&to_name_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_rename_keys.push(parent.to_owned());
                     }
                 }
@@ -272,6 +269,12 @@ impl FileSystemEventProcessor {
 
             match (&remove_parent_events[..], &create_parent_events[..]) {
                 ([remove_parent_event], [create_parent_event]) => {
+                    let time = vec![remove_parent_event.time, create_parent_event.time]
+                        .iter()
+                        .min()
+                        .unwrap()
+                        .clone();
+
                     if create_parent_event.paths[0].is_file() {
                         let from = if cfg!(target_os = "windows") {
                             common::ensure_windows_unc(&remove_parent_event.paths[0])
@@ -279,14 +282,12 @@ impl FileSystemEventProcessor {
                             remove_parent_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FileEvent::Renamed {
-                                from,
-                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FileEvent::Renamed {
+                            from,
+                            to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_remove_create_keys.push(parent.to_owned());
                     } else if create_parent_event.paths[0].is_dir() {
                         let from = if cfg!(target_os = "windows") {
@@ -295,14 +296,12 @@ impl FileSystemEventProcessor {
                             remove_parent_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FolderEvent::Moved {
-                                from,
-                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FolderEvent::Moved {
+                            from,
+                            to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_remove_create_keys.push(parent.to_owned());
                     }
                 }
@@ -358,6 +357,7 @@ impl FileSystemEventProcessor {
 
                     event_map.push(event);
                 }
+
                 EventKind::Create(_) => {
                     let file_name = event.paths[0].file_name().unwrap();
                     let event_map = create_events
@@ -366,6 +366,7 @@ impl FileSystemEventProcessor {
 
                     event_map.push(event);
                 }
+
                 _ => other_events.push(event),
             }
         }
@@ -379,6 +380,12 @@ impl FileSystemEventProcessor {
 
             match (&remove_parent_events[..], &create_parent_events[..]) {
                 ([remove_parent_event], [create_parent_event]) => {
+                    let time = vec![remove_parent_event.time, create_parent_event.time]
+                        .iter()
+                        .min()
+                        .unwrap()
+                        .clone();
+
                     if create_parent_event.paths[0].is_file() {
                         let from = if cfg!(target_os = "windows") {
                             common::ensure_windows_unc(&remove_parent_event.paths[0])
@@ -386,14 +393,12 @@ impl FileSystemEventProcessor {
                             remove_parent_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FileEvent::Moved {
-                                from,
-                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FileEvent::Moved {
+                            from,
+                            to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_names.push(file_name.to_owned());
                     } else if create_parent_event.paths[0].is_dir() {
                         let from = if cfg!(target_os = "windows") {
@@ -402,14 +407,12 @@ impl FileSystemEventProcessor {
                             remove_parent_event.paths[0].clone()
                         };
 
-                        grouped_events.push(
-                            FolderEvent::Moved {
-                                from,
-                                to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
-                            }
-                            .into(),
-                        );
+                        let kind = FolderEvent::Moved {
+                            from,
+                            to: fs::canonicalize(&create_parent_event.paths[0]).unwrap(),
+                        };
 
+                        grouped_events.push(FileSystemEvent::new(kind, time));
                         grouped_names.push(file_name.to_owned());
                     }
                 }
@@ -441,25 +444,36 @@ impl FileSystemEventProcessor {
     }
 
     fn convert_event(event: &DebouncedEvent) -> Option<FileSystemEvent> {
+        let time = event.time.clone();
         match event.kind {
             EventKind::Create(CreateKind::File) => {
-                let path = fs::canonicalize(&event.paths[0]).unwrap();
-                Some(FileEvent::Created(path).into())
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
+                };
+
+                let path = fs::canonicalize(path).unwrap();
+                Some(FileSystemEvent::new(FileEvent::Created(path), time))
             }
 
             EventKind::Create(CreateKind::Folder) => {
-                let path = fs::canonicalize(&event.paths[0]).unwrap();
-                Some(FolderEvent::Created(path).into())
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
+                };
+
+                let path = fs::canonicalize(path).unwrap();
+                Some(FileSystemEvent::new(FolderEvent::Created(path), time))
             }
 
             EventKind::Create(CreateKind::Any) => {
-                let Ok(path) = fs::canonicalize(&event.paths[0]) else {
-                    return Some(AnyEvent::Created(event.paths[0].to_owned()).into());
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
                 };
+
+                let path = fs::canonicalize(path).unwrap();
                 if path.is_file() {
-                    Some(FileEvent::Created(path).into())
+                    Some(FileSystemEvent::new(FileEvent::Created(path), time))
                 } else if path.is_dir() {
-                    Some(FolderEvent::Created(path).into())
+                    Some(FileSystemEvent::new(FolderEvent::Created(path), time))
                 } else {
                     None
                 }
@@ -467,7 +481,6 @@ impl FileSystemEventProcessor {
 
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
                 let [from, to] = &event.paths[..] else {
-                    tracing::debug!("invalid paths");
                     panic!("invalid paths");
                 };
 
@@ -479,9 +492,12 @@ impl FileSystemEventProcessor {
                 };
 
                 if to.is_file() {
-                    Some(FileEvent::Renamed { from, to }.into())
+                    Some(FileSystemEvent::new(FileEvent::Renamed { from, to }, time))
                 } else if to.is_dir() {
-                    Some(FolderEvent::Renamed { from, to }.into())
+                    Some(FileSystemEvent::new(
+                        FolderEvent::Renamed { from, to },
+                        time,
+                    ))
                 } else {
                     None
                 }
@@ -489,7 +505,6 @@ impl FileSystemEventProcessor {
 
             EventKind::Modify(ModifyKind::Any) => {
                 let [path] = &event.paths[..] else {
-                    tracing::debug!("invalid paths");
                     panic!("invalid paths");
                 };
 
@@ -497,7 +512,7 @@ impl FileSystemEventProcessor {
                     Ok(path) => path,
                     Err(err) => match err.kind() {
                         io::ErrorKind::NotFound => {
-                            return Some(AnyEvent::Removed(path.clone()).into());
+                            panic!("change");
                         }
 
                         _ => {
@@ -508,42 +523,54 @@ impl FileSystemEventProcessor {
                 };
 
                 if path.is_file() {
-                    Some(FileEvent::Modified(path).into())
+                    Some(FileSystemEvent::new(FileEvent::Modified(path), time))
                 } else if path.is_dir() {
-                    Some(FolderEvent::Modified(path).into())
+                    Some(FileSystemEvent::new(FolderEvent::Modified(path), time))
                 } else {
                     None
                 }
             }
 
             EventKind::Remove(RemoveKind::File) => {
-                let path = if cfg!(target_os = "windows") {
-                    common::ensure_windows_unc(&event.paths[0])
-                } else {
-                    event.paths[0].clone()
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
                 };
 
-                Some(FileEvent::Removed(path).into())
+                let path = if cfg!(target_os = "windows") {
+                    common::ensure_windows_unc(path)
+                } else {
+                    path.clone()
+                };
+
+                Some(FileSystemEvent::new(FileEvent::Removed(path), time))
             }
 
             EventKind::Remove(RemoveKind::Folder) => {
-                let path = if cfg!(target_os = "windows") {
-                    common::ensure_windows_unc(&event.paths[0])
-                } else {
-                    event.paths[0].clone()
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
                 };
 
-                Some(FolderEvent::Removed(path).into())
+                let path = if cfg!(target_os = "windows") {
+                    common::ensure_windows_unc(path)
+                } else {
+                    path.clone()
+                };
+
+                Some(FileSystemEvent::new(FolderEvent::Removed(path), time))
             }
 
             EventKind::Remove(RemoveKind::Any) => {
-                let path = if cfg!(target_os = "windows") {
-                    common::ensure_windows_unc(&event.paths[0])
-                } else {
-                    event.paths[0].clone()
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
                 };
 
-                Some(AnyEvent::Removed(path).into())
+                let path = if cfg!(target_os = "windows") {
+                    common::ensure_windows_unc(path)
+                } else {
+                    path.clone()
+                };
+
+                Some(FileSystemEvent::new(AnyEvent::Removed(path), time))
             }
 
             _ => None,

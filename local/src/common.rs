@@ -146,8 +146,8 @@ pub fn thot_dir() -> &'static Path {
 
 /// Path to the Thot directory for a given path.
 /// \<path\>/\<THOT_DIR\>.
-pub fn thot_dir_of(path: &Path) -> PathBuf {
-    path.join(THOT_DIR)
+pub fn thot_dir_of(path: impl AsRef<Path>) -> PathBuf {
+    path.as_ref().join(THOT_DIR)
 }
 
 // --- project ---
@@ -158,7 +158,7 @@ pub fn project_file() -> PathBuf {
 
 /// Path to the project file for a given path.
 /// thot_dir(path)/\<PROJECT_FILE\>
-pub fn project_file_of(path: &Path) -> PathBuf {
+pub fn project_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(PROJECT_FILE)
 }
 
@@ -170,7 +170,7 @@ pub fn project_settings_file() -> PathBuf {
 
 /// Path to the project settings file for a given path.
 /// thot_dir(path)/\<PROJECT_SETTINGS_FILE\>
-pub fn project_settings_file_of(path: &Path) -> PathBuf {
+pub fn project_settings_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(PROJECT_SETTINGS_FILE)
 }
 
@@ -182,7 +182,7 @@ pub fn container_file() -> PathBuf {
 
 /// Path to the Container file for a given path.
 /// thot_dir(path)/\<CONTAINER_FILE\>
-pub fn container_file_of(path: &Path) -> PathBuf {
+pub fn container_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(CONTAINER_FILE)
 }
 
@@ -194,7 +194,7 @@ pub fn container_settings_file() -> PathBuf {
 
 /// Path to the Container settings file for a given path.
 /// thot_dir(path)/\<CONTAINER_SETTINGS_FILE\>
-pub fn container_settings_file_of(path: &Path) -> PathBuf {
+pub fn container_settings_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(CONTAINER_SETTINGS_FILE)
 }
 
@@ -206,7 +206,7 @@ pub fn assets_file() -> PathBuf {
 
 /// Path to the Assets file for a given path.
 /// thot_dir(path)/\<ASSETS_FILE\>
-pub fn assets_file_of(path: &Path) -> PathBuf {
+pub fn assets_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(ASSETS_FILE)
 }
 
@@ -218,7 +218,7 @@ pub fn scripts_file() -> PathBuf {
 
 /// Path to the Assets file for a given path.
 /// thot_dir(path)/\<SCRIPTS_FILE\>
-pub fn scripts_file_of(path: &Path) -> PathBuf {
+pub fn scripts_file_of(path: impl AsRef<Path>) -> PathBuf {
     thot_dir_of(path).join(SCRIPTS_FILE)
 }
 

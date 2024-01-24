@@ -38,7 +38,7 @@ pub enum Error {
     SettingsError(String),
 
     #[error("{0:?}")]
-    CoreError(CoreError),
+    Core(CoreError),
 
     #[error("{0}")]
     Local(Local),
@@ -85,7 +85,7 @@ impl From<zmq::Error> for Error {
 
 impl From<CoreError> for Error {
     fn from(err: CoreError) -> Self {
-        Self::CoreError(err)
+        Self::Core(err)
     }
 }
 

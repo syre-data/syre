@@ -1,5 +1,5 @@
-//! Processes [`FileSystemEvent`]s into [`ThotEvent`]s.
-use super::event::{file_system, thot};
+//! Processes file system events.
+use super::event::{app, file_system};
 use crate::error::{Error, Result};
 use crate::server::store::ContainerTree;
 use crate::server::Database;
@@ -8,7 +8,7 @@ use std::{fs, io};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptLang;
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local::error::{Error as LocalError, ProjectError};
+use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::graph::ContainerTreeTransformer;
 use thot_local::loader::error::container::Error as ContainerLoaderError;
 use thot_local::loader::error::tree::Error as ContainerTreeLoaderError;
@@ -21,128 +21,157 @@ use thot_local::project::project::project_root_path;
 use thot_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};
 
 impl Database {
-    pub fn process_file_system_events_to_thot_events(
-        &mut self,
-        events: &Vec<file_system::Event>,
-    ) -> Vec<thot::Event> {
-        let mut thot_events = Vec::with_capacity(events.len());
-        for event in events {
-            let processed_events = match event {
-                file_system::Event::File(file_system::File::Created(path)) => {
-                    let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_file_created(&path)
-                        .unwrap()
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::File(file_system::File::Removed(path)) => {
-                    let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_file_removed(&path)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::File(file_system::File::Moved { from, to }) => {
-                    let from = normalize_path_root(from);
-                    self.ensure_project_resources_loaded(&from).unwrap();
-                    self.ensure_project_resources_loaded(&to).unwrap();
-                    self.handle_file_moved(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::File(file_system::File::Renamed { from, to }) => {
-                    let from = normalize_path_root(from);
-                    self.ensure_project_resources_loaded(&from).unwrap();
-                    self.ensure_project_resources_loaded(&to).unwrap();
-                    self.handle_file_renamed(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::File(file_system::File::Modified(path)) => {
-                    vec![]
-                }
-
-                file_system::Event::Folder(file_system::Folder::Created(path)) => {
-                    let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_folder_created(&path)
-                        .unwrap()
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::Folder(file_system::Folder::Removed(path)) => {
-                    let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_folder_removed(&path)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::Folder(file_system::Folder::Moved { from, to }) => {
-                    let from = normalize_path_root(from);
-                    self.ensure_project_resources_loaded(&from).unwrap();
-                    self.ensure_project_resources_loaded(&to).unwrap();
-                    self.handle_folder_moved(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::Folder(file_system::Folder::Renamed { from, to }) => {
-                    let from = normalize_path_root(from);
-                    self.ensure_project_resources_loaded(&from).unwrap();
-                    self.ensure_project_resources_loaded(&to).unwrap();
-                    self.handle_folder_renamed(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::Folder(file_system::Folder::Modified(path)) => {
-                    vec![]
-                }
-
-                file_system::Event::Any(file_system::Any::Created(path)) => {
-                    let path = normalize_path_root(path);
-                    self.ensure_project_resources_loaded(&path).unwrap();
-                    self.handle_any_created(&path)
-                        .unwrap()
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect()
-                }
-
-                file_system::Event::Any(file_system::Any::Removed(path)) => {
-                    let path = normalize_path_root(path);
-                    match self.ensure_project_resources_loaded(&path) {
-                        Ok(_) => self.handle_any_removed(&path),
-                        Err(Error::Local(LocalError::ProjectError(
-                            ProjectError::PathNotInProject(_),
-                        ))) => self.handle_any_removed_path_not_in_project(path),
-                        Err(_) => todo!(),
-                    }
-                }
-            };
-
-            thot_events.extend(processed_events);
+    #[tracing::instrument(skip(self))]
+    pub fn process_file_system_event(&mut self, event: &file_system::Event) -> Result {
+        let app_events = self.process_file_system_event_to_app_events(event);
+        for app_event in app_events {
+            if let Err(err) = self.handle_app_event(&app_event) {
+                tracing::debug!(?app_event, ?err);
+                return Err(err);
+            }
         }
 
-        thot_events
+        Ok(())
     }
 
-    fn handle_file_created(&self, path: &PathBuf) -> Result<Vec<thot::Event>> {
+    fn handle_app_event(&mut self, event: &app::Event) -> Result {
+        tracing::debug!(?event);
+        match event {
+            app::Event::Project(event) => self.handle_thot_event_project(event)?,
+            app::Event::Graph(event) => self.handle_thot_event_graph(event)?,
+            app::Event::Container(event) => self.handle_thot_event_container(event)?,
+            app::Event::Asset(event) => self.handle_thot_event_asset(event)?,
+            app::Event::Script(event) => self.handle_thot_event_script(event)?,
+            app::Event::Folder(event) => self.handle_thot_event_folder(event)?,
+            app::Event::File(event) => self.handle_thot_event_file(event)?,
+        }
+
+        Ok(())
+    }
+
+    fn process_file_system_event_to_app_events(
+        &mut self,
+        event: &file_system::Event,
+    ) -> Vec<app::Event> {
+        tracing::debug!(?event);
+        match event.kind() {
+            file_system::EventKind::File(file_system::File::Created(path)) => {
+                let path = normalize_path_root(path);
+                self.ensure_project_resources_loaded(&path).unwrap();
+                self.handle_file_created(&path)
+                    .unwrap()
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::File(file_system::File::Removed(path)) => {
+                let path = normalize_path_root(path);
+                self.ensure_project_resources_loaded(&path).unwrap();
+                self.handle_file_removed(&path)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::File(file_system::File::Moved { from, to }) => {
+                let from = normalize_path_root(from);
+                self.ensure_project_resources_loaded(&from).unwrap();
+                self.ensure_project_resources_loaded(&to).unwrap();
+                self.handle_file_moved(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::File(file_system::File::Renamed { from, to }) => {
+                let from = normalize_path_root(from);
+                self.ensure_project_resources_loaded(&from).unwrap();
+                self.ensure_project_resources_loaded(&to).unwrap();
+                self.handle_file_renamed(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::File(file_system::File::Modified(path)) => {
+                vec![]
+            }
+
+            file_system::EventKind::Folder(file_system::Folder::Created(path)) => {
+                let path = normalize_path_root(path);
+                self.ensure_project_resources_loaded(&path).unwrap();
+                self.handle_folder_created(&path)
+                    .unwrap()
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::Folder(file_system::Folder::Removed(path)) => {
+                let path = normalize_path_root(path);
+                self.ensure_project_resources_loaded(&path).unwrap();
+                self.handle_folder_removed(&path)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => {
+                let from = normalize_path_root(from);
+                self.ensure_project_resources_loaded(&from).unwrap();
+                self.ensure_project_resources_loaded(&to).unwrap();
+                self.handle_folder_moved(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect()
+            }
+
+            file_system::EventKind::Folder(file_system::Folder::Renamed { from, to }) => {
+                let from = normalize_path_root(from);
+                let from_loaded = self.ensure_project_resources_loaded(&from);
+                let to_loaded = self.ensure_project_resources_loaded(&to);
+                match (from_loaded, to_loaded) {
+                    (Ok(_), Ok(_)) => self
+                        .handle_folder_renamed(&from, to)
+                        .into_iter()
+                        .map(|event| event.into())
+                        .collect(),
+
+                    (
+                        Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))),
+                        Err(Error::Core(CoreError::ResourceError(ResourceError::DoesNotExist(_)))),
+                    ) => self
+                        .handle_project_folder_renamed(&from, to)
+                        .into_iter()
+                        .map(|event| event.into())
+                        .collect(),
+
+                    (from_err, to_err) => {
+                        tracing::debug!(?from_err, ?to_err);
+                        vec![]
+                    }
+                }
+            }
+
+            file_system::EventKind::Folder(file_system::Folder::Modified(_path)) => {
+                vec![]
+            }
+
+            file_system::EventKind::Any(file_system::Any::Removed(path)) => {
+                let path = normalize_path_root(path);
+                match self.ensure_project_resources_loaded(&path) {
+                    Ok(_) => self.handle_any_removed(&path),
+                    Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
+                        self.handle_any_removed_path_not_in_project(path)
+                    }
+                    Err(_) => todo!(),
+                }
+            }
+        }
+    }
+
+    fn handle_file_created(&self, path: &PathBuf) -> Result<Vec<app::Event>> {
         // ignore thot folder
         if path
             .components()
@@ -168,7 +197,7 @@ impl Database {
                 let ext = ext.to_ascii_lowercase();
                 let ext = ext.to_str().unwrap();
                 if ScriptLang::supported_extensions().contains(&ext) {
-                    return Ok(vec![thot::Script::Created(path.clone()).into()]);
+                    return Ok(vec![app::Script::Created(path.clone()).into()]);
                 }
 
                 return Ok(vec![]);
@@ -177,14 +206,14 @@ impl Database {
 
         // ignore if asset
         if let Some(asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
-            return Ok(vec![thot::Asset::FileCreated(asset.clone()).into()]);
+            return Ok(vec![app::Asset::FileCreated(asset.clone()).into()]);
         }
 
         // handle new
-        return Ok(vec![thot::File::Created(path.into()).into()]);
+        return Ok(vec![app::File::Created(path.into()).into()]);
     }
 
-    fn handle_file_removed(&self, path: &PathBuf) -> Vec<thot::Event> {
+    fn handle_file_removed(&self, path: &PathBuf) -> Vec<app::Event> {
         let project = self.project_by_resource_path(path).unwrap();
 
         // script
@@ -195,12 +224,12 @@ impl Database {
 
         let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
         if let Some(script) = scripts.by_path(&script_path) {
-            return vec![thot::Script::Removed(script.rid.clone()).into()];
+            return vec![app::Script::Removed(script.rid.clone()).into()];
         }
 
         // analysis
         if let Some(asset) = self.store.get_path_asset_id(path).cloned() {
-            return vec![thot::Asset::Removed(asset).into()];
+            return vec![app::Asset::Removed(asset).into()];
         };
 
         vec![]
@@ -208,7 +237,7 @@ impl Database {
 
     /// Handles a moved file
     /// A moved file has the same file name, but its base directory has changed.
-    fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<thot::Event> {
+    fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Event> {
         #[derive(Debug)]
         enum Location {
             Data,
@@ -234,14 +263,14 @@ impl Database {
         match (from_type, to_type) {
             (Location::Data, Location::Data) => {
                 if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
-                    return vec![thot::Asset::Moved {
+                    return vec![app::Asset::Moved {
                         asset,
                         path: to.clone(),
                     }
                     .into()];
                 }
 
-                return vec![thot::File::Created(to.clone()).into()];
+                return vec![app::File::Created(to.clone()).into()];
             }
 
             (Location::Analysis, Location::Analysis) => {
@@ -262,18 +291,18 @@ impl Database {
                 let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
-                    return vec![thot::Script::Moved {
+                    return vec![app::Script::Moved {
                         script: script.rid.clone(),
                         path: to.clone(),
                     }
                     .into()];
                 }
 
-                vec![thot::Script::Created(to.clone()).into()]
+                vec![app::Script::Created(to.clone()).into()]
             }
 
             (Location::None, Location::Data) => {
-                vec![thot::File::Created(to.clone()).into()]
+                vec![app::File::Created(to.clone()).into()]
             }
 
             (Location::Data, Location::None) => {
@@ -283,14 +312,14 @@ impl Database {
                     .unwrap_or_else(|_| self.store.get_path_asset_id(from));
 
                 if let Some(asset) = asset {
-                    return vec![thot::Asset::Removed(asset.clone()).into()];
+                    return vec![app::Asset::Removed(asset.clone()).into()];
                 }
 
                 vec![]
             }
 
             (Location::None, Location::Analysis) => {
-                vec![thot::Script::Created(to.clone()).into()]
+                vec![app::Script::Created(to.clone()).into()]
             }
 
             (Location::Analysis, Location::None) => {
@@ -301,7 +330,7 @@ impl Database {
                 let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
-                    return vec![thot::Script::Removed(script.rid.clone()).into()];
+                    return vec![app::Script::Removed(script.rid.clone()).into()];
                 }
 
                 vec![]
@@ -315,7 +344,7 @@ impl Database {
                     .unwrap_or_else(|_| self.store.get_path_asset_id(from));
 
                 if let Some(asset) = asset {
-                    events.push(thot::Asset::Removed(asset.clone()).into());
+                    events.push(app::Asset::Removed(asset.clone()).into());
                 }
 
                 let Some(ext) = to.extension() else {
@@ -325,14 +354,14 @@ impl Database {
                 let ext = ext.to_ascii_lowercase();
                 let ext = ext.to_str().unwrap();
                 if ScriptLang::supported_extensions().contains(&ext) {
-                    events.push(thot::Script::Created(to.clone()).into());
+                    events.push(app::Script::Created(to.clone()).into());
                 }
 
                 events
             }
 
             (Location::Analysis, Location::Data) => {
-                let mut events = vec![thot::File::Created(to.clone()).into()];
+                let mut events = vec![app::File::Created(to.clone()).into()];
                 let from_script_path = from
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
@@ -340,7 +369,7 @@ impl Database {
                 let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
-                    events.push(thot::Script::Removed(script.rid.clone()).into());
+                    events.push(app::Script::Removed(script.rid.clone()).into());
                 }
 
                 events
@@ -350,9 +379,9 @@ impl Database {
         }
     }
 
-    fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<thot::Event> {
+    fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Event> {
         if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
-            return vec![thot::Asset::Moved {
+            return vec![app::Asset::Moved {
                 asset,
                 path: to.clone(),
             }
@@ -365,7 +394,7 @@ impl Database {
             let scripts = self.store.get_project_scripts(&project.rid).unwrap();
             for script in scripts.values() {
                 if script.path.as_path() == script_path {
-                    return vec![thot::Script::Moved {
+                    return vec![app::Script::Moved {
                         script: script.rid.clone(),
                         path: to.clone(),
                     }
@@ -387,7 +416,7 @@ impl Database {
                 let ext = ext.to_ascii_lowercase();
                 let ext = ext.to_str().unwrap();
                 if ScriptLang::supported_extensions().contains(&ext) {
-                    return vec![thot::Script::Created(to.clone()).into()];
+                    return vec![app::Script::Created(to.clone()).into()];
                 }
 
                 return vec![];
@@ -397,8 +426,8 @@ impl Database {
         vec![]
     }
 
-    fn handle_folder_created(&self, path: &PathBuf) -> Result<Vec<thot::Event>> {
-        // ignore thot folder
+    fn handle_folder_created(&self, path: &PathBuf) -> Result<Vec<app::Event>> {
+        // ignore app folder
         if path
             .components()
             .any(|seg| seg.as_os_str() == thot_local::common::thot_dir().as_os_str())
@@ -406,11 +435,11 @@ impl Database {
             return Ok(vec![]);
         }
 
-        // ignore graph root
+        // ignore graph root and above
         let project = self.project_by_resource_path(path)?;
-        if project.data_root.is_some() {
+        if let Some(data_root) = project.data_root_path() {
             let path = fs::canonicalize(&path).unwrap();
-            if path == project.data_root_path().unwrap() {
+            if !path.parent().unwrap().starts_with(data_root) {
                 return Ok(vec![]);
             }
         };
@@ -429,13 +458,13 @@ impl Database {
         match ContainerTreeIncrementalLoader::load(path) {
             Ok(graph) => {
                 let Some(loaded_container) = self.store.get_container(graph.root()) else {
-                    return Ok(vec![thot::Graph::Inserted(graph).into()]);
+                    return Ok(vec![app::Graph::Inserted(graph).into()]);
                 };
 
                 if loaded_container.base_path().exists() {
-                    Ok(vec![thot::Graph::Copied(graph).into()])
+                    Ok(vec![app::Graph::Copied(graph).into()])
                 } else {
-                    Ok(vec![thot::Graph::Moved {
+                    Ok(vec![app::Graph::Moved {
                         root: graph.root().clone(),
                         path: path.clone(),
                     }
@@ -445,11 +474,11 @@ impl Database {
 
             Err(PartialLoad { errors, graph }) => match errors.get(path) {
                 Some(ContainerTreeLoaderError::Dir(err)) if err == &io::ErrorKind::NotFound => {
-                    return Ok(vec![thot::Folder::Created(path.clone()).into()]);
+                    return Ok(vec![app::Folder::Created(path.clone()).into()]);
                 }
 
                 Some(ContainerTreeLoaderError::Load(ContainerLoaderError::NotResource)) => {
-                    return Ok(vec![thot::Folder::Created(path.clone()).into()]);
+                    return Ok(vec![app::Folder::Created(path.clone()).into()]);
                 }
 
                 _ => {
@@ -460,53 +489,54 @@ impl Database {
         }
     }
 
-    fn handle_folder_removed(&self, path: &PathBuf) -> Vec<thot::Event> {
+    fn handle_folder_removed(&self, path: &PathBuf) -> Vec<app::Event> {
         let Some(container) = self.store.get_path_container(path).cloned() else {
             return vec![];
         };
 
-        vec![thot::Graph::Removed(container).into()]
+        vec![app::Graph::Removed(container).into()]
     }
 
-    fn handle_folder_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<thot::Graph> {
+    fn handle_folder_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Graph> {
         let Some(root) = self.store.get_path_container(from).cloned() else {
             return vec![];
         };
 
-        vec![thot::Graph::Moved {
+        vec![app::Graph::Moved {
             root,
             path: to.clone(),
         }]
     }
 
-    fn handle_folder_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<thot::Graph> {
+    fn handle_folder_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Graph> {
         let Some(container) = self.store.get_path_container(from).cloned() else {
             return vec![];
         };
 
-        vec![thot::Graph::Moved {
+        vec![app::Graph::Moved {
             root: container,
             path: to.clone(),
         }]
     }
 
-    fn handle_any_created(&self, path: &PathBuf) -> Result<Vec<thot::Event>> {
-        if path.is_file() {
-            self.handle_file_created(path)
-        } else if path.is_dir() {
-            self.handle_folder_created(path)
-        } else {
-            Ok(vec![])
-        }
+    fn handle_project_folder_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Project> {
+        let Some(project) = self.store.get_path_project(from).cloned() else {
+            return vec![];
+        };
+
+        vec![app::Project::Moved {
+            project,
+            path: to.clone(),
+        }]
     }
 
-    fn handle_any_removed(&self, path: &PathBuf) -> Vec<thot::Event> {
+    fn handle_any_removed(&self, path: &PathBuf) -> Vec<app::Event> {
         if let Some(container) = self.store.get_path_container(&path).cloned() {
-            return vec![thot::Graph::Removed(container).into()];
+            return vec![app::Graph::Removed(container).into()];
         }
 
         if let Some(asset) = self.store.get_path_asset_id(&path).cloned() {
-            return vec![thot::Asset::Removed(asset).into()];
+            return vec![app::Asset::Removed(asset).into()];
         }
 
         let project = self.project_by_resource_path(&path).unwrap();
@@ -514,24 +544,24 @@ impl Database {
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
             let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
             if let Some(script) = scripts.by_path(&script_path) {
-                return vec![thot::Script::Removed(script.rid.clone()).into()];
+                return vec![app::Script::Removed(script.rid.clone()).into()];
             }
         }
 
         vec![]
     }
 
-    fn handle_any_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<thot::Event> {
+    fn handle_any_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::Event> {
         let path = path.as_ref();
         if let Some(project) = self.store.get_path_project(path) {
-            return vec![thot::Project::Removed(project.clone()).into()];
+            return vec![app::Project::Removed(project.clone()).into()];
         }
 
         if let Some(file_name) = path.file_name() {
             if file_name == thot_local::common::thot_dir() {
                 if let Some(project_path) = path.parent() {
                     if let Some(project) = self.store.get_path_project(project_path) {
-                        return vec![thot::Project::Removed(project.clone()).into()];
+                        return vec![app::Project::Removed(project.clone()).into()];
                     }
                 }
             }
@@ -543,16 +573,20 @@ impl Database {
     /// Get a `Project` by a path within it.
     fn project_by_resource_path(&self, path: impl AsRef<Path>) -> Result<&LocalProject> {
         let path = path.as_ref();
-        let project_path = project::project_root_path(path)?;
+        let Some(project_path) = project::project_root_path(path) else {
+            return Err(
+                LocalError::Project(ProjectError::PathNotInProject(path.to_path_buf())).into(),
+            );
+        };
+
         let Some(project) = self
             .store
             .get_path_project_canonical(&project_path)
             .unwrap()
         else {
-            return Err(LocalError::ProjectError(ProjectError::PathNotInProject(
-                path.to_path_buf(),
-            ))
-            .into());
+            return Err(
+                LocalError::Project(ProjectError::PathNotInProject(path.to_path_buf())).into(),
+            );
         };
 
         let Some(project) = self.store.get_project(project) else {
@@ -567,7 +601,13 @@ impl Database {
     /// # Arguments
     /// 1. `path`: Path to a resource within the project.
     fn ensure_project_resources_loaded(&mut self, path: impl AsRef<Path>) -> Result {
-        let project = project_root_path(path.as_ref())?;
+        let path = path.as_ref();
+        let Some(project) = project_root_path(path) else {
+            return Err(
+                LocalError::Project(ProjectError::PathNotInProject(path.to_path_buf())).into(),
+            );
+        };
+
         let Some(project) = self
             .store
             .get_path_project_canonical(project.as_ref())

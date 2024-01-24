@@ -21,7 +21,8 @@ pub struct Project {
 impl Project {
     /// Create a new `Project` with the given path.
     /// Name of the `Project` is taken from the last component of the path.
-    pub fn new(path: PathBuf) -> Result<Self> {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
+        let path = path.into();
         let Some(name) = path.file_name() else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidFilename,
@@ -88,6 +89,10 @@ impl Project {
 
     pub fn base_path(&self) -> &Path {
         self.base_path.as_path()
+    }
+
+    pub fn set_base_path(&mut self, path: impl Into<PathBuf>) {
+        self.base_path = path.into();
     }
 
     /// Get the full path of the data root.

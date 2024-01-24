@@ -19,7 +19,7 @@ pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";
 // *****************
 
 use crate::common;
-use crate::error::{Error, ProjectError, Result};
+use crate::error::{Error, Project as ProjectError, Result};
 use crate::system::projects;
 use resources::Project;
 use std::path::{Component, Path};
@@ -86,7 +86,7 @@ pub fn init(
                 project.save()?;
                 rid
             }
-            Err(Error::ProjectError(ProjectError::PathNotRegistered(_path))) => {
+            Err(Error::Project(ProjectError::PathNotRegistered(_path))) => {
                 let project = Project::load_from(&root)?;
                 projects::register_project(project.rid.clone(), root.clone())?;
                 project.rid.clone()

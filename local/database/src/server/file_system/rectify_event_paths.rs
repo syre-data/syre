@@ -1,11 +1,12 @@
 use super::super::Database;
-use notify::event::{
-    CreateKind, Event, EventAttributes, EventKind, ModifyKind, RemoveKind, RenameMode,
-};
+use notify::event::{Event, EventAttributes, EventKind, ModifyKind, RemoveKind, RenameMode};
 use notify_debouncer_full::DebouncedEvent;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Component, PathBuf};
 use std::time::{Duration, Instant};
 use std::{fs, io};
+
+const WINDOWS_RECYCLE_BIN: &'static str = "$Recycle.Bin";
 
 impl Database {
     /// Canonicalizes and updates paths if needed.
@@ -232,13 +233,24 @@ impl Database {
 fn process_path_change_to_event(from: PathBuf, to: PathBuf) -> Vec<Event> {
     if from == to {
         return vec![];
-    } else {
-        return vec![Event {
-            kind: EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
-            paths: vec![from.clone(), to.clone()],
-            attrs: EventAttributes::new(),
-        }];
     }
+
+    let windows_recycle_component = Component::Normal(WINDOWS_RECYCLE_BIN.as_ref());
+    for component in to.components() {
+        if windows_recycle_component == component {
+            return vec![Event {
+                kind: EventKind::Remove(RemoveKind::Folder),
+                paths: vec![from],
+                attrs: EventAttributes::new(),
+            }];
+        }
+    }
+
+    return vec![Event {
+        kind: EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
+        paths: vec![from, to],
+        attrs: EventAttributes::new(),
+    }];
 }
 
 #[derive(Debug)]

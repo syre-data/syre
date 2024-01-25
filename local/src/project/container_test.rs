@@ -1,6 +1,5 @@
 use super::*;
 use crate::common;
-use crate::project::resources::Container;
 use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;

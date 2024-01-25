@@ -5,8 +5,6 @@ use crate::commands::project::{init_project, load_project, update_project};
 use crate::hooks::use_user;
 use crate::routes::Route;
 use std::path::{Path, PathBuf};
-use thot_core::graph::ResourceTree;
-use thot_core::project::Container;
 use thot_core::types::{Creator, UserId};
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
@@ -18,8 +16,6 @@ use yew_router::prelude::*;
 // ********************************
 // *** Create Project Component ***
 // ********************************
-
-type ContainerTree = ResourceTree<Container>;
 
 /// New project component.
 /// Consists of three steps:

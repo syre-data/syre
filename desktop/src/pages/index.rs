@@ -46,9 +46,9 @@ pub fn index() -> Html {
                                 navigator.push(&Route::Home);
                             }
                             Err(err) => {
-                                app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not set user.",
-                                )));
+                                let mut msg = Message::error("Could not set user.");
+                                msg.set_details(format!("{err:?}"));
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
                         };
                     }

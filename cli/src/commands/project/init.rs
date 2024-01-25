@@ -57,7 +57,3 @@ pub fn main(args: InitArgs, verbose: bool) -> Result {
 
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "./init_test.rs"]
-mod init_test;

@@ -6,6 +6,8 @@ fn derive() {
     struct Test {
         #[id]
         pub rid: usize,
+
+        #[allow(dead_code)]
         pub data: usize,
     }
 }
@@ -16,6 +18,8 @@ fn derive_serde() {
     struct TestSerde {
         #[id]
         pub rid: usize,
+
+        #[allow(dead_code)]
         pub data: usize,
     }
 }

@@ -6,15 +6,9 @@ use thot_core::types::ResourceId;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-/// Properties for [`ProjectList`].
-#[derive(PartialEq, Properties)]
-pub struct ProjectListProps {
-    // pub projects: Vec<Rc<Project>>,
-}
-
 /// Display project list.
 #[function_component(ProjectList)]
-pub fn project_list(props: &ProjectListProps) -> HtmlResult {
+pub fn project_list() -> HtmlResult {
     let app_state =
         use_context::<ProjectsStateReducer>().expect("`AppStateReducer` context not found");
 

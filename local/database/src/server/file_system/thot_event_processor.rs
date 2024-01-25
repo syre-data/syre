@@ -94,7 +94,7 @@ impl Database {
                     .collect()
             }
 
-            file_system::EventKind::File(file_system::File::Modified(path)) => {
+            file_system::EventKind::File(file_system::File::Modified(_path)) => {
                 vec![]
             }
 
@@ -110,11 +110,21 @@ impl Database {
 
             file_system::EventKind::Folder(file_system::Folder::Removed(path)) => {
                 let path = normalize_path_root(path);
-                self.ensure_project_resources_loaded(&path).unwrap();
-                self.handle_folder_removed(&path)
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
+                match self.ensure_project_resources_loaded(&path) {
+                    Ok(_) => self
+                        .handle_folder_removed(&path)
+                        .into_iter()
+                        .map(|event| event.into())
+                        .collect(),
+
+                    Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
+                        self.handle_removed_path_not_in_project(path)
+                    }
+
+                    Err(err) => {
+                        todo!("{err:?}");
+                    }
+                }
             }
 
             file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => {
@@ -163,9 +173,9 @@ impl Database {
                 match self.ensure_project_resources_loaded(&path) {
                     Ok(_) => self.handle_any_removed(&path),
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
-                        self.handle_any_removed_path_not_in_project(path)
+                        self.handle_removed_path_not_in_project(path)
                     }
-                    Err(_) => todo!(),
+                    Err(err) => todo!("{err:?}"),
                 }
             }
         }
@@ -551,7 +561,7 @@ impl Database {
         vec![]
     }
 
-    fn handle_any_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::Event> {
+    fn handle_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::Event> {
         let path = path.as_ref();
         if let Some(project) = self.store.get_path_project(path) {
             return vec![app::Project::Removed(project.clone()).into()];

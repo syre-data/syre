@@ -253,25 +253,16 @@ impl Datastore {
 
         for (cid, old_container_path, container_path) in container_paths_map {
             self.container_paths.remove(&old_container_path);
-            if let Err(err) = self
-                .container_paths
-                .insert_canonical(container_path, cid.clone())
-            {
-                return Err(error::UpdateProjectPath::CanonicalizeResource {
-                    resource: cid,
-                    error: err.kind(),
-                });
-            };
+            self.container_paths
+                .insert_canonical(container_path.clone(), cid.clone())
+                .unwrap_or_else(|_| self.container_paths.insert(container_path, cid.clone()));
         }
 
         for (aid, old_asset_path, asset_path) in asset_path_maps {
             self.asset_paths.remove(&old_asset_path);
-            if let Err(err) = self.asset_paths.insert_canonical(asset_path, aid.clone()) {
-                return Err(error::UpdateProjectPath::CanonicalizeResource {
-                    resource: aid,
-                    error: err.kind(),
-                });
-            }
+            self.asset_paths
+                .insert_canonical(asset_path.clone(), aid.clone())
+                .unwrap_or_else(|_| self.asset_paths.insert(asset_path, aid.clone()));
         }
 
         Ok(old_project_path.to_path_buf())
@@ -1356,12 +1347,6 @@ pub mod error {
 
         /// The `Project`'s new path could not be canonicalized.
         Canonicalize(io::ErrorKind),
-
-        /// A `Container`'s or `Asset`'s path in the `Project`'s graph could not be canonicalized.
-        CanonicalizeResource {
-            resource: ResourceId,
-            error: io::ErrorKind,
-        },
     }
 
     #[derive(Error, Debug)]

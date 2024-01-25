@@ -4,16 +4,12 @@ use crate::commands::graph::init_project_graph;
 use crate::commands::project::{get_project_path, update_project};
 use crate::hooks::use_project;
 use std::path::PathBuf;
-use thot_core::graph::ResourceTree;
-use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_ui::components::file_selector::FileSelectorProps;
 use thot_ui::components::{FileSelector, FileSelectorAction};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
-
-type ContainerTree = ResourceTree<Container>;
 
 #[derive(Properties, PartialEq)]
 pub struct SetDataRootProps {

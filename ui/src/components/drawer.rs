@@ -28,21 +28,6 @@ pub struct DrawerProps {
 
 #[function_component(Drawer)]
 pub fn drawer(props: &DrawerProps) -> Html {
-    let toggle_open = {
-        let open = props.open.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            open.set(!*open);
-        })
-    };
-
-    let (open_symbol, close_symbol) = match props.position {
-        DrawerPosition::Top => ('\u{25BE}', '\u{25B4}'),
-        DrawerPosition::Right => ('\u{25B8}', '\u{25C2}'),
-        DrawerPosition::Bottom => ('\u{25B4}', '\u{25BE}'),
-        DrawerPosition::Left => ('\u{25C2}', '\u{25B8}'),
-    };
-
     let class = classes!(
         "thot-ui-drawer",
         (*props.open).then(|| "open"),
@@ -53,15 +38,6 @@ pub fn drawer(props: &DrawerProps) -> Html {
 
     html! {
         <div {class}>
-            // <div class={classes!("drawer-toggle")}
-            //     onclick={toggle_open}>
-
-            //     { if *props.open {
-            //         { open_symbol }
-            //     } else {
-            //         { close_symbol }
-            //     }}
-            // </div>
             <div class={classes!("drawer-contents")}
                 style={contents_style} >
 

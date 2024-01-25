@@ -42,11 +42,7 @@ pub struct ProjectCanvasProps {
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
     let navigator = use_navigator().unwrap();
-    let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
-    let show_side_bars = use_state(|| true);
-    let canvas_state =
-        use_reducer(|| CanvasState::new(props.project.clone(), show_side_bars.clone()));
 
     let fallback = html! { <Loading text={"Loading canvas"} /> };
     match projects_state.projects.get(&props.project) {
@@ -275,7 +271,9 @@ fn handle_file_system_event(
 ) {
     match update {
         ProjectUpdate::Moved(path) => {
-            todo!();
+            let mut msg = Message::info("Project moved.");
+            msg.set_details(format!("Moved to {path:?}."));
+            app_state.dispatch(AppStateAction::AddMessage(msg));
         }
 
         ProjectUpdate::Removed(prj) => {

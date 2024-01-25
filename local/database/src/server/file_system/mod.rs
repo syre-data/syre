@@ -12,9 +12,6 @@ pub mod rectify_event_paths;
 pub mod script;
 pub mod thot_event_processor;
 
-use crate::server::Database;
-use crate::Result;
-use event::app::Event;
 use thot_core::types::ResourceId;
 
 struct ParentChild {

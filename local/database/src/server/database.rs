@@ -13,7 +13,7 @@ use super::Event;
 use crate::command::Command;
 use crate::event::Update;
 use crate::{common, constants, Result};
-use notify_debouncer_full::DebounceEventResult;
+use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
@@ -132,52 +132,180 @@ impl Database {
             Command::AnalysisCommand(cmd) => self.handle_command_analysis(cmd),
         }
     }
+}
 
-    /// Handle file system events.
-    /// To be used with [`notify::Watcher`]s.
-    #[tracing::instrument(skip(self))]
-    fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
-        let events = match events {
-            Ok(events) => events,
-            Err(errs) => {
-                #[cfg(target_os = "macos")]
-                {
-                    if errs.iter().any(|err| match &err.clone().kind {
-                        notify::ErrorKind::Io(err)
-                            if err.kind() == std::io::ErrorKind::NotFound =>
-                        {
-                            false
-                        }
-                        notify::ErrorKind::Generic(msg)
-                            if msg.contains("No such file or directory") =>
-                        {
-                            false
-                        }
-                        _ => true,
-                    }) {
-                        tracing::debug!("watch error: {errs:?}");
-                        return Err(crate::Error::Database(format!("{errs:?}")));
-                    }
-
-                    Vec::new()
-                }
-                #[cfg(not(target_os = "macos"))]
-                {
+#[cfg(target_os = "windows")]
+mod windows {
+    impl Database {
+        /// Handle file system events.
+        /// To be used with [`notify::Watcher`]s.
+        #[tracing::instrument(skip(self))]
+        pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
+            let events = match events {
+                Ok(events) => events,
+                Err(errs) => {
                     tracing::debug!("watch error: {errs:?}");
                     return Err(crate::Error::Database(format!("{errs:?}")));
                 }
-            }
-        };
-
-        let events = self.rectify_event_paths(events);
-        let mut events = FileSystemEventProcessor::process(events);
-        events.sort_by(|a, b| a.time.cmp(&b.time));
-        for event in events {
-            if let Err(_err) = self.process_file_system_event(&event) {
-                tracing::debug!(?event);
             };
+
+            let events = self.rectify_event_paths(events);
+            let mut events = FileSystemEventProcessor::process(events);
+            events.sort_by(|a, b| a.time.cmp(&b.time));
+            for event in events {
+                if let Err(_err) = self.process_file_system_event(&event) {
+                    tracing::debug!(?event);
+                };
+            }
+
+            Ok(())
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod macos {
+    use super::*;
+    use std::path::{Component, Path};
+    use std::time::Instant;
+
+    const TRASH_PATH: &str = ".Trash";
+
+    impl Database {
+        /// Handle file system events.
+        /// To be used with [`notify::Watcher`]s.
+        #[tracing::instrument(skip(self))]
+        pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
+            let events = match events {
+                Ok(events) => events,
+                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
+            };
+
+            let mut events = FileSystemEventProcessor::process(events);
+            events.sort_by(|a, b| a.time.cmp(&b.time));
+            for event in events {
+                if let Err(_err) = self.process_file_system_event(&event) {
+                    tracing::debug!(?event);
+                };
+            }
+
+            Ok(())
         }
 
-        Ok(())
+        fn handle_file_system_watcher_errors(
+            &self,
+            errors: Vec<notify::Error>,
+        ) -> Result<Vec<DebouncedEvent>> {
+            const WATCH_ROOT_MOVED_PATTERN: &str =
+                r"IO error for operation on (.+): No such file or directory \(os error 2\)";
+
+            let (root_moved_errors, unhandled_errors): (Vec<_>, Vec<_>) =
+                errors.into_iter().partition(|err| match &err.kind {
+                    notify::ErrorKind::Generic(msg)
+                        if msg.contains("No such file or directory (os error 2)") =>
+                    {
+                        true
+                    }
+
+                    _ => false,
+                });
+
+            let root_moved_pattern = regex::Regex::new(WATCH_ROOT_MOVED_PATTERN).unwrap();
+            let moved_roots = root_moved_errors
+                .into_iter()
+                .map(|err| {
+                    let notify::ErrorKind::Generic(msg) = err.kind else {
+                        panic!("failed to partition errors correctly");
+                    };
+
+                    match root_moved_pattern.captures(&msg) {
+                        None => panic!("unknown error message"),
+                        Some(captures) => {
+                            let path = captures.get(1).unwrap().as_str().to_string();
+                            PathBuf::from(path)
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            if moved_roots.len() == 0 && unhandled_errors.len() > 0 {
+                tracing::debug!("watch error: {unhandled_errors:?}");
+                return Err(crate::Error::Database(format!("{unhandled_errors:?}")));
+            }
+
+            let mut events = Vec::with_capacity(moved_roots.len() * 2);
+            for path in moved_roots {
+                let final_path = match self.get_final_path(&path) {
+                    Ok(Some(final_path)) => Some(final_path),
+
+                    Ok(None) => {
+                        tracing::debug!("could not get final path of {path:?}");
+                        continue;
+                    }
+
+                    Err(file_path_from_id::Error::NoFileInfo) => {
+                        // path deleted
+                        None
+                    }
+
+                    Err(err) => {
+                        tracing::debug!("error retrieving final path of {path:?}: {err:?}");
+                        continue;
+                    }
+                };
+
+                tracing::debug!(?final_path);
+
+                events.push(DebouncedEvent::new(
+                    notify::Event {
+                        kind: notify::EventKind::Remove(notify::event::RemoveKind::Folder),
+                        paths: vec![path],
+                        attrs: notify::event::EventAttributes::new(),
+                    },
+                    Instant::now(),
+                ));
+
+                if let Some(final_path) = final_path {
+                    if !path_in_trash(&final_path) {
+                        events.push(DebouncedEvent::new(
+                            notify::Event {
+                                kind: notify::EventKind::Create(notify::event::CreateKind::Folder),
+                                paths: vec![final_path],
+                                attrs: notify::event::EventAttributes::new(),
+                            },
+                            Instant::now(),
+                        ));
+                    }
+                }
+            }
+            tracing::debug!(?events);
+
+            Ok(events)
+        }
+    }
+
+    fn path_in_trash(path: impl AsRef<Path>) -> bool {
+        let path = path.as_ref();
+        match std::env::var_os("HOME") {
+            None => {
+                for component in path.components() {
+                    match component {
+                        Component::Normal(component) => {
+                            if component == TRASH_PATH {
+                                return true;
+                            }
+                        }
+
+                        _ => {}
+                    }
+                }
+
+                return false;
+            }
+            Some(home) => {
+                let trash_path = PathBuf::from(home).join(TRASH_PATH);
+                return path.starts_with(trash_path);
+            }
+        }
     }
 }

@@ -4644,6 +4644,7 @@ version = "0.0.2"
 dependencies = [
  "dev_utils",
  "fake",
+ "file-id",
  "file_path_from_id",
  "futures",
  "has_id",
@@ -4652,6 +4653,7 @@ dependencies = [
  "notify",
  "notify-debouncer-full",
  "rand 0.8.5",
+ "regex",
  "serde",
  "serde_json",
  "serde_with",

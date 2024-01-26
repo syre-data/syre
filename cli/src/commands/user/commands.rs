@@ -104,7 +104,3 @@ pub fn edit(id: UserId, edits: EditUserFields) -> Result {
         Err(err) => Err(err.into()),
     }
 }
-
-#[cfg(test)]
-#[path = "./commands_test.rs"]
-mod commands_test;

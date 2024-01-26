@@ -15,10 +15,12 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+file-id = "0.2.1"
 futures = "0.3.28"
 indexmap = { workspace = true, features = ["serde"] }
 notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true}
 notify-debouncer-full = { version = "0.3", default-features = false, optional = true}
+regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_with = { workspace = true }

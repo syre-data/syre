@@ -128,40 +128,11 @@ impl Database {
             }
 
             file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => {
-                let from = normalize_path_root(from);
-                self.ensure_project_resources_loaded(&from).unwrap();
-                self.ensure_project_resources_loaded(&to).unwrap();
-                self.handle_folder_moved(&from, to)
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
+                self.handle_file_system_folder_moved_event(from, to)
             }
 
             file_system::EventKind::Folder(file_system::Folder::Renamed { from, to }) => {
-                let from = normalize_path_root(from);
-                let from_loaded = self.ensure_project_resources_loaded(&from);
-                let to_loaded = self.ensure_project_resources_loaded(&to);
-                match (from_loaded, to_loaded) {
-                    (Ok(_), Ok(_)) => self
-                        .handle_folder_renamed(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect(),
-
-                    (
-                        Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))),
-                        Err(Error::Core(CoreError::ResourceError(ResourceError::DoesNotExist(_)))),
-                    ) => self
-                        .handle_project_folder_renamed(&from, to)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect(),
-
-                    (from_err, to_err) => {
-                        tracing::debug!(?from_err, ?to_err);
-                        vec![]
-                    }
-                }
+                self.handle_file_system_folder_renamed_event(from, to)
             }
 
             file_system::EventKind::Folder(file_system::Folder::Modified(_path)) => {
@@ -529,7 +500,7 @@ impl Database {
         }]
     }
 
-    fn handle_project_folder_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Project> {
+    fn handle_project_folder_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Project> {
         let Some(project) = self.store.get_path_project(from).cloned() else {
             return vec![];
         };
@@ -671,6 +642,110 @@ impl Database {
             .insert_project_scripts(project.rid.clone(), scripts);
 
         Ok(())
+    }
+}
+
+#[cfg(target_os = "windows")]
+mod windows {
+    use super::*;
+
+    impl Database {
+        pub fn handle_file_system_folder_moved_event(
+            &mut self,
+            from: &PathBuf,
+            to: &PathBuf,
+        ) -> Vec<app::Event> {
+            let from = normalize_path_root(from);
+            self.ensure_project_resources_loaded(&from).unwrap();
+            self.ensure_project_resources_loaded(&to).unwrap();
+            self.handle_folder_moved(from, &to)
+                .into_iter()
+                .map(|event| event.into())
+                .collect()
+        }
+
+        pub fn handle_file_system_folder_renamed_event(
+            &mut self,
+            from: &PathBuf,
+            to: &PathBuf,
+        ) -> Vec<app::Event> {
+            let from = normalize_path_root(from);
+            let from_loaded = self.ensure_project_resources_loaded(&from);
+            let to_loaded = self.ensure_project_resources_loaded(to);
+            match (from_loaded, to_loaded) {
+                (Ok(_), Ok(_)) => self
+                    .handle_folder_renamed(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect(),
+
+                (
+                    Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))),
+                    Err(Error::Core(CoreError::ResourceError(ResourceError::DoesNotExist(_)))),
+                ) => self
+                    .handle_project_folder_moved(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect(),
+
+                (from_err, to_err) => {
+                    tracing::debug!(?from_err, ?to_err);
+                    vec![]
+                }
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod macos {
+    use super::*;
+
+    impl Database {
+        pub fn handle_file_system_folder_moved_event(
+            &mut self,
+            from: &PathBuf,
+            to: &PathBuf,
+        ) -> Vec<app::Event> {
+            let from = normalize_path_root(from);
+            let from_loaded = self.ensure_project_resources_loaded(&from);
+            let to_loaded = self.ensure_project_resources_loaded(to);
+            match (from_loaded, to_loaded) {
+                (Ok(_), Ok(_)) => self
+                    .handle_folder_moved(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect(),
+
+                (
+                    Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))),
+                    Err(Error::Core(CoreError::ResourceError(ResourceError::DoesNotExist(_)))),
+                ) => self
+                    .handle_project_folder_moved(&from, to)
+                    .into_iter()
+                    .map(|event| event.into())
+                    .collect(),
+
+                (from_err, to_err) => {
+                    tracing::debug!(?from_err, ?to_err);
+                    vec![]
+                }
+            }
+        }
+
+        pub fn handle_file_system_folder_renamed_event(
+            &mut self,
+            from: &PathBuf,
+            to: &PathBuf,
+        ) -> Vec<app::Event> {
+            let from = normalize_path_root(from);
+            self.ensure_project_resources_loaded(&from).unwrap();
+            self.ensure_project_resources_loaded(to).unwrap();
+            self.handle_folder_renamed(&from, to)
+                .into_iter()
+                .map(|event| event.into())
+                .collect()
+        }
     }
 }
 

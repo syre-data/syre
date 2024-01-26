@@ -34,7 +34,7 @@ impl Database {
             }
 
             GraphCommand::Get(root) => {
-                let Some(graph) = self.store.get_container_graph(&root) else {
+                let Some(graph) = self.store.get_graph_of_container(&root) else {
                     let res: Result<Option<ResourceTree<CoreContainer>>> = Ok(None);
                     return serde_json::to_value(res).expect("could not convert to JsValue");
                 };
@@ -52,7 +52,7 @@ impl Database {
                 };
 
                 // get duplicated tree
-                let Some(graph) = self.store.get_container_graph(&rid) else {
+                let Some(graph) = self.store.get_graph_of_container(&rid) else {
                     let err: Result<ResourceTree<CoreContainer>> = Err(CoreError::ResourceError(
                         ResourceError::does_not_exist("graph not found"),
                     )
@@ -68,7 +68,7 @@ impl Database {
             }
 
             GraphCommand::Parent(rid) => {
-                let Some(graph) = self.store.get_container_graph(&rid) else {
+                let Some(graph) = self.store.get_graph_of_container(&rid) else {
                     let err: Result<Option<ResourceId>> =
                         Err(Error::Core(CoreError::ResourceError(
                             ResourceError::does_not_exist("`Container` does not exist"),
@@ -87,7 +87,7 @@ impl Database {
             }
 
             GraphCommand::Children(rid) => {
-                let Some(graph) = self.store.get_container_graph(&rid) else {
+                let Some(graph) = self.store.get_graph_of_container(&rid) else {
                     let res: Option<indexmap::IndexSet<ResourceId>> = None;
                     return serde_json::to_value(res)
                         .expect("could not convert `Container` to JsValue");

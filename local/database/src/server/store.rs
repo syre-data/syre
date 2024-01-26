@@ -326,38 +326,22 @@ impl Datastore {
         self.graphs.contains_key(rid)
     }
 
-    /// Gets the graph of a `Container`.
-    ///
-    /// # Arguments
-    /// 1. [`ResourceId`] of the [`Container`](LocalContainer).
-    pub fn get_container_graph(&self, container: &ResourceId) -> Option<&ContainerTree> {
+    /// Gets the entire graph the `Container` is in.
+    pub fn get_graph_of_container(&self, container: &ResourceId) -> Option<&ContainerTree> {
         let Some(project) = self.container_projects.get(&container) else {
             return None;
         };
 
-        let graph = self
-            .graphs
-            .get(project)
-            .expect("`Project` present without graph");
-
-        Some(graph)
+        self.graphs.get(project)
     }
 
-    /// Gets a `mut`able graph of a `Container`.
-    ///
-    /// # Arguments
-    /// 1. [`ResourceId`] of the [`Container`](LocalContainer).
-    fn get_container_graph_mut(&mut self, container: &ResourceId) -> Option<&mut ContainerTree> {
+    /// Gets the entire graph the `Container` is in, `mut`ably.
+    fn get_graph_of_container_mut(&mut self, container: &ResourceId) -> Option<&mut ContainerTree> {
         let Some(project) = self.container_projects.get(&container) else {
             return None;
         };
 
-        let graph = self
-            .graphs
-            .get_mut(project)
-            .expect("`Project` present without graph");
-
-        Some(graph)
+        self.graphs.get_mut(project)
     }
 
     // TODO: DRY `insert_project_graph` and `insert_sub_graph`.
@@ -586,7 +570,7 @@ impl Datastore {
     /// + This does not affect the file system.
     pub fn update_subgraph_path(&mut self, root: &ResourceId, path: impl Into<PathBuf>) -> Result {
         let path = path.into();
-        let Some(graph) = self.get_container_graph(root) else {
+        let Some(graph) = self.get_graph_of_container(root) else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` graph not found",
             ))
@@ -645,7 +629,7 @@ impl Datastore {
 
     /// Gets a [`Container`](LocalContainer).
     pub fn get_container(&self, container: &ResourceId) -> Option<&LocalContainer> {
-        let Some(graph) = self.get_container_graph(container) else {
+        let Some(graph) = self.get_graph_of_container(container) else {
             return None;
         };
 
@@ -658,7 +642,7 @@ impl Datastore {
 
     /// Gets a `mut`able [`Container`](LocalContainer).
     pub fn get_container_mut(&mut self, container: &ResourceId) -> Option<&mut LocalContainer> {
-        let Some(graph) = self.get_container_graph_mut(container) else {
+        let Some(graph) = self.get_graph_of_container_mut(container) else {
             return None;
         };
 
@@ -676,7 +660,7 @@ impl Datastore {
         };
 
         let graph = self
-            .get_container_graph(container.id())
+            .get_graph_of_container(container.id())
             .expect("could not find `Container`'s graph");
 
         let metadata = graph.ancestors(container.id()).into_iter().rfold(
@@ -725,7 +709,7 @@ impl Datastore {
         filter: StdFilter,
     ) -> HashSet<&LocalContainer> {
         let mut found = HashSet::new();
-        let Some(graph) = self.get_container_graph(root) else {
+        let Some(graph) = self.get_graph_of_container(root) else {
             return found;
         };
 
@@ -812,7 +796,7 @@ impl Datastore {
         }
 
         // run fn
-        let Some(graph) = self.get_container_graph(root) else {
+        let Some(graph) = self.get_graph_of_container(root) else {
             return HashSet::new();
         };
 
@@ -978,7 +962,7 @@ impl Datastore {
             .into());
         };
 
-        let Some(graph) = self.get_container_graph_mut(&cid) else {
+        let Some(graph) = self.get_graph_of_container_mut(&cid) else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container`'s graph is not loaded",
             ))
@@ -1097,7 +1081,7 @@ impl Datastore {
     /// + [`find_assets_with_metadata`]
     pub fn find_assets(&self, root: &ResourceId, filter: StdFilter) -> HashSet<Asset> {
         let mut found = HashSet::new();
-        let Some(graph) = self.get_container_graph(root) else {
+        let Some(graph) = self.get_graph_of_container(root) else {
             return found;
         };
 
@@ -1184,7 +1168,7 @@ impl Datastore {
         }
 
         // find mathing containers
-        let Some(graph) = self.get_container_graph(root) else {
+        let Some(graph) = self.get_graph_of_container(root) else {
             return HashSet::new();
         };
 

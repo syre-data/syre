@@ -75,8 +75,9 @@ impl Database {
                     .unwrap()
                     .clone();
 
-                let graph = self.store.get_container_graph(&container).unwrap();
-                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let graph = self.store.get_graph_of_container(&container).unwrap();
+                let mut graph = ContainerTreeTransformer::local_to_core(graph);
+                let graph = graph.remove(&container).unwrap(); // get container's subgraph
                 self.publish_update(&Update::Project {
                     project,
                     update: GraphUpdate::Created { parent, graph }.into(),
@@ -87,7 +88,7 @@ impl Database {
         }
     }
 
-    /// Initialize a path as a  Container tree and insert it into the graph.
+    /// Initialize a path as a Container tree and insert it into the graph.
     ///
     /// # Returns
     /// `ResourceId` of the graph's root `Container`.

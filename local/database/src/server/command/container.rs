@@ -151,7 +151,7 @@ impl Database {
             .into());
         };
 
-        let graph = self.store.get_container_graph(&rid).unwrap();
+        let graph = self.store.get_graph_of_container(&rid).unwrap();
         if properties.name != container.properties.name && &container.rid != graph.root() {
             self.rename_container_folder(&rid, &properties.name)?;
         }
@@ -188,7 +188,7 @@ impl Database {
                 ))
                 .into());
             };
-            let graph = self.store.get_container_graph(&container.rid).unwrap();
+            let graph = self.store.get_graph_of_container(&container.rid).unwrap();
 
             // get siblings to check for name clash
             let siblings = graph.siblings(&container.rid).unwrap();
@@ -260,7 +260,7 @@ impl Database {
     }
 
     fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {
-        let Some(graph) = self.store.get_container_graph(rid) else {
+        let Some(graph) = self.store.get_graph_of_container(rid) else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))

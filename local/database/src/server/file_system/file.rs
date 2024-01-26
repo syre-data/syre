@@ -115,7 +115,7 @@ impl Database {
         self.store.insert_subgraph(&parent, graph)?;
 
         let project = self.store.get_container_project(&root).unwrap().clone();
-        let graph = self.store.get_container_graph(&root).unwrap();
+        let graph = self.store.get_graph_of_container(&root).unwrap();
         let graph = ContainerTreeTransformer::local_to_core(graph);
         self.publish_update(&Update::Project {
             project,

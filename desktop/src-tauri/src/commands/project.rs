@@ -10,7 +10,7 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::error::Analysis as AnalysisError;
-use thot_local::project::project;
+use thot_local::project::project as local_project;
 use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::collections::ProjectManifest;
 use thot_local::system::project_manifest as sys_projects;
@@ -81,6 +81,8 @@ pub fn import_project(
         }
     });
 
+    if project.is_none() {}
+    todo!();
     // ----
     // ProjectCommand::Add(path, user) => {
     //     let Ok(local_project) = self.load_project(&path) else {
@@ -128,8 +130,8 @@ pub fn import_project(
     // }
     // ---
 
-    let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
-    Ok(project?)
+    // let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
+    // Ok(project?)
 }
 
 // *******************
@@ -178,7 +180,7 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 /// Initializes a new project.
 #[tauri::command]
 pub fn init_project(path: &Path) -> Result<ResourceId> {
-    let rid = project::init(path)?;
+    let rid = local_project::init(path)?;
 
     // create analysis folder
     let analysis_root = "analysis";

@@ -6,7 +6,7 @@ use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Project as CoreProject, Script as CoreScript};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local::project::resources::{
     Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
 };
@@ -80,7 +80,7 @@ impl Database {
 
     /// Adds a `Script` to a `Project`.
     fn add_script(&mut self, project: ResourceId, script: PathBuf) -> Result<CoreScript> {
-        let script = LocalScript::new(ResourcePath::new(script)?)?;
+        let script = LocalScript::new(script)?;
         self.store.insert_script(project, script.clone())?;
 
         Ok(script)
@@ -91,28 +91,26 @@ impl Database {
         let script = self.store.remove_project_script(pid, script)?;
 
         if let Some(script) = script {
-            let path = match script.path {
-                ResourcePath::Absolute(path) => path.clone(),
-                ResourcePath::Relative(script_path) => {
-                    let Some(project) = self.store.get_project(&pid) else {
-                        return Err(Error::Database(String::from(
-                            "could not get `Project` path",
-                        )));
-                    };
+            let path = if script.path.is_absolute() {
+                script.path.clone()
+            } else if script.path.is_relative() {
+                let Some(project) = self.store.get_project(&pid) else {
+                    return Err(Error::Database(String::from(
+                        "could not get `Project` path",
+                    )));
+                };
 
-                    let path = project.base_path();
-                    path.join(
-                        project
-                            .analysis_root
-                            .as_ref()
-                            .expect("`Project`'s analysis root not set")
-                            .clone(),
-                    )
-                    .join(script_path)
-                }
-                ResourcePath::Root(_path, _level) => {
-                    todo!("root paths not handled");
-                }
+                let path = project.base_path();
+                path.join(
+                    project
+                        .analysis_root
+                        .as_ref()
+                        .expect("`Project`'s analysis root not set")
+                        .clone(),
+                )
+                .join(script.path)
+            } else {
+                todo!("unhandled path type");
             };
 
             trash::delete(path)?;

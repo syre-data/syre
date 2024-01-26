@@ -1,12 +1,12 @@
 use crate::error::ScriptError;
-use crate::types::{ResourceId, ResourceMap, ResourcePath};
+use crate::types::{ResourceId, ResourceMap};
 use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 
 #[cfg(feature = "serde")]
@@ -28,7 +28,7 @@ use crate::types::resource_map::values_only;
 pub struct Script {
     #[id]
     pub rid: ResourceId,
-    pub path: ResourcePath,
+    pub path: PathBuf,
     pub name: Option<String>,
     pub description: Option<String>,
     pub env: ScriptEnv,
@@ -37,8 +37,9 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: ResourcePath) -> StdResult<Script, ScriptError> {
-        let Some(file_name) = path.as_path().file_name() else {
+    pub fn new(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
+        let path = path.into();
+        let Some(file_name) = path.file_name() else {
             return Err(ScriptError::UnknownLanguage(None));
         };
 
@@ -72,12 +73,13 @@ impl Script {
 pub struct Scripts(#[cfg_attr(feature = "serde", serde(with = "values_only"))] ResourceMap<Script>);
 impl Scripts {
     /// Returns whether a script with the given path is registered.
-    pub fn contains_path(&self, path: &ResourcePath) -> bool {
+    pub fn contains_path(&self, path: impl AsRef<Path>) -> bool {
         self.by_path(path).is_some()
     }
 
     /// Gets a script by its path if it is registered.
-    pub fn by_path(&self, path: &ResourcePath) -> Option<&Script> {
+    pub fn by_path(&self, path: impl AsRef<Path>) -> Option<&Script> {
+        let path = path.as_ref();
         for script in self.values() {
             if &script.path == path {
                 return Some(&script);

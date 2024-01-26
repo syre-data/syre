@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptLang;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::graph::ContainerTreeTransformer;
 use thot_local::loader::error::container::Error as ContainerLoaderError;
@@ -165,7 +165,6 @@ impl Database {
         let project = self.project_by_resource_path(&path)?;
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             if let Ok(script_path) = path.strip_prefix(analysis_root) {
-                let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if scripts.contains_path(&script_path) {
                     return Ok(vec![]);
@@ -203,7 +202,6 @@ impl Database {
             .strip_prefix(project.analysis_root_path().unwrap())
             .unwrap();
 
-        let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
         if let Some(script) = scripts.by_path(&script_path) {
             return vec![app::Script::Removed(script.rid.clone()).into()];
         }
@@ -269,7 +267,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     return vec![app::Script::Moved {
@@ -308,7 +305,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     return vec![app::Script::Removed(script.rid.clone()).into()];
@@ -347,7 +343,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     events.push(app::Script::Removed(script.rid.clone()).into());
@@ -384,7 +379,6 @@ impl Database {
             }
 
             if let Ok(script_path) = to.strip_prefix(analysis_root) {
-                let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if scripts.contains_path(&script_path) {
                     return vec![];
@@ -523,7 +517,6 @@ impl Database {
         let project = self.project_by_resource_path(&path).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
-            let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
             if let Some(script) = scripts.by_path(&script_path) {
                 return vec![app::Script::Removed(script.rid.clone()).into()];
             }

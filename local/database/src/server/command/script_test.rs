@@ -1,6 +1,5 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use dev_utils::path::resource_path;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Script, ScriptAssociation};
 use thot_local::project::resources::{
@@ -25,17 +24,12 @@ fn remove_script_should_work() {
     let pid = project.rid.clone();
 
     // initialize scripts
-    let script_0 =
-        Script::new(resource_path::resource_path(Some("py"))).expect("could not create `script`");
-
-    let script_1 =
-        Script::new(resource_path::resource_path(Some("py"))).expect("could not create `script` 1");
-
+    let script_0 = Script::new("script-0.py").unwrap();
+    let script_1 = Script::new("script-1.py").unwrap();
     let sid_0 = script_0.rid.clone();
     let sid_1 = script_1.rid.clone();
 
     let mut scripts = LocalScripts::load_from(dir.path()).expect("could not load `Scripts`");
-
     scripts
         .insert_script(script_0)
         .expect("could not insert `Script`");

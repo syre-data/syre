@@ -8,7 +8,6 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Script as CoreScript, Scripts as CoreScripts};
-use thot_core::types::ResourcePath;
 
 // **************
 // *** Script ***
@@ -17,7 +16,7 @@ use thot_core::types::ResourcePath;
 pub struct Script;
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
-    pub fn new(path: ResourcePath) -> Result<CoreScript> {
+    pub fn new(path: impl Into<PathBuf>) -> Result<CoreScript> {
         let settings = UserSettings::load()?;
         let creator = settings.active_user.clone().map(|c| c.into());
 
@@ -109,7 +108,3 @@ impl LocalResource<CoreScripts> for Scripts {
         &self.base_path
     }
 }
-
-#[cfg(test)]
-#[path = "./script_test.rs"]
-mod script_test;

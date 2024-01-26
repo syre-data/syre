@@ -25,8 +25,9 @@ use resources::Project;
 use std::path::{Component, Path};
 use std::{fs, io};
 use thot_core::project::{Script, ScriptLang};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
+// TODO: Move into builder.
 /// Initializes an existing folder of data and scripts into a project.
 pub fn init(
     root: impl AsRef<Path>,
@@ -137,7 +138,6 @@ pub fn init(
         let entry = entry?;
         let script_path = fs::canonicalize(entry.path())?;
         let script_path = script_path.strip_prefix(&analysis_root).unwrap();
-        let script_path = ResourcePath::new(script_path.to_path_buf())?;
         if scripts.contains_path(&script_path) {
             continue;
         }

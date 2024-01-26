@@ -1,9 +1,10 @@
 //! Projects state.
 // use crate::commands::settings::UserAppStateArgs;
 use indexmap::IndexSet;
+use std::path::PathBuf;
 use std::rc::Rc;
 use thot_core::project::{Project, Script, Scripts};
-use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
+use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::types::ProjectSettings;
 use yew::prelude::*;
 
@@ -56,7 +57,7 @@ pub enum ProjectsStateAction {
 
     MoveProjectScript {
         script: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 }
 

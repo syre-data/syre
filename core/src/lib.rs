@@ -28,8 +28,5 @@ pub mod runner;
 #[cfg(feature = "system")]
 pub mod system;
 
-#[cfg(test)]
-pub mod dev_utils;
-
 // Re-exports
 pub use error::{Error, Result};

@@ -8,7 +8,7 @@ use std::path::{self, Path, PathBuf};
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Asset, ContainerProperties};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
 // ***************
 // *** Builder ***
@@ -123,7 +123,7 @@ impl InitOptions<InitNew> {
                 let entry = entry.unwrap();
                 let entry_path = entry.path();
                 if entry_path.is_file() {
-                    let asset = Asset::new(ResourcePath::new(entry_path)?);
+                    let asset = Asset::new(entry_path);
                     container.insert_asset(asset);
                 }
             }
@@ -239,7 +239,7 @@ impl InitOptions<InitExisting> {
                         .unwrap()
                         .to_path_buf();
 
-                    let asset = Asset::new(ResourcePath::new(rel_path)?);
+                    let asset = Asset::new(rel_path);
                     container.insert_asset(asset);
                 }
             }

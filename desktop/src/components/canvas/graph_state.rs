@@ -5,10 +5,11 @@ use crate::commands::container::{
     UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local_database::command::asset::{
     BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
     PropertiesUpdate as AssetPropertiesUpdate,
@@ -78,14 +79,14 @@ pub enum GraphStateAction {
 
     UpdateAssetPath {
         asset: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 
     /// Move an `Asset` to another `Container`.  
     MoveAsset {
         asset: ResourceId,
         container: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 
     SetDragOverContainer(ResourceId),

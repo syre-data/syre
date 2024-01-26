@@ -9,8 +9,8 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use thot_core::project::container::AssetMap;
 use thot_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
+use thot_core::types::ResourceId;
 use thot_core::types::{Creator, UserId};
-use thot_core::types::{ResourceId, ResourcePath};
 
 // ******************************
 // *** Local Asset Properties ***
@@ -42,12 +42,12 @@ pub struct Asset;
 impl Asset {
     /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].
-    pub fn new(path: ResourcePath) -> Result<CoreAsset> {
+    pub fn new(path: impl Into<PathBuf>) -> Result<CoreAsset> {
         let props = AssetProperties::new()?;
         Ok(CoreAsset {
             rid: ResourceId::new(),
             properties: props,
-            path,
+            path: path.into(),
         })
     }
 }

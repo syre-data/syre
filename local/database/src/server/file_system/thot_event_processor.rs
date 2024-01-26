@@ -658,7 +658,7 @@ mod windows {
             let from = normalize_path_root(from);
             self.ensure_project_resources_loaded(&from).unwrap();
             self.ensure_project_resources_loaded(&to).unwrap();
-            self.handle_folder_moved(from, &to)
+            self.handle_folder_moved(&from, to)
                 .into_iter()
                 .map(|event| event.into())
                 .collect()

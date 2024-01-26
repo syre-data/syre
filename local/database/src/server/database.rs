@@ -136,6 +136,8 @@ impl Database {
 
 #[cfg(target_os = "windows")]
 mod windows {
+    use super::*;
+
     impl Database {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.

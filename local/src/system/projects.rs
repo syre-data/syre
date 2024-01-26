@@ -1,6 +1,6 @@
 //! High level functions associated to the projects list.
 use super::collections::projects::Projects;
-use crate::error::{Error, ProjectError, Result, SettingsValidationError};
+use crate::error::{Error, Project, Result, SettingsValidationError};
 use crate::system::settings::user_settings::UserSettings;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -71,9 +71,7 @@ pub fn get_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
     match projects.len() {
         0 => Ok(None),
         1 => Ok(Some(projects[0].clone())),
-        _ => Err(Error::ProjectError(ProjectError::DuplicatePath(
-            PathBuf::from(path),
-        ))),
+        _ => Err(Error::Project(Project::DuplicatePath(PathBuf::from(path)))),
     }
 }
 
@@ -104,9 +102,9 @@ pub fn set_active_project(id: &ResourceId) -> Result {
 pub fn set_active_project_by_path(path: &Path) -> Result {
     let project = match get_id(path)? {
         None => {
-            return Err(Error::ProjectError(ProjectError::PathNotAProjectRoot(
-                PathBuf::from(path),
-            )))
+            return Err(Error::Project(Project::PathNotAProjectRoot(PathBuf::from(
+                path,
+            ))))
         }
         Some(p) => p,
     };

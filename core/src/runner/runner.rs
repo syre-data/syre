@@ -1,12 +1,11 @@
 //! Thot project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
 use super::CONTAINER_ID_KEY;
-use crate::error::{ResourceError, RunnerError};
+use crate::error::Runner as RunnerError;
 use crate::graph::ResourceTree;
 use crate::project::{Container, Script};
 use crate::types::ResourceId;
-use crate::{Error, Result};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::result::Result as StdResult;
 use std::{process, str};
 
@@ -29,7 +28,7 @@ pub struct ScriptExecutionContext {
 // *************
 
 /// Retrieves a [`Script`] from its [`ResouceId`].
-pub type GetScriptHook = fn(&ResourceId) -> Result<Script>;
+pub type GetScriptHook = fn(&ResourceId) -> StdResult<Script, String>;
 
 /// Used to handle script errors during execution.
 ///
@@ -41,8 +40,7 @@ pub type GetScriptHook = fn(&ResourceId) -> Result<Script>;
 /// # Returns
 /// A [`Result`](StdResult) indicating whether to contiue execution (`Ok`) or
 /// halt (`Err`).
-pub type ScriptErrorHook =
-    fn(ScriptExecutionContext, RunnerError, bool) -> StdResult<(), RunnerError>;
+pub type ScriptErrorHook = fn(ScriptExecutionContext, RunnerError, bool) -> Result;
 
 /// Handles post-processing of the [`Asset`](crate::project::Asset)s added
 /// during execution.
@@ -105,6 +103,7 @@ impl RunnerHooks {
 // *** Runner ***
 // **************
 
+type Result<T = ()> = std::result::Result<T, RunnerError>;
 type ContainerTree = ResourceTree<Container>;
 
 // TODO Make builder.
@@ -113,7 +112,7 @@ type ContainerTree = ResourceTree<Container>;
 ///
 /// ```
 pub struct Runner {
-    pub hooks: RunnerHooks,
+    hooks: RunnerHooks,
 }
 
 impl Runner {
@@ -126,7 +125,9 @@ impl Runner {
     /// # Arguments
     /// 1. Container tree to evaluate.
     pub fn run(&self, tree: &mut ContainerTree) -> Result {
-        self.evaluate_tree(tree, &tree.root().clone(), None)
+        let root = tree.root().clone();
+        let mut analyzer = TreeRunner::new(tree, &root, &self.hooks);
+        analyzer.run()
     }
 
     /// Analyze a tree using restricted parallelization.
@@ -134,8 +135,10 @@ impl Runner {
     /// # Arguments
     /// 1. Container tree to evaluate.
     /// 2. Maximum number of analysis tasks to run at once.
-    pub fn run_with_tasks(&self, tree: &mut ContainerTree, tasks: usize) -> Result {
-        self.evaluate_tree(tree, &tree.root().clone(), Some(tasks))
+    pub fn with_tasks(&self, tree: &mut ContainerTree, tasks: usize) -> Result {
+        let root = tree.root().clone();
+        let mut analyzer = TreeRunner::with_tasks(tree, &root, &self.hooks, tasks);
+        analyzer.run()
     }
 
     /// Analyze a subtree.
@@ -143,8 +146,9 @@ impl Runner {
     /// # Arguments
     /// 1. Container tree to evaluate.
     /// 2. Root of subtree.
-    pub fn run_from(&self, tree: &mut ContainerTree, root: &ResourceId) -> Result {
-        self.evaluate_tree(tree, root, None)
+    pub fn from(&self, tree: &mut ContainerTree, root: &ResourceId) -> Result {
+        let mut analyzer = TreeRunner::new(tree, root, &self.hooks);
+        analyzer.run()
     }
 
     /// Analyze a subtree using restricted parallelization.
@@ -153,13 +157,83 @@ impl Runner {
     /// 1. Container tree to evaluate.
     /// 2. Root of subtree.
     /// 3. Maximum number of analysis tasks to run at once.
-    pub fn run_from_with_tasks(
+    pub fn with_tasks_from(
         &self,
         tree: &mut ContainerTree,
         root: &ResourceId,
         tasks: usize,
     ) -> Result {
-        self.evaluate_tree(tree, root, Some(tasks))
+        let mut analyzer = TreeRunner::with_tasks(tree, root, &self.hooks, tasks);
+        analyzer.run()
+    }
+}
+
+struct TreeRunner<'a> {
+    tree: &'a mut ContainerTree,
+    root: &'a ResourceId,
+    hooks: &'a RunnerHooks,
+    max_tasks: Option<usize>,
+    ignore_errors: bool,
+    verbose: bool,
+    scripts: HashMap<ResourceId, Script>,
+}
+
+impl<'a> TreeRunner<'a> {
+    pub fn new(tree: &'a mut ContainerTree, root: &'a ResourceId, hooks: &'a RunnerHooks) -> Self {
+        Self {
+            tree,
+            root,
+            hooks,
+            max_tasks: None,
+            ignore_errors: false,
+            verbose: false,
+            scripts: HashMap::new(),
+        }
+    }
+
+    pub fn with_tasks(
+        tree: &'a mut ContainerTree,
+        root: &'a ResourceId,
+        hooks: &'a RunnerHooks,
+        max_tasks: usize,
+    ) -> Self {
+        Self {
+            tree,
+            root,
+            hooks,
+            max_tasks: Some(max_tasks),
+            ignore_errors: false,
+            verbose: false,
+            scripts: HashMap::new(),
+        }
+    }
+
+    pub fn run(&mut self) -> Result {
+        let get_script = self.hooks.get_script;
+        let mut script_errors = HashMap::new();
+        for (_, container) in self.tree.iter_nodes() {
+            for sid in container.scripts.keys() {
+                if self.scripts.contains_key(sid) {
+                    continue;
+                }
+
+                match get_script(sid) {
+                    Ok(script) => {
+                        self.scripts.insert(sid.clone(), script);
+                    }
+
+                    Err(err) => {
+                        script_errors.insert(sid.clone(), err);
+                    }
+                }
+            }
+        }
+
+        if !script_errors.is_empty() {
+            return Err(RunnerError::LoadScripts(script_errors));
+        }
+
+        self.evaluate_tree(self.root)
     }
 
     /// Evaluates a `Container` tree.
@@ -168,23 +242,18 @@ impl Runner {
     /// 1. Container tree to evaluate.
     /// 2. Root of subtree.
     /// 3. Maximum number of analysis tasks to run at once.
-    #[tracing::instrument(skip(self, tree))]
-    fn evaluate_tree(
-        &self,
-        tree: &mut ContainerTree,
-        root: &ResourceId,
-        tasks: Option<usize>,
-    ) -> Result {
+    #[tracing::instrument(skip(self))]
+    fn evaluate_tree(&self, root: &ResourceId) -> Result {
         // recurse on children
-        let Some(children) = tree.children(root).cloned() else {
-            return Err(ResourceError::does_not_exist("`Node` children not found").into());
+        let Some(children) = self.tree.children(root).cloned() else {
+            return Err(RunnerError::ContainerNotFound(root.clone()));
         };
 
         for child in children {
-            self.evaluate_tree(tree, &child, tasks)?;
+            self.evaluate_tree(&child)?;
         }
 
-        self.evaluate_container(tree, root, None, false, false)
+        self.evaluate_container(root)
     }
 
     /// Evaluates a single container.
@@ -196,42 +265,26 @@ impl Runner {
     ///     Otherwise a [`HashSet`] of the scripts to run.
     /// + `ignore_errors`: Whether to continue running on a script error.
     /// + `verbose`: Output state.
-    #[tracing::instrument(skip(self, tree))]
-    fn evaluate_container(
-        &self,
-        tree: &mut ContainerTree,
-        container: &ResourceId,
-        script_filter: Option<HashSet<ResourceId>>,
-        ignore_errors: bool,
-        verbose: bool,
-    ) -> Result {
-        let Some(container) = tree.get(container) else {
-            return Err(ResourceError::does_not_exist("`Node` not found").into());
+    #[tracing::instrument(skip(self))]
+    fn evaluate_container(&self, container: &ResourceId) -> Result {
+        let Some(container) = self.tree.get(container) else {
+            return Err(RunnerError::ContainerNotFound(container.clone()));
         };
 
-        let mut scripts = container.scripts.clone();
-        if let Some(filter) = script_filter {
-            // filter scripts
-            scripts.retain(|rid, _script| filter.contains(rid));
-        }
-
         // batch and sort scripts by priority
-        let mut script_groups: Vec<(i32, ScriptSet)> = ScriptGroups::from(scripts).into();
+        let mut script_groups: Vec<(i32, ScriptSet)> =
+            ScriptGroups::from(container.scripts.clone()).into();
+
         script_groups.sort_by(|(p0, _), (p1, _)| p0.cmp(p1));
 
         for (_priority, script_group) in script_groups {
-            let get_script = self.hooks.get_script;
             let scripts = script_group
                 .into_iter()
                 .filter(|s| s.autorun)
-                .map(|assoc| {
-                    let rid = assoc.script;
-                    get_script(&rid)
-                        .expect(&format!("could not retrieve `Script` with id `{}`", rid))
-                })
+                .map(|assoc| self.scripts.get(&assoc.script).unwrap())
                 .collect();
 
-            self.run_scripts(scripts, &container, ignore_errors, verbose)?;
+            self.run_scripts(scripts, &container)?;
         }
 
         Ok(())
@@ -258,13 +311,7 @@ impl Runner {
     ///    ignore_errors -- "false" ---> break("return Err(_)")
     /// ```
     #[tracing::instrument(skip(self))]
-    fn run_scripts(
-        &self,
-        scripts: Vec<Script>,
-        container: &Container,
-        ignore_errors: bool,
-        verbose: bool,
-    ) -> Result {
+    fn run_scripts(&self, scripts: Vec<&Script>, container: &Container) -> Result {
         for script in scripts {
             let exec_ctx = ScriptExecutionContext {
                 script: script.rid.clone(),
@@ -272,39 +319,39 @@ impl Runner {
             };
 
             if let Some(pre_script) = self.hooks.pre_script {
-                pre_script(exec_ctx.clone(), verbose);
+                pre_script(exec_ctx.clone(), self.verbose);
             }
 
             let run_res = self.run_script(script, &container);
 
             if let Some(assets_added) = self.hooks.assets_added {
-                let assets = HashSet::new(); // @todo[1]: Collect `ResourceId`s of `Assets`.
-                assets_added(exec_ctx.clone(), assets, verbose);
+                let assets = HashSet::new(); // TODO: Collect `ResourceId`s of `Assets`.
+                assets_added(exec_ctx.clone(), assets, self.verbose);
             }
 
             match run_res {
-                Err(Error::RunnerError(err)) => {
+                Ok(_) => {}
+
+                Err(err) => {
                     if let Some(script_error) = self.hooks.script_error {
-                        match script_error(exec_ctx.clone(), err, verbose) {
+                        match script_error(exec_ctx.clone(), err, self.verbose) {
                             Ok(()) => {}
                             Err(err) => {
-                                if !ignore_errors {
+                                if !self.ignore_errors {
                                     return Err(err.into());
                                 }
                             }
                         }
                     } else {
-                        if !ignore_errors {
+                        if !self.ignore_errors {
                             return Err(err.into());
                         }
                     }
                 }
-                Err(err) => return Err(err.into()), // do not ignore non `RunnerError`s
-                Ok(_) => {}
             }
 
             if let Some(post_script) = self.hooks.post_script {
-                post_script(exec_ctx, verbose);
+                post_script(exec_ctx, self.verbose);
             }
         }
 
@@ -319,7 +366,7 @@ impl Runner {
     /// # Errors
     /// + [`RunnerError`]: The script returned a `status` other than `0`.
     #[tracing::instrument(skip(self))]
-    fn run_script(&self, script: Script, container: &Container) -> Result<process::Output> {
+    fn run_script(&self, script: &Script, container: &Container) -> Result<process::Output> {
         #[cfg(target_os = "windows")]
         let mut out = process::Command::new("cmd");
 
@@ -334,35 +381,33 @@ impl Runner {
             .args(&script.env.args)
             .env(CONTAINER_ID_KEY, container.rid.clone().to_string())
             .envs(&script.env.env)
-            .output() {
-                Ok(out) => out,
-                Err(err) => {
-                    tracing::debug!(?err);
-                    return Err(RunnerError::CommandError{
-                        script: script.rid.clone(),
-                        container: container.rid.clone(),
-                        cmd: format!("{out:?}")
-                    }.into())
+            .output()
+        {
+            Ok(out) => out,
+            Err(err) => {
+                tracing::debug!(?err);
+                return Err(RunnerError::CommandError {
+                    script: script.rid.clone(),
+                    container: container.rid.clone(),
+                    cmd: format!("{out:?}"),
                 }
-            };
+                .into());
+            }
+        };
 
         if !out.status.success() {
             let stderr = str::from_utf8(out.stderr.as_slice())
                 .expect("stderr should work")
                 .to_string();
 
-            return Err(RunnerError::ScriptError(
-                script.rid.clone(),
-                container.rid.clone(),
-                stderr,
-            )
+            return Err(RunnerError::ScriptError {
+                script: script.rid.clone(),
+                container: container.rid.clone(),
+                description: stderr,
+            }
             .into());
         }
 
         Ok(out)
     }
 }
-
-#[cfg(test)]
-#[path = "./runner_test.rs"]
-mod runner_test;

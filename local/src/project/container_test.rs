@@ -1,6 +1,5 @@
 use super::*;
 use crate::common;
-use crate::project::resources::Container;
 use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
@@ -41,7 +40,7 @@ fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {
     );
 
     // ensure container is correct
-    let container = Container::load_from(&root).unwrap();
+    let container = ContainerLoader::load(&root).unwrap();
     assert_eq!(
         root.file_name().unwrap().to_str().unwrap(),
         container.properties.name,
@@ -121,7 +120,7 @@ fn builder_new_with_properties_should_work() {
     builder.properties(properties.clone());
     builder.build(_dir.path()).expect("`init_from` should work");
 
-    let c = Container::load_from(_dir.path()).expect("could not load `Container`");
+    let c = ContainerLoader::load(_dir.path()).expect("could not load `Container`");
     assert_eq!(properties.kind, c.properties.kind, "`kind`s do not match");
     assert_eq!(
         _dir.path().file_name().unwrap().to_str().unwrap(),

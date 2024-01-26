@@ -1,6 +1,6 @@
 //! Container and container settings.
 use crate::common;
-use crate::error::{Error, Result};
+use crate::error::{Error, IoSerde as IoSerdeError, Result};
 use crate::file_resource::LocalResource;
 use crate::system::settings::UserSettings;
 use crate::types::ContainerSettings;
@@ -8,9 +8,9 @@ use has_id::HasId;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::container::AssetMap;
 use thot_core::project::{
@@ -69,9 +69,9 @@ impl From<CoreContainer> for StoredContainerProperties {
 
 #[derive(Debug)]
 pub struct Container {
-    base_path: PathBuf,
-    container: CoreContainer,
-    settings: ContainerSettings,
+    pub(crate) base_path: PathBuf,
+    pub(crate) container: CoreContainer,
+    pub(crate) settings: ContainerSettings,
 }
 
 impl Container {
@@ -95,53 +95,18 @@ impl Container {
         }
     }
 
-    pub fn load_from(base_path: impl AsRef<Path>) -> thot_core::Result<Self> {
-        let base_path = fs::canonicalize(base_path.as_ref())?;
-        let properties_path =
-            base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
-
-        let assets_path = base_path.join(<Container as LocalResource<AssetMap>>::rel_path());
-        let settings_path =
-            base_path.join(<Container as LocalResource<ContainerSettings>>::rel_path());
-
-        let properties_file = fs::File::open(properties_path)?;
-        let assets_file = fs::File::open(assets_path)?;
-        let settings_file = fs::File::open(settings_path)?;
-
-        let properties_reader = BufReader::new(properties_file);
-        let assets_reader = BufReader::new(assets_file);
-        let settings_reader = BufReader::new(settings_file);
-
-        let container: StoredContainerProperties = serde_json::from_reader(properties_reader)?;
-        let assets = serde_json::from_reader(assets_reader)?;
-        let settings = serde_json::from_reader(settings_reader)?;
-
-        let container = CoreContainer {
-            rid: container.rid,
-            properties: container.properties,
-            assets,
-            scripts: container.scripts,
-        };
-
-        Ok(Self {
-            base_path,
-            container,
-            settings,
-        })
-    }
-
     /// Save all data.
-    pub fn save(&self) -> Result {
+    pub fn save(&self) -> StdResult<(), IoSerdeError> {
         let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
 
         fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
         let properties: StoredContainerProperties = self.container.clone().into();
+
         fs::write(properties_path, serde_json::to_string_pretty(&properties)?)?;
         fs::write(assets_path, serde_json::to_string_pretty(&self.assets)?)?;
         fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
-
         Ok(())
     }
 

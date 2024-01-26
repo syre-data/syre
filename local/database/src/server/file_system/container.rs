@@ -1,5 +1,5 @@
 //! Handle [`thot::Container`](ContainerEvent) events.
-use super::event::thot::Container as ContainerEvent;
+use super::event::app::Container as ContainerEvent;
 use crate::event::{Container as ContainerUpdate, Update};
 use crate::server::Database;
 use crate::Result;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use thot_core::types::ResourceId;
 
 impl Database {
-    pub fn handle_thot_event_container(&mut self, event: ContainerEvent) -> Result {
+    pub fn handle_thot_event_container(&mut self, event: &ContainerEvent) -> Result {
         match event {
             ContainerEvent::Renamed { container, name } => {
                 self.update_container_name(&container, name.clone())?;

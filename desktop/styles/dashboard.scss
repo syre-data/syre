@@ -1,4 +1,4 @@
-@use 'themes' as t;
+@use "themes" as t;
 
 #dashboard {
   #dashboard-container {
@@ -9,7 +9,7 @@
 
   margin-left: t.$margin-3xl;
   margin-top: 8px;
- 
+
   #dashboard-header {
     display: flex;
     flex-direction: row;
@@ -19,7 +19,6 @@
     button {
       height: t.$button-height;
     }
-
   }
 
   .new-project {
@@ -30,7 +29,7 @@
   .card-deck {
     display: flex;
     flex-wrap: wrap;
-    gap: t.$gap-xl;  
+    gap: t.$gap-xl;
     overflow: auto;
   }
 
@@ -45,7 +44,6 @@
     &:hover {
       background-color: t.$card-hover-background-color;
     }
-
 
     .title {
       margin-top: t.$margin-m;

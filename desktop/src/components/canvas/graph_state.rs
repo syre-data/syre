@@ -1,11 +1,7 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
-use crate::commands::asset::{
-    AssetPropertiesUpdate, BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
-};
 use crate::commands::common::BulkUpdateResourcePropertiesArgs;
 use crate::commands::container::{
-    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, BulkUpdateScriptAssociationArgs,
-    ContainerPropertiesUpdate, ScriptAssociationsBulkUpdate,
+    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs,
     UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use std::collections::HashMap;
@@ -13,6 +9,14 @@ use std::rc::Rc;
 use thot_core::graph::ResourceTree;
 use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
 use thot_core::types::{ResourceId, ResourcePath};
+use thot_local_database::command::asset::{
+    BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
+    PropertiesUpdate as AssetPropertiesUpdate,
+};
+use thot_local_database::command::container::{
+    BulkUpdateScriptAssociationsArgs, PropertiesUpdate as ContainerPropertiesUpdate,
+    ScriptAssociationBulkUpdate,
+};
 use yew::prelude::*;
 
 type ContainerTree = ResourceTree<Container>;
@@ -97,7 +101,7 @@ pub enum GraphStateAction {
     BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs),
 
     /// Bulk update `Container` `ScriptAssociation`s.
-    BulkUpdateContainerScriptAssociations(BulkUpdateScriptAssociationArgs),
+    BulkUpdateContainerScriptAssociations(BulkUpdateScriptAssociationsArgs),
 }
 
 #[derive(PartialEq, Clone)]
@@ -239,7 +243,7 @@ impl GraphState {
     pub fn update_container_script_associations_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &ScriptAssociationsBulkUpdate,
+        update: &ScriptAssociationBulkUpdate,
     ) {
         let container = self
             .graph
@@ -483,7 +487,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::BulkUpdateContainerScriptAssociations(
-                BulkUpdateScriptAssociationArgs { containers, update },
+                BulkUpdateScriptAssociationsArgs { containers, update },
             ) => {
                 for container in containers {
                     current.update_container_script_associations_from_update(&container, &update);
@@ -496,3 +500,4 @@ impl Reducible for GraphState {
 }
 
 pub type GraphStateReducer = UseReducerHandle<GraphState>;
+pub type GraphStateDispatcher = UseReducerDispatcher<GraphState>;

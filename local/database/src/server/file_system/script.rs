@@ -1,18 +1,25 @@
 //! Handle [`thot::Script`](ScriptEvent) events.
-use super::event::thot::Script as ScriptEvent;
+use super::event::app::Script as ScriptEvent;
 use crate::event::{Script as ScriptUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::fs;
 use thot_core::types::ResourcePath;
+use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::project::project;
 use thot_local::project::resources::Script as LocalScript;
 
 impl Database {
-    pub fn handle_thot_event_script(&mut self, event: ScriptEvent) -> Result {
+    pub fn handle_thot_event_script(&mut self, event: &ScriptEvent) -> Result {
         match event {
             ScriptEvent::Created(path) => {
-                let project_path = fs::canonicalize(project::project_root_path(&path)?).unwrap();
+                let Some(project_path) = project::project_root_path(&path) else {
+                    return Err(
+                        LocalError::Project(ProjectError::PathNotInProject(path.clone())).into(),
+                    );
+                };
+
+                let project_path = fs::canonicalize(project_path)?;
                 let project = self
                     .store
                     .get_path_project_canonical(&project_path)
@@ -44,7 +51,7 @@ impl Database {
 
                 self.publish_update(&Update::Project {
                     project,
-                    update: ScriptUpdate::Removed(script).into(),
+                    update: ScriptUpdate::Removed(script.clone()).into(),
                 })?;
 
                 Ok(())

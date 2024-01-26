@@ -1,16 +1,11 @@
 //! Create a new [`Project`].
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::PathBufArgs;
-use crate::commands::graph::InitProjectGraphArgs;
-use crate::commands::project::UpdateProjectArgs;
-use crate::common::invoke;
+use crate::commands::graph::init_project_graph;
+use crate::commands::project::{init_project, load_project, update_project};
 use crate::hooks::use_user;
 use crate::routes::Route;
 use std::path::{Path, PathBuf};
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Container, Project};
-use thot_core::types::{Creator, ResourceId, UserId};
-use thot_local::types::ProjectSettings;
+use thot_core::types::{Creator, UserId};
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
@@ -21,8 +16,6 @@ use yew_router::prelude::*;
 // ********************************
 // *** Create Project Component ***
 // ********************************
-
-type ContainerTree = ResourceTree<Container>;
 
 /// New project component.
 /// Consists of three steps:
@@ -65,25 +58,24 @@ pub fn create_project() -> Html {
             spawn_local(async move {
                 // TODO[m]: Validate path is not already a project.
                 // init project
-                let Ok(_rid) =
-                    invoke::<ResourceId>("init_project", PathBufArgs { path: path.clone() }).await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not create project",
-                    )));
-                    return;
+                match init_project(path.clone()).await {
+                    Ok(_rid) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not create project");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
-                let Ok((mut project, settings)) = invoke::<(Project, ProjectSettings)>(
-                    "load_project",
-                    PathBufArgs { path: path.clone() },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not load project",
-                    )));
-                    return;
+                let (mut project, settings) = match load_project(path.clone()).await {
+                    Ok(project) => project,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not load project");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 // initialize data root as container
@@ -92,36 +84,28 @@ pub fn create_project() -> Html {
                 data_root_abs.push(data_root_rel);
 
                 // TODO[l]: Could load graph here.
-                let Ok(_graph) = invoke::<ContainerTree>(
-                    "init_project_graph",
-                    InitProjectGraphArgs {
-                        path: data_root_abs.clone(),
-                        project: project.rid.clone(),
-                    },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not create project graph.",
-                    )));
-                    return;
-                };
+                let _graph =
+                    match init_project_graph(project.rid.clone(), data_root_abs.clone()).await {
+                        Ok(graph) => graph,
+                        Err(err) => {
+                            let mut msg = Message::error("Could not create project graph.");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            return;
+                        }
+                    };
 
                 // save project
                 project.data_root = Some(data_root_rel.to_path_buf());
                 project.creator = Creator::User(Some(UserId::Id(user)));
-                let Ok(_) = invoke::<()>(
-                    "update_project",
-                    UpdateProjectArgs {
-                        project: project.clone(),
-                    },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update project",
-                    )));
-                    return;
+                match update_project(project.clone()).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let mut msg = Message::error("Could not update project");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 // update ui

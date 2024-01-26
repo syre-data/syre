@@ -29,9 +29,28 @@ fn main() {
         .with_filter(MAX_LOG_LEVEL);
 
     let subscriber = Registry::default().with(console_logger).with(file_logger);
-    tracing::subscriber::set_global_default(subscriber).expect("could not create logger");
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
+    let default_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        panic_hook(panic_info);
+        default_panic_hook(panic_info);
+    }));
 
     // run database
     let mut db = Database::new();
     db.start();
+}
+
+fn panic_hook(panic_info: &std::panic::PanicInfo) {
+    let payload = if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
+        Some(&**payload)
+    } else if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
+        Some(payload.as_str())
+    } else {
+        None
+    };
+
+    let location = panic_info.location().map(|location| location.to_string());
+    tracing::error!("local/database panicked: {location:?} : {payload:?}");
 }

@@ -1,22 +1,22 @@
 //! Commands related to projects.
-use crate::error::Result;
+use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use tauri::State;
-use thot_core::error::{Error as CoreError, ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as ProjectError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{
-    DesktopSettings as DesktopSettingsError, Error as LibError, Result as LibResult,
-};
+use thot_desktop_lib::error::Analysis as AnalysisError;
 use thot_local::project::project;
 use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::projects as sys_projects;
 use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
+use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
 use thot_local_database::Result as DbResult;
 use thot_local_runner::Runner;
 
@@ -29,13 +29,10 @@ use thot_local_runner::Runner;
 pub fn load_user_projects(
     db: State<DbClient>,
     user: ResourceId,
-) -> Result<Vec<(Project, ProjectSettings)>> {
-    let projects = db
-        .send(ProjectCommand::LoadUser(user).into())
-        .expect("could not load user `Project`s");
-
-    let projects: DbResult<Vec<(Project, ProjectSettings)>> = serde_json::from_value(projects)
-        .expect("could not convert `GetUserProjects` result to `Vec<(Project, ProjectSettings)>`");
+) -> StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> {
+    let projects = db.send(ProjectCommand::LoadUser(user).into()).unwrap();
+    let projects: StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> =
+        serde_json::from_value(projects).unwrap();
 
     Ok(projects?)
 }
@@ -46,15 +43,12 @@ pub fn load_user_projects(
 
 /// Loads a [`Project`].
 #[tauri::command]
-pub fn load_project(db: State<DbClient>, path: PathBuf) -> Result<(Project, ProjectSettings)> {
+pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, ProjectSettings)> {
     let project = db
         .send(ProjectCommand::LoadWithSettings(path).into())
         .expect("could not load `Project`");
 
-    let project: DbResult<(Project, ProjectSettings)> =
-        serde_json::from_value(project).expect("could not convert `Load` result to `Project`");
-
-    Ok(project?)
+    serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap()
 }
 
 // *******************
@@ -67,7 +61,7 @@ pub fn add_project(
     app_state: State<AppState>,
     db: State<DbClient>,
     path: PathBuf,
-) -> LibResult<(Project, ProjectSettings)> {
+) -> Result<(Project, ProjectSettings)> {
     let user = app_state
         .user
         .lock()
@@ -81,10 +75,8 @@ pub fn add_project(
         .send(ProjectCommand::Add(path, user.rid.clone()).into())
         .expect("could not add `Project`");
 
-    let project: DbResult<(Project, ProjectSettings)> =
-        serde_json::from_value(project).expect("could not convert `Add` result to `Project`");
-
-    project.map_err(|err| LibError::Database(format!("{:?}", err)))
+    let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
+    Ok(project?)
 }
 
 // *******************
@@ -148,10 +140,9 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
     Ok(rid)
 }
 
-// remember to call `.manage(MyState::default())`
 #[tauri::command]
-pub fn init_project_from(path: &Path) -> Result<ResourceId> {
-    Ok(thot_local::project::init(path, "data", "analysis")?)
+pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
+    thot_local::project::init(path, "data", "analysis")
 }
 
 // ************************
@@ -161,7 +152,7 @@ pub fn init_project_from(path: &Path) -> Result<ResourceId> {
 #[tauri::command]
 pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
     let Some(path) = sys_projects::get_path(&rid)? else {
-        return Err(CoreError::ProjectError(ProjectError::NotRegistered(
+        return Err(CoreError::Project(ProjectError::NotRegistered(
             Some(ResourceId::from(rid.clone())),
             None,
         ))
@@ -178,14 +169,12 @@ pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
 /// Updates a project.
 #[tracing::instrument(skip(db))]
 #[tauri::command]
-pub fn update_project(db: State<DbClient>, project: Project) -> Result {
+pub fn update_project(db: State<DbClient>, project: Project) -> DbResult {
     let res = db
         .send(ProjectCommand::Update(project).into())
         .expect("could not update `Project`");
 
-    let res: DbResult = serde_json::from_value(res).expect("could not convert from `Update`");
-
-    Ok(res?)
+    serde_json::from_value(res).unwrap()
 }
 
 // ***************
@@ -193,28 +182,27 @@ pub fn update_project(db: State<DbClient>, project: Project) -> Result {
 // ***************
 
 #[tauri::command]
-pub fn analyze(db: State<DbClient>, root: ResourceId, max_tasks: Option<usize>) -> LibResult {
-    let graph = db
-        .send(GraphCommand::Get(root.clone()).into())
-        .expect("could not get graph");
+pub fn analyze(
+    db: State<DbClient>,
+    root: ResourceId,
+    max_tasks: Option<usize>,
+) -> StdResult<(), AnalysisError> {
+    let graph = match db.send(GraphCommand::Get(root.clone()).into()) {
+        Ok(graph) => graph,
+        Err(err) => {
+            return Err(AnalysisError::ZMQ(format!("{err:?}")));
+        }
+    };
 
-    let graph: Option<ResourceTree<Container>> =
-        serde_json::from_value(graph).expect("could not convert from `Get` to `Container` tree");
-
+    let graph: Option<ResourceTree<Container>> = serde_json::from_value(graph).unwrap();
     let Some(mut graph) = graph else {
-        let error =
-            CoreError::ResourceError(ResourceError::does_not_exist("root `Container` not loaded"));
-        return Err(LibError::Database(format!("{error:?}")));
+        return Err(AnalysisError::GraphNotFound);
     };
 
     let runner = Runner::new();
-    let res = match max_tasks {
-        None => runner.run_from(&mut graph, &root),
-        Some(max_tasks) => runner.run_with_tasks(&mut graph, max_tasks),
-    };
-
-    if res.is_err() {
-        return Err(LibError::Database(format!("{res:?}")));
+    match max_tasks {
+        None => runner.from(&mut graph, &root)?,
+        Some(max_tasks) => runner.with_tasks(&mut graph, max_tasks)?,
     }
 
     Ok(())

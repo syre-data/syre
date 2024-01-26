@@ -1,5 +1,5 @@
 //! Handle [`thot::Asset`](AssetEvent) events.
-use super::event::thot::Asset as AssetEvent;
+use super::event::app::Asset as AssetEvent;
 use crate::event::{Asset as AssetUpdate, Update};
 use crate::server::Database;
 use crate::Result;
@@ -7,7 +7,7 @@ use std::fs;
 use thot_local::project::asset as local_asset;
 
 impl Database {
-    pub fn handle_thot_event_asset(&mut self, event: AssetEvent) -> Result {
+    pub fn handle_thot_event_asset(&mut self, event: &AssetEvent) -> Result {
         match event {
             AssetEvent::Moved { asset, path } => {
                 let asset_container = self.store.get_asset_container_id(&asset).unwrap().clone();

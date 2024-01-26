@@ -1,21 +1,15 @@
 //! Set the data root of a project.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::ResourceIdArgs;
-use crate::commands::graph::InitProjectGraphArgs;
-use crate::commands::project::UpdateProjectArgs;
-use crate::common::invoke;
+use crate::commands::graph::init_project_graph;
+use crate::commands::project::{get_project_path, update_project};
 use crate::hooks::use_project;
 use std::path::PathBuf;
-use thot_core::graph::ResourceTree;
-use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_ui::components::file_selector::FileSelectorProps;
 use thot_ui::components::{FileSelector, FileSelectorAction};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
-
-type ContainerTree = ResourceTree<Container>;
 
 #[derive(Properties, PartialEq)]
 pub struct SetDataRootProps {
@@ -49,9 +43,13 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
 
         use_effect_with((), move |_| {
             spawn_local(async move {
-                let path = invoke::<PathBuf>("get_project_path", ResourceIdArgs { rid: pid })
-                    .await
-                    .expect("could not invoke `get_project_path`");
+                let path = match get_project_path(pid).await {
+                    Ok(path) => path,
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
 
                 project_path.set(Some(path));
             })
@@ -73,12 +71,13 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let project = project.rid.clone();
                 let path = path.clone();
                 spawn_local(async move {
-                    let _rid = invoke::<ContainerTree>(
-                        "init_project_graph",
-                        InitProjectGraphArgs { path, project },
-                    )
-                    .await
-                    .expect("could not invoke `init_graph`");
+                    match init_project_graph(project, path).await {
+                        Ok(_rid) => {}
+                        Err(err) => {
+                            tracing::debug!(err);
+                            panic!("{err}");
+                        }
+                    }
                 });
             }
 
@@ -90,14 +89,13 @@ pub fn set_data_root(props: &SetDataRootProps) -> Html {
                 let projects_state = projects_state.clone();
 
                 spawn_local(async move {
-                    let _res = invoke::<()>(
-                        "update_project",
-                        UpdateProjectArgs {
-                            project: project.clone(),
-                        },
-                    )
-                    .await
-                    .expect("could not invoke `update_project`");
+                    match update_project(project.clone()).await {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::debug!(?err);
+                            panic!("{err:?}");
+                        }
+                    }
 
                     projects_state.dispatch(ProjectsStateAction::UpdateProject(project));
                     onsuccess.emit(());

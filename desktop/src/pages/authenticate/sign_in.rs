@@ -1,14 +1,11 @@
 //! User sign in.
 use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateReducer};
-use crate::commands::authenticate::UserCredentials;
-use crate::commands::common::ResourceIdArgs;
-use crate::common::invoke;
+use crate::commands::authenticate::authenticate_user;
+use crate::commands::user::set_active_user;
 use crate::routes::Route;
-use thot_core::system::User;
 use thot_ui::components::Message as MessageUi;
 use thot_ui::types::Message;
 use thot_ui::types::MessageType;
-use tracing::debug;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -42,14 +39,14 @@ pub fn sign_in() -> Html {
             let invalid_credentials = invalid_credentials.clone();
 
             spawn_local(async move {
-                debug!(email);
-                let Ok(user) =
-                    invoke::<Option<User>>("authenticate_user", UserCredentials { email }).await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not authenticate user.",
-                    )));
-                    return;
+                let user = match authenticate_user(email).await {
+                    Ok(user) => user,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not authenticate user.");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
                 };
 
                 if user.is_none() {
@@ -61,13 +58,12 @@ pub fn sign_in() -> Html {
                     navigator.push(&Route::Home);
                     auth_state.dispatch(AuthStateAction::SetUser(user.clone()));
                     if let Some(user) = user {
-                        let active_res =
-                            invoke::<()>("set_active_user", ResourceIdArgs { rid: user.rid }).await;
+                        let active_res = set_active_user(user.rid).await;
 
-                        if active_res.is_err() {
-                            app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                "Could not set active user.",
-                            )));
+                        if let Err(err) = active_res {
+                            let mut msg = Message::error("Could not set active user.");
+                            msg.set_details(format!("{err:?}"));
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
                         }
                     }
                 }
@@ -89,7 +85,7 @@ pub fn sign_in() -> Html {
         })
     };
 
-    // @todo: Copy email value to sign up if link clicked.
+    // TODO: Copy email value to sign up if link clicked.
     html! {
         <>
         <h1>{ "Sign In" }</h1>

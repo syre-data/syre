@@ -1,9 +1,6 @@
 //! Edit a [`Container`]'s [`ScriptAssociation`]s.
 use crate::app::ProjectsStateReducer;
-use crate::commands::container::{
-    UpdateScriptAssociationsArgs, UpdateScriptAssociationsStringArgs,
-};
-use crate::common::invoke;
+use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{RunParameters, Script as CoreScript};
@@ -151,19 +148,13 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
             let associations = associations.clone();
 
             spawn_local(async move {
-                // TODO Issue with deserializing `HashMap` in Tauri, send as string.
-                // See https://github.com/tauri-apps/tauri/issues/6078
-                let associations_str =
-                    serde_json::to_string(&*associations).expect("could not serialize `ScriptMap`");
-
-                let update = UpdateScriptAssociationsStringArgs {
-                    rid: container.clone(),
-                    associations: associations_str,
-                };
-
-                let _res = invoke::<()>("update_container_script_associations", update)
-                    .await
-                    .expect("could not invoke `update_container_script_associations`");
+                match update_script_associations(container.clone(), (*associations).clone()).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        tracing::debug!(?err);
+                        panic!("{err:?}");
+                    }
+                }
 
                 let update = UpdateScriptAssociationsArgs {
                     rid: container,

@@ -64,6 +64,7 @@ features=[
     "FontAwesomeSolidAngleDown",
     "FontAwesomeSolidAngleUp",
     "FontAwesomeSolidCode",
+    "FontAwesomeSolidXmark",
     "HeroiconsSolidMinus",
     "HeroiconsSolidPlus",
     "OcticonsFileBinary24",

@@ -104,7 +104,7 @@ pub fn workbook(props: &WorkbookProps) -> Html {
                 }).collect::<Html>()}
             </div>
 
-            <div class={"spreadsheet-tabs d-flex"}>
+            <div class={"spreadsheet-tabs flex"}>
                 {spreadsheet_names.into_iter().enumerate().map(|(index, name)| {
                     let mut class = classes!("spreadsheet-tab", "clickable");
                     if index == *active_sheet {

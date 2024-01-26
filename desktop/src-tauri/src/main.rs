@@ -96,9 +96,10 @@ fn main() {
             // graph
             init_project_graph,
             load_project_graph,
+            get_or_load_project_graph,
             // container
-            add_assets,
-            add_asset_windows,
+            add_assets_from_info,
+            add_asset_from_contents,
             bulk_update_container_properties,
             bulk_update_container_script_associations,
             get_container,
@@ -116,6 +117,7 @@ fn main() {
             // script
             get_project_scripts,
             add_script,
+            add_script_windows,
             remove_script,
             // spreadsheet
             load_excel,

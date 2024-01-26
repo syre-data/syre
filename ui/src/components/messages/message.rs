@@ -20,20 +20,16 @@ pub struct MessageProps {
     pub kind: MessageType,
 
     #[prop_or_default]
-    pub onclick: Callback<()>,
+    pub onclose: Callback<()>,
 }
 
 #[function_component(Message)]
 pub fn message(props: &MessageProps) -> Html {
     let show_details = use_state(|| false);
 
-    let onclick = {
-        let onclick = props.onclick.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            onclick.emit(());
-        })
-    };
+    let onclose = use_callback(props.onclose.clone(), move |_e, onclose| {
+        onclose.emit(());
+    });
 
     let toggle_details = {
         let show_details = show_details.clone();
@@ -66,23 +62,32 @@ pub fn message(props: &MessageProps) -> Html {
     };
 
     html! {
-        <div {class} {onclick}>
-            <div class={classes!("message")}>
+    <div {class}>
+        <div class={"content"}>
+            <div class={"message"}>
                 { &props.message }
             </div>
             if {props.details.is_some()} {
                 <div class={details_class}>
-                    <span onclick={toggle_details}>
+                    <span class={"details-title"}
+                        onclick={toggle_details}>
                         { "Details" }
                         <Icon icon_id={details_icon} />
                     </span>
                     if *show_details {
-                        <div class={classes!("details-body")}>
+                        <div class={"details-body"}>
                             { props.details.as_ref().unwrap() }
                         </div>
                     }
                 </div>
             }
         </div>
+        <div class={"close-btn"}
+            onclick={onclose}>
+
+            <Icon class={"thot-ui-add-remove-icon"}
+                icon_id={IconId::FontAwesomeSolidXmark}/>
+        </div>
+    </div>
     }
 }

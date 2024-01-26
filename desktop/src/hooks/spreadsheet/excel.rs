@@ -1,6 +1,6 @@
 //! Load a spreadsheet.
 use crate::commands::common::PathBufArgs;
-use crate::common::invoke;
+use crate::common::invoke_result;
 use std::path::PathBuf;
 use thot_desktop_lib::excel_template;
 use yew::prelude::*;
@@ -14,7 +14,7 @@ pub fn use_excel(path: PathBuf) -> SuspensionResult<excel_template::Workbook> {
     use_future_with(path.clone(), {
         let workbook_state = workbook_state.setter();
         |path| async move {
-            let workbook: excel_template::Workbook = invoke(
+            let workbook = invoke_result::<excel_template::Workbook, String>(
                 "load_excel",
                 PathBufArgs {
                     path: (*path).clone(),

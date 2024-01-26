@@ -2,4 +2,4 @@
 pub mod container_tree;
 
 // Re-exports
-pub use container_tree::ContainerTreeController;
+pub use container_tree::ContainerTree;

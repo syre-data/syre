@@ -1,28 +1,60 @@
-.m-0 {
-    margin: 0;
+@use "themes" as t;
+
+.px-xl {
+  padding-left: t.$padding-xl;
+  padding-right: t.$padding-xl;
 }
 
-.mb-4 {
-    margin-bottom: 1rem;
+.m-0 {
+  margin: 0;
+}
+
+.ml-xl {
+  margin-left: t.$margin-xl;
+}
+
+.mb-1rem {
+  margin-bottom: 1rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .align-center {
-    text-align: center; 
+  text-align: center;
 }
 
 .clickable {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .inline-block {
-    display: inline-block;
+  display: inline-block;
 }
 
-.d-flex {
-    display: flex;
+.block {
+  display: block;
+}
+
+.flex {
+  display: flex;
 }
 
 .row {
-    display: flex;
-    justify-content: center;
+  display: flex;
+  justify-content: center;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.box-border {
+  box-sizing: border-box;
+}
+
+.c-warning {
+  color: t.$warning-color;
 }

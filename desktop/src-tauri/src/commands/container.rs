@@ -6,17 +6,13 @@ use tauri::State;
 use thot_core::project::container::ScriptMap;
 use thot_core::project::{Container, ContainerProperties};
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{Error as LibError, Result as LibResult};
 use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::common::unique_file_name;
 use thot_local::types::AssetFileAction;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::container::{
-    BulkUpdateContainerPropertiesArgs, ContainerPropertiesUpdate,
-};
-use thot_local_database::command::container::{
-    BulkUpdateScriptAssociationsArgs, ScriptAssociationBulkUpdate, UpdatePropertiesArgs,
-    UpdateScriptAssociationsArgs,
+    BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationsArgs, PropertiesUpdate,
+    ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
 use thot_local_database::command::ContainerCommand;
 use thot_local_database::Result as DbResult;
@@ -40,7 +36,7 @@ pub fn update_container_properties(
     properties: String, // TODO Issue with deserializing `HashMap` of `metadata`. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/6078
                         // properties: ContainerProperties,
-) -> LibResult {
+) -> DbResult {
     let properties: ContainerProperties = serde_json::from_str(&properties)
         .expect("could not deserialize into `ContainerProperties`");
 
@@ -48,10 +44,7 @@ pub fn update_container_properties(
         .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
         .expect("could not update `Container` properties");
 
-    let res: DbResult = serde_json::from_value(res)
-        .expect("could not convert result of `UpdateContainerProperties` from JsValue");
-
-    res.map_err(|err| LibError::Database(format!("{err:?}")))
+    serde_json::from_value(res).unwrap()
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s script associations and persists changes to disk.
@@ -87,19 +80,18 @@ pub fn update_container_script_associations(
 /// Gets the current location of a [`Container`](LocalContainer).
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
-    let path = db
-        .send(ContainerCommand::Path(rid).into())
-        .expect("could not get `Container` path");
+    let path = db.send(ContainerCommand::Path(rid).into()).unwrap();
 
-    let path: Option<PathBuf> = serde_json::from_value(path)
-        .expect("could not convert `GetContainerPath` result to `PathBuf`");
-
-    Some(path?)
+    serde_json::from_value::<Option<PathBuf>>(path).unwrap()
 }
 
 /// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).
 #[tauri::command]
-pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAssetInfo>) -> Result {
+pub fn add_assets_from_info(
+    db: State<DbClient>,
+    container: ResourceId,
+    assets: Vec<AddAssetInfo>,
+) -> Result {
     let container_path = db.send(ContainerCommand::Path(container).into()).unwrap();
     let Some(container_path) = serde_json::from_value::<Option<PathBuf>>(container_path).unwrap()
     else {
@@ -115,8 +107,8 @@ pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAss
         let mut asset_path = container_path.clone();
         if let Some(bucket) = bucket {
             todo!();
-            asset_path.push(bucket);
-            fs::create_dir_all(asset_path)?; // will trigger folder to be created as container by database.
+            // asset_path.push(bucket);
+            // fs::create_dir_all(asset_path)?; // will trigger folder to be created as container by database.
         }
         asset_path.push(path.file_name().unwrap());
 
@@ -133,7 +125,7 @@ pub fn add_assets(db: State<DbClient>, container: ResourceId, assets: Vec<AddAss
 }
 
 #[tauri::command]
-pub fn add_asset_windows(
+pub fn add_asset_from_contents(
     db: State<DbClient>,
     container: ResourceId,
     name: String,
@@ -158,16 +150,11 @@ pub fn add_asset_windows(
 pub fn bulk_update_container_properties(
     db: State<DbClient>,
     rids: Vec<ResourceId>,
-    update: ContainerPropertiesUpdate,
-) -> Result {
-    let res = db.send(
-        ContainerCommand::BulkUpdateProperties(BulkUpdateContainerPropertiesArgs { rids, update })
-            .into(),
-    );
-
-    // TODO Handle errors.
-    res.expect("could not update Containers");
-    Ok(())
+    update: PropertiesUpdate,
+) -> DbResult {
+    let update = ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update });
+    let res = db.send(update.into()).unwrap();
+    serde_json::from_value(res).unwrap()
 }
 
 #[tauri::command]
@@ -175,15 +162,12 @@ pub fn bulk_update_container_script_associations(
     db: State<DbClient>,
     containers: Vec<ResourceId>,
     update: ScriptAssociationBulkUpdate,
-) -> Result {
-    // TODO Handle errors.
-    db.send(
-        ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
-            containers,
-            update,
-        })
-        .into(),
-    )
-    .unwrap();
-    Ok(())
+) -> DbResult {
+    let update = ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
+        containers,
+        update,
+    });
+
+    let res = db.send(update.into()).unwrap();
+    serde_json::from_value(res).unwrap()
 }

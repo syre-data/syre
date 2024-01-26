@@ -1,11 +1,103 @@
 //! Resources for [`container commands`](thot_desktop_tauri::commands::container).
-use super::types::{MetadataAction, ResourcePropertiesUpdate, TagsAction};
+use super::common::ResourceIdArgs;
+use crate::common::{invoke, invoke_result};
 use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, ContainerProperties, ScriptAssociation};
+use thot_core::project::{Container, ContainerProperties};
 use thot_core::types::ResourceId;
 use thot_desktop_lib::types::AddAssetInfo;
+use thot_local_database::command::container::{
+    BulkUpdateScriptAssociationsArgs, PropertiesUpdate, ScriptAssociationBulkUpdate,
+};
+use thot_local_database::Result as DbResult;
+
+pub async fn get_container(container: ResourceId) -> Option<Container> {
+    invoke("get_container", ResourceIdArgs { rid: container }).await
+}
+
+pub async fn get_container_path(container: ResourceId) -> Option<PathBuf> {
+    invoke("get_container_path", ResourceIdArgs { rid: container }).await
+}
+
+pub async fn update_properties(rid: ResourceId, properties: ContainerProperties) -> DbResult {
+    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let properties_str = serde_json::to_string(&properties).unwrap();
+    let update = UpdatePropertiesStringArgs {
+        rid: rid.clone(),
+        properties: properties_str,
+    };
+
+    invoke_result("update_container_properties", update).await
+}
+
+pub async fn bulk_update_properties(
+    containers: Vec<ResourceId>,
+    update: impl Into<PropertiesUpdate>,
+) -> Result<(), String> {
+    invoke_result(
+        "bulk_update_container_properties",
+        BulkUpdatePropertiesArgs {
+            rids: containers,
+            update: update.into(),
+        },
+    )
+    .await
+}
+
+pub async fn update_script_associations(
+    container: ResourceId,
+    associations: ScriptMap,
+) -> DbResult {
+    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let associations_str = serde_json::to_string(&associations).unwrap();
+    let update = UpdateScriptAssociationsStringArgs {
+        rid: container,
+        associations: associations_str,
+    };
+
+    invoke_result("update_container_script_associations", update).await
+}
+
+pub async fn bulk_update_script_associations(
+    containers: Vec<ResourceId>,
+    update: ScriptAssociationBulkUpdate,
+) -> DbResult {
+    invoke_result(
+        "bulk_update_container_script_associations",
+        BulkUpdateScriptAssociationsArgs { containers, update },
+    )
+    .await
+}
+
+pub async fn add_assets_from_info(
+    container: ResourceId,
+    assets: Vec<AddAssetInfo>,
+) -> Result<(), String> {
+    invoke_result(
+        "add_assets_from_info",
+        AddAssetsInfoArgs { container, assets },
+    )
+    .await
+}
+
+pub async fn add_asset_from_contents(
+    container: ResourceId,
+    name: String,
+    contents: Vec<u8>,
+) -> Result<(), String> {
+    invoke_result(
+        "add_asset_from_contents",
+        AddAssetContentsArgs {
+            container,
+            name,
+            contents,
+        },
+    )
+    .await
+}
 
 /// Arguments for
 /// [`load_container_tree`](thot_desktop_tauri::commands::container::load_container_tree).
@@ -45,16 +137,6 @@ pub struct UpdatePropertiesStringArgs {
                             // See: https://github.com/tauri-apps/tauri/issues/6078
 }
 
-/// Arguments for [`new_child`](thot_desktop_tauri::commands::container::new_child).
-#[derive(Serialize)]
-pub struct NewChildArgs {
-    /// Name of the child.
-    pub name: String,
-
-    /// [`ResourceId`] of the parent [`Container`](thot_core::project::Container).
-    pub parent: ResourceId,
-}
-
 /// Arguments to update a [`Container`](thot_core::project::Container)'s
 /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
 #[derive(Clone, Serialize)]
@@ -86,7 +168,7 @@ pub struct UpdateScriptAssociationsStringArgs {
 
 /// Arguments for [`add_assets`](thot_desktop_tauri::commands::container::add_assets).
 #[derive(Serialize, Debug)]
-pub struct AddAssetsArgs {
+pub struct AddAssetsInfoArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
@@ -96,7 +178,7 @@ pub struct AddAssetsArgs {
 
 /// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows).
 #[derive(Serialize)]
-pub struct AddAssetWindowsArgs {
+pub struct AddAssetContentsArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
@@ -111,63 +193,5 @@ pub struct AddAssetWindowsArgs {
 #[derive(Clone, Serialize)]
 pub struct BulkUpdatePropertiesArgs {
     pub rids: Vec<ResourceId>,
-    pub update: ContainerPropertiesUpdate,
-}
-
-#[derive(Serialize, Clone, Default, Debug)]
-pub struct ContainerPropertiesUpdate {
-    pub name: Option<String>,
-    pub kind: Option<Option<String>>,
-    pub description: Option<Option<String>>,
-    pub tags: TagsAction,
-    pub metadata: MetadataAction,
-}
-
-impl From<ResourcePropertiesUpdate> for ContainerPropertiesUpdate {
-    fn from(update: ResourcePropertiesUpdate) -> Self {
-        Self {
-            name: update.name,
-            kind: update.kind,
-            description: update.description,
-            tags: update.tags,
-            metadata: update.metadata,
-        }
-    }
-}
-
-/// Arguments for [`bulk_update_container_script_association`](thot_desktop_tauri::commands::container::bulk_update_container_script_association).
-#[derive(Serialize, Clone)]
-pub struct BulkUpdateScriptAssociationArgs {
-    pub containers: Vec<ResourceId>,
-    pub update: ScriptAssociationsBulkUpdate,
-}
-
-/// Update action used for [`BulkUpdateScriptAssociationArgs`].
-#[derive(Serialize, Default, Clone)]
-pub struct ScriptAssociationsBulkUpdate {
-    /// Associations to insert.
-    pub add: Vec<ScriptAssociation>,
-
-    /// Scripts to remove.
-    pub remove: Vec<ResourceId>,
-
-    /// Associations to update.
-    pub update: Vec<RunParametersUpdate>,
-}
-
-#[derive(Serialize, Clone)]
-pub struct RunParametersUpdate {
-    pub script: ResourceId,
-    pub autorun: Option<bool>,
-    pub priority: Option<i32>,
-}
-
-impl RunParametersUpdate {
-    pub fn new(script: ResourceId) -> Self {
-        Self {
-            script,
-            autorun: None,
-            priority: None,
-        }
-    }
+    pub update: PropertiesUpdate,
 }

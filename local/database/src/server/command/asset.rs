@@ -1,6 +1,6 @@
 //! Handle `Asset` related functionality.
 use super::super::Database;
-use crate::command::asset::{AssetPropertiesUpdate, BulkUpdateAssetPropertiesArgs};
+use crate::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use crate::command::AssetCommand;
 use crate::error::Result;
 use serde_json::Value as JsValue;
@@ -22,7 +22,7 @@ impl Database {
                     }
                 };
 
-                serde_json::to_value(asset).expect("could not convert `Asset` to JSON")
+                serde_json::to_value(asset).unwrap()
             }
 
             AssetCommand::GetMany(rids) => {
@@ -62,30 +62,35 @@ impl Database {
                     .get_asset_container(&asset)
                     .map(|container| (*container).clone().into());
 
-                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+                serde_json::to_value(container).unwrap()
             }
 
             AssetCommand::Add { asset, container } => {
                 let res = self.store.add_asset(asset, container);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                serde_json::to_value(res).unwrap()
+            }
+
+            AssetCommand::Remove(asset) => {
+                let res = self.store.remove_asset(&asset);
+                serde_json::to_value(res).unwrap()
             }
 
             AssetCommand::UpdateProperties { asset, properties } => {
                 let res = self.update_asset_properties(&asset, properties);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                serde_json::to_value(res).unwrap()
             }
 
             AssetCommand::Find { root, filter } => {
                 let assets = self.store.find_assets(&root, filter);
-                serde_json::to_value(assets).expect("could not convert result to JSON")
+                serde_json::to_value(assets).unwrap()
             }
 
             AssetCommand::FindWithMetadata { root, filter } => {
                 let assets = self.store.find_assets_with_metadata(&root, filter);
-                serde_json::to_value(assets).expect("could not convert result to JSON")
+                serde_json::to_value(assets).unwrap()
             }
 
-            AssetCommand::BulkUpdateProperties(BulkUpdateAssetPropertiesArgs { rids, update }) => {
+            AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
                 let res = self.bulk_update_asset_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
@@ -134,7 +139,7 @@ impl Database {
     fn bulk_update_asset_properties(
         &mut self,
         assets: &Vec<ResourceId>,
-        update: &AssetPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         for asset in assets {
             self.update_asset_properties_from_update(asset, update)?;
@@ -148,7 +153,7 @@ impl Database {
     fn update_asset_properties_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &AssetPropertiesUpdate,
+        update: &PropertiesUpdate,
     ) -> Result {
         let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(

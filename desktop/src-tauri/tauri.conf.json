@@ -76,14 +76,14 @@
     "windows": [
       {
         "fullscreen": false,
+        "width": 900,
+        "minWidth": 900,
         "height": 640,
-        "width": 800,
-        "minWidth": 640,
         "minHeight": 640,
         "resizable": true,
         "title": "Thot",
         "visible": true,
-        "fileDropEnabled": true
+        "fileDropEnabled": false
       }
     ],
     "systemTray": {

@@ -4,6 +4,7 @@
 pub(self) mod database;
 mod event;
 pub(self) mod store;
+mod types;
 
 // Re-exports
 pub use database::Database;

@@ -20,7 +20,7 @@ fn add_association_should_work() {
 
     // test
     let _rid = add_association(&sid, _dir.path()).expect("add association should work");
-    let container = Container::load_from(_dir.path()).expect("load container should work");
+    let container = ContainerLoader::load(_dir.path()).expect("load container should work");
     assert_eq!(
         1,
         container.scripts.len(),

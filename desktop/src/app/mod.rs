@@ -7,7 +7,7 @@ pub mod shadow_box;
 
 // Re-exports
 pub use app::App;
-pub use app_state::{AppStateAction, AppStateReducer, AppWidget};
+pub use app_state::{AppStateAction, AppStateDispatcher, AppStateReducer, AppWidget};
 pub use auth_state::{AuthStateAction, AuthStateReducer};
-pub use projects_state::{ProjectsStateAction, ProjectsStateReducer};
+pub use projects_state::{ProjectsStateAction, ProjectsStateDispatcher, ProjectsStateReducer};
 pub use shadow_box::ShadowBox;

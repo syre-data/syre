@@ -1,7 +1,6 @@
 //! Gets a `Project`'s `Script`s.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::common::ResourceIdArgs;
-use crate::common::invoke;
+use crate::commands::script::get_project_scripts;
 use thot_core::project::Script;
 use thot_core::types::{ResourceId, ResourceMap};
 use wasm_bindgen_futures::spawn_local;
@@ -20,14 +19,13 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
             let (s, handle) = Suspension::new();
 
             spawn_local(async move {
-                let prj_scripts = invoke::<Vec<Script>>(
-                    "get_project_scripts",
-                    ResourceIdArgs {
-                        rid: project.clone(),
-                    },
-                )
-                .await
-                .expect("could not invoke `get_project_scripts`");
+                let prj_scripts = match get_project_scripts(project.clone()).await {
+                    Ok(scripts) => scripts,
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
 
                 let prj_scripts = prj_scripts
                     .into_iter()

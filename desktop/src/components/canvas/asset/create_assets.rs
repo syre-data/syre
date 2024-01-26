@@ -1,12 +1,8 @@
 //! Create an [`Asset`](thot_core::project::Asset).
-use crate::commands::common::ResourceIdArgs;
-use crate::commands::container::AddAssetsArgs;
-use crate::common::invoke;
-use crate::components::canvas::{GraphStateAction, GraphStateReducer};
+use crate::commands::container::add_assets_from_info;
 use crate::hooks::use_container_path;
 use std::path::PathBuf;
 use tauri_sys::dialog::FileDialogBuilder;
-use thot_core::project::Container;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::types::AddAssetInfo;
 use thot_local::types::AssetFileAction;
@@ -22,12 +18,9 @@ pub struct CreateAssetsProps {
     pub onsuccess: Option<Callback<()>>,
 }
 
-// @todo: Alert users for conflicting file paths or already created assets.
+// TODO: Alert users for conflicting file paths or already created assets.
 #[function_component(CreateAssets)]
 pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
-    let graph_state =
-        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
-
     let paths: UseStateHandle<Vec<PathBuf>> = use_state(|| Vec::new());
     let file_action = use_state(|| AssetFileAction::Copy);
     let bucket: UseStateHandle<Option<PathBuf>> = use_state(|| None);
@@ -35,7 +28,6 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
     let container_path = use_container_path(props.container.clone())?;
 
     let onsubmit = {
-        let graph_state = graph_state.clone();
         let container_id = props.container.clone();
         let paths = paths.clone();
         let file_action = file_action.clone();
@@ -55,41 +47,16 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
                 })
                 .collect::<Vec<AddAssetInfo>>();
 
-            let graph_state = graph_state.clone();
             let container_id = container_id.clone();
             spawn_local(async move {
                 // create assets
-                let assets = invoke::<Vec<ResourceId>>(
-                    "add_assets",
-                    AddAssetsArgs {
-                        container: container_id.clone(),
-                        assets,
-                    },
-                )
-                .await
-                .expect("could not invoke `add_assets`");
-
-                // update container
-                let container = invoke::<Container>(
-                    "get_container",
-                    ResourceIdArgs {
-                        rid: container_id.clone(),
-                    },
-                )
-                .await
-                .expect("could not invoke `add_assets`");
-
-                let assets = container
-                    .assets
-                    .into_values()
-                    .filter(|asset| assets.contains(&asset.rid))
-                    .collect();
-
-                // update container
-                graph_state.dispatch(GraphStateAction::InsertContainerAssets(
-                    container_id,
-                    assets,
-                ));
+                match add_assets_from_info(container_id.clone(), assets).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        tracing::debug!(err);
+                        panic!("{err}");
+                    }
+                };
             });
         })
     };

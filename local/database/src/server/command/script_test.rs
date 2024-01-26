@@ -15,7 +15,7 @@ fn remove_script_should_work() {
     let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
 
     // initialize project
-    let mut project = LocalProject::new(dir.path().into()).unwrap();
+    let mut project = LocalProject::new(dir.path()).unwrap();
     let mut container = LocalContainer::new(data_dir.clone());
     let mut child_container = LocalContainer::new(child_dir.clone());
 
@@ -76,7 +76,7 @@ fn remove_script_should_work() {
         .expect("could not insert `Project`");
 
     db.store
-        .insert_project_graph(pid.clone(), graph)
+        .insert_project_graph_canonical(pid.clone(), graph)
         .expect("could not insert `Container`");
 
     db.store.insert_project_scripts(pid.clone(), scripts);

@@ -1,12 +1,12 @@
-@use 'themes' as t;
-@use 'mixins';
+@use "themes" as t;
+@use "mixins";
 
 $control-button-size: 25px;
 
 .container-tree {
   position: relative;
   text-align: center;
-  
+
   .container-node {
     user-select: none;
     -webkit-user-select: none;
@@ -18,8 +18,10 @@ $control-button-size: 25px;
 
     min-width: t.$card-min-width;
 
-    padding: t.$padding-m t.$padding-xl calc(0.5* #{$control-button-size}) t.$padding-xl; // give room for add child button
-    border: solid t.$border-width-m transparent;
+    padding: t.$padding-m t.$padding-xl calc(0.5 * #{$control-button-size})
+      t.$padding-xl; // give room for add child button
+
+    border: t.$border-width-m solid transparent;
     border-radius: t.$border-radius-m;
     margin: t.$padding-m t.$padding-m $control-button-size t.$padding-m;
 
@@ -38,11 +40,11 @@ $control-button-size: 25px;
       display: inherit;
       opacity: 1;
     }
-      
+
     .container-menu-control {
       position: absolute;
       top: t.$padding-m;
-      right: t.$padding-m;     
+      right: t.$padding-m;
 
       opacity: 0;
       transition: opacity t.$transition-fast;
@@ -53,7 +55,7 @@ $control-button-size: 25px;
         border: none;
         box-shadow: none;
       }
-    }     
+    }
 
     .container-name {
       font-family: t.$title-font-family;
@@ -69,7 +71,7 @@ $control-button-size: 25px;
       background-color: t.$background-color;
 
       svg {
-        width: calc(0.7* #{$control-button-size});
+        width: calc(0.7 * #{$control-button-size});
       }
     }
 
@@ -97,12 +99,12 @@ $control-button-size: 25px;
   }
 
   .children {
-      display: flex;
-      justify-content: space-evenly;
+    display: flex;
+    justify-content: space-evenly;
 
-      .child-node-marker {
-        font-family: t.$title-font-family;
-      }
+    .child-node-marker {
+      font-family: t.$title-font-family;
+    }
   }
 
   .container-preview {
@@ -142,11 +144,8 @@ $control-button-size: 25px;
         }
       }
 
-
       .thot-ui-asset {
-        display: grid;
-        grid-template-columns: 15px 100px 20px;
-        align-items: center;
+        display: flex;
         gap: 4px;
 
         .thot-ui-asset-icon {
@@ -154,25 +153,40 @@ $control-button-size: 25px;
           height: t.$asset-icon-size;
         }
 
-         &:hover .thot-ui-asset-remove {
-             opacity: 1;
-         }
-
-         &:hover .thot-ui-asset-name {
-           color: t.$hover-text-color;
-         }
- 
-        .thot-ui-asset-remove {
-          opacity: 0;
-          display: flex;
-          justify-content: center; 
-          align-items: center; 
-          //TODO: Will be gone once we change from remove to menu
-          width: 20px;
-          height: 20px;
-          font-size: 10px;      
+        .thot-ui-asset-name {
+          flex-grow: 1;
         }
 
+        .alert-icon svg {
+          vertical-align: middle;
+        }
+
+        button.thot-ui-asset-remove {
+          all: unset;
+          opacity: 0;
+          display: flex;
+          align-items: center;
+          padding: t.$padding-s;
+          box-sizing: border-box;
+
+          .thot-ui-add-remove-icon {
+            width: t.$add-remove-icon-size;
+            height: t.$add-remove-icon-size;
+          }
+
+          &:hover {
+            cursor: pointer;
+            background-color: t.$secondary-button-hover-background-color;
+          }
+        }
+
+        &:hover .thot-ui-asset-remove {
+          opacity: 1;
+        }
+
+        &:hover .thot-ui-asset-name {
+          color: t.$hover-text-color;
+        }
       }
     }
 
@@ -245,67 +259,6 @@ $control-button-size: 25px;
 
       &:hover {
         opacity: 1;
-      }
-    }
-  }
-}
-
-.container-tree-controls {
-  .analyze-commands-group {
-    display: inline-block;
-    margin-left: t.$margin-l;
-
-    .primary-analyze-btn {
-      &.with_options {
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-      }
-    }
-
-    .dropdown {
-      position: relative;
-      display: inline-block;
-      
-      .dropdown-btn {
-        padding-left: t.$padding-s;
-        padding-right: t.$padding-s;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        border-left: t.$border-width-s black solid;
-      }
-
-      .dropdown-content {
-        display: none;
-        position: absolute;
-        z-index: 1;
-
-        background-color: t.$background-accent-color;
-        border-radius: t.$border-radius-s;
-
-        list-style: none;
-        margin: 0;
-        padding-left: 0;
-
-        li {
-          display: block;
-          color: t.$body-text-color;
-          text-decoration: none;
-
-          padding: t.$padding-s t.$padding-xxl;
-
-          &:not(:last-child) {
-            border-bottom: t.$border-width-s t.$frame-border-color solid;
-          }
-
-          &:hover {
-            color: t.$primary-button-hover-color;
-            background-color: t.$primary-button-hover-background-color;
-          }
-        }
-      }
-
-      &:hover .dropdown-content {
-        display: block;
       }
     }
   }

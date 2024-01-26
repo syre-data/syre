@@ -48,7 +48,7 @@ pub enum ContainerCommand {
     Parent(ResourceId),
 
     /// Update multiple [`Container`](thot_core::project::Container)s' properties.
-    BulkUpdateProperties(BulkUpdateContainerPropertiesArgs),
+    BulkUpdateProperties(BulkUpdatePropertiesArgs),
 
     /// Update multiple `Container`s `ScriptAssociations`.
     BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs),
@@ -59,14 +59,14 @@ pub enum ContainerCommand {
 // *****************
 
 /// Arguments for updating a resource's [`StandardProperties`].
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdatePropertiesArgs {
     pub rid: ResourceId,
     pub properties: ContainerProperties,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct ContainerPropertiesUpdate {
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct PropertiesUpdate {
     pub name: Option<String>,
     pub kind: Option<Option<String>>,
     pub description: Option<Option<String>>,
@@ -74,36 +74,46 @@ pub struct ContainerPropertiesUpdate {
     pub metadata: MetadataAction,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BulkUpdateContainerPropertiesArgs {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BulkUpdatePropertiesArgs {
     pub rids: Vec<ResourceId>,
-    pub update: ContainerPropertiesUpdate,
+    pub update: PropertiesUpdate,
 }
 
 /// Arguments for updating a [`Container`](thot_core::project::Container)'s
 /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateScriptAssociationsArgs {
     pub rid: ResourceId,
     pub associations: ScriptMap,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct BulkUpdateScriptAssociationsArgs {
     pub containers: Vec<ResourceId>,
     pub update: ScriptAssociationBulkUpdate,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ScriptAssociationBulkUpdate {
     pub add: Vec<ScriptAssociation>,
     pub remove: Vec<ResourceId>,
     pub update: Vec<RunParametersUpdate>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RunParametersUpdate {
     pub script: ResourceId,
     pub autorun: Option<bool>,
     pub priority: Option<i32>,
+}
+
+impl RunParametersUpdate {
+    pub fn new(script: ResourceId) -> Self {
+        Self {
+            script,
+            autorun: None,
+            priority: None,
+        }
+    }
 }

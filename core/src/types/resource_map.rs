@@ -60,7 +60,7 @@ pub mod values_only {
         }
     }
 
-    /// Serialize only the keys
+    /// Serialize only the values.
     pub fn serialize<S, K, V>(map: &HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
     where
         V: ser::Serialize,

@@ -1,16 +1,17 @@
 //! Handle [`thot::File`](FileEvent) events.
-use super::event::thot::File as FileEvent;
+use super::event::app::File as FileEvent;
 use crate::event::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
 use thot_core::types::{ResourceId, ResourcePath};
-use thot_local::graph::{ContainerTreeLoader, ContainerTreeTransformer};
+use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::tree::Loader as ContainerTreeLoader;
 use thot_local::project::container;
 use thot_local::project::resources::Asset;
 
 impl Database {
-    pub fn handle_thot_event_file(&mut self, event: FileEvent) -> Result {
+    pub fn handle_thot_event_file(&mut self, event: &FileEvent) -> Result {
         match event {
             FileEvent::Created(path) => {
                 let container_path =
@@ -109,12 +110,12 @@ impl Database {
         builder.build(&path)?;
 
         // insert into graph
-        let graph = ContainerTreeLoader::load(path)?;
+        let graph = ContainerTreeLoader::load(path).unwrap();
         let root = graph.root().clone();
         self.store.insert_subgraph(&parent, graph)?;
 
         let project = self.store.get_container_project(&root).unwrap().clone();
-        let graph = self.store.get_container_graph(&root).unwrap();
+        let graph = self.store.get_graph_of_container(&root).unwrap();
         let graph = ContainerTreeTransformer::local_to_core(graph);
         self.publish_update(&Update::Project {
             project,

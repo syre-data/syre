@@ -22,6 +22,8 @@ pub enum ProjectsStateAction {
     /// Inserts multiple projects.
     InsertProjects(Vec<(Project, ProjectSettings)>),
 
+    RemoveProject(ResourceId),
+
     /// Add an open project.
     AddOpenProject(ResourceId),
 
@@ -96,6 +98,17 @@ impl Reducible for ProjectsState {
                 }
             }
 
+            ProjectsStateAction::RemoveProject(project) => {
+                current.settings.remove(&project);
+                current.projects.remove(&project);
+                current.open_projects.remove(&project);
+                if let Some(active_project) = current.active_project.as_ref() {
+                    if active_project == &project {
+                        current.active_project = None;
+                    }
+                }
+            }
+
             ProjectsStateAction::AddOpenProject(project) => {
                 current.open_projects.insert(project);
             }
@@ -150,3 +163,4 @@ impl Reducible for ProjectsState {
 }
 
 pub type ProjectsStateReducer = UseReducerHandle<ProjectsState>;
+pub type ProjectsStateDispatcher = UseReducerDispatcher<ProjectsState>;

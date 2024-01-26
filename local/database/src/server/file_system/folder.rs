@@ -1,16 +1,17 @@
 //! Handle [`thot::Folder`](FolderEvent) events.
-use super::event::thot::Folder as FolderEvent;
+use super::event::app::Folder as FolderEvent;
 use super::ParentChild;
 use crate::event::{Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::fs;
 use std::path::{Component, PathBuf};
-use thot_local::graph::{ContainerTreeLoader, ContainerTreeTransformer};
+use thot_local::graph::ContainerTreeTransformer;
+use thot_local::loader::tree::Loader as ContainerTreeLoader;
 use thot_local::project::{asset, container, project};
 
 impl Database {
-    pub fn handle_thot_event_folder(&mut self, event: FolderEvent) -> Result {
+    pub fn handle_thot_event_folder(&mut self, event: &FolderEvent) -> Result {
         match event {
             FolderEvent::Created(path) => {
                 // ignore analysis folder
@@ -74,8 +75,9 @@ impl Database {
                     .unwrap()
                     .clone();
 
-                let graph = self.store.get_container_graph(&container).unwrap();
-                let graph = ContainerTreeTransformer::local_to_core(graph);
+                let graph = self.store.get_graph_of_container(&container).unwrap();
+                let mut graph = ContainerTreeTransformer::local_to_core(graph);
+                let graph = graph.remove(&container).unwrap(); // get container's subgraph
                 self.publish_update(&Update::Project {
                     project,
                     update: GraphUpdate::Created { parent, graph }.into(),
@@ -86,7 +88,7 @@ impl Database {
         }
     }
 
-    /// Initialize a path as a  Container tree and insert it into the graph.
+    /// Initialize a path as a Container tree and insert it into the graph.
     ///
     /// # Returns
     /// `ResourceId` of the graph's root `Container`.
@@ -106,7 +108,7 @@ impl Database {
         let child = builder.build(&path)?;
 
         // insert into graph
-        let graph = ContainerTreeLoader::load(path)?;
+        let graph = ContainerTreeLoader::load(path).unwrap();
         self.store.insert_subgraph(&parent, graph)?;
 
         Ok(ParentChild { parent, child })

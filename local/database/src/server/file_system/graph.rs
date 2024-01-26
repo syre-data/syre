@@ -1,5 +1,5 @@
 //! Handle [`thot::Graph`](GraphEvent) events.
-use super::event::thot::Graph as GraphEvent;
+use super::event::app::Graph as GraphEvent;
 use crate::event::{Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
@@ -8,7 +8,7 @@ use thot_core::types::ResourceId;
 use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
 
 impl Database {
-    pub fn handle_thot_event_graph(&mut self, event: GraphEvent) -> Result {
+    pub fn handle_thot_event_graph(&mut self, event: &GraphEvent) -> Result {
         match event {
             GraphEvent::Moved { root, path } => {
                 let project = self.store.get_container_project(&root).unwrap().clone();
@@ -31,7 +31,12 @@ impl Database {
 
                 self.publish_update(&Update::Project {
                     project,
-                    update: GraphUpdate::Moved { root, parent, name }.into(),
+                    update: GraphUpdate::Moved {
+                        root: root.clone(),
+                        parent,
+                        name,
+                    }
+                    .into(),
                 })?;
 
                 Ok(())
@@ -68,7 +73,7 @@ impl Database {
                 // insert graph
                 self.store.insert_subgraph(&parent, graph)?;
                 let project = self.store.get_container_project(&root).unwrap().clone();
-                let graph = self.store.get_container_graph(&root).unwrap();
+                let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
                 self.publish_update(&Update::Project {
                     project,
@@ -105,7 +110,7 @@ impl Database {
                 self.store.insert_subgraph(&parent, graph)?;
 
                 let project = self.store.get_container_project(&root).unwrap().clone();
-                let graph = self.store.get_container_graph(&root).unwrap();
+                let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
                 self.publish_update(&Update::Project {
                     project,

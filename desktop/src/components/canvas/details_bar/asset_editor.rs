@@ -1,7 +1,6 @@
 //! Asset editor.
 use crate::app::{AppStateAction, AppStateReducer};
-use crate::commands::asset::UpdatePropertiesStringArgs;
-use crate::common::invoke;
+use crate::commands::asset::update_properties;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_asset;
 use thot_core::project::AssetProperties;
@@ -34,30 +33,25 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             spawn_local(async move {
-                let Ok(_) = invoke::<()>(
-                    "update_asset_properties",
-                    &UpdatePropertiesStringArgs {
-                        rid: asset.rid.clone(),
-                        properties: serde_json::to_string(&properties).unwrap(),
-                    },
-                )
-                .await
-                else {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                        "Could not save resource",
-                    )));
-
-                    return;
+                match update_properties(asset.rid.clone(), properties.clone()).await {
+                    Ok(_) => {
+                        let mut asset = (*asset).clone();
+                        asset.properties = properties;
+                        graph_state.dispatch(GraphStateAction::UpdateAsset(asset));
+                    }
+                    Err(err) => {
+                        let mut msg = Message::success("Could not save resource");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
                 };
-
-                let mut asset = (*asset).clone();
-                asset.properties = properties;
-                graph_state.dispatch(GraphStateAction::UpdateAsset(asset));
             });
         })
     };
 
     html! {
-        <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
+        <div class={"thot-ui-editor px-xl"}>
+            <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
+        </div>
     }
 }

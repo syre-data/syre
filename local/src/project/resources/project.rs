@@ -1,5 +1,6 @@
 //! Project and project settings.
 use crate::common::{project_file, project_settings_file};
+use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
@@ -7,6 +8,7 @@ use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use thot_core::project::Project as CoreProject;
 
 /// Represents a Thot project.
@@ -19,7 +21,8 @@ pub struct Project {
 impl Project {
     /// Create a new `Project` with the given path.
     /// Name of the `Project` is taken from the last component of the path.
-    pub fn new(path: PathBuf) -> Result<Self> {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
+        let path = path.into();
         let Some(name) = path.file_name() else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidFilename,
@@ -44,7 +47,7 @@ impl Project {
         })
     }
 
-    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerdeError> {
         let base_path = fs::canonicalize(base_path.into())?;
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
@@ -86,6 +89,10 @@ impl Project {
 
     pub fn base_path(&self) -> &Path {
         self.base_path.as_path()
+    }
+
+    pub fn set_base_path(&mut self, path: impl Into<PathBuf>) {
+        self.base_path = path.into();
     }
 
     /// Get the full path of the data root.

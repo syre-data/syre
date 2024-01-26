@@ -7,6 +7,7 @@ pub mod common;
 pub mod constants;
 pub mod error;
 pub mod identifier;
+pub mod loader;
 pub mod system;
 pub mod types;
 

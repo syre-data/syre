@@ -21,7 +21,7 @@ clap = { workspace = true, optional = true }
 derivative = "2.2"
 directories = "5.0"
 indexmap = { workspace = true, features = ["serde"] }
-regex = "1"
+regex = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -7,6 +7,9 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct CreateScriptProps {
+    #[prop_or_default]
+    pub class: Classes,
+
     #[prop_or("Add scripts")]
     pub text: &'static str,
 
@@ -43,6 +46,6 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
     };
 
     html! {
-        <button {onclick}>{ &props.text }</button>
+        <button class={props.class.clone()} {onclick}>{ &props.text }</button>
     }
 }

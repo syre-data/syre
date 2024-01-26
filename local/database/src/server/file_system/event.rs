@@ -1,10 +1,34 @@
-//! File system events
+//! File system events.
 
 pub mod file_system {
     use std::path::PathBuf;
+    use std::time::Instant;
 
     #[derive(Debug)]
-    pub enum Event {
+    pub struct Event {
+        pub kind: EventKind,
+        pub time: Instant,
+    }
+
+    impl Event {
+        pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
+            Self {
+                kind: kind.into(),
+                time,
+            }
+        }
+
+        pub fn kind(&self) -> &EventKind {
+            &self.kind
+        }
+
+        pub fn time(&self) -> &Instant {
+            &self.time
+        }
+    }
+
+    #[derive(Debug)]
+    pub enum EventKind {
         File(File),
         Folder(Folder),
 
@@ -12,19 +36,19 @@ pub mod file_system {
         Any(Any),
     }
 
-    impl From<File> for Event {
+    impl From<File> for EventKind {
         fn from(event: File) -> Self {
             Self::File(event)
         }
     }
 
-    impl From<Folder> for Event {
+    impl From<Folder> for EventKind {
         fn from(event: Folder) -> Self {
             Self::Folder(event)
         }
     }
 
-    impl From<Any> for Event {
+    impl From<Any> for EventKind {
         fn from(event: Any) -> Self {
             Self::Any(event)
         }
@@ -48,6 +72,8 @@ pub mod file_system {
             from: PathBuf,
             to: PathBuf,
         },
+
+        Modified(PathBuf),
     }
 
     #[derive(Debug)]
@@ -69,16 +95,17 @@ pub mod file_system {
             from: PathBuf,
             to: PathBuf,
         },
+
+        Modified(PathBuf),
     }
 
     #[derive(Debug)]
     pub enum Any {
-        Created(PathBuf),
         Removed(PathBuf),
     }
 }
 
-pub mod thot {
+pub mod app {
     use std::path::PathBuf;
     use thot_core::graph::ResourceTree;
     use thot_core::types::ResourceId;
@@ -86,12 +113,19 @@ pub mod thot {
 
     #[derive(Debug)]
     pub enum Event {
+        Project(Project),
         Graph(Graph),
         Container(Container),
         Asset(Asset),
         Script(Script),
         File(File),
         Folder(Folder),
+    }
+
+    impl From<Project> for Event {
+        fn from(event: Project) -> Self {
+            Self::Project(event)
+        }
     }
 
     impl From<Graph> for Event {
@@ -128,6 +162,16 @@ pub mod thot {
         fn from(event: Folder) -> Self {
             Self::Folder(event)
         }
+    }
+
+    #[derive(Debug)]
+    pub enum Project {
+        /// The project was deleted.
+        Removed(ResourceId),
+        Moved {
+            project: ResourceId,
+            path: PathBuf,
+        },
     }
 
     #[derive(Debug)]

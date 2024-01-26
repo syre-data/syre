@@ -1,6 +1,5 @@
 //! Gets the path of a `Container`.
-use crate::commands::common::ResourceIdArgs;
-use crate::common::invoke;
+use crate::commands::container::get_container_path;
 use std::path::PathBuf;
 use thot_core::types::ResourceId;
 use wasm_bindgen_futures::spawn_local;
@@ -20,12 +19,17 @@ pub fn use_container_path(rid: ResourceId) -> SuspensionResult<PathBuf> {
         let path = path.clone();
 
         spawn_local(async move {
-            let container_path = invoke::<PathBuf>("get_container_path", ResourceIdArgs { rid })
-                .await
-                .expect("could not invoke `get_container_path`");
+            match get_container_path(rid).await {
+                None => {
+                    tracing::debug!("could not get container path");
+                    panic!("could not get container path");
+                }
 
-            path.set(Some(container_path));
-            handle.resume();
+                Some(container_path) => {
+                    path.set(Some(container_path));
+                    handle.resume();
+                }
+            }
         });
     }
 

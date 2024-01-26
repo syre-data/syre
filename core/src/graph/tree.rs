@@ -176,6 +176,20 @@ where
         self.edges.get(parent)
     }
 
+    /// Get the leaves of the tree.
+    pub fn leaves(&self) -> Vec<ResourceId> {
+        self.edges
+            .iter()
+            .filter_map(|(container, children)| {
+                if children.is_empty() {
+                    Some(container.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// Returns the parent of a `Node`.
     ///
     /// # Returns

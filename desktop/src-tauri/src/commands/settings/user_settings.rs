@@ -1,10 +1,12 @@
 //! Commands to interact with [`UserSettings`].
-use crate::error::{DesktopSettingsError, Result};
+use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::settings::UserSettings as AppUserSettings;
 use crate::state::AppState;
+use std::result::Result as StdResult;
 use tauri::State;
 use thot_core::types::ResourceId;
 use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
+use thot_local::error::IoSerde;
 
 /// Loads a user's [`UserSettings`](DesktopUserSettings) from file and stores them.
 #[tracing::instrument(skip(app_state))]
@@ -12,7 +14,7 @@ use thot_desktop_lib::settings::{HasUser, UserSettings as DesktopUserSettings};
 pub fn load_user_settings(
     app_state: State<AppState>,
     rid: ResourceId,
-) -> Result<DesktopUserSettings> {
+) -> StdResult<DesktopUserSettings, IoSerde> {
     let mut settings = app_state
         .user_settings
         .lock()
@@ -54,7 +56,10 @@ pub fn update_user_settings(app_state: State<AppState>, settings: DesktopUserSet
         .expect("could not lock `AppState.user_settings`");
 
     let Some(user_settings) = user_settings.as_mut() else {
-        return Err(DesktopSettingsError::InvalidUpdate("`AppState.user_settings` not loaded".to_string()).into());
+        return Err(DesktopSettingsError::InvalidUpdate(
+            "`AppState.user_settings` not loaded".to_string(),
+        )
+        .into());
     };
 
     user_settings.update(settings)?;

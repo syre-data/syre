@@ -95,7 +95,7 @@ impl Database {
                 ResourcePath::Absolute(path) => path.clone(),
                 ResourcePath::Relative(script_path) => {
                     let Some(project) = self.store.get_project(&pid) else {
-                        return Err(Error::DatabaseError(String::from(
+                        return Err(Error::Database(String::from(
                             "could not get `Project` path",
                         )));
                     };

@@ -1,15 +1,20 @@
 //! Assets preview.
+use crate::constants;
 use crate::widgets::common::asset as common;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use thot_core::project::Asset;
 use thot_core::types::ResourceId;
 use yew::prelude::*;
-use yew_icons::Icon;
+use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq, Debug)]
 pub struct AssetsPreviewProps {
     /// [`Asset`]s to display.
     pub assets: Vec<Asset>,
+
+    /// Asset flags.
+    pub flags: HashMap<ResourceId, Vec<String>>,
 
     /// Selected.
     #[prop_or_default]
@@ -77,13 +82,27 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                         title={display_name.clone()}>
                                         { display_name }
                                     </div>
+
+                                    if let Some(flags) = props.flags.get(&asset.rid) {
+                                        <span class={"alert-icon c-warning"}
+                                            title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
+
+                                            <Icon icon_id={IconId::BootstrapExclamationTriangle}
+                                                width={constants::ICON_SIZE.to_string()}
+                                                height={constants::ICON_SIZE.to_string()} />
+                                        </span>
+                                    }
+
                                     if props.onclick_asset_remove.is_some() {
-                                        <button onclick={onclick_asset_remove(
-                                            asset.rid.clone(),
-                                            props.onclick_asset_remove.clone(),
-                                            clicked_asset.clone(),
-                                        )} class={classes!("thot-ui-asset-remove")}>
-                                            { "X" }
+                                        <button class={"thot-ui-asset-remove btn-icon"} type={"button"}
+                                            onclick={onclick_asset_remove(
+                                                asset.rid.clone(),
+                                                props.onclick_asset_remove.clone(),
+                                                clicked_asset.clone(),
+                                            )}>
+
+                                            <Icon class={"thot-ui-add-remove-icon"}
+                                                icon_id={IconId::HeroiconsSolidMinus}/>
                                         </button>
                                     }
                                 </div>

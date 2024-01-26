@@ -67,7 +67,7 @@ fn asset(props: &AssetProps) -> Html {
             </div>
             <div class={"controls-group"}>
                 if let Some(flags) = canvas_state.flags.get(&props.asset.rid) {
-                    <span class={"alert-icon"}
+                    <span class={"alert-icon c-warning"}
                         title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
 
                         <Icon icon_id={IconId::BootstrapExclamationTriangle}

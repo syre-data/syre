@@ -2,14 +2,16 @@
 use super::super::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::{
-    BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationArgs, ContainerPropertiesUpdate,
-    RunParametersUpdate, ScriptAssociationsBulkUpdate,
+    bulk_update_properties, bulk_update_script_associations, BulkUpdatePropertiesArgs,
 };
-use crate::commands::types::{MetadataAction, TagsAction};
-use crate::common::invoke;
 use std::collections::HashSet;
 use thot_core::project::ScriptAssociation;
 use thot_core::types::{ResourceId, ResourceMap};
+use thot_local_database::command::container::{
+    BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
+    ScriptAssociationBulkUpdate,
+};
+use thot_local_database::command::types::{MetadataAction, TagsAction};
 use thot_ui::types::Message;
 use thot_ui::widgets::bulk_editor::{
     ContainerPropertiesBulkEditor, RunParametersUpdate as RunParametersUiUpdate,
@@ -114,28 +116,18 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onchange_name = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |name| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             update.name = Some(name);
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -143,28 +135,18 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onchange_kind = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |kind| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             update.kind = Some(kind);
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -172,28 +154,18 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onchange_description = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |description| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             update.description = Some(description);
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -201,30 +173,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onadd_tag = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |tags| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.insert = tags;
             update.tags = tags_update;
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -232,30 +194,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onremove_tag = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |tag| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             let mut tags_update = TagsAction::default();
             tags_update.remove.push(tag);
             update.tags = tags_update;
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -263,30 +215,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onadd_metadata = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -294,30 +236,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onremove_metadata = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |key| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.remove.push(key);
             update.metadata = metadata_update;
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -325,30 +257,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let onchange_metadata = {
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
-        let rids = rids.clone();
+        let containers = rids.clone();
 
         Callback::from(move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
-            let mut update = ContainerPropertiesUpdate::default();
+            let containers = containers.clone();
+
+            let mut update = PropertiesUpdate::default();
             let mut metadata_update = MetadataAction::default();
             metadata_update.insert.insert(key, value);
             update.metadata = metadata_update;
-            let update = BulkUpdatePropertiesArgs {
-                rids: rids.clone(),
-                update,
-            };
 
             spawn_local(async move {
-                let res = invoke::<()>("bulk_update_container_properties", update.clone()).await;
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Containers",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(update));
+                update_properties(containers, update, app_state, graph_state).await;
             });
         })
     };
@@ -381,27 +303,11 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationsBulkUpdate::default();
+            let mut update = ScriptAssociationBulkUpdate::default();
             update.add.push(ScriptAssociation::new(script.clone()));
-            let update = BulkUpdateScriptAssociationArgs {
-                containers: update_containers,
-                update,
-            };
 
             spawn_local(async move {
-                let res =
-                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
-
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Container Script Assocations",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                    update,
-                ));
+                update_script_associations(update_containers, update, app_state, graph_state).await
             });
         })
     };
@@ -434,27 +340,10 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationsBulkUpdate::default();
+            let mut update = ScriptAssociationBulkUpdate::default();
             update.remove.push(script.clone());
-            let update = BulkUpdateScriptAssociationArgs {
-                containers: update_containers,
-                update,
-            };
-
             spawn_local(async move {
-                let res =
-                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
-
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Container Script Assocations",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                    update,
-                ));
+                update_script_associations(update_containers, update, app_state, graph_state).await
             });
         })
     };
@@ -487,7 +376,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut assoc_update = ScriptAssociationsBulkUpdate::default();
+            let mut assoc_update = ScriptAssociationBulkUpdate::default();
             let assoc = RunParametersUpdate {
                 script: update.script,
                 autorun: update.autorun,
@@ -495,32 +384,17 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             };
 
             assoc_update.update.push(assoc);
-            let update = BulkUpdateScriptAssociationArgs {
-                containers: update_containers,
-                update: assoc_update,
-            };
 
             spawn_local(async move {
-                let res =
-                    invoke::<()>("bulk_update_container_script_associations", update.clone()).await;
-
-                if let Err(_err) = res {
-                    app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                        "Could not update Container Script Assocations",
-                    )));
-                    return;
-                }
-
-                graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                    update,
-                ));
+                update_script_associations(update_containers, assoc_update, app_state, graph_state)
+                    .await
             });
         })
     };
 
     html! {
-        <div class={classes!("thot-ui-editor")}>
-            <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
+        <div class={"thot-ui-editor px-xl"}>
+            <h4 class={"align-center m-0"}>{ "Bulk editor" }</h4>
             <ContainerPropertiesBulkEditor
                 {properties}
                 {onchange_name}
@@ -542,5 +416,50 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 onremove={onremove_association}
                 onchange={onchange_association} />
         </div>
+    }
+}
+
+async fn update_properties(
+    containers: Vec<ResourceId>,
+    update: PropertiesUpdate,
+    app_state: AppStateReducer<'_>,
+    graph_state: GraphStateReducer,
+) {
+    match bulk_update_properties(containers.clone(), update.clone()).await {
+        Ok(_) => {
+            graph_state.dispatch(GraphStateAction::BulkUpdateContainerProperties(
+                BulkUpdatePropertiesArgs {
+                    rids: containers,
+                    update,
+                },
+            ));
+        }
+
+        Err(err) => {
+            let mut msg = Message::error("Could not update Containers");
+            msg.set_details(err);
+            app_state.dispatch(AppStateAction::AddMessage(msg));
+        }
+    }
+}
+
+async fn update_script_associations(
+    containers: Vec<ResourceId>,
+    update: ScriptAssociationBulkUpdate,
+    app_state: AppStateReducer<'_>,
+    graph_state: GraphStateReducer,
+) {
+    match bulk_update_script_associations(containers.clone(), update.clone()).await {
+        Ok(_) => {
+            graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
+                BulkUpdateScriptAssociationsArgs { containers, update },
+            ));
+        }
+
+        Err(err) => {
+            let mut msg = Message::error("Could not update Container Script Assocations");
+            msg.set_details(format!("{err:?}"));
+            app_state.dispatch(AppStateAction::AddMessage(msg));
+        }
     }
 }

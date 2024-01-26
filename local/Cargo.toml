@@ -15,15 +15,17 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aquamarine = { wrokspace = true }  # TODO Only needed for documentation.
+aquamarine = { workspace = true }  # TODO Only needed for documentation.
 derivative = "2.2"
 directories = { workspace = true, optional = true }
 glob = { version = "0.3.1", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-regex = "1.9.5"
+serde_with = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
 thiserror = { workspace = true }
-tracing = {workspace = true }
+tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 validator = "0.16"
 

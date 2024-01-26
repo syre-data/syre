@@ -1,8 +1,8 @@
 //! Project component with suspense.
-use super::super::container::ContainerTreeController;
-use crate::components::canvas::{CanvasStateAction, CanvasStateReducer};
-use crate::hooks::use_project;
+use super::super::container::ContainerTree;
+use crate::components::canvas::{CanvasStateAction, CanvasStateReducer, GraphStateReducer};
 use thot_core::types::ResourceId;
+use thot_ui::widgets::suspense::Loading;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Debug)]
@@ -10,17 +10,13 @@ pub struct ProjectProps {
     pub rid: ResourceId,
 }
 
-#[tracing::instrument(level = "debug")]
+#[tracing::instrument]
 #[function_component(Project)]
-pub fn project(props: &ProjectProps) -> HtmlResult {
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
+pub fn project(props: &ProjectProps) -> Html {
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
 
     let project_ref = use_node_ref();
-    let project = use_project(&props.rid);
-    let Some(project) = project.as_ref() else {
-        panic!("`Project` not loaded");
-    };
 
     let clear_selection = {
         let canvas_state = canvas_state.clone();
@@ -30,21 +26,19 @@ pub fn project(props: &ProjectProps) -> HtmlResult {
         })
     };
 
-    Ok(html! {
-        <div ref={project_ref}
-            class={classes!("project")}
-            onclick={clear_selection} >
+    let container_tree_fallback = html! { <Loading text={"Loading container tree"} /> };
+    html! {
+    <div ref={project_ref}
+        class={"project"}
+        onclick={clear_selection} >
 
-            <div class={classes!("header")}>
-                <h1 class={classes!("title", "inline-block")}>{
-                    &project.name
-                }</h1>
-                <span>{ "\u{2699}" }</span>
-            </div>
-            <div class={classes!("content")}>
-                <ContainerTreeController />
+        <div class={"content"}>
+            <div class={"container-tree"}>
+                <Suspense fallback={container_tree_fallback}>
+                    <ContainerTree root={graph_state.graph.root().clone()} />
+                </Suspense>
             </div>
         </div>
-
-    })
+    </div>
+    }
 }

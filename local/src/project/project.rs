@@ -1,12 +1,13 @@
 //! Functionality and resources related to projects.
 use super::resources::{Project, Scripts};
 use crate::common;
-use crate::error::{Error, ProjectError, Result};
+use crate::error::{Error, IoSerde as IoSerdeError, Project as ProjectError, Result};
 use crate::system::collections::Projects;
 use crate::system::projects;
 use std::path::{Path, PathBuf};
+use std::result::Result as StdResult;
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::Project as CoreProject;
 use thot_core::types::ResourceId;
 
@@ -43,7 +44,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     fs::create_dir(&thot_dir)?;
 
     // create thot files
-    let project = Project::new(path.into())?;
+    let project = Project::new(path)?;
     project.save()?;
 
     let scripts = Scripts::new(path.into());
@@ -100,33 +101,24 @@ pub fn path_is_resource(path: &Path) -> bool {
 
 /// Returns whether the given path is a project root,
 /// i.e. has a <THOT_DIR>/<PROJECT_FILE>.
-pub fn path_is_project_root(path: &Path) -> bool {
+pub fn path_is_project_root(path: impl AsRef<Path>) -> bool {
     let path = common::project_file_of(path);
     path.exists()
 }
 
-// TODO Should return `Result<Option>` instead of `Result`
-// to differentiate file read error and path not in project.
 /// Returns path to the project root.
 ///
 /// # See also
 /// + [`project_resource_root_path`]
-pub fn project_root_path(path: &Path) -> Result<PathBuf> {
-    let o_path = PathBuf::from(path);
-    let mut path = path.join("tmp"); // false join to pop off in loop
+pub fn project_root_path(path: impl AsRef<Path>) -> Option<PathBuf> {
+    let mut path = path.as_ref().join("tmp"); // false join to pop off in loop
     while path.pop() {
-        if !path_is_project_root(&path) {
-            continue;
-        }
-
-        // TODO[h] Should not create.
-        let prj = Project::load_from(path.clone())?;
-        if prj.meta_level == 0 {
-            return Ok(fs::canonicalize(path)?);
+        if path_is_project_root(&path) {
+            return Some(path);
         }
     }
 
-    Err(Error::ProjectError(ProjectError::PathNotInProject(o_path)))
+    None
 }
 
 /// Returns path to the project root for a Thot resource.
@@ -139,7 +131,7 @@ pub fn project_root_path(path: &Path) -> Result<PathBuf> {
 pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     let path = path.as_ref();
     if !path_is_resource(path) {
-        return Err(Error::ProjectError(ProjectError::PathNotInProject(
+        return Err(Error::Project(ProjectError::PathNotInProject(
             PathBuf::from(path),
         )));
     }
@@ -170,7 +162,7 @@ pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
         }
     }
 
-    Err(CoreError::ProjectError(CoreProjectError::misconfigured("project has no root.")).into())
+    Err(CoreError::Project(CoreProjectError::misconfigured("project has no root.")).into())
 }
 
 /// # Returns
@@ -179,7 +171,7 @@ pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
 pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
     let root = match project_resource_root_path(path.as_ref()) {
         Ok(root) => root,
-        Err(Error::ProjectError(ProjectError::PathNotInProject(_))) => return Ok(None),
+        Err(Error::Project(ProjectError::PathNotInProject(_))) => return Ok(None),
         Err(err) => return Err(err),
     };
 

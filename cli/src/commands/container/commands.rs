@@ -2,10 +2,13 @@ use super::{AssociateScriptArgs, InitArgs, NewArgs};
 use crate::common::abs_path;
 use crate::Result;
 use std::env;
-use thot_core::error::{Error as CoreError, ProjectError as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptAssociation;
-use thot_local::error::{ContainerError as LocalContainerError, Error as LocalError};
-use thot_local::project::resources::{Container, Scripts};
+use thot_local::error::{
+    ContainerError as LocalContainerError, Error as LocalError, Project as ProjectError,
+};
+use thot_local::loader::container::Loader as ContainerLoader;
+use thot_local::project::resources::Scripts;
 use thot_local::project::{container, project, script};
 
 pub fn init(args: InitArgs, verbose: bool) -> Result {
@@ -55,7 +58,10 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
         );
     }
 
-    let prj_path = project::project_root_path(&cont)?;
+    let Some(prj_path) = project::project_root_path(&cont) else {
+        return Err(LocalError::Project(ProjectError::PathNotInProject(cont)).into());
+    };
+
     let project = match thot_local::project::project::project_id(&prj_path)? {
         Some(project) => project,
         None => {
@@ -81,7 +87,7 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
     let script_id = match script.as_slice() {
         [] => {
             if !args.register {
-                return Err(CoreError::ProjectError(CoreProjectError::NotRegistered(
+                return Err(CoreError::Project(CoreProjectError::NotRegistered(
                     None,
                     Some(args.path),
                 ))
@@ -101,7 +107,7 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
         _ => panic!("path registered as script multiple times"),
     };
 
-    let mut container = Container::load_from(&cont)?;
+    let mut container = ContainerLoader::load(&cont)?;
     let mut assoc = ScriptAssociation::new(script_id);
     if args.priority.is_some() {
         assoc.priority = args.priority.unwrap();

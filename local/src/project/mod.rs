@@ -83,7 +83,7 @@ pub fn init(
         None => match project::init(root.as_path()) {
             Ok(rid) => {
                 let mut project = Project::load_from(root.as_path())?;
-                project.data_root = Some(data_root.to_path_buf());
+                project.data_root = data_root.to_path_buf();
                 project.analysis_root = Some(analysis_root.to_path_buf());
                 project.save()?;
                 rid

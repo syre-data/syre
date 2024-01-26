@@ -68,7 +68,7 @@ pub fn init_project_graph(
         .into());
     };
 
-    project.data_root = Some(path.clone());
+    project.data_root = path.clone();
     let pid = project.rid.clone();
     let res = db
         .send(ProjectCommand::Update(project).into())
@@ -176,6 +176,6 @@ pub fn remove_container_tree(
 
     match trash::delete(path) {
         Ok(_) => Ok(()),
-        Err(err) => todo!(), // See asset.rs
+        Err(_err) => todo!(), // See asset.rs
     }
 }

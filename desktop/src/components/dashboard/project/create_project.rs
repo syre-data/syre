@@ -96,7 +96,7 @@ pub fn create_project() -> Html {
                     };
 
                 // save project
-                project.data_root = Some(data_root_rel.to_path_buf());
+                project.data_root = data_root_rel.to_path_buf();
                 project.creator = Creator::User(Some(UserId::Id(user)));
                 match update_project(project.clone()).await {
                     Ok(_) => {}

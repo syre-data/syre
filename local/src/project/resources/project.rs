@@ -96,12 +96,8 @@ impl Project {
     }
 
     /// Get the full path of the data root.
-    pub fn data_root_path(&self) -> Option<PathBuf> {
-        let Some(data_root) = self.data_root.as_ref() else {
-            return None;
-        };
-
-        Some(self.base_path.join(data_root))
+    pub fn data_root_path(&self) -> PathBuf {
+        self.base_path.join(&self.data_root)
     }
 
     /// Get the full path of the analysis root.

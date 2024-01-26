@@ -168,12 +168,7 @@ impl Database {
             return Err(error::LoadProjectGraph_Local::ProjectNotFound);
         };
 
-        let Some(data_root) = project.data_root.as_ref() else {
-            return Err(ProjectError::misconfigured("data root not set").into());
-        };
-
-        let path = project.base_path().join(data_root);
-        let graph = match ContainerTreeLoader::load(&path) {
+        let graph = match ContainerTreeLoader::load(project.data_root_path()) {
             Ok(graph) => graph,
             Err(PartialLoad { errors, graph }) => {
                 tracing::debug!(?errors);

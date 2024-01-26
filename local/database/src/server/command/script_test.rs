@@ -18,7 +18,7 @@ fn remove_script_should_work() {
     let mut container = LocalContainer::new(data_dir.clone());
     let mut child_container = LocalContainer::new(child_dir.clone());
 
-    project.data_root = Some(data_dir.clone());
+    project.data_root = data_dir.clone();
     let cid = container.rid.clone();
     let child_cid = child_container.rid.clone();
     let pid = project.rid.clone();

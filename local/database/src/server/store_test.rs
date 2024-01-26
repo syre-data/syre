@@ -57,12 +57,12 @@ fn update_project_path_should_work() {
     fs::write(&child_asset, "").unwrap();
 
     let mut project = LocalProject::new(dir.path().join(prj)).unwrap();
-    project.data_root = Some(root.clone());
+    project.data_root = root.clone();
     project.save().unwrap();
     let pid = project.rid.clone();
     let project_path = project.base_path().to_path_buf();
 
-    let mut root = LocalContainer::new(project.data_root_path().unwrap());
+    let mut root = LocalContainer::new(project.data_root_path());
     let asset = LocalAsset::new("asset").unwrap();
     root.insert_asset(asset);
     root.save().unwrap();

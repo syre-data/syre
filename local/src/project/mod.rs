@@ -20,13 +20,14 @@ pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";
 
 use crate::common;
 use crate::error::{Error, Project as ProjectError, Result};
-use crate::system::projects;
+use crate::system::project_manifest;
 use resources::Project;
 use std::path::{Component, Path};
 use std::{fs, io};
 use thot_core::project::{Script, ScriptLang};
 use thot_core::types::{ResourceId, ResourcePath};
 
+/// Initializes an existing folder of data and scripts into a project.
 pub fn init(
     root: impl AsRef<Path>,
     data_root: impl AsRef<Path>,
@@ -88,7 +89,7 @@ pub fn init(
             }
             Err(Error::Project(ProjectError::PathNotRegistered(_path))) => {
                 let project = Project::load_from(&root)?;
-                projects::register_project(project.rid.clone(), root.clone())?;
+                project_manifest::register_project(project.rid.clone(), root.clone())?;
                 project.rid.clone()
             }
             Err(err) => return Err(err),

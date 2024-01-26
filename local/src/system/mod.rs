@@ -14,12 +14,12 @@ pub mod collections;
 pub mod settings;
 
 #[cfg(feature = "fs")]
-pub mod projects;
+pub mod project_manifest;
 
 #[cfg(feature = "fs")]
 pub mod scripts;
 
 #[cfg(feature = "fs")]
-pub mod users;
+pub mod user_manifest;
 
 pub mod resources;

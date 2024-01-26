@@ -116,7 +116,7 @@ fn mv_moves_project_to_new_location_and_updates_resources() {
     mv(&rid, &n_root).expect("move should work");
 
     // test
-    let projects = Projects::load().unwrap();
+    let projects = ProjectManifest::load().unwrap();
     let prj_path = projects.get(&rid).unwrap();
 
     assert_eq!(&n_root, prj_path, "path was not updated in registry");
@@ -163,7 +163,7 @@ fn project_root_path_should_work_for_root() {
     // test
     let found = project_root_path(root).expect("project_root_path should work");
 
-    let projects = Projects::load().unwrap();
+    let projects = ProjectManifest::load().unwrap();
     let prj_path = projects.get(&rid).unwrap();
 
     assert_eq!(prj_path, &found, "project path is incorrect");
@@ -225,7 +225,7 @@ fn project_resource_root_path_for_root_should_work() {
     // test
     let found = project_resource_root_path(root).expect("project_root_path should work");
 
-    let projects = Projects::load().unwrap();
+    let projects = ProjectManifest::load().unwrap();
     let prj_path = projects.get(&rid).unwrap();
 
     assert_eq!(prj_path, &found, "project path is incorrect");

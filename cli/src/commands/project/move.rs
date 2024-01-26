@@ -5,7 +5,7 @@ use std::{env, fs};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError};
 use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::project::project;
-use thot_local::system::projects;
+use thot_local::system::project_manifest;
 
 #[derive(Debug, Args)]
 pub struct MoveArgs {
@@ -34,7 +34,7 @@ pub fn main(args: MoveArgs, verbose: bool) -> Result {
         },
     };
 
-    let pid = match projects::get_id(&from)? {
+    let pid = match project_manifest::get_id(&from)? {
         Some(pid) => pid,
         None => {
             return Err(

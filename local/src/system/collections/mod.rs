@@ -4,13 +4,13 @@
 //! + Projects
 //! + Scripts
 //! + Users
-pub mod projects;
+pub mod project_manifest;
 pub mod scripts;
 pub mod templates;
-pub mod users;
+pub mod user_manifest;
 
 // Reexports
-pub use projects::Projects;
+pub use project_manifest::ProjectManifest;
 pub use scripts::Scripts;
 pub use templates::Templates;
-pub use users::Users;
+pub use user_manifest::UserManifest;

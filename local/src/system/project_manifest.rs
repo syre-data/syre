@@ -1,5 +1,5 @@
 //! High level functions associated to the projects list.
-use super::collections::projects::Projects;
+use super::collections::project_manifest::ProjectManifest;
 use crate::error::{Error, Project, Result, SettingsValidationError};
 use crate::system::settings::user_settings::UserSettings;
 use std::fs;
@@ -20,7 +20,7 @@ use thot_core::types::ResourceId;
 /// + `insert_project`
 pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
     let path = fs::canonicalize(path)?;
-    let mut projects = Projects::load_or_default()?;
+    let mut projects = ProjectManifest::load_or_default()?;
 
     // check if project is already registered.
     if projects.contains_key(&rid) {
@@ -36,7 +36,7 @@ pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
 
 /// Deregister a [`Project`].
 pub fn deregister_project(id: &ResourceId) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = ProjectManifest::load()?;
     projects.remove(&id);
     projects.save()?;
     Ok(())
@@ -45,7 +45,7 @@ pub fn deregister_project(id: &ResourceId) -> Result {
 /// Retrieves a [`Project`] by its [`ResourceId`].
 /// Returns `None` if project is not found.
 pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
-    let projects = Projects::load()?;
+    let projects = ProjectManifest::load()?;
     Ok(projects.get(id).cloned())
 }
 
@@ -54,7 +54,7 @@ pub fn get_path(id: &ResourceId) -> Result<Option<PathBuf>> {
 /// `None` if path is not found.
 pub fn get_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
     let path = path.as_ref();
-    let projects = Projects::load()?;
+    let projects = ProjectManifest::load()?;
     let projects = &projects
         .iter()
         .filter_map(
@@ -78,7 +78,7 @@ pub fn get_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
 /// Updates a [`Project`].
 /// Replaces the project in the projects collection with the same id.
 pub fn insert_project(rid: ResourceId, path: PathBuf) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = ProjectManifest::load()?;
     projects.insert(rid, path);
 
     projects.save()?;
@@ -137,5 +137,5 @@ fn validate_project_path(path: &Path) -> bool {
 }
 
 #[cfg(test)]
-#[path = "./projects_test.rs"]
-mod projects_test;
+#[path = "./project_manifest_test.rs"]
+mod project_manifest_test;

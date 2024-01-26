@@ -1,22 +1,23 @@
-//! Projects collection.
+//! User collection.
 use crate::error::IoSerde;
 use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
-use std::io::{self, BufReader};
+use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::types::ResourceMap;
+use thot_core::system::User;
+use thot_core::types::ResourceId;
 
-/// Map from a [`Project`]'s id to its path.
-pub type ProjectMap = ResourceMap<PathBuf>;
+pub type UserMap = HashMap<ResourceId, User>;
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(transparent)]
-pub struct Projects(ProjectMap);
+pub struct UserManifest(UserMap);
 
-impl Projects {
+impl UserManifest {
     pub fn load() -> Result<Self, IoSerde> {
         let file = fs::File::open(Self::path())?;
         let reader = BufReader::new(file);
@@ -30,8 +31,7 @@ impl Projects {
                 Ok(serde_json::from_reader(reader)?)
             }
 
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(err) => Err(err.into()),
+            Err(_) => Ok(Self::default()),
         }
     }
 
@@ -41,28 +41,24 @@ impl Projects {
     }
 }
 
-impl Deref for Projects {
-    type Target = ProjectMap;
+impl Deref for UserManifest {
+    type Target = UserMap;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for Projects {
+impl DerefMut for UserManifest {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl SystemResource<ProjectMap> for Projects {
+impl SystemResource<UserMap> for UserManifest {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
-        settings_dir.join("projects.json")
+        settings_dir.join("users.json")
     }
 }
-
-#[cfg(test)]
-#[path = "./projects_test.rs"]
-mod projects_test;

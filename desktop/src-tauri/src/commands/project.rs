@@ -12,7 +12,8 @@ use thot_core::types::ResourceId;
 use thot_desktop_lib::error::Analysis as AnalysisError;
 use thot_local::project::project;
 use thot_local::project::resources::Project as LocalProject;
-use thot_local::system::projects as sys_projects;
+use thot_local::system::collections::ProjectManifest;
+use thot_local::system::project_manifest as sys_projects;
 use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
@@ -55,25 +56,77 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, Pr
 // *** add project ***
 // *******************
 
-/// Adds an existing [`Project`] to the users vault.
+/// Imports an existing [`Project`].
+/// Adds the active user to it.
 #[tauri::command]
-pub fn add_project(
+pub fn import_project(
     app_state: State<AppState>,
     db: State<DbClient>,
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {
-    let user = app_state
-        .user
-        .lock()
-        .expect("could not lock app state `User`");
+    let path = fs::canonicalize(path)?;
 
+    let user = app_state.user.lock().unwrap();
     let Some(user) = user.as_ref() else {
         return Err(DesktopSettingsError::NoUser.into());
     };
 
-    let project = db
-        .send(ProjectCommand::Add(path, user.rid.clone()).into())
-        .expect("could not add `Project`");
+    let project_manifest = ProjectManifest::load_or_default()?;
+    let project = project_manifest.iter().find_map(|(pid, project_path)| {
+        let project_path = fs::canonicalize(&project_path).unwrap_or(project_path.clone());
+        if path == project_path {
+            return Some(pid);
+        } else {
+            None
+        }
+    });
+
+    // ----
+    // ProjectCommand::Add(path, user) => {
+    //     let Ok(local_project) = self.load_project(&path) else {
+    //         let err: Result<CoreProject> =
+    //             Err(Error::SettingsError("could not load project".to_string()));
+    //         return serde_json::to_value(err).unwrap();
+    //     };
+
+    //     let project = (*local_project).clone();
+    //     let settings = local_project.settings().clone();
+    //     if !user_has_project(&user, &local_project) {
+    //         let mut settings = settings.clone();
+    //         let permissions = UserPermissions {
+    //             read: true,
+    //             write: true,
+    //             execute: true,
+    //         };
+
+    //         settings.permissions.insert(user, permissions);
+    //         let res = self.update_project_settings(&project.rid, settings);
+    //         if res.is_err() {
+    //             return serde_json::to_value(res).unwrap();
+    //         }
+    //     }
+
+    //     // add project to collection
+    //     let mut projects = match ProjectManifest::load() {
+    //         Ok(projects) => projects,
+    //         Err(err) => {
+    //             let err = Error::SettingsError(format!("{err:?}"));
+    //             return serde_json::to_value(err).unwrap();
+    //         }
+    //     };
+
+    //     projects.insert(project.rid.clone(), path.to_path_buf());
+
+    //     let res = projects.save();
+    //     if res.is_err() {
+    //         let error = Error::SettingsError(format!("{res:?}"));
+    //         return serde_json::to_value(error).unwrap();
+    //     };
+
+    //     let project: Result<(CoreProject, ProjectSettings)> = Ok((project, settings));
+    //     serde_json::to_value(project).unwrap()
+    // }
+    // ---
 
     let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
     Ok(project?)

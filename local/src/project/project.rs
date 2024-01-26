@@ -1,11 +1,10 @@
 //! Functionality and resources related to projects.
 use super::resources::{Project, Scripts};
 use crate::common;
-use crate::error::{Error, IoSerde as IoSerdeError, Project as ProjectError, Result};
-use crate::system::collections::Projects;
-use crate::system::projects;
+use crate::error::{Error, Project as ProjectError, Result};
+use crate::system::collections::ProjectManifest;
+use crate::system::project_manifest;
 use std::path::{Path, PathBuf};
-use std::result::Result as StdResult;
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::Project as CoreProject;
@@ -50,15 +49,17 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     let scripts = Scripts::new(path.into());
     scripts.save()?;
 
-    projects::register_project(project.rid.clone(), project.base_path().into())?;
+    project_manifest::register_project(project.rid.clone(), project.base_path().into())?;
     Ok(project.rid.clone().into())
 }
 
 /// Creates a new Thot project.
-/// Errors if the folder already exists.
+///
+/// # Errors
+/// + If the folder already exists.
 ///
 /// # See also
-/// + `init`
+/// + [`init`]
 pub fn new(root: &Path) -> Result<ResourceId> {
     if root.exists() {
         return Err(io::Error::new(io::ErrorKind::IsADirectory, "folder already exists").into());
@@ -70,7 +71,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 
 /// Move project to a new location.
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = ProjectManifest::load()?;
     let Some(project) = projects.get_mut(rid) else {
         return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`Project` is not registered",
@@ -175,7 +176,7 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
         Err(err) => return Err(err),
     };
 
-    projects::get_id(root.as_path())
+    project_manifest::get_id(root.as_path())
 }
 
 #[cfg(test)]

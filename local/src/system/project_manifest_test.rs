@@ -1,4 +1,4 @@
-// @todo: Tests must be run with `--test-threads=1`.
+// TODO: Tests must be run with `--test-threads=1`.
 use super::*;
 use crate::Error;
 use dev_utils::{create_lock, lock::get_lock};
@@ -16,7 +16,7 @@ fn register_project_should_work() {
     let rid = prj.clone();
     register_project(prj, path).expect("register__project should work");
 
-    let mut projects = Projects::load().expect("could not load Projects");
+    let mut projects = ProjectManifest::load().expect("could not load Projects");
     let project = projects.get(&rid);
     assert!(project.is_some(), "project not registered");
 
@@ -52,7 +52,7 @@ fn deregister_project_should_work() {
     register_project(prj.clone(), path).expect("register_project should work");
     deregister_project(&prj).expect("deregister_project should work");
 
-    let projects = Projects::load().expect("could not load projects");
+    let projects = ProjectManifest::load().expect("could not load projects");
     let project = projects.get(&prj);
 
     assert!(project.is_none(), "project not removed");

@@ -2,18 +2,18 @@
 use super::super::Database;
 use crate::command::ProjectCommand;
 use crate::error::server::LoadUserProjects as LoadUserProjectsError;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::path::Path;
 use std::result::Result as StdResult;
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::Project as CoreProject;
-use thot_core::types::{Creator, ResourceId, UserPermissions};
+use thot_core::types::{Creator, ResourceId};
 use thot_local::error::IoSerde as IoSerdeError;
 use thot_local::project::project::project_resource_root_path;
 use thot_local::project::resources::project::Project as LocalProject;
-use thot_local::system::collections::projects::Projects;
+use thot_local::system::collections::project_manifest::ProjectManifest;
 use thot_local::types::ProjectSettings;
 
 impl Database {
@@ -61,51 +61,6 @@ impl Database {
                 let project: Result<(CoreProject, ProjectSettings)> =
                     Ok(((**project).clone(), project.settings().clone()));
 
-                serde_json::to_value(project).unwrap()
-            }
-
-            ProjectCommand::Add(path, user) => {
-                let Ok(local_project) = self.load_project(&path) else {
-                    let err: Result<CoreProject> =
-                        Err(Error::SettingsError("could not load project".to_string()));
-                    return serde_json::to_value(err).unwrap();
-                };
-
-                let project = (*local_project).clone();
-                let settings = local_project.settings().clone();
-                if !user_has_project(&user, &local_project) {
-                    let mut settings = settings.clone();
-                    let permissions = UserPermissions {
-                        read: true,
-                        write: true,
-                        execute: true,
-                    };
-
-                    settings.permissions.insert(user, permissions);
-                    let res = self.update_project_settings(&project.rid, settings);
-                    if res.is_err() {
-                        return serde_json::to_value(res).unwrap();
-                    }
-                }
-
-                // add project to collection
-                let mut projects = match Projects::load() {
-                    Ok(projects) => projects,
-                    Err(err) => {
-                        let err = Error::SettingsError(format!("{err:?}"));
-                        return serde_json::to_value(err).unwrap();
-                    }
-                };
-
-                projects.insert(project.rid.clone(), path.to_path_buf());
-
-                let res = projects.save();
-                if res.is_err() {
-                    let error = Error::SettingsError(format!("{res:?}"));
-                    return serde_json::to_value(error).unwrap();
-                };
-
-                let project: Result<(CoreProject, ProjectSettings)> = Ok((project, settings));
                 serde_json::to_value(project).unwrap()
             }
 
@@ -180,7 +135,7 @@ impl Database {
         &mut self,
         user: &ResourceId,
     ) -> StdResult<Vec<(CoreProject, ProjectSettings)>, LoadUserProjectsError> {
-        let project_manifest = match Projects::load_or_default() {
+        let project_manifest = match ProjectManifest::load_or_default() {
             Ok(project_manifest) => project_manifest,
             Err(err) => return Err(LoadUserProjectsError::LoadProjectsManifest(err)),
         };

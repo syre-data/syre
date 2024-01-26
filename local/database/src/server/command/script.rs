@@ -10,7 +10,7 @@ use thot_core::types::{ResourceId, ResourcePath};
 use thot_local::project::resources::{
     Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
 };
-use thot_local::system::collections::Projects;
+use thot_local::system::collections::ProjectManifest;
 
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
@@ -64,7 +64,7 @@ impl Database {
             return Ok(scripts.values().map(|script| script.clone()).collect());
         }
 
-        let projects = Projects::load_or_default()?;
+        let projects = ProjectManifest::load_or_default()?;
         let Some(project) = projects.get(&rid).clone() else {
             return Err(CoreError::ResourceError(ResourceError::does_not_exist(
                 "`Project` does not exist",

@@ -2,7 +2,7 @@
 //! There are concurrency errors that cause tests to fail.
 //! To ensure a test is failing run it singularly.
 use super::*;
-use crate::system::collections::users::Users;
+use crate::system::collections::user_manifest::UserManifest;
 use crate::Error;
 use dev_utils::{create_lock, lock::get_lock};
 use fake::faker::internet::raw::FreeEmail;
@@ -52,7 +52,7 @@ fn add_user_should_work() {
     add_user(user).expect("should work");
 
     // get current users
-    let mut users = Users::load().expect("users list should load");
+    let mut users = UserManifest::load().expect("users list should load");
     let user = users.get(&uid);
 
     assert!(user.is_some(), "user was not added");
@@ -129,7 +129,7 @@ fn delete_user_should_remove_an_existing_user() {
     delete_user(&uid).expect("delete user should work");
 
     // check user is not in settings
-    let users = Users::load().expect("users list should load");
+    let users = UserManifest::load().expect("users list should load");
     let user = users.get(&uid);
     assert!(user.is_none(), "user was not deleted");
 }
@@ -178,7 +178,7 @@ fn delete_user_by_email_should_remove_an_existing_user() {
     delete_user_by_email(&user_email).expect("delete user should work");
 
     // check user is not in settings
-    let users = Users::load().expect("users list should load");
+    let users = UserManifest::load().expect("users list should load");
     let user = users.get(&uid);
     assert!(user.is_none(), "user was not deleted");
 }
@@ -210,7 +210,7 @@ fn delete_user_by_email_should_unset_as_active_user() {
     );
 
     // clean up
-    let mut users = Users::load().expect("could not load users");
+    let mut users = UserManifest::load().expect("could not load users");
     users.remove(&uid);
     users
         .save()
@@ -236,7 +236,7 @@ fn update_user_should_work() {
     update_user(new_user).expect("edit user should work");
 
     // check user is not in settings
-    let mut users = Users::load().expect("users list should load");
+    let mut users = UserManifest::load().expect("users list should load");
     let edited_user = users.get(&uid).expect("user not found");
 
     assert_eq!(new_user_name, edited_user.name, "name was not edited");

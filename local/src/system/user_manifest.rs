@@ -1,4 +1,4 @@
-use super::collections::users::Users;
+use super::collections::user_manifest::UserManifest;
 use super::settings::user_settings::UserSettings;
 use crate::error::{Error, Result, UsersError};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use validator;
 
 /// Returns a user by the given id if it exists, otherwise returns an error.
 pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
-    let users = Users::load()?;
+    let users = UserManifest::load()?;
     Ok(users.get(&rid).cloned())
 }
 
@@ -22,7 +22,7 @@ pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
 /// # Errors
 /// + [`UsersError::DuplicateEmail`]: If multiple users are registered with the given email.
 pub fn user_by_email(email: &str) -> Result<Option<User>> {
-    let users = Users::load()?;
+    let users = UserManifest::load()?;
     let users: Vec<&User> = users.values().filter(|user| user.email == email).collect();
 
     match users.len() {
@@ -41,7 +41,7 @@ pub fn add_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users = Users::load_or_default()?;
+    let mut users = UserManifest::load_or_default()?;
 
     // check if email already exists
     let user_count = user_count_by_email(&user.email, &users);
@@ -60,7 +60,7 @@ pub fn add_user(user: User) -> Result {
 
 /// Delete a user by id.
 pub fn delete_user(rid: &ResourceId) -> Result {
-    let mut users = Users::load()?;
+    let mut users = UserManifest::load()?;
     let mut settings = UserSettings::load()?;
 
     users.remove(&rid);
@@ -94,7 +94,7 @@ pub fn update_user(user: User) -> Result {
         return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
     }
 
-    let mut users = Users::load()?;
+    let mut users = UserManifest::load()?;
     validate_id_is_present(&user.rid, &users)?;
 
     users.insert(user.rid.clone(), user);
@@ -118,7 +118,7 @@ pub fn get_active_user() -> Result<Option<User>> {
 /// + If the user represented by the id is not registered.
 pub fn set_active_user(rid: &ResourceId) -> Result {
     // ensure valid users
-    let users = Users::load()?;
+    let users = UserManifest::load()?;
     validate_id_is_present(&rid, &users)?;
 
     // set active user
@@ -159,7 +159,7 @@ pub fn unset_active_user() -> Result {
 // *************************
 
 /// Returns the number of users with the given email.
-fn user_count_by_email(email: &str, users: &Users) -> usize {
+fn user_count_by_email(email: &str, users: &UserManifest) -> usize {
     // ensure valid users
     users
         .values()
@@ -182,5 +182,5 @@ fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -
 }
 
 #[cfg(test)]
-#[path = "./users_test.rs"]
-mod users_test;
+#[path = "./user_manifest_test.rs"]
+mod user_manifest_test;

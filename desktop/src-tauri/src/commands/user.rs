@@ -5,13 +5,13 @@ use crate::state::AppState;
 use tauri::State;
 use thot_core::system::User;
 use thot_core::types::ResourceId;
-use thot_local::system::users;
+use thot_local::system::user_manifest;
 
 /// Get the active user.
 /// Retrieves the active user from [system settings](users::get_active_user).
 #[tauri::command]
 pub fn get_active_user() -> thot_local::Result<Option<User>> {
-    users::get_active_user()
+    user_manifest::get_active_user()
 }
 
 /// Set the active user.
@@ -22,10 +22,10 @@ pub fn get_active_user() -> thot_local::Result<Option<User>> {
 #[tauri::command]
 pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
     // settings user
-    users::set_active_user(&rid)?;
+    user_manifest::set_active_user(&rid)?;
 
     // set app user
-    let user = users::user_by_id(&rid)?;
+    let user = user_manifest::user_by_id(&rid)?;
     *app_state
         .user
         .lock()
@@ -53,7 +53,7 @@ pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
 /// Unsets the user's [`UserAppState`] and [`UserSettings`].
 #[tauri::command]
 pub fn unset_active_user(app_state: State<AppState>) -> thot_local::Result {
-    users::unset_active_user()?;
+    user_manifest::unset_active_user()?;
     *app_state
         .user
         .lock()

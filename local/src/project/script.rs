@@ -3,7 +3,7 @@ use super::container;
 use super::resources::{Container, Script as ProjectScript, Scripts as ProjectScripts};
 use crate::error::{ContainerError, Result};
 use crate::loader::container::Loader as ContainerLoader;
-use crate::system::collections::{Projects, Scripts as SystemScripts};
+use crate::system::collections::{ProjectManifest, Scripts as SystemScripts};
 use std::path::{Path, PathBuf};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::ScriptAssociation;
@@ -15,7 +15,7 @@ use thot_core::types::{ResourceId, ResourcePath};
 
 /// Initialize a file as a [`Script`](CoreScript).
 pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
-    let projects = Projects::load()?;
+    let projects = ProjectManifest::load()?;
     let Some(project) = projects.get(&project) else {
         return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`Project` does not exist",

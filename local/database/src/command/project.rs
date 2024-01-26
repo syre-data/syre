@@ -19,13 +19,6 @@ pub enum ProjectCommand {
     /// Tuples of ([`Project`](thot_local::project::resources::Project), [`ProjectSettings`][`Project`](thot_local::project::resources::ProjectSettings)).
     LoadWithSettings(PathBuf),
 
-    /// Adds a [`Project`](thot_local::project::resources::Project) for a user from a path.
-    ///
-    /// # Fields
-    /// 1. Path to the project.
-    /// 2. User.
-    Add(PathBuf, ResourceId),
-
     /// Loads the user's projects.
     ///
     /// # Fields

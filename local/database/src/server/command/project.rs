@@ -147,12 +147,15 @@ impl Database {
             match self.store.get_project(&pid) {
                 Some(project) => {
                     if user_has_project(user, &project) {
-                        projects.push(((*project).clone(), project.settings().clone()));
+                        projects.push((project.inner().clone(), project.settings().clone()));
                     }
                 }
 
                 None => match self.load_project(&path) {
-                    Ok(_) => {}
+                    Ok(project) => {
+                        projects.push((project.inner().clone(), project.settings().clone()));
+                    }
+
                     Err(err) => {
                         errors.insert(path.clone(), err);
                     }

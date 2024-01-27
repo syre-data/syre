@@ -189,7 +189,7 @@ pub mod converter {
     use std::collections::HashMap;
     use std::path::{Component, Path, PathBuf};
     use std::{fs, io};
-    use thot_core::project::{Script, ScriptAssociation, ScriptLang};
+    use thot_core::project::{script, Script, ScriptAssociation, ScriptLang};
     use thot_core::types::{Creator, ResourceId, UserId, UserPermissions};
 
     pub struct Converter {
@@ -313,6 +313,9 @@ pub mod converter {
                 fs::create_dir_all(&analysis_root)?;
 
                 // move scripts
+                #[cfg(target_os = "windows")]
+                let data_root = common::strip_windows_unc(&data_root);
+
                 let mut ext_pattern = data_root.join("**").join("*");
                 let mut match_options = glob::MatchOptions::new();
                 match_options.case_sensitive = false;

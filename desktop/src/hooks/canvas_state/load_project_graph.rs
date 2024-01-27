@@ -20,9 +20,7 @@ pub fn use_load_project_graph(
     if let Some(graph) = graph.as_ref() {
         match graph {
             Ok(graph) => return Ok(Ok(graph.clone())),
-            Err(err) => {
-                return Ok(Err(err.clone()));
-            }
+            Err(err) => return Ok(Err(err.clone())),
         }
     }
 

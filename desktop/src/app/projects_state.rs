@@ -31,9 +31,12 @@ pub enum ProjectsStateAction {
     /// Remove an open project.
     ///
     /// # Fields
-    /// 1. Project to remove.
-    /// 2. New project to set as active, if needed.
-    RemoveOpenProject(ResourceId, Option<ResourceId>),
+    /// + `project`: Project to remove.
+    /// + `activate`: Project to set as active, if needed.
+    RemoveOpenProject {
+        project: ResourceId,
+        activate: Option<ResourceId>,
+    },
 
     /// Set the active `Project`.
     SetActiveProject(ResourceId),
@@ -101,6 +104,7 @@ impl Reducible for ProjectsState {
 
             ProjectsStateAction::RemoveProject(project) => {
                 current.settings.remove(&project);
+                current.project_scripts.remove(&project);
                 current.projects.remove(&project);
                 current.open_projects.remove(&project);
                 if let Some(active_project) = current.active_project.as_ref() {
@@ -114,13 +118,13 @@ impl Reducible for ProjectsState {
                 current.open_projects.insert(project);
             }
 
-            ProjectsStateAction::RemoveOpenProject(closing, next) => {
-                if current.active_project.as_ref() == Some(&closing) {
+            ProjectsStateAction::RemoveOpenProject { project, activate } => {
+                if current.active_project.as_ref() == Some(&project) {
                     // closed the active project
-                    current.active_project = next;
+                    current.active_project = activate;
                 }
 
-                current.open_projects.remove(&closing);
+                current.open_projects.remove(&project);
             }
 
             ProjectsStateAction::SetActiveProject(rid) => {

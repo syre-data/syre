@@ -32,7 +32,7 @@ pub fn import_project() -> Html {
 
             // import and go to project
             spawn_local(async move {
-                let project = match project::import_project(path.clone()).await {
+                match project::import_project(path.clone()).await {
                     Ok(project) => project,
                     Err(err) => {
                         let mut msg = Message::error("Could not import project");
@@ -42,13 +42,17 @@ pub fn import_project() -> Html {
                     }
                 };
 
-                // update ui
-                let rid = project.0.rid.clone();
-                projects_state.dispatch(ProjectsStateAction::InsertProject(project));
-                projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
-                projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid));
+                let (project, settings) = match project::load_project(path.clone()).await {
+                    Ok(project) => project,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not load project");
+                        msg.set_details(format!("{err:?}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
+                };
 
-                navigator.push(&Route::Workspace);
+                projects_state.dispatch(ProjectsStateAction::InsertProject((project, settings)));
             });
         }
     });

@@ -63,7 +63,10 @@ pub fn main_navigation() -> Html {
     let close_project = use_callback(projects_state.clone(), {
         let navigator = navigator.clone();
         move |TabCloseInfo { closing, next }, projects_state| {
-            projects_state.dispatch(ProjectsStateAction::RemoveOpenProject(closing, next));
+            projects_state.dispatch(ProjectsStateAction::RemoveOpenProject {
+                project: closing,
+                activate: next,
+            });
             if projects_state.open_projects.len() == 1 {
                 navigator.push(&Route::Dashboard);
             }

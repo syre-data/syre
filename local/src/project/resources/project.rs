@@ -13,8 +13,8 @@ use thot_core::project::Project as CoreProject;
 
 /// Represents a Thot project.
 pub struct Project {
+    inner: CoreProject,
     base_path: PathBuf,
-    project: CoreProject,
     settings: ProjectSettings,
 }
 
@@ -42,7 +42,7 @@ impl Project {
         let name = name.to_string();
         Ok(Self {
             base_path: path,
-            project: CoreProject::new(name),
+            inner: CoreProject::new(name),
             settings: ProjectSettings::default(),
         })
     }
@@ -63,7 +63,7 @@ impl Project {
 
         Ok(Self {
             base_path,
-            project,
+            inner: project,
             settings,
         })
     }
@@ -74,9 +74,13 @@ impl Project {
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
 
         fs::create_dir_all(project_path.parent().expect("invalid path"))?;
-        fs::write(project_path, serde_json::to_string_pretty(&self.project)?)?;
+        fs::write(project_path, serde_json::to_string_pretty(&self.inner)?)?;
         fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
         Ok(())
+    }
+
+    pub fn inner(&self) -> &CoreProject {
+        &self.inner
     }
 
     pub fn settings(&self) -> &ProjectSettings {
@@ -114,19 +118,19 @@ impl Deref for Project {
     type Target = CoreProject;
 
     fn deref(&self) -> &Self::Target {
-        &self.project
+        &self.inner
     }
 }
 
 impl DerefMut for Project {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.project
+        &mut self.inner
     }
 }
 
 impl Into<CoreProject> for Project {
     fn into(self: Self) -> CoreProject {
-        self.project
+        self.inner
     }
 }
 

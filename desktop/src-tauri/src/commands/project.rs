@@ -1,15 +1,18 @@
 //! Commands related to projects.
 use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
+use std::{fs, io};
 use tauri::State;
 use thot_core::error::{Error as CoreError, Project as ProjectError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, UserPermissions};
 use thot_desktop_lib::error::Analysis as AnalysisError;
+use thot_local::error::{
+    Error as LocalError, IoSerde as IoSerdeError, Project as LocalProjectError,
+};
 use thot_local::project::project as local_project;
 use thot_local::project::resources::Project as LocalProject;
 use thot_local::system::collections::ProjectManifest;
@@ -71,67 +74,30 @@ pub fn import_project(
         return Err(DesktopSettingsError::NoUser.into());
     };
 
-    let project_manifest = ProjectManifest::load_or_default()?;
-    let project = project_manifest.iter().find_map(|(pid, project_path)| {
-        let project_path = fs::canonicalize(&project_path).unwrap_or(project_path.clone());
-        if path == project_path {
-            return Some(pid);
-        } else {
-            None
-        }
-    });
+    let mut project = match LocalProject::load_from(&path) {
+        Ok(project) => project,
+        Err(err) => match err {
+            IoSerdeError::Io(io::ErrorKind::NotFound) => {
+                return Err(
+                    LocalError::Project(LocalProjectError::PathNotAProjectRoot(path)).into(),
+                )
+            }
+            _ => return Err(err.into()),
+        },
+    };
 
-    if project.is_none() {}
-    todo!();
-    // ----
-    // ProjectCommand::Add(path, user) => {
-    //     let Ok(local_project) = self.load_project(&path) else {
-    //         let err: Result<CoreProject> =
-    //             Err(Error::SettingsError("could not load project".to_string()));
-    //         return serde_json::to_value(err).unwrap();
-    //     };
+    project.settings_mut().permissions.insert(
+        user.rid.clone(),
+        UserPermissions::with_permissions(true, true, true),
+    );
 
-    //     let project = (*local_project).clone();
-    //     let settings = local_project.settings().clone();
-    //     if !user_has_project(&user, &local_project) {
-    //         let mut settings = settings.clone();
-    //         let permissions = UserPermissions {
-    //             read: true,
-    //             write: true,
-    //             execute: true,
-    //         };
+    project.save()?;
 
-    //         settings.permissions.insert(user, permissions);
-    //         let res = self.update_project_settings(&project.rid, settings);
-    //         if res.is_err() {
-    //             return serde_json::to_value(res).unwrap();
-    //         }
-    //     }
+    let mut project_manifest = ProjectManifest::load_or_default()?;
+    project_manifest.insert(project.rid.clone(), path.clone());
+    project_manifest.save()?;
 
-    //     // add project to collection
-    //     let mut projects = match ProjectManifest::load() {
-    //         Ok(projects) => projects,
-    //         Err(err) => {
-    //             let err = Error::SettingsError(format!("{err:?}"));
-    //             return serde_json::to_value(err).unwrap();
-    //         }
-    //     };
-
-    //     projects.insert(project.rid.clone(), path.to_path_buf());
-
-    //     let res = projects.save();
-    //     if res.is_err() {
-    //         let error = Error::SettingsError(format!("{res:?}"));
-    //         return serde_json::to_value(error).unwrap();
-    //     };
-
-    //     let project: Result<(CoreProject, ProjectSettings)> = Ok((project, settings));
-    //     serde_json::to_value(project).unwrap()
-    // }
-    // ---
-
-    // let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
-    // Ok(project?)
+    Ok((project.inner().clone(), project.settings().clone()))
 }
 
 // *******************

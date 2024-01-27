@@ -76,10 +76,7 @@ fn container_set_script_association_should_work() {
 
     // test
     // initial
-    let init = container
-        .set_script_association(assoc.clone())
-        .expect("intial set association should work");
-
+    let init = container.set_script_association(assoc.clone());
     let found = container.scripts.get(&sid);
     assert!(found.is_some(), "association should be added");
 
@@ -92,9 +89,7 @@ fn container_set_script_association_should_work() {
 
     // second
     assoc.priority = 1;
-    let sec = container
-        .set_script_association(assoc.clone())
-        .expect("second set association should work");
+    let sec = container.set_script_association(assoc.clone());
     let found = container.scripts.get(&sid);
     assert!(found.is_some(), "association should still exist");
 

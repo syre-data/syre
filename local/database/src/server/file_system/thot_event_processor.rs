@@ -5,9 +5,9 @@ use crate::server::store::ContainerTree;
 use crate::server::Database;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::ScriptLang;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::graph::ContainerTreeTransformer;
 use thot_local::loader::error::container::Error as ContainerLoaderError;
@@ -165,7 +165,6 @@ impl Database {
         let project = self.project_by_resource_path(&path)?;
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             if let Ok(script_path) = path.strip_prefix(analysis_root) {
-                let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if scripts.contains_path(&script_path) {
                     return Ok(vec![]);
@@ -203,7 +202,6 @@ impl Database {
             .strip_prefix(project.analysis_root_path().unwrap())
             .unwrap();
 
-        let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
         if let Some(script) = scripts.by_path(&script_path) {
             return vec![app::Script::Removed(script.rid.clone()).into()];
         }
@@ -227,7 +225,7 @@ impl Database {
         }
 
         fn get_path_resource_type(project: &LocalProject, path: &PathBuf) -> Location {
-            if path.starts_with(project.data_root_path().unwrap()) {
+            if path.starts_with(project.data_root_path()) {
                 return Location::Data;
             } else if path.starts_with(project.analysis_root_path().unwrap()) {
                 return Location::Analysis;
@@ -269,7 +267,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     return vec![app::Script::Moved {
@@ -308,7 +305,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     return vec![app::Script::Removed(script.rid.clone()).into()];
@@ -347,7 +343,6 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let from_script_path = ResourcePath::new(from_script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.by_path(&from_script_path) {
                     events.push(app::Script::Removed(script.rid.clone()).into());
@@ -384,7 +379,6 @@ impl Database {
             }
 
             if let Ok(script_path) = to.strip_prefix(analysis_root) {
-                let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
                 if scripts.contains_path(&script_path) {
                     return vec![];
@@ -418,12 +412,10 @@ impl Database {
 
         // ignore graph root and above
         let project = self.project_by_resource_path(path)?;
-        if let Some(data_root) = project.data_root_path() {
-            let path = fs::canonicalize(&path).unwrap();
-            if !path.parent().unwrap().starts_with(data_root) {
-                return Ok(vec![]);
-            }
-        };
+        let path = fs::canonicalize(&path)?;
+        if !path.parent().unwrap().starts_with(project.data_root_path()) {
+            return Ok(vec![]);
+        }
 
         // ignore if registered container
         if self
@@ -436,7 +428,7 @@ impl Database {
         }
 
         // handle if unregistered container
-        match ContainerTreeIncrementalLoader::load(path) {
+        match ContainerTreeIncrementalLoader::load(project.data_root_path()) {
             Ok(graph) => {
                 let Some(loaded_container) = self.store.get_container(graph.root()) else {
                     return Ok(vec![app::Graph::Inserted(graph).into()]);
@@ -453,7 +445,7 @@ impl Database {
                 }
             }
 
-            Err(PartialLoad { errors, graph }) => match errors.get(path) {
+            Err(PartialLoad { errors, graph }) => match errors.get(&path) {
                 Some(ContainerTreeLoaderError::Dir(err)) if err == &io::ErrorKind::NotFound => {
                     return Ok(vec![app::Folder::Created(path.clone()).into()]);
                 }
@@ -523,7 +515,6 @@ impl Database {
         let project = self.project_by_resource_path(&path).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
-            let script_path = ResourcePath::new(script_path.to_path_buf()).unwrap();
             if let Some(script) = scripts.by_path(&script_path) {
                 return vec![app::Script::Removed(script.rid.clone()).into()];
             }
@@ -609,18 +600,11 @@ impl Database {
     /// Ensures a `Project` resource's graph is loaded.
     fn ensure_project_graph_loaded(&mut self, project: &ResourceId) -> Result {
         let project = self.store.get_project(project).unwrap();
-        let Some(data_root) = project.data_root.as_ref() else {
-            return Err(
-                CoreError::Project(CoreProjectError::misconfigured("data root not set")).into(),
-            );
-        };
-
         if self.store.is_project_graph_loaded(&project.rid) {
             return Ok(());
         }
 
-        let path = project.base_path().join(data_root);
-        let graph: ContainerTree = ContainerTreeLoader::load(&path)?;
+        let graph: ContainerTree = ContainerTreeLoader::load(project.data_root_path())?;
         self.store
             .insert_project_graph_canonical(project.rid.clone(), graph)?;
 

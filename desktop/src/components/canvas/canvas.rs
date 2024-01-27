@@ -11,7 +11,7 @@ use crate::app::{
     ProjectsStateDispatcher, ProjectsStateReducer,
 };
 use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
-use crate::hooks::{use_load_project_scripts, use_project_graph};
+use crate::hooks::{use_load_project_graph, use_load_project_scripts};
 use crate::routes::Route;
 use futures::stream::StreamExt;
 use std::io;
@@ -86,7 +86,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
         use_reducer(|| CanvasState::new(props.project.rid.clone(), show_side_bars.clone()));
 
     use_load_project_scripts(&props.project.rid)?;
-    let (graph, asset_errors) = match use_project_graph(&props.project.rid)? {
+    let (graph, asset_errors) = match use_load_project_graph(&props.project.rid)? {
         Ok(graph) => (graph, None),
         Err(LoadProjectGraph::ProjectNotFound) => {
             return Ok(html! {

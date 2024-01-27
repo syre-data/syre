@@ -1,5 +1,5 @@
 //! Project component with suspense.
-use super::super::container::ContainerTree;
+use super::container::ContainerTree;
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer, GraphStateReducer};
 use thot_core::types::ResourceId;
 use thot_ui::widgets::suspense::Loading;

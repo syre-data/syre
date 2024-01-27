@@ -7,7 +7,7 @@ use crate::server::store::ContainerTree;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::result::Result as StdResult;
-use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;
@@ -168,12 +168,7 @@ impl Database {
             return Err(error::LoadProjectGraph_Local::ProjectNotFound);
         };
 
-        let Some(data_root) = project.data_root.as_ref() else {
-            return Err(ProjectError::misconfigured("data root not set").into());
-        };
-
-        let path = project.base_path().join(data_root);
-        let graph = match ContainerTreeLoader::load(&path) {
+        let graph = match ContainerTreeLoader::load(project.data_root_path()) {
             Ok(graph) => graph,
             Err(PartialLoad { errors, graph }) => {
                 tracing::debug!(?errors);
@@ -223,7 +218,7 @@ impl Database {
         };
 
         // duplicate tree
-        let dup_path = unique_file_name(root.base_path().into())?;
+        let dup_path = unique_file_name(root.base_path())?;
         let mut dup = ContainerTreeDuplicator::duplicate_without_assets_to(&dup_path, graph, rid)?;
         let dup_root = dup.root().clone();
 

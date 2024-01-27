@@ -1,18 +1,22 @@
 //! Commands related to projects.
 use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::state::AppState;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
+use std::{fs, io};
 use tauri::State;
 use thot_core::error::{Error as CoreError, Project as ProjectError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
-use thot_core::types::ResourceId;
+use thot_core::types::{ResourceId, UserPermissions};
 use thot_desktop_lib::error::Analysis as AnalysisError;
-use thot_local::project::project;
+use thot_local::error::{
+    Error as LocalError, IoSerde as IoSerdeError, Project as LocalProjectError,
+};
+use thot_local::project::project as local_project;
 use thot_local::project::resources::Project as LocalProject;
-use thot_local::system::projects as sys_projects;
+use thot_local::system::collections::ProjectManifest;
+use thot_local::system::project_manifest as sys_projects;
 use thot_local::types::ProjectSettings;
 use thot_local_database::client::Client as DbClient;
 use thot_local_database::command::{GraphCommand, ProjectCommand};
@@ -55,28 +59,44 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, Pr
 // *** add project ***
 // *******************
 
-/// Adds an existing [`Project`] to the users vault.
+/// Imports an existing [`Project`].
+/// Adds the active user to it.
 #[tauri::command]
-pub fn add_project(
+pub fn import_project(
     app_state: State<AppState>,
-    db: State<DbClient>,
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {
-    let user = app_state
-        .user
-        .lock()
-        .expect("could not lock app state `User`");
+    let path = fs::canonicalize(path)?;
 
+    let user = app_state.user.lock().unwrap();
     let Some(user) = user.as_ref() else {
         return Err(DesktopSettingsError::NoUser.into());
     };
 
-    let project = db
-        .send(ProjectCommand::Add(path, user.rid.clone()).into())
-        .expect("could not add `Project`");
+    let mut project = match LocalProject::load_from(&path) {
+        Ok(project) => project,
+        Err(err) => match err {
+            IoSerdeError::Io(io::ErrorKind::NotFound) => {
+                return Err(
+                    LocalError::Project(LocalProjectError::PathNotAProjectRoot(path)).into(),
+                )
+            }
+            _ => return Err(err.into()),
+        },
+    };
 
-    let project = serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap();
-    Ok(project?)
+    project.settings_mut().permissions.insert(
+        user.rid.clone(),
+        UserPermissions::with_permissions(true, true, true),
+    );
+
+    project.save()?;
+
+    let mut project_manifest = ProjectManifest::load_or_default()?;
+    project_manifest.insert(project.rid.clone(), path.clone());
+    project_manifest.save()?;
+
+    Ok((project.inner().clone(), project.settings().clone()))
 }
 
 // *******************
@@ -125,7 +145,7 @@ pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -
 /// Initializes a new project.
 #[tauri::command]
 pub fn init_project(path: &Path) -> Result<ResourceId> {
-    let rid = project::init(path)?;
+    let rid = local_project::init(path)?;
 
     // create analysis folder
     let analysis_root = "analysis";
@@ -142,7 +162,8 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 
 #[tauri::command]
 pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
-    thot_local::project::init(path, "data", "analysis")
+    let converter = local_project::converter::Converter::new();
+    converter.convert(path)
 }
 
 // ************************

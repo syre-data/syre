@@ -8,7 +8,7 @@ use std::path::{self, Path, PathBuf};
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::{Asset, ContainerProperties};
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
 // ***************
 // *** Builder ***
@@ -123,7 +123,7 @@ impl InitOptions<InitNew> {
                 let entry = entry.unwrap();
                 let entry_path = entry.path();
                 if entry_path.is_file() {
-                    let asset = Asset::new(ResourcePath::new(entry_path)?);
+                    let asset = Asset::new(entry_path);
                     container.insert_asset(asset);
                 }
             }
@@ -155,7 +155,7 @@ impl InitOptions<InitExisting> {
         self.init.ignore(pattern);
     }
 
-    /// Run the intialization.
+    /// Intialize the path as a `Container` tree.
     ///
     /// # Returns
     /// [`ResourceId`] of the root [`Container`](CoreContainer).
@@ -169,13 +169,17 @@ impl InitOptions<InitExisting> {
     ///  - If `recurse` is `true`, this applies for folders within the subtree, too.
     ///
     /// + `Container` name will be updated to match the folder.
+    /// + Hidden files (i.e. Files whose name starts with a period (.)) are ignored as `Asset`s.
     pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
         /// Initialize a path as a Container.
         /// Used to recurse.
         ///
         /// # Arguments
         /// + `ignore`: Absolute paths to ignore.
-        /// Ignored if `recurse` is `false`.
+        ///     Ignored if `recurse` is `false`.
+        ///
+        /// # Notes
+        /// + Hidden files are ignored as `Asset`s.
         fn init_container(
             path: impl AsRef<Path>,
             init_assets: bool,
@@ -234,12 +238,21 @@ impl InitOptions<InitExisting> {
                         continue;
                     }
 
+                    // ignore hidden files as assets
+                    if let Some(file_name) = file_path.file_name() {
+                        if let Some(file_name) = file_name.to_str() {
+                            if file_name.starts_with(".") {
+                                continue;
+                            }
+                        }
+                    }
+
                     let rel_path = file_path
                         .strip_prefix(&container_path)
                         .unwrap()
                         .to_path_buf();
 
-                    let asset = Asset::new(ResourcePath::new(rel_path)?);
+                    let asset = Asset::new(rel_path);
                     container.insert_asset(asset);
                 }
             }

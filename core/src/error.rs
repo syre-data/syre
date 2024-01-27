@@ -1,5 +1,5 @@
 //! Common error types.
-use crate::types::{ResourceId, ResourcePath};
+use crate::types::ResourceId;
 use std::collections::HashMap;
 use std::convert::From;
 use std::io;
@@ -82,7 +82,7 @@ impl GraphError {
 #[derive(Error, Debug)]
 pub enum AssetError {
     #[error("Asset not registered")]
-    NotRegistered(Option<ResourceId>, Option<ResourcePath>),
+    NotRegistered(Option<ResourceId>, Option<PathBuf>),
 
     #[error("Asset path is not set")]
     PathNotSet,

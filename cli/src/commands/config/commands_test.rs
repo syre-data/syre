@@ -11,7 +11,7 @@ fn set_user_should_work_with_email() {
     let e_id = UserId::Email(email.clone());
     let user = User::new(email.clone(), None);
     let uid = user.rid.clone();
-    users::add_user(user).unwrap();
+    user_manifest::add_user(user).unwrap();
     set_active_user(&e_id).unwrap();
 
     let settings = UserSettings::load().expect("user settings should load");
@@ -30,7 +30,7 @@ fn set_user_should_work_with_id() {
     let uid = UserId::Id(user.rid.clone());
     let uuid = user.rid.clone();
 
-    users::add_user(user).unwrap();
+    user_manifest::add_user(user).unwrap();
     set_active_user(&uid).unwrap();
 
     let settings = UserSettings::load().expect("user settings should load");

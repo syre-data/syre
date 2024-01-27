@@ -1,6 +1,5 @@
 //! Dev utils for database.
 use crate::project::{Asset, Container};
-use crate::types::ResourcePath;
 use fake::faker::filesystem::raw::FilePath;
 use fake::faker::lorem::raw::{Word, Words};
 use fake::locales::EN;
@@ -74,7 +73,6 @@ pub fn mock_asset(name_none: Option<bool>, kind_none: Option<bool>) -> Asset {
 
     let mut path = PathBuf::from(FilePath(EN).fake::<String>());
     path.set_extension("py");
-    let path = ResourcePath::new(path).expect("creating ResourcePath should work");
 
     // props
     let mut asset = Asset::new(path);

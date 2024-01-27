@@ -83,7 +83,7 @@ fn main() {
             get_active_user,
             unset_active_user,
             // project
-            add_project,
+            import_project,
             get_project_path,
             init_project,
             init_project_from,

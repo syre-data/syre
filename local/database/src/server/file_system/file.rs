@@ -4,7 +4,7 @@ use crate::event::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local::graph::ContainerTreeTransformer;
 use thot_local::loader::tree::Loader as ContainerTreeLoader;
 use thot_local::project::container;
@@ -69,7 +69,7 @@ impl Database {
 
     #[tracing::instrument(skip(self))]
     fn handle_file_as_asset(&mut self, asset_path: PathBuf, container: ResourceId) -> Result {
-        let asset = Asset::new(ResourcePath::new(asset_path)?)?;
+        let asset = Asset::new(asset_path)?;
         let aid = asset.rid.clone();
         self.store.add_asset(asset, container.clone())?;
 

@@ -30,8 +30,8 @@ pub async fn load_user_projects(
     invoke_result("load_user_projects", LoadUserProjectsArgs { user }).await
 }
 
-pub async fn add_project(path: PathBuf) -> Result<(Project, ProjectSettings), String> {
-    invoke_result("add_project", PathBufArgs { path }).await
+pub async fn import_project(path: PathBuf) -> Result<(Project, ProjectSettings), String> {
+    invoke_result("import_project", PathBufArgs { path }).await
 }
 
 pub async fn update_project(project: Project) -> DbResult {

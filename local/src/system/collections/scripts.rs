@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thot_core::project::Script as CoreScript;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
 pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 
@@ -30,15 +30,20 @@ impl Scripts {
     }
 
     /// Returns whether a script with the given path is registered.
-    pub fn contains_path(&self, path: &ResourcePath) -> bool {
-        self.by_path(path).len() > 0
+    pub fn contains_path(&self, path: impl AsRef<Path>) -> bool {
+        self.by_path(path).is_some()
     }
 
     /// Gets a script by its path if it is registered.
-    pub fn by_path<'a>(&'a self, path: &ResourcePath) -> HashMap<&'a ResourceId, &'a CoreScript> {
-        self.iter()
-            .filter(|(_rid, script)| &script.path == path)
-            .collect()
+    pub fn by_path<'a>(&'a self, path: impl AsRef<Path>) -> Option<&'a CoreScript> {
+        let path = path.as_ref();
+        self.iter().find_map(|(_rid, script)| {
+            if &script.path == path {
+                Some(script)
+            } else {
+                None
+            }
+        })
     }
 }
 

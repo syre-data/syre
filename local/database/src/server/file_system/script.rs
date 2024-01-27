@@ -4,7 +4,6 @@ use crate::event::{Script as ScriptUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::fs;
-use thot_core::types::ResourcePath;
 use thot_local::error::{Error as LocalError, Project as ProjectError};
 use thot_local::project::project;
 use thot_local::project::resources::Script as LocalScript;
@@ -33,8 +32,7 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let path = ResourcePath::new(script_path.to_path_buf())?;
-                let script = LocalScript::new(path)?;
+                let script = LocalScript::new(script_path)?;
                 self.store.insert_script(pid.clone(), script.clone())?;
 
                 self.publish_update(&Update::Project {
@@ -77,7 +75,6 @@ impl Database {
                     let scripts = self.store.get_project_scripts_mut(&from_project).unwrap();
                     let script = scripts.get_mut(&script).unwrap();
                     let sid = script.rid.clone();
-                    let script_path = ResourcePath::new(script_path.clone())?;
                     script.path = script_path.clone();
                     scripts.save()?;
 

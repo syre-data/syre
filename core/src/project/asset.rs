@@ -1,7 +1,7 @@
 /// Asset.
 use super::{asset_properties::Builder as PropertiesBuilder, AssetProperties, Metadata};
 use crate::db::Resource;
-use crate::types::{Creator, ResourceId, ResourcePath};
+use crate::types::{Creator, ResourceId};
 use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;
@@ -24,11 +24,11 @@ pub struct Asset {
     pub properties: AssetProperties,
 
     /// Path to the `Asset`'s resource file.
-    pub path: ResourcePath,
+    pub path: PathBuf,
 }
 
 impl Asset {
-    pub fn new(path: ResourcePath) -> Asset {
+    pub fn new(path: PathBuf) -> Asset {
         Asset {
             rid: ResourceId::new(),
             properties: AssetProperties::new(),
@@ -46,11 +46,7 @@ impl Asset {
     /// + An `Asset` in its [`Container`](super::Container)'s root
     /// is considered to be in the `root` `bucket`.
     pub fn bucket(&self) -> Option<PathBuf> {
-        let ResourcePath::Relative(path) = self.path.clone() else {
-            return None;
-        };
-
-        path.parent().map(|p| p.to_path_buf())
+        self.path.parent().map(|p| p.to_path_buf())
     }
 }
 
@@ -67,7 +63,7 @@ impl Resource for Asset {}
 // ***************
 
 pub struct NoPath;
-pub struct Path(ResourcePath);
+pub struct Path(PathBuf);
 
 pub struct Builder<P> {
     properties: PropertiesBuilder,
@@ -164,7 +160,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_path(self, value: ResourcePath) -> Builder<Path> {
+    pub fn set_path(self, value: PathBuf) -> Builder<Path> {
         Builder {
             properties: self.properties,
             path: Path(value),

@@ -1,12 +1,14 @@
 use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
+
+use self::init_from::InitFromArgs;
 mod commands;
 
 // **************************
 // *** top level commands ***
 // **************************
-pub mod init;
+pub mod init_from;
 pub mod r#move;
 pub mod new;
 

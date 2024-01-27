@@ -7,7 +7,7 @@ use crate::{common, Error, Result};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use thot_core::project::Asset as CoreAsset;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
 pub struct AssetBuilder {
     /// Path to create an [`Asset`](CoreAsset) from.
@@ -153,7 +153,7 @@ impl AssetBuilder {
     }
 
     /// Calculates the [`ResourcePath`] for the [`Asset`](CoreAsset)'s path.
-    fn resource_path(&self) -> Result<ResourcePath> {
+    fn resource_path(&self) -> Result<PathBuf> {
         let Some(action) = self.action.clone() else {
             return Err(AssetError::BuilderError("action not set".to_string()).into());
         };
@@ -174,7 +174,7 @@ impl AssetBuilder {
             AssetFileAction::Reference => self.path.clone(),
         };
 
-        Ok(ResourcePath::new(path).expect("could not convert `Asset` path to `ResourcePath`"))
+        Ok(path)
     }
 
     /// Initializes an [`Asset`](CoreAsset).
@@ -195,8 +195,7 @@ impl AssetBuilder {
     /// + [`add`](Self::add)
     pub fn init(self) -> Result<ResourceId> {
         // create asset
-        let asset_path = ResourcePath::new(self.path.clone())?;
-        let asset = LocalAsset::new(asset_path)?;
+        let asset = LocalAsset::new(self.path.clone())?;
         let rid = asset.rid.clone();
 
         // insert asset
@@ -317,8 +316,7 @@ pub fn init(path: &Path, container: Option<&Path>) -> Result<ResourceId> {
     };
 
     // create asset
-    let asset_path = ResourcePath::new(PathBuf::from(path))?;
-    let asset = LocalAsset::new(asset_path)?;
+    let asset = LocalAsset::new(path)?;
     let rid = asset.rid.clone();
 
     // insert asset

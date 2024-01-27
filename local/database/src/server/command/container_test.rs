@@ -69,7 +69,7 @@ fn database_command_update_container_name_should_work() {
     let sibling_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
 
     let mut project = LocalProject::new(dir.path().to_path_buf()).unwrap();
-    project.data_root = Some(data_dir.clone());
+    project.data_root = data_dir.clone();
     project.save().unwrap();
 
     let pid = project.rid.clone();

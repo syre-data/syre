@@ -156,11 +156,11 @@ impl Container {
     /// Returns whether or not the association with the script was added.
     ///
     /// # See also
-    /// + `add_script_association`
-    pub fn set_script_association(&mut self, assoc: ScriptAssociation) -> Result<bool> {
+    /// + [`add_script_association`]
+    pub fn set_script_association(&mut self, assoc: ScriptAssociation) -> bool {
         let script = assoc.script.clone();
         let old = self.scripts.insert(script, assoc.into());
-        Ok(old.is_none())
+        old.is_none()
     }
 
     /// Removes as association with the given script.

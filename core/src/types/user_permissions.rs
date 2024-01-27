@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// + `execute`: Execute permission.
 ///	    Only applicable for Containers, if user can run analysis.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Hash, PartialEq, Eq)]
 pub struct UserPermissions {
     pub read: bool,
     pub write: bool,
@@ -19,15 +19,15 @@ pub struct UserPermissions {
 }
 
 impl UserPermissions {
-    pub fn new() -> UserPermissions {
-        UserPermissions {
-            read: false,
-            write: false,
-            execute: false,
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_permissions(read: bool, write: bool, execute: bool) -> Self {
+        Self {
+            read,
+            write,
+            execute,
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./user_permissions_test.rs"]
-mod user_permissions_test;

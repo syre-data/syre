@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 use thot_core::project::{Project, Script, ScriptLang};
 use thot_core::runner::RunnerHooks as CoreRunnerHooks;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_local::system::settings::RunnerSettings;
 use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
@@ -21,46 +21,39 @@ pub fn get_script(rid: &ResourceId) -> Result<Script, String> {
     };
 
     // get absolute path to script
-    match script.path {
-        ResourcePath::Absolute(_) => {
-            todo!();
-        }
+    if script.path.is_relative() {
+        let project = db
+            .send(ScriptCommand::GetProject(script.rid.clone()).into())
+            .expect("could not retrieve `Project`");
 
-        ResourcePath::Relative(path) => {
-            let project = db
-                .send(ScriptCommand::GetProject(script.rid.clone()).into())
-                .expect("could not retrieve `Project`");
+        let project: Option<Project> = serde_json::from_value(project)
+            .expect("could not convert `GetProject` result to `ResourceId`");
 
-            let project: Option<Project> = serde_json::from_value(project)
-                .expect("could not convert `GetProject` result to `ResourceId`");
+        let project = project.expect("`Script`'s `Project` does not exist");
 
-            let project = project.expect("`Script`'s `Project` does not exist");
+        let analysis_root = project
+            .analysis_root
+            .expect("`Project`'s analysis root not set")
+            .clone();
 
-            let analysis_root = project
-                .analysis_root
-                .expect("`Project`'s analysis root not set")
-                .clone();
+        let project_path = db
+            .send(ProjectCommand::GetPath(project.rid.clone()).into())
+            .expect("could not retrieve `Project` path");
 
-            let project_path = db
-                .send(ProjectCommand::GetPath(project.rid.clone()).into())
-                .expect("could not retrieve `Project` path");
+        let project_path: Option<PathBuf> = serde_json::from_value(project_path)
+            .expect("could not convert result of `GetPath` to `PathBuf`");
 
-            let project_path: Option<PathBuf> = serde_json::from_value(project_path)
-                .expect("could not convert result of `GetPath` to `PathBuf`");
+        let project_path = project_path.expect("`Project` not loaded");
 
-            let project_path = project_path.expect("`Project` not loaded");
+        let mut abs_path = project_path;
+        abs_path.push(analysis_root);
+        abs_path.push(script.path);
 
-            let mut abs_path = project_path;
-            abs_path.push(analysis_root);
-            abs_path.push(path);
-
-            let abs_path = ResourcePath::new(abs_path).unwrap();
-            script.path = abs_path;
-        }
-
-        ResourcePath::Root(_path, _level) => {
-            todo!("root paths for `Script`s");
-        }
+        script.path = abs_path;
+    } else if script.path.is_absolute() {
+        todo!();
+    } else {
+        todo!();
     }
 
     // TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.

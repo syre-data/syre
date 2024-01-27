@@ -38,9 +38,9 @@ pub fn app() -> Html {
     let project_manifest_state = use_state(|| Ok(()));
 
     // load user projects
-    use_effect_with(auth_state.clone(), {
+    use_effect_with((*auth_state).clone(), {
         let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
+        let projects_state = projects_state.dispatcher();
         let project_manifest_state = project_manifest_state.setter();
 
         move |auth_state| {

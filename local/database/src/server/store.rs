@@ -13,7 +13,7 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{
     asset, Asset, Container as CoreContainer, Metadata, Script as CoreScript,
 };
-use thot_core::types::{ResourceId, ResourceMap, ResourcePath};
+use thot_core::types::{ResourceId, ResourceMap};
 use thot_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
 };
@@ -686,7 +686,7 @@ impl Datastore {
             }
 
             let path = fs::canonicalize(container_path.join(asset.path.as_path())).unwrap();
-            asset.path = ResourcePath::new(path).expect("could not set absolute path");
+            asset.path = path;
         }
 
         Some(container)
@@ -786,7 +786,7 @@ impl Datastore {
                     }
 
                     let path = root.base_path().join(asset.path.as_path());
-                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+                    asset.path = path;
                 }
 
                 found.insert(container);
@@ -1018,9 +1018,9 @@ impl Datastore {
         let container_path = container.base_path().to_path_buf();
         let asset = container.assets.get_mut(asset).unwrap();
         let aid = asset.rid.clone();
-        let asset_path = asset.path.as_path().to_owned();
+        let asset_path = asset.path.clone();
 
-        asset.path = ResourcePath::new(path.clone())?;
+        asset.path = path.clone();
         container.save()?;
 
         let old_asset_path = container_path.join(&asset_path);
@@ -1096,8 +1096,8 @@ impl Datastore {
                 if filter.matches(asset) {
                     // set path to absolute
                     let mut asset = asset.clone();
-                    let path = container.base_path().join(asset.path.as_path());
-                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+                    let path = container.base_path().join(&asset.path);
+                    asset.path = path;
 
                     found.insert(asset);
                 }
@@ -1157,8 +1157,8 @@ impl Datastore {
 
                 if filter.matches(&asset) {
                     // set path to absolute
-                    let path = root.base_path().join(asset.path.as_path());
-                    asset.path = ResourcePath::new(path).expect("could not set absolute path");
+                    let path = root.base_path().join(&asset.path);
+                    asset.path = path;
 
                     found.insert(asset);
                 }

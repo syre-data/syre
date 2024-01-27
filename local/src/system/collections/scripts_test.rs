@@ -1,15 +1,14 @@
 use super::*;
-use dev_utils::path::resource_path::resource_path;
 use thot_core::project::Script as CoreScript;
 
 #[test]
 fn scripts_contains_path_should_work() {
     // setup
-    let path = resource_path(Some("py"));
-    let script = CoreScript::new(path.clone()).expect("creating script should work");
+    let path = PathBuf::from("script.py");
+    let script = CoreScript::new(path.clone()).unwrap();
     let rid = script.rid.clone();
 
-    let mut scripts = Scripts::load().expect("could not load `Scripts`");
+    let mut scripts = Scripts::load().unwrap();
     scripts.insert(rid.clone(), script);
 
     // test
@@ -20,7 +19,7 @@ fn scripts_contains_path_should_work() {
 
     assert_eq!(
         false,
-        scripts.contains_path(&resource_path(Some("py"))),
+        scripts.contains_path("another_script.py"),
         "scripts should not contain random path"
     );
 
@@ -34,22 +33,19 @@ fn scripts_contains_path_should_work() {
 #[test]
 fn scripts_by_path_should_work() {
     // setup
-    let path = resource_path(Some("py"));
-    let script = CoreScript::new(path.clone()).expect("creating script should work");
+    let path = PathBuf::from("script.py");
+    let script = CoreScript::new(path.clone()).unwrap();
     let rid = script.rid.clone();
 
-    let mut scripts = Scripts::load().expect("could not load `Scripts`");
+    let mut scripts = Scripts::load().unwrap();
     scripts.insert(script.rid.clone(), script);
 
     // test
     // inserted script
-    let found = scripts.by_path(&path);
-    assert_eq!(1, found.len(), "script should be found");
-
-    let found = found.get(&rid).expect("could not unwrap found `Script`");
-    assert_eq!(&rid, &found.rid, "found script should be correct");
+    let found = scripts.by_path(&path).unwrap();
+    assert_eq!(&rid, &found.rid);
 
     // not inserted script
-    let rand = scripts.by_path(&resource_path(Some("py")));
-    assert_eq!(0, rand.len(), "script should not be found");
+    let rand = scripts.by_path("another_script.py");
+    assert!(rand.is_none());
 }

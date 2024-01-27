@@ -18,8 +18,8 @@ use yew_router::prelude::*;
 #[tracing::instrument]
 #[function_component(HomeComponent)]
 pub fn home_component() -> HtmlResult {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let navigator = use_navigator().expect("navigator not found");
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let navigator = use_navigator().unwrap();
     let user = use_user();
 
     let Some(user) = user.as_ref() else {
@@ -31,46 +31,46 @@ pub fn home_component() -> HtmlResult {
     };
 
     let projects = use_user_projects(&user.rid);
-    let create_project = {
-        let app_state = app_state.clone();
-        Callback::from(move |_: MouseEvent| {
+    let create_project = use_callback((), {
+        let app_state = app_state.dispatcher();
+        move |_: MouseEvent, _| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::CreateProject,
             )));
-        })
-    };
+        }
+    });
 
-    let initialize_project = {
-        let app_state = app_state.clone();
-        Callback::from(move |_: MouseEvent| {
+    let initialize_project = use_callback((), {
+        let app_state = app_state.dispatcher();
+        move |_: MouseEvent, _| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::InitializeProject,
             )));
-        })
-    };
+        }
+    });
 
-    let import_project = {
-        let app_state = app_state.clone();
-        Callback::from(move |_: MouseEvent| {
+    let import_project = use_callback((), {
+        let app_state = app_state.dispatcher();
+        move |_: MouseEvent, _| {
             app_state.dispatch(AppStateAction::SetActiveWidget(Some(
                 AppWidget::ImportProject,
             )));
-        })
-    };
+        }
+    });
 
     Ok(html! {
         <div>
             if projects.len() == 0 {
-                <div class={classes!("align-center")}>
+                <div class={"align-center"}>
                     <h2>{ "Get started" }</h2>
-                    <div class={classes!("mb-1rem")}>
-                        <button class={classes!("btn-primary")} onclick={create_project}>{ "Create your first project" }</button>
+                    <div class={"mb-1rem"}>
+                        <button class={"btn-primary"} onclick={create_project}>{ "Create your first project" }</button>
                     </div>
-                    <div class={classes!("mb-1rem")}>
-                        <button class={classes!("btn-secondary")} onclick={initialize_project}>{ "Initialize an existing folder" }</button>
+                    <div class={"mb-1rem"}>
+                        <button class={"btn-secondary"} onclick={initialize_project}>{ "Initialize an existing folder" }</button>
                     </div>
                     <div>
-                    <button class={classes!("btn-secondary")} onclick={import_project}>{ "Import a project" }</button>
+                    <button class={"btn-secondary"} onclick={import_project}>{ "Import a project" }</button>
                 </div>
 
                 </div>
@@ -88,8 +88,8 @@ pub fn home_component() -> HtmlResult {
 // Wrapper for [`HomeComponent`] to handle suspense.
 #[function_component(Home)]
 pub fn home() -> Html {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let navigator = use_navigator().expect("navigator not found");
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let navigator = use_navigator().unwrap();
     let user = use_user();
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);

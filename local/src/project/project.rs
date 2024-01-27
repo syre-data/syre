@@ -1,11 +1,10 @@
 //! Functionality and resources related to projects.
 use super::resources::{Project, Scripts};
 use crate::common;
-use crate::error::{Error, IoSerde as IoSerdeError, Project as ProjectError, Result};
-use crate::system::collections::Projects;
-use crate::system::projects;
+use crate::error::{Error, Project as ProjectError, Result};
+use crate::system::collections::ProjectManifest;
+use crate::system::project_manifest;
 use std::path::{Path, PathBuf};
-use std::result::Result as StdResult;
 use std::{fs, io};
 use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
 use thot_core::project::Project as CoreProject;
@@ -50,15 +49,17 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     let scripts = Scripts::new(path.into());
     scripts.save()?;
 
-    projects::register_project(project.rid.clone(), project.base_path().into())?;
+    project_manifest::register_project(project.rid.clone(), project.base_path().into())?;
     Ok(project.rid.clone().into())
 }
 
 /// Creates a new Thot project.
-/// Errors if the folder already exists.
+///
+/// # Errors
+/// + If the folder already exists.
 ///
 /// # See also
-/// + `init`
+/// + [`init`]
 pub fn new(root: &Path) -> Result<ResourceId> {
     if root.exists() {
         return Err(io::Error::new(io::ErrorKind::IsADirectory, "folder already exists").into());
@@ -70,7 +71,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 
 /// Move project to a new location.
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
-    let mut projects = Projects::load()?;
+    let mut projects = ProjectManifest::load()?;
     let Some(project) = projects.get_mut(rid) else {
         return Err(CoreError::ResourceError(ResourceError::does_not_exist(
             "`Project` is not registered",
@@ -175,7 +176,237 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
         Err(err) => return Err(err),
     };
 
-    projects::get_id(root.as_path())
+    project_manifest::get_id(root.as_path())
+}
+pub mod converter {
+    use super::super::container;
+    use super::super::resources::{Project, Scripts};
+    use crate::common;
+    use crate::error::{Error, Project as ProjectError, Result};
+    use crate::loader::container::Loader as ContainerLoader;
+    use crate::system::project_manifest;
+    use crate::system::settings;
+    use std::collections::HashMap;
+    use std::path::{Component, Path, PathBuf};
+    use std::{fs, io};
+    use thot_core::project::{script, Script, ScriptAssociation, ScriptLang};
+    use thot_core::types::{Creator, ResourceId, UserId, UserPermissions};
+
+    pub struct Converter {
+        data_root: PathBuf,
+        analysis_root: Option<PathBuf>,
+    }
+
+    impl Converter {
+        /// Creates a new converter.
+        ///
+        /// # Notes
+        /// + `data_root` defaults to `data`.
+        /// + `analysis_root` defaults to `analysis`.
+        pub fn new() -> Self {
+            Self {
+                data_root: PathBuf::from("data"),
+                analysis_root: Some(PathBuf::from("analysis")),
+            }
+        }
+
+        pub fn set_data_root(&mut self, path: impl Into<PathBuf>) -> io::Result<()> {
+            let path = path.into();
+            Self::check_path(&path)?;
+            if let Some(analysis_root) = self.analysis_root.as_ref() {
+                if path.starts_with(analysis_root) || analysis_root.starts_with(&path) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidFilename,
+                        "`data_root` and `analysis_root` must be distinct",
+                    ));
+                }
+            }
+
+            self.data_root = path;
+            Ok(())
+        }
+
+        /// Indicates analysis scripts should be moved into the given folder and processed.
+        pub fn with_scripts(&mut self, path: impl Into<PathBuf>) -> io::Result<()> {
+            let path = path.into();
+            Self::check_path(&path)?;
+            if path.starts_with(&self.data_root) || self.data_root.starts_with(&path) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidFilename,
+                    "`data_root` and `analysis_root` must be distinct",
+                ));
+            }
+
+            self.analysis_root = Some(path);
+            Ok(())
+        }
+
+        /// Do not initialize analysis scripts.
+        pub fn without_scripts(&mut self) {
+            self.analysis_root = None;
+        }
+
+        /// Converts an existing folder of data and scripts into a project.
+        /// Registers the project in the project manifest.
+        ///
+        /// # Errors
+        /// + If the path is already a `Project`.
+        pub fn convert(&self, root: impl AsRef<Path>) -> Result<ResourceId> {
+            let root = fs::canonicalize(root.as_ref())?;
+
+            // create and register project
+            let pid = match super::project_id(&root)? {
+                Some(_id) => return Err(ProjectError::DuplicatePath(root).into()),
+                None => match super::init(root.as_path()) {
+                    Ok(rid) => {
+                        let mut project = Project::load_from(root.as_path())?;
+                        project.data_root = self.data_root.clone();
+                        project.analysis_root = self.analysis_root.clone();
+
+                        if let Ok(settings) = settings::UserSettings::load() {
+                            let user = settings.active_user.clone().map(|user| UserId::Id(user));
+                            project.creator = Creator::User(user);
+
+                            if let Some(user) = settings.active_user.as_ref() {
+                                project.settings_mut().permissions.insert(
+                                    user.clone(),
+                                    UserPermissions::with_permissions(true, true, true),
+                                );
+                            }
+                        }
+
+                        project.save()?;
+                        rid
+                    }
+
+                    Err(Error::Project(ProjectError::PathNotRegistered(_path))) => {
+                        let project = Project::load_from(&root)?;
+                        project_manifest::register_project(project.rid.clone(), root.clone())?;
+                        project.rid.clone()
+                    }
+
+                    Err(err) => return Err(err),
+                },
+            };
+
+            // create data and analysis roots
+            // move contents into data root
+            let tmp_dir = common::unique_file_name(root.join("__tmp__"))?;
+            fs::create_dir(&tmp_dir)?;
+            for entry in fs::read_dir(&root)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path == tmp_dir || path == common::thot_dir_of(&root) {
+                    continue;
+                }
+
+                let rel_path = path.strip_prefix(&root).unwrap();
+                fs::rename(entry.path(), tmp_dir.join(rel_path))?;
+            }
+
+            let data_root = root.join(&self.data_root);
+            fs::rename(tmp_dir, &data_root)?;
+
+            if let Some(analysis_root) = self.analysis_root.as_ref() {
+                // performed before intializing graph so scripts don't get registered as assets
+                let analysis_root = root.join(analysis_root);
+                fs::create_dir_all(&analysis_root)?;
+
+                // move scripts
+                #[cfg(target_os = "windows")]
+                let data_root = common::strip_windows_unc(&data_root);
+
+                let mut ext_pattern = data_root.join("**").join("*");
+                let mut match_options = glob::MatchOptions::new();
+                match_options.case_sensitive = false;
+
+                let mut script_paths = Vec::new();
+                for lang_ext in ScriptLang::supported_extensions() {
+                    ext_pattern.set_extension(lang_ext);
+
+                    for entry in
+                        glob::glob_with(ext_pattern.to_str().unwrap(), match_options).unwrap()
+                    {
+                        let script_path = match entry {
+                            Ok(path) => path,
+                            Err(err) => return Err(err.into_error().into()),
+                        };
+
+                        let rel_path = script_path.strip_prefix(&data_root).unwrap().to_path_buf();
+                        let to = analysis_root.join(&rel_path);
+                        fs::create_dir_all(to.parent().unwrap())?;
+                        fs::rename(script_path, to)?;
+                        script_paths.push(rel_path);
+                    }
+                }
+
+                // initialize scripts
+                let mut scripts = Scripts::load_from(&root)?;
+                for script_path in script_paths {
+                    let Ok(script) = Script::new(script_path) else {
+                        continue;
+                    };
+
+                    scripts.insert_script(script)?;
+                }
+
+                scripts.save()?;
+            }
+
+            // initialize container graph
+            let mut builder = container::InitOptions::init();
+            builder.recurse(true);
+            builder.with_assets();
+            builder.build(&data_root)?;
+
+            if self.analysis_root.is_some() {
+                // assign scripts
+                let scripts = Scripts::load_from(&root)?;
+                let mut container_scripts = HashMap::new();
+                for script in scripts.values() {
+                    let entry = container_scripts
+                        .entry(script.path.parent().unwrap())
+                        .or_insert(Vec::new());
+
+                    entry.push(script.rid.clone());
+                }
+
+                for (container, scripts) in container_scripts {
+                    let container = data_root.join(container);
+                    let Ok(mut container) = ContainerLoader::load(container) else {
+                        continue;
+                    };
+
+                    for script in scripts {
+                        container.set_script_association(ScriptAssociation::new(script));
+                    }
+
+                    container.save()?;
+                }
+            }
+
+            Ok(pid)
+        }
+
+        fn check_path(path: impl AsRef<Path>) -> io::Result<()> {
+            let path = path.as_ref();
+            if !path.is_relative() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidFilename,
+                    "path must be relative",
+                ));
+            }
+
+            if path.components().any(|comp| comp == Component::ParentDir) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidFilename,
+                    "path may not contain parent directory references (i.e. `..`)",
+                ));
+            }
+
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]

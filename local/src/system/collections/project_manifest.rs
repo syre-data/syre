@@ -1,23 +1,22 @@
-//! User collection.
+//! Projects collection.
 use crate::error::IoSerde;
 use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::system::User;
-use thot_core::types::ResourceId;
+use thot_core::types::ResourceMap;
 
-pub type UserMap = HashMap<ResourceId, User>;
+/// Map from a `Project`'s id to its path.
+pub type ProjectMap = ResourceMap<PathBuf>;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 #[serde(transparent)]
-pub struct Users(UserMap);
+pub struct ProjectManifest(ProjectMap);
 
-impl Users {
+impl ProjectManifest {
     pub fn load() -> Result<Self, IoSerde> {
         let file = fs::File::open(Self::path())?;
         let reader = BufReader::new(file);
@@ -31,7 +30,8 @@ impl Users {
                 Ok(serde_json::from_reader(reader)?)
             }
 
-            Err(_) => Ok(Self::default()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -41,24 +41,24 @@ impl Users {
     }
 }
 
-impl Deref for Users {
-    type Target = UserMap;
+impl Deref for ProjectManifest {
+    type Target = ProjectMap;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for Users {
+impl DerefMut for ProjectManifest {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl SystemResource<UserMap> for Users {
+impl SystemResource<ProjectMap> for ProjectManifest {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
         let settings_dir = config_dir_path().expect("could not get settings directory");
-        settings_dir.join("users.json")
+        settings_dir.join("projects.json")
     }
 }

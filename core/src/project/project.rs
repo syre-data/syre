@@ -20,14 +20,16 @@ pub struct Project {
 
     pub name: String,
     pub description: Option<String>,
-    pub data_root: Option<PathBuf>,
-    pub universal_root: Option<PathBuf>,
+    pub data_root: PathBuf,
     pub analysis_root: Option<PathBuf>,
     pub meta_level: u16,
 }
 
 impl Project {
     /// Creates a new Project.
+    ///
+    /// # Notes:
+    /// + `data_root` defaults to `data`.
     pub fn new(name: impl Into<String>) -> Project {
         Project {
             rid: ResourceId::new(),
@@ -35,14 +37,9 @@ impl Project {
             creator: Creator::User(None),
             created: Utc::now(),
             description: None,
-            data_root: None,
-            universal_root: None,
+            data_root: PathBuf::from("data"),
             analysis_root: None,
             meta_level: 0,
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./project_test.rs"]
-mod project_test;

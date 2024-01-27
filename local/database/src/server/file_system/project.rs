@@ -4,7 +4,7 @@ use crate::event::{Project as ProjectUpdate, Update};
 use crate::server::types::ProjectResources;
 use crate::server::Database;
 use crate::{Error, Result};
-use thot_local::system::collections::projects::Projects;
+use thot_local::system::collections::project_manifest::ProjectManifest;
 
 impl Database {
     pub fn handle_thot_event_project(&mut self, event: &ProjectEvent) -> Result {
@@ -12,7 +12,7 @@ impl Database {
             ProjectEvent::Moved { project, path } => {
                 match self.store.update_project_path(&project, path.clone()) {
                     Ok(from) => {
-                        let mut project_manifest = match Projects::load() {
+                        let mut project_manifest = match ProjectManifest::load() {
                             Ok(project_manifest) => project_manifest,
                             Err(err) => {
                                 return Err(Error::Database(format!(
@@ -46,7 +46,7 @@ impl Database {
             ProjectEvent::Removed(project) => {
                 let ProjectResources { project, graph: _ } = self.store.remove_project(&project);
                 if let Some(project) = project {
-                    let mut project_manifest = match Projects::load() {
+                    let mut project_manifest = match ProjectManifest::load() {
                         Ok(project_manifest) => project_manifest,
                         Err(err) => {
                             return Err(Error::Database(format!(

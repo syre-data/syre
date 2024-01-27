@@ -2,14 +2,15 @@
 use crate::constants::*;
 use crate::{Error, Result};
 use regex::Regex;
-use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{Component, Path, PathBuf, Prefix, MAIN_SEPARATOR};
 use std::{fs, io};
 
 /// Creates a unique file name.
-pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
-    match fs::canonicalize(&path) {
-        Ok(canon_path) if path != canon_path => return Ok(path),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(path),
+pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
+    let path = path.as_ref();
+    match fs::canonicalize(path) {
+        Ok(canon_path) if path != canon_path => return Ok(path.to_path_buf()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(path.to_path_buf()),
         Err(err) => return Err(err.into()),
         _ => {}
     }
@@ -84,7 +85,7 @@ pub fn unique_file_name(path: PathBuf) -> Result<PathBuf> {
     };
     file_name.push_str(ext);
 
-    let mut unique_path = path.clone();
+    let mut unique_path = path.to_path_buf();
     unique_path.set_file_name(file_name);
     Ok(unique_path)
 }
@@ -132,6 +133,21 @@ pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
         p.push_str(path.to_str().unwrap());
         PathBuf::from(p)
     }
+}
+
+/// Strip the UNC prefix from a Windows path.
+/// If the UNC prefix is not present, the path is returned as is.
+pub fn strip_windows_unc(path: impl AsRef<Path>) -> PathBuf {
+    path.as_ref()
+        .components()
+        .filter(|component| match component {
+            Component::Prefix(prefix) => match prefix.kind() {
+                Prefix::Disk(_) => true,
+                _ => false,
+            },
+            _ => true,
+        })
+        .fold(PathBuf::new(), |path, component| path.join(component))
 }
 
 // ******************

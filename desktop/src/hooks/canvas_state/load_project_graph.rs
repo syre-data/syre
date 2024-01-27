@@ -13,35 +13,33 @@ type ContainerTree = ResourceTree<Container>;
 /// Gets a `Project`'s graph.
 #[tracing::instrument]
 #[hook]
-pub fn use_project_graph(
+pub fn use_load_project_graph(
     project: &ResourceId,
 ) -> SuspensionResult<Result<ContainerTree, LoadProjectGraph>> {
     let graph: UseStateHandle<Option<Result<ContainerTree, LoadProjectGraph>>> = use_state(|| None);
     if let Some(graph) = graph.as_ref() {
         match graph {
             Ok(graph) => return Ok(Ok(graph.clone())),
-            Err(err) => {
-                return Ok(Err(err.clone()));
-            }
+            Err(err) => return Ok(Err(err.clone())),
         }
     }
 
     let (s, handle) = Suspension::new();
     {
+        let graph = graph.setter();
         let project = project.clone();
-        let graph = graph.clone();
-
         spawn_local(async move {
-            match get_or_load_project_graph(project).await {
+            match get_or_load_project_graph(project.clone()).await {
                 Ok(project_graph) => {
                     graph.set(Some(Ok(project_graph)));
-                    handle.resume();
                 }
 
                 Err(err) => {
                     graph.set(Some(Err(err)));
                 }
-            };
+            }
+
+            handle.resume();
         });
     }
 

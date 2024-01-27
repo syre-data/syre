@@ -8,9 +8,7 @@ use yew::prelude::*;
 /// Retrieve a user's projects.
 #[hook]
 pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<Project>> {
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
-
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let user_projects: UseStateHandle<Vec<Project>> = use_state(|| {
         filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
             .clone()

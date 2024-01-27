@@ -8,7 +8,7 @@ use thot_core::graph::ResourceTree;
 use thot_core::project::{
     Container as CoreContainer, ContainerProperties, Project as CoreProject, Script as CoreScript,
 };
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 
 // **************
 // *** Update ***
@@ -126,14 +126,14 @@ pub enum Asset {
     /// The `Asset`'s path property changed.
     PathChanged {
         asset: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 
     /// An Asset moved `Container`s.
     Moved {
         asset: ResourceId,
         container: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 
     Removed(ResourceId),
@@ -155,7 +155,7 @@ pub enum Script {
     /// + The `Script` remains in the same project.
     Moved {
         script: ResourceId,
-        path: ResourcePath,
+        path: PathBuf,
     },
 }
 

@@ -7,7 +7,7 @@ fn main() {
     let res = match cli.command {
         // top level commands
         Command::New(args) => project::new::main(args, cli.verbose),
-        Command::Init(args) => project::init::main(args, cli.verbose),
+        Command::Init(args) => project::init_from::main(args, cli.verbose),
         Command::Move(args) => project::r#move::main(args, cli.verbose),
         Command::Run(args) => run::main(args, cli.verbose),
         Command::Check(args) => check::main(args, cli.verbose),
@@ -40,7 +40,7 @@ struct Cli {
 enum Command {
     // top level commands
     New(project::new::NewArgs),
-    Init(project::init::InitArgs),
+    Init(project::init_from::InitFromArgs),
     Run(run::RunArgs),
     Move(project::r#move::MoveArgs),
     Check(check::CheckArgs),

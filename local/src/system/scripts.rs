@@ -4,7 +4,7 @@ use crate::Result;
 use std::path::Path;
 use std::{fs, io};
 use thot_core::project::Script;
-use thot_core::types::{ResourceId, ResourcePath};
+use thot_core::types::ResourceId;
 use thot_core::Error as CoreError;
 use uuid::Uuid;
 
@@ -24,7 +24,7 @@ pub fn make_script(file: &Path) -> Result<ResourceId> {
         );
     }
 
-    let abs_path = ResourcePath::new(fs::canonicalize(file)?)?;
+    let abs_path = fs::canonicalize(file)?;
     let script = match Script::new(abs_path) {
         Ok(script) => script,
         Err(err) => return Err(CoreError::ScriptError(err).into()),

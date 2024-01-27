@@ -1,6 +1,5 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use dev_utils::path::resource_path::resource_path;
 use std::fs;
 use thot_core::db::StandardSearchFilter as StdFilter;
 use thot_core::types::ResourceId;
@@ -58,18 +57,18 @@ fn update_project_path_should_work() {
     fs::write(&child_asset, "").unwrap();
 
     let mut project = LocalProject::new(dir.path().join(prj)).unwrap();
-    project.data_root = Some(root.clone());
+    project.data_root = root.clone();
     project.save().unwrap();
     let pid = project.rid.clone();
     let project_path = project.base_path().to_path_buf();
 
-    let mut root = LocalContainer::new(project.data_root_path().unwrap());
-    let asset = LocalAsset::new(ResourcePath::new("asset").unwrap()).unwrap();
+    let mut root = LocalContainer::new(project.data_root_path());
+    let asset = LocalAsset::new("asset").unwrap();
     root.insert_asset(asset);
     root.save().unwrap();
 
     let mut child = LocalContainer::new(root.base_path().join(child));
-    let asset = LocalAsset::new(ResourcePath::new("asset").unwrap()).unwrap();
+    let asset = LocalAsset::new("asset").unwrap();
     child.insert_asset(asset);
     child.save().unwrap();
 
@@ -116,8 +115,8 @@ fn insert_project_graph_should_work() {
     let mut root = ContainerLoader::load(dir.path()).unwrap();
     let mut child = ContainerLoader::load(&child_dir).unwrap();
 
-    let a0 = LocalAsset::new(resource_path(Some("py"))).unwrap();
-    let a1 = LocalAsset::new(resource_path(Some("py"))).unwrap();
+    let a0 = LocalAsset::new("asset").unwrap();
+    let a1 = LocalAsset::new("asset").unwrap();
 
     let c_root_rid = root.rid.clone();
     let c_child_rid = child.rid.clone();
@@ -194,7 +193,7 @@ fn get_asset_container_should_work() {
     let mut container = LocalContainer::new(dir.path());
     let cid = container.rid.clone();
 
-    let asset = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
+    let asset = LocalAsset::new("asset").unwrap();
     let aid = asset.rid.clone();
 
     container.insert_asset(asset);
@@ -309,8 +308,8 @@ fn find_assets_should_work() {
     let mut root = LocalContainer::new(_dir.path());
     let mut child = LocalContainer::new(&child_dir);
 
-    let mut a0 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
-    let mut a1 = LocalAsset::new(resource_path(Some("py"))).expect("new `Asset` should work");
+    let mut a0 = LocalAsset::new("asset").unwrap();
+    let mut a1 = LocalAsset::new("asset").unwrap();
     let find_kind = Some("find".to_string());
 
     let a0_name = Some("A0".to_string());
@@ -413,7 +412,7 @@ fn remove_project_script_should_work() {
     let pid = ResourceId::new();
 
     let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
-    let script = CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
+    let script = CoreScript::new("script.py").unwrap();
     let sid = script.rid.clone();
 
     scripts
@@ -421,8 +420,7 @@ fn remove_project_script_should_work() {
         .expect("could not insert `Script`");
 
     // add other script that is not to be removed
-    let other_script =
-        CoreScript::new(resource_path(Some("py"))).expect("could not create `Script`");
+    let other_script = CoreScript::new("other_script.py").unwrap();
     let other_sid = other_script.rid.clone();
 
     scripts

@@ -1,5 +1,4 @@
 use super::*;
-use crate::project::resources::Container;
 use crate::project::{container, project};
 use crate::system::scripts;
 use dev_utils::fs::TempDir;
@@ -7,20 +6,15 @@ use dev_utils::fs::TempDir;
 #[test]
 fn add_association_should_work() {
     // setup
-    let mut _dir = init_project().expect("setup should work");
+    let mut _dir = init_project().unwrap();
     let builder = container::InitOptions::init();
-    let _cid = builder
-        .build(_dir.path())
-        .expect("init as container should work");
-    let s_path = _dir
-        .mkfile_with_extension("py")
-        .expect("mkfile should work");
-
-    let sid = scripts::make_script(&s_path).expect("could not register script");
+    let _cid = builder.build(_dir.path()).unwrap();
+    let s_path = _dir.mkfile_with_extension("py").unwrap();
+    let sid = scripts::make_script(&s_path).unwrap();
 
     // test
-    let _rid = add_association(&sid, _dir.path()).expect("add association should work");
-    let container = ContainerLoader::load(_dir.path()).expect("load container should work");
+    let _rid = add_association(&sid, _dir.path()).unwrap();
+    let container = ContainerLoader::load(_dir.path()).unwrap();
     assert_eq!(
         1,
         container.scripts.len(),
@@ -32,12 +26,9 @@ fn add_association_should_work() {
 #[should_panic(expected = "PathNotAContainer")]
 fn add_association_outside_container_should_error() {
     // setup
-    let mut _dir = init_project().expect("setup should work");
-    let s_path = _dir
-        .mkfile_with_extension("py")
-        .expect("could not create file");
-
-    let sid = scripts::make_script(&s_path).expect("could not register script");
+    let mut _dir = init_project().unwrap();
+    let s_path = _dir.mkfile_with_extension("py").unwrap();
+    let sid = scripts::make_script(&s_path).unwrap();
 
     // test
     add_association(&sid, _dir.path()).unwrap();
@@ -49,8 +40,8 @@ fn add_association_outside_container_should_error() {
 
 /// Initialize a project in a new temporary directory.
 fn init_project() -> Result<TempDir> {
-    let _dir = TempDir::new().expect("temp dir should work");
-    project::init(_dir.path()).expect("init project should work");
+    let _dir = TempDir::new().unwrap();
+    project::init(_dir.path()).unwrap();
 
     Ok(_dir)
 }

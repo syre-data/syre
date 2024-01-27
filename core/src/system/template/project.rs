@@ -18,8 +18,7 @@ use std::path::PathBuf;
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProjectInfo {
     pub description: Option<String>,
-    pub data_root: Option<PathBuf>,
-    pub universal_root: Option<PathBuf>,
+    pub data_root: PathBuf,
     pub analysis_root: Option<PathBuf>,
 }
 
@@ -34,7 +33,6 @@ impl From<PrjProject> for ProjectInfo {
         Self {
             description: project.description,
             data_root: project.data_root,
-            universal_root: project.universal_root,
             analysis_root: project.analysis_root,
         }
     }

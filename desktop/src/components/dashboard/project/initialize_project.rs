@@ -12,31 +12,17 @@ use yew_router::prelude::*;
 
 #[function_component(InitializeProject)]
 pub fn initialize_project() -> Html {
-    let navigator = use_navigator().expect("navigator not found");
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+    let navigator = use_navigator().unwrap();
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
 
-    let user = use_user();
-    let Some(user) = user.as_ref() else {
-        navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-            "Could not get user.",
-        )));
-        return html! {};
-    };
+    let onsuccess = use_callback((), {
+        let app_state = app_state.dispatcher();
+        let projects_state = projects_state.dispatcher();
 
-    let onsuccess = {
-        let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
-        let navigator = navigator.clone();
-        let user = user.rid.clone();
-
-        Callback::from(move |path: PathBuf| {
+        move |path: PathBuf, _| {
             let app_state = app_state.clone();
             let projects_state = projects_state.clone();
-            let navigator = navigator.clone();
-            let user = user.clone();
 
             app_state.dispatch(AppStateAction::SetActiveWidget(None)); // close self
             spawn_local(async move {
@@ -61,15 +47,10 @@ pub fn initialize_project() -> Html {
                 };
 
                 // update ui
-                let rid = project.rid.clone();
                 projects_state.dispatch(ProjectsStateAction::InsertProject((project, settings)));
-                projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
-                projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid));
-
-                navigator.push(&Route::Workspace);
             });
-        })
-    };
+        }
+    });
 
     let oncancel = {
         let app_state = app_state.clone();

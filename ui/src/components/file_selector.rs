@@ -34,12 +34,15 @@ pub struct FileSelectorProps {
     pub show_cancel: bool,
 
     /// Called if the selection is canceled.
-    /// Only relevant if `show_cancel` or `select_on_open` are `true.
+    /// Only relevant if `show_cancel` or `select_on_open` are `true`.
     #[prop_or_default]
     pub oncancel: Callback<()>,
 
     #[prop_or_default]
     pub onsuccess: Callback<PathBuf>,
+
+    #[prop_or_default]
+    pub onerror: Callback<String>,
 }
 
 /// Allow the user to select a file
@@ -47,78 +50,91 @@ pub struct FileSelectorProps {
 pub fn file_selector(props: &FileSelectorProps) -> Html {
     let path: UseStateHandle<Option<PathBuf>> = use_state(|| None);
 
-    let onsubmit = {
-        let onsuccess = props.onsuccess.clone();
-        let path = path.clone();
-
-        Callback::from(move |_: MouseEvent| {
+    let onsubmit = use_callback(
+        (props.onsuccess.clone(), path.clone()),
+        move |_: MouseEvent, (onsuccess, path)| {
             let Some(path) = path.as_ref() else {
-                // path not set, but should be.
                 return;
             };
 
             onsuccess.emit(path.clone());
-        })
-    };
+        },
+    );
 
-    let onchange = {
-        let title = props.title.clone();
-        let action = props.action.clone();
-        let default_path = props.default_path.clone();
-        let path = path.clone();
+    let onchange = use_callback(
+        (
+            props.title.clone(),
+            props.action.clone(),
+            path.clone(),
+            props.default_path.clone(),
+            props.onerror.clone(),
+        ),
+        {
+            move |_: MouseEvent, (title, action, path, default_path, onerror)| {
+                let title = title.clone();
+                let action = action.clone();
+                let default_path = path.as_ref().cloned().or_else(|| default_path.clone());
+                let path = path.setter();
+                let onerror = onerror.clone();
 
-        Callback::from(move |_: MouseEvent| {
-            let title = title.clone();
-            let action = action.clone();
-            let path = path.clone();
-            let default_path = (*path).clone().or_else(|| default_path.clone());
-
-            spawn_local(async move {
-                let user_path = get_user_path(title.as_str(), action, default_path).await;
-                if user_path.is_some() {
-                    path.set(user_path);
-                }
-            });
-        })
-    };
-
-    let oncancel = {
-        let oncancel = props.oncancel.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            oncancel.emit(());
-        })
-    };
-
-    // get initial location
-    {
-        let title = props.title.clone();
-        let action = props.action.clone();
-        let default_path = props.default_path.clone();
-        let select_on_open = props.select_on_open.clone();
-        let oncancel = props.oncancel.clone();
-        let path = path.clone();
-
-        use_effect_with((), move |_| {
-            if select_on_open {
                 spawn_local(async move {
-                    let user_path = get_user_path(title.as_str(), action, default_path).await;
-                    if user_path.is_some() {
-                        path.set(user_path);
-                    } else {
-                        // canceled
-                        oncancel.emit(());
+                    match get_user_path(title.as_str(), &action, default_path.as_ref()).await {
+                        Ok(Some(user_path)) => {
+                            path.set(Some(user_path));
+                        }
+
+                        Ok(None) => {}
+
+                        Err(err) => {
+                            onerror.emit(format!("{err:?}"));
+                        }
                     }
                 });
             }
-        });
-    }
+        },
+    );
+
+    let oncancel = use_callback(props.oncancel.clone(), move |_: MouseEvent, oncancel| {
+        oncancel.emit(());
+    });
+
+    // get initial location
+    use_effect_with(
+        (
+            props.title.clone(),
+            props.action.clone(),
+            props.default_path.clone(),
+            props.select_on_open.clone(),
+            props.oncancel.clone(),
+            props.onerror.clone(),
+        ),
+        {
+            let path = path.setter();
+            move |(title, action, default_path, select_on_open, oncancel, onerror)| {
+                if *select_on_open {
+                    let title = title.clone();
+                    let action = action.clone();
+                    let default_path = default_path.clone();
+                    let oncancel = oncancel.clone();
+                    let onerror = onerror.clone();
+
+                    spawn_local(async move {
+                        match get_user_path(title.as_str(), &action, default_path.as_ref()).await {
+                            Ok(Some(user_path)) => path.set(Some(user_path)),
+                            Ok(None) => oncancel.emit(()),
+                            Err(err) => onerror.emit(format!("{err:?}")),
+                        }
+                    });
+                }
+            }
+        },
+    );
 
     html! {
-        <div class={classes!("thot-ui-file-selector")}>
-            <div class={classes!("path-control")}>
-                <span class={classes!("path")}>
-                    if let Some(path) = (*path).clone() {
+        <div class={"thot-ui-file-selector"}>
+            <div class={"path-control"}>
+                <span class={"path"}>
+                    if let Some(path) = path.as_ref() {
                         { path.to_str().expect("could not convert path to str") }
                     } else {
                         { &props.title }
@@ -133,7 +149,7 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
                     }
                 </button>
             </div>
-            <div class={classes!("controls")}>
+            <div class={"controls"}>
                 if props.show_cancel {
                     <button onclick={oncancel}>
                         { "Cancel" }
@@ -153,16 +169,16 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
 
 async fn get_user_path<'a>(
     title: &str,
-    action: FileSelectorAction<'a>,
-    default_path: Option<PathBuf>,
-) -> Option<PathBuf> {
+    action: &FileSelectorAction<'a>,
+    default_path: Option<&PathBuf>,
+) -> Result<Option<PathBuf>, tauri_sys::Error> {
     let mut file_selector = FileDialogBuilder::new();
     file_selector.set_title(title);
-    if let Some(default_path) = default_path.as_ref() {
-        file_selector.set_default_path(&default_path);
+    if let Some(default_path) = default_path {
+        file_selector.set_default_path(default_path);
     }
 
-    let user_path = match action {
+    match action {
         FileSelectorAction::PickFile => file_selector.pick_file().await,
         FileSelectorAction::PickFileFiltered(filter) => {
             file_selector
@@ -171,9 +187,5 @@ async fn get_user_path<'a>(
                 .await
         }
         FileSelectorAction::PickFolder => file_selector.pick_folder().await,
-    };
-
-    // @todo: Return `Result`.
-    let user_path = user_path.expect("could not retrieve file");
-    user_path
+    }
 }

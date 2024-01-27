@@ -7,7 +7,7 @@ use crate::server::store::ContainerTree;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::result::Result as StdResult;
-use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::Container as CoreContainer;
 use thot_core::types::ResourceId;

@@ -1,18 +1,14 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::project::{init_project_from, load_project};
-use crate::hooks::use_user;
-use crate::routes::Route;
 use std::path::PathBuf;
 use thot_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::props;
-use yew_router::prelude::*;
 
 #[function_component(InitializeProject)]
 pub fn initialize_project() -> Html {
-    let navigator = use_navigator().unwrap();
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
 
@@ -36,7 +32,7 @@ pub fn initialize_project() -> Html {
                     }
                 };
 
-                let (mut project, settings) = match load_project(path).await {
+                let (project, settings) = match load_project(path).await {
                     Ok(project) => project,
                     Err(err) => {
                         let mut msg = Message::error("Could not load project");

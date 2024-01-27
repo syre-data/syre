@@ -5,7 +5,7 @@ use crate::server::store::ContainerTree;
 use crate::server::Database;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
+use thot_core::error::{Error as CoreError, ResourceError};
 use thot_core::project::ScriptLang;
 use thot_core::types::ResourceId;
 use thot_local::error::{Error as LocalError, Project as ProjectError};

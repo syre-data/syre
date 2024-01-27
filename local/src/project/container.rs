@@ -155,7 +155,7 @@ impl InitOptions<InitExisting> {
         self.init.ignore(pattern);
     }
 
-    /// Run the intialization.
+    /// Intialize the path as a `Container` tree.
     ///
     /// # Returns
     /// [`ResourceId`] of the root [`Container`](CoreContainer).
@@ -169,13 +169,17 @@ impl InitOptions<InitExisting> {
     ///  - If `recurse` is `true`, this applies for folders within the subtree, too.
     ///
     /// + `Container` name will be updated to match the folder.
+    /// + Hidden files (i.e. Files whose name starts with a period (.)) are ignored as `Asset`s.
     pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
         /// Initialize a path as a Container.
         /// Used to recurse.
         ///
         /// # Arguments
         /// + `ignore`: Absolute paths to ignore.
-        /// Ignored if `recurse` is `false`.
+        ///     Ignored if `recurse` is `false`.
+        ///
+        /// # Notes
+        /// + Hidden files are ignored as `Asset`s.
         fn init_container(
             path: impl AsRef<Path>,
             init_assets: bool,
@@ -232,6 +236,15 @@ impl InitOptions<InitExisting> {
                     let file_path = fs::canonicalize(file_path).unwrap();
                     if asset_paths.contains(&file_path) {
                         continue;
+                    }
+
+                    // ignore hidden files as assets
+                    if let Some(file_name) = file_path.file_name() {
+                        if let Some(file_name) = file_name.to_str() {
+                            if file_name.starts_with(".") {
+                                continue;
+                            }
+                        }
                     }
 
                     let rel_path = file_path

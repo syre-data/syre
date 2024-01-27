@@ -2,10 +2,10 @@ use crate::Result;
 use clap::Args;
 use std::env;
 use std::path::PathBuf;
-use thot_local::project;
+use thot_local::project::project;
 
 #[derive(Debug, Args)]
-pub struct InitArgs {
+pub struct InitFromArgs {
     #[clap(short, long)]
     root: Option<PathBuf>,
 
@@ -16,6 +16,9 @@ pub struct InitArgs {
     /// Relative path to the analysis root.
     #[clap(long, default_value = "analysis")]
     analysis_root: PathBuf,
+
+    #[clap(long)]
+    no_scripts: bool,
 }
 
 /// Initializes a new Thot project.
@@ -41,7 +44,7 @@ pub struct InitArgs {
 ///     |   |- group_1
 ///     |   |   |- group_1_data.csv
 ///
-pub fn main(args: InitArgs, verbose: bool) -> Result {
+pub fn main(args: InitFromArgs, verbose: bool) -> Result {
     let root = match args.root {
         Some(root) => root.clone(),
         None => match env::current_dir() {
@@ -50,7 +53,15 @@ pub fn main(args: InitArgs, verbose: bool) -> Result {
         },
     };
 
-    project::init(&root, &args.data_root, &args.analysis_root)?;
+    let mut converter = project::converter::Converter::new();
+    converter.set_data_root(&args.data_root)?;
+    if args.no_scripts {
+        converter.without_scripts();
+    } else {
+        converter.with_scripts(&args.analysis_root)?;
+    }
+
+    converter.convert(&root)?;
     if verbose {
         println!("Initialized {root:?} as a Thot project.");
     }

@@ -71,6 +71,7 @@ impl Loader {
         })
     }
 
+    /// Convenience function for loading data from a JSON file.
     fn load_json<T: DeserializeOwned>(path: PathBuf) -> Result<T, PropertiesError> {
         let file = match fs::File::open(&path) {
             Ok(file) => file,

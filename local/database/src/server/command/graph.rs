@@ -218,7 +218,7 @@ impl Database {
         };
 
         // duplicate tree
-        let dup_path = unique_file_name(root.base_path().into())?;
+        let dup_path = unique_file_name(root.base_path())?;
         let mut dup = ContainerTreeDuplicator::duplicate_without_assets_to(&dup_path, graph, rid)?;
         let dup_root = dup.root().clone();
 

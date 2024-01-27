@@ -64,7 +64,6 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, Pr
 #[tauri::command]
 pub fn import_project(
     app_state: State<AppState>,
-    db: State<DbClient>,
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {
     let path = fs::canonicalize(path)?;
@@ -163,7 +162,8 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 
 #[tauri::command]
 pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
-    thot_local::project::init(path, "data", "analysis")
+    let converter = local_project::converter::Converter::new();
+    converter.convert(path)
 }
 
 // ************************

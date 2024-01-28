@@ -1,3 +1,4 @@
+use super::details_bar::DetailsBarWidget;
 use super::{CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::graph::{get_or_load_project_graph, load_project_graph};
@@ -44,162 +45,176 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
     let project = use_project(&props.project);
     let project = project.as_ref().unwrap();
 
-    let set_preview = use_callback(
-        canvas_state.clone(),
-        move |preview: ContainerPreview, canvas_state| {
+    let set_preview = use_callback((), {
+        let canvas_state = canvas_state.dispatcher();
+        move |preview: ContainerPreview, _| {
             canvas_state.dispatch(CanvasStateAction::SetPreview(preview));
+        }
+    });
+
+    let onclick_project_title = use_callback((), {
+        let canvas_state = canvas_state.dispatcher();
+        move |e: MouseEvent, _| {
+            e.stop_propagation();
+            canvas_state.dispatch(CanvasStateAction::SetDetailsBarWidget(
+                DetailsBarWidget::ProjectActions,
+            ))
+        }
+    });
+
+    let analyze_cb = use_callback(
+        (
+            app_state.clone(),
+            projects_state.clone(),
+            canvas_state.clone(),
+            graph_state.clone(),
+        ),
+        {
+            let analysis_state = analysis_state.setter();
+            move |_: MouseEvent, (app_state, projects_state, canvas_state, graph_state)| {
+                let app_state = app_state.clone();
+                let projects_state = projects_state.clone();
+                let graph_state = graph_state.clone();
+                let analysis_state = analysis_state.clone();
+                let project_id = canvas_state.project.clone();
+
+                canvas_state.dispatch(CanvasStateAction::ClearFlags);
+
+                spawn_local(async move {
+                    let root = graph_state.graph.root();
+
+                    analysis_state.set(AnalysisState::Analyzing);
+                    app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                        Message::info("Running analysis"),
+                        MESSAGE_TIMEOUT,
+                        app_state.clone(),
+                    ));
+
+                    let analysis_result = analyze(root.clone()).await;
+
+                    // update tree
+                    let update = match get_or_load_project_graph(project_id.clone()).await {
+                        Ok(graph) => graph,
+                        Err(err) => {
+                            tracing::debug!(?err);
+                            panic!("{err:?}");
+                        }
+                    };
+
+                    graph_state.dispatch(GraphStateAction::SetGraph(update));
+                    analysis_state.set(AnalysisState::Complete);
+
+                    match analysis_result {
+                        Ok(_) => {
+                            app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                                "Analysis complete",
+                            )));
+                        }
+                        Err(err) => {
+                            tracing::debug!(?err);
+                            let details = detail_message_from_analysis_error(
+                                err,
+                                &project_id,
+                                &graph_state,
+                                &projects_state,
+                            );
+
+                            let mut msg = Message::error("Error while analyzing");
+                            msg.set_details(details);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                        }
+                    }
+                })
+            }
         },
     );
 
-    let analyze_cb = {
-        let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
-        let canvas_state = canvas_state.clone();
-        let graph_state = graph_state.clone();
-        let analysis_state = analysis_state.clone();
-        let canvas_state = canvas_state.clone();
+    let analyze_container = use_callback(
+        (
+            app_state.clone(),
+            projects_state.clone(),
+            canvas_state.clone(),
+            graph_state.clone(),
+        ),
+        {
+            let analysis_state = analysis_state.setter();
+            move |_: MouseEvent, (app_state, projects_state, canvas_state, graph_state)| {
+                let app_state = app_state.clone();
+                let projects_state = projects_state.clone();
+                let graph_state = graph_state.clone();
+                let analysis_state = analysis_state.clone();
+                let project_id = canvas_state.project.clone();
 
-        Callback::from(move |_: MouseEvent| {
-            let app_state = app_state.clone();
-            let projects_state = projects_state.clone();
-            let graph_state = graph_state.clone();
-            let analysis_state = analysis_state.clone();
-            let project_id = canvas_state.project.clone();
+                let selected = canvas_state.selected.clone();
+                let selected_rid = selected
+                    .iter()
+                    .next()
+                    .expect("a container should be selected")
+                    .clone();
 
-            canvas_state.dispatch(CanvasStateAction::ClearFlags);
+                if let Some(descendants) = graph_state.graph.descendants(&selected_rid) {
+                    for descendant in descendants {
+                        let descendant = graph_state.graph.get(&descendant).unwrap();
+                        for asset in descendant.assets.keys() {
+                            canvas_state
+                                .dispatch(CanvasStateAction::ClearResourceFlags(asset.clone()));
+                        }
 
-            spawn_local(async move {
-                let root = graph_state.graph.root();
-
-                analysis_state.set(AnalysisState::Analyzing);
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::info("Running analysis"),
-                    MESSAGE_TIMEOUT,
-                    app_state.clone(),
-                ));
-
-                let analysis_result = analyze(root.clone()).await;
-
-                // update tree
-                let update = match get_or_load_project_graph(project_id.clone()).await {
-                    Ok(graph) => graph,
-                    Err(err) => {
-                        tracing::debug!(?err);
-                        panic!("{err:?}");
-                    }
-                };
-
-                graph_state.dispatch(GraphStateAction::SetGraph(update));
-                analysis_state.set(AnalysisState::Complete);
-
-                match analysis_result {
-                    Ok(_) => {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                            "Analysis complete",
-                        )));
-                    }
-                    Err(err) => {
-                        tracing::debug!(?err);
-                        let details = detail_message_from_analysis_error(
-                            err,
-                            &project_id,
-                            &graph_state,
-                            &projects_state,
-                        );
-
-                        let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(details);
-                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        canvas_state.dispatch(CanvasStateAction::ClearResourceFlags(
+                            descendant.rid.clone(),
+                        ));
                     }
                 }
-            })
-        })
-    };
 
-    let analyze_container = {
-        let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
-        let canvas_state = canvas_state.clone();
-        let graph_state = graph_state.clone();
-        let analysis_state = analysis_state.clone();
-        let canvas_state = canvas_state.clone();
-
-        Callback::from(move |_: MouseEvent| {
-            let app_state = app_state.clone();
-            let projects_state = projects_state.clone();
-            let graph_state = graph_state.clone();
-            let analysis_state = analysis_state.clone();
-            let project_id = canvas_state.project.clone();
-
-            let selected = canvas_state.selected.clone();
-            let selected_rid = selected
-                .iter()
-                .next()
-                .expect("a container should be selected")
-                .clone();
-
-            if let Some(descendants) = graph_state.graph.descendants(&selected_rid) {
-                for descendant in descendants {
-                    let descendant = graph_state.graph.get(&descendant).unwrap();
-                    for asset in descendant.assets.keys() {
-                        canvas_state.dispatch(CanvasStateAction::ClearResourceFlags(asset.clone()));
-                    }
-
-                    canvas_state.dispatch(CanvasStateAction::ClearResourceFlags(
-                        descendant.rid.clone(),
+                spawn_local(async move {
+                    let root = selected_rid;
+                    analysis_state.set(AnalysisState::Analyzing);
+                    app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                        Message::info("Running analysis"),
+                        MESSAGE_TIMEOUT,
+                        app_state.clone(),
                     ));
-                }
+
+                    let analysis_result = analyze(root.clone()).await;
+
+                    // update tree
+                    let update = match get_or_load_project_graph(project_id.clone()).await {
+                        Ok(graph) => graph,
+                        Err(err) => {
+                            tracing::debug!(?err);
+                            panic!("{err:?}");
+                        }
+                    };
+
+                    graph_state.dispatch(GraphStateAction::SetGraph(update));
+                    analysis_state.set(AnalysisState::Complete);
+
+                    match analysis_result {
+                        Ok(_) => {
+                            app_state.dispatch(AppStateAction::AddMessage(Message::success(
+                                "Analysis complete",
+                            )));
+                        }
+                        Err(err) => {
+                            let details = detail_message_from_analysis_error(
+                                err,
+                                &project_id,
+                                &graph_state,
+                                &projects_state,
+                            );
+
+                            let mut msg = Message::error("Error while analyzing");
+                            msg.set_details(details);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                        }
+                    }
+                })
             }
-
-            spawn_local(async move {
-                let root = selected_rid;
-                analysis_state.set(AnalysisState::Analyzing);
-                app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::info("Running analysis"),
-                    MESSAGE_TIMEOUT,
-                    app_state.clone(),
-                ));
-
-                let analysis_result = analyze(root.clone()).await;
-
-                // update tree
-                let update = match get_or_load_project_graph(project_id.clone()).await {
-                    Ok(graph) => graph,
-                    Err(err) => {
-                        tracing::debug!(?err);
-                        panic!("{err:?}");
-                    }
-                };
-
-                graph_state.dispatch(GraphStateAction::SetGraph(update));
-                analysis_state.set(AnalysisState::Complete);
-
-                match analysis_result {
-                    Ok(_) => {
-                        app_state.dispatch(AppStateAction::AddMessage(Message::success(
-                            "Analysis complete",
-                        )));
-                    }
-                    Err(err) => {
-                        let details = detail_message_from_analysis_error(
-                            err,
-                            &project_id,
-                            &graph_state,
-                            &projects_state,
-                        );
-
-                        let mut msg = Message::error("Error while analyzing");
-                        msg.set_details(details);
-                        app_state.dispatch(AppStateAction::AddMessage(msg));
-                    }
-                }
-            })
-        })
-    };
+        },
+    );
 
     use_effect_with(canvas_state.clone(), {
         let show_analyze_options = show_analyze_options.clone();
-
         move |canvas_state| {
             if canvas_state.selected.len() != 1 {
                 show_analyze_options.set(false);
@@ -224,12 +239,11 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
         }
     });
 
-    let reload_project_graph = use_callback(props.project.clone(), {
-        let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
+    let reload_project_graph = use_callback((props.project.clone(), app_state.clone()), {
+        let graph_state = graph_state.dispatcher();
         let reloading_project_graph_state = reloading_project_graph_state.setter();
 
-        move |_: MouseEvent, project| {
+        move |_: MouseEvent, (project, app_state)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let project = project.clone();
@@ -266,7 +280,7 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
 
     html! {
     <div class={"project-controls"}>
-        <div class={"column left"}>
+        <div class={"column-section left"}>
             <ContainerPreviewSelect onchange={set_preview} />
             <div class={"analyze-commands-group ml-xl"}>
                 <button
@@ -298,15 +312,17 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
             </div>
         </div>
 
-        <div class={"column middle"}>
-            <div class={"title"}>
+        <div class={"column-section middle"}>
+            <div class={"title clickable"}
+                onclick={onclick_project_title}>
+
                 <h1 class={classes!("title", "inline-block")}>{
                     &project.name
                 }</h1>
             </div>
         </div>
 
-        <div class={"column right"}>
+        <div class={"column-section right"}>
             <button type={"button"}
                 class={"reload-project-graph"}
                 onclick={reload_project_graph}

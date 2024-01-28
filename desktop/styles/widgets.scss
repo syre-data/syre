@@ -1,14 +1,14 @@
-@use 'themes' as t;
-@use 'mixins';
+@use "themes" as t;
+@use "mixins";
 
 .project-scripts-widget {
   button {
-    width: t.$drawer-content-width; 
+    width: t.$drawer-content-width;
     background-color: t.$project-script-button-background-color;
 
-      &:hover {
-        background-color: t.$project-script-button-hover-background-color;
-      }
+    &:hover {
+      background-color: t.$project-script-button-hover-background-color;
+    }
   }
 
   ul {
@@ -19,7 +19,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-    
+
       &:hover {
         cursor: pointer;
         background-color: t.$secondary-button-hover-background-color;
@@ -46,6 +46,14 @@
   }
 }
 
+.delete-project-widget {
+  .project-name {
+    text-align: center;
+    font-family: t.$title-font-family;
+    font-weight: bold;
+  }
+}
+
 .excel-template-builder {
   .excel-template {
     .workbook {
@@ -55,15 +63,16 @@
         position: absolute;
         top: 0;
         left: 0;
-        
+
         &:not(.active) {
           visibility: hidden;
         }
 
-        table{
+        table {
           border-collapse: collapse;
-          
-          th, td {
+
+          th,
+          td {
             @include mixins.hide-text-overflow;
             padding: t.$padding-m t.$padding-xl;
             border: t.$border-width-s t.$background-accent-color solid;

@@ -32,11 +32,9 @@ pub fn main_navigation() -> Html {
     });
 
     // update tabs when open projects change
-    use_effect_with(open_projects.clone(), {
-        let tabs = tabs.clone();
-        let user_projects = user_projects.clone();
-
-        move |open_projects| {
+    use_effect_with((open_projects.clone(), user_projects.clone()), {
+        let tabs = tabs.setter();
+        move |(open_projects, user_projects)| {
             let projects = user_projects
                 .iter()
                 .filter(|prj| open_projects.contains(&prj.rid))

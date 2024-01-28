@@ -3,36 +3,36 @@
 // **************
 
 // primary color
-$primary-color-50: #F1FDFF;
-$primary-color-100: #E8F7F9;
-$primary-color-200: #D0E6E9;
-$primary-color-300: #B4DCE1;
-$primary-color-400: #95D1D9;
-$primary-color-500: #77B9CE;
-$primary-color-600: #51A1C4;
-$primary-color-700: #2281AA;
-$primary-color-800: #065B80;
-$primary-color-900: #00364E;
+$primary-color-50: #f1fdff;
+$primary-color-100: #e8f7f9;
+$primary-color-200: #d0e6e9;
+$primary-color-300: #b4dce1;
+$primary-color-400: #95d1d9;
+$primary-color-500: #77b9ce;
+$primary-color-600: #51a1c4;
+$primary-color-700: #2281aa;
+$primary-color-800: #065b80;
+$primary-color-900: #00364e;
 
 $primary-base: $primary-color-300;
 
 // secondary color
-$secondary-color-50: #F3F4F7;
-$secondary-color-100: #E1E3E6;
-$secondary-color-200: #C4C7CC;
-$secondary-color-300: #A6AAB3;
-$secondary-color-400: #898E99;
-$secondary-color-500: #6B7280;
-$secondary-color-600: #565B66;
-$secondary-color-700: #40444D;
-$secondary-color-800: #2B2E33;
-$secondary-color-900: #181A1E;
+$secondary-color-50: #f3f4f7;
+$secondary-color-100: #e1e3e6;
+$secondary-color-200: #c4c7cc;
+$secondary-color-300: #a6aab3;
+$secondary-color-400: #898e99;
+$secondary-color-500: #6b7280;
+$secondary-color-600: #565b66;
+$secondary-color-700: #40444d;
+$secondary-color-800: #2b2e33;
+$secondary-color-900: #181a1e;
 
 $secondary-base: $secondary-color-300;
 
 // utility red
-$utility-red-50: #ffE9e1;
-$utility-red-100: #ffC1ab;
+$utility-red-50: #ffe9e1;
+$utility-red-100: #ffc1ab;
 $utility-red-200: #ee9676;
 $utility-red-300: #e97d55;
 $utility-red-400: #e05c2b;
@@ -45,30 +45,30 @@ $utility-red-900: #3a080b;
 $utility-red-base: $utility-red-300;
 
 // utility yellow
-$utility-yellow-50: #FFFBF2;
-$utility-yellow-100: #FFEECC;
-$utility-yellow-200: #FEE8B0;
-$utility-yellow-300: #FFDC82;
-$utility-yellow-400: #FFCC67;
-$utility-yellow-500: #FFB800;
-$utility-yellow-600: #D99717;
+$utility-yellow-50: #fffbf2;
+$utility-yellow-100: #ffeecc;
+$utility-yellow-200: #fee8b0;
+$utility-yellow-300: #ffdc82;
+$utility-yellow-400: #ffcc67;
+$utility-yellow-500: #ffb800;
+$utility-yellow-600: #d99717;
 $utility-yellow-700: #996600;
 $utility-yellow-800: #664400;
-$utility-yellow-900: #3D2900;
+$utility-yellow-900: #3d2900;
 
 $utility-yellow-base: $utility-yellow-300;
 
 // utility green
-$utility-green-50: #F7FAF0;
-$utility-green-100: #E9F1D8;
-$utility-green-200: #D3E9CD;
-$utility-green-300: #BED58B;
-$utility-green-400: #A8C764;
-$utility-green-500: #92B93D;
+$utility-green-50: #f7faf0;
+$utility-green-100: #e9f1d8;
+$utility-green-200: #d3e9cd;
+$utility-green-300: #bed58b;
+$utility-green-400: #a8c764;
+$utility-green-500: #92b93d;
 $utility-green-600: #759431;
-$utility-green-700: #486F25;
-$utility-green-800: #3A4A18;
-$utility-green-900: #242E0F;
+$utility-green-700: #486f25;
+$utility-green-800: #3a4a18;
+$utility-green-900: #242e0f;
 
 $utility-green-base: $utility-green-300;
 
@@ -82,8 +82,8 @@ $utility-green-base: $utility-green-300;
 }
 
 // font family
-$font-family-primary: Oddity, Roboto, Inter, Avenir, Helvetica, Arial, sans-serif;
-
+$font-family-primary: Oddity, Roboto, Inter, Avenir, Helvetica, Arial,
+  sans-serif;
 $font-family-secondary: Roboto, Inter, Avenir, Helvetica, Arial, sans-serif;
 
 // font weight

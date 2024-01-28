@@ -8,7 +8,10 @@ impl CardUi for Project {
     }
 
     fn body(&self) -> Html {
-        html! { {&self.name} }
+        match &self.description {
+            None => html! {},
+            Some(description) => html! { { description } },
+        }
     }
 }
 

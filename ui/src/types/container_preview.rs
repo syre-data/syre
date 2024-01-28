@@ -4,7 +4,7 @@ use yew::html::IntoPropValue;
 use yew::prelude::*;
 
 /// Preview types.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ContainerPreview {
     None,
     Type,

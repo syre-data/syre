@@ -182,31 +182,6 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
         }
     });
 
-    use_effect_with(
-        (canvas_state.clone(), graph_state.clone()),
-        move |(canvas_state, graph_state)| {
-            let mut resources = Vec::new();
-            for (cid, container) in graph_state.graph.iter_nodes() {
-                resources.push(cid);
-
-                for asset in container.assets.keys() {
-                    resources.push(asset);
-                }
-            }
-
-            let unselect = canvas_state
-                .selected
-                .iter()
-                .filter_map(|rid| match resources.contains(&rid) {
-                    true => None,
-                    false => Some(rid.clone()),
-                })
-                .collect::<Vec<_>>();
-
-            canvas_state.dispatch(CanvasStateAction::UnselectMany(unselect));
-        },
-    );
-
     let onkeydown = use_callback(
         drawers_visible_state.clone(),
         move |e: KeyboardEvent, drawers_visible_state| {
@@ -359,7 +334,6 @@ fn handle_file_system_event(
 
             ScriptUpdate::Removed(script) => {
                 projects_state.dispatch(ProjectsStateAction::RemoveProjectScript(script.clone()));
-
                 graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(script));
             }
 

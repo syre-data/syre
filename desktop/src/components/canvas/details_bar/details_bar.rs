@@ -5,6 +5,7 @@ use super::container_bulk_editor::ContainerBulkEditor;
 use super::container_editor::ContainerEditor;
 use super::mixed_bulk_editor::MixedBulkEditor;
 use super::project_actions::ProjectActions;
+use super::script_actions::ProjectScriptsActions;
 use crate::components::canvas::CanvasStateReducer;
 use std::collections::HashSet;
 use thot_core::types::ResourceId;
@@ -12,6 +13,8 @@ use yew::prelude::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DetailsBarWidget {
+    ProjectActions,
+
     /// `Asset` editor.
     AssetEditor(ResourceId),
 
@@ -30,13 +33,16 @@ pub enum DetailsBarWidget {
 
 #[function_component(DetailsBar)]
 pub fn details_bar() -> Html {
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`WorkspaceStateReducer` context not found");
-
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    tracing::debug!(?canvas_state.details_bar_widget);
     html! {
         <div class={classes!("project-canvas-details-bar")}>
             if let Some(widget) = canvas_state.details_bar_widget.clone() {
                 { match widget {
+                    DetailsBarWidget::ProjectActions => html! {
+                        <ProjectActions />
+                    },
+
                     DetailsBarWidget::AssetEditor(rid) => html! {
                         <AssetEditor {rid} />
                     },
@@ -60,7 +66,7 @@ pub fn details_bar() -> Html {
             } else {{
                 // default
                 html! {
-                    <ProjectActions />
+                    <ProjectScriptsActions />
                 }}
             }
         </div>

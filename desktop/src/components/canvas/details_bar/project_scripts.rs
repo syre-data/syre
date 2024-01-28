@@ -37,9 +37,7 @@ pub struct ProjectScriptsProps {
 #[function_component(ProjectScripts)]
 pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().unwrap();
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
-
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let project = use_canvas_project();
     let Some(project_scripts) = projects_state.project_scripts.get(&*project) else {
         panic!("`Project`'s `Scripts` not loaded");

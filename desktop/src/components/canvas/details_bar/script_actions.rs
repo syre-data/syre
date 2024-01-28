@@ -11,32 +11,28 @@ use thot_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
-#[function_component(ProjectActions)]
-pub fn project_actions() -> HtmlResult {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
-
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
-
-    let graph_state = use_context::<GraphStateReducer>().expect("`GraphStateReducer` not found");
+#[function_component(ProjectScriptsActions)]
+pub fn project_scripts_actions() -> HtmlResult {
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
 
     let project = use_project(&canvas_state.project);
     let Some(project) = project.as_ref() else {
         panic!("`Project` not loaded");
     };
 
-    let onadd_scripts = {
-        let projects_state = projects_state.clone();
-        let project = project.rid.clone();
-
-        Callback::from(move |paths: HashSet<PathBuf>| {
+    let onadd_scripts = use_callback((project.rid.clone(), projects_state.clone()), {
+        let app_state = app_state.dispatcher();
+        move |paths: HashSet<PathBuf>, (project, projects_state)| {
             let project = project.clone();
             let projects_state = projects_state.clone();
             let Some(mut project_scripts) = projects_state.project_scripts.get(&project).cloned()
             else {
-                panic!("`Project`'s `Scripts` not loaded");
+                let msg = Message::error("Could not load project's scripts.");
+                app_state.dispatch(AppStateAction::AddMessage(msg));
+                return;
             };
 
             spawn_local(async move {
@@ -60,16 +56,14 @@ pub fn project_actions() -> HtmlResult {
                     project_scripts,
                 ));
             });
-        })
-    };
+        }
+    });
 
-    let onremove_script = {
-        let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
-        let graph_state = graph_state.clone();
-        let project = project.rid.clone();
+    let onremove_script = use_callback((project.rid.clone(), projects_state.clone()), {
+        let app_state = app_state.dispatcher();
+        let graph_state = graph_state.dispatcher();
 
-        Callback::from(move |rid: ResourceId| {
+        move |rid: ResourceId, (project, projects_state)| {
             let app_state = app_state.clone();
             let projects_state = projects_state.clone();
             let graph_state = graph_state.clone();
@@ -109,8 +103,8 @@ pub fn project_actions() -> HtmlResult {
                     rid.clone(),
                 ));
             });
-        })
-    };
+        }
+    });
 
     Ok(html! {
         <ProjectScripts

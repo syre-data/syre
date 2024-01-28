@@ -304,10 +304,11 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::RemoveSubtree(root) => {
-                let graph = current.graph.remove(&root).unwrap();
-                for container in graph.nodes().values() {
-                    for asset in container.assets.keys() {
-                        current.asset_map.remove(asset);
+                if let Ok(graph) = current.graph.remove(&root) {
+                    for container in graph.nodes().values() {
+                        for asset in container.assets.keys() {
+                            current.asset_map.remove(asset);
+                        }
                     }
                 }
             }
@@ -398,16 +399,31 @@ impl Reducible for GraphState {
                 }
             }
 
-            GraphStateAction::RemoveAsset(asset) => {
-                let container = current.asset_map.get(&asset).unwrap();
-                let container = current
-                    .graph
-                    .get_mut(container)
-                    .expect("`Container` not found");
+            GraphStateAction::RemoveAsset(asset) => match current.asset_map.get(&asset) {
+                Some(container) => {
+                    if let Some(container) = current.graph.get_mut(container) {
+                        container.assets.remove(&asset);
+                    }
+                    current.asset_map.remove(&asset);
+                }
 
-                container.assets.remove(&asset);
-                current.asset_map.remove(&asset);
-            }
+                None => {
+                    if let Some(container) =
+                        current.graph.iter_nodes().find_map(|(cid, container)| {
+                            if container.assets.contains_key(&asset) {
+                                Some(cid.clone())
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        let container = current.graph.get_mut(&container).unwrap();
+                        container.assets.remove(&asset);
+                    }
+
+                    current.asset_map.remove(&asset);
+                }
+            },
 
             GraphStateAction::UpdateAsset(asset) => {
                 let container = current

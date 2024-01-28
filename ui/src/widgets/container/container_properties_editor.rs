@@ -1,4 +1,4 @@
-//! Properties editor for [`Contaier`](thot_core::project::Container)s.
+//! Properties editor for [`Container`](thot_core::project::Container)s.
 use super::super::{MetadataEditor, TagsEditor};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -120,23 +120,22 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
     let kind_ref = use_node_ref();
     let description_ref = use_node_ref();
 
-    {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    use_effect_with(props.properties.clone(), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
 
-        use_effect_with(props.properties.clone(), move |properties| {
+        move |properties| {
             dirty_state.set(false);
-            properties_state
-                .dispatch(ContainerPropertiesStateAction::Update(properties.clone()));
-        });
-    }
+            properties_state.dispatch(ContainerPropertiesStateAction::Update(properties.clone()));
+        }
+    });
 
-    let onchange_name = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_name = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
         let elm = name_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlInputElement>()
@@ -145,15 +144,15 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
             let value = elm.value().trim().to_string();
             properties_state.dispatch(ContainerPropertiesStateAction::SetName(value));
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_kind = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_kind = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
         let elm = kind_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlInputElement>()
@@ -168,15 +167,15 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
 
             properties_state.dispatch(action);
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_description = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_description = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
         let elm = description_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlTextAreaElement>()
@@ -191,45 +190,43 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
 
             properties_state.dispatch(action);
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_tags = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_tags = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
 
-        Callback::from(move |value: Vec<String>| {
+        move |value: Vec<String>, _| {
             properties_state.dispatch(ContainerPropertiesStateAction::SetTags(value));
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_metadata = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_metadata = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
 
-        Callback::from(move |value: Metadata| {
+        move |value: Metadata, _| {
             properties_state.dispatch(ContainerPropertiesStateAction::SetMetadata(value));
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    use_effect_with((properties_state.clone(), (*dirty_state).clone()), {
         let onchange = props.onchange.clone();
-
-        use_effect_with((properties_state, dirty_state), move |(properties_state, dirty_state)| {
-            if !(**dirty_state) {
+        move |(properties_state, dirty_state)| {
+            if !dirty_state {
                 return;
             }
+
             onchange.emit((**properties_state).clone().into());
-        });
-    }
+        }
+    });
 
     html! {
-        <form class={classes!("thot-ui-container-properties-editor")}>
-            <div class={classes!("form-field", "name")}>
+        <form class={"thot-ui-container-properties-editor"}>
+            <div class={"form-field name"}>
                 <label>
                     <h3>{ "Name" }</h3>
                     <input
@@ -241,7 +238,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
                 </label>
             </div>
 
-            <div class={classes!("form-field", "kind")}>
+            <div class={"form-field kind"}>
                 <label>
                     <h3>{ "Type" }</h3>
                     <input
@@ -252,7 +249,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
                 </label>
             </div>
 
-            <div class={classes!("form-field", "description")}>
+            <div class={"form-field description"}>
                 <label>
                     <h3>{ "Description" }</h3>
                     <textarea
@@ -263,7 +260,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
                 </label>
             </div>
 
-            <div class={classes!("form-field", "tags")}>
+            <div class={"form-field tags"}>
                 <label>
                     <h3>{ "Tags" }</h3>
                     <TagsEditor
@@ -272,7 +269,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
                 </label>
             </div>
 
-            <div class={classes!("form-field", "metadata")}>
+            <div class={"form-field metadata"}>
                 <MetadataEditor
                     value={properties_state.metadata.clone()}
                     onchange={onchange_metadata} />

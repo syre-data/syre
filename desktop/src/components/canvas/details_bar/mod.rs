@@ -7,6 +7,7 @@ pub mod details_bar;
 pub mod mixed_bulk_editor;
 pub mod project_actions;
 pub mod project_scripts;
+pub mod script_actions;
 pub mod script_associations_editor;
 
 // Re-exports

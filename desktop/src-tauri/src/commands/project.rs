@@ -9,7 +9,7 @@ use thot_core::error::{Error as CoreError, Project as ProjectError};
 use thot_core::graph::ResourceTree;
 use thot_core::project::{Container, Project};
 use thot_core::types::{ResourceId, UserPermissions};
-use thot_desktop_lib::error::Analysis as AnalysisError;
+use thot_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
 use thot_local::error::{
     Error as LocalError, IoSerde as IoSerdeError, Project as LocalProjectError,
 };
@@ -106,14 +106,33 @@ pub fn import_project(
 /// Gets a [`Project`].
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
-    let project = db
-        .send(ProjectCommand::Get(rid).into())
-        .expect("could not get `Project`");
+    let project = db.send(ProjectCommand::Get(rid).into()).unwrap();
 
-    let project: Option<Project> = serde_json::from_value(project)
-        .expect("could not convert `GetProject` result to `Project`");
-
+    let project: Option<Project> = serde_json::from_value(project).unwrap();
     Ok(project)
+}
+
+// **********************
+// *** delete project ***
+// **********************
+
+#[tauri::command]
+pub fn delete_project(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveResourceError> {
+    let path = match db.send(ProjectCommand::GetPath(rid).into()) {
+        Ok(path) => path,
+        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
+    };
+
+    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+        return Err(RemoveResourceError::Database(
+            "Could not get Project's path".to_string(),
+        ));
+    };
+
+    match trash::delete(path) {
+        Ok(_) => Ok(()),
+        Err(err) => todo!(),
+    }
 }
 
 // **************************

@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use thot_core::project::Project;
 use thot_core::types::ResourceId;
-use thot_desktop_lib::error::Analysis as AnalysisError;
+use thot_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
 use thot_local::types::ProjectSettings;
 use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
 use thot_local_database::Result as DbResult;
@@ -36,6 +36,10 @@ pub async fn import_project(path: PathBuf) -> Result<(Project, ProjectSettings),
 
 pub async fn update_project(project: Project) -> DbResult {
     invoke_result("update_project", UpdateProjectArgs { project }).await
+}
+
+pub async fn delete_project(project: ResourceId) -> Result<(), RemoveResourceError> {
+    invoke_result("delete_project", ResourceIdArgs { rid: project }).await
 }
 
 pub async fn get_project_path(project: ResourceId) -> Result<PathBuf, String> {

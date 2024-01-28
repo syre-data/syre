@@ -103,9 +103,7 @@ button {
   }
 
   &.btn-primary {
-    padding: t.$padding-xl;
-    padding-left: t.$padding-xxl;
-    padding-right: t.$padding-xxl;
+    padding: t.$padding-l t.$padding-xl;
     color: t.$primary-button-color;
     background-color: t.$primary-button-background-color;
 
@@ -113,6 +111,16 @@ button {
       color: t.$primary-button-hover-color;
       background-color: t.$primary-button-hover-background-color;
     }
+  }
+}
+
+.btn-danger {
+  padding: t.$padding-l t.$padding-xl;
+  color: t.$primary-button-color;
+  background-color: t.$danger-button-background-color;
+
+  &:hover {
+    background-color: t.$danger-button-hover-background-color;
   }
 }
 

@@ -12,6 +12,7 @@ pub enum ResourceType {
     Asset,
 }
 
+#[derive(Debug)]
 pub enum CanvasStateAction {
     /// Set the preview state.
     SetPreview(ContainerPreview),
@@ -171,6 +172,7 @@ impl Reducible for CanvasState {
     type Action = CanvasStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        tracing::debug!(?action);
         let mut current = (*self).clone();
         match action {
             CanvasStateAction::SetPreview(preview) => {

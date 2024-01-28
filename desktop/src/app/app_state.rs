@@ -1,6 +1,7 @@
 //! Main application state.
 use gloo_timers::callback::Timeout;
 use std::rc::Rc;
+use thot_core::project::Project;
 use thot_desktop_lib::settings::{UserAppState, UserSettings};
 use thot_ui::types::Message;
 use uuid::Uuid;
@@ -15,8 +16,10 @@ pub enum AppWidget {
     /// Intiailize an existing folder as a project.
     InitializeProject,
 
-    /// Import a project.
+    /// Import an existing project.
     ImportProject,
+
+    DeleteProject(Project),
 
     /// User settings.
     UserSettings,

@@ -52,17 +52,13 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------
     // --- setup ---
     // -------------
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
-
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
-
-    let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
     let is_root = &props.rid == graph_state.graph.root();
 
-    let navigator = use_navigator().expect("navigator not found");
+    let navigator = use_navigator().unwrap();
     let show_create_assets = use_state(|| false);
     let selected = canvas_state.selected.contains(&props.rid);
     let multiple_selected = canvas_state.selected.len() > 1;
@@ -99,45 +95,46 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         e.prevent_default();
     });
 
-    let onclick = {
-        let rid = props.rid.clone();
-        let canvas_state = canvas_state.clone();
-        let selected = selected.clone();
-        let multiple_selected = multiple_selected.clone();
+    let onclick = use_callback(
+        (
+            props.rid.clone(),
+            selected.clone(),
+            multiple_selected.clone(),
+        ),
+        {
+            let canvas_state = canvas_state.dispatcher();
+            move |e: MouseEvent, (rid, selected, multiple_selected)| {
+                e.stop_propagation();
+                e.prevent_default();
 
-        Callback::from(move |e: MouseEvent| {
-            e.stop_propagation();
-            e.prevent_default();
+                let rid = rid.clone();
+                match selection_action(*selected, *multiple_selected, e) {
+                    SelectionAction::SelectOnly => {
+                        canvas_state.dispatch(CanvasStateAction::ClearSelected);
+                        canvas_state.dispatch(CanvasStateAction::SelectContainer(rid));
+                    }
 
-            let rid = rid.clone();
-            match selection_action(selected, multiple_selected, e) {
-                SelectionAction::SelectOnly => {
-                    canvas_state.dispatch(CanvasStateAction::ClearSelected);
-                    canvas_state.dispatch(CanvasStateAction::SelectContainer(rid));
-                }
+                    SelectionAction::Select => {
+                        canvas_state.dispatch(CanvasStateAction::SelectContainer(rid));
+                    }
 
-                SelectionAction::Select => {
-                    canvas_state.dispatch(CanvasStateAction::SelectContainer(rid));
-                }
-
-                SelectionAction::Unselect => {
-                    canvas_state.dispatch(CanvasStateAction::Unselect(rid));
+                    SelectionAction::Unselect => {
+                        canvas_state.dispatch(CanvasStateAction::Unselect(rid));
+                    }
                 }
             }
-        })
-    };
+        },
+    );
 
     // -------------------
     // --- menu events ---
     // -------------------
 
-    let on_menu_event = {
-        let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
-        let rid = props.rid.clone();
-        let show_create_assets = show_create_assets.clone();
+    let on_menu_event = use_callback((props.rid.clone(), graph_state.clone()), {
+        let app_state = app_state.dispatcher();
+        let show_create_assets = show_create_assets.setter();
 
-        Callback::from(move |event: ContainerMenuEvent| {
+        move |event, (rid, graph_state)| {
             let rid = rid.clone();
             match event {
                 ContainerMenuEvent::AddAssets => show_create_assets.set(true),
@@ -210,28 +207,28 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     });
                 }
             }
-        })
-    };
+        }
+    });
 
-    let close_create_asset = {
-        let show_create_assets = show_create_assets.clone();
-
-        Callback::from(move |_: MouseEvent| {
+    let close_create_asset = use_callback((), {
+        let show_create_assets = show_create_assets.setter();
+        move |_, _| {
             show_create_assets.set(false);
-        })
-    };
+        }
+    });
 
     // --------------
     // --- assets ---
     // --------------
 
-    let onclick_asset = {
-        let app_state = app_state.clone();
-        let canvas_state = canvas_state.clone();
-        let graph_state = graph_state.clone();
-        let multiple_selected = multiple_selected.clone();
-
-        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+    let onclick_asset = use_callback(
+        (
+            app_state.clone(),
+            canvas_state.clone(),
+            graph_state.clone(),
+            multiple_selected.clone(),
+        ),
+        move |(asset, e), (app_state, canvas_state, graph_state, multiple_selected)| {
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                     Message::error("Could not load asset"),
@@ -243,7 +240,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             let rid = asset.rid.clone();
             let selected = canvas_state.selected.contains(&rid);
-            match selection_action(selected, multiple_selected, e) {
+            match selection_action(selected, *multiple_selected, e) {
                 SelectionAction::SelectOnly => {
                     canvas_state.dispatch(CanvasStateAction::SelectAssetOnly(rid));
                 }
@@ -256,15 +253,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     canvas_state.dispatch(CanvasStateAction::Unselect(rid));
                 }
             }
-        })
-    };
+        },
+    );
 
-    let ondblclick_asset = {
-        let app_state = app_state.clone();
-        let graph_state = graph_state.clone();
-        let rid = props.rid.clone();
-
-        Callback::from(move |(asset, e): (ResourceId, MouseEvent)| {
+    let ondblclick_asset = use_callback(
+        (props.rid.clone(), app_state.clone(), graph_state.clone()),
+        move |(asset, e): (ResourceId, MouseEvent), (rid, app_state, graph_state)| {
             e.stop_propagation();
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
@@ -297,12 +291,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                     }
                 };
             });
-        })
-    };
+        },
+    );
 
     let onclick_asset_remove = use_callback((), {
-        let graph_state = graph_state.clone();
-        let app_state = app_state.clone();
+        let graph_state = graph_state.dispatcher();
+        let app_state = app_state.dispatcher();
 
         move |rid: ResourceId, _| {
             let graph_state = graph_state.clone();
@@ -350,13 +344,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         }
     });
 
-    let onadd_assets = {
-        let show_create_assets = show_create_assets.clone();
-
-        Callback::from(move |_: ()| {
+    let onadd_assets = use_callback((), {
+        let show_create_assets = show_create_assets.setter();
+        move |_, _| {
             show_create_assets.set(false);
-        })
-    };
+        }
+    });
 
     // ---------------
     // --- scripts ---
@@ -369,35 +362,27 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // NOTE Used for Windows machines.
     //      For *nix and macOS machine, look in the `ContainerTreeController` component.
 
-    let ondragenter = {
-        let graph_state = graph_state.clone();
-        let container_id = props.rid.clone();
-
-        Callback::from(move |_: DragEvent| {
+    let ondragenter = use_callback(props.rid.clone(), {
+        let graph_state = graph_state.dispatcher();
+        move |_: DragEvent, container_id| {
             graph_state.dispatch(GraphStateAction::SetDragOverContainer(container_id.clone()));
-        })
-    };
+        }
+    });
 
-    let ondragleave = {
-        let graph_state = graph_state.clone();
-
-        Callback::from(move |_: DragEvent| {
+    let ondragleave = use_callback((), {
+        let graph_state = graph_state.dispatcher();
+        move |_: DragEvent, _| {
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
-        })
-    };
+        }
+    });
 
-    let ondrop = {
-        let graph_state = graph_state.clone();
-        let container_id = props.rid.clone();
-
-        Callback::from(move |e: DragEvent| {
+    let ondrop = use_callback(
+        (props.rid.clone(), graph_state.clone()),
+        move |e: DragEvent, (container_id, graph_state)| {
             graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
 
-            // drag and drop on Windows
             let drop_data = e.data_transfer().unwrap();
-
             let action = drop_data.get_data("application/json").unwrap();
-            tracing::debug!(?action);
             let action: Option<ContainerAction> = serde_json::from_str(&action).ok();
             if let Some(action) = action {
                 match action {
@@ -478,8 +463,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                 onload.forget();
             }
-        })
-    };
+        },
+    );
 
     // ----------
     // --- ui ---

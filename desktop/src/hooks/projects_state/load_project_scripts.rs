@@ -10,7 +10,6 @@ use yew::suspense::{Suspension, SuspensionResult};
 /// Loads the `Project`'s scripts into the `ProjectsState` reducer.
 #[hook]
 pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
-    tracing::debug!(?project);
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     if projects_state.project_scripts.contains_key(project) {
         return Ok(());

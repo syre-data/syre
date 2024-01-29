@@ -88,7 +88,6 @@ fn main() {
             get_project_path,
             init_project,
             init_project_from,
-            set_active_project,
             load_project,
             load_user_projects,
             get_project,

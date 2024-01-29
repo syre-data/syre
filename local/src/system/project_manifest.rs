@@ -1,8 +1,10 @@
 //! High level functions associated to the projects list.
 use super::collections::project_manifest::ProjectManifest;
 use crate::error::IoSerde as IoSerdeError;
+use crate::project::resources::Project;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use syre_core::types::ResourceId;
 
 /// Adds a [`Project`] to the registry collection.
 ///
@@ -27,4 +29,26 @@ pub fn deregister_project(path: impl AsRef<Path>) -> Result<(), IoSerdeError> {
     projects.remove(&path);
     projects.save()?;
     Ok(())
+}
+
+/// Get the path of a Project.
+///
+/// # Errors
+/// + If the project manifest could not be loaded.
+///
+/// # Notes
+/// + If a Project can not be loaded it is ignored.
+pub fn get_path(rid: &ResourceId) -> Result<Option<PathBuf>, IoSerdeError> {
+    let project_manifest = ProjectManifest::load()?;
+    for path in project_manifest.iter() {
+        let Ok(project) = Project::load_from(path) else {
+            continue;
+        };
+
+        if &project.rid == rid {
+            return Ok(Some(path.to_path_buf()));
+        }
+    }
+
+    Ok(None)
 }

@@ -63,7 +63,7 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, Pr
 /// Adds the active user to it.
 #[tauri::command]
 pub fn import_project(
-    db: State<AppState>,
+    db: State<DbClient>,
     app_state: State<AppState>,
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {
@@ -94,10 +94,15 @@ pub fn import_project(
     project.save()?;
 
     let mut project_manifest = ProjectManifest::load_or_default()?;
-    project_manifest.insert(project.rid.clone(), path.clone());
+    project_manifest.push(path.clone());
     project_manifest.save()?;
 
-    Ok((project.inner().clone(), project.settings().clone()))
+    let project = db
+        .send(ProjectCommand::LoadWithSettings(project.base_path().to_path_buf()).into())
+        .unwrap();
+
+    let project: DbResult<(Project, ProjectSettings)> = serde_json::from_value(project).unwrap();
+    Ok(project?)
 }
 
 // *******************
@@ -108,7 +113,6 @@ pub fn import_project(
 #[tauri::command]
 pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
     let project = db.send(ProjectCommand::Get(rid).into()).unwrap();
-
     let project: Option<Project> = serde_json::from_value(project).unwrap();
     Ok(project)
 }
@@ -134,28 +138,6 @@ pub fn delete_project(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Rem
         Ok(_) => Ok(()),
         Err(err) => todo!(),
     }
-}
-
-// **************************
-// *** set active project ***
-// **************************
-
-/// Set the active project.
-/// Sets the active project on the [system settings](sys_projects::set_active_project).
-/// Sets the active project `id` on the [`AppState`].
-#[tauri::command]
-pub fn set_active_project(app_state: State<AppState>, rid: Option<ResourceId>) -> Result {
-    // system settings
-    if let Some(rid) = rid.clone() {
-        sys_projects::set_active_project(&rid)?;
-    } else {
-        sys_projects::unset_active_project()?;
-    }
-
-    // app state
-    *app_state.active_project.lock().unwrap() = rid;
-
-    Ok(())
 }
 
 // ********************

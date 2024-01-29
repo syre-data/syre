@@ -1,0 +1,36 @@
+{
+  "040b86c4-e1db-42f9-b5a3-ed3ff403d0a9": {
+    "rid": "040b86c4-e1db-42f9-b5a3-ed3ff403d0a9",
+    "properties": {
+      "created": "2024-01-29T14:19:05.941980Z",
+      "creator": {
+        "User": {
+          "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+        }
+      },
+      "name": null,
+      "kind": "noise-data",
+      "description": null,
+      "tags": [],
+      "metadata": {}
+    },
+    "path": "a1-data.csv"
+  },
+  "3e854beb-8d7f-4279-9705-3fbe959fc8eb": {
+    "rid": "3e854beb-8d7f-4279-9705-3fbe959fc8eb",
+    "properties": {
+      "created": "2024-01-29T16:03:39Z",
+      "creator": {
+        "User": {
+          "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+        }
+      },
+      "name": "Noise Statistics",
+      "kind": "noise-stats",
+      "description": null,
+      "tags": [],
+      "metadata": {}
+    },
+    "path": "noise-stats.csv"
+  }
+}

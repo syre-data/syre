@@ -1,0 +1,22 @@
+{
+  "rid": "3fa7d5c6-a16b-434d-93f8-2e28bf959089",
+  "properties": {
+    "created": "2024-01-29T14:12:22.498603Z",
+    "creator": {
+      "User": null
+    },
+    "name": "Batch 2",
+    "kind": "Batch",
+    "description": null,
+    "tags": [],
+    "metadata": {
+      "batch": 2
+    }
+  },
+  "scripts": {
+    "f4bb57a0-bd30-4c0f-a857-71c85956b09e": {
+      "autorun": true,
+      "priority": 0
+    }
+  }
+}

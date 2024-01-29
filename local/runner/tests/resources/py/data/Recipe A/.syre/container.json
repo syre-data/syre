@@ -1,0 +1,22 @@
+{
+  "rid": "2418ad26-9ee3-4f1a-a3b7-6c85ff45f09e",
+  "properties": {
+    "created": "2024-01-29T14:12:03.211984Z",
+    "creator": {
+      "User": null
+    },
+    "name": "Recipe A",
+    "kind": null,
+    "description": null,
+    "tags": [],
+    "metadata": {
+      "recipe": "A"
+    }
+  },
+  "scripts": {
+    "6fea6973-7e44-45cd-8338-01a2700fc809": {
+      "autorun": true,
+      "priority": 0
+    }
+  }
+}

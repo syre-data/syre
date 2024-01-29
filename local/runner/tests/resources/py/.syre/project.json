@@ -1,0 +1,14 @@
+{
+  "rid": "c5867e6b-479c-4892-9388-80e6974cf6de",
+  "creator": {
+    "User": {
+      "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+    }
+  },
+  "created": "2024-01-29T14:11:43.168157Z",
+  "name": "fireworks",
+  "description": null,
+  "data_root": "data",
+  "analysis_root": "analysis",
+  "meta_level": 0
+}

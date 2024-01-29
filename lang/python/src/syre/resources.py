@@ -306,13 +306,9 @@ def dict_to_asset(d: Properties, db: OptDatabase = None, parent: OptContainer = 
     Returns:
         Asset: Asset that the JSON represented.
     """
-    file = d["path"]
-    if "Absolute" not in file:
-        raise ValueError("Asset path must be absolute")
-    
     return Asset(
         d["rid"],
-        file["Absolute"],
+        d["path"],
         name = d["properties"]["name"],
         type = d["properties"]["kind"],
         description = d["properties"]["description"],

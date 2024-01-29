@@ -1,0 +1,19 @@
+{
+  "1c827452-f8fb-4db5-8b83-26c85a0bf7e9": {
+    "rid": "1c827452-f8fb-4db5-8b83-26c85a0bf7e9",
+    "properties": {
+      "created": "2024-01-29T14:19:10.762950Z",
+      "creator": {
+        "User": {
+          "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+        }
+      },
+      "name": null,
+      "kind": "noise-data",
+      "description": null,
+      "tags": [],
+      "metadata": {}
+    },
+    "path": "a2-data.csv"
+  }
+}

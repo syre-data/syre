@@ -1,0 +1,19 @@
+{
+  "8a26e9f6-a5a3-41fb-a8c8-0f4570c5d7e2": {
+    "rid": "8a26e9f6-a5a3-41fb-a8c8-0f4570c5d7e2",
+    "properties": {
+      "created": "2024-01-29T16:49:23Z",
+      "creator": {
+        "User": {
+          "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+        }
+      },
+      "name": "Recipe B Statistics",
+      "kind": "recipe-stats",
+      "description": null,
+      "tags": [],
+      "metadata": {}
+    },
+    "path": "recipe-stats.pkl"
+  }
+}

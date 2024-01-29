@@ -1,0 +1,22 @@
+{
+  "rid": "457e5b8b-a2b8-4bc8-acdb-d8c96c47bd85",
+  "properties": {
+    "created": "2024-01-29T14:11:43.178770Z",
+    "creator": {
+      "User": {
+        "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+      }
+    },
+    "name": "data",
+    "kind": null,
+    "description": null,
+    "tags": [],
+    "metadata": {}
+  },
+  "scripts": {
+    "89e59df8-76bc-4259-b9ae-5c762e4bb50f": {
+      "autorun": true,
+      "priority": 0
+    }
+  }
+}

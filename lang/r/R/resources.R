@@ -99,7 +99,7 @@ asset_from_json <- function(asset) {
   properties <- asset$properties
   Asset(
     rid = asset$rid,
-    file = asset$path[[1]],
+    file = asset$path,
     name = properties$name,
     type = properties$kind,
     description = properties$description,

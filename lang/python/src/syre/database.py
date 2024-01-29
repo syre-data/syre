@@ -321,7 +321,6 @@ class Database:
         if os.path.isabs(file):
             raise ValueError("file must be relative")
         
-        path = {"Relative": file}
         user = self._active_user()
         if user is None:
             raise RuntimeError("could not get active user")
@@ -340,7 +339,7 @@ class Database:
         asset = {
             'rid': str(uuid()),
             'properties': properties,
-            'path': path
+            'path': file
         }
         
         self._socket.send_json({"AssetCommand": {"Add": (asset, self._root)}})

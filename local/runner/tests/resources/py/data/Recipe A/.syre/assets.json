@@ -1,0 +1,19 @@
+{
+  "984623e1-34e0-4ce7-9df7-6fab4d80c8f0": {
+    "rid": "984623e1-34e0-4ce7-9df7-6fab4d80c8f0",
+    "properties": {
+      "created": "2024-01-29T16:49:21Z",
+      "creator": {
+        "User": {
+          "Id": "2dc170f8-021e-4600-97cd-f61f1c21462f"
+        }
+      },
+      "name": "Recipe A Statistics",
+      "kind": "recipe-stats",
+      "description": null,
+      "tags": [],
+      "metadata": {}
+    },
+    "path": "recipe-stats.pkl"
+  }
+}

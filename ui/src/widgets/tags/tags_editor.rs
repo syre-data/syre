@@ -16,11 +16,9 @@ pub struct TagsEditorProps {
 pub fn tags_editor(props: &TagsEditorProps) -> Html {
     let input_ref = use_node_ref();
 
-    let onchange = {
+    let onchange = use_callback(props.onchange.clone(), {
         let input_ref = input_ref.clone();
-        let onchange = props.onchange.clone();
-
-        Callback::from(move |_: Event| {
+        move |_: Event, onchange| {
             let input = input_ref
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not cast node ref into input");
@@ -40,8 +38,8 @@ pub fn tags_editor(props: &TagsEditorProps) -> Html {
                 .collect::<Vec<String>>();
 
             onchange.emit(value);
-        })
-    };
+        }
+    });
 
     html! {
         <input

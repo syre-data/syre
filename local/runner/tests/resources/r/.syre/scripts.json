@@ -1,0 +1,44 @@
+[
+  {
+    "rid": "89e59df8-76bc-4259-b9ae-5c762e4bb50e",
+    "path": "recipe_comparison.r",
+    "name": null,
+    "description": null,
+    "env": {
+      "language": "Python",
+      "cmd": "python3",
+      "args": [],
+      "env": {}
+    },
+    "creator": "2dc170f8-021e-4600-97cd-f61f1c21462f",
+    "created": "2024-01-29T14:18:05.532142Z"
+  },
+  {
+    "rid": "f4bb57a0-bd30-4c0f-a857-71c85956b09d",
+    "path": "noise_stats.r",
+    "name": null,
+    "description": null,
+    "env": {
+      "language": "Python",
+      "cmd": "python3",
+      "args": [],
+      "env": {}
+    },
+    "creator": "2dc170f8-021e-4600-97cd-f61f1c21462f",
+    "created": "2024-01-29T14:18:05.533517Z"
+  },
+  {
+    "rid": "6fea6973-7e44-45cd-8338-01a2700fc808",
+    "path": "recipe_stats.r",
+    "name": null,
+    "description": null,
+    "env": {
+      "language": "Python",
+      "cmd": "python3",
+      "args": [],
+      "env": {}
+    },
+    "creator": "2dc170f8-021e-4600-97cd-f61f1c21462f",
+    "created": "2024-01-29T14:18:05.536290Z"
+  }
+]

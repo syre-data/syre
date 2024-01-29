@@ -44,13 +44,6 @@ new_asset <-
            type = NULL,
            tags = list(),
            metadata = list()) {
-    path_type <- if (isAbsolutePath(file))
-      "Absolute"
-    else
-      "Relative"
-    path_val <- list()
-    path_val[[path_type]] <- file
-
     asset <- list(
       rid = uuid::UUIDgenerate(),
       properties = StandardProperties(
@@ -59,7 +52,7 @@ new_asset <-
         tags = tags,
         metadata = metadata
       ),
-      path = path_val
+      path = file
     )
 
     asset

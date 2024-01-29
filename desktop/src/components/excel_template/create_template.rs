@@ -1,8 +1,8 @@
 //! Create an Excel template.
 use super::excel_template_builder::ExcelTemplateBuilder;
 use crate::app::ShadowBox;
+use syre_desktop_lib::excel_template::ExcelTemplate;
 use tauri_sys::dialog::FileDialogBuilder;
-use thot_desktop_lib::excel_template::ExcelTemplate;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 

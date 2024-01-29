@@ -1,7 +1,7 @@
 //! Inline metadata editor.
 use super::{MetadatumBuilder, MetadatumEditor};
 use std::collections::HashSet;
-use thot_core::project::Metadata;
+use syre_core::project::Metadata;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -88,14 +88,14 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
     };
 
     let name_filter = props.value.clone().into_keys().collect::<HashSet<String>>();
-    let class = classes!("thot-ui-metadata-editor", props.class.clone());
+    let class = classes!("syre-ui-metadata-editor", props.class.clone());
 
     html! {
         <div {class}>
             <div class={classes!("metadata-header")}>
                 <h3>{ "Metadata" }</h3>
                 <button class={classes!("add-button")} type="button" onclick={show_add_metadatum}>
-                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
+                    <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
                 </button>
             </div>
             <div class={classes!("add-metadatum-controls")}>
@@ -115,7 +115,7 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                             onchange={onchange(name.clone())}/>
 
                         <button class={classes!("remove-button")} type="button" onclick={remove_metadatum(name)}>
-                            <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                            <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
                         </button>
                     </li>
                 }).collect::<Html>() }

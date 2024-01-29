@@ -5,8 +5,8 @@ use dev_utils::{create_lock, lock::get_lock};
 use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
 use fake::Fake;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::types::ResourceId;
+use syre_core::error::{Error as CoreError, Resource};
+use syre_core::types::ResourceId;
 
 #[test]
 fn register_project_should_work() {
@@ -36,7 +36,7 @@ fn register_project_should_error_if_id_already_exists() {
 
     register_project(prj0, path.clone()).expect("register_project should work");
     match register_project(prj1, path) {
-        Err(Error::CoreError(CoreError::ResourceError(ResourceError::DuplicateId(_)))) => {} // expected error
+        Err(Error::CoreError(CoreError::Resource(Resource::DuplicateId(_)))) => {} // expected error
         res => panic!(
             "Unexpected result. Expected duplicate id error found {:?}",
             res

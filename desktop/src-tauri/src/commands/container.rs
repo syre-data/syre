@@ -2,20 +2,20 @@
 use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
-use tauri::State;
-use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, ContainerProperties};
-use thot_core::types::ResourceId;
-use thot_desktop_lib::types::AddAssetInfo;
-use thot_local::common::unique_file_name;
-use thot_local::types::AssetFileAction;
-use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::container::{
+use syre_core::project::container::ScriptMap;
+use syre_core::project::{Container, ContainerProperties};
+use syre_core::types::ResourceId;
+use syre_desktop_lib::types::AddAssetInfo;
+use syre_local::common::unique_file_name;
+use syre_local::types::AssetFileAction;
+use syre_local_database::client::Client as DbClient;
+use syre_local_database::command::container::{
     BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationsArgs, PropertiesUpdate,
     ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
 };
-use thot_local_database::command::ContainerCommand;
-use thot_local_database::Result as DbResult;
+use syre_local_database::command::ContainerCommand;
+use syre_local_database::Result as DbResult;
+use tauri::State;
 
 /// Retrieves a [`Container`](Container), or `None` if it is not loaded.
 #[tauri::command]
@@ -85,7 +85,7 @@ pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBu
     serde_json::from_value::<Option<PathBuf>>(path).unwrap()
 }
 
-/// Adds [`Asset`](thot_::project::Asset)s to a [`Container`](thot_::project::Container).
+/// Adds [`Asset`](syre_core::project::Asset)s to a [`Container`].
 #[tauri::command]
 pub fn add_assets_from_info(
     db: State<DbClient>,

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 // *** Project ***
 // ***************
 
-/// Represents a Thot project.
+/// Represents a Syre project.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Project {

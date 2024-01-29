@@ -16,7 +16,7 @@ use serde::{self, Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Error, Debug)]
-pub enum ResourceError {
+pub enum Resource {
     #[error("resource `{0}` does not exist")]
     DoesNotExist(String),
 
@@ -27,7 +27,7 @@ pub enum ResourceError {
     AlreadyExists(String),
 }
 
-impl ResourceError {
+impl Resource {
     pub fn does_not_exist(msg: impl Into<String>) -> Self {
         Self::DoesNotExist(msg.into())
     }
@@ -63,12 +63,15 @@ impl Project {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Error, Debug)]
-pub enum GraphError {
+pub enum Graph {
     #[error("invalid graph: {0}")]
     InvalidGraph(String),
+
+    #[error("illegal operation: {0}")]
+    IllegalOperation(String),
 }
 
-impl GraphError {
+impl Graph {
     pub fn invalid_graph(msg: impl Into<String>) -> Self {
         Self::InvalidGraph(msg.into())
     }
@@ -148,7 +151,7 @@ pub enum Runner {
 }
 
 // ******************
-// *** Thot Error ***
+// *** Syre Error ***
 // ******************
 
 // TODO Put behind correct features.
@@ -166,10 +169,10 @@ pub enum Error {
     Project(Project),
 
     #[error("{0}")]
-    ResourceError(ResourceError),
+    Resource(Resource),
 
     #[error("{0}")]
-    GraphError(GraphError),
+    Graph(Graph),
 
     #[error("{0}")]
     ResourcePathError(ResourcePathError),
@@ -207,9 +210,9 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<ResourceError> for Error {
-    fn from(err: ResourceError) -> Self {
-        Self::ResourceError(err)
+impl From<Resource> for Error {
+    fn from(err: Resource) -> Self {
+        Self::Resource(err)
     }
 }
 
@@ -219,9 +222,9 @@ impl From<Runner> for Error {
     }
 }
 
-impl From<GraphError> for Error {
-    fn from(err: GraphError) -> Self {
-        Self::GraphError(err)
+impl From<Graph> for Error {
+    fn from(err: Graph) -> Self {
+        Self::Graph(err)
     }
 }
 
@@ -232,7 +235,7 @@ impl From<ScriptError> for Error {
 }
 
 // *******************
-// *** Thot Result ***
+// *** Syre Result ***
 // *******************
 
 pub type Result<T = ()> = StdResult<T, Error>;

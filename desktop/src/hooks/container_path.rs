@@ -1,7 +1,7 @@
 //! Gets the path of a `Container`.
 use crate::commands::container::get_container_path;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::suspense::{Suspension, SuspensionResult};

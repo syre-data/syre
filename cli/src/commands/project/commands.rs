@@ -1,8 +1,8 @@
 use super::AddScriptArgs;
 use crate::Result;
 use std::env;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_local::project::script;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_local::project::script;
 
 pub fn add_script(args: AddScriptArgs, verbose: bool) -> Result {
     // format project
@@ -11,13 +11,12 @@ pub fn add_script(args: AddScriptArgs, verbose: bool) -> Result {
         Some(p) => p.clone(),
     };
 
-    let project = match thot_local::project::project::project_id(&project)? {
+    let project = match syre_local::project::project::project_id(&project)? {
         Some(project) => project,
         None => {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "path is not a project",
-            ))
-            .into())
+            return Err(
+                CoreError::Resource(ResourceError::does_not_exist("path is not a project")).into(),
+            )
         }
     };
 

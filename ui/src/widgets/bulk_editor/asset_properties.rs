@@ -3,7 +3,7 @@ use super::types::BulkValue;
 use crate::widgets::metadata::{MetadataBulk, MetadataBulkEditor, Metadatum};
 use serde_json::Value as JsValue;
 use std::rc::Rc;
-use thot_core::project::AssetProperties;
+use syre_core::project::AssetProperties;
 use yew::prelude::*;
 
 // ***************
@@ -285,7 +285,7 @@ pub fn standard_properties_bulk_editor(props: &AssetPropertiesBulkEditorProps) -
     });
 
     html! {
-        <form class={classes!("thot-ui-bulk-asset-properties-editor")} {onsubmit}>
+        <form class={classes!("syre-ui-bulk-asset-properties-editor")} {onsubmit}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>

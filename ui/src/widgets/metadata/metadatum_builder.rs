@@ -100,7 +100,7 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
     };
 
     html! {
-        <div class={classes!("thot-ui-metadatum-builder")}>
+        <div class={classes!("syre-ui-metadatum-builder")}>
             <form {onsubmit}>
                 <div class={classes!("form-fields")}>
                     <input

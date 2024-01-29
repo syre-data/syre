@@ -2,7 +2,7 @@
 use crate::commands::common::PathBufArgs;
 use crate::common::invoke_result;
 use std::path::PathBuf;
-use thot_desktop_lib::excel_template;
+use syre_desktop_lib::excel_template;
 use yew::prelude::*;
 use yew::suspense::{use_future_with, Suspension, SuspensionResult};
 

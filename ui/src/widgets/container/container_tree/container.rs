@@ -6,9 +6,9 @@ use crate::widgets::container::script_associations::ScriptAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::{HashMap, HashSet};
-use thot_core::project::container::{AssetMap, ScriptMap};
-use thot_core::project::{Asset, ContainerProperties};
-use thot_core::types::{ResourceId, ResourceMap};
+use syre_core::project::container::{AssetMap, ScriptMap};
+use syre_core::project::{Asset, ContainerProperties};
+use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -24,7 +24,7 @@ pub enum ContainerMenuEvent {
     /// Open the `Container`'s folder.
     OpenFolder,
 
-    /// Add a [`Asset`](thot_core::project::Asset)s to a `Container` using custom options.
+    /// Add a [`Asset`](syre_core::project::Asset)s to a `Container` using custom options.
     AddAssets,
 
     /// Duplicate the `Contiainer` tree.
@@ -168,7 +168,7 @@ pub struct ContainerProps {
     /// If not provided, button is not shown.
     ///
     /// # Fields
-    /// 1. [`ResourceId`] of the [`Container`](thot_core::project::Container)
+    /// 1. [`ResourceId`] of the [`Container`](syre_core::project::Container)
     ///     the event was called on.
     /// 2. [`ContainerMenuEvent`] indicating which action was requested.
     #[prop_or_default]

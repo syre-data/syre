@@ -1,7 +1,7 @@
 //! Runs a local [`Database`].
 use std::io;
-use thot_local::system::common;
-use thot_local_database::server::Database;
+use syre_local::system::common;
+use syre_local_database::server::Database;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::time::UtcTime;

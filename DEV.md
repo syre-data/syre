@@ -1,6 +1,6 @@
-# Thot Developer Guide
+# Syre Developer Guide
 
-Welcome to the Thot developer guide.
+Welcome to the Syre developer guide.
 
 *How should I name my branch? What should I put in my commit message?*
 
@@ -8,7 +8,7 @@ These are the kind of questions this guide aims to answer.
 
 ## Table of contents
 
-- [Thot Developer Guide](#thot-developer-guide)
+- [Developer Guide](#developer-guide)
   - [Table of contents](#table-of-contents)
   - [TODO](#todo)
   - [On branches](#on-branches)

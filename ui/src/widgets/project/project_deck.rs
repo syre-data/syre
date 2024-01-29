@@ -1,6 +1,6 @@
 use crate::components::card_deck::{CardDeck, CardDeckProps};
 use crate::types::ToKey;
-use thot_core::project::Project;
+use syre_core::project::Project;
 use yew::virtual_dom::Key;
 
 pub type ProjectDeckProps = CardDeckProps<Project>;

@@ -1,7 +1,7 @@
 //! Authentication functionality.
 use crate::error::Result;
-use thot_core::system::User;
-use thot_local::system::user_manifest;
+use syre_core::system::User;
+use syre_local::system::user_manifest;
 
 /// Authenticate a user's credentials.
 #[tauri::command]

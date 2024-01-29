@@ -67,7 +67,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                 None => 1_f64,
                 Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
             };
-        
+
             number_step.set(step);
         });
     }
@@ -156,7 +156,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
     };
 
     // ui
-    let class = classes!("thot-ui-metadatum-value-editor", props.class.clone());
+    let class = classes!("syre-ui-metadatum-value-editor", props.class.clone());
     html! {
         <span {class}>
             <select ref={kind_ref} onchange={onchange_kind.clone()}>

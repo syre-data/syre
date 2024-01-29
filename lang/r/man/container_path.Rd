@@ -2,7 +2,7 @@
 % Please edit documentation in R/commands.R
 \name{container_path}
 \alias{container_path}
-\title{Gets a Thot Container's path.}
+\title{Gets a Syre Container's path.}
 \usage{
 container_path(socket, id)
 }
@@ -15,5 +15,5 @@ container_path(socket, id)
 Container's path.
 }
 \description{
-Gets a Thot Container's path.
+Gets a Syre Container's path.
 }

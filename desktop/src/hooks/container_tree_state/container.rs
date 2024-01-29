@@ -1,7 +1,7 @@
 //! Hook for obtaining a [`Container`](CoreContainer).
 use crate::components::canvas::ContainerTreeStateReducer;
-use thot_core::project::Container as CoreContainer;
-use thot_core::types::ResourceId;
+use syre_core::project::Container as CoreContainer;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 /// Gets a [`Container`](CoreContainer).

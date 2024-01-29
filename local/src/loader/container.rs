@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 use std::fs;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use thot_core::project::container::{AssetMap, Container as CoreContainer};
+use syre_core::project::container::{AssetMap, Container as CoreContainer};
 
 /// Loads a [`Container`].
 pub struct Loader;
@@ -18,7 +18,7 @@ impl Loader {
             Err(err) => return Err(Error::Root(err.kind())),
         };
 
-        if !crate::common::thot_dir_of(&base_path).exists() {
+        if !crate::common::app_dir_of(&base_path).exists() {
             return Err(Error::NotResource);
         }
 

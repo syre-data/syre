@@ -1,8 +1,8 @@
 //! Bulk editor for [`ScriptAssociation`]s.
 use super::types::BulkValue;
 use std::rc::Rc;
-use thot_core::project::RunParameters;
-use thot_core::types::{ResourceId, ResourceMap};
+use syre_core::project::RunParameters;
+use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -141,15 +141,18 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
         let association_state = association_state.clone();
         let autorun_ref = autorun_ref.clone();
 
-        use_effect_with((association_state, autorun_ref), move |(association_state, autorun_ref)| {
-            if association_state.autorun() == &BulkValue::Mixed {
-                let input = autorun_ref
-                    .cast::<web_sys::HtmlInputElement>()
-                    .expect("could not cast node ref to input element");
-        
-                input.set_indeterminate(true);
-            }
-        });
+        use_effect_with(
+            (association_state, autorun_ref),
+            move |(association_state, autorun_ref)| {
+                if association_state.autorun() == &BulkValue::Mixed {
+                    let input = autorun_ref
+                        .cast::<web_sys::HtmlInputElement>()
+                        .expect("could not cast node ref to input element");
+
+                    input.set_indeterminate(true);
+                }
+            },
+        );
     }
 
     // ***********************
@@ -203,7 +206,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("thot-ui-script-association-editor")}>
+        <div class={classes!("syre-ui-script-association-editor")}>
             <label class={classes!("script-association-script")}>
                 { &props.name }
             </label>
@@ -277,7 +280,7 @@ pub fn script_associations_bulk_editor(props: &ScriptAssociationsBulkEditorProps
     };
 
     html! {
-        <form class="thot-ui-script-associations-editor">
+        <form class="syre-ui-script-associations-editor">
             <ol>
                 { props.associations.iter().map(|(script, run_parameters)|{
                      let script_name = script.clone().to_string();
@@ -297,7 +300,7 @@ pub fn script_associations_bulk_editor(props: &ScriptAssociationsBulkEditorProps
                                 onchange_autorun={onchange_autorun(script.clone())} />
 
                             <button class={ classes!("remove-button") } type={"button"} onclick={remove_script(script.clone())}>
-                                <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                                <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
                             </button>
                         </li>
                     }

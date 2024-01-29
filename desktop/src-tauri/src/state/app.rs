@@ -1,8 +1,8 @@
 //! State for the appilcation as a whole.
 use crate::settings::{UserAppState, UserSettings};
 use std::sync::Mutex;
-use thot_core::system::User;
-use thot_core::types::ResourceId;
+use syre_core::system::User;
+use syre_core::types::ResourceId;
 
 // *****************
 // *** App State ***

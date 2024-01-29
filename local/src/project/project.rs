@@ -6,20 +6,22 @@ use crate::system::collections::ProjectManifest;
 use crate::system::project_manifest;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
-use thot_core::project::Project as CoreProject;
-use thot_core::types::ResourceId;
+use syre_core::error::{
+    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
+};
+use syre_core::project::Project as CoreProject;
+use syre_core::types::ResourceId;
 
 // ************
 // *** Init ***
 // ************
 
-/// Initialize a new Thot project.
-/// If the path is already initialized as a Thot resource -- i.e. has a `.thot` folder -- nothing is
+/// Initialize a new Syre project.
+/// If the path is already initialized as a Syre resource -- i.e. has an app folder -- nothing is
 /// done.
 ///
 /// # Steps
-/// 1. Create `.thot` folder to store data.
+/// 1. Create app folder to store data.
 /// 2. Create [`Project`] for project info.
 /// 3. Create `ProjectSettings` for project settings.
 /// 4. Create `Script`s registry.
@@ -39,10 +41,10 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     }
 
     // create directory
-    let thot_dir = common::thot_dir_of(path);
-    fs::create_dir(&thot_dir)?;
+    let syre_dir = common::app_dir_of(path);
+    fs::create_dir(&syre_dir)?;
 
-    // create thot files
+    // create app files
     let project = Project::new(path)?;
     project.save()?;
 
@@ -53,7 +55,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     Ok(project.rid.clone().into())
 }
 
-/// Creates a new Thot project.
+/// Creates a new Syre project.
 ///
 /// # Errors
 /// + If the folder already exists.
@@ -73,7 +75,7 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 pub fn mv(rid: &ResourceId, to: &Path) -> Result {
     let mut projects = ProjectManifest::load()?;
     let Some(project) = projects.get_mut(rid) else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+        return Err(CoreError::Resource(ResourceError::does_not_exist(
             "`Project` is not registered",
         ))
         .into());
@@ -88,20 +90,20 @@ pub fn mv(rid: &ResourceId, to: &Path) -> Result {
     Ok(())
 }
 
-/// Returns whether the given path is part of a Thot project.
+/// Returns whether the given path is part of a Syre project.
 ///
 /// # Returns
-/// `true`` if the path has a <THOT_DIR> folder in it.
+/// `true`` if the path has a <APP_DIR> folder in it.
 ///
 /// # Note
 /// + Only works with `Container`s and `Project`s, not `Asset`s.
 pub fn path_is_resource(path: &Path) -> bool {
-    let path = common::thot_dir_of(path);
+    let path = common::app_dir_of(path);
     path.exists()
 }
 
 /// Returns whether the given path is a project root,
-/// i.e. has a <THOT_DIR>/<PROJECT_FILE>.
+/// i.e. has a <APP_DIR>/<PROJECT_FILE>.
 pub fn path_is_project_root(path: impl AsRef<Path>) -> bool {
     let path = common::project_file_of(path);
     path.exists()
@@ -122,7 +124,7 @@ pub fn project_root_path(path: impl AsRef<Path>) -> Option<PathBuf> {
     None
 }
 
-/// Returns path to the project root for a Thot resource.
+/// Returns path to the project root for a Syre resource.
 /// The entire path from start to the root of the project must follow resources.
 /// i.e. If the path from start to root contains a folder that is not initiailized
 /// as a Container, an error will be returned.
@@ -189,8 +191,8 @@ pub mod converter {
     use std::collections::HashMap;
     use std::path::{Component, Path, PathBuf};
     use std::{fs, io};
-    use thot_core::project::{script, Script, ScriptAssociation, ScriptLang};
-    use thot_core::types::{Creator, ResourceId, UserId, UserPermissions};
+    use syre_core::project::{script, Script, ScriptAssociation, ScriptLang};
+    use syre_core::types::{Creator, ResourceId, UserId, UserPermissions};
 
     pub struct Converter {
         data_root: PathBuf,
@@ -296,7 +298,7 @@ pub mod converter {
             for entry in fs::read_dir(&root)? {
                 let entry = entry?;
                 let path = entry.path();
-                if path == tmp_dir || path == common::thot_dir_of(&root) {
+                if path == tmp_dir || path == common::app_dir_of(&root) {
                     continue;
                 }
 

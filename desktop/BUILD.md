@@ -1,6 +1,6 @@
 # Build steps
 
-Make sure to start at the root of the thot folder.
+Make sure to start at the root of the app folder.
 
 ## macOS preliminary
 
@@ -57,7 +57,7 @@ If you haven't already, go back to the root path `cd ../../`.
 ### General errors
 
 `Error:error running bundle_dmg.sh`
-> Make sure no `Thot` process is running and that Thot is not mounted as a volume.
+> Make sure no `Syre` process is running and that Syre is not mounted as a volume.
 
 ### Apple
 

@@ -1,8 +1,8 @@
 use super::common::{EmptyArgs, ResourceIdArgs};
 use crate::common::invoke_result;
-use thot_core::system::User;
-use thot_core::types::ResourceId;
-use thot_local::Result;
+use syre_core::system::User;
+use syre_core::types::ResourceId;
+use syre_local::Result;
 
 pub async fn get_active_user() -> Result<Option<User>> {
     invoke_result("get_active_user", EmptyArgs {}).await

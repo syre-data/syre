@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{add_asset}
 \alias{add_asset}
-\title{Adds an Asset to the Thot project.
+\title{Adds an Asset to the Syre project.
 The associated data should be saved at the return path.}
 \usage{
 add_asset(
@@ -16,7 +16,7 @@ add_asset(
 )
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
 \item{file}{File name of the associated data.
 Use relative paths to place the Asset in a bucket.}
@@ -35,7 +35,7 @@ Use relative paths to place the Asset in a bucket.}
 Path to save the Asset's related data to.
 }
 \description{
-Adds an Asset to the Thot project.
+Adds an Asset to the Syre project.
 The associated data should be saved at the return path.
 }
 \examples{

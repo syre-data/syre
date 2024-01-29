@@ -1,14 +1,15 @@
 [package]
-name = "thot-ui"
+name = "syre-ui"
 version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Thot UI elements."
+description = "Syre UI elements."
+license = "MIT OR Apache-2.0"
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "gui", "science" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -25,7 +26,7 @@ wasm-bindgen-futures = { workspace = true }
 yew = { workspace = true }
 yew-router = { workspace = true }
 
-thot-core = { path = "../core", features = ["js", "yew"] }
+syre-core = { path = "../core", features = ["js", "yew"] }
 
 [dependencies.web-sys]
 workspace = true

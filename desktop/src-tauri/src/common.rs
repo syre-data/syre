@@ -3,12 +3,12 @@ use crate::identifier::Identifier;
 use directories::ProjectDirs;
 use std::io;
 use std::path::PathBuf;
-use thot_core::identifier::Identifier as CoreIdentifier;
-use thot_core::types::ResourceId;
-use thot_core::Result;
-use thot_local::system::common;
+use syre_core::identifier::Identifier as CoreIdentifier;
+use syre_core::types::ResourceId;
+use syre_core::Result;
+use syre_local::system::common;
 
-/// Returns directories for the user's Thot.
+/// Returns directories for the user's Syre.
 pub fn system_dirs() -> Result<ProjectDirs> {
     let dirs_opt = ProjectDirs::from(
         &CoreIdentifier::qualifier(),
@@ -26,7 +26,7 @@ pub fn system_dirs() -> Result<ProjectDirs> {
     }
 }
 
-/// Returns the path to the user's config directory for Thot.
+/// Returns the path to the user's config directory for Syre.
 pub fn config_dir_path() -> Result<PathBuf> {
     let dirs = system_dirs()?;
     let path = dirs.config_dir();

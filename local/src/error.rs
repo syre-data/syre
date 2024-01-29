@@ -5,8 +5,8 @@ use serde::{self, Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use syre_core::Error as CoreError;
 use thiserror::Error;
-use thot_core::Error as CoreError;
 
 // ***********************
 // *** Settings Errors ***
@@ -241,7 +241,7 @@ impl From<LoadContainer> for Error {
 }
 
 // *******************
-// *** Thot Result ***
+// *** Syre Result ***
 // *******************
 
 pub type Result<T = ()> = StdResult<T, Error>;

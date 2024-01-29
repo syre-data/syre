@@ -131,7 +131,7 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
     );
 
     html! {
-        <div class={"thot-ui-file-selector"}>
+        <div class={"syre-ui-file-selector"}>
             <div class={"path-control"}>
                 <span class={"path"}>
                     if let Some(path) = path.as_ref() {

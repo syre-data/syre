@@ -7,7 +7,7 @@
 flag(db, resource, message)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
 \item{resource}{Resource to flag.}
 

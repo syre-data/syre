@@ -1,12 +1,12 @@
 [package]
-name = "thot-desktop-tauri"
+name = "syre-desktop-tauri"
 version = "0.10.1"
-description = "Thot desktop application."
+description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = ["thot", "thot-data", "data", "data-analysis", "data-management"]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = ["syre", "syre-data", "data", "data-analysis", "data-management"]
 categories = ["gui", "science"]
 edition = "2021"
 rust-version = "1.57"
@@ -33,11 +33,11 @@ trash = { workspace = true }
 uuid = { workspace = true , features = ["serde", "v4"] }
 zmq = { workspace = true }
 
-thot-core = { path = "../../core", features = ["serde"] }
-thot-desktop-lib = { path = "../src-lib" }
-thot-local = { path = "../../local" }
-thot-local-database = { path = "../../local/database", features = ["server", "client"] }
-thot-local-runner = { path = "../../local/runner" }
+syre-core = { path = "../../core", features = ["serde"] }
+syre-desktop-lib = { path = "../src-lib" }
+syre-local = { path = "../../local" }
+syre-local-database = { path = "../../local/database", features = ["server", "client"] }
+syre-local-runner = { path = "../../local/runner" }
 
 [features]
 # by default Tauri runs in production mode

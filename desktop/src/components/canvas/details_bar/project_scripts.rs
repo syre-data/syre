@@ -8,10 +8,10 @@ use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::excel_template;
-use thot_ui::types::Message;
-use thot_ui::widgets::script::CreateScript;
+use syre_core::types::ResourceId;
+use syre_desktop_lib::excel_template;
+use syre_ui::types::Message;
+use syre_ui::widgets::script::CreateScript;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
@@ -154,7 +154,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
             let drop_data = e.data_transfer().unwrap();
             let files = drop_data.files().unwrap();
 
-            let supported_ext = thot_core::project::ScriptLang::supported_extensions();
+            let supported_ext = syre_core::project::ScriptLang::supported_extensions();
             let mut scripts = Vec::with_capacity(files.length() as usize);
             let mut invalid = Vec::with_capacity(files.length() as usize);
             for index in 0..files.length() {
@@ -272,7 +272,7 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                                 <button class={"btn-icon"} type={"button"}
                                     onclick={onclick_remove(script.rid.clone())}>
 
-                                    <Icon class={"thot-ui-add-remove-icon"}
+                                    <Icon class={"syre-ui-add-remove-icon"}
                                         icon_id={IconId::HeroiconsSolidMinus}/>
                                 </button>
                             }

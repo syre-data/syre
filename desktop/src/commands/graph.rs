@@ -1,13 +1,13 @@
-//! Resources for [`graph commands`](thot_desktop_tauri::commands::graph).
+//! Resources for [`graph commands`](syre_desktop_tauri::commands::graph).
 use super::common::ResourceIdArgs;
 use crate::common::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
-use thot_core::graph::ResourceTree;
-use thot_core::project::Container;
-use thot_core::types::ResourceId;
-use thot_local_database::error::server::LoadProjectGraph;
-use thot_local_database::Result as DbResult;
+use syre_core::graph::ResourceTree;
+use syre_core::project::Container;
+use syre_core::types::ResourceId;
+use syre_local_database::error::server::LoadProjectGraph;
+use syre_local_database::Result as DbResult;
 
 type ContainerTree = ResourceTree<Container>;
 
@@ -48,7 +48,7 @@ pub async fn new_child(name: String, parent: ResourceId) -> Result<(), String> {
     invoke_result("new_child", NewChildArgs { name, parent }).await
 }
 
-/// Arguments for [`init_project_graph`](thot_desktop_tauri::commands::graph::init_project_graph).
+/// Arguments for [`init_project_graph`](syre_desktop_tauri::commands::graph::init_project_graph).
 #[derive(Serialize)]
 pub struct InitProjectGraphArgs {
     /// Path to use as data root.
@@ -58,12 +58,12 @@ pub struct InitProjectGraphArgs {
     pub project: ResourceId,
 }
 
-/// Arguments for [`new_child`](thot_desktop_tauri::commands::container::new_child).
+/// Arguments for [`new_child`](syre_desktop_tauri::commands::container::new_child).
 #[derive(Serialize)]
 pub struct NewChildArgs {
     /// Name of the child.
     pub name: String,
 
-    /// [`ResourceId`] of the parent [`Container`](thot_core::project::Container).
+    /// [`ResourceId`] of the parent [`Container`](syre_core::project::Container).
     pub parent: ResourceId,
 }

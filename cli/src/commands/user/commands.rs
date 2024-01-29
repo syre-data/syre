@@ -1,10 +1,10 @@
 use super::{AddArgs, EditUserFields};
 use crate::Result;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::system::User;
-use thot_core::types::UserId;
-use thot_local::system::collections::UserManifest;
-use thot_local::system::user_manifest;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::system::User;
+use syre_core::types::UserId;
+use syre_local::system::collections::UserManifest;
+use syre_local::system::user_manifest;
 
 /// List all users.
 ///
@@ -72,7 +72,7 @@ pub fn edit(id: UserId, edits: EditUserFields) -> Result {
         UserId::Id(uid) => match user_manifest::user_by_id(&uid) {
             Ok(Some(user)) => user,
             Ok(None) => {
-                return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+                return Err(CoreError::Resource(ResourceError::does_not_exist(
                     "user does not exist",
                 ))
                 .into());
@@ -82,7 +82,7 @@ pub fn edit(id: UserId, edits: EditUserFields) -> Result {
         UserId::Email(email) => match user_manifest::user_by_email(&email) {
             Ok(Some(user)) => user,
             Ok(None) => {
-                return Err(CoreError::ResourceError(ResourceError::DoesNotExist(
+                return Err(CoreError::Resource(ResourceError::DoesNotExist(
                     "user with email `{email}` is not registered".to_string(),
                 ))
                 .into());

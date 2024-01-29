@@ -16,7 +16,7 @@ mod ui;
 use commands::*;
 use std::io;
 // use tauri::RunEvent;
-use thot_local_database::client::Client as DbClient;
+use syre_local_database::client::Client as DbClient;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt;
 use tracing_subscriber::fmt::time::UtcTime;

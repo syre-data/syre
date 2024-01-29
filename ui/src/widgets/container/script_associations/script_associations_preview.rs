@@ -1,9 +1,9 @@
 //! ScriptAssociation preview for
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
-use thot_core::project::container::ScriptMap;
-use thot_core::project::RunParameters;
-use thot_core::types::ResourceMap;
+use syre_core::project::container::ScriptMap;
+use syre_core::project::RunParameters;
+use syre_core::types::ResourceMap;
 use yew::prelude::*;
 
 #[derive(PartialEq, Properties)]
@@ -14,7 +14,7 @@ struct ScriptAssociationPreviewProps {
 
 #[function_component(ScriptAssociationPreview)]
 fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
-    let mut class = classes!("thot-ui-script-association-preview");
+    let mut class = classes!("syre-ui-script-association-preview");
     if props.run_parameters.autorun {
         class.push("autorun-true");
     } else {
@@ -49,11 +49,11 @@ pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Ht
     );
 
     html! {
-        <div class={classes!("thot-ui-script-associations-preview")}>
+        <div class={classes!("syre-ui-script-associations-preview")}>
             if props.scripts.len() == 0 {
                 { "(no scripts)" }
             } else {
-                <ol class={classes!("thot-ui-script-associations-list")}>
+                <ol class={classes!("syre-ui-script-associations-list")}>
                     { scripts.into_iter().map(|(script, run_parameters)| {
                         let name = props.names.get(script).expect("script name not found.");
                         html! {

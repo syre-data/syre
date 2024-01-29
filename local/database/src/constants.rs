@@ -8,7 +8,7 @@ pub const REQ_REP_PORT: PortNumber = 7047;
 pub const PUB_SUB_PORT: PortNumber = 7048;
 
 /// PUB-SUB topic
-pub const PUB_SUB_TOPIC: &str = "thot://local-database";
+pub const PUB_SUB_TOPIC: &str = "syre://local-database";
 
 /// Identifier string for the database
-pub const DATABASE_ID: &str = "thot local database";
+pub const DATABASE_ID: &str = "syre local database";

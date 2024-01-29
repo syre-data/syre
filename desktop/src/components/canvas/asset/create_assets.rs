@@ -1,11 +1,11 @@
-//! Create an [`Asset`](thot_core::project::Asset).
+//! Create an [`Asset`](syre_core::project::Asset).
 use crate::commands::container::add_assets_from_info;
 use crate::hooks::use_container_path;
 use std::path::PathBuf;
+use syre_core::types::ResourceId;
+use syre_desktop_lib::types::AddAssetInfo;
+use syre_local::types::AssetFileAction;
 use tauri_sys::dialog::FileDialogBuilder;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::types::AddAssetInfo;
-use thot_local::types::AssetFileAction;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -121,7 +121,7 @@ pub fn create_assets(props: &CreateAssetsProps) -> HtmlResult {
     };
 
     Ok(html! {
-        <div class={classes!("thot-ui-create-asset")}>
+        <div class={classes!("syre-ui-create-asset")}>
             <form {onsubmit}>
                 <div>
                     <label>{ "Files" }</label>

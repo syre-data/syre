@@ -1,6 +1,6 @@
 use super::*;
 use std::io;
-use thot_core::Error as CoreError;
+use syre_core::Error as CoreError;
 
 #[test]
 fn error_from_core_error_should_work() {

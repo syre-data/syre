@@ -1,4 +1,4 @@
-//! Thot project runner.
+//! Syre project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
 use super::CONTAINER_ID_KEY;
 use crate::error::Runner as RunnerError;

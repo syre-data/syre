@@ -2,7 +2,7 @@
 % Please edit documentation in R/commands.R
 \name{container_by_path}
 \alias{container_by_path}
-\title{Gets a Thot Container from its path.}
+\title{Gets a Syre Container from its path.}
 \usage{
 container_by_path(socket, path)
 }
@@ -15,5 +15,5 @@ container_by_path(socket, path)
 List of Container properties.
 }
 \description{
-Gets a Thot Container from its path.
+Gets a Syre Container from its path.
 }

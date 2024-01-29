@@ -1,6 +1,6 @@
 //! A tree graph
 use super::ResourceNode;
-use crate::error::{GraphError, ResourceError};
+use crate::error::{Graph as GraphError, Resource as ResourceError};
 use crate::types::{ResourceId, ResourceMap};
 use crate::Result;
 use has_id::HasId;
@@ -308,19 +308,12 @@ where
     /// # Returns
     /// The removed subtree.
     pub fn remove(&mut self, root: &ResourceId) -> Result<Self> {
-        let parent = self
-            .parent(root)
-            .expect("root `Node` not found")
-            .expect("root `Node` can not be removed")
-            .clone();
+        let Some(parent) = self.parent(root)?.cloned() else {
+            return Err(GraphError::IllegalOperation("can not remove root".into()).into());
+        };
 
         let (nodes, edges) = self.remove_components(root)?;
-
-        let p_edges = self
-            .edges
-            .get_mut(&parent)
-            .expect("parent `Node` edges not found");
-
+        let p_edges = self.edges.get_mut(&parent).unwrap();
         p_edges.remove(root);
 
         let mut parents = ResourceMap::new();

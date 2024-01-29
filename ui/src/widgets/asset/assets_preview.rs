@@ -3,8 +3,8 @@ use crate::constants;
 use crate::widgets::common::asset as common;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use thot_core::project::Asset;
-use thot_core::types::ResourceId;
+use syre_core::project::Asset;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -51,9 +51,9 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
             if assets.len() == 0 {
              { "(no data)" }
             } else {
-                <ol class={classes!("thot-ui-assets-list")}>
+                <ol class={classes!("syre-ui-assets-list")}>
                     { assets.iter().map(|asset| {
-                        let mut class = classes!("thot-ui-asset-preview", "clickable");
+                        let mut class = classes!("syre-ui-asset-preview", "clickable");
                         if props.active.contains(&asset.rid) {
                             class.push("active");
                         }
@@ -73,12 +73,12 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                     clicked_asset.clone(),
                                 )} >
 
-                                <div class={classes!("thot-ui-asset")}>
+                                <div class={classes!("syre-ui-asset")}>
                                     <div style={ common::asset_icon_color(&asset) }>
-                                        <Icon class={classes!("thot-ui-asset-icon")} icon_id={common::asset_icon_id(&asset)} />
+                                        <Icon class={classes!("syre-ui-asset-icon")} icon_id={common::asset_icon_id(&asset)} />
                                     </div>
 
-                                    <div class={classes!("thot-ui-asset-name")}
+                                    <div class={classes!("syre-ui-asset-name")}
                                         title={display_name.clone()}>
                                         { display_name }
                                     </div>
@@ -94,14 +94,14 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                     }
 
                                     if props.onclick_asset_remove.is_some() {
-                                        <button class={"thot-ui-asset-remove btn-icon"} type={"button"}
+                                        <button class={"syre-ui-asset-remove btn-icon"} type={"button"}
                                             onclick={onclick_asset_remove(
                                                 asset.rid.clone(),
                                                 props.onclick_asset_remove.clone(),
                                                 clicked_asset.clone(),
                                             )}>
 
-                                            <Icon class={"thot-ui-add-remove-icon"}
+                                            <Icon class={"syre-ui-add-remove-icon"}
                                                 icon_id={IconId::HeroiconsSolidMinus}/>
                                         </button>
                                     }

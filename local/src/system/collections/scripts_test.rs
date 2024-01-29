@@ -1,5 +1,5 @@
 use super::*;
-use thot_core::project::Script as CoreScript;
+use syre_core::project::Script as CoreScript;
 
 #[test]
 fn scripts_contains_path_should_work() {

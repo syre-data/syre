@@ -2,14 +2,16 @@ use super::{AssociateScriptArgs, InitArgs, NewArgs};
 use crate::common::abs_path;
 use crate::Result;
 use std::env;
-use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
-use thot_core::project::ScriptAssociation;
-use thot_local::error::{
+use syre_core::error::{
+    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
+};
+use syre_core::project::ScriptAssociation;
+use syre_local::error::{
     ContainerError as LocalContainerError, Error as LocalError, Project as ProjectError,
 };
-use thot_local::loader::container::Loader as ContainerLoader;
-use thot_local::project::resources::Scripts;
-use thot_local::project::{container, project, script};
+use syre_local::loader::container::Loader as ContainerLoader;
+use syre_local::project::resources::Scripts;
+use syre_local::project::{container, project, script};
 
 pub fn init(args: InitArgs, verbose: bool) -> Result {
     let path = match args.path {
@@ -62,13 +64,12 @@ pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
         return Err(LocalError::Project(ProjectError::PathNotInProject(cont)).into());
     };
 
-    let project = match thot_local::project::project::project_id(&prj_path)? {
+    let project = match syre_local::project::project::project_id(&prj_path)? {
         Some(project) => project,
         None => {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-                "path is not a project",
-            ))
-            .into())
+            return Err(
+                CoreError::Resource(ResourceError::does_not_exist("path is not a project")).into(),
+            )
         }
     };
 

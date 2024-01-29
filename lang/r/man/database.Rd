@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{database}
 \alias{database}
-\title{Create a new Thot database connection.}
+\title{Create a new Syre database connection.}
 \usage{
 database(dev_root = NULL)
 }
@@ -10,11 +10,11 @@ database(dev_root = NULL)
 \item{dev_root}{Path to the root Container for use in development mode.}
 }
 \value{
-A Thot Database connection.
+A Syre Database connection.
 }
 \description{
-Create a new Thot database connection.
+Create a new Syre database connection.
 }
 \examples{
-db <- database(dev_root = "/path/to/my/thot/project/container")
+db <- database(dev_root = "/path/to/my/syre/project/container")
 }

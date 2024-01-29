@@ -8,7 +8,7 @@ use super::project_actions::ProjectActions;
 use super::script_actions::ProjectScriptsActions;
 use crate::components::canvas::CanvasStateReducer;
 use std::collections::HashSet;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 #[derive(Clone, PartialEq, Debug)]

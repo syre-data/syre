@@ -3,9 +3,9 @@
 // TODO: `is_sorted` only needed for testing.
 #![feature(is_sorted)]
 
-//! # Thot Core
+//! # Syre Core
 //!
-//! This package represents core functionality of the Thot software suite.
+//! This package represents core functionality of the Syre software suite.
 pub mod common;
 pub mod constants;
 pub mod error;

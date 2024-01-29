@@ -6,11 +6,11 @@ use crate::commands::common::BulkUpdateResourcePropertiesArgs;
 use crate::commands::container::bulk_update_properties as bulk_update_container_properties;
 use crate::commands::types::ResourcePropertiesUpdate;
 use std::collections::HashSet;
-use thot_core::project::ResourceProperties;
-use thot_core::types::ResourceId;
-use thot_local_database::command::types::{MetadataAction, TagsAction};
-use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::ResourcePropertiesBulkEditor;
+use syre_core::project::ResourceProperties;
+use syre_core::types::ResourceId;
+use syre_local_database::command::types::{MetadataAction, TagsAction};
+use syre_ui::types::Message;
+use syre_ui::widgets::bulk_editor::ResourcePropertiesBulkEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -243,7 +243,7 @@ pub fn mixed_bulk_editor(props: &MixedBulkEditorProps) -> Html {
     };
 
     html! {
-        <div class={"thot-ui-editor px-xl"}>
+        <div class={"syre-ui-editor px-xl"}>
             <h4 class={"align-center m-0"}>{ "Bulk editor" }</h4>
             <ResourcePropertiesBulkEditor
                 {properties}

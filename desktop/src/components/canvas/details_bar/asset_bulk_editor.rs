@@ -3,11 +3,11 @@ use super::super::{GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::asset::bulk_update_properties;
 use std::collections::HashSet;
-use thot_core::types::ResourceId;
-use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
-use thot_local_database::command::types::{MetadataAction, TagsAction};
-use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::AssetPropertiesBulkEditor;
+use syre_core::types::ResourceId;
+use syre_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
+use syre_local_database::command::types::{MetadataAction, TagsAction};
+use syre_ui::types::Message;
+use syre_ui::widgets::bulk_editor::AssetPropertiesBulkEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -214,7 +214,7 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
     };
 
     html! {
-        <div class={"thot-ui-editor px-xl"}>
+        <div class={"syre-ui-editor px-xl"}>
             <h4 class={classes!("align-center", "m-0")}>{ "Bulk editor" }</h4>
             <AssetPropertiesBulkEditor
                 {properties}

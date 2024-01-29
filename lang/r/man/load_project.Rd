@@ -2,7 +2,7 @@
 % Please edit documentation in R/commands.R
 \name{load_project}
 \alias{load_project}
-\title{Loads a Thot project.}
+\title{Loads a Syre project.}
 \usage{
 load_project(socket, path)
 }
@@ -15,5 +15,5 @@ load_project(socket, path)
 List of Project properties.
 }
 \description{
-Loads a Thot project.
+Loads a Syre project.
 }

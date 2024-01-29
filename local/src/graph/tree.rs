@@ -3,11 +3,11 @@ use crate::common;
 use crate::error::Result;
 use crate::project::resources::Container;
 use std::path::Path;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::tree::{EdgeMap, NodeMap};
-use thot_core::graph::{ResourceNode, ResourceTree};
-use thot_core::project::{Asset, Container as CoreContainer};
-use thot_core::types::ResourceId;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::graph::tree::{EdgeMap, NodeMap};
+use syre_core::graph::{ResourceNode, ResourceTree};
+use syre_core::project::{Asset, Container as CoreContainer};
+use syre_core::types::ResourceId;
 
 type ContainerTree = ResourceTree<Container>;
 
@@ -72,10 +72,10 @@ impl ContainerTreeDuplicator {
     /// # Notes
     /// + `Asset`s are duplicated.
     #[tracing::instrument(skip(graph))]
-    pub fn duplicate(graph: &ContainerTree, root: &ResourceId) -> thot_core::Result<ContainerTree> {
+    pub fn duplicate(graph: &ContainerTree, root: &ResourceId) -> syre_core::Result<ContainerTree> {
         // ensure root exists
         let Some(node) = graph.get(root) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             )));
         };
@@ -93,7 +93,7 @@ impl ContainerTreeDuplicator {
         let dup_root = container.rid.clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             )));
         };
@@ -124,7 +124,7 @@ impl ContainerTreeDuplicator {
     ) -> Result<ContainerTree> {
         // ensure root exists
         let Some(node) = graph.get(root) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());
@@ -139,7 +139,7 @@ impl ContainerTreeDuplicator {
         let dup_root = container.rid.clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());

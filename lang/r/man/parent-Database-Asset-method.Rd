@@ -7,9 +7,9 @@
 \S4method{parent}{Database,Asset}(db, resource)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
-\item{resource}{Thot Asset.}
+\item{resource}{Syre Asset.}
 }
 \value{
 Asset's parent Container.

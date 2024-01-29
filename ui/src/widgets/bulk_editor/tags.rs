@@ -53,12 +53,12 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("thot-ui-bulk-tag-editor")}>
+        <div class={classes!("syre-ui-bulk-tag-editor")}>
             if let Some(onadd) = onadd {
                 <div class={classes!("add-tags")}>
                     <input ref={input_ref}/>
                     <button class={classes!("add-button")} type="button" onclick={onadd}>
-                        <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                        <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
                     </button>
                 </div>
             }
@@ -69,7 +69,7 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
                             <span>{ tag }</span>
                             if props.onremove.is_some() {
                                 <button class={classes!("remove-button")} type="button" onclick={onremove(tag.into())}>
-                                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                                    <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
                                 </button>
                             }
                         </li>

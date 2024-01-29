@@ -3,9 +3,9 @@ use super::collections::scripts::Scripts;
 use crate::Result;
 use std::path::Path;
 use std::{fs, io};
-use thot_core::project::Script;
-use thot_core::types::ResourceId;
-use thot_core::Error as CoreError;
+use syre_core::project::Script;
+use syre_core::types::ResourceId;
+use syre_core::Error as CoreError;
 use uuid::Uuid;
 
 // **************

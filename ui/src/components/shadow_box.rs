@@ -54,8 +54,8 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
         .expect("could not get host element");
 
     let out = html! {
-        <div class={classes!("thot-ui-shadow-box-wrapper")} style={CONTAINER_STYLE}>
-            <div class={classes!("thot-ui-shadow-box")} style={"position: relative;"}>
+        <div class={classes!("syre-ui-shadow-box-wrapper")} style={CONTAINER_STYLE}>
+            <div class={classes!("syre-ui-shadow-box")} style={"position: relative;"}>
                 <button
                     style={CLOSE_BTN_STYLES}
                     onclick={props.onclose.clone()}>{ "X" }</button>

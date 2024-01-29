@@ -7,15 +7,15 @@ use crate::server::store::ContainerTree;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::result::Result as StdResult;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::ResourceTree;
-use thot_core::project::Container as CoreContainer;
-use thot_core::types::ResourceId;
-use thot_local::common::unique_file_name;
-use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
-use thot_local::loader::container::Loader as ContainerLoader;
-use thot_local::loader::tree::incremental::{Loader as ContainerTreeLoader, PartialLoad};
-use thot_local::project::container;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::graph::ResourceTree;
+use syre_core::project::Container as CoreContainer;
+use syre_core::types::ResourceId;
+use syre_local::common::unique_file_name;
+use syre_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
+use syre_local::loader::container::Loader as ContainerLoader;
+use syre_local::loader::tree::incremental::{Loader as ContainerTreeLoader, PartialLoad};
+use syre_local::project::container;
 
 impl Database {
     #[tracing::instrument(skip(self))]
@@ -53,7 +53,7 @@ impl Database {
 
                 // get duplicated tree
                 let Some(graph) = self.store.get_graph_of_container(&rid) else {
-                    let err: Result<ResourceTree<CoreContainer>> = Err(CoreError::ResourceError(
+                    let err: Result<ResourceTree<CoreContainer>> = Err(CoreError::Resource(
                         ResourceError::does_not_exist("graph not found"),
                     )
                     .into());
@@ -69,10 +69,9 @@ impl Database {
 
             GraphCommand::Parent(rid) => {
                 let Some(graph) = self.store.get_graph_of_container(&rid) else {
-                    let err: Result<Option<ResourceId>> =
-                        Err(Error::Core(CoreError::ResourceError(
-                            ResourceError::does_not_exist("`Container` does not exist"),
-                        )));
+                    let err: Result<Option<ResourceId>> = Err(Error::Core(CoreError::Resource(
+                        ResourceError::does_not_exist("`Container` does not exist"),
+                    )));
 
                     return serde_json::to_value(err).expect("could not convert error to JsValue");
                 };
@@ -190,28 +189,28 @@ impl Database {
     #[tracing::instrument(skip(self))]
     fn duplicate_container_tree(&mut self, rid: &ResourceId) -> Result<ResourceId> {
         let Some(project) = self.store.get_container_project(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` `Project` not loaded",
             ))
             .into());
         };
 
         let Some(graph) = self.store.get_project_graph(&project) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project` graph not loaded",
             ))
             .into());
         };
 
         let Some(root) = graph.get(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist in graph",
             ))
             .into());
         };
 
         let Some(parent) = graph.parent(rid)?.cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not have parent",
             ))
             .into());
@@ -243,7 +242,7 @@ impl Database {
 
     fn new_child(&mut self, parent: &ResourceId, name: String) -> Result<ResourceId> {
         let Some(parent) = self.store.get_container(&parent) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -270,9 +269,9 @@ pub mod error {
     use std::io;
     use std::path::PathBuf;
     use store::error::InsertProjectGraph;
+    use syre_core::error::Project;
+    use syre_local::loader::tree::incremental::PartialLoad;
     use thiserror::Error;
-    use thot_core::error::Project;
-    use thot_local::loader::tree::incremental::PartialLoad;
 
     /// Used for errors local to this module.
     #[allow(non_camel_case_types)]

@@ -3,9 +3,9 @@ use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
-use thot_core::project::Project as CoreProject;
-use thot_local::project::project;
-use thot_local::project::resources::Project as LocalProject;
+use syre_core::project::Project as CoreProject;
+use syre_local::project::project;
+use syre_local::project::resources::Project as LocalProject;
 
 #[test]
 fn load_user_projects_should_work() {

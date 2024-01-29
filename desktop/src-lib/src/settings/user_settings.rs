@@ -1,7 +1,7 @@
 //! User settings.
 use super::{GeneralSettings, HasUser};
 use serde::{Deserialize, Serialize};
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 
 /// A user's settings.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

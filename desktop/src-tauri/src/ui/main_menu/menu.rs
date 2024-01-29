@@ -3,9 +3,9 @@ use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 /// Build the main menu.
 pub fn main_menu() -> Menu {
-    // thot submenu
+    // submenu
     let dev_settings = CustomMenuItem::new("developer_settings".to_string(), "Developer settings");
-    let sm_thot = Submenu::new("Thot", Menu::new().add_item(dev_settings));
+    let sm_syre = Submenu::new("Syre", Menu::new().add_item(dev_settings));
 
     // projects submenu
     let act_new_project = CustomMenuItem::new("new_project".to_string(), "New");
@@ -25,7 +25,7 @@ pub fn main_menu() -> Menu {
 
     // main menu
     Menu::new()
-        .add_submenu(sm_thot)
+        .add_submenu(sm_syre)
         .add_submenu(sm_project)
         .add_submenu(edit_menu)
 }

@@ -3,8 +3,8 @@ use crate::Result;
 use clap::Args;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
-use thot_local::loader::container::Loader as ContainerLoader;
-use thot_local::project::container;
+use syre_local::loader::container::Loader as ContainerLoader;
+use syre_local::project::container;
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {

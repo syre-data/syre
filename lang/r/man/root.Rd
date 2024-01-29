@@ -7,7 +7,7 @@
 root(db)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 }
 \value{
 Root Container.

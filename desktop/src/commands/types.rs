@@ -1,6 +1,6 @@
 //! Common types for `Command`s.
 use serde::Serialize;
-use thot_local_database::command::types::{MetadataAction, TagsAction};
+use syre_local_database::command::types::{MetadataAction, TagsAction};
 
 #[derive(Serialize, Clone, Default, Debug)]
 pub struct ResourcePropertiesUpdate {

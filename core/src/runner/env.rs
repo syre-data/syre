@@ -1,2 +1,2 @@
 //! Environment variables for runner.
-pub static CONTAINER_ID_KEY: &str = "THOT_CONTAINER_ID";
+pub static CONTAINER_ID_KEY: &str = "SYRE_CONTAINER_ID";

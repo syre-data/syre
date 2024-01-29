@@ -1,7 +1,7 @@
 //! Project hook with suspense.
 use crate::app::ProjectsStateReducer;
-use thot_core::project::Project;
-use thot_core::types::ResourceId;
+use syre_core::project::Project;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 /// Get the [`Project`] with the given id.

@@ -2,9 +2,9 @@ use super::collections::user_manifest::UserManifest;
 use super::settings::user_settings::UserSettings;
 use crate::error::{Error, Result, UsersError};
 use std::collections::HashMap;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::system::User;
-use thot_core::types::ResourceId;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::system::User;
+use syre_core::types::ResourceId;
 use validator;
 
 // *************
@@ -135,7 +135,7 @@ pub fn set_active_user(rid: &ResourceId) -> Result {
 pub fn set_active_user_by_email(email: &str) -> Result {
     let user = user_by_email(email)?;
     let Some(user) = user else {
-        return Err(Error::CoreError(CoreError::ResourceError(
+        return Err(Error::CoreError(CoreError::Resource(
             ResourceError::does_not_exist("email does not exist"),
         )));
     };
@@ -172,10 +172,9 @@ fn user_count_by_email(email: &str, users: &UserManifest) -> usize {
 fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -> Result {
     // validate id
     if !store.contains_key(&rid) {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`User` does not exist.",
-        ))
-        .into());
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`User` does not exist.")).into(),
+        );
     }
 
     Ok(())

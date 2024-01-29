@@ -2,8 +2,8 @@ use super::*;
 use fake::faker::internet::raw::FreeEmail;
 use fake::locales::EN;
 use fake::Fake;
-use thot_core::system::User;
-use thot_local::system::settings::UserSettings;
+use syre_core::system::User;
+use syre_local::system::settings::UserSettings;
 
 #[test]
 fn set_user_should_work_with_email() {

@@ -2,7 +2,7 @@ use super::*;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
 use fake::Fake;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 
 #[test]
 fn next_tab_on_close_should_work() {

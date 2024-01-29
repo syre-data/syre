@@ -47,7 +47,7 @@ pub fn message(props: &MessageProps) -> Html {
         MessageType::Warning => "message-warning",
     };
 
-    let class = classes!("thot-ui-message", kind_class, props.class.clone());
+    let class = classes!("syre-ui-message", kind_class, props.class.clone());
     let mut details_class = classes!("details");
     if *show_details {
         details_class.push("open");
@@ -85,7 +85,7 @@ pub fn message(props: &MessageProps) -> Html {
         <div class={"close-btn"}
             onclick={onclose}>
 
-            <Icon class={"thot-ui-add-remove-icon"}
+            <Icon class={"syre-ui-add-remove-icon"}
                 icon_id={IconId::FontAwesomeSolidXmark}/>
         </div>
     </div>

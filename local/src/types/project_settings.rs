@@ -1,6 +1,6 @@
 use crate::constants::PROJECT_FORMAT_VERSION;
 use serde::{Deserialize, Serialize};
-use thot_core::types::{ResourceMap, UserPermissions};
+use syre_core::types::{ResourceMap, UserPermissions};
 
 /// Settings for a local Project.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

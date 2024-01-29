@@ -2,10 +2,10 @@
 use crate::app::ProjectsStateReducer;
 use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
-use thot_core::project::container::ScriptMap;
-use thot_core::project::{RunParameters, Script as CoreScript};
-use thot_core::types::ResourceId;
-use thot_ui::widgets::container::script_associations::{
+use syre_core::project::container::ScriptMap;
+use syre_core::project::{RunParameters, Script as CoreScript};
+use syre_core::types::ResourceId;
+use syre_ui::widgets::container::script_associations::{
     AddScriptAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
 };
 use wasm_bindgen_futures::spawn_local;

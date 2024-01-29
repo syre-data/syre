@@ -1,16 +1,16 @@
 # constants
 LOCALHOST <- "127.0.0.1"
-THOT_PORT <- 7047
-THOT_TIMEOUT <- 1000L # in milliseconds
+SYRE_PORT <- 7047
+SYRE_TIMEOUT <- 1000L # in milliseconds
 
 #' Create a ZMQ socket.
 #'
 #' @returns ZMQ socket.
 zmq_socket <- function() {
-  socket <- init.socket(THOT_ZMQ_CONTEXT, "ZMQ_REQ")
-  set.send.timeout(socket, THOT_TIMEOUT)
-  set.linger(socket, THOT_TIMEOUT)
-  connect.socket(socket, sprintf("tcp://%s:%d", LOCALHOST, THOT_PORT))
+  socket <- init.socket(SYRE_ZMQ_CONTEXT, "ZMQ_REQ")
+  set.send.timeout(socket, SYRE_TIMEOUT)
+  set.linger(socket, SYRE_TIMEOUT)
+  connect.socket(socket, sprintf("tcp://%s:%d", LOCALHOST, SYRE_PORT))
 
   socket
 }
@@ -35,8 +35,8 @@ database_server_path <- function() {
     "Windows" = "x86_64-pc-windows-msvc.exe"
   )
 
-  exe <- paste("thot-local-database-", exe, sep = "")
-  system.file(exe, package = "thot", mustWork = TRUE)
+  exe <- paste("syre-local-database-", exe, sep = "")
+  system.file(exe, package = "syre", mustWork = TRUE)
 }
 
 #' Escape special string characters.

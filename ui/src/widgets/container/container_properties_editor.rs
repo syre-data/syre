@@ -1,8 +1,8 @@
-//! Properties editor for [`Container`](thot_core::project::Container)s.
+//! Properties editor for [`Container`](syre_core::project::Container)s.
 use super::super::{MetadataEditor, TagsEditor};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use thot_core::project::{ContainerProperties, Metadata};
+use syre_core::project::{ContainerProperties, Metadata};
 use yew::prelude::*;
 
 // ************************
@@ -225,7 +225,7 @@ pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Ht
     });
 
     html! {
-        <form class={"thot-ui-container-properties-editor"}>
+        <form class={"syre-ui-container-properties-editor"}>
             <div class={"form-field name"}>
                 <label>
                     <h3>{ "Name" }</h3>

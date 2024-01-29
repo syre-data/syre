@@ -17,10 +17,10 @@ fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {
     let builder = InitOptions::init();
     builder.build(root.as_path()).unwrap();
 
-    // check .thot folder created
+    // check app folder created
     assert!(
-        common::thot_dir_of(&root).exists(),
-        ".thot folder should exist"
+        common::app_dir_of(&root).exists(),
+        "app folder should exist"
     );
 
     // check files exist and are empty
@@ -71,10 +71,10 @@ fn builder_init_should_return_resource_id_if_already_a_container() {
 
 #[test]
 #[should_panic]
-fn builder_init_if_folder_is_a_thot_resource_but_not_a_container_should_error() {
+fn builder_init_if_folder_is_a_resource_but_not_a_container_should_error() {
     // setup
     let _dir = TempDir::new().expect("`TempDir::new` should work");
-    fs::create_dir(common::thot_dir_of(_dir.path())).expect("creating thot directory should work");
+    fs::create_dir(common::app_dir_of(_dir.path())).expect("creating app directory should work");
 
     // test
     let builder = InitOptions::init();

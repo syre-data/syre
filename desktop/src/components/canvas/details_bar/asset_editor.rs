@@ -3,10 +3,10 @@ use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::asset::update_properties;
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
 use crate::hooks::use_asset;
-use thot_core::project::AssetProperties;
-use thot_core::types::ResourceId;
-use thot_ui::types::Message;
-use thot_ui::widgets::asset::AssetEditor as AssetEditorUi;
+use syre_core::project::AssetProperties;
+use syre_core::types::ResourceId;
+use syre_ui::types::Message;
+use syre_ui::widgets::asset::AssetEditor as AssetEditorUi;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -50,7 +50,7 @@ pub fn asset_editor(props: &AssetEditorProps) -> Html {
     };
 
     html! {
-        <div class={"thot-ui-editor px-xl"}>
+        <div class={"syre-ui-editor px-xl"}>
             <AssetEditorUi asset={(*asset).clone()} {onchange_properties} />
         </div>
     }

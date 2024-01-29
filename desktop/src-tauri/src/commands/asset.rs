@@ -3,14 +3,14 @@ use crate::error::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use syre_core::project::{Asset, AssetProperties};
+use syre_core::types::ResourceId;
+use syre_desktop_lib::error::{RemoveResource as RemoveResourceError, Trash as TrashError};
+use syre_local_database::client::Client as DbClient;
+use syre_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
+use syre_local_database::command::AssetCommand;
+use syre_local_database::Result as DbResult;
 use tauri::State;
-use thot_core::project::{Asset, AssetProperties};
-use thot_core::types::ResourceId;
-use thot_desktop_lib::error::{RemoveResource as RemoveResourceError, Trash as TrashError};
-use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
-use thot_local_database::command::AssetCommand;
-use thot_local_database::Result as DbResult;
 
 /// Gets `Asset`s.
 #[tauri::command]

@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/reference/test_package.html#special-files
 
 library(testthat)
-library(thot)
+library(syre)
 
-test_check("thot")
+test_check("syre")

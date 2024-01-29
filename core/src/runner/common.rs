@@ -1,4 +1,4 @@
-//! Common functionality related to the Thot runner.
+//! Common functionality related to the Syre runner.
 use super::CONTAINER_ID_KEY;
 use std::env;
 

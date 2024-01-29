@@ -7,14 +7,14 @@ use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::path::Path;
 use std::result::Result as StdResult;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::Project as CoreProject;
-use thot_core::types::{Creator, ResourceId};
-use thot_local::error::IoSerde as IoSerdeError;
-use thot_local::project::project::project_resource_root_path;
-use thot_local::project::resources::project::Project as LocalProject;
-use thot_local::system::collections::project_manifest::ProjectManifest;
-use thot_local::types::ProjectSettings;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::project::Project as CoreProject;
+use syre_core::types::{Creator, ResourceId};
+use syre_local::error::IoSerde as IoSerdeError;
+use syre_local::project::project::project_resource_root_path;
+use syre_local::project::resources::project::Project as LocalProject;
+use syre_local::system::collections::project_manifest::ProjectManifest;
+use syre_local::types::ProjectSettings;
 
 impl Database {
     /// Directs the command to the correct handler.
@@ -173,7 +173,7 @@ impl Database {
 
     fn update_project(&mut self, update: CoreProject) -> Result {
         let Some(project) = self.store.get_project_mut(&update.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());
@@ -186,7 +186,7 @@ impl Database {
 
     fn update_project_settings(&mut self, rid: &ResourceId, settings: ProjectSettings) -> Result {
         let Some(project) = self.store.get_project_mut(rid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());

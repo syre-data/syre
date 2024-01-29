@@ -8,8 +8,8 @@ use std::fs;
 use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use thot_core::project::Script as CoreScript;
-use thot_core::types::ResourceId;
+use syre_core::project::Script as CoreScript;
+use syre_core::types::ResourceId;
 
 pub type ScriptMap = HashMap<ResourceId, CoreScript>;
 

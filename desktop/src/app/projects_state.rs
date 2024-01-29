@@ -3,9 +3,9 @@
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use std::rc::Rc;
-use thot_core::project::{Project, Script, Scripts};
-use thot_core::types::{ResourceId, ResourceMap};
-use thot_local::types::ProjectSettings;
+use syre_core::project::{Project, Script, Scripts};
+use syre_core::types::{ResourceId, ResourceMap};
+use syre_local::types::ProjectSettings;
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;

@@ -2,9 +2,9 @@
 use super::common::ResourceIdArgs;
 use crate::common::invoke_result;
 use serde::Serialize;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::{UserAppState, UserSettings};
-use thot_local::error::IoSerde;
+use syre_core::types::ResourceId;
+use syre_desktop_lib::settings::{UserAppState, UserSettings};
+use syre_local::error::IoSerde;
 
 pub async fn load_user_app_state(user: ResourceId) -> Result<UserAppState, IoSerde> {
     invoke_result("load_user_app_state", ResourceIdArgs { rid: user }).await

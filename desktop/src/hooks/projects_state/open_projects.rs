@@ -1,7 +1,7 @@
 //! Gets open projects.
 use crate::app::ProjectsStateReducer;
 use indexmap::IndexSet;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 #[hook]

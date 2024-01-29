@@ -1,9 +1,9 @@
 //! Main application state.
 use gloo_timers::callback::Timeout;
 use std::rc::Rc;
-use thot_core::project::Project;
-use thot_desktop_lib::settings::{UserAppState, UserSettings};
-use thot_ui::types::Message;
+use syre_core::project::Project;
+use syre_desktop_lib::settings::{UserAppState, UserSettings};
+use syre_ui::types::Message;
 use uuid::Uuid;
 use yew::prelude::*;
 

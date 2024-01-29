@@ -1,5 +1,5 @@
 //! Metadata preview.
-use thot_core::project::Metadata;
+use syre_core::project::Metadata;
 use yew::prelude::*;
 
 #[derive(PartialEq, Properties)]
@@ -10,7 +10,7 @@ pub struct MetadataPreviewProps {
 #[function_component(MetadataPreview)]
 pub fn metadata_preview(props: &MetadataPreviewProps) -> Html {
     html! {
-        <ol class={classes!("thot-ui-metadata-preview")}>
+        <ol class={classes!("syre-ui-metadata-preview")}>
             { props.value.iter().map(|(name, value)| html! {
                 <li key={name.clone()}>
                     <span class={classes!("metadatum-key")}

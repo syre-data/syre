@@ -1,5 +1,5 @@
 #![feature(mutex_unlock)]
-//! User interface for Thot Desktop.
+//! User interface for Syre Desktop.
 mod actions;
 mod app;
 mod commands;

@@ -5,10 +5,10 @@ use crate::Result;
 use has_id::{HasId, HasIdSerde};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use thot_core::graph::ResourceTree;
-use thot_core::project::Project as CoreProject;
-use thot_core::system::template::Project as ProjectTemplate;
-use thot_core::types::ResourceId;
+use syre_core::graph::ResourceTree;
+use syre_core::project::Project as CoreProject;
+use syre_core::system::template::Project as ProjectTemplate;
+use syre_core::types::ResourceId;
 
 pub struct Project {
     rel_path: PathBuf,

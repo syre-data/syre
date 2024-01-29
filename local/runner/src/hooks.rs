@@ -1,10 +1,10 @@
 //! Local runner hooks.
 use std::path::PathBuf;
-use thot_core::project::{Project, Script, ScriptLang};
-use thot_core::runner::RunnerHooks as CoreRunnerHooks;
-use thot_core::types::ResourceId;
-use thot_local::system::settings::RunnerSettings;
-use thot_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
+use syre_core::project::{Project, Script, ScriptLang};
+use syre_core::runner::RunnerHooks as CoreRunnerHooks;
+use syre_core::types::ResourceId;
+use syre_local::system::settings::RunnerSettings;
+use syre_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
 #[tracing::instrument]

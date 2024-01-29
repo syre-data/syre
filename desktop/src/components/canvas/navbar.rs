@@ -22,7 +22,7 @@ pub fn tree_view_container_item(props: &TreeViewContainerItemProps) -> Html {
 #[function_component(ContainerTreeView)]
 pub fn container_tree_view(props: &ContainerTreeViewProps) -> Html {
     let expanded = use_state(|| props.expanded);
-    let class = classes!("thot-ui-tree-view", props.class);
+    let class = classes!("syre-ui-tree-view", props.class);
 
     let toggle_expanded = {
         let expanded = expanded.clone();

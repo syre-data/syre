@@ -1,5 +1,5 @@
 use crate::components::card::{Card, CardProps, CardUi};
-use thot_core::project::Project;
+use syre_core::project::Project;
 use yew::prelude::*;
 
 impl CardUi for Project {

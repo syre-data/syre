@@ -18,7 +18,7 @@ where
     I: PartialEq,
 {
     let expanded = use_state(|| props.expanded);
-    let class = classes!("thot-ui-tree-view", props.class);
+    let class = classes!("syre-ui-tree-view", props.class);
 
     let toggle_expanded = {
         let expanded = expanded.clone();

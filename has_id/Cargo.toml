@@ -7,7 +7,7 @@ authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
 description = "Indicate an object has a unique id."
 license = "MIT OR Apache-2.0"
 
-repository = "https://github.com/thot-data/has_id"
+repository = "https://github.com/syre-data/syre"
 keywords = []
 categories = []
 

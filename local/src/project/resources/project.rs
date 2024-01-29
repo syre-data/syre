@@ -9,9 +9,9 @@ use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
-use thot_core::project::Project as CoreProject;
+use syre_core::project::Project as CoreProject;
 
-/// Represents a Thot project.
+/// Represents a Syre project.
 pub struct Project {
     inner: CoreProject,
     base_path: PathBuf,

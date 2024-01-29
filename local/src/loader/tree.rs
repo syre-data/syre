@@ -8,8 +8,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use thot_core::graph::ResourceTree;
-use thot_core::types::ResourceId;
+use syre_core::graph::ResourceTree;
+use syre_core::types::ResourceId;
 
 type ContainerTree = ResourceTree<Container>;
 

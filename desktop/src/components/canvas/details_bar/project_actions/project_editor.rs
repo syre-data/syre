@@ -2,8 +2,8 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::project;
 use std::rc::Rc;
-use thot_core::project::Project;
-use thot_ui::types::Message;
+use syre_core::project::Project;
+use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -188,8 +188,8 @@ fn project_editor_view(props: &ProjectEditorViewProps) -> Html {
 
     html! {
         <div class={"project-editor"}>
-            <div class={"thot-ui-editor"}>
-                <form class={"thot-ui-project-properties-editor"}
+            <div class={"syre-ui-editor"}>
+                <form class={"syre-ui-project-properties-editor"}
                     {onsubmit} >
 
                     <div class={"form-field name"}>

@@ -5,19 +5,19 @@ use crate::commands::container::{
     bulk_update_properties, bulk_update_script_associations, BulkUpdatePropertiesArgs,
 };
 use std::collections::HashSet;
-use thot_core::project::ScriptAssociation;
-use thot_core::types::{ResourceId, ResourceMap};
-use thot_local_database::command::container::{
+use syre_core::project::ScriptAssociation;
+use syre_core::types::{ResourceId, ResourceMap};
+use syre_local_database::command::container::{
     BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
     ScriptAssociationBulkUpdate,
 };
-use thot_local_database::command::types::{MetadataAction, TagsAction};
-use thot_ui::types::Message;
-use thot_ui::widgets::bulk_editor::{
+use syre_local_database::command::types::{MetadataAction, TagsAction};
+use syre_ui::types::Message;
+use syre_ui::widgets::bulk_editor::{
     ContainerPropertiesBulkEditor, RunParametersUpdate as RunParametersUiUpdate,
     ScriptAssociationsBulkEditor, ScriptBulkMap,
 };
-use thot_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
+use syre_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -393,7 +393,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     };
 
     html! {
-        <div class={"thot-ui-editor px-xl"}>
+        <div class={"syre-ui-editor px-xl"}>
             <h4 class={"align-center m-0"}>{ "Bulk editor" }</h4>
             <ContainerPropertiesBulkEditor
                 {properties}

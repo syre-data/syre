@@ -6,8 +6,8 @@ use crate::Result;
 use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Script as CoreScript, Scripts as CoreScripts};
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::project::{Script as CoreScript, Scripts as CoreScripts};
 
 // **************
 // *** Script ***
@@ -68,7 +68,7 @@ impl Scripts {
     /// already present.
     pub fn insert_script(&mut self, script: CoreScript) -> Result {
         if self.scripts.contains_path(&script.path) {
-            return Err(CoreError::ResourceError(ResourceError::already_exists(
+            return Err(CoreError::Resource(ResourceError::already_exists(
                 "`Script` with same path is already present",
             ))
             .into());

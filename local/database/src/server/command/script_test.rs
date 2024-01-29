@@ -1,8 +1,8 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Script, ScriptAssociation};
-use thot_local::project::resources::{
+use syre_core::graph::ResourceTree;
+use syre_core::project::{Script, ScriptAssociation};
+use syre_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as LocalScripts,
 };
 

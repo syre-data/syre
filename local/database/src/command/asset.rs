@@ -1,9 +1,9 @@
 //! Asset realated commands.
 use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
-use thot_core::db::StandardSearchFilter;
-use thot_core::project::{Asset, AssetProperties};
-use thot_core::types::ResourceId;
+use syre_core::db::StandardSearchFilter;
+use syre_core::project::{Asset, AssetProperties};
+use syre_core::types::ResourceId;
 
 /// Asset realated commands.
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,7 +27,7 @@ pub enum AssetCommand {
     /// 1. `Asset`'s `ResourceId`.
     Parent(ResourceId),
 
-    /// Insert's an [`Asset`] into a [`Container`](thot_core::project::Container).
+    /// Insert's an [`Asset`] into a [`Container`](syre_core::project::Container).
     Add { asset: Asset, container: ResourceId },
 
     /// Removes an Asset from its Container.

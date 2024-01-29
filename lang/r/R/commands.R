@@ -25,12 +25,12 @@ send_cmd <- function(socket, cmd, result = TRUE) {
   res
 }
 
-#' Checks if a Thot database is available.
+#' Checks if a Syre database is available.
 #'
-#' @returns Whether a Thot database is available.
+#' @returns Whether a Syre database is available.
 database_available <- function() {
   server_up <- tryCatch({
-    socketConnection(port = THOT_PORT)
+    socketConnection(port = SYRE_PORT)
     TRUE
   },
   error = function(cond) {
@@ -48,10 +48,10 @@ database_available <- function() {
   # check if database is responsive
   cmd <- '{"DatabaseCommand": "Id"}'
   id <- send_cmd(zmq_socket(), cmd, result = FALSE)
-  id == "thot local database"
+  id == "syre local database"
 }
 
-#' Loads a Thot project.
+#' Loads a Syre project.
 #'
 #' @param socket ZMQ socket.
 #' @param path Path to the Project.
@@ -62,7 +62,7 @@ load_project <- function(socket, path) {
   send_cmd(socket, cmd)
 }
 
-#' Loads a Thot Project's graph.
+#' Loads a Syre Project's graph.
 #'
 #' @param socket ZMQ socket.
 #' @param project Project's id.
@@ -73,7 +73,7 @@ load_graph <- function(socket, project) {
   send_cmd(socket, cmd)
 }
 
-#' Gets a Thot Container.
+#' Gets a Syre Container.
 #'
 #' @param socket ZMQ socket.
 #' @param id Container id.
@@ -84,7 +84,7 @@ get_container <- function(socket, id) {
   send_cmd(socket, cmd, result = FALSE)
 }
 
-#' Gets a Thot Container's path.
+#' Gets a Syre Container's path.
 #'
 #' @param socket ZMQ socket.
 #' @param id Container id.
@@ -95,7 +95,7 @@ container_path <- function(socket, id) {
   send_cmd(socket, cmd, result = FALSE)
 }
 
-#' Gets a Thot Container from its path.
+#' Gets a Syre Container from its path.
 #'
 #' @param socket ZMQ socket.
 #' @param path Path to the Container.

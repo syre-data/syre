@@ -1,12 +1,12 @@
-#' Create a new Thot database connection.
+#' Create a new Syre database connection.
 #'
 #' @param dev_root Path to the root Container for use in development mode.
 #'
-#' @returns A Thot Database connection.
+#' @returns A Syre Database connection.
 #' @export
 #'
 #' @examples
-#' db <- database(dev_root = "/path/to/my/thot/project/container")
+#' db <- database(dev_root = "/path/to/my/syre/project/container")
 database <- function(dev_root = NULL) {
   if (!database_available()) {
     exe_path <- database_server_path()
@@ -14,7 +14,7 @@ database <- function(dev_root = NULL) {
   }
 
   socket <- zmq_socket()
-  root_id <- thot_container_id()
+  root_id <- syre_container_id()
   if (is.na(root_id)) {
     # dev mode
     stopifnot(!is.null(dev_root))
@@ -45,7 +45,7 @@ database <- function(dev_root = NULL) {
 
 #' Gets the root Container of the database.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #'
 #' @returns Root Container.
 #' @export
@@ -61,7 +61,7 @@ root <- function(db) {
 
 #' Find Containers matching the given filter criteria.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param name Name of the Container to match.
 #' @param type Type of the Container to match.
 #' @param tags List of tags the Container has to match.
@@ -98,7 +98,7 @@ find_containers <-
 #' Finds a single Container matching the given filter criteria.
 #' If multiple matching Containers are found, a random one is returned.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param name Name of the Container to match.
 #' @param type Type of the Container to match.
 #' @param tags List of tags the Container has to match.
@@ -133,7 +133,7 @@ find_container <-
 
 #' Find Assets matching the given filter criteria.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param name Name of the Asset to match.
 #' @param type Type of the Asset to match.
 #' @param tags List of tags the Asset has to match.
@@ -169,7 +169,7 @@ find_assets <-
 #' Finds a single Asset matching the given filter criteria.
 #' If multiple matching Assets are found, a random one is returned.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param name Name of the Asset to match.
 #' @param type Type of the Asset to match.
 #' @param tags List of tags the Asset has to match.
@@ -202,10 +202,10 @@ find_asset <-
     NULL
   }
 
-#' Adds an Asset to the Thot project.
+#' Adds an Asset to the Syre project.
 #' The associated data should be saved at the return path.
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param file File name of the associated data.
 #' Use relative paths to place the Asset in a bucket.
 #' @param name Name of the Asset.
@@ -255,7 +255,7 @@ add_asset <- function(db,
 
 #' Flags a resource (Container or Asset).
 #'
-#' @param db Thot database connection.
+#' @param db Syre database connection.
 #' @param resource Resource to flag.
 #' @param message Flag message.
 #'

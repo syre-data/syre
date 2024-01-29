@@ -3,11 +3,11 @@
 /// Current project format version.
 pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";
 
-// ************
-// *** thot ***
-// ************
+// ***********
+// *** app ***
+// ***********
 
-pub const THOT_DIR: &str = ".thot";
+pub const APP_DIR: &str = ".syre";
 pub const PROJECT_FILE: &str = "project.json";
 pub const PROJECT_SETTINGS_FILE: &str = "project_settings.json";
 pub const CONTAINER_FILE: &str = "container.json";

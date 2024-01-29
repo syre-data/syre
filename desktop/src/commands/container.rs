@@ -1,16 +1,16 @@
-//! Resources for [`container commands`](thot_desktop_tauri::commands::container).
+//! Resources for [`container commands`](syre_desktop_tauri::commands::container).
 use super::common::ResourceIdArgs;
 use crate::common::{invoke, invoke_result};
 use serde::Serialize;
 use std::path::PathBuf;
-use thot_core::project::container::ScriptMap;
-use thot_core::project::{Container, ContainerProperties};
-use thot_core::types::ResourceId;
-use thot_desktop_lib::types::AddAssetInfo;
-use thot_local_database::command::container::{
+use syre_core::project::container::ScriptMap;
+use syre_core::project::{Container, ContainerProperties};
+use syre_core::types::ResourceId;
+use syre_desktop_lib::types::AddAssetInfo;
+use syre_local_database::command::container::{
     BulkUpdateScriptAssociationsArgs, PropertiesUpdate, ScriptAssociationBulkUpdate,
 };
-use thot_local_database::Result as DbResult;
+use syre_local_database::Result as DbResult;
 
 pub async fn get_container(container: ResourceId) -> Option<Container> {
     invoke("get_container", ResourceIdArgs { rid: container }).await
@@ -100,7 +100,7 @@ pub async fn add_asset_from_contents(
 }
 
 /// Arguments for
-/// [`load_container_tree`](thot_desktop_tauri::commands::container::load_container_tree).
+/// [`load_container_tree`](syre_desktop_tauri::commands::container::load_container_tree).
 #[derive(Serialize)]
 pub struct LoadContainerTreeArgs {
     /// Root of the container tree.
@@ -137,11 +137,11 @@ pub struct UpdatePropertiesStringArgs {
                             // See: https://github.com/tauri-apps/tauri/issues/6078
 }
 
-/// Arguments to update a [`Container`](thot_core::project::Container)'s
-/// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
+/// Arguments to update a [`Container`](syre_core::project::Container)'s
+/// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
 #[derive(Clone, Serialize)]
 pub struct UpdateScriptAssociationsArgs {
-    /// [`ResourceId`] of the [`Container`](thot_core::project::Container).
+    /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
     pub rid: ResourceId,
 
     // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
@@ -156,7 +156,7 @@ pub struct UpdateScriptAssociationsArgs {
 /// (https://github.com/tauri-apps/tauri/issues/6078)
 #[derive(Clone, Serialize)]
 pub struct UpdateScriptAssociationsStringArgs {
-    /// [`ResourceId`] of the [`Container`](thot_core::project::Container).
+    /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
     pub rid: ResourceId,
 
     // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
@@ -166,17 +166,17 @@ pub struct UpdateScriptAssociationsStringArgs {
     pub associations: String,
 }
 
-/// Arguments for [`add_assets`](thot_desktop_tauri::commands::container::add_assets).
+/// Arguments for [`add_assets`](syre_desktop_tauri::commands::container::add_assets).
 #[derive(Serialize, Debug)]
 pub struct AddAssetsInfoArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
-    /// [`Asset`](thot_core::project::Asset)s to add.
+    /// [`Asset`](syre_core::project::Asset)s to add.
     pub assets: Vec<AddAssetInfo>,
 }
 
-/// Arguments for [`add_asset_windows`](thot_desktop_tauri::commands::container::add_asset_windows).
+/// Arguments for [`add_asset_windows`](syre_desktop_tauri::commands::container::add_asset_windows).
 #[derive(Serialize)]
 pub struct AddAssetContentsArgs {
     /// [`ResourceId`] of the [`Container`](Container).

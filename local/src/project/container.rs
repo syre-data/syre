@@ -1,14 +1,14 @@
 //! High level functionality related to Containers.
 use super::project;
 use super::resources::Container;
-use crate::common::{container_file_of, thot_dir};
+use crate::common::{app_dir, container_file_of};
 use crate::loader::container::Loader as ContainerLoader;
 use crate::Result;
 use std::path::{self, Path, PathBuf};
 use std::{fs, io};
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Asset, ContainerProperties};
-use thot_core::types::ResourceId;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::project::{Asset, ContainerProperties};
+use syre_core::types::ResourceId;
 
 // ***************
 // *** Builder ***
@@ -99,7 +99,7 @@ impl InitOptions<InitNew> {
     pub fn build(&self, path: impl AsRef<Path>) -> Result<ResourceId> {
         let path = path.as_ref();
         if path.exists() && project::path_is_resource(path) {
-            return Err(CoreError::ResourceError(ResourceError::already_exists(
+            return Err(CoreError::Resource(ResourceError::already_exists(
                 "path is already a resource",
             ))
             .into());
@@ -211,7 +211,7 @@ impl InitOptions<InitExisting> {
                     files.push(entry_path);
                 } else if entry_path.is_dir() {
                     if entry_path.components().any(|seg| match seg {
-                        path::Component::Normal(seg) => seg == thot_dir(),
+                        path::Component::Normal(seg) => seg == app_dir(),
                         _ => false,
                     }) {
                         continue;
@@ -342,7 +342,7 @@ pub fn update(container: Container) -> Result {
 }
 
 /// Returns whether or not the path is a Container.
-/// Checks if <path>/<THOT_DIR>/<CONTAINER_FILE> exists.
+/// Checks if <path>/<APP_DIR>/<CONTAINER_FILE> exists.
 pub fn path_is_container(path: &Path) -> bool {
     let c_path = container_file_of(path);
     c_path.exists()

@@ -1,4 +1,4 @@
-//! [`Asset`](thot_core::project::Asset) functionality.
+//! [`Asset`](syre_core::project::Asset) functionality.
 pub mod create_assets;
 
 // Re-export

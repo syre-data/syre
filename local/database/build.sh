@@ -3,15 +3,15 @@
 root=../..
 releases=${root}/target/release
 target=$(rustc -Vv | grep host | cut -f2 -d' ')
-target_file=thot-local-database-${target}
+target_file=syre-local-database-${target}
 target_out=${releases}/${target_file}
 
 cargo build --release -F server
-mv ${releases}/thot-local-database ${target_out}
+mv ${releases}/syre-local-database ${target_out}
 
 # copy to other packages
 lang=${root}/lang
-python_path=${lang}/python/src/thot/bin
+python_path=${lang}/python/src/syre/bin
 r_path=${lang}/r/inst
 
 # create python bin path if it does not exist

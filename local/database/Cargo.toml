@@ -1,15 +1,15 @@
 [package]
-name = "thot-local-database"
+name = "syre-local-database"
 version = "0.0.2"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Local database for Thot resources."
+description = "Local database for Syre resources."
 license = "MIT OR Apache-2.0"
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "science", "data-structures" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -33,8 +33,8 @@ zmq = { workspace = true, optional = true }
 
 has_id = { path = "../../has_id", optional = true }
 file_path_from_id = { path = "../../file_path_from_id" }
-thot-core = { path = "../../core" }
-thot-local = { path = "..", default-features = false }
+syre-core = { path = "../../core" }
+syre-local = { path = "..", default-features = false }
 
 [dev-dependencies]
 rand = "0.8"
@@ -42,10 +42,10 @@ fake = "2.4"
 lazy_static = "1.4"
 tempfile = "3.9.0"
 
-dev_utils = { path = "../../dev_utils", features = ["thot_core"] }
+dev_utils = { path = "../../dev_utils", features = ["syre_core"] }
 
 [features]
 default = ["error"]
-server = ["dep:zmq", "thot-local/fs", "dep:has_id", "dep:trash", "dep:notify", "dep:notify-debouncer-full"]
+server = ["dep:zmq", "syre-local/fs", "dep:has_id", "dep:trash", "dep:notify", "dep:notify-debouncer-full"]
 client = ["dep:zmq"]
 error = []

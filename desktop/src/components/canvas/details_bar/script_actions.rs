@@ -6,8 +6,8 @@ use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphState
 use crate::hooks::use_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_ui::types::Message;
+use syre_core::types::ResourceId;
+use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 

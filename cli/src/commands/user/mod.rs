@@ -1,6 +1,6 @@
 use crate::Result;
 use clap::{ArgGroup, Args, Subcommand};
-use thot_core::types::UserId;
+use syre_core::types::UserId;
 mod commands;
 
 pub fn main(args: UserArgs, verbose: bool) -> Result {

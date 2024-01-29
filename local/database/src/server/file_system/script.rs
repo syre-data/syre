@@ -1,15 +1,15 @@
-//! Handle [`thot::Script`](ScriptEvent) events.
+//! Handle [`syre::Script`](ScriptEvent) events.
 use super::event::app::Script as ScriptEvent;
 use crate::event::{Script as ScriptUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::fs;
-use thot_local::error::{Error as LocalError, Project as ProjectError};
-use thot_local::project::project;
-use thot_local::project::resources::Script as LocalScript;
+use syre_local::error::{Error as LocalError, Project as ProjectError};
+use syre_local::project::project;
+use syre_local::project::resources::Script as LocalScript;
 
 impl Database {
-    pub fn handle_thot_event_script(&mut self, event: &ScriptEvent) -> Result {
+    pub fn handle_app_event_script(&mut self, event: &ScriptEvent) -> Result {
         match event {
             ScriptEvent::Created(path) => {
                 let Some(project_path) = project::project_root_path(&path) else {

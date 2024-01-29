@@ -1,12 +1,12 @@
 use super::*;
-use crate::common::{project_file_of, project_settings_file_of, thot_dir_of};
+use crate::common::{app_dir_of, project_file_of, project_settings_file_of};
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
 use fake::Fake;
 use serde_json;
 use std::fs;
-use thot_core::project::Project as CoreProject;
+use syre_core::project::Project as CoreProject;
 
 // ******************
 // *** new + init ***
@@ -21,12 +21,12 @@ fn new_should_work() {
     // initial check that root dir does not exist
     assert_eq!(false, root.is_dir(), "root dir should not exist before new");
 
-    // initialize thot project
+    // initialize project
     new(root).expect("new should work");
 
-    let thot_dir = thot_dir_of(root);
+    let app_dir = app_dir_of(root);
     assert_eq!(true, root.is_dir(), "root dir should exist after new");
-    assert_eq!(true, thot_dir.is_dir(), "thot dir should exist after new");
+    assert_eq!(true, app_dir.is_dir(), "app dir should exist after new");
 
     // ensure project files created
     let prj_files = vec![project_file_of(root), project_settings_file_of(root)];
@@ -53,15 +53,15 @@ fn init_should_work() {
     let _dir = TempDir::new().expect("setup should work");
     let root = _dir.path();
 
-    // initialize thot project
+    // initialize project
     let init_res = init(root);
     assert_eq!(true, init_res.is_ok(), "new should return Ok");
 
-    let thot_dir = thot_dir_of(root);
+    let app_dir = app_dir_of(root);
     assert_eq!(
         true,
-        thot_dir.is_dir(),
-        "thot directory should exist after init"
+        app_dir.is_dir(),
+        "app directory should exist after init"
     );
 
     // ensure files created
@@ -78,7 +78,7 @@ fn init_should_work() {
 }
 
 #[test]
-fn init_if_thot_directory_exists_should_do_nothing() {
+fn init_if_app_directory_exists_should_do_nothing() {
     // setup
     let _dir = TempDir::new().expect("setup should work");
     let root = _dir.path();

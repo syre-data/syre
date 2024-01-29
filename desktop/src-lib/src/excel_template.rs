@@ -3,7 +3,7 @@ use calamine::{CellErrorType, DataType, Reader};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 use std::ops::Deref;
-use thot_core::project::AssetProperties;
+use syre_core::project::AssetProperties;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Spreadsheet(Vec<Vec<String>>);

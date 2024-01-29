@@ -1,12 +1,12 @@
 [package]
-name = "thot-desktop-lib"
+name = "syre-desktop-lib"
 version = "0.10.0"
-description = "Shared types and functionality for the front- and back-end of Thot desktop."
+description = "Shared types and functionality for the front- and back-end of Syre desktop."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = ["thot", "thot-data"]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = ["syre", "syre-data"]
 categories = []
 edition = "2021"
 rust-version = "1.57"
@@ -20,6 +20,6 @@ indexmap = { workspace = true, features = ["serde"] }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
-thot-core = { path = "../../core", features = ["serde"] }
-thot-local = { path = "../../local", default-features = false }
-thot-local-database = { path = "../../local/database" }
+syre-core = { path = "../../core", features = ["serde"] }
+syre-local = { path = "../../local", default-features = false }
+syre-local-database = { path = "../../local/database" }

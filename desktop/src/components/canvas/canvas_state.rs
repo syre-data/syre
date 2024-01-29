@@ -2,8 +2,8 @@
 use super::details_bar::DetailsBarWidget;
 use std::collections::HashSet;
 use std::rc::Rc;
-use thot_core::types::{ResourceId, ResourceMap};
-use thot_ui::types::ContainerPreview;
+use syre_core::types::{ResourceId, ResourceMap};
+use syre_ui::types::ContainerPreview;
 use yew::prelude::*;
 
 #[derive(PartialEq, Clone, Debug)]

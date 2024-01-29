@@ -1,4 +1,4 @@
-//! Functionality and resources related to Thot Projects.
+//! Functionality and resources related to Syre Projects.
 //!
 //! This includes:
 //! + Projects

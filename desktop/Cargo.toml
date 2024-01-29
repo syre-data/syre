@@ -1,14 +1,14 @@
 [package]
-name = "thot-desktop"
+name = "syre-desktop"
 version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Thot desktop application."
+description = "Syre desktop application."
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "gui", "science" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -33,11 +33,11 @@ wasm-bindgen-futures = { workspace = true }
 yew = { workspace = true, features = ["csr"] }
 yew-router = { workspace = true }
 
-thot-core = { path = "../core", features = ["yew", "serde"] }
-thot-local = { path = "../local", default-features = false }
-thot-ui = { path = "../ui" }
-thot-desktop-lib = { path = "src-lib" }
-thot-local-database = { path = "../local/database" }
+syre-core = { path = "../core", features = ["yew", "serde"] }
+syre-local = { path = "../local", default-features = false }
+syre-ui = { path = "../ui" }
+syre-desktop-lib = { path = "src-lib" }
+syre-local-database = { path = "../local/database" }
 
 [dependencies.web-sys]
 workspace = true

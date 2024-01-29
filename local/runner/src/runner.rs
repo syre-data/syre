@@ -1,6 +1,6 @@
-//! Local runner for Thot projects.
+//! Local runner for Syre projects.
 use crate::hooks;
-use thot_core::runner::{Runner as CoreRunner, RunnerHooks};
+use syre_core::runner::{Runner as CoreRunner, RunnerHooks};
 
 pub struct Runner();
 impl Runner {

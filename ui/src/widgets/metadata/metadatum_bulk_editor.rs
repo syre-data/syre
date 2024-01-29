@@ -37,7 +37,7 @@ pub fn metadatum_bulk_editor(props: &MetadatumBulkEditorProps) -> Html {
 
     // ui
     html! {
-        <div class={classes!("thot-ui-metadatum")}>
+        <div class={classes!("syre-ui-metadatum")}>
             <div class={classes!("metadatum-fields")}>
                 <span class={classes!("metadatum-key")}>
                     { &props.name }

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use thot_cli::commands::{check, config, container, project, run, user};
+use syre_cli::commands::{check, config, container, project, run, user};
 
 fn main() {
     let cli = Cli::parse();
@@ -26,7 +26,7 @@ fn main() {
 }
 
 #[derive(Debug, Parser)]
-#[clap(name = "Thot CLI")]
+#[clap(name = "Syre CLI")]
 #[clap(version, about, long_about = None)]
 struct Cli {
     #[clap(subcommand)]

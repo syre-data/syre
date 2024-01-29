@@ -1,5 +1,5 @@
 use super::spreadsheet::Spreadsheet;
-use thot_desktop_lib::excel_template;
+use syre_desktop_lib::excel_template;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlDivElement;
 use yew::prelude::*;

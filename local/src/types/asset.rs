@@ -1,7 +1,7 @@
-//! File actions for an [`Asset`](thot_core::project::Asset).
+//! File actions for an [`Asset`](syre_core::project::Asset).
 use crate::Result;
 use serde::{Deserialize, Serialize};
-use thot_core::Error as CoreError;
+use syre_core::Error as CoreError;
 
 // *************************
 // *** Asset File Action ***

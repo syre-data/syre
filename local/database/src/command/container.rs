@@ -2,31 +2,31 @@
 use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use thot_core::db::StandardSearchFilter;
-use thot_core::project::container::ScriptMap;
-use thot_core::project::{ContainerProperties, ScriptAssociation};
-use thot_core::types::ResourceId;
+use syre_core::db::StandardSearchFilter;
+use syre_core::project::container::ScriptMap;
+use syre_core::project::{ContainerProperties, ScriptAssociation};
+use syre_core::types::ResourceId;
 
 /// Container related commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ContainerCommand {
-    /// Retrieves a [`Container`](thot_core::project::Container) by [`ResourceId`].
+    /// Retrieves a [`Container`](syre_core::project::Container) by [`ResourceId`].
     Get(ResourceId),
 
-    /// Retrievea a [`Container`](thot_core::project::Container) with inherited metadata by [`ResourceId`].
+    /// Retrievea a [`Container`](syre_core::project::Container) with inherited metadata by [`ResourceId`].
     GetWithMetadata(ResourceId),
 
-    /// Retrieves a [`Container`](thot_core::project::Container) by its path.
+    /// Retrieves a [`Container`](syre_core::project::Container) by its path.
     ByPath(PathBuf),
 
-    /// Retrieves [`Container`](thot_core::project::Container)s based on a filter.
+    /// Retrieves [`Container`](syre_core::project::Container)s based on a filter.
     ///
     /// # Fields
     /// 1. Root `Container`.
     /// 2. Search filter.
     Find(ResourceId, StandardSearchFilter),
 
-    /// Retrieves [`Container`](thot_core::project::Container)s based on a filter.
+    /// Retrieves [`Container`](syre_core::project::Container)s based on a filter.
     /// Lineage is compiled.
     ///
     /// # Fields
@@ -34,20 +34,20 @@ pub enum ContainerCommand {
     /// 2. Search filter.
     FindWithMetadata(ResourceId, StandardSearchFilter),
 
-    /// Updates a [`Container`](thot_core::project::Container)'s properties.
+    /// Updates a [`Container`](syre_core::project::Container)'s properties.
     UpdateProperties(UpdatePropertiesArgs),
 
-    /// Updates a [`Container`](thot_core::project::Container)'s
-    /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
+    /// Updates a [`Container`](syre_core::project::Container)'s
+    /// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
     UpdateScriptAssociations(UpdateScriptAssociationsArgs),
 
-    /// Gets the path of a [`Container`](thot_local::project::resources::Container).
+    /// Gets the path of a [`Container`](syre_local::project::resources::Container).
     Path(ResourceId),
 
-    /// Gets the parent of a [`Container`](thot_core::project::Container).
+    /// Gets the parent of a [`Container`](syre_core::project::Container).
     Parent(ResourceId),
 
-    /// Update multiple [`Container`](thot_core::project::Container)s' properties.
+    /// Update multiple [`Container`](syre_core::project::Container)s' properties.
     BulkUpdateProperties(BulkUpdatePropertiesArgs),
 
     /// Update multiple `Container`s `ScriptAssociations`.
@@ -80,8 +80,8 @@ pub struct BulkUpdatePropertiesArgs {
     pub update: PropertiesUpdate,
 }
 
-/// Arguments for updating a [`Container`](thot_core::project::Container)'s
-/// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
+/// Arguments for updating a [`Container`](syre_core::project::Container)'s
+/// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateScriptAssociationsArgs {
     pub rid: ResourceId,

@@ -107,9 +107,9 @@ pub mod file_system {
 
 pub mod app {
     use std::path::PathBuf;
-    use thot_core::graph::ResourceTree;
-    use thot_core::types::ResourceId;
-    use thot_local::project::resources::Container as LocalContainer;
+    use syre_core::graph::ResourceTree;
+    use syre_core::types::ResourceId;
+    use syre_local::project::resources::Container as LocalContainer;
 
     #[derive(Debug)]
     pub enum Event {

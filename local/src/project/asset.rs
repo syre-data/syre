@@ -6,8 +6,8 @@ use crate::types::AssetFileAction;
 use crate::{common, Error, Result};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use thot_core::project::Asset as CoreAsset;
-use thot_core::types::ResourceId;
+use syre_core::project::Asset as CoreAsset;
+use syre_core::types::ResourceId;
 
 pub struct AssetBuilder {
     /// Path to create an [`Asset`](CoreAsset) from.
@@ -38,7 +38,7 @@ impl AssetBuilder {
         }
     }
 
-    /// Gets the calculated [`Container`](thot_core::project::Container) path.
+    /// Gets the calculated [`Container`](syre_core::project::Container) path.
     ///
     /// # Errors
     /// + [`AssetError::PathNotAContainer`]: If `container` is provided,
@@ -366,8 +366,8 @@ pub fn container_from_path_ancestor(path: &Path) -> Result<PathBuf> {
     }
 }
 
-/// Calculates the path of an [`Asset`](thot_core::project::Asset)'s file
-/// if it were to be moved into the given [`Container`](thot_core::project::Container) and `bucket`
+/// Calculates the path of an [`Asset`](syre_core::project::Asset)'s file
+/// if it were to be moved into the given [`Container`](syre_core::project::Container) and `bucket`
 /// with the given [action](AssetFileAction).
 pub fn unique_asset_file_path(
     path: &Path,

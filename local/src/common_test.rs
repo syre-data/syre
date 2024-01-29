@@ -96,14 +96,14 @@ fn ensure_windows_unc_should_work() {
 // ******************
 
 #[test]
-fn thot_dir_of_should_work() {
+fn app_dir_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR);
+    let expected = base_path.join(APP_DIR);
 
     // test
-    let path = thot_dir_of(&base_path);
+    let path = app_dir_of(&base_path);
     assert_eq!(expected, path, "path should be correct");
 }
 
@@ -112,7 +112,7 @@ fn project_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(PROJECT_FILE);
+    let expected = base_path.join(APP_DIR).join(PROJECT_FILE);
 
     // test
     let path = project_file_of(&base_path);
@@ -124,7 +124,7 @@ fn project_settings_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(PROJECT_SETTINGS_FILE);
+    let expected = base_path.join(APP_DIR).join(PROJECT_SETTINGS_FILE);
 
     // test
     let path = project_settings_file_of(&base_path);
@@ -136,7 +136,7 @@ fn container_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(CONTAINER_FILE);
+    let expected = base_path.join(APP_DIR).join(CONTAINER_FILE);
 
     // test
     let path = container_file_of(&base_path);
@@ -148,7 +148,7 @@ fn container_settings_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(CONTAINER_SETTINGS_FILE);
+    let expected = base_path.join(APP_DIR).join(CONTAINER_SETTINGS_FILE);
 
     // test
     let path = container_settings_file_of(&base_path);
@@ -160,7 +160,7 @@ fn assets_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(ASSETS_FILE);
+    let expected = base_path.join(APP_DIR).join(ASSETS_FILE);
 
     // test
     let path = assets_file_of(&base_path);
@@ -172,7 +172,7 @@ fn scripts_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(THOT_DIR).join(SCRIPTS_FILE);
+    let expected = base_path.join(APP_DIR).join(SCRIPTS_FILE);
 
     // test
     let path = scripts_file_of(&base_path);

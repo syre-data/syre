@@ -1,8 +1,8 @@
 //! Gets a `Project`'s `Script`s.
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::script::get_project_scripts;
-use thot_core::project::Script;
-use thot_core::types::{ResourceId, ResourceMap};
+use syre_core::project::Script;
+use syre_core::types::{ResourceId, ResourceMap};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::suspense::{Suspension, SuspensionResult};

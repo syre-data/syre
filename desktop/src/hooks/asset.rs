@@ -1,4 +1,4 @@
-use thot_core::{project::Asset, types::ResourceId};
+use syre_core::{project::Asset, types::ResourceId};
 use yew::prelude::*;
 
 use crate::components::canvas::GraphStateReducer;

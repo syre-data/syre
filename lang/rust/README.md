@@ -1,10 +1,10 @@
-# Thot
+# Syre
 
 Data management and analysis.
-> python -m pip install thot-data
+> python -m pip install syre
 
-**For full documentation go to [Read The Docs](https://thot-data-docs.readthedocs.io/en/latest/>).**
+**For full documentation go to the [Syre website](http://www.syre.ai).**
 
-For more features use hosted projects at [thot-data.com](http://www.thot-data.com).
+For more features use hosted projects at [syre.ai](http://www.syre.ai).
 
-Thot is a framework for managing and analyzing data. Thot utilizes **top-down organization** and **bottom-up anlaysis** to make analyzing your data and drawing conclusions easy. This allows your data and your analysis to stay separate and modular.
+Syre is a framework for managing and analyzing data. Syre utilizes **top-down organization** and **bottom-up anlaysis** to make analyzing your data and drawing conclusions easy. This allows your data and your analysis to stay separate and modular.

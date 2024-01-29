@@ -4,25 +4,25 @@ use crate::state::AppState;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 use std::{fs, io};
-use tauri::State;
-use thot_core::error::{Error as CoreError, Project as ProjectError};
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Container, Project};
-use thot_core::types::{ResourceId, UserPermissions};
-use thot_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
-use thot_local::error::{
+use syre_core::error::{Error as CoreError, Project as ProjectError};
+use syre_core::graph::ResourceTree;
+use syre_core::project::{Container, Project};
+use syre_core::types::{ResourceId, UserPermissions};
+use syre_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
+use syre_local::error::{
     Error as LocalError, IoSerde as IoSerdeError, Project as LocalProjectError,
 };
-use thot_local::project::project as local_project;
-use thot_local::project::resources::Project as LocalProject;
-use thot_local::system::collections::ProjectManifest;
-use thot_local::system::project_manifest as sys_projects;
-use thot_local::types::ProjectSettings;
-use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::{GraphCommand, ProjectCommand};
-use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
-use thot_local_database::Result as DbResult;
-use thot_local_runner::Runner;
+use syre_local::project::project as local_project;
+use syre_local::project::resources::Project as LocalProject;
+use syre_local::system::collections::ProjectManifest;
+use syre_local::system::project_manifest as sys_projects;
+use syre_local::types::ProjectSettings;
+use syre_local_database::client::Client as DbClient;
+use syre_local_database::command::{GraphCommand, ProjectCommand};
+use syre_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
+use syre_local_database::Result as DbResult;
+use syre_local_runner::Runner;
+use tauri::State;
 
 // **************************
 // *** load user projects ***
@@ -180,7 +180,7 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 }
 
 #[tauri::command]
-pub fn init_project_from(path: &Path) -> thot_local::Result<ResourceId> {
+pub fn init_project_from(path: &Path) -> syre_local::Result<ResourceId> {
     let converter = local_project::converter::Converter::new();
     converter.convert(path)
 }

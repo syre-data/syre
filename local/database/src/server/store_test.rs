@@ -1,12 +1,12 @@
 use super::*;
 use dev_utils::fs::TempDir;
 use std::fs;
-use thot_core::db::StandardSearchFilter as StdFilter;
-use thot_core::types::ResourceId;
-use thot_local::loader::{
+use syre_core::db::StandardSearchFilter as StdFilter;
+use syre_core::types::ResourceId;
+use syre_local::loader::{
     container::Loader as ContainerLoader, tree::Loader as ContainerTreeLoader,
 };
-use thot_local::project::resources::{
+use syre_local::project::resources::{
     Asset as LocalAsset, Container as LocalContainer, Project as LocalProject,
     Scripts as LocalScripts,
 };

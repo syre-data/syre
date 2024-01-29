@@ -2,15 +2,15 @@
 use crate::error::Result;
 use crate::settings::{UserAppState, UserSettings};
 use crate::state::AppState;
+use syre_core::system::User;
+use syre_core::types::ResourceId;
+use syre_local::system::user_manifest;
 use tauri::State;
-use thot_core::system::User;
-use thot_core::types::ResourceId;
-use thot_local::system::user_manifest;
 
 /// Get the active user.
 /// Retrieves the active user from [system settings](users::get_active_user).
 #[tauri::command]
-pub fn get_active_user() -> thot_local::Result<Option<User>> {
+pub fn get_active_user() -> syre_local::Result<Option<User>> {
     user_manifest::get_active_user()
 }
 
@@ -52,7 +52,7 @@ pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
 /// Unsets the active user on the [`AppState`].
 /// Unsets the user's [`UserAppState`] and [`UserSettings`].
 #[tauri::command]
-pub fn unset_active_user(app_state: State<AppState>) -> thot_local::Result {
+pub fn unset_active_user(app_state: State<AppState>) -> syre_local::Result {
     user_manifest::unset_active_user()?;
     *app_state
         .user

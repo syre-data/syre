@@ -7,8 +7,8 @@ use crate::commands::project::load_user_projects;
 use crate::components::messages::Messages;
 use crate::routes::{routes::switch, Route};
 use crate::widgets::GlobalWidgets;
-use thot_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
-use thot_ui::types::Message;
+use syre_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
+use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -82,14 +82,14 @@ pub fn app() -> Html {
 
     // TODO Respond to `open_settings` event.
     // use futures::stream::StreamExt;
-    // use thot_core::project::Project;
-    // use thot_local::types::ProjectSettings;
+    // use syre_core::project::Project;
+    // use syre_local::types::ProjectSettings;
     // use_effect_with((), move |_| {
     //     spawn_local(async move {
     //         let mut events =
-    //             tauri_sys::event::listen::<thot_local_database::Update>("thot://settings")
+    //             tauri_sys::event::listen::<syre_local_database::Update>("syre://settings")
     //                 .await
-    //                 .expect("could not create `thot://settings` listener");
+    //                 .expect("could not create `syre://settings` listener");
 
     //         while let Some(event) = events.next().await {
     //             tracing::debug!(?event);

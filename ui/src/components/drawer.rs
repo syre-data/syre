@@ -29,7 +29,7 @@ pub struct DrawerProps {
 #[function_component(Drawer)]
 pub fn drawer(props: &DrawerProps) -> Html {
     let class = classes!(
-        "thot-ui-drawer",
+        "syre-ui-drawer",
         (*props.open).then(|| "open"),
         props.class.clone()
     );

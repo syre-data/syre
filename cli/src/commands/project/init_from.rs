@@ -2,7 +2,7 @@ use crate::Result;
 use clap::Args;
 use std::env;
 use std::path::PathBuf;
-use thot_local::project::project;
+use syre_local::project::project;
 
 #[derive(Debug, Args)]
 pub struct InitFromArgs {
@@ -21,7 +21,7 @@ pub struct InitFromArgs {
     no_scripts: bool,
 }
 
-/// Initializes a new Thot project.
+/// Initializes a new Syre project.
 /// Initilizes and registers the project.
 /// Initializes any existing folders as the `Container` graph moving them into the data root folder.
 /// If analysis root exists, registers all valid files as scripts.
@@ -63,7 +63,7 @@ pub fn main(args: InitFromArgs, verbose: bool) -> Result {
 
     converter.convert(&root)?;
     if verbose {
-        println!("Initialized {root:?} as a Thot project.");
+        println!("Initialized {root:?} as a Syre project.");
     }
 
     Ok(())

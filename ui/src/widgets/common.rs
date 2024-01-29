@@ -1,6 +1,6 @@
 pub mod asset {
     //! Common Asset functionality.
-    use thot_core::project::Asset;
+    use syre_core::project::Asset;
     use yew_icons::IconId;
 
     type Color = String;

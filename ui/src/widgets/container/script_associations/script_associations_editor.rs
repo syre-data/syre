@@ -1,8 +1,8 @@
 //! Editor for [`ScriptAssociation`]s.
 use std::rc::Rc;
-use thot_core::project::container::ScriptMap;
-use thot_core::project::RunParameters;
-use thot_core::types::{ResourceId, ResourceMap};
+use syre_core::project::container::ScriptMap;
+use syre_core::project::RunParameters;
+use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -130,7 +130,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("thot-ui-script-association-editor")}>
+        <div class={classes!("syre-ui-script-association-editor")}>
             <label class={classes!("script-association-script")}
                 title={props.name.clone()}>
                 { &props.name }
@@ -194,7 +194,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     };
 
     html! {
-        <form class="thot-ui-script-associations-editor">
+        <form class="syre-ui-script-associations-editor">
             <ol>
                 { props.associations.iter().map(|(script, run_parameters)|{
                      let script_name = script.clone().to_string();
@@ -213,7 +213,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                                 onchange={onchange_association(script.clone())} />
 
                             <button classes={ "add-button" } type="button" onclick={remove_script(script.clone())}>
-                                <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                                <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
                             </button>
                         </li>
                     }

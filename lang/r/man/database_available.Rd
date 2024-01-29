@@ -2,13 +2,13 @@
 % Please edit documentation in R/commands.R
 \name{database_available}
 \alias{database_available}
-\title{Checks if a Thot database is available.}
+\title{Checks if a Syre database is available.}
 \usage{
 database_available()
 }
 \value{
-Whether a Thot database is available.
+Whether a Syre database is available.
 }
 \description{
-Checks if a Thot database is available.
+Checks if a Syre database is available.
 }

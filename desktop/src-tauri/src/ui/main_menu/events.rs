@@ -1,9 +1,9 @@
 //! Handle main menu events.
 use crate::error::Result;
 use std::path::Path;
+use syre_local::file_resource::SystemResource;
+use syre_local::system::settings::RunnerSettings;
 use tauri::{Window, WindowMenuEvent};
-use thot_local::file_resource::SystemResource;
-use thot_local::system::settings::RunnerSettings;
 
 /// Direct menu events to the correct function.
 pub fn handle_menu_event(event: WindowMenuEvent) {

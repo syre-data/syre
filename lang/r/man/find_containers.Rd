@@ -7,7 +7,7 @@
 find_containers(db, name = NULL, type = NULL, tags = NULL, metadata = NULL)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
 \item{name}{Name of the Container to match.}
 

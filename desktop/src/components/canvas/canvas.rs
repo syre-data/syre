@@ -15,17 +15,17 @@ use crate::hooks::{use_load_project_graph, use_load_project_scripts};
 use crate::routes::Route;
 use futures::stream::StreamExt;
 use std::io;
-use thot_core::project::Project;
-use thot_core::types::ResourceId;
-use thot_local_database::error::server::LoadProjectGraph;
-use thot_local_database::event::{
+use syre_core::project::Project;
+use syre_core::types::ResourceId;
+use syre_local_database::error::server::LoadProjectGraph;
+use syre_local_database::event::{
     Analysis as AnalysisUpdate, Asset as AssetUpdate, Container as ContainerUpdate,
     Graph as GraphUpdate, Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
-use thot_ui::components::{Drawer, DrawerPosition};
-use thot_ui::types::Message;
-use thot_ui::widgets::common::asset as asset_ui;
-use thot_ui::widgets::suspense::Loading;
+use syre_ui::components::{Drawer, DrawerPosition};
+use syre_ui::types::Message;
+use syre_ui::widgets::common::asset as asset_ui;
+use syre_ui::widgets::suspense::Loading;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -79,9 +79,10 @@ struct CanvasViewProps {
 
 #[function_component(CanvasView)]
 fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
+    let show_side_bars = use_state(|| true);
+    let event_listener_id = use_mut_ref(|| 0);
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
-    let show_side_bars = use_state(|| true);
     let canvas_state =
         use_reducer(|| CanvasState::new(props.project.rid.clone(), show_side_bars.clone()));
 
@@ -154,18 +155,27 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
         let canvas_state = canvas_state.dispatcher();
         let projects_state = projects_state.dispatcher();
         let pid = props.project.rid.clone();
+        let event_listener_id = event_listener_id.clone();
+
         move |graph_state| {
             let graph_state = graph_state.clone();
+            *event_listener_id.borrow_mut() += 1;
+            let listener_id = event_listener_id.borrow().clone();
+            let event_listener_id = event_listener_id.clone();
             spawn_local(async move {
-                let mut events = tauri_sys::event::listen::<thot_local_database::Update>(&format!(
-                    "thot://database/update/project/{pid}"
+                let mut events = tauri_sys::event::listen::<syre_local_database::Update>(&format!(
+                    "syre://database/update/project/{pid}"
                 ))
                 .await
                 .expect(&format!(
-                    "could not create `thot://database/update/project/{pid}` listener"
+                    "could not create `syre://database/update/project/{pid}` listener"
                 ));
 
                 while let Some(event) = events.next().await {
+                    if listener_id != *event_listener_id.borrow() {
+                        break;
+                    }
+
                     tracing::debug!(?event.payload);
                     let Update::Project { project, update } = event.payload;
                     assert!(project == pid);
@@ -237,7 +247,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
 }
 
 fn handle_file_system_event(
-    update: thot_local_database::event::Project,
+    update: syre_local_database::event::Project,
     project: ResourceId,
     app_state: &AppStateDispatcher,
     projects_state: &ProjectsStateDispatcher,

@@ -1,6 +1,6 @@
 //! Gets the active `Project`'s id.
 use crate::app::ProjectsStateReducer;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 #[hook]

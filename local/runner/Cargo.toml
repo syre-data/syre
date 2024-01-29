@@ -1,15 +1,15 @@
 [package]
-name = "thot-local-runner"
+name = "syre-local-runner"
 version = "0.0.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Local runner for Thot projects."
+description = "Local runner for Syre projects."
 license = "MIT OR Apache-2.0"
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "science", "data-structures" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,6 +18,6 @@ categories = [ "science", "data-structures" ]
 serde_json = "1.0"
 tracing = "0.1.37"
 
-thot-core = { path = "../../core" }
-thot-local = { path = "../../local" }
-thot-local-database = { path = "../database", features = ["client"] }
+syre-core = { path = "../../core" }
+syre-local = { path = "../../local" }
+syre-local-database = { path = "../database", features = ["client"] }

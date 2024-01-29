@@ -11,13 +11,13 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::container::AssetMap;
-use thot_core::project::{
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::project::container::AssetMap;
+use syre_core::project::{
     container::ScriptMap, Container as CoreContainer,
     ContainerProperties as CoreContainerProperties, ScriptAssociation,
 };
-use thot_core::types::{Creator, ResourceId, UserId};
+use syre_core::types::{Creator, ResourceId, UserId};
 
 // **********************************
 // *** Local Container Properties ***
@@ -142,7 +142,7 @@ impl Container {
     /// + `set_script_association`
     pub fn add_script_association(&mut self, assoc: ScriptAssociation) -> Result {
         if self.contains_script_association(&assoc.script) {
-            return Err(Error::CoreError(CoreError::ResourceError(
+            return Err(Error::CoreError(CoreError::Resource(
                 ResourceError::already_exists("Association with script already exists"),
             )));
         }

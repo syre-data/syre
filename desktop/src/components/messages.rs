@@ -1,6 +1,6 @@
 //! Displays messages to the user.
 use crate::app::{AppStateAction, AppStateReducer};
-use thot_ui::components::{Message, Messages as MessagesUi};
+use syre_ui::components::{Message, Messages as MessagesUi};
 use uuid::Uuid;
 use yew::prelude::*;
 

@@ -7,10 +7,10 @@ use std::fs;
 use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use thot_core::project::container::AssetMap;
-use thot_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
-use thot_core::types::ResourceId;
-use thot_core::types::{Creator, UserId};
+use syre_core::project::container::AssetMap;
+use syre_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
+use syre_core::types::ResourceId;
+use syre_core::types::{Creator, UserId};
 
 // ******************************
 // *** Local Asset Properties ***

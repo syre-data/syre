@@ -12,10 +12,10 @@ pub struct MetadataBulkEditorProps {
 #[function_component(MetadataBulkEditor)]
 pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
     html! {
-        <div class={classes!("thot-ui-metadata-bulk-editor")}>
+        <div class={classes!("syre-ui-metadata-bulk-editor")}>
             <div class={classes!("metadata-header")}>
                 <button class={classes!("add-button")} type="button" onclick={onadd}>
-                    <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
+                    <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
                 </button>
             </div>
             <div class={classes!("add-metadatum-controls")}>
@@ -35,7 +35,7 @@ pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
                             onchange={onchange(name.clone())}/>
 
                         <button class={classes!("remove-button")} type="button" onclick={remove_metadatum(name)}>
-                            <Icon class={classes!("thot-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                            <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
                         </button>
                     </li>
                 }).collect::<Html>() }

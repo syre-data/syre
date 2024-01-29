@@ -1,9 +1,9 @@
-Package: thot
-Title: Thot scentific data management and analysis bindings for R.
+Package: syre
+Title: Syre scentific data management and analysis bindings for R.
 Version: 0.10.0
 Authors@R: 
     person("Brian", "Carlsen", , "carlsen.bri@gmail.com", role = c("aut", "cre"))
-Description: R bindings to interact with the Thot scientific data management and analysis tool suite.
+Description: R bindings to interact with the Syre scientific data management and analysis tool suite.
 License: MIT + file LICENSE
 Suggests: 
     testthat (>= 3.0.0)

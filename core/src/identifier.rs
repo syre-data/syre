@@ -1,20 +1,16 @@
-/// Identifier information for Thot related to storing app data.
+/// Identifier information for Syre related to storing app data.
 pub struct Identifier;
 
 impl Identifier {
     pub fn qualifier() -> String {
-        String::from("so")
+        String::from("ai")
     }
 
     pub fn organization() -> String {
-        String::from("thot")
+        String::from("syre")
     }
 
     pub fn application() -> String {
-        String::from("thot-core")
+        String::from("syre-core")
     }
 }
-
-#[cfg(test)]
-#[path = "./identifier_test.rs"]
-mod identifier_test;

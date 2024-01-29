@@ -3,17 +3,17 @@
 root=../..
 releases=${root}/target/release
 target=aarch64-apple-darwin
-target_file=thot-local-database-${target}
+target_file=syre-local-database-${target}
 target_out=${releases}/${target_file}
 
 mkdir -p ${dir}
 cargo build --release -F server --target ${target}
-build_path=${root}/target/${target}/release/thot-local-database
+build_path=${root}/target/${target}/release/syre-local-database
 mv ${build_path} ${target_out}
 
 # copy to other packages
 lang=${root}/lang
-python_path=${lang}/python/src/thot/bin
+python_path=${lang}/python/src/syre/bin
 r_path=${lang}/r/inst
 
 cp ${target_out} ${python_path}

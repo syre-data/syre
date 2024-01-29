@@ -131,14 +131,14 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
             if state.kind() != Some(MetadatumType::Bool) {
                 return;
             }
-        
+
             match state.value() {
                 &BulkValue::EqualValue(_) => {}
                 _ => {
                     let input = value_ref
                         .cast::<web_sys::HtmlInputElement>()
                         .expect("could not cast node ref to input element");
-        
+
                     input.set_indeterminate(true);
                 }
             };
@@ -231,7 +231,7 @@ pub fn metadatum_bulk_value_editor(props: &MetadatumBulkValueEditorProps) -> Htm
     };
 
     // ui
-    let class = classes!("thot-ui-metadatum-value-editor", props.class.clone());
+    let class = classes!("syre-ui-metadatum-value-editor", props.class.clone());
 
     html! {
         <span {class}>

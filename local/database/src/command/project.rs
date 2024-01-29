@@ -1,22 +1,22 @@
 //! Project related commands.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use thot_core::project::Project as CoreProject;
-use thot_core::types::ResourceId;
+use syre_core::project::Project as CoreProject;
+use syre_core::types::ResourceId;
 
 /// Project related commands.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ProjectCommand {
-    /// Load a [`Project`](thot_local::project::resources::Project) from a path.
+    /// Load a [`Project`](syre_local::project::resources::Project) from a path.
     ///
     /// # Returns
-    /// [`Project`](thot_local::project::resources::Project).
+    /// [`Project`](syre_local::project::resources::Project).
     Load(PathBuf),
 
-    /// Load a [`Project`](thot_local::project::resources::Project) from a path.
+    /// Load a [`Project`](syre_local::project::resources::Project) from a path.
     ///
     /// # Returns
-    /// Tuples of ([`Project`](thot_local::project::resources::Project), [`ProjectSettings`][`Project`](thot_local::project::resources::ProjectSettings)).
+    /// Tuples of ([`Project`](syre_local::project::resources::Project), [`ProjectSettings`][`Project`](syre_local::project::resources::ProjectSettings)).
     LoadWithSettings(PathBuf),
 
     /// Loads the user's projects.
@@ -28,7 +28,7 @@ pub enum ProjectCommand {
     /// A tuple of loaded projects and projects that errored while loading,
     LoadUser(ResourceId),
 
-    /// Retrieves a [`Project`](thot_core::project::Project) by [`ResourceId`].
+    /// Retrieves a [`Project`](syre_core::project::Project) by [`ResourceId`].
     Get(ResourceId),
 
     /// Update a [`Project`](CoreProject).

@@ -2,7 +2,7 @@
 % Please edit documentation in R/commands.R
 \name{get_container}
 \alias{get_container}
-\title{Gets a Thot Container.}
+\title{Gets a Syre Container.}
 \usage{
 get_container(socket, id)
 }
@@ -15,5 +15,5 @@ get_container(socket, id)
 List of Container properties.
 }
 \description{
-Gets a Thot Container.
+Gets a Syre Container.
 }

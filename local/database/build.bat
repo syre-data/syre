@@ -13,14 +13,14 @@ for /f "tokens=1,2 delims= " %%a in ("%host%") do (
   set target=%%b
 )
 
-set target_out=%dir%\thot-local-database-%target%.exe
+set target_out=%dir%\syre-local-database-%target%.exe
 
 :: build
 if not exist "%dir%" mkdir "%dir%"
 cargo build --release -F server
-move %dir%\thot-local-database.exe %target_out%
+move %dir%\syre-local-database.exe %target_out%
 
 :: copy to other directories
 set lang=%root%\lang
-copy "%target_out%" "%lang%\python\src\thot\bin\"
+copy "%target_out%" "%lang%\python\src\syre\bin\"
 copy "%target_out%" "%lang%\r\inst\"

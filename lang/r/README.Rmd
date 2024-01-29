@@ -13,18 +13,18 @@ knitr::opts_chunk$set(
 )
 ```
 
-# thot
+# syre
 
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![CRAN status](https://www.r-pkg.org/badges/version/thot)](https://CRAN.R-project.org/package=thot)
+[![CRAN status](https://www.r-pkg.org/badges/version/syre)](https://CRAN.R-project.org/package=syre)
 <!-- badges: end -->
 
-The goal of thot is to ...
+The goal of syre is to ...
 
 ## Installation
 
-You can install the development version of thot like so:
+You can install the development version of syre like so:
 
 ``` r
 # FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
@@ -35,9 +35,9 @@ You can install the development version of thot like so:
 This is a basic example which shows you how to solve a common problem:
 
 ```{r example}
-library(thot)
+library(syre)
 
-db <- database(dev_root = "/path/to/my/thot/project/container")
+db <- database(dev_root = "/path/to/my/syre/project/container")
 asset <- find_asset(db, type = "raw_data")
 
 ```

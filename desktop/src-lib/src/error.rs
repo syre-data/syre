@@ -1,8 +1,8 @@
 //! Errors
 use serde::{Deserialize, Serialize};
 use std::result::Result as StdResult;
+use syre_core::error::Error as CoreError;
 use thiserror::Error;
-use thot_core::error::Error as CoreError;
 
 #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
 pub enum Trash {
@@ -41,11 +41,11 @@ pub enum Analysis {
     GraphNotFound,
 
     #[error("{0}")]
-    Analysis(thot_core::error::Runner),
+    Analysis(syre_core::error::Runner),
 }
 
-impl From<thot_core::error::Runner> for Analysis {
-    fn from(value: thot_core::error::Runner) -> Self {
+impl From<syre_core::error::Runner> for Analysis {
+    fn from(value: syre_core::error::Runner) -> Self {
         Self::Analysis(value)
     }
 }

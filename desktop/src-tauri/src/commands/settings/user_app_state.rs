@@ -3,10 +3,10 @@ use crate::error::{DesktopSettings as DesktopSettingsError, Result};
 use crate::settings::UserAppState;
 use crate::state::AppState;
 use std::result::Result as StdResult;
+use syre_core::types::ResourceId;
+use syre_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
+use syre_local::error::IoSerde;
 use tauri::State;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
-use thot_local::error::IoSerde;
 
 /// Loads a user's [`UserAppState`](DesktopUserAppState) settings.
 /// Maintains control of the settings file.

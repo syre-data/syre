@@ -1,2 +1,2 @@
-# Thot Database | Local
-Executable for a local thot database.
+# Syre Database | Local
+Executable for a local syre database.

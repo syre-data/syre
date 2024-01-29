@@ -2,7 +2,7 @@
 //! Route guard that verifies user authentication.
 use crate::app::AuthStateReducer;
 use crate::routes::Route;
-use thot_ui::components::route_guard::RouteGuard;
+use syre_ui::components::route_guard::RouteGuard;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]

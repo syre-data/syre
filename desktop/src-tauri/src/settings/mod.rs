@@ -1,4 +1,4 @@
-//! Settings for Thot desktop app.
+//! Settings for Syre desktop app.
 // pub mod loader;
 pub mod user_app_state;
 pub mod user_settings;

@@ -3,8 +3,8 @@ use super::types::ResourcePropertiesUpdate;
 use crate::common::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_local_database::command::{
+use syre_core::types::ResourceId;
+use syre_local_database::command::{
     asset::PropertiesUpdate as AssetPropertiesUpdate,
     container::PropertiesUpdate as ContainerPropertiesUpdate,
 };

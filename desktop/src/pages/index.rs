@@ -2,7 +2,7 @@
 use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateReducer};
 use crate::commands::user::{get_active_user, set_active_user};
 use crate::routes::Route;
-use thot_ui::types::Message;
+use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;

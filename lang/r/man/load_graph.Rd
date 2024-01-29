@@ -2,7 +2,7 @@
 % Please edit documentation in R/commands.R
 \name{load_graph}
 \alias{load_graph}
-\title{Loads a Thot Project's graph.}
+\title{Loads a Syre Project's graph.}
 \usage{
 load_graph(socket, project)
 }
@@ -15,5 +15,5 @@ load_graph(socket, project)
 List of graph components.
 }
 \description{
-Loads a Thot Project's graph.
+Loads a Syre Project's graph.
 }

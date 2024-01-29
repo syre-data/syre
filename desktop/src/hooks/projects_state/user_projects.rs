@@ -1,8 +1,8 @@
 //! Retrieves a user's projects.
 use crate::app::projects_state::{ProjectMap, SettingsMap};
 use crate::app::ProjectsStateReducer;
-use thot_core::project::Project;
-use thot_core::types::{Creator, ResourceId, UserId};
+use syre_core::project::Project;
+use syre_core::types::{Creator, ResourceId, UserId};
 use yew::prelude::*;
 
 /// Retrieve a user's projects.

@@ -1,8 +1,8 @@
 //! Script related commands.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use thot_core::project::Script as CoreScript;
-use thot_core::types::ResourceId;
+use syre_core::project::Script as CoreScript;
+use syre_core::types::ResourceId;
 
 /// Script related commands.
 #[derive(Serialize, Deserialize, Debug)]

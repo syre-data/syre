@@ -1,5 +1,5 @@
 //! UI for a `Container` preview within a [`Graph`](super::Graph).
-//! Acts as a wrapper around a [`thot_ui::widgets::container::container_tree::Container`].
+//! Acts as a wrapper around a [`syre_ui::widgets::container::container_tree::Container`].
 use crate::actions::container::Action as ContainerAction;
 use crate::app::ShadowBox;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
@@ -19,11 +19,11 @@ use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use thot_core::project::{Asset, RunParameters};
-use thot_core::types::{ResourceId, ResourceMap};
-use thot_desktop_lib::error::{RemoveResource, Trash as TrashError};
-use thot_ui::types::Message;
-use thot_ui::widgets::container::container_tree::container::{
+use syre_core::project::{Asset, RunParameters};
+use syre_core::types::{ResourceId, ResourceMap};
+use syre_desktop_lib::error::{RemoveResource, Trash as TrashError};
+use syre_ui::types::Message;
+use syre_ui::widgets::container::container_tree::container::{
     Container as ContainerUi, ContainerMenuEvent, ContainerProps as ContainerUiProps, Flags,
 };
 use wasm_bindgen::prelude::Closure;

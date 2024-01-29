@@ -2,7 +2,7 @@ pub mod container {
     use serde::{Deserialize, Serialize};
     use std::io;
     use std::path::PathBuf;
-    use thot_core::types::ResourceId;
+    use syre_core::types::ResourceId;
 
     #[derive(Serialize, Deserialize, thiserror::Error, Clone, Debug)]
     pub enum Error {
@@ -10,7 +10,7 @@ pub mod container {
         #[error("{0}")]
         Root(#[serde(with = "crate::error::IoErrorKind")] io::ErrorKind),
 
-        /// The root path does not contain a `.thot` folder.
+        /// The root path does not contain a `.syre` folder.
         #[error("path is not a resource")]
         NotResource,
 

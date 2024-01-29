@@ -1,7 +1,7 @@
 use super::project_editor::ProjectEditor;
 use crate::app::{AppStateAction, AppStateReducer, AppWidget, ProjectsStateReducer};
 use crate::components::canvas::CanvasStateReducer;
-use thot_core::project::Project;
+use syre_core::project::Project;
 use yew::prelude::*;
 
 #[function_component(ProjectActions)]

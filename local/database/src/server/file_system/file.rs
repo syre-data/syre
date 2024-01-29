@@ -1,21 +1,21 @@
-//! Handle [`thot::File`](FileEvent) events.
+//! Handle [`syre::File`](FileEvent) events.
 use super::event::app::File as FileEvent;
 use crate::event::{Asset as AssetUpdate, Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_local::graph::ContainerTreeTransformer;
-use thot_local::loader::tree::Loader as ContainerTreeLoader;
-use thot_local::project::container;
-use thot_local::project::resources::Asset;
+use syre_core::types::ResourceId;
+use syre_local::graph::ContainerTreeTransformer;
+use syre_local::loader::tree::Loader as ContainerTreeLoader;
+use syre_local::project::container;
+use syre_local::project::resources::Asset;
 
 impl Database {
-    pub fn handle_thot_event_file(&mut self, event: &FileEvent) -> Result {
+    pub fn handle_app_event_file(&mut self, event: &FileEvent) -> Result {
         match event {
             FileEvent::Created(path) => {
                 let container_path =
-                    thot_local::project::asset::container_from_path_ancestor(&path)?;
+                    syre_local::project::asset::container_from_path_ancestor(&path)?;
 
                 let path_container = self
                     .store

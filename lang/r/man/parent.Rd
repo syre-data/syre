@@ -7,9 +7,9 @@
 parent(db, resource)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
-\item{resource}{Thot resource.}
+\item{resource}{Syre resource.}
 }
 \value{
 Parent of the resource, or \code{NULL} if it does not exist in the current context.

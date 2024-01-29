@@ -1,6 +1,6 @@
 //! Spreadsheet interface.
 use super::common;
-use thot_desktop_lib::excel_template;
+use syre_desktop_lib::excel_template;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]

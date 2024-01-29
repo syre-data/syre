@@ -1,6 +1,6 @@
 #! /bin/bash
 # Builds a release of the project.
-# Copies the binaries to a `thot-desktop-releases` folder,
+# Copies the binaries to a `syre-desktop-releases` folder,
 # Renaming the files as `<arch>-<vendor>-<system>-<subsystem>--<major_version>_<minor_version>_<patch_version><ext>`.
 #
 # Accepts a relative path to the folder containing the signing files as the first argument.
@@ -15,7 +15,7 @@ res=$(cargo tauri build 2>&1)
 echo $res > ~/Downloads/tauri_build.log
 
 # rename
-pub_dir=thot-desktop-releases
+pub_dir=syre-desktop-releases
 file_delimeter="_"
 bundle_key="Finished * bundles at:"
 signature_key="(updater) Info 1 updater archive at: Info "

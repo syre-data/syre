@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use thot_core::types::UserPermissions;
+use syre_core::types::UserPermissions;
 
 // *************************
 // *** ContainerSettings ***

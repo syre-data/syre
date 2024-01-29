@@ -1,6 +1,6 @@
 //! Types used for `Command`s.
 use serde::{Deserialize, Serialize};
-use thot_core::project::Metadata;
+use syre_core::project::Metadata;
 
 /// Actions to be taken on tags.
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]

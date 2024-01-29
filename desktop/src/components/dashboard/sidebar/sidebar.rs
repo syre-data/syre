@@ -2,7 +2,7 @@
 use super::{commands::Commands, project_list::ProjectList, script_list::ScriptList};
 use crate::app::{AppStateAction, AppStateReducer, AppWidget};
 use crate::routes::Route;
-use thot_ui::components::navigation::DropdownMenu;
+use syre_ui::components::navigation::DropdownMenu;
 use yew::prelude::*;
 use yew_router::prelude::*;
 

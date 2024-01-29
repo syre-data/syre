@@ -3,7 +3,7 @@ use crate::components::form::{InlineInput, InlineTextarea};
 use crate::widgets::metadata::MetadataEditor;
 use crate::widgets::TagsEditor;
 use std::rc::Rc;
-use thot_core::project::Container as CoreContainer;
+use syre_core::project::Container as CoreContainer;
 use yew::prelude::*;
 
 // ***********************

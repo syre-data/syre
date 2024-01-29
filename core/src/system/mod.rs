@@ -1,4 +1,4 @@
-//! System setting resources for Thot.
+//! System setting resources for Syre.
 pub mod user;
 
 #[cfg(feature = "serde")]

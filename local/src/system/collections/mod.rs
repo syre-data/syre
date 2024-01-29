@@ -1,4 +1,4 @@
-//! System settings for Thot.
+//! System settings for Syre.
 //!
 //! This includes modules for tracking
 //! + Projects

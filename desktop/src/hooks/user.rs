@@ -1,6 +1,6 @@
 //! User hook to get the current user.
 use crate::app::AuthStateReducer;
-use thot_core::system::User;
+use syre_core::system::User;
 use yew::prelude::*;
 
 /// Gets the current user.

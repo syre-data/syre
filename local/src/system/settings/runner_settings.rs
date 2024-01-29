@@ -7,7 +7,7 @@ use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
 
-/// Represents Thot runner settings.
+/// Represents Syre runner settings.
 ///
 /// # Default
 /// RunnerSettings::default is derived so does not automatically obtain a file lock.

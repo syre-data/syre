@@ -1,4 +1,4 @@
-//! Local implementation for Thot runner.
+//! Local implementation for Syre runner.
 pub mod hooks;
 pub mod runner;
 

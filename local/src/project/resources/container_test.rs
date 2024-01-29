@@ -1,7 +1,7 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use thot_core::project::{RunParameters, ScriptAssociation};
-use thot_core::types::ResourceId;
+use syre_core::project::{RunParameters, ScriptAssociation};
+use syre_core::types::ResourceId;
 
 // *****************
 // *** Container ***

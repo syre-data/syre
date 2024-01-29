@@ -1,6 +1,6 @@
 use crate::Result;
-use thot_core::types::UserId;
-use thot_local::system::user_manifest;
+use syre_core::types::UserId;
+use syre_local::system::user_manifest;
 
 pub fn set_active_user(user: &UserId) -> Result {
     let res = match user {

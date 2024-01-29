@@ -6,10 +6,10 @@ use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use std::path::Path;
-use thot_core::project::{Container as CoreContainer, ContainerProperties};
-use thot_local::loader::container::Loader as ContainerLoader;
-use thot_local::project::resources::Project as LocalProject;
-use thot_local::project::{container, project};
+use syre_core::project::{Container as CoreContainer, ContainerProperties};
+use syre_local::loader::container::Loader as ContainerLoader;
+use syre_local::project::resources::Project as LocalProject;
+use syre_local::project::{container, project};
 
 #[test]
 fn database_command_update_container_properties_without_name_should_work() {

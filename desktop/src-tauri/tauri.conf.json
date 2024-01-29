@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "Thot",
+    "productName": "Syre",
     "version": "0.10.1"
   },
   "tauri": {
@@ -21,7 +21,7 @@
       "shell" : {
         "sidecar": true,
         "scope": [
-          { "name": "../../target/release/thot-local-database", "sidecar": true }
+          { "name": "../../target/release/syre-local-database", "sidecar": true }
         ]
       }
     },
@@ -33,7 +33,7 @@
         "depends": []
       },
       "externalBin": [
-        "../../target/release/thot-local-database"
+        "../../target/release/syre-local-database"
       ],
       "icon": [
         "assets/icons/32x32.png",
@@ -42,8 +42,8 @@
         "assets/icons/icon.icns",
         "assets/icons/icon.ico"
       ],
-      "identifier": "so.thot.desktop",
-      "longDescription": "Visual data management and analysis tools using Thot's framework.",
+      "identifier": "ai.syre.desktop",
+      "longDescription": "Visual data management and analysis tools using Syre's framework.",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -51,7 +51,7 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "shortDescription": "Desktop app for Thot.",
+      "shortDescription": "Desktop app for Syre.",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
@@ -68,7 +68,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://releases.thot.so/{{target}}/{{current_version}}?arch={{arch}}"
+        "https://releases.syre.ai/{{target}}/{{current_version}}?arch={{arch}}"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJBMzY0QjRGQzA2RDY3M0QKUldROVoyM0FUMHMyS3NUV1IwNjRhc1hmTURpejRaUkVTSlpUUGJtU2xKOGlTaGZ1Y2dwVHlQMUUK"
@@ -81,7 +81,7 @@
         "height": 640,
         "minHeight": 640,
         "resizable": true,
-        "title": "Thot",
+        "title": "Syre",
         "visible": true,
         "fileDropEnabled": false
       }

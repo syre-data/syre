@@ -3,7 +3,7 @@
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
 use fake::Fake;
-use thot_ui::components::form::{InlineInput, InlineTextarea};
+use syre_ui::components::form::{InlineInput, InlineTextarea};
 use wasm_bindgen_test::*;
 use yew::prelude::*;
 wasm_bindgen_test_configure!(run_in_browser);

@@ -7,9 +7,9 @@
 children(db, container)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
-\item{container}{Thot Container.}
+\item{container}{Syre Container.}
 }
 \value{
 List of the Container's children.

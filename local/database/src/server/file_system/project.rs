@@ -4,10 +4,10 @@ use crate::event::{Project as ProjectUpdate, Update};
 use crate::server::types::ProjectResources;
 use crate::server::Database;
 use crate::{Error, Result};
-use thot_local::system::collections::project_manifest::ProjectManifest;
+use syre_local::system::collections::project_manifest::ProjectManifest;
 
 impl Database {
-    pub fn handle_thot_event_project(&mut self, event: &ProjectEvent) -> Result {
+    pub fn handle_app_event_project(&mut self, event: &ProjectEvent) -> Result {
         match event {
             ProjectEvent::Moved { project, path } => {
                 match self.store.update_project_path(&project, path.clone()) {

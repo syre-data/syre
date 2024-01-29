@@ -4,13 +4,13 @@ use crate::command::ScriptCommand;
 use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::project::{Project as CoreProject, Script as CoreScript};
-use thot_core::types::ResourceId;
-use thot_local::project::resources::{
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::project::{Project as CoreProject, Script as CoreScript};
+use syre_core::types::ResourceId;
+use syre_local::project::resources::{
     Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
 };
-use thot_local::system::collections::ProjectManifest;
+use syre_local::system::collections::ProjectManifest;
 
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
@@ -66,7 +66,7 @@ impl Database {
 
         let projects = ProjectManifest::load_or_default()?;
         let Some(project) = projects.get(&rid).clone() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project` does not exist",
             ))
             .into());
@@ -122,7 +122,7 @@ impl Database {
     /// Update a `Script`.
     fn update_script(&mut self, script: CoreScript) -> Result {
         let Some(project) = self.store.get_script_project(&script.rid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());

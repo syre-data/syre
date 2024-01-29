@@ -7,14 +7,14 @@ use crate::commands::container::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{container::AssetMap, Asset, Container, RunParameters};
-use thot_core::types::ResourceId;
-use thot_local_database::command::asset::{
+use syre_core::graph::ResourceTree;
+use syre_core::project::{container::AssetMap, Asset, Container, RunParameters};
+use syre_core::types::ResourceId;
+use syre_local_database::command::asset::{
     BulkUpdatePropertiesArgs as BulkUpdateAssetPropertiesArgs,
     PropertiesUpdate as AssetPropertiesUpdate,
 };
-use thot_local_database::command::container::{
+use syre_local_database::command::container::{
     BulkUpdateScriptAssociationsArgs, PropertiesUpdate as ContainerPropertiesUpdate,
     ScriptAssociationBulkUpdate,
 };
@@ -42,7 +42,7 @@ pub enum GraphStateAction {
         name: String,
     },
 
-    /// Update a [`Container`]'s [`StandardProperties`](thot_::project::StandardProperties).
+    /// Update a [`Container`]'s [`StandardProperties`](syre_::project::StandardProperties).
     UpdateContainerProperties(UpdateContainerPropertiesArgs),
 
     /// Add a [`Container`] as a child.
@@ -65,7 +65,7 @@ pub enum GraphStateAction {
     InsertContainerAssets(ResourceId, Vec<Asset>),
 
     /// Update a [`Container`]'s
-    /// [`ScriptAssociation`](thot_core::project::ScriptAssociation)s.
+    /// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
     UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
 
     /// Remove all associations with `Script` from [`Container`]'s.

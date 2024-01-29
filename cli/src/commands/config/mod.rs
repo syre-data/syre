@@ -1,10 +1,10 @@
 use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
-use thot_core::types::UserId;
+use syre_core::types::UserId;
 mod commands;
 
-/// Configures a Thot project.
+/// Configures a Syre project.
 pub fn main(args: ConfigArgs, verbose: bool) -> Result {
     // run command
     match args.command {

@@ -2,11 +2,11 @@
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::result::Result as StdResult;
+use syre_core::Error as CoreError;
+use syre_local::Error as LocalError;
+use syre_local_database::error::Error as DbError;
 use tauri::Error as TauriError;
 use thiserror::Error;
-use thot_core::Error as CoreError;
-use thot_local::Error as LocalError;
-use thot_local_database::error::Error as DbError;
 
 // ******************************
 // *** Desktop Settings Error ***
@@ -51,7 +51,7 @@ pub enum Error {
     LocalDatabaseError(DbError),
 
     #[error("{0}")]
-    IoSerde(thot_local::error::IoSerde),
+    IoSerde(syre_local::error::IoSerde),
 }
 
 impl From<DesktopSettings> for Error {
@@ -96,8 +96,8 @@ impl From<TauriError> for Error {
     }
 }
 
-impl From<thot_local::error::IoSerde> for Error {
-    fn from(value: thot_local::error::IoSerde) -> Self {
+impl From<syre_local::error::IoSerde> for Error {
+    fn from(value: syre_local::error::IoSerde) -> Self {
         Self::IoSerde(value)
     }
 }

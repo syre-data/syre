@@ -2,10 +2,10 @@ use crate::Result;
 use clap::Args;
 use std::path::PathBuf;
 use std::{env, fs};
-use thot_core::error::{Error as CoreError, Project as CoreProjectError};
-use thot_local::error::{Error as LocalError, Project as ProjectError};
-use thot_local::project::project;
-use thot_local::system::project_manifest;
+use syre_core::error::{Error as CoreError, Project as CoreProjectError};
+use syre_local::error::{Error as LocalError, Project as ProjectError};
+use syre_local::project::project;
+use syre_local::system::project_manifest;
 
 #[derive(Debug, Args)]
 pub struct MoveArgs {
@@ -15,7 +15,7 @@ pub struct MoveArgs {
     from: Option<PathBuf>,
 }
 
-/// Move a Thot project to a new location.
+/// Move a Syre project to a new location.
 pub fn main(args: MoveArgs, verbose: bool) -> Result {
     // parse to and from args
     let from = match args.from {

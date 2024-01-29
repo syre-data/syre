@@ -1,5 +1,5 @@
 //! Shadow box for the application.
-use thot_ui::components::ShadowBox as ShadowBoxUi;
+use syre_ui::components::ShadowBox as ShadowBoxUi;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]

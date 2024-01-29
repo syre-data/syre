@@ -1,5 +1,5 @@
 [package]
-name = "thot-local-database-cli"
+name = "syre-local-database-cli"
 version = "0.0.1"
 edition = "2021"
 
@@ -14,8 +14,8 @@ tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
 zmq = { workspace = true }
 
-thot-core = { path = "../../../core", features=["clap"] }
-thot-local = { path = "../../../local" }
-thot-local-database = { path = "..", features = ["client"] }
+syre-core = { path = "../../../core", features=["clap"] }
+syre-local = { path = "../../../local" }
+syre-local-database = { path = "..", features = ["client"] }
 notify-debouncer-full = "0.3.1"
 notify = "6.1.1"

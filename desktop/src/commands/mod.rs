@@ -1,4 +1,4 @@
-//! Resources for [`commands`](thot_desktop_tauri::commands).
+//! Resources for [`commands`](syre_desktop_tauri::commands).
 pub mod asset;
 pub mod authenticate;
 pub mod common;

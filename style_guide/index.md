@@ -1,4 +1,4 @@
-# Thot Style Guide
+# Syre Style Guide
 
 #. [General]
 #. [Rust]

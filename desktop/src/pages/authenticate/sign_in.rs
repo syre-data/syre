@@ -3,9 +3,9 @@ use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateRedu
 use crate::commands::authenticate::authenticate_user;
 use crate::commands::user::set_active_user;
 use crate::routes::Route;
-use thot_ui::components::Message as MessageUi;
-use thot_ui::types::Message;
-use thot_ui::types::MessageType;
+use syre_ui::components::Message as MessageUi;
+use syre_ui::types::Message;
+use syre_ui::types::MessageType;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;

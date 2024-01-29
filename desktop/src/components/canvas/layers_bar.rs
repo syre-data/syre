@@ -1,9 +1,9 @@
 //! Layers.
 use crate::components::canvas::selection_action::{selection_action, SelectionAction};
 use crate::components::canvas::{CanvasStateAction, CanvasStateReducer, GraphStateReducer};
-use thot_core::project::Asset as CoreAsset;
-use thot_core::types::ResourceId;
-use thot_ui::widgets::common::asset as asset_ui;
+use syre_core::project::Asset as CoreAsset;
+use syre_core::types::ResourceId;
+use syre_ui::widgets::common::asset as asset_ui;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 

@@ -1,14 +1,14 @@
-//! Handle [`thot::Graph`](GraphEvent) events.
+//! Handle [`syre::Graph`](GraphEvent) events.
 use super::event::app::Graph as GraphEvent;
 use crate::event::{Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
+use syre_core::types::ResourceId;
+use syre_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
 
 impl Database {
-    pub fn handle_thot_event_graph(&mut self, event: &GraphEvent) -> Result {
+    pub fn handle_app_event_graph(&mut self, event: &GraphEvent) -> Result {
         match event {
             GraphEvent::Moved { root, path } => {
                 let project = self.store.get_container_project(&root).unwrap().clone();

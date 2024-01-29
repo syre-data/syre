@@ -2,7 +2,7 @@ use crate::Result;
 use clap::Args;
 use std::env;
 use std::path::{Path, PathBuf};
-use thot_local::project::project;
+use syre_local::project::project;
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
@@ -12,7 +12,7 @@ pub struct NewArgs {
     root: Option<PathBuf>,
 }
 
-/// Creates a new Thot project.
+/// Creates a new Syre project.
 pub fn main(args: NewArgs, verbose: bool) -> Result {
     // get root path
     let root = match args.root {

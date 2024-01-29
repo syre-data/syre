@@ -7,7 +7,7 @@ use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::types::ResourceMap;
+use syre_core::types::ResourceMap;
 
 /// Map from a `Project`'s id to its path.
 pub type ProjectMap = ResourceMap<PathBuf>;

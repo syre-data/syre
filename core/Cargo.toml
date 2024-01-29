@@ -1,15 +1,15 @@
 [package]
-name = "thot-core"
+name = "syre-core"
 version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Core functionality and types for Thot data management and analysis software."
+description = "Core functionality and types for Syre data management and analysis software."
 license = "MIT OR Apache-2.0"
 
-homepage = "https://thot.so"
-repository = "https://github.com/thot-data/thot"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "science", "data-structures" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

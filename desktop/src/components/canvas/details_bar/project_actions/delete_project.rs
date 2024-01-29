@@ -2,8 +2,8 @@ use crate::{
     app::{ProjectsStateAction, ProjectsStateReducer},
     commands::project,
 };
-use thot_core::project::Project;
-use thot_ui::types::Message;
+use syre_core::project::Project;
+use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 

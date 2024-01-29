@@ -6,11 +6,11 @@ use std::io::{self, BufReader};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::UserSettingsFile;
-use thot_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
-use thot_local::error::IoSerde;
-use thot_local::file_resource::UserResource;
+use syre_core::types::ResourceId;
+use syre_desktop_lib::settings::UserSettingsFile;
+use syre_desktop_lib::settings::{HasUser, UserAppState as DesktopUserAppState};
+use syre_local::error::IoSerde;
+use syre_local::file_resource::UserResource;
 
 #[derive(Clone, Debug)]
 pub struct UserAppState {

@@ -1,8 +1,8 @@
 #![feature(io_error_more)]
 #![feature(mutex_unlock)]
 #![feature(path_file_prefix)]
-//! # Thot Local
-//! This package contains local functionality and types of the Thot software suite.
+//! # Syre Local
+//! This package contains local functionality and types of the Syre software suite.
 pub mod common;
 pub mod constants;
 pub mod error;

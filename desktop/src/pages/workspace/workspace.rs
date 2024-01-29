@@ -1,7 +1,7 @@
 //! Project workspace.
 use crate::components::canvas::ProjectCanvas;
 use crate::hooks::{use_active_project, use_open_projects};
-use thot_ui::widgets::suspense::Loading;
+use syre_ui::widgets::suspense::Loading;
 use yew::prelude::*;
 
 /// Project workspace.

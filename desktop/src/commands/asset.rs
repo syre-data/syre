@@ -3,11 +3,11 @@ use super::common::ResourceIdArgs;
 use crate::common::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
-use thot_core::project::{Asset, AssetProperties};
-use thot_core::types::ResourceId;
-use thot_desktop_lib::error::RemoveResource;
-use thot_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
-use thot_local_database::Result as DbResult;
+use syre_core::project::{Asset, AssetProperties};
+use syre_core::types::ResourceId;
+use syre_desktop_lib::error::RemoveResource;
+use syre_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
+use syre_local_database::Result as DbResult;
 
 pub async fn update_properties(asset: ResourceId, properties: AssetProperties) -> DbResult {
     invoke_result(

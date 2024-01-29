@@ -1,24 +1,24 @@
-//! Thot project database.
+//! Syre project database.
 use crate::{Error, Result};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use std::{env, fs};
-use thot_core::db::StandardSearchFilter as StdFilter;
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Asset, Container, Project};
-use thot_core::runner::{common as thot_runner, CONTAINER_ID_KEY};
-use thot_core::types::ResourceId;
-use thot_local::project::project::project_resource_root_path;
-use thot_local_database::{
+use syre_core::db::StandardSearchFilter as StdFilter;
+use syre_core::graph::ResourceTree;
+use syre_core::project::{Asset, Container, Project};
+use syre_core::runner::{common as syre_runner, CONTAINER_ID_KEY};
+use syre_core::types::ResourceId;
+use syre_local::project::project::project_resource_root_path;
+use syre_local_database::{
     AssetCommand, Client as DbClient, ContainerCommand, GraphCommand, ProjectCommand,
     Result as DbResult,
 };
 
 pub type ContainerTree = ResourceTree<Container>;
 
-/// A Thot Database.
+/// A Syre Database.
 pub struct Database {
     root: ResourceId,
     root_path: PathBuf,
@@ -26,7 +26,7 @@ pub struct Database {
 }
 
 impl Database {
-    /// Initialize a new Thot Project.
+    /// Initialize a new Syre Project.
     ///
     /// # Arguments
     /// 1. Path to the root `Container` for use in dev mode.
@@ -42,7 +42,7 @@ impl Database {
         let db = DbClient::new();
 
         // resolve root
-        let root_path = if thot_runner::dev_mode() {
+        let root_path = if syre_runner::dev_mode() {
             let Some(dev_root) = dev_root else {
                 return Err(Error::Value("`dev_root` must be specified".into()));
             };
@@ -57,7 +57,7 @@ impl Database {
             };
 
             let root_id = ResourceId::from_str(&root_id)
-                .expect("could not convert `THOT_CONTAINER_ID` to `ResourceId`");
+                .expect("could not convert `SYRE_CONTAINER_ID` to `ResourceId`");
 
             let root_path = db.send(ContainerCommand::Path(root_id).into())?;
             let root_path: Option<PathBuf> = serde_json::from_value(root_path)
@@ -73,7 +73,7 @@ impl Database {
         // get project id
         let Ok(project_path) = project_resource_root_path(&root_path) else {
             return Err(Error::Runtime(
-                "Root path is not a resource in a Thot project".into(),
+                "Root path is not a resource in a Syre project".into(),
             ));
         };
 

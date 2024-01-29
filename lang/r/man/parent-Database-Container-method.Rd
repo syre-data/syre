@@ -7,9 +7,9 @@
 \S4method{parent}{Database,Container}(db, resource)
 }
 \arguments{
-\item{db}{Thot database connection.}
+\item{db}{Syre database connection.}
 
-\item{resource}{Thot Container.}
+\item{resource}{Syre Container.}
 }
 \value{
 Container's parent or \code{NULL} if the root of the database.

@@ -4,8 +4,8 @@ use crate::error::{Error, Project, Result, SettingsValidationError};
 use crate::system::settings::user_settings::UserSettings;
 use std::fs;
 use std::path::{Path, PathBuf};
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::types::ResourceId;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::types::ResourceId;
 
 // ****************
 // *** Projects ***
@@ -24,7 +24,7 @@ pub fn register_project(rid: ResourceId, path: PathBuf) -> Result {
 
     // check if project is already registered.
     if projects.contains_key(&rid) {
-        return Err(Error::CoreError(CoreError::ResourceError(
+        return Err(Error::CoreError(CoreError::Resource(
             ResourceError::DuplicateId(rid.into()),
         )));
     }

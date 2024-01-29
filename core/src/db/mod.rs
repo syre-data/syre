@@ -1,4 +1,4 @@
-//! Module for loading a Thot project.
+//! Module for loading a Syre project.
 pub mod resource;
 pub mod search_filter;
 

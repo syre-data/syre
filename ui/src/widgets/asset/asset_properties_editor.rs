@@ -1,8 +1,8 @@
-//! Properties editor for [`Contaier`](thot_core::project::Container)s.
+//! Properties editor for [`Contaier`](syre_core::project::Container)s.
 use super::super::{MetadataEditor, TagsEditor};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use thot_core::project::{AssetProperties, Metadata};
+use syre_core::project::{AssetProperties, Metadata};
 use yew::prelude::*;
 
 // ************************
@@ -232,16 +232,19 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
         let dirty_state = dirty_state.clone();
         let onchange = props.onchange.clone();
 
-        use_effect_with((properties_state, dirty_state), move |(properties_state, dirty_state)| {
-            if !(**dirty_state) {
-                return;
-            }
-            onchange.emit((**properties_state).clone().into());
-        });
+        use_effect_with(
+            (properties_state, dirty_state),
+            move |(properties_state, dirty_state)| {
+                if !(**dirty_state) {
+                    return;
+                }
+                onchange.emit((**properties_state).clone().into());
+            },
+        );
     }
 
     html! {
-        <form class={classes!("thot-ui-asset-properties-editor")}>
+        <form class={classes!("syre-ui-asset-properties-editor")}>
             <div class={classes!("form-field", "name")}>
                 <label>
                     <h3> { "Name" } </h3>

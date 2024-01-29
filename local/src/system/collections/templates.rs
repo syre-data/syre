@@ -8,8 +8,8 @@ use std::fs;
 use std::io::BufReader;
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use thot_core::system::template::Project as ProjectTemplate;
-use thot_core::types::ResourceId;
+use syre_core::system::template::Project as ProjectTemplate;
+use syre_core::types::ResourceId;
 
 pub type TemplateMap = HashMap<ResourceId, ProjectTemplate>;
 

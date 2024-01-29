@@ -54,7 +54,7 @@ pub fn get_directory(title: Option<String>, dir: Option<PathBuf>) -> Option<Path
 #[tauri::command]
 #[tracing::instrument]
 pub fn open_file(path: PathBuf) -> Result {
-    let path = thot_local::common::normalize_path_separators(path);
+    let path = syre_local::common::normalize_path_separators(path);
     let path = path.canonicalize()?;
     open::that(path).map_err(|err| err.into())
 }

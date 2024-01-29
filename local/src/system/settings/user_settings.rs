@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::BufReader;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 
 /// User settings.
 #[derive(Serialize, Deserialize, Clone, Default)]

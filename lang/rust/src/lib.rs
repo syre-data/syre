@@ -1,4 +1,4 @@
-//! Base language binding functionality for Thot.
+//! Base language binding functionality for Syre.
 pub mod database;
 pub mod error;
 

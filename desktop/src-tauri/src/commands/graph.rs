@@ -4,17 +4,17 @@ use crate::state::AppState;
 use std::fs;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::graph::ResourceTree;
+use syre_core::project::{Container as CoreContainer, Project};
+use syre_core::types::{Creator, ResourceId, UserId};
+use syre_desktop_lib::error::RemoveResource as RemoveResourceError;
+use syre_local::error::{ContainerError, Error as LocalError};
+use syre_local::project::resources::Container as LocalContainer;
+use syre_local_database::client::Client as DbClient;
+use syre_local_database::command::{ContainerCommand, GraphCommand, ProjectCommand};
+use syre_local_database::Result as DbResult;
 use tauri::State;
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::ResourceTree;
-use thot_core::project::{Container as CoreContainer, Project};
-use thot_core::types::{Creator, ResourceId, UserId};
-use thot_desktop_lib::error::RemoveResource as RemoveResourceError;
-use thot_local::error::{ContainerError, Error as LocalError};
-use thot_local::project::resources::Container as LocalContainer;
-use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::{ContainerCommand, GraphCommand, ProjectCommand};
-use thot_local_database::Result as DbResult;
 
 type ContainerTree = ResourceTree<CoreContainer>;
 
@@ -29,7 +29,7 @@ type ContainerTree = ResourceTree<CoreContainer>;
 /// [`ResourceId`] of the initialized [`Container`](Container).
 ///
 /// # See also
-/// + [`thot_local::project::container::init`] for details.
+/// + [`syre_local::project::container::init`] for details.
 #[tauri::command]
 pub fn init_project_graph(
     db: State<DbClient>,
@@ -62,10 +62,9 @@ pub fn init_project_graph(
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
     let Some(mut project) = project else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` not loaded",
-        ))
-        .into());
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`Project` not loaded")).into(),
+        );
     };
 
     project.data_root = path.clone();
@@ -99,7 +98,7 @@ pub fn init_project_graph(
 pub fn load_project_graph(
     db: State<DbClient>,
     rid: ResourceId,
-) -> StdResult<ContainerTree, thot_local_database::error::server::LoadProjectGraph> {
+) -> StdResult<ContainerTree, syre_local_database::error::server::LoadProjectGraph> {
     let res = db.send(GraphCommand::Load(rid).into()).unwrap();
     serde_json::from_value(res).unwrap()
 }
@@ -113,7 +112,7 @@ pub fn load_project_graph(
 pub fn get_or_load_project_graph(
     db: State<DbClient>,
     rid: ResourceId,
-) -> StdResult<ContainerTree, thot_local_database::error::server::LoadProjectGraph> {
+) -> StdResult<ContainerTree, syre_local_database::error::server::LoadProjectGraph> {
     let res = db.send(GraphCommand::GetOrLoad(rid).into()).unwrap();
     serde_json::from_value(res).unwrap()
 }

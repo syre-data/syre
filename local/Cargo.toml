@@ -1,15 +1,15 @@
 [package]
-name = "thot-local"
+name = "syre-local"
 version = "0.10.1"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Local functionality for Thot data management and analysis software."
+description = "Local functionality for Syre data management and analysis software."
 license = "MIT OR Apache-2.0"
 
-homepage = "https://thot-data.com"
-repository = "https://github.com/thot-data/local"
-keywords = [ "thot", "thot-data", "data", "data-analysis", "data-management" ]
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
 categories = [ "science", "data-structures" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -30,14 +30,14 @@ uuid = { workspace = true, features = ["serde", "v4"] }
 validator = "0.16"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
-thot-core = { path = "../core", features = ["serde"] }
+syre-core = { path = "../core", features = ["serde"] }
 
 [dev-dependencies]
 rand = "0.8"
 fake = "2.4"
 lazy_static = "1.4.0"
 
-dev_utils = { path = "../dev_utils", features = ["thot_core"] }
+dev_utils = { path = "../dev_utils", features = ["syre_core"] }
 
 [features]
 default = ["fs"]

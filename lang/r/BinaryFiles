@@ -1,3 +1,3 @@
-inst/thot-local-database-aarch64-apple-darwin
-inst/thot-local-database-x86_64-pc-windows-msvc.exe
-inst/thot-local-database-x86_64-unknown-linux-gnu
+inst/syre-local-database-aarch64-apple-darwin
+inst/syre-local-database-x86_64-pc-windows-msvc.exe
+inst/syre-local-database-x86_64-unknown-linux-gnu

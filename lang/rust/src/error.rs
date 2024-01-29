@@ -1,6 +1,6 @@
 //! Crate errors.
 use std::result::Result as StdResult;
-use thot_local_database::Error as DbError;
+use syre_local_database::Error as DbError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -12,7 +12,7 @@ pub enum Error {
     /// A value error.
     Value(String),
 
-    /// `thot_local_database` error.
+    /// `syre_local_database` error.
     Database(DbError),
 
     ZMQ(zmq::Error),

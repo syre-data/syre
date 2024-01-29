@@ -133,8 +133,8 @@ container_from_json <- function(container) {
 
 #' Gets the children of the Container.
 #'
-#' @param db Thot database connection.
-#' @param container Thot Container.
+#' @param db Syre database connection.
+#' @param container Syre Container.
 #'
 #' @returns List of the Container's children.
 #' @export
@@ -164,8 +164,8 @@ children <- function(db, container) {
 
 #' Get the parent of a resource.
 #'
-#' @param db Thot database connection.
-#' @param resource Thot resource.
+#' @param db Syre database connection.
+#' @param resource Syre resource.
 #'
 #' @returns Parent of the resource, or `NULL` if it does not exist in the current context.
 #' @export
@@ -174,8 +174,8 @@ setGeneric("parent", function(db, resource)
 
 #' Gets the parent of the Container within the database context.
 #'
-#' @param db Thot database connection.
-#' @param resource Thot Container.
+#' @param db Syre database connection.
+#' @param resource Syre Container.
 #'
 #' @returns Container's parent or `NULL` if the root of the database.
 #' @export
@@ -204,8 +204,8 @@ setMethod("parent", signature(db = "Database", resource = "Container"), function
 
 #' Gets the parent of the Asset.
 #'
-#' @param db Thot database connection.
-#' @param resource Thot Asset.
+#' @param db Syre database connection.
+#' @param resource Syre Asset.
 #'
 #' @returns Asset's parent Container.
 #' @export

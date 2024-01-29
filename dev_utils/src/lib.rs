@@ -1,4 +1,4 @@
-//! Developer utilities for Thot.
+//! Developer utilities for Syre.
 pub mod error;
 pub mod fs;
 pub mod lock;

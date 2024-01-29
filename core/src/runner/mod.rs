@@ -1,4 +1,4 @@
-//! Functionality for running Thot projects.
+//! Functionality for running Syre projects.
 pub mod common;
 pub mod env;
 pub mod resources;

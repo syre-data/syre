@@ -3,8 +3,8 @@ use super::common::ResourceIdArgs;
 use crate::common::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
-use thot_core::project::Script;
-use thot_core::types::ResourceId;
+use syre_core::project::Script;
+use syre_core::types::ResourceId;
 
 pub async fn get_project_scripts(project: ResourceId) -> Result<Vec<Script>, String> {
     invoke_result("get_project_scripts", ResourceIdArgs { rid: project }).await

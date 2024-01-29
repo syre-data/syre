@@ -11,7 +11,7 @@ pub struct TagsProps {
 #[function_component(Tags)]
 pub fn tags_editor(props: &TagsProps) -> Html {
     html! {
-        <div class={classes!("thot-ui-tags")}>
+        <div class={classes!("syre-ui-tags")}>
             if props.value.is_empty() {
                 { "(no tags)" }
             } else {

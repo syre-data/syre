@@ -15,7 +15,7 @@ pub struct MessagesProps {
 #[function_component(Messages)]
 pub fn messages(props: &MessagesProps) -> Html {
     html! {
-        <div class={classes!("thot-ui-messages")}>
+        <div class={classes!("syre-ui-messages")}>
             { props.children.iter().collect::<Html>() }
         </div>
     }

@@ -1,6 +1,6 @@
 //! Gets the canvas' `Project`.
 use crate::components::canvas::CanvasStateReducer;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 #[tracing::instrument]

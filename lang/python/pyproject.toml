@@ -3,12 +3,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "thot-data"
+name = "syre"
 dynamic = ["version"]
-description = "Python library for Thot data analysis and management."
+description = "Python library for Syre data analysis and management."
 readme = "README.md"
 requires-python = ">=3.7"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 keywords = ["data management", "data analysis"]
 authors = [
   { name="Brian Carlsen", email="carlsen.bri@gmail.com" },
@@ -22,15 +22,15 @@ classifiers = [
 dependencies = ["pyzmq"]
 
 [project.urls]
-Issues = "https://github.com/thot-data/thot-test/issues"
-Source = "https://github.com/thot-data/thot"
-Homepage = "https://thot.so"
+Issues = "https://github.com/syre-data/syre/issues"
+Source = "https://github.com/syre-data/syre"
+Homepage = "https://syre.ai"
 
 [tool.hatch.version]
-path = "src/thot/__about__.py"
+path = "src/syre/__about__.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = []
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/thot"]
+packages = ["src/syre"]

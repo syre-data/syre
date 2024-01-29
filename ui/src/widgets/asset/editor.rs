@@ -1,6 +1,6 @@
-//! [`Asset`](thot_core::project::Asset) editor.
+//! [`Asset`](syre_core::project::Asset) editor.
 use super::AssetPropertiesEditor;
-use thot_core::project::{Asset, AssetProperties};
+use syre_core::project::{Asset, AssetProperties};
 use yew::prelude::*;
 
 /// Properties for [`AssetEditor`].
@@ -14,18 +14,18 @@ pub struct AssetEditorProps {
     pub onchange_properties: Callback<AssetProperties>,
 }
 
-/// [`Asset`](thot_core::project::Asset)s editor.
+/// [`Asset`](syre_core::project::Asset)s editor.
 #[tracing::instrument(skip(props))]
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
-    let class = classes!("thot-ui-asset-editor", props.class.clone());
+    let class = classes!("syre-ui-asset-editor", props.class.clone());
     html! {
         <div key={props.asset.rid.clone()} {class}>
             <AssetPropertiesEditor
                 properties={props.asset.properties.clone()}
                 onchange={props.onchange_properties.clone()}/>
 
-            <div class={classes!("thot-ui-asset-file_name")}>
+            <div class={classes!("syre-ui-asset-file_name")}>
                 { props.asset.path.as_path().to_str() }
             </div>
         </div>

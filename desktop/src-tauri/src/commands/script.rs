@@ -2,14 +2,14 @@
 use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
+use syre_core::error::{Error as CoreError, Project as ProjectError, Resource as ResourceError};
+use syre_core::project::{Project, Script};
+use syre_core::types::ResourceId;
+use syre_local::common;
+use syre_local_database::client::Client as DbClient;
+use syre_local_database::command::{ProjectCommand, ScriptCommand};
+use syre_local_database::Result as DbResult;
 use tauri::State;
-use thot_core::error::{Error as CoreError, Project as ProjectError, ResourceError};
-use thot_core::project::{Project, Script};
-use thot_core::types::ResourceId;
-use thot_local::common;
-use thot_local_database::client::Client as DbClient;
-use thot_local_database::command::{ProjectCommand, ScriptCommand};
-use thot_local_database::Result as DbResult;
 
 // ***********************
 // *** project scripts ***
@@ -128,10 +128,9 @@ fn get_project(db: &State<DbClient>, project: ResourceId) -> Result<Project> {
         serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
 
     let Some(project) = project else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` not loaded",
-        ))
-        .into());
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`Project` not loaded")).into(),
+        );
     };
 
     Ok(project)
@@ -146,10 +145,9 @@ fn get_project_path(db: &State<DbClient>, project: ResourceId) -> Result<PathBuf
         serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
 
     let Some(project_path) = project_path else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` not loaded",
-        ))
-        .into());
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`Project` not loaded")).into(),
+        );
     };
 
     Ok(project_path)

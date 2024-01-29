@@ -4,8 +4,8 @@ use settings_manager::locked::user_settings::{Loader as UserLoader, UserSettings
 use settings_manager::Result;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use thot_core::types::ResourceId;
-use thot_desktop_lib::settings::{HasUser, UserSettingsFile};
+use syre_core::types::ResourceId;
+use syre_desktop_lib::settings::{HasUser, UserSettingsFile};
 
 pub struct Loader<S>(PhantomData<S>);
 impl<S> Loader<S>

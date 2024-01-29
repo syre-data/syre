@@ -1,6 +1,6 @@
 //! Container related commands.
 use serde::{Deserialize, Serialize};
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 
 /// Graph related commands.
 #[derive(Serialize, Deserialize, Debug)]

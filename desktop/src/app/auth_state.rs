@@ -1,7 +1,7 @@
 //! Authentication state.
 use gloo_storage::{LocalStorage, Storage};
 use std::rc::Rc;
-use thot_core::system::User;
+use syre_core::system::User;
 use yew::prelude::*;
 
 // TODO[h]: App state and auth state should be split in two

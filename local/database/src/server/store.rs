@@ -7,14 +7,14 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 use std::{fs, io};
-use thot_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
-use thot_core::error::{Error as CoreError, ResourceError};
-use thot_core::graph::ResourceTree;
-use thot_core::project::{
+use syre_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
+use syre_core::error::{Error as CoreError, Resource as ResourceError};
+use syre_core::graph::ResourceTree;
+use syre_core::project::{
     asset, Asset, Container as CoreContainer, Metadata, Script as CoreScript,
 };
-use thot_core::types::{ResourceId, ResourceMap};
-use thot_local::project::resources::{
+use syre_core::types::{ResourceId, ResourceMap};
+use syre_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
 };
 
@@ -113,7 +113,7 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 /// Assets can be referenced as well.
 ///
 /// # Notes
-/// + Because local Thot resources can only be controlled by a single process
+/// + Because local Syre resources can only be controlled by a single process
 /// a `Datastore` operates as a single repository for all processes requiring access
 /// to these resources.
 /// This means that the `Datastore` should control all resources it stores.
@@ -469,7 +469,7 @@ impl Datastore {
         graph: ResourceTree<LocalContainer>,
     ) -> Result {
         let Some(project) = self.get_container_project(parent).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` `Project` not found",
             ))
             .into());
@@ -509,7 +509,7 @@ impl Datastore {
     /// + This does not affect the file system.
     pub fn move_subgraph(&mut self, root: &ResourceId, parent: &ResourceId) -> Result {
         let Some(project) = self.get_container_project(root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` `Project` not found",
             ))
             .into());
@@ -531,7 +531,7 @@ impl Datastore {
     #[tracing::instrument(skip(self))]
     pub fn remove_subgraph(&mut self, root: &ResourceId) -> Result<ContainerTree> {
         let Some(project) = self.get_container_project(root).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` `Project` not found",
             ))
             .into());
@@ -571,7 +571,7 @@ impl Datastore {
     pub fn update_subgraph_path(&mut self, root: &ResourceId, path: impl Into<PathBuf>) -> Result {
         let path = path.into();
         let Some(graph) = self.get_graph_of_container(root) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` graph not found",
             ))
             .into());
@@ -902,7 +902,7 @@ impl Datastore {
     /// Adds an [`Asset`](CoreAsset) to a `Container`.
     pub fn add_asset(&mut self, mut asset: Asset, container: ResourceId) -> Result<Option<Asset>> {
         let Some(project) = self.container_projects.get(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` is not loaded",
             ))
             .into());
@@ -914,7 +914,7 @@ impl Datastore {
             .expect("`Project` present without graph");
 
         let Some(container) = graph.get_mut(&container) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` is not loaded",
             ))
             .into());
@@ -938,7 +938,7 @@ impl Datastore {
             Ok(path) => path,
             Err(_) => {
                 if cfg!(target_os = "windows") {
-                    thot_local::common::ensure_windows_unc(asset_path)
+                    syre_local::common::ensure_windows_unc(asset_path)
                 } else {
                     asset_path
                 }
@@ -956,21 +956,21 @@ impl Datastore {
     #[tracing::instrument(skip(self))]
     pub fn remove_asset(&mut self, rid: &ResourceId) -> Result<Option<(Asset, PathBuf)>> {
         let Some(cid) = self.asset_containers.get(rid).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` is not loaded",
             ))
             .into());
         };
 
         let Some(graph) = self.get_graph_of_container_mut(&cid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container`'s graph is not loaded",
             ))
             .into());
         };
 
         let Some(container) = graph.get_mut(&cid) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` not in graph",
             ))
             .into());
@@ -988,7 +988,7 @@ impl Datastore {
 
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                     if cfg!(target_os = "windows") {
-                        thot_local::common::ensure_windows_unc(path)
+                        syre_local::common::ensure_windows_unc(path)
                     } else {
                         path
                     }
@@ -1037,7 +1037,7 @@ impl Datastore {
     /// + Does not manipulate the `Asset`'s file.
     pub fn move_asset(&mut self, asset: &ResourceId, container: &ResourceId) -> Result {
         let Some(asset_container) = self.get_asset_container_id(asset).cloned() else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
@@ -1050,7 +1050,7 @@ impl Datastore {
         asset_container.save()?;
 
         let Some(container) = self.get_container_mut(container) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
@@ -1231,7 +1231,7 @@ impl Datastore {
         script: CoreScript,
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project` does not exist",
             ))
             .into());
@@ -1259,7 +1259,7 @@ impl Datastore {
     ) -> Result<Option<CoreScript>> {
         let Some(scripts) = self.scripts.get_mut(&project) else {
             // project does not exist
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project`'s `Scripts` does not exist",
             ))
             .into());
@@ -1267,7 +1267,7 @@ impl Datastore {
 
         // remove association from contiainers
         let Some(graph) = self.graphs.get_mut(project) else {
-            return Err(CoreError::ResourceError(ResourceError::does_not_exist(
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project`'s graph does not exist",
             ))
             .into());
@@ -1317,10 +1317,10 @@ pub mod error {
     use std::collections::HashMap;
     use std::io;
     use std::path::PathBuf;
+    use syre_core::graph::ResourceTree;
+    use syre_core::types::ResourceId;
+    use syre_local::project::resources::Container;
     use thiserror::Error;
-    use thot_core::graph::ResourceTree;
-    use thot_core::types::ResourceId;
-    use thot_local::project::resources::Container;
 
     type ContainerTree = ResourceTree<Container>;
 

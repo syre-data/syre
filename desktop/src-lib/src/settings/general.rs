@@ -1,7 +1,7 @@
 //! General settings for the desktop app.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use thot_local::types::AssetFileAction;
+use syre_local::types::AssetFileAction;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Default, Debug)]
 pub struct GeneralSettings {

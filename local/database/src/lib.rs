@@ -1,6 +1,6 @@
 #![feature(mutex_unlock)]
-//! # Thot Local Database
-//! Implements a local database for Thot.
+//! # Syre Local Database
+//! Implements a local database for Syre.
 pub mod command;
 pub mod event;
 

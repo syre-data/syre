@@ -111,7 +111,7 @@ $control-button-size: 25px;
     height: t.$card-height;
     overflow: auto;
 
-    .thot-ui-metadata-preview {
+    .syre-ui-metadata-preview {
       text-align: left;
       list-style: none;
       padding: 0;
@@ -128,32 +128,32 @@ $control-button-size: 25px;
     }
 
     .assets-preview {
-      .thot-ui-assets-list {
+      .syre-ui-assets-list {
         text-align: left;
         list-style: none;
         padding: 0;
 
-        .thot-ui-asset-preview {
+        .syre-ui-asset-preview {
           &.active {
             background-color: t.$primary-color;
           }
 
-          .thot-ui-asset-name {
+          .syre-ui-asset-name {
             @include mixins.hide-text-overflow;
           }
         }
       }
 
-      .thot-ui-asset {
+      .syre-ui-asset {
         display: flex;
         gap: 4px;
 
-        .thot-ui-asset-icon {
+        .syre-ui-asset-icon {
           width: t.$asset-icon-size;
           height: t.$asset-icon-size;
         }
 
-        .thot-ui-asset-name {
+        .syre-ui-asset-name {
           flex-grow: 1;
         }
 
@@ -161,7 +161,7 @@ $control-button-size: 25px;
           vertical-align: middle;
         }
 
-        button.thot-ui-asset-remove {
+        button.syre-ui-asset-remove {
           all: unset;
           opacity: 0;
           display: flex;
@@ -169,7 +169,7 @@ $control-button-size: 25px;
           padding: t.$padding-s;
           box-sizing: border-box;
 
-          .thot-ui-add-remove-icon {
+          .syre-ui-add-remove-icon {
             width: t.$add-remove-icon-size;
             height: t.$add-remove-icon-size;
           }
@@ -180,23 +180,23 @@ $control-button-size: 25px;
           }
         }
 
-        &:hover .thot-ui-asset-remove {
+        &:hover .syre-ui-asset-remove {
           opacity: 1;
         }
 
-        &:hover .thot-ui-asset-name {
+        &:hover .syre-ui-asset-name {
           color: t.$hover-text-color;
         }
       }
     }
 
-    .thot-ui-script-associations-preview {
-      .thot-ui-script-associations-list {
+    .syre-ui-script-associations-preview {
+      .syre-ui-script-associations-list {
         text-align: left;
         list-style: none;
         padding: 0;
 
-        .thot-ui-script-association-preview {
+        .syre-ui-script-association-preview {
           @include mixins.hide-text-overflow;
 
           &.autorun-true::after {

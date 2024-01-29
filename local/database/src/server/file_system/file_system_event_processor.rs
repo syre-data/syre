@@ -7,7 +7,7 @@ use notify_debouncer_full::DebouncedEvent;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{fs, io};
-use thot_local::common;
+use syre_local::common;
 
 pub struct FileSystemEventProcessor;
 impl FileSystemEventProcessor {

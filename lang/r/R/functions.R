@@ -1,4 +1,4 @@
-CONTAINER_ID_KEY <- "THOT_CONTAINER_ID"
+CONTAINER_ID_KEY <- "SYRE_CONTAINER_ID"
 
 #' Gets the active user id or `NULL`.
 #'
@@ -9,10 +9,10 @@ active_user <- function() {
   user
 }
 
-#' Gets the `THOT_CONTAINER_ID` environment variable.
+#' Gets the `SYRE_CONTAINER_ID` environment variable.
 #'
 #' @returns Active Container id or `NA`.
-thot_container_id <- function() {
+syre_container_id <- function() {
   Sys.getenv(CONTAINER_ID_KEY, unset = NA)
 }
 

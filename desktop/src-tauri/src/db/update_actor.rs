@@ -1,5 +1,5 @@
 //! Actor for listening to database updates.
-use thot_local_database::event::Update;
+use syre_local_database::event::Update;
 
 pub struct UpdateActor {
     window: tauri::Window,
@@ -13,11 +13,11 @@ impl UpdateActor {
         let zmq_context = zmq::Context::new();
         let zmq_socket = zmq_context.socket(zmq::SUB).unwrap();
         zmq_socket
-            .set_subscribe(thot_local_database::constants::PUB_SUB_TOPIC.as_bytes())
+            .set_subscribe(syre_local_database::constants::PUB_SUB_TOPIC.as_bytes())
             .unwrap();
 
         zmq_socket
-            .connect(&thot_local_database::common::zmq_url(zmq::SUB).unwrap())
+            .connect(&syre_local_database::common::zmq_url(zmq::SUB).unwrap())
             .unwrap();
 
         Self { window, zmq_socket }
@@ -31,6 +31,7 @@ impl UpdateActor {
     /// Listen for database updates and send them to main window.
     #[tracing::instrument(skip(self))]
     fn listen_for_events(&self) {
+        tracing::debug!("listening for file system events");
         loop {
             let messages = match self.zmq_socket.recv_multipart(0) {
                 Ok(msg) => msg,
@@ -58,6 +59,7 @@ impl UpdateActor {
             }
 
             let event: Update = serde_json::from_str(&message).unwrap();
+            tracing::debug!(?event);
             self.window.emit(&topic, event).unwrap();
         }
     }

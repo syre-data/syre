@@ -5,9 +5,11 @@ use crate::error::{ContainerError, Result};
 use crate::loader::container::Loader as ContainerLoader;
 use crate::system::collections::{ProjectManifest, Scripts as SystemScripts};
 use std::path::{Path, PathBuf};
-use thot_core::error::{Error as CoreError, Project as CoreProjectError, ResourceError};
-use thot_core::project::ScriptAssociation;
-use thot_core::types::ResourceId;
+use syre_core::error::{
+    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
+};
+use syre_core::project::ScriptAssociation;
+use syre_core::types::ResourceId;
 
 // ***************
 // *** Scripts ***
@@ -17,10 +19,9 @@ use thot_core::types::ResourceId;
 pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
     let projects = ProjectManifest::load()?;
     let Some(project) = projects.get(&project) else {
-        return Err(CoreError::ResourceError(ResourceError::does_not_exist(
-            "`Project` does not exist",
-        ))
-        .into());
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`Project` does not exist")).into(),
+        );
     };
 
     let mut scripts = ProjectScripts::load_from(project.clone())?;

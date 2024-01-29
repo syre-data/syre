@@ -2,7 +2,7 @@
 use crate::app::{ProjectsStateAction, ProjectsStateReducer};
 use crate::hooks::{use_user, use_user_projects};
 use crate::routes::Route;
-use thot_core::types::ResourceId;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 use yew_router::prelude::*;
 

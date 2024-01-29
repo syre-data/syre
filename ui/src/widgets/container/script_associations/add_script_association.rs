@@ -1,7 +1,7 @@
 //! Add a [`ScriptAssociation`] to a [`Container`].
 use std::str::FromStr;
-use thot_core::project::Script as CoreScript;
-use thot_core::types::ResourceId;
+use syre_core::project::Script as CoreScript;
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -55,7 +55,7 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
                     { "Scripts" }
                 </h3>
                 <button classes={ "add-button" } type="button" onclick={set_active(true)}>
-                    <Icon class={ classes!("thot-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                    <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
                 </button>
             </div>
             if *active {

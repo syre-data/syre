@@ -1,4 +1,4 @@
-//! Handle [`thot::Folder`](FolderEvent) events.
+//! Handle [`syre::Folder`](FolderEvent) events.
 use super::event::app::Folder as FolderEvent;
 use super::ParentChild;
 use crate::event::{Graph as GraphUpdate, Update};
@@ -6,12 +6,12 @@ use crate::server::Database;
 use crate::Result;
 use std::fs;
 use std::path::{Component, PathBuf};
-use thot_local::graph::ContainerTreeTransformer;
-use thot_local::loader::tree::Loader as ContainerTreeLoader;
-use thot_local::project::{asset, container, project};
+use syre_local::graph::ContainerTreeTransformer;
+use syre_local::loader::tree::Loader as ContainerTreeLoader;
+use syre_local::project::{asset, container, project};
 
 impl Database {
-    pub fn handle_thot_event_folder(&mut self, event: &FolderEvent) -> Result {
+    pub fn handle_app_event_folder(&mut self, event: &FolderEvent) -> Result {
         match event {
             FolderEvent::Created(path) => {
                 // ignore analysis folder

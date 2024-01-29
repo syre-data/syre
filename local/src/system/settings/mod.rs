@@ -1,4 +1,4 @@
-//! System settings for Thot.
+//! System settings for Syre.
 pub mod runner_settings;
 pub mod user_settings;
 

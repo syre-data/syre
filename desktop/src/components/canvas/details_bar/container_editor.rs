@@ -3,10 +3,10 @@ use super::script_associations_editor::ScriptAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::container::{update_properties, UpdatePropertiesArgs};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
-use thot_core::project::ContainerProperties;
-use thot_core::types::ResourceId;
-use thot_ui::types::Message;
-use thot_ui::widgets::container::ContainerPropertiesEditor;
+use syre_core::project::ContainerProperties;
+use syre_core::types::ResourceId;
+use syre_ui::types::Message;
+use syre_ui::widgets::container::ContainerPropertiesEditor;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -92,7 +92,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
     });
 
     html! {
-        <div class={"thot-ui-editor px-xl"}>
+        <div class={"syre-ui-editor px-xl"}>
             <ContainerPropertiesEditor
                 properties={(*properties).clone()}
                 onchange={onchange} />

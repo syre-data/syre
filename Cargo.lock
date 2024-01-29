@@ -4156,6 +4156,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "syre-core",
+ "tempfile",
  "thiserror",
  "tracing",
  "uuid",

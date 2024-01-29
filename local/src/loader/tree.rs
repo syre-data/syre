@@ -22,6 +22,7 @@ impl Loader {
         return thread_pool.install(move || Self::load_tree(path));
     }
 
+    /// Recursive loader.
     fn load_tree(path: impl AsRef<Path>) -> Result<ContainerTree, HashMap<PathBuf, Error>> {
         let path = path.as_ref();
         let root = match ContainerLoader::load(path) {

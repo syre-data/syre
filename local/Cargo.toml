@@ -33,9 +33,10 @@ has_id = { path  = "../has_id", features = ["derive", "serde"] }
 syre-core = { path = "../core", features = ["serde"] }
 
 [dev-dependencies]
-rand = "0.8"
-fake = "2.4"
+fake = { workspace = true }
 lazy_static = "1.4.0"
+rand = { workspace = true }
+tempfile = { workspace = true }
 
 dev_utils = { path = "../dev_utils", features = ["syre_core"] }
 

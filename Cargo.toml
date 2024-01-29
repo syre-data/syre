@@ -45,6 +45,11 @@ yew-router = "0.18"
 yew_icons = "0.8"
 zmq = "0.10.0"
 
+# dev dependencies
+fake = "2.4"
+rand = "0.8"
+tempfile = "3"
+
 [profile.dev]
 opt-level = 0
 debug = true

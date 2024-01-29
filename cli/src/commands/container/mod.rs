@@ -1,4 +1,3 @@
-use crate::types::ResourcePathType;
 use crate::Result;
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
@@ -8,7 +7,6 @@ pub fn main(args: ContainerArgs, verbose: bool) -> Result {
     match args.command {
         Command::Init(init_args) => commands::init(init_args, verbose),
         Command::New(new_args) => commands::new(new_args, verbose),
-        Command::AssociateScript(add_args) => commands::associate_script(add_args, verbose),
     }
 }
 
@@ -22,7 +20,6 @@ pub struct ContainerArgs {
 enum Command {
     Init(InitArgs),
     New(NewArgs),
-    AssociateScript(AssociateScriptArgs),
 }
 
 #[derive(Debug, Args)]
@@ -42,26 +39,4 @@ pub struct InitArgs {
 #[derive(Debug, Args)]
 pub struct NewArgs {
     path: PathBuf,
-}
-
-#[derive(Debug, Args)]
-pub struct AssociateScriptArgs {
-    path: PathBuf,
-
-    #[clap(short, long)]
-    container: Option<PathBuf>,
-
-    #[clap(short, long)]
-    priority: Option<i32>,
-
-    #[clap(long)]
-    autorun: Option<bool>,
-
-    // force register parameters
-    #[clap(long)]
-    register: bool,
-
-    // TODO Only valid if register is true
-    #[clap(long, value_enum)]
-    path_type: Option<ResourcePathType>,
 }

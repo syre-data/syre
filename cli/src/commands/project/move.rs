@@ -34,16 +34,7 @@ pub fn main(args: MoveArgs, verbose: bool) -> Result {
         },
     };
 
-    let pid = match project_manifest::get_id(&from)? {
-        Some(pid) => pid,
-        None => {
-            return Err(
-                CoreError::Project(CoreProjectError::NotRegistered(None, Some(from))).into(),
-            )
-        }
-    };
-
-    project::mv(&pid, args.to.as_path())?;
+    project::mv(&from, args.to.as_path())?;
     if verbose {
         println!("Project moved from `{from:?}` to `{:?}`", args.to);
     }

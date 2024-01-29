@@ -10,7 +10,6 @@ use syre_core::types::ResourceId;
 use syre_local::project::resources::{
     Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
 };
-use syre_local::system::collections::ProjectManifest;
 
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
@@ -64,15 +63,14 @@ impl Database {
             return Ok(scripts.values().map(|script| script.clone()).collect());
         }
 
-        let projects = ProjectManifest::load_or_default()?;
-        let Some(project) = projects.get(&rid).clone() else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Project` does not exist",
+        let Some(project) = self.store.get_project(&rid) else {
+            return Err(CoreError::Resource(ResourceError::DoesNotExist(
+                "project is not loaded".to_string(),
             ))
             .into());
         };
 
-        let scripts = ProjectScripts::load_from(project)?;
+        let scripts = ProjectScripts::load_from(project.base_path())?;
         let script_vals = (**scripts).clone().into_values().collect();
         self.store.insert_project_scripts(rid, scripts);
         Ok(script_vals)

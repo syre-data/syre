@@ -16,7 +16,6 @@ fn main() {
         Command::Config(args) => config::main(args, cli.verbose),
         Command::User(args) => user::main(args, cli.verbose),
         Command::Container(args) => container::main(args, cli.verbose),
-        Command::Project(args) => project::main(args, cli.verbose),
     };
 
     match res {
@@ -49,5 +48,4 @@ enum Command {
     Config(config::ConfigArgs),
     User(user::UserArgs),
     Container(container::ContainerArgs),
-    Project(project::ProjectArgs),
 }

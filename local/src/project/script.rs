@@ -11,29 +11,6 @@ use syre_core::error::{
 use syre_core::project::ScriptAssociation;
 use syre_core::types::ResourceId;
 
-// ***************
-// *** Scripts ***
-// ***************
-
-/// Initialize a file as a [`Script`](CoreScript).
-pub fn init(project: ResourceId, path: PathBuf) -> Result<ResourceId> {
-    let projects = ProjectManifest::load()?;
-    let Some(project) = projects.get(&project) else {
-        return Err(
-            CoreError::Resource(ResourceError::does_not_exist("`Project` does not exist")).into(),
-        );
-    };
-
-    let mut scripts = ProjectScripts::load_from(project.clone())?;
-    let script = ProjectScript::new(path)?;
-
-    let rid = script.rid.clone();
-    scripts.insert_script(script)?;
-    scripts.save()?;
-
-    Ok(rid)
-}
-
 // **************************
 // *** Script Association ***
 // **************************

@@ -143,10 +143,11 @@ impl Database {
         // load projects
         let mut projects = Vec::new();
         let mut errors = HashMap::new();
-        for (pid, path) in project_manifest.iter() {
-            match self.store.get_project(&pid) {
+        for path in project_manifest.iter() {
+            match self.store.get_path_project(path) {
                 Some(project) => {
-                    if user_has_project(user, &project) {
+                    let project = self.store.get_project(project).unwrap();
+                    if user_has_project(user, project) {
                         projects.push((project.inner().clone(), project.settings().clone()));
                     }
                 }

@@ -63,6 +63,7 @@ pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, Pr
 /// Adds the active user to it.
 #[tauri::command]
 pub fn import_project(
+    db: State<AppState>,
     app_state: State<AppState>,
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {

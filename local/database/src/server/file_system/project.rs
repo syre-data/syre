@@ -22,7 +22,7 @@ impl Database {
                             }
                         };
 
-                        project_manifest.insert(project.clone(), path.clone());
+                        project_manifest.push(path.clone());
                         project_manifest.save()?;
 
                         self.unwatch_path(from);
@@ -56,12 +56,9 @@ impl Database {
                         }
                     };
 
-                    let project_path = project_manifest.remove(&project.rid);
+                    project_manifest.remove(project.base_path());
                     project_manifest.save()?;
-
-                    if let Some(project_path) = project_path {
-                        self.unwatch_path(project_path);
-                    }
+                    self.unwatch_path(project.base_path());
 
                     self.publish_update(&Update::Project {
                         project: project.rid.clone(),

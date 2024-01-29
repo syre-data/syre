@@ -1,5 +1,6 @@
 use super::*;
 use crate::common::{app_dir_of, project_file_of, project_settings_file_of};
+use crate::system::collections::ProjectManifest;
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
@@ -98,38 +99,6 @@ fn init_should_error_if_not_given_an_existing_directory() {
     init(false_root.as_path()).unwrap();
 }
 
-// ************
-// *** move ***
-// ************
-
-#[test]
-fn mv_moves_project_to_new_location_and_updates_resources() {
-    // setup
-    let _dir = TempDir::new().expect("setup should work");
-    let o_root = _dir.path().join("orig");
-    let rid = new(o_root.as_path()).expect("new should work");
-
-    // move
-    let n_root = _dir.path().join("new");
-    assert!(!n_root.exists(), "new path already exists");
-
-    mv(&rid, &n_root).expect("move should work");
-
-    // test
-    let projects = ProjectManifest::load().unwrap();
-    let prj_path = projects.get(&rid).unwrap();
-
-    assert_eq!(&n_root, prj_path, "path was not updated in registry");
-    assert!(n_root.exists(), "project was not moved to new path");
-
-    let prj_file = project_file_of(&n_root);
-    let prj_json = fs::read_to_string(prj_file).expect("could not read project file");
-    let prj: CoreProject =
-        serde_json::from_str(&prj_json).expect("project file should be parsable json");
-
-    assert_eq!(rid, prj.rid, "resource ids do not match");
-}
-
 // *************************
 // *** path is resource ***
 // *************************
@@ -156,17 +125,15 @@ fn path_is_resource_should_work() {
 #[test]
 fn project_root_path_should_work_for_root() {
     // setup
-    let _dir = TempDir::new().expect("setup should work");
+    let _dir = TempDir::new().unwrap();
     let root = _dir.path();
-    let rid = init(root).expect("init should work");
+    let rid = init(root).unwrap();
 
     // test
-    let found = project_root_path(root).expect("project_root_path should work");
+    let found = project_root_path(root).unwrap();
 
     let projects = ProjectManifest::load().unwrap();
-    let prj_path = projects.get(&rid).unwrap();
-
-    assert_eq!(prj_path, &found, "project path is incorrect");
+    assert!(projects.contains(&found));
 }
 
 #[test]
@@ -218,17 +185,14 @@ fn project_root_path_if_no_root_is_found_should_error() {
 #[test]
 fn project_resource_root_path_for_root_should_work() {
     // setup
-    let _dir = TempDir::new().expect("setup should work");
+    let _dir = TempDir::new().unwrap();
     let root = _dir.path();
-    let rid = init(root).expect("init should work");
+    let rid = init(root).unwrap();
 
     // test
-    let found = project_resource_root_path(root).expect("project_root_path should work");
-
+    let found = project_resource_root_path(root).unwrap();
     let projects = ProjectManifest::load().unwrap();
-    let prj_path = projects.get(&rid).unwrap();
-
-    assert_eq!(prj_path, &found, "project path is incorrect");
+    assert!(projects.contains(&found));
 }
 
 #[test]

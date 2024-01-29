@@ -1,17 +1,8 @@
-use super::{AssociateScriptArgs, InitArgs, NewArgs};
+use super::{InitArgs, NewArgs};
 use crate::common::abs_path;
 use crate::Result;
 use std::env;
-use syre_core::error::{
-    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
-};
-use syre_core::project::ScriptAssociation;
-use syre_local::error::{
-    ContainerError as LocalContainerError, Error as LocalError, Project as ProjectError,
-};
-use syre_local::loader::container::Loader as ContainerLoader;
-use syre_local::project::resources::Scripts;
-use syre_local::project::{container, project, script};
+use syre_local::project::container;
 
 pub fn init(args: InitArgs, verbose: bool) -> Result {
     let path = match args.path {
@@ -43,82 +34,5 @@ pub fn new(args: NewArgs, verbose: bool) -> Result {
         println!("Initialized `{path:?}` as a Container");
     }
 
-    Ok(())
-}
-
-/// Add a script association to the container.
-pub fn associate_script(args: AssociateScriptArgs, verbose: bool) -> Result {
-    // validate container and script, if required
-    let cont = match args.container {
-        None => env::current_dir()?,
-        Some(p) => p,
-    };
-
-    if !container::path_is_container(&cont) {
-        return Err(
-            LocalError::ContainerError(LocalContainerError::PathNotAContainer(cont)).into(),
-        );
-    }
-
-    let Some(prj_path) = project::project_root_path(&cont) else {
-        return Err(LocalError::Project(ProjectError::PathNotInProject(cont)).into());
-    };
-
-    let project = match syre_local::project::project::project_id(&prj_path)? {
-        Some(project) => project,
-        None => {
-            return Err(
-                CoreError::Resource(ResourceError::does_not_exist("path is not a project")).into(),
-            )
-        }
-    };
-
-    let scripts = Scripts::load_from(&prj_path)?;
-    let script = scripts
-        .values()
-        .filter_map(|script| {
-            if script.path.as_path() == args.path.as_path() {
-                Some(script.rid.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let script_id = match script.as_slice() {
-        [] => {
-            if !args.register {
-                return Err(CoreError::Project(CoreProjectError::NotRegistered(
-                    None,
-                    Some(args.path),
-                ))
-                .into());
-            } else {
-                let script_id = script::init(project, args.path.clone())?;
-                if verbose {
-                    println!(
-                        "Path initialized as a Script with {script_id:?} for Project {prj_path:?}"
-                    );
-                }
-
-                script_id
-            }
-        }
-        [script_id] => script_id.clone(),
-        _ => panic!("path registered as script multiple times"),
-    };
-
-    let mut container = ContainerLoader::load(&cont)?;
-    let mut assoc = ScriptAssociation::new(script_id);
-    if args.priority.is_some() {
-        assoc.priority = args.priority.unwrap();
-    }
-
-    if args.autorun.is_some() {
-        assoc.autorun = args.autorun.unwrap();
-    }
-
-    container.add_script_association(assoc)?;
-    container.save()?;
     Ok(())
 }

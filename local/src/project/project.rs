@@ -6,9 +6,7 @@ use crate::system::collections::ProjectManifest;
 use crate::system::project_manifest;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use syre_core::error::{
-    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
-};
+use syre_core::error::{Error as CoreError, Project as CoreProjectError};
 use syre_core::project::Project as CoreProject;
 use syre_core::types::ResourceId;
 
@@ -51,7 +49,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     let scripts = Scripts::new(path.into());
     scripts.save()?;
 
-    project_manifest::register_project(project.rid.clone(), project.base_path().into())?;
+    project_manifest::register_project(project.base_path())?;
     Ok(project.rid.clone().into())
 }
 
@@ -72,20 +70,21 @@ pub fn new(root: &Path) -> Result<ResourceId> {
 }
 
 /// Move project to a new location.
-pub fn mv(rid: &ResourceId, to: &Path) -> Result {
+pub fn mv(from: impl Into<PathBuf>, to: impl Into<PathBuf>) -> Result {
+    let from = from.into();
     let mut projects = ProjectManifest::load()?;
-    let Some(project) = projects.get_mut(rid) else {
-        return Err(CoreError::Resource(ResourceError::does_not_exist(
-            "`Project` is not registered",
-        ))
-        .into());
-    };
+    if !projects.contains(&from) {
+        return Err(ProjectError::PathNotAProjectRoot(from).into());
+    }
 
     // move folder
-    if let Err(err) = fs::rename(project, to) {
+    let to = to.into();
+    if let Err(err) = fs::rename(&from, &to) {
         return Err(err.into());
     }
 
+    projects.remove(&from);
+    projects.push(to);
     projects.save()?;
     Ok(())
 }
@@ -178,8 +177,10 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
         Err(err) => return Err(err),
     };
 
-    project_manifest::get_id(root.as_path())
+    let project = Project::load_from(path.as_ref())?;
+    Ok(Some(project.rid.clone()))
 }
+
 pub mod converter {
     use super::super::container;
     use super::super::resources::{Project, Scripts};
@@ -191,7 +192,7 @@ pub mod converter {
     use std::collections::HashMap;
     use std::path::{Component, Path, PathBuf};
     use std::{fs, io};
-    use syre_core::project::{script, Script, ScriptAssociation, ScriptLang};
+    use syre_core::project::{Script, ScriptAssociation, ScriptLang};
     use syre_core::types::{Creator, ResourceId, UserId, UserPermissions};
 
     pub struct Converter {
@@ -283,7 +284,7 @@ pub mod converter {
 
                     Err(Error::Project(ProjectError::PathNotRegistered(_path))) => {
                         let project = Project::load_from(&root)?;
-                        project_manifest::register_project(project.rid.clone(), root.clone())?;
+                        project_manifest::register_project(root.clone())?;
                         project.rid.clone()
                     }
 

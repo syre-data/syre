@@ -6,15 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
-use syre_core::types::ResourceMap;
-
-/// Map from a `Project`'s id to its path.
-pub type ProjectMap = ResourceMap<PathBuf>;
+use std::path::{Path, PathBuf};
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 #[serde(transparent)]
-pub struct ProjectManifest(ProjectMap);
+pub struct ProjectManifest(Vec<PathBuf>);
 
 impl ProjectManifest {
     pub fn load() -> Result<Self, IoSerde> {
@@ -39,10 +35,18 @@ impl ProjectManifest {
         fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
+
+    pub fn remove(&mut self, path: impl AsRef<Path>) {
+        let path = path.as_ref();
+        self.retain(|project| {
+            let project: &Path = project.as_ref();
+            project != path
+        });
+    }
 }
 
 impl Deref for ProjectManifest {
-    type Target = ProjectMap;
+    type Target = Vec<PathBuf>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -55,10 +59,10 @@ impl DerefMut for ProjectManifest {
     }
 }
 
-impl SystemResource<ProjectMap> for ProjectManifest {
+impl SystemResource<Vec<PathBuf>> for ProjectManifest {
     /// Returns the path to the system settings file.
     fn path() -> PathBuf {
-        let settings_dir = config_dir_path().expect("could not get settings directory");
-        settings_dir.join("projects.json")
+        let settings_dir = config_dir_path().unwrap();
+        settings_dir.join("project_manifest.json")
     }
 }

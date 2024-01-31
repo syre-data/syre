@@ -104,7 +104,7 @@ pub enum AssetError {
 // ********************
 
 #[derive(Serialize, Deserialize, Error, Debug)]
-pub enum UsersError {
+pub enum Users {
     #[error("email `{0}` already exists")]
     DuplicateEmail(String),
 
@@ -159,7 +159,7 @@ pub enum Error {
     SettingsValidationError(SettingsValidationError),
 
     #[error("{0}")]
-    UsersError(UsersError),
+    Users(Users),
 
     #[error("{0}")]
     IoSerde(IoSerde),
@@ -181,6 +181,12 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("{0}")]
     LoadContainer(LoadContainer),
+}
+
+impl From<Users> for Error {
+    fn from(value: Users) -> Self {
+        Self::Users(value)
+    }
 }
 
 impl From<CoreError> for Error {

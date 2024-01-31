@@ -24,9 +24,6 @@ pub fn home_component() -> HtmlResult {
 
     let Some(user) = user.as_ref() else {
         navigator.push(&Route::SignIn);
-        app_state.dispatch(AppStateAction::AddMessage(Message::error(
-            "Could not get user.",
-        )));
         return Ok(html! {});
     };
 

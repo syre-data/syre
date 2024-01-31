@@ -13,7 +13,7 @@ fn new_should_work_without_name() {
 }
 
 #[test]
-fn new_should_woork_with_name() {
+fn new_should_work_with_name() {
     let email: String = FreeEmail(EN).fake();
     let name: String = Name(EN).fake();
     let user = User::new(email.clone(), Some(name.clone()));

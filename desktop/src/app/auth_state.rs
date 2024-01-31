@@ -8,6 +8,7 @@ use yew::prelude::*;
 // so user is always guaranteed in components.
 #[derive(Debug)]
 pub enum AuthStateAction {
+    // TODO: User should not be Option.
     /// Set the active user.
     SetUser(Option<User>),
 

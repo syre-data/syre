@@ -30,7 +30,7 @@ pub struct User {
 
 impl User {
     pub fn new(email: String, name: Option<String>) -> User {
-        User {
+        Self {
             rid: ResourceId::new(),
             created: Utc::now(),
             name,

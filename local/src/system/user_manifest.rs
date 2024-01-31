@@ -1,6 +1,6 @@
 use super::collections::user_manifest::UserManifest;
 use super::settings::user_settings::UserSettings;
-use crate::error::{Error, Result, UsersError};
+use crate::error::{Error, Result, Users as UsersError};
 use std::collections::HashMap;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::system::User;
@@ -28,9 +28,7 @@ pub fn user_by_email(email: &str) -> Result<Option<User>> {
     match users.len() {
         0 => Ok(None),
         1 => Ok(Some(users[0].clone())),
-        _ => Err(Error::UsersError(UsersError::DuplicateEmail(
-            email.to_string(),
-        ))),
+        _ => Err(Error::Users(UsersError::DuplicateEmail(email.to_string()))),
     }
 }
 
@@ -38,7 +36,7 @@ pub fn user_by_email(email: &str) -> Result<Option<User>> {
 pub fn add_user(user: User) -> Result {
     // validate email
     if !validator::validate_email(&user.email) {
-        return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
+        return Err(UsersError::InvalidEmail(user.email).into());
     }
 
     let mut users = UserManifest::load_or_default()?;
@@ -47,9 +45,7 @@ pub fn add_user(user: User) -> Result {
     let user_count = user_count_by_email(&user.email, &users);
     if user_count > 0 {
         // same email already exists
-        return Err(Error::UsersError(UsersError::DuplicateEmail(
-            user.email.to_string(),
-        )));
+        return Err(UsersError::DuplicateEmail(user.email.to_string()).into());
     }
 
     // add user
@@ -91,7 +87,7 @@ pub fn delete_user_by_email(email: &str) -> Result {
 pub fn update_user(user: User) -> Result {
     // validate email
     if !validator::validate_email(&user.email) {
-        return Err(Error::UsersError(UsersError::InvalidEmail(user.email)));
+        return Err(UsersError::InvalidEmail(user.email).into());
     }
 
     let mut users = UserManifest::load()?;

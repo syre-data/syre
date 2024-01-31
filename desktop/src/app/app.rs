@@ -38,13 +38,13 @@ pub fn app() -> Html {
     let project_manifest_state = use_state(|| Ok(()));
 
     // load user projects
-    use_effect_with((*auth_state).clone(), {
-        let app_state = app_state.clone();
+    use_effect_with(auth_state.user.clone(), {
+        let app_state = app_state.dispatcher();
         let projects_state = projects_state.dispatcher();
         let project_manifest_state = project_manifest_state.setter();
 
-        move |auth_state| {
-            let Some(user) = auth_state.user.as_ref() else {
+        move |user| {
+            let Some(user) = user.as_ref() else {
                 return;
             };
 
@@ -123,9 +123,12 @@ pub fn app() -> Html {
                     </div>
                 </ContextProvider<ProjectsStateReducer>>
             } else {
-                <main>
-                    <Switch<Route> render={switch} />
-                </main>
+                <div id={"content"}>
+                    <main>
+                        <Switch<Route> render={switch} />
+                    </main>
+                    <Messages />
+                </div>
             }
         </ContextProvider<AppStateReducer>>
         </ContextProvider<AuthStateReducer>>

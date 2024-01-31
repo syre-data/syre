@@ -88,7 +88,7 @@ fn add_user_should_error_if_email_exists() {
             assert!(false, "should not succeed: {}", email)
         }
 
-        Err(Error::UsersError(UsersError::DuplicateEmail(_))) => {} // pass
+        Err(Error::Users(UsersError::DuplicateEmail(_))) => {} // pass
 
         Err(err) => {
             assert!(false, "unexpected error kind: {:?}", err)
@@ -109,7 +109,7 @@ fn add_user_should_error_if_email_is_invalid() {
             assert!(false, "should not succeed")
         }
 
-        Err(Error::UsersError(UsersError::InvalidEmail(_))) => {} // pass
+        Err(Error::Users(UsersError::InvalidEmail(_))) => {} // pass
 
         Err(err) => {
             assert!(false, "unexpected error kind: {:?}", err)
@@ -282,7 +282,7 @@ fn update_user_should_error_if_email_is_invalid() {
         Ok(_) => {
             assert!(false, "should not succeed")
         }
-        Err(Error::UsersError(UsersError::InvalidEmail(_))) => {} // pass
+        Err(Error::Users(UsersError::InvalidEmail(_))) => {} // pass
         Err(err) => {
             assert!(false, "unexpected error kind: {:?}", err)
         }

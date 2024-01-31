@@ -136,7 +136,7 @@ pub fn delete_project(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Rem
 
     match trash::delete(path) {
         Ok(_) => Ok(()),
-        Err(err) => todo!(),
+        Err(err) => todo!("{err:?}"),
     }
 }
 

@@ -2,7 +2,6 @@
 use crate::types::ResourceId;
 use std::collections::HashMap;
 use std::convert::From;
-use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
@@ -162,10 +161,6 @@ pub enum Error {
     AssetError(AssetError),
 
     #[error("{0}")]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    IoError(io::Error),
-
-    #[error("{0}")]
     Project(Project),
 
     #[error("{0}")]
@@ -195,12 +190,6 @@ pub enum Error {
 impl Error {
     pub fn value(msg: impl Into<String>) -> Self {
         Self::Value(msg.into())
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Error::IoError(err)
     }
 }
 
@@ -245,7 +234,3 @@ impl From<Error> for Result {
         Err(err)
     }
 }
-
-#[cfg(test)]
-#[path = "./error_test.rs"]
-mod error_test;

@@ -17,13 +17,12 @@ pub fn use_user_projects(user: &ResourceId) -> UseStateHandle<Vec<Project>> {
             .collect()
     });
 
-    use_effect_with(projects_state, {
-        let user = user.clone();
-        let user_projects = user_projects.clone();
+    use_effect_with((user.clone(), projects_state), {
+        let user_projects = user_projects.setter();
 
-        move |projects_state| {
+        move |(user, projects_state)| {
             let projects =
-                filter_user_projects(&user, &projects_state.projects, &projects_state.settings)
+                filter_user_projects(user, &projects_state.projects, &projects_state.settings)
                     .clone()
                     .into_iter()
                     .map(|project| project.clone())
@@ -45,7 +44,7 @@ fn filter_user_projects<'a>(
 
     projects
         .values()
-        .filter(|prj| {
+        .filter(|&prj| {
             if prj.creator == creator {
                 return true;
             }

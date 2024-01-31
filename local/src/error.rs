@@ -162,6 +162,9 @@ pub enum Error {
     Users(Users),
 
     #[error("{0}")]
+    Io(#[serde(with = "IoErrorKind")] io::ErrorKind),
+
+    #[error("{0}")]
     IoSerde(IoSerde),
 
     #[error("{0}")]
@@ -220,7 +223,7 @@ impl From<Project> for Error {
 // Check contexts where used. Maybe overridden by SerdeIo.
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Error::CoreError(CoreError::IoError(err))
+        Error::Io(err.kind())
     }
 }
 
@@ -327,7 +330,3 @@ pub mod io_error_kind {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./error_test.rs"]
-mod error_test;

@@ -97,14 +97,22 @@ pub fn sign_up() -> Html {
         <div>
             <form class={classes!("align-center")} {onsubmit}>
                 <div>
-                    <input ref={email} type={"email"} placeholder={"Email"} required={true} />
-                    <input ref={name} type={"text"} placeholder={"Name"} />
+                    <input ref={email}
+                        type={"email"}
+                        class={"mx-m"}
+                        placeholder={"Email"}
+                        required={true} />
+
+                    <input ref={name}
+                        type={"text"}
+                        class={"mx-m"}
+                        placeholder={"Name"} />
                 </div>
-                <div style={ "margin-top: 1em" }>
+                <div class={"mt-1rem"}>
                     <button disabled={!*allow_submit}>{ "Get started!" }</button>
                 </div>
             </form>
-            <div style={"text-align: center; margin-top: 2em;"}>
+            <div class={"align-center mt-2rem"}>
                 <Link<Route> to={Route::SignIn}>{ "Sign in" }</Link<Route>>
             </div>
         </div>

@@ -177,7 +177,7 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
         Err(err) => return Err(err),
     };
 
-    let project = Project::load_from(path.as_ref())?;
+    let project = Project::load_from(root)?;
     Ok(Some(project.rid.clone()))
 }
 

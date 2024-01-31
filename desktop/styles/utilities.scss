@@ -9,8 +9,21 @@
   margin: 0;
 }
 
+.mx-m {
+  margin-left: t.$margin-m;
+  margin-right: t.$margin-m;
+}
+
 .ml-xl {
   margin-left: t.$margin-xl;
+}
+
+.mt-1rem {
+  margin-top: 1rem;
+}
+
+.mt-2rem {
+  margin-top: 2rem;
 }
 
 .mb-1rem {

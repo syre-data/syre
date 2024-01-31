@@ -1,5 +1,6 @@
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
 use crate::commands::project::{init_project_from, load_project};
+use std::io;
 use std::path::PathBuf;
 use syre_ui::components::{file_selector::FileSelectorProps, FileSelector, FileSelectorAction};
 use syre_ui::types::Message;
@@ -25,8 +26,14 @@ pub fn initialize_project() -> Html {
                 match init_project_from(path.clone()).await {
                     Ok(_rid) => {}
                     Err(err) => {
+                        let details = match err {
+                            syre_local::Error::Io(kind) if kind == io::ErrorKind::PermissionDenied => "Could not control the given path. This is likely because the folder is open in another application.".to_string(),
+                            syre_local::Error::Io(kind) if kind == io::ErrorKind::NotFound => "Could not find the given path.".to_string(),
+                            _ => format!("{err:?}")
+                        };
+
                         let mut msg = Message::error("Could not create project");
-                        msg.set_details(format!("{err:?}"));
+                        msg.set_details(details);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                         return;
                     }

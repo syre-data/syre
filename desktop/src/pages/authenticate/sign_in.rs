@@ -96,10 +96,14 @@ pub fn sign_in() -> Html {
                         <MessageUi kind={MessageType::Error} message={"Invalid credentials"} />
                     </div>
                 }
-                <input type={"email"} placeholder={"Email"} onchange={email_on_change}/>
-                <button>{ "Sign in" }</button>
+                <input type={"email"}
+                    class={"mx-m"}
+                    placeholder={"Email"}
+                    onchange={email_on_change} />
+
+                <button class={"mx-m"}>{ "Sign in" }</button>
             </form>
-            <div class={classes!("align-center")} style={ "margin-top: 2em;" }>
+            <div class={"align-center mt-2rem"}>
                 <Link<Route> to={Route::SignUp}>{ "Sign up" }</Link<Route>>
             </div>
         </div>

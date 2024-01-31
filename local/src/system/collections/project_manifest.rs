@@ -36,6 +36,12 @@ impl ProjectManifest {
         Ok(())
     }
 
+    pub fn push(&mut self, project: PathBuf) {
+        if !self.contains(&project) {
+            self.0.push(project);
+        }
+    }
+
     pub fn remove(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
         self.retain(|project| {

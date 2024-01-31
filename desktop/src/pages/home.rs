@@ -70,9 +70,8 @@ pub fn home_component() -> HtmlResult {
                         <button class={"btn-secondary"} onclick={initialize_project}>{ "Initialize an existing folder" }</button>
                     </div>
                     <div>
-                    <button class={"btn-secondary"} onclick={import_project}>{ "Import a project" }</button>
-                </div>
-
+                        <button class={"btn-secondary"} onclick={import_project}>{ "Import a project" }</button>
+                    </div>
                 </div>
             } else {
                 <Redirect<Route> to={Route::Dashboard} />

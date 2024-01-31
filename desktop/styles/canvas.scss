@@ -186,6 +186,7 @@
 
         .info-group {
           @include mixins.hide-text-overflow;
+          display: flex;
           flex-grow: 1;
         }
 
@@ -202,6 +203,8 @@
 
         .layer-title {
           display: flex;
+          align-items: center;
+          height: 2rem;
           padding: 0 t.$padding-m;
           border: solid t.$border-width-s transparent;
 
@@ -216,6 +219,10 @@
           .name {
             padding-left: t.$padding-s;
           }
+
+          .controls-group {
+            display: flex;
+          }
         }
       }
 
@@ -228,6 +235,8 @@
 
       .layer-asset {
         display: flex;
+        align-items: center;
+        height: 2rem;
         border: solid t.$border-width-s transparent;
 
         &:hover {

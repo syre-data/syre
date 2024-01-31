@@ -159,6 +159,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
 
         move |graph_state| {
             let graph_state = graph_state.clone();
+
             *event_listener_id.borrow_mut() += 1;
             let listener_id = event_listener_id.borrow().clone();
             let event_listener_id = event_listener_id.clone();

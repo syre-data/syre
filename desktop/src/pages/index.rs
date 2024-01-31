@@ -51,21 +51,20 @@ pub fn index() -> Html {
                 match active_user {
                     None => navigator.push(&Route::SignIn),
                     Some(user) => {
-                        auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
-                        navigator.push(&Route::Home);
-                        // // set active user on backend
-                        // match set_active_user(user.rid.clone()).await {
-                        //     Ok(_) => {
-                        //         // set active user on front end
-                        //         auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
-                        //         navigator.push(&Route::Home);
-                        //     }
-                        //     Err(err) => {
-                        //         let mut msg = Message::error("Could not set user.");
-                        //         msg.set_details(format!("{err:?}"));
-                        //         app_state.dispatch(AppStateAction::AddMessage(msg));
-                        //     }
-                        // };
+                        // TODO: Backend user should be set when `get_user` called.
+                        // set active user on backend
+                        match set_active_user(user.rid.clone()).await {
+                            Ok(_) => {
+                                // set active user on front end
+                                auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
+                                navigator.push(&Route::Home);
+                            }
+                            Err(err) => {
+                                let mut msg = Message::error("Could not set user.");
+                                msg.set_details(format!("{err:?}"));
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                            }
+                        };
                     }
                 }
             });

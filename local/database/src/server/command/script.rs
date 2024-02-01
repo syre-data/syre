@@ -16,39 +16,38 @@ impl Database {
         match cmd {
             ScriptCommand::Get(script) => {
                 let script = self.store.get_script(&script);
-                serde_json::to_value(script.clone()).expect("could not convert `Script` to JsValue")
+                serde_json::to_value(script.clone()).unwrap()
             }
 
             ScriptCommand::Add(project, script) => {
                 let script = self.add_script(project, script);
-                serde_json::to_value(script).expect("could not convert `Script` to JsValue")
+                serde_json::to_value(script).unwrap()
             }
 
             ScriptCommand::Remove(project, script) => {
                 let res = self.remove_script(&project, &script);
-                serde_json::to_value(res).expect("could not convert to JsValue")
+                serde_json::to_value(res).unwrap()
             }
 
             ScriptCommand::Update(script) => {
                 let res = self.update_script(script);
-                serde_json::to_value(res).expect("could not convert result to JsValue")
+                serde_json::to_value(res).unwrap()
             }
 
             ScriptCommand::LoadProject(project) => {
                 let scripts = self.load_project_scripts(project);
-                serde_json::to_value(scripts).expect("could not convert result to JsValue")
+                serde_json::to_value(scripts).unwrap()
             }
 
             ScriptCommand::GetProject(script) => {
                 let project = self.get_script_project(&script);
                 let Some(project) = project else {
                     let val: Option<CoreProject> = None;
-                    return serde_json::to_value(val)
-                        .expect("could not convert `CoreProject` to JsValue");
+                    return serde_json::to_value(val).unwrap();
                 };
 
                 let project: Option<CoreProject> = Some((**project).clone());
-                serde_json::to_value(project).expect("could not convert `CoreProject` to JsValue")
+                serde_json::to_value(project).unwrap()
             }
         }
     }

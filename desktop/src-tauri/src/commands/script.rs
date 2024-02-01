@@ -17,13 +17,8 @@ use tauri::State;
 
 #[tauri::command]
 pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<Script>> {
-    let scripts = db
-        .send(ScriptCommand::LoadProject(rid).into())
-        .expect("could not load `Project` `Script`s");
-
-    let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts)
-        .expect("could not convert `LoadProject` result to `Scripts`");
-
+    let scripts = db.send(ScriptCommand::LoadProject(rid).into()).unwrap();
+    let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts).unwrap();
     Ok(scripts?)
 }
 

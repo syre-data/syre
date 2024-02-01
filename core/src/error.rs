@@ -9,6 +9,9 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{self, Deserialize, Serialize};
 
+#[cfg(feature = "serde")]
+pub use serde_category::SerdeCategory;
+
 // **********************
 // *** Resource Error ***
 // **********************
@@ -158,7 +161,7 @@ pub enum Runner {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Error {
     #[error("{0}")]
-    AssetError(AssetError),
+    Asset(AssetError),
 
     #[error("{0}")]
     Project(Project),
@@ -170,17 +173,23 @@ pub enum Error {
     Graph(Graph),
 
     #[error("{0}")]
-    ResourcePathError(ResourcePathError),
+    ResourcePath(ResourcePathError),
 
     #[error("{0}")]
     Runner(Runner),
 
     #[error("{0}")]
-    ScriptError(ScriptError),
+    Script(ScriptError),
 
-    #[error("{0}")]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    SerdeError(serde_json::Error),
+    #[cfg(feature = "serde")]
+    #[error("{message} at line {line} column {column}")]
+    Serde {
+        #[serde(with = "SerdeCategory")]
+        category: serde_json::error::Category,
+        line: usize,
+        column: usize,
+        message: String,
+    },
 
     /// Invalid value encountered.
     #[error("{0}")]
@@ -193,9 +202,15 @@ impl Error {
     }
 }
 
+#[cfg(feature = "serde")]
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error::SerdeError(err)
+        Error::Serde {
+            category: err.classify(),
+            line: err.line(),
+            column: err.column(),
+            message: format!("{err:?}"),
+        }
     }
 }
 
@@ -219,7 +234,7 @@ impl From<Graph> for Error {
 
 impl From<ScriptError> for Error {
     fn from(err: ScriptError) -> Self {
-        Self::ScriptError(err)
+        Self::Script(err)
     }
 }
 
@@ -232,5 +247,20 @@ pub type Result<T = ()> = StdResult<T, Error>;
 impl From<Error> for Result {
     fn from(err: Error) -> Self {
         Err(err)
+    }
+}
+
+#[cfg(feature = "serde")]
+pub mod serde_category {
+    use serde::{Deserialize, Serialize};
+
+    /// Copy of [`serde_json::error::Category`] for `serde` de/serialization.
+    #[derive(Serialize, Deserialize)]
+    #[serde(remote = "serde_json::error::Category")]
+    pub enum SerdeCategory {
+        Io,
+        Syntax,
+        Data,
+        Eof,
     }
 }

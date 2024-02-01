@@ -259,7 +259,7 @@ fn update_user_should_error_if_user_does_not_exist() {
             assert!(false, "should not succeed")
         }
 
-        Err(Error::CoreError(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
+        Err(Error::Core(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
 
         Err(err) => {
             assert!(false, "unexpected error kind: {:?}", err)
@@ -345,7 +345,7 @@ fn set_active_user_should_error_if_user_does_not_exist() {
     let user = create_user();
     match set_active_user(&user.rid) {
         Ok(_) => assert!(false, "should not succeed"),
-        Err(Error::CoreError(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
+        Err(Error::Core(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
         Err(err) => assert!(false, "unexpected error kind: {:?}", err),
     };
 }
@@ -380,7 +380,7 @@ fn set_active_user_by_email_should_error_if_user_does_not_exist() {
     let user = create_user();
     match set_active_user_by_email(&user.email) {
         Ok(_) => assert!(false, "should not succeed"),
-        Err(Error::CoreError(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
+        Err(Error::Core(CoreError::Resource(ResourceError::DoesNotExist(_)))) => {} // pass
         Err(err) => assert!(false, "unexpected error kind: {:?}", err),
     };
 }

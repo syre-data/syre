@@ -150,7 +150,7 @@ impl From<serde_json::Error> for IoSerde {
 #[derive(Serialize, Deserialize, Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    CoreError(CoreError),
+    Core(CoreError),
 
     #[error("{0}")]
     InvalidPath(PathBuf),
@@ -194,7 +194,7 @@ impl From<Users> for Error {
 
 impl From<CoreError> for Error {
     fn from(err: CoreError) -> Self {
-        Error::CoreError(err)
+        Error::Core(err)
     }
 }
 
@@ -231,7 +231,7 @@ impl From<io::Error> for Error {
 // Check contexts where used. Maybe overridden by SerdeIo.
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error::CoreError(CoreError::SerdeError(err))
+        Error::Core(err.into())
     }
 }
 

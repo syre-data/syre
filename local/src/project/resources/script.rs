@@ -22,7 +22,7 @@ impl Script {
 
         let mut script = match CoreScript::new(path) {
             Ok(script) => script,
-            Err(err) => return Err(CoreError::ScriptError(err).into()),
+            Err(err) => return Err(CoreError::Script(err).into()),
         };
 
         script.creator = creator;

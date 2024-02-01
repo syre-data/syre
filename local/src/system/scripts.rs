@@ -27,7 +27,7 @@ pub fn make_script(file: &Path) -> Result<ResourceId> {
     let abs_path = fs::canonicalize(file)?;
     let script = match Script::new(abs_path) {
         Ok(script) => script,
-        Err(err) => return Err(CoreError::ScriptError(err).into()),
+        Err(err) => return Err(CoreError::Script(err).into()),
     };
     let rid = script.rid.clone();
 

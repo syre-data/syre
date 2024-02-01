@@ -131,9 +131,9 @@ pub fn set_active_user(rid: &ResourceId) -> Result {
 pub fn set_active_user_by_email(email: &str) -> Result {
     let user = user_by_email(email)?;
     let Some(user) = user else {
-        return Err(Error::CoreError(CoreError::Resource(
-            ResourceError::does_not_exist("email does not exist"),
-        )));
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("email does not exist")).into(),
+        );
     };
 
     let mut settings = UserSettings::load()?;

@@ -1,6 +1,10 @@
 @use "themes" as t;
 @use "mixins";
 
+.canvas {
+  max-width: 100vw;
+}
+
 .project-canvas {
   height: 100%;
   display: flex;
@@ -160,7 +164,6 @@
 
   .layers-bar-drawer {
     justify-content: left;
-    padding: t.$padding-s;
 
     .drawer-contents {
       width: 100%;
@@ -169,6 +172,7 @@
     .layers-bar {
       user-select: none;
       -webkit-user-select: none;
+      overflow: auto;
 
       .layer:not(.expanded) .children,
       .layer:not(.expanded) .layer.assets,
@@ -185,7 +189,6 @@
         }
 
         .info-group {
-          @include mixins.hide-text-overflow;
           display: flex;
           flex-grow: 1;
         }
@@ -264,8 +267,8 @@
   }
 
   .project-canvas-content {
-    flex: 1; /* This allows the content to fill the remaining space */
-    overflow: auto; /* This adds a scrollbar when the content overflows vertically */
+    flex: 1;
+    overflow: auto;
     width: t.$canvas-width;
     height: t.$canvas-height;
     min-height: 100%;

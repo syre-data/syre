@@ -97,11 +97,10 @@ pub struct CanvasState {
 
     /// Map of [`ResourceId`] to the type of the resource.
     resource_types: ResourceMap<ResourceType>,
-    show_side_bars: UseStateHandle<bool>,
 }
 
 impl CanvasState {
-    pub fn new(project: ResourceId, show_side_bars: UseStateHandle<bool>) -> Self {
+    pub fn new(project: ResourceId) -> Self {
         Self {
             preview: ContainerPreview::Assets,
             project,
@@ -111,7 +110,6 @@ impl CanvasState {
             visible: ResourceMap::default(),
             flags: ResourceMap::default(),
             resource_types: ResourceMap::default(),
-            show_side_bars,
         }
     }
 
@@ -181,7 +179,7 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::SetDetailsBarWidget(widget) => {
                 current.details_bar_widget = Some(widget);
-                current.show_side_bars.set(true);
+                current.drawers_visible = true;
             }
 
             CanvasStateAction::ClearDetailsBar => {

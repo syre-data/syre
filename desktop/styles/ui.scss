@@ -91,6 +91,22 @@
 
 .syre-ui-drawer {
   height: 100%;
+  min-width: 10%;
+  max-width: 40%;
+
+  .resize-handle {
+    height: 100%;
+    width: t.$resize-handle-width;
+    background-color: t.$background-accent-color;
+
+    &.horizontal {
+      cursor: ew-resize;
+    }
+
+    &.vertical {
+      cursor: ns-resize;
+    }
+  }
 }
 
 .syre-ui-asset-editor {

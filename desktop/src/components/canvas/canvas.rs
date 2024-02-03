@@ -22,7 +22,7 @@ use syre_local_database::event::{
     Analysis as AnalysisUpdate, Asset as AssetUpdate, Container as ContainerUpdate,
     Graph as GraphUpdate, Project as ProjectUpdate, Script as ScriptUpdate, Update,
 };
-use syre_ui::components::{Drawer, DrawerPosition};
+use syre_ui::components::{Drawer, ResizeHandle};
 use syre_ui::types::Message;
 use syre_ui::widgets::common::asset as asset_ui;
 use syre_ui::widgets::suspense::Loading;
@@ -79,12 +79,10 @@ struct CanvasViewProps {
 
 #[function_component(CanvasView)]
 fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
-    let show_side_bars = use_state(|| true);
     let event_listener_id = use_mut_ref(|| 0);
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
-    let canvas_state =
-        use_reducer(|| CanvasState::new(props.project.rid.clone(), show_side_bars.clone()));
+    let canvas_state = use_reducer(|| CanvasState::new(props.project.rid.clone()));
 
     use_load_project_scripts(&props.project.rid)?;
     let (graph, asset_errors) = match use_load_project_graph(&props.project.rid)? {
@@ -127,8 +125,6 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
     };
 
     let graph_state = use_reducer(|| GraphState::new(graph));
-    let drawers_visible_state = use_state(|| None);
-
     use_effect_with((), {
         let canvas_state = canvas_state.dispatcher();
         move |_| {
@@ -193,22 +189,18 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
         }
     });
 
-    let onkeydown = use_callback(
-        drawers_visible_state.clone(),
-        move |e: KeyboardEvent, drawers_visible_state| {
+    let onkeydown = use_callback((), {
+        let canvas_state = canvas_state.dispatcher();
+        move |e: KeyboardEvent, _| {
             if !e.ctrl_key() {
                 return;
             }
 
             if e.key() == "\\" {
-                drawers_visible_state.set(if drawers_visible_state.is_some() {
-                    None
-                } else {
-                    Some("hidden")
-                });
+                canvas_state.dispatch(CanvasStateAction::ToggleDrawers)
             }
-        },
-    );
+        }
+    });
 
     let fallback = html! { <Loading text={"Loading project"} /> };
     Ok(html! {
@@ -221,9 +213,9 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
 
             <ProjectControls project={props.project.rid.clone()} />
             <div class={"canvas"}>
-                <Drawer class={classes!("layers-bar-drawer", *drawers_visible_state)}
-                    position={DrawerPosition::Left}
-                    open={show_side_bars.clone()}>
+                <Drawer class={"layers-bar-drawer"}
+                    resize={ResizeHandle::Right}
+                    open={canvas_state.drawers_visible}>
 
                     <LayersBar />
                 </Drawer>
@@ -234,9 +226,9 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                     </Suspense>
                 </div>
 
-                <Drawer class={classes!("details-bar-drawer", *drawers_visible_state)}
-                    position={DrawerPosition::Right}
-                    open={show_side_bars}>
+                <Drawer class={"details-bar-drawer"}
+                    resize={ResizeHandle::Left}
+                    open={canvas_state.drawers_visible}>
 
                     <DetailsBar />
                 </Drawer>

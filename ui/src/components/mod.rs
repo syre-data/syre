@@ -14,7 +14,7 @@ pub mod shadow_box;
 // Re-exports
 pub use card::Card;
 pub use card_deck::CardDeck;
-pub use drawer::{Drawer, DrawerPosition};
+pub use drawer::{Drawer, ResizeHandle};
 pub use file_selector::{FileSelector, FileSelectorAction};
 pub use funnel::Funnel;
 pub use messages::{Message, Messages};

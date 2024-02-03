@@ -31,6 +31,7 @@ syre-core = { path = "../core", features = ["js", "yew"] }
 [dependencies.web-sys]
 workspace = true
 features=[
+    "CssStyleDeclaration",
     "DataTransfer",
 	"DomStringMap",
     "DragEvent",

@@ -396,9 +396,7 @@ impl<'a> TreeRunner<'a> {
         };
 
         if !out.status.success() {
-            let stderr = str::from_utf8(out.stderr.as_slice())
-                .expect("stderr should work")
-                .to_string();
+            let stderr = str::from_utf8(out.stderr.as_slice()).unwrap().to_string();
 
             return Err(RunnerError::ScriptError {
                 script: script.rid.clone(),

@@ -65,8 +65,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
         app_state.dispatch(AppStateAction::AddMessage(Message::error(
-            "Project scripts not loaded",
+            "Project scripts not loaded.",
         )));
+
         navigator.push(&Route::Dashboard);
         return Ok(html! {{ "Project scripts not loaded. Redirecting to home." }});
     };
@@ -147,7 +148,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             Some(path) => match open_file(path).await {
                                 Ok(_) => {}
                                 Err(err) => {
-                                    let mut msg = Message::error("Could not open file");
+                                    let mut msg = Message::error("Could not open file.");
                                     msg.set_details(err);
                                     app_state.dispatch(AppStateAction::AddMessage(msg));
                                 }
@@ -155,7 +156,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
                             None => {
                                 app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not get file path",
+                                    "Could not get file path.",
                                 )));
                             }
                         }
@@ -170,7 +171,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         let dup = match duplicate_container_tree(rid.clone()).await {
                             Ok(dup) => dup,
                             Err(err) => {
-                                let mut msg = Message::error("Could not duplicate tree");
+                                let mut msg = Message::error("Could not duplicate tree.");
                                 msg.set_details(format!("{err:?}"));
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                                 return;
@@ -188,7 +189,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             Ok(_) => graph_state.dispatch(GraphStateAction::SetGraph(graph)),
                             Err(_) => {
                                 app_state.dispatch(AppStateAction::AddMessage(Message::error(
-                                    "Could not duplicate tree",
+                                    "Could not duplicate tree.",
                                 )));
                             }
                         }
@@ -231,7 +232,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         move |(asset, e), (app_state, canvas_state, graph_state, multiple_selected)| {
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::error("Could not load asset"),
+                    Message::error("Could not load asset."),
                     MESSAGE_TIMEOUT,
                     app_state.clone(),
                 ));
@@ -263,7 +264,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             let rid = rid.clone();
             let Some(asset) = get_asset(&asset, graph_state.clone()) else {
                 app_state.dispatch(AppStateAction::AddMessageWithTimeout(
-                    Message::error("Could not load asset"),
+                    Message::error("Could not load asset."),
                     MESSAGE_TIMEOUT,
                     app_state.clone(),
                 ));
@@ -275,7 +276,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 let mut path = match get_container_path(rid).await {
                     Some(path) => path,
                     None => {
-                        let msg = Message::error("Could not get container path");
+                        let msg = Message::error("Could not get container path.");
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                         return;
                     }
@@ -285,7 +286,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 match open_file(path).await {
                     Ok(_) => {}
                     Err(err) => {
-                        let mut msg = Message::error("Could not open file");
+                        let mut msg = Message::error("Could not open file.");
                         msg.set_details(err);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
@@ -315,25 +316,32 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         tracing::debug!(?err);
                         match err {
                             RemoveResource::ZMQ(err) => {
-                                let mut msg = Message::error("Could not remove asset");
+                                let mut msg = Message::error("Could not remove asset.");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
 
                             RemoveResource::Trash(TrashError::NotFound) => {
-                                let msg = Message::warning("Asset file was not found");
+                                let msg = Message::warning("Asset file was not found.");
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                                graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
+                            }
+
+                            RemoveResource::Trash(TrashError::PermissionDenied) => {
+                                let mut msg = Message::warning("Asset file could not be removed.");
+                                msg.set_details("This is often because the file is being used by another program.");
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                                 graph_state.dispatch(GraphStateAction::RemoveAsset(rid.clone()));
                             }
 
                             RemoveResource::Trash(TrashError::Other(err)) => {
-                                let mut msg = Message::error("Could not remove asset");
+                                let mut msg = Message::error("Could not remove asset.");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                             }
 
                             RemoveResource::Database(err) => {
-                                let mut msg = Message::error("Could not remove asset");
+                                let mut msg = Message::error("Could not remove asset.");
                                 msg.set_details(err);
                                 app_state.dispatch(AppStateAction::AddMessage(msg));
                             }

@@ -7,8 +7,13 @@ use thiserror::Error;
 #[derive(Serialize, Deserialize, thiserror::Error, Debug)]
 pub enum Trash {
     /// File was not found.
-    #[error{"not found"}]
+    #[error("not found")]
     NotFound,
+
+    /// The process has insufficient permissions to remove the file.
+    /// This is often caused if the file is being used by another process.
+    #[error("")]
+    PermissionDenied,
 
     #[error("{0}")]
     Other(String),

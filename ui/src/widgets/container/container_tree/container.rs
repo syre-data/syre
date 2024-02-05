@@ -7,7 +7,7 @@ use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::{HashMap, HashSet};
 use syre_core::project::container::{AssetMap, ScriptMap};
-use syre_core::project::{Asset, ContainerProperties};
+use syre_core::project::{Asset, ContainerProperties, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
@@ -164,6 +164,14 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub onadd_child: Option<Callback<ResourceId>>,
 
+    /// Callback when a script association changes from the preview.
+    #[prop_or_default]
+    pub onchange_script_association: Callback<ScriptAssociation>,
+
+    /// Callback when a script association changes from the preview.
+    #[prop_or_default]
+    pub onremove_script_association: Callback<ResourceId>,
+
     /// Callback when container button is clicked.
     /// If not provided, button is not shown.
     ///
@@ -285,8 +293,8 @@ pub fn container(props: &ContainerProps) -> Html {
             data-rid={props.rid.clone()} >
 
             if let Some(on_menu_event) = on_menu_event {
-                <div class={classes!("container-menu-control", "dropdown-group")}>
-                    <span class={classes!("container-menu-toggle")}>
+                <div class={"container-menu-control dropdown-group"}>
+                    <span class={"container-menu-toggle"}>
                         { "\u{22ee}" }
                     </span>
 
@@ -307,8 +315,7 @@ pub fn container(props: &ContainerProps) -> Html {
                         title={props.flags.container.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
 
                         <Icon icon_id={IconId::BootstrapExclamationTriangle}
-                            width={constants::ICON_SIZE.to_string()}
-                            height={constants::ICON_SIZE.to_string()} />
+                            class={"syre-ui-icon"} />
                     </span>
                 }
             </div>
@@ -355,12 +362,14 @@ pub fn container(props: &ContainerProps) -> Html {
                         ContainerPreview::Scripts => { html! {
                             <ScriptAssociationsPreview
                                 scripts={props.scripts.clone()}
-                                names={props.script_names.clone()} />
+                                names={props.script_names.clone()}
+                                onchange={&props.onchange_script_association}
+                                onremove={&props.onremove_script_association} />
                         }},
                     }}
                 </div>
             </div>
-            <div class={classes!("add-child-container-control")}>
+            <div class={"add-child-container-control"}>
                 <button onclick={onadd_child}>{ "+" }</button>
             </div>
        </div>

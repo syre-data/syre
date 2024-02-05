@@ -204,16 +204,15 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                          script_name
                      };
                      html! {
-                        <li key={script.clone()}
-                            class={classes!("script-association")} >
-
+                        <li key={script.clone()} class={"script-association"} >
                             <ScriptAssociationEditor
                                 {name}
                                 run_parameters={run_parameters.clone()}
                                 onchange={onchange_association(script.clone())} />
 
-                            <button classes={ "add-button" } type="button" onclick={remove_script(script.clone())}>
-                                <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                            <button class={"add-button"} type={"button"} onclick={remove_script(script.clone())}>
+                                <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                                    icon_id={IconId::HeroiconsSolidMinus} />
                             </button>
                         </li>
                     }

@@ -50,12 +50,13 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
 
     html! {
         <>
-            <div class={classes!("script-association-header")}>
+            <div class={"script-association-header"}>
                 <h3>
                     { "Scripts" }
                 </h3>
-                <button classes={ "add-button" } type="button" onclick={set_active(true)}>
-                    <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                <button class={"add-button"} type={"button"} onclick={set_active(true)}>
+                    <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                        icon_id={IconId::HeroiconsSolidPlus }/>
                 </button>
             </div>
             if *active {
@@ -64,7 +65,7 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
                         { props.scripts.iter().map(|script| {
                             let name = match script.name.clone() {
                                 Some(name) => name,
-                                None => script.path.as_path().to_str().expect("could not convrt `path` to `str`").to_string()
+                                None => script.path.as_path().to_str().expect("could not convert `path` to `str`").to_string()
                             };
 
                             html! {
@@ -72,7 +73,7 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
                             }
                         }).collect::<Html>() }
                     </select>
-                    <div class={classes!("script-add-cancel-buttons")}>
+                    <div class={"script-add-cancel-buttons"}>
                         <button onclick={add_association}>{ "Add" }</button>
                         <button onclick={set_active(false)}>{ "Cancel" }</button>
                     </div>

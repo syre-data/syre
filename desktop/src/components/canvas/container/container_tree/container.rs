@@ -19,7 +19,7 @@ use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use syre_core::project::{Asset, RunParameters};
+use syre_core::project::{Asset, RunParameters, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_desktop_lib::error::{RemoveResource, Trash as TrashError};
 use syre_ui::types::Message;
@@ -355,6 +355,78 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- scripts ---
     // ---------------
 
+    let onchange_script_association = use_callback((props.rid.clone(), graph_state.clone()), {
+        let app_state = app_state.dispatcher();
+        move |assoc: ScriptAssociation, (container_id, graph_state)| {
+            let Some(container) = graph_state.graph.get(container_id) else {
+                let mut msg = Message::error("Could not add Script association.");
+                msg.set_details("Container not found in graph.");
+                app_state.dispatch(AppStateAction::AddMessage(msg));
+                return;
+            };
+
+            let mut associations = container.scripts.clone();
+            associations.insert(assoc.script.clone(), assoc.into());
+            let app_state = app_state.clone();
+            let graph_state = graph_state.dispatcher();
+            let container_id = container_id.clone();
+            spawn_local(async move {
+                match update_script_associations(container_id.clone(), associations.clone()).await {
+                    Ok(_) => {
+                        graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(
+                            UpdateScriptAssociationsArgs {
+                                rid: container_id.clone(),
+                                associations,
+                            },
+                        ));
+                    }
+
+                    Err(err) => {
+                        let mut msg = Message::error("Could not add Script association.");
+                        msg.set_details(format!("{err}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
+                }
+            });
+        }
+    });
+
+    let onremove_script_association = use_callback((props.rid.clone(), graph_state.clone()), {
+        let app_state = app_state.dispatcher();
+        move |script: ResourceId, (container_id, graph_state)| {
+            let Some(container) = graph_state.graph.get(container_id) else {
+                let mut msg = Message::error("Could not remove Script association.");
+                msg.set_details("Container not found in graph.");
+                app_state.dispatch(AppStateAction::AddMessage(msg));
+                return;
+            };
+
+            let mut associations = container.scripts.clone();
+            associations.remove(&script);
+            let app_state = app_state.clone();
+            let graph_state = graph_state.dispatcher();
+            let container_id = container_id.clone();
+            spawn_local(async move {
+                match update_script_associations(container_id.clone(), associations.clone()).await {
+                    Ok(_) => {
+                        graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(
+                            UpdateScriptAssociationsArgs {
+                                rid: container_id.clone(),
+                                associations,
+                            },
+                        ));
+                    }
+
+                    Err(err) => {
+                        let mut msg = Message::error("Could not add Script association.");
+                        msg.set_details(format!("{err}"));
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
+                }
+            });
+        }
+    });
+
     // ----------------------
     // --- on drop events ---
     // ----------------------
@@ -518,6 +590,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onclick_asset,
                 ondblclick_asset,
                 onclick_asset_remove,
+                onchange_script_association,
+                onremove_script_association,
                 onadd_child: props.onadd_child.clone(),
                 on_menu_event,
                 ondragenter,

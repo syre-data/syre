@@ -72,7 +72,9 @@ pub fn message(props: &MessageProps) -> Html {
                     <span class={"details-title"}
                         onclick={toggle_details}>
                         { "Details" }
-                        <Icon icon_id={details_icon} />
+
+                        <Icon icon_id={details_icon}
+                            class={"syre-ui-icon"} />
                     </span>
                     if *show_details {
                         <div class={"details-body"}>
@@ -85,7 +87,7 @@ pub fn message(props: &MessageProps) -> Html {
         <div class={"close-btn"}
             onclick={onclose}>
 
-            <Icon class={"syre-ui-add-remove-icon"}
+            <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
                 icon_id={IconId::FontAwesomeSolidXmark}/>
         </div>
     </div>

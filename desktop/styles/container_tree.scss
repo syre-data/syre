@@ -7,6 +7,19 @@ $control-button-size: 25px;
   position: relative;
   text-align: center;
 
+  button.syre-ui-remove-resource {
+    all: unset;
+    display: flex;
+    align-items: center;
+    padding: t.$padding-s;
+    box-sizing: border-box;
+
+    &:hover {
+      cursor: pointer;
+      background-color: t.$secondary-button-hover-background-color;
+    }
+  }
+
   .container-node {
     user-select: none;
     -webkit-user-select: none;
@@ -148,11 +161,6 @@ $control-button-size: 25px;
         display: flex;
         gap: 4px;
 
-        .syre-ui-asset-icon {
-          width: t.$asset-icon-size;
-          height: t.$asset-icon-size;
-        }
-
         .syre-ui-asset-name {
           flex-grow: 1;
         }
@@ -161,27 +169,12 @@ $control-button-size: 25px;
           vertical-align: middle;
         }
 
-        button.syre-ui-asset-remove {
-          all: unset;
-          opacity: 0;
-          display: flex;
-          align-items: center;
-          padding: t.$padding-s;
-          box-sizing: border-box;
-
-          .syre-ui-add-remove-icon {
-            width: t.$add-remove-icon-size;
-            height: t.$add-remove-icon-size;
-          }
-
-          &:hover {
-            cursor: pointer;
-            background-color: t.$secondary-button-hover-background-color;
-          }
+        button.syre-ui-remove-resource {
+          visibility: hidden;
         }
 
-        &:hover .syre-ui-asset-remove {
-          opacity: 1;
+        &:hover button.syre-ui-remove-resource {
+          visibility: visible;
         }
 
         &:hover .syre-ui-asset-name {
@@ -197,21 +190,16 @@ $control-button-size: 25px;
         padding: 0;
 
         .syre-ui-script-association-preview {
-          @include mixins.hide-text-overflow;
+          display: flex;
+          gap: t.$padding-m;
 
-          &.autorun-true::after {
-            content: "\2605";
-            margin-left: t.$margin-m;
-          }
-
-          &.autorun-false::after {
-            content: "\2606";
-            margin-left: t.$margin-m;
+          .script-name {
+            @include mixins.hide-text-overflow;
+            flex-grow: 1;
           }
 
           .script-priority {
             display: inline-block;
-            margin-left: t.$margin-l;
 
             &::before {
               content: "(";
@@ -223,8 +211,17 @@ $control-button-size: 25px;
           }
 
           .script-autorun {
-            display: inline-block;
-            margin-left: t.$margin-m;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+          }
+
+          button.syre-ui-remove-resource {
+            visibility: hidden;
+          }
+
+          &:hover button.syre-ui-remove-resource {
+            visibility: visible;
           }
         }
       }

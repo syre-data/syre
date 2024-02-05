@@ -75,7 +75,8 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 
                                 <div class={classes!("syre-ui-asset")}>
                                     <div style={ common::asset_icon_color(&asset) }>
-                                        <Icon class={classes!("syre-ui-asset-icon")} icon_id={common::asset_icon_id(&asset)} />
+                                        <Icon class={"syre-ui-icon syre-ui-asset-icon"}
+                                            icon_id={common::asset_icon_id(&asset)} />
                                     </div>
 
                                     <div class={classes!("syre-ui-asset-name")}
@@ -88,21 +89,21 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
                                             title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
 
                                             <Icon icon_id={IconId::BootstrapExclamationTriangle}
-                                                width={constants::ICON_SIZE.to_string()}
-                                                height={constants::ICON_SIZE.to_string()} />
+                                                class={"syre-ui-icon"} />
                                         </span>
                                     }
 
                                     if props.onclick_asset_remove.is_some() {
-                                        <button class={"syre-ui-asset-remove btn-icon"} type={"button"}
+                                        <button class={"syre-ui-remove-resource btn-icon"}
+                                            type={"button"}
                                             onclick={onclick_asset_remove(
                                                 asset.rid.clone(),
                                                 props.onclick_asset_remove.clone(),
                                                 clicked_asset.clone(),
                                             )}>
 
-                                            <Icon class={"syre-ui-add-remove-icon"}
-                                                icon_id={IconId::HeroiconsSolidMinus}/>
+                                            <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                                                icon_id={IconId::HeroiconsSolidMinus} />
                                         </button>
                                     }
                                 </div>

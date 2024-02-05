@@ -1,6 +1,11 @@
 @use "themes" as t;
 @use "mixins";
 
+.syre-ui-icon {
+  width: t.$icon-size;
+  height: t.$icon-size;
+}
+
 .syre-ui-shadow-box {
   z-index: 100;
   background-color: rgba(0, 0, 0, 1);
@@ -75,8 +80,6 @@
       cursor: pointer;
 
       svg {
-        width: t.$default-icon-size;
-        height: t.$default-icon-size;
         padding-left: t.$padding-m;
         vertical-align: middle;
       }
@@ -137,11 +140,6 @@
     align-items: center;
     padding: t.$padding-s;
     box-sizing: border-box;
-
-    .syre-ui-add-remove-icon {
-      width: t.$add-remove-icon-size;
-      height: t.$add-remove-icon-size;
-    }
 
     &:hover {
       cursor: pointer;

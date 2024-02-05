@@ -92,13 +92,14 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
 
     html! {
         <div {class}>
-            <div class={classes!("metadata-header")}>
+            <div class={"metadata-header"}>
                 <h3>{ "Metadata" }</h3>
-                <button class={classes!("add-button")} type="button" onclick={show_add_metadatum}>
-                    <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidPlus}/>
+                <button class={"add-button"} type={"button"} onclick={show_add_metadatum}>
+                    <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                        icon_id={IconId::HeroiconsSolidPlus}/>
                 </button>
             </div>
-            <div class={classes!("add-metadatum-controls")}>
+            <div class={"add-metadatum-controls"}>
                 if *add_metadatum_visible {
                     <MetadatumBuilder
                         {name_filter}
@@ -106,7 +107,7 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                         oncancel={oncancel_add_metadatum} />
                 }
             </div>
-            <ol class={classes!("metadata-editor")}>
+            <ol class={"metadata-editor"}>
                 { props.value.clone().into_iter().map(|(name, value)| html! {
                     <li key={name.clone()}>
                         <MetadatumEditor
@@ -114,8 +115,9 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
                             {value}
                             onchange={onchange(name.clone())}/>
 
-                        <button class={classes!("remove-button")} type="button" onclick={remove_metadatum(name)}>
-                            <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                        <button class={"remove-button"} type={"button"} onclick={remove_metadatum(name)}>
+                            <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                                icon_id={IconId::HeroiconsSolidMinus}/>
                         </button>
                     </li>
                 }).collect::<Html>() }

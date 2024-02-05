@@ -53,23 +53,25 @@ pub fn tags_bulk_editor(props: &TagsBulkEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("syre-ui-bulk-tag-editor")}>
+        <div class={"syre-ui-bulk-tag-editor"}>
             if let Some(onadd) = onadd {
-                <div class={classes!("add-tags")}>
+                <div class={"add-tags"}>
                     <input ref={input_ref}/>
-                    <button class={classes!("add-button")} type="button" onclick={onadd}>
-                        <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidPlus }/>
+                    <button class={"add-button"} type="button" onclick={onadd}>
+                        <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                            icon_id={ IconId::HeroiconsSolidPlus }/>
                     </button>
                 </div>
             }
-            <div class={classes!("existing-tags")}>
+            <div class={"existing-tags"}>
                 <ul>
                     {props.value.iter().map(|tag| html! {
                         <li>
                             <span>{ tag }</span>
                             if props.onremove.is_some() {
-                                <button class={classes!("remove-button")} type="button" onclick={onremove(tag.into())}>
-                                    <Icon class={classes!("syre-ui-add-remove-icon")} icon_id={IconId::HeroiconsSolidMinus}/>
+                                <button class={"remove-button"} type="button" onclick={onremove(tag.into())}>
+                                    <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                                        icon_id={IconId::HeroiconsSolidMinus} />
                                 </button>
                             }
                         </li>

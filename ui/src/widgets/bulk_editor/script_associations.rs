@@ -206,13 +206,13 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
     };
 
     html! {
-        <div class={classes!("syre-ui-script-association-editor")}>
-            <label class={classes!("script-association-script")}>
+        <div class={"syre-ui-script-association-editor"}>
+            <label class={"script-association-script"}>
                 { &props.name }
             </label>
             <input
                 ref={priority_ref}
-                class={classes!("script-association-priority")}
+                class={"script-association-priority"}
                 type={"number"}
                 placeholder={placeholder_priority}
                 value={priority}
@@ -220,7 +220,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 
             <input
                 ref={autorun_ref}
-                class={classes!("script-association-autorun")}
+                class={"script-association-autorun"}
                 type={"checkbox"}
                 checked={autorun}
                 onchange={onchange_autorun} />
@@ -299,8 +299,11 @@ pub fn script_associations_bulk_editor(props: &ScriptAssociationsBulkEditorProps
                                 onchange_priority={onchange_priority(script.clone())}
                                 onchange_autorun={onchange_autorun(script.clone())} />
 
-                            <button class={ classes!("remove-button") } type={"button"} onclick={remove_script(script.clone())}>
-                                <Icon class={ classes!("syre-ui-add-remove-icon")} icon_id={ IconId::HeroiconsSolidMinus }/>
+                            <button class={"remove-button"} type={"button"}
+                                onclick={remove_script(script.clone())}>
+
+                                <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
+                                    icon_id={IconId::HeroiconsSolidMinus}/>
                             </button>
                         </li>
                     }

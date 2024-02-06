@@ -26,10 +26,9 @@ use yew_router::prelude::*;
 #[tracing::instrument]
 #[function_component(CreateProject)]
 pub fn create_project() -> Html {
-    let navigator = use_navigator().expect("navigator not found");
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
+    let navigator = use_navigator().unwrap();
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
 
     let user = use_user();
     let Some(user) = user.as_ref() else {
@@ -40,13 +39,12 @@ pub fn create_project() -> Html {
         return html! {};
     };
 
-    let onsuccess = {
-        let app_state = app_state.clone();
-        let projects_state = projects_state.clone();
+    let onsuccess = use_callback(user.rid.clone(), {
+        let app_state = app_state.dispatcher();
+        let projects_state = projects_state.dispatcher();
         let navigator = navigator.clone();
-        let user = user.rid.clone();
 
-        Callback::from(move |path: PathBuf| {
+        move |path: PathBuf, user| {
             let app_state = app_state.clone();
             let projects_state = projects_state.clone();
             let navigator = navigator.clone();
@@ -116,16 +114,15 @@ pub fn create_project() -> Html {
 
                 navigator.push(&Route::Workspace);
             });
-        })
-    };
+        }
+    });
 
-    let oncancel = {
-        let app_state = app_state.clone();
-
-        Callback::from(move |_| {
+    let oncancel = use_callback((), {
+        let app_state = app_state.dispatcher();
+        move |_, _| {
             app_state.dispatch(AppStateAction::SetActiveWidget(None));
-        })
-    };
+        }
+    });
 
     let props = props! {
         FileSelectorProps {

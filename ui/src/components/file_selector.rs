@@ -61,6 +61,10 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
         },
     );
 
+    let oncancel = use_callback(props.oncancel.clone(), move |_: MouseEvent, oncancel| {
+        oncancel.emit(());
+    });
+
     let onchange = use_callback(
         (
             props.title.clone(),
@@ -94,48 +98,40 @@ pub fn file_selector(props: &FileSelectorProps) -> Html {
         },
     );
 
-    let oncancel = use_callback(props.oncancel.clone(), move |_: MouseEvent, oncancel| {
-        oncancel.emit(());
-    });
-
     // get initial location
-    use_effect_with(
-        (
-            props.title.clone(),
-            props.action.clone(),
-            props.default_path.clone(),
-            props.select_on_open.clone(),
-            props.oncancel.clone(),
-            props.onerror.clone(),
-        ),
-        {
-            let path = path.setter();
-            move |(title, action, default_path, select_on_open, oncancel, onerror)| {
-                if *select_on_open {
-                    let title = title.clone();
-                    let action = action.clone();
-                    let default_path = default_path.clone();
-                    let oncancel = oncancel.clone();
-                    let onerror = onerror.clone();
+    use_effect_with((), {
+        let title = props.title.clone();
+        let action = props.action.clone();
+        let default_path = props.default_path.clone();
+        let select_on_open = props.select_on_open.clone();
+        let oncancel = props.oncancel.clone();
+        let onerror = props.onerror.clone();
+        let path = path.setter();
+        move |_| {
+            if select_on_open {
+                let title = title.clone();
+                let action = action.clone();
+                let default_path = default_path.clone();
+                let oncancel = oncancel.clone();
+                let onerror = onerror.clone();
 
-                    spawn_local(async move {
-                        match get_user_path(title.as_str(), &action, default_path.as_ref()).await {
-                            Ok(Some(user_path)) => path.set(Some(user_path)),
-                            Ok(None) => oncancel.emit(()),
-                            Err(err) => onerror.emit(format!("{err:?}")),
-                        }
-                    });
-                }
+                spawn_local(async move {
+                    match get_user_path(title.as_str(), &action, default_path.as_ref()).await {
+                        Ok(Some(user_path)) => path.set(Some(user_path)),
+                        Ok(None) => oncancel.emit(()),
+                        Err(err) => onerror.emit(format!("{err:?}")),
+                    }
+                });
             }
-        },
-    );
+        }
+    });
 
     html! {
         <div class={"syre-ui-file-selector"}>
             <div class={"path-control"}>
                 <span class={"path"}>
                     if let Some(path) = path.as_ref() {
-                        { path.to_str().expect("could not convert path to str") }
+                        { path.to_str().unwrap() }
                     } else {
                         { &props.title }
                     }

@@ -137,14 +137,17 @@ impl Deref for Workbook {
     }
 }
 
+#[derive(Debug)]
 pub struct ExcelTemplate {
     pub input_data_params: InputDataParameters,
     pub template_params: ExcelTemplateParameters,
     pub asset: AssetProperties,
 }
 
+#[derive(Debug)]
 pub struct InputDataParameters {}
 
+#[derive(Debug)]
 pub struct ExcelTemplateParameters {}
 
 #[derive(PartialEq, Clone, Debug)]

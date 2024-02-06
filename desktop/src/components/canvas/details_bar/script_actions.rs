@@ -7,6 +7,7 @@ use crate::hooks::use_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
+use syre_desktop_lib::excel_template::ExcelTemplate;
 use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -56,6 +57,13 @@ pub fn project_scripts_actions() -> HtmlResult {
                     project_scripts,
                 ));
             });
+        }
+    });
+
+    let onadd_excel_template = use_callback((project.rid.clone(), projects_state.clone()), {
+        let app_state = app_state.dispatcher();
+        move |template: ExcelTemplate, (project, projects_state)| {
+            tracing::debug!(?template);
         }
     });
 
@@ -109,6 +117,7 @@ pub fn project_scripts_actions() -> HtmlResult {
     Ok(html! {
         <ProjectScripts
             onadd={onadd_scripts}
+            // onadd_excel_template={onadd_excel_template}
             onremove={onremove_script} />
     })
 }

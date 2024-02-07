@@ -17,7 +17,7 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
 
     let onclose = use_callback((), {
         let template_path = template_path.setter();
-        move |e, ()| {
+        move |_e, ()| {
             template_path.set(None);
         }
     });
@@ -25,7 +25,7 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
     let onclick = use_callback((), {
         let template_path = template_path.setter();
 
-        move |e, ()| {
+        move |_e, ()| {
             let template_path = template_path.clone();
             spawn_local(async move {
                 let mut path = FileDialogBuilder::new();

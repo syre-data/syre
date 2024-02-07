@@ -50,6 +50,10 @@
 }
 
 .excel-template-builder {
+  .builder-step:not(.active) {
+    display: none;
+  }
+
   .excel-template {
     .workbook {
       position: relative;

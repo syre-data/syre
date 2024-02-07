@@ -5,6 +5,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::project::Script;
 use syre_core::types::ResourceId;
+use syre_desktop_lib::excel_template;
 
 pub async fn get_project_scripts(project: ResourceId) -> Result<Vec<Script>, String> {
     invoke_result("get_project_scripts", ResourceIdArgs { rid: project }).await
@@ -26,6 +27,17 @@ pub async fn add_script_windows(
             file_name,
             contents,
         },
+    )
+    .await
+}
+
+pub async fn add_excel_template(
+    project: ResourceId,
+    template: excel_template::ExcelTemplate,
+) -> Result<Script, String> {
+    invoke_result(
+        "add_excel_script",
+        AddExcelTemplateArgs { project, template },
     )
     .await
 }
@@ -52,4 +64,10 @@ pub struct AddScriptWindowsArgs {
 pub struct RemoveScriptArgs {
     pub project: ResourceId,
     pub script: ResourceId,
+}
+
+#[derive(Serialize)]
+struct AddExcelTemplateArgs {
+    project: ResourceId,
+    template: excel_template::ExcelTemplate,
 }

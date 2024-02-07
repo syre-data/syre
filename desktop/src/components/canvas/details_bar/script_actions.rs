@@ -1,7 +1,7 @@
 //! Project actions detail widget bar.
 use super::project_scripts::ProjectScripts;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::script::{add_script, remove_script};
+use crate::commands::script::{add_excel_template, add_script, remove_script};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::hooks::use_project;
 use std::collections::HashSet;
@@ -36,14 +36,17 @@ pub fn project_scripts_actions() -> HtmlResult {
                 return;
             };
 
+            let app_state = app_state.clone();
             spawn_local(async move {
                 for path in paths {
                     let project = project.clone();
                     let script = match add_script(project.clone(), path).await {
                         Ok(script) => script,
                         Err(err) => {
-                            tracing::debug!(err);
-                            panic!("{err}");
+                            let mut msg = Message::error("Could not create script {path:?}.");
+                            msg.set_details(err);
+                            app_state.dispatch(AppStateAction::AddMessage(msg));
+                            continue;
                         }
                     };
 
@@ -63,7 +66,23 @@ pub fn project_scripts_actions() -> HtmlResult {
     let onadd_excel_template = use_callback((project.rid.clone(), projects_state.clone()), {
         let app_state = app_state.dispatcher();
         move |template: ExcelTemplate, (project, projects_state)| {
-            tracing::debug!(?template);
+            let project = project.clone();
+            let projects_state = projects_state.clone();
+            let app_state = app_state.clone();
+            spawn_local(async move {
+                let script = match add_excel_template(project.clone(), template).await {
+                    Ok(script) => script,
+                    Err(err) => {
+                        let mut msg = Message::error("Could not create template script.");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                        return;
+                    }
+                };
+
+                projects_state
+                    .dispatch(ProjectsStateAction::InsertProjectScript { project, script });
+            });
         }
     });
 
@@ -117,7 +136,7 @@ pub fn project_scripts_actions() -> HtmlResult {
     Ok(html! {
         <ProjectScripts
             onadd={onadd_scripts}
-            // onadd_excel_template={onadd_excel_template}
+            onadd_excel_template={onadd_excel_template}
             onremove={onremove_script} />
     })
 }

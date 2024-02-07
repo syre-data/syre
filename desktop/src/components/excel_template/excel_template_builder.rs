@@ -6,8 +6,6 @@ use std::rc::Rc;
 use syre_core::db::StandardSearchFilter;
 use syre_core::project::AssetProperties;
 use syre_desktop_lib::excel_template;
-use wasm_bindgen::JsValue;
-use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -21,10 +19,12 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
     let builder = use_reducer(|| TemplateBuilder::new(props.template_path.clone()));
     let template_replace_column_start: UseStateHandle<Option<u32>> = use_state(|| None);
     let template_form_node_ref = use_node_ref();
+    let input_data_form_node_ref = use_node_ref();
+    let output_asset_form_node_ref = use_node_ref();
 
     let onclick_header_template =
         use_callback((builder.clone(), template_replace_column_start.clone()), {
-            move |(e, (sheet, index)), (builder, template_replace_column_start)| {
+            move |(_e, (sheet, index)), (builder, template_replace_column_start)| {
                 match template_replace_column_start.as_ref() {
                     None => {
                         builder.dispatch(TemplateBuilderAction::ClearTemplateReplaceRange);
@@ -37,7 +37,7 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                         template_replace_column_start.set(None);
                         builder.dispatch(TemplateBuilderAction::SetTemplateReplaceRange {
                             sheet,
-                            range: (start, end),
+                            range: excel_template::Range { start, end },
                         });
 
                         builder.dispatch(TemplateBuilderAction::NextStep);
@@ -52,10 +52,10 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
 
         move |e: SubmitEvent, _| {
             e.prevent_default();
-
             let form = template_form_node_ref
                 .cast::<web_sys::HtmlFormElement>()
                 .unwrap();
+
             let form_data = web_sys::FormData::new_with_form(&form).unwrap();
             let data_label_action = form_data.get("data-label-action");
             let data_label_action = match data_label_action.as_string().unwrap().as_str() {
@@ -68,9 +68,172 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
             builder.dispatch(TemplateBuilderAction::SetTemplateDataLabelAction(
                 data_label_action,
             ));
+
             builder.dispatch(TemplateBuilderAction::NextStep);
         }
     });
+
+    let onsubmit_input_data_parameters = use_callback((), {
+        let builder = builder.dispatcher();
+        let input_data_form_node_ref = input_data_form_node_ref.clone();
+
+        move |e: SubmitEvent, _| {
+            e.prevent_default();
+            let form = input_data_form_node_ref
+                .cast::<web_sys::HtmlFormElement>()
+                .unwrap();
+
+            let form_data = web_sys::FormData::new_with_form(&form).unwrap();
+            let filter_kind = form_data.get("input-filter-kind");
+            let filter_kind = filter_kind.as_string().unwrap();
+            let filter_kind = filter_kind.as_str().trim();
+            let filter_kind = if filter_kind.is_empty() {
+                None
+            } else {
+                Some(filter_kind.to_string())
+            };
+
+            let mut asset_filter = StandardSearchFilter::new();
+            asset_filter.kind = Some(filter_kind);
+
+            let data_selection = form_data.get("input-data-selection");
+            let data_selection = data_selection.as_string().unwrap();
+            let data_selection = data_selection.as_str().split(",").collect::<Vec<_>>();
+
+            let data_selection_as_indices = data_selection
+                .iter()
+                .map(|selector| selector.parse::<u32>())
+                .collect::<Vec<_>>();
+
+            let data_selection = if data_selection_as_indices
+                .iter()
+                .all(|index_result| index_result.is_ok())
+            {
+                excel_template::SpreadsheetColumns::Indices(
+                    data_selection_as_indices
+                        .into_iter()
+                        .map(|index_result| index_result.unwrap())
+                        .collect(),
+                )
+            } else {
+                excel_template::SpreadsheetColumns::Names(
+                    data_selection
+                        .into_iter()
+                        .map(|name| name.to_string())
+                        .collect(),
+                )
+            };
+
+            let data_selection = excel_template::DataSelection::Spreadsheet(data_selection);
+
+            let skip_rows = form_data.get("input-skip-rows");
+            let skip_rows = skip_rows.as_f64().unwrap() as u32;
+
+            let input_params = excel_template::InputDataParameters {
+                asset_filter,
+                data_selection,
+                skip_rows,
+            };
+
+            builder.dispatch(TemplateBuilderAction::SetInputDataParamters(input_params));
+            builder.dispatch(TemplateBuilderAction::NextStep);
+        }
+    });
+
+    let onsubmit_output_asset = use_callback((), {
+        let builder = builder.dispatcher();
+        let output_asset_form_node_ref = output_asset_form_node_ref.clone();
+        move |e: SubmitEvent, _| {
+            e.prevent_default();
+            let form = output_asset_form_node_ref
+                .cast::<web_sys::HtmlFormElement>()
+                .unwrap();
+
+            let form_data = web_sys::FormData::new_with_form(&form).unwrap();
+            let name = form_data.get("name").as_string().unwrap();
+            let name = name.as_str().trim();
+            let name = if name.is_empty() {
+                None
+            } else {
+                Some(name.to_string())
+            };
+
+            let kind = form_data.get("kind").as_string().unwrap();
+            let kind = kind.as_str().trim();
+            let kind = if kind.is_empty() {
+                None
+            } else {
+                Some(kind.to_string())
+            };
+
+            let tags = form_data.get("tags").as_string().unwrap();
+            let tags = tags.as_str().trim();
+            let tags = if tags.is_empty() {
+                Vec::new()
+            } else {
+                tags.split(",")
+                    .filter_map(|tag| {
+                        let tag = tag.trim();
+                        if tag.is_empty() {
+                            None
+                        } else {
+                            Some(tag.to_string())
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
+
+            let description = form_data.get("description").as_string().unwrap();
+            let description = description.as_str().trim();
+            let description = if description.is_empty() {
+                None
+            } else {
+                Some(description.to_string())
+            };
+
+            let mut output_asset = AssetProperties::new();
+            output_asset.name = name;
+            output_asset.kind = kind;
+            output_asset.tags = tags;
+            output_asset.description = description;
+
+            builder.dispatch(TemplateBuilderAction::SetOutputAssetproperties(
+                output_asset,
+            ));
+
+            builder.dispatch(TemplateBuilderAction::NextStep);
+        }
+    });
+
+    let create_template = use_callback(
+        (builder.clone(), props.oncreate.clone()),
+        move |e: MouseEvent, (builder, oncreate)| {
+            e.stop_propagation();
+
+            let Ok(template_params) = builder.template_params.clone().try_into() else {
+                builder.dispatch(TemplateBuilderAction::SetStep(BuilderStep::Template));
+                return;
+            };
+
+            let Some(input_data_params) = builder.input_data_params.as_ref() else {
+                builder.dispatch(TemplateBuilderAction::SetStep(BuilderStep::InputData));
+                return;
+            };
+
+            let Some(output_asset) = builder.output_asset.as_ref() else {
+                builder.dispatch(TemplateBuilderAction::SetStep(BuilderStep::OutputAsset));
+                return;
+            };
+
+            let template = excel_template::ExcelTemplate {
+                input_data_params: input_data_params.clone(),
+                template_params,
+                output_asset: output_asset.clone(),
+            };
+
+            oncreate.emit(template);
+        },
+    );
 
     let mut template_step_class = classes!("builder-step", "excel-template", "flex");
     let mut input_step_class = classes!("builder-step", "input-data");
@@ -112,7 +275,6 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                         <div>
                             <fieldset>
                                 <legend>{ "How should data be inserted?" }</legend>
-
                                 <div>
                                     <input type={"radio"}
                                         name={"data-label-action"}
@@ -157,6 +319,59 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                     </form>
                 </Suspense>
             </div>
+
+            <div class={input_step_class}>
+                <form ref={input_data_form_node_ref} onsubmit={onsubmit_input_data_parameters}>
+                    <div>
+                        <label for={"input-filter-kind"}>{ "Which type of assets should be copied in?" }</label>
+                        <input placeholder={"Type"} name={"input-filter-kind"} />
+                        // TODO: Try to load example of this data
+                        // TODO: Output preview.
+                    </div>
+
+                    <div>
+                        <label for={"input-data-selection"}>{ "Which columns should be copied?" }</label>
+                        <input name={"input-data-selection"} value={builder.input_data_selection_string()} />
+                        <small class="form-hint">
+                            { "Either indices or labels separated by commas." }
+                        </small>
+                    </div>
+
+                    <div>
+                        <label for={"input-skip-rows"}>{ "How many rows should be skipped until the header rows or first data?" }</label>
+                        <input type={"number"} name={"skip-rows"} value={builder.input_data_skip_rows().unwrap_or(&0).to_string()} />
+                    </div>
+
+                    <div>
+                        <button>{ "Next"}</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class={output_step_class}>
+                <form ref={output_asset_form_node_ref} onsubmit={onsubmit_output_asset}>
+                    <div>
+                        <input name={"name"} placeholder={"name"} />
+                    </div>
+                    <div>
+                        <input name={"type"} placeholder={"type"} />
+                    </div>
+                    <div>
+                        <input name={"tags"} placeholder={"tags"} />
+                    </div>
+                    <div>
+                        <textarea name={"description"} placeholder={"Description"}></textarea>
+                    </div>
+                    <div>
+                        <button>{ "Next" }</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class={review_step_class}>
+                {"Review"}
+                <button onclick={create_template}>{ "Create template" }</button>
+            </div>
         </div>
     }
 }
@@ -188,22 +403,28 @@ pub enum BuilderStep {
 
 pub enum TemplateBuilderAction {
     NextStep,
+    SetStep(BuilderStep),
 
     SetTemplateReplaceRange {
         sheet: excel_template::WorksheetId,
-        range: (u32, u32),
+        range: excel_template::Range,
     },
 
     ClearTemplateReplaceRange,
 
     SetTemplateDataLabelAction(excel_template::DataLabelAction),
+
+    SetInputDataParamters(excel_template::InputDataParameters),
+
+    SetOutputAssetproperties(AssetProperties),
 }
 
 #[derive(PartialEq, Clone, Debug)]
 struct TemplateBuilder {
     pub step: BuilderStep,
     pub template_params: TemplateParamsBuilder,
-    pub input_data_params: InputDataParamsBuilder,
+    pub input_data_params: Option<excel_template::InputDataParameters>,
+    pub output_asset: Option<AssetProperties>,
 }
 
 impl TemplateBuilder {
@@ -211,8 +432,37 @@ impl TemplateBuilder {
         Self {
             step: BuilderStep::default(),
             template_params: TemplateParamsBuilder::new(template_path),
-            input_data_params: InputDataParamsBuilder::new(),
+            input_data_params: None,
+            output_asset: None,
         }
+    }
+
+    pub fn input_data_selection_string(&self) -> String {
+        let Some(input_data) = self.input_data_params.as_ref() else {
+            return "".to_string();
+        };
+
+        match &input_data.data_selection {
+            excel_template::DataSelection::Spreadsheet(
+                excel_template::SpreadsheetColumns::Indices(indices),
+            ) => indices
+                .iter()
+                .map(|index| index.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+
+            excel_template::DataSelection::Spreadsheet(
+                excel_template::SpreadsheetColumns::Names(names),
+            ) => names.join(", "),
+        }
+    }
+
+    pub fn input_data_skip_rows(&self) -> Option<&u32> {
+        let Some(input_data) = self.input_data_params.as_ref() else {
+            return None;
+        };
+
+        Some(&input_data.skip_rows)
     }
 }
 
@@ -223,21 +473,14 @@ impl Reducible for TemplateBuilder {
         match action {
             TemplateBuilderAction::NextStep => {
                 current.step = match current.step {
-                    BuilderStep::Template => {
-                        if !current.input_data_params.is_complete() {
-                            BuilderStep::InputData
-                        } else {
-                            BuilderStep::Review
-                        }
-                    }
-
-                    BuilderStep::InputData => BuilderStep::Review,
-
+                    BuilderStep::Template => BuilderStep::InputData,
+                    BuilderStep::InputData => BuilderStep::OutputAsset,
                     BuilderStep::OutputAsset => BuilderStep::Review,
-
-                    BuilderStep::Review => BuilderStep::Review,
+                    BuilderStep::Review => panic!("no next step"),
                 }
             }
+
+            TemplateBuilderAction::SetStep(step) => current.step = step,
 
             TemplateBuilderAction::SetTemplateReplaceRange { sheet, range } => {
                 current.template_params.sheet = Some(sheet);
@@ -252,6 +495,14 @@ impl Reducible for TemplateBuilder {
             TemplateBuilderAction::SetTemplateDataLabelAction(action) => {
                 current.template_params.data_label_action = action;
             }
+
+            TemplateBuilderAction::SetInputDataParamters(params) => {
+                current.input_data_params = Some(params);
+            }
+
+            TemplateBuilderAction::SetOutputAssetproperties(asset_props) => {
+                current.output_asset = Some(asset_props);
+            }
         }
 
         current.into()
@@ -262,7 +513,7 @@ impl Reducible for TemplateBuilder {
 struct TemplateParamsBuilder {
     pub path: PathBuf,
     pub sheet: Option<excel_template::WorksheetId>,
-    pub range: Option<(u32, u32)>,
+    pub range: Option<excel_template::Range>,
     pub data_label_action: excel_template::DataLabelAction,
 }
 
@@ -276,10 +527,6 @@ impl TemplateParamsBuilder {
         }
     }
 
-    pub fn is_complete(&self) -> bool {
-        self.sheet.is_some() && self.range.is_some()
-    }
-
     pub fn range_as_value(&self) -> String {
         let Some(sheet) = self.sheet.as_ref() else {
             return "".into();
@@ -289,8 +536,8 @@ impl TemplateParamsBuilder {
             return "".into();
         };
 
-        let col_start = common::index_to_column(range.0 as usize);
-        let col_end = common::index_to_column(range.1 as usize);
+        let col_start = common::index_to_column(range.start as usize);
+        let col_end = common::index_to_column(range.end as usize);
 
         match sheet {
             excel_template::WorksheetId::Name(sheet_name) => {
@@ -304,24 +551,25 @@ impl TemplateParamsBuilder {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Default)]
-struct InputDataParamsBuilder {
-    data: Option<InputRange>,
-    headers: Option<u32>,
+impl TryInto<excel_template::ExcelTemplateParameters> for TemplateParamsBuilder {
+    type Error = TemplateParamsBuilderError;
+    fn try_into(self) -> Result<excel_template::ExcelTemplateParameters, Self::Error> {
+        let Some(worksheet) = self.sheet else {
+            return Err(TemplateParamsBuilderError::Incomplete);
+        };
+
+        let Some(range) = self.range else {
+            return Err(TemplateParamsBuilderError::Incomplete);
+        };
+
+        Ok(excel_template::ExcelTemplateParameters {
+            path: self.path,
+            replace_range: excel_template::WorkbookRange { worksheet, range },
+            data_label_action: self.data_label_action,
+        })
+    }
 }
 
-impl InputDataParamsBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        return false;
-    }
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum InputRange {
-    Specified(excel_template::Range),
-    UntilBreak(excel_template::Range),
+enum TemplateParamsBuilderError {
+    Incomplete,
 }

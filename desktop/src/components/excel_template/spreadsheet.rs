@@ -17,7 +17,6 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
         let onclick_header = props.onclick_header.clone();
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
-
             if let Some(onclick_header) = onclick_header.as_ref() {
                 onclick_header.emit((e, index));
             }

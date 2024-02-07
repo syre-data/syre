@@ -3,6 +3,8 @@ use calamine::{CellErrorType, DataType, Reader};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 use std::ops::Deref;
+use std::path::PathBuf;
+use syre_core::db::StandardSearchFilter;
 use syre_core::project::AssetProperties;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -137,38 +139,84 @@ impl Deref for Workbook {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ExcelTemplate {
     pub input_data_params: InputDataParameters,
     pub template_params: ExcelTemplateParameters,
-    pub asset: AssetProperties,
+    pub output_asset: AssetProperties,
 }
 
-#[derive(Debug)]
-pub struct InputDataParameters {}
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub struct InputDataParameters {
+    /// Asset filter for input data.
+    pub asset_filter: StandardSearchFilter,
 
-#[derive(Debug)]
-pub struct ExcelTemplateParameters {}
+    /// Where data sits in each Asset.
+    pub data_selection: DataSelection,
 
-#[derive(PartialEq, Clone, Debug)]
+    /// Number of rows to skip until meaningful data (i.e. header or data rows).
+    pub skip_rows: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ExcelTemplateParameters {
+    /// Path to the template file.
+    pub path: PathBuf,
+
+    /// Range for new data to be copied into.
+    /// Existing data in this range will be removed.
+    pub replace_range: WorkbookRange,
+
+    /// How new data should labeled.
+    pub data_label_action: DataLabelAction,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub enum DataLabelAction {
+    /// Do not add additional labels to data.
+    None,
+
+    /// Insert the data's labels into the template, preserving the template's.
+    Insert,
+
+    /// Replace the template's labels with the data's.
+    Replace,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub enum DataSelection {
+    Spreadsheet(SpreadsheetColumns),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub struct WorkbookRange {
+    pub worksheet: WorksheetId,
+    pub range: Range,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum WorksheetId {
     Name(String),
     Index(i32),
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub enum DataLabelAction {
-    None,
-    Insert,
-    Replace,
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub enum SpreadsheetColumns {
+    Names(Vec<String>),
+    Indices(Vec<u32>),
 }
 
-#[derive(PartialEq, Clone, Debug)]
+/// A track is a single column or row.
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub enum TrackId {
+    Name(String),
+    Index(i32),
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Range {
-    pub start_row: u32,
-    pub start_col: u32,
-    pub end_row: u32,
-    pub end_col: u32,
+    pub start: u32,
+    pub end: u32,
 }
 
 pub fn data_type_to_string(value: &DataType) -> String {

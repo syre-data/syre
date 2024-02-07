@@ -35,7 +35,8 @@ pub fn workbook(props: &WorkbookProps) -> Html {
     let onclick_header = move |sheet: excel_template::WorksheetId| {
         Callback::from({
             let onclick_header = props.onclick_header.clone();
-            move |(e, index)| {
+            move |(e, index): (MouseEvent, u32)| {
+                e.stop_propagation();
                 if let Some(onclick_header) = onclick_header.as_ref() {
                     onclick_header.emit((e, (sheet.clone(), index)));
                 }

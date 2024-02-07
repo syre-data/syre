@@ -2,6 +2,7 @@
 use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use syre_core::error::{Error as CoreError, Project as ProjectError, Resource as ResourceError};
 use syre_core::project::{Project, Script};
 use syre_core::types::ResourceId;
@@ -97,6 +98,19 @@ pub fn add_script_windows(
     Ok(())
 }
 
+// **************************
+// *** add excel template ***
+// **************************
+
+/// Add an excel template as a script.
+#[tauri::command]
+pub fn add_excel_template(
+    db: State<DbClient>,
+    project: ResourceId,
+    path: PathBuf,
+) -> StdResult<Script, String> {
+    Err("".to_string())
+}
 // *********************
 // *** remove script ***
 // *********************

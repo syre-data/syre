@@ -5,7 +5,8 @@
 
 # general
 /tags
-target
+/target
+rusty-tags.vi
 .DS_Store
 
 # github

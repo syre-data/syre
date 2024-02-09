@@ -59,7 +59,6 @@ pub fn update_container_script_associations(
     // TODO Issue with deserializing `HashMap`. perform manually.
     // See: https://github.com/tauri-apps/tauri/issues/6078
     let associations: ScriptMap = serde_json::from_str(&associations).unwrap();
-    tracing::debug!(?associations);
     let res = db
         .send(
             ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {

@@ -1,5 +1,4 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
-use crate::constants;
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;

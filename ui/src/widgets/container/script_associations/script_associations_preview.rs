@@ -1,7 +1,6 @@
 //! ScriptAssociation preview for
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
-use crate::hooks::use_is_mounted;
 use syre_core::project::container::ScriptMap;
 use syre_core::project::{RunParameters, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
@@ -22,21 +21,11 @@ struct ScriptAssociationPreviewProps {
 
 #[function_component(ScriptAssociationPreview)]
 fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
-    let is_mounted = use_is_mounted();
     let parameter_state = use_state(|| props.run_parameters.clone());
     use_effect_with(props.run_parameters.clone(), {
         let parameter_state = parameter_state.setter();
         move |run_parameters| {
             parameter_state.set(run_parameters.clone());
-        }
-    });
-
-    use_effect_with((parameter_state.clone(), props.onchange.clone()), {
-        let is_mounted = is_mounted.clone();
-        move |(parameter_state, onchange)| {
-            if is_mounted() {
-                onchange.emit((**parameter_state).clone());
-            }
         }
     });
 
@@ -46,13 +35,16 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
     });
 
     let toggle_autorun = use_callback(
-        parameter_state.clone(),
-        move |e: MouseEvent, parameter_state| {
+        (props.onchange.clone(), parameter_state.clone()),
+        move |e: MouseEvent, (onchange, parameter_state)| {
             e.stop_propagation();
-            parameter_state.set(RunParameters {
+
+            let params = RunParameters {
                 autorun: !parameter_state.autorun,
                 priority: parameter_state.priority,
-            });
+            };
+
+            onchange.emit(params);
         },
     );
 

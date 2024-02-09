@@ -1,3 +1,6 @@
 [submodule "file_path_from_id"]
 	path = file_path_from_id
 	url = https://github.com/syre-data/file_path_from_id.git
+[submodule "excel_template_runner"]
+	path = excel_template_runner
+	url = https://github.com/syre-data/excel_template_runner

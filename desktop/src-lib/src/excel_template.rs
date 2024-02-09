@@ -146,6 +146,7 @@ pub struct ExcelTemplate {
     pub output_asset: AssetProperties,
 }
 
+/// Describes the shape of the input data.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct InputDataParameters {
     /// Asset filter for input data.
@@ -154,10 +155,14 @@ pub struct InputDataParameters {
     /// Where data sits in each Asset.
     pub data_selection: DataSelection,
 
+    /// Index columns.
+    pub index_columns: ,
+
     /// Number of rows to skip until meaningful data (i.e. header or data rows).
     pub skip_rows: u32,
 }
 
+/// Describes the shape of the template and manipulations to take.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExcelTemplateParameters {
     /// Path to the template file.
@@ -202,7 +207,11 @@ pub enum WorksheetId {
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum SpreadsheetColumns {
-    Names(Vec<String>),
+    /// Columns are identified by data headers.
+    /// A header may be multiple levels.
+    Header(Vec<Vec<String>>),
+
+    /// Columns are identified by index.
     Indices(Vec<u32>),
 }
 

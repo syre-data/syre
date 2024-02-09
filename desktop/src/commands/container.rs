@@ -50,6 +50,7 @@ pub async fn update_script_associations(
     container: ResourceId,
     associations: ScriptMap,
 ) -> DbResult {
+    tracing::debug!(?associations);
     // TODO Issue with deserializing `HashMap` in Tauri, send as string.
     // See https://github.com/tauri-apps/tauri/issues/6078
     let associations_str = serde_json::to_string(&associations).unwrap();

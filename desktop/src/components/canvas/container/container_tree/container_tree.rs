@@ -478,14 +478,6 @@ fn create_visibility_control_element(
         )
         .expect("could not set `y` on visibility icon");
 
-    // eye_icon
-    //     .set_attribute("width", "100%")
-    //     .expect("could not set `width` on visibility icon");
-
-    // eye_icon
-    //     .set_attribute("height", "100%")
-    //     .expect("could not set `height` on visibility icon");
-
     let visibility = document
         .create_element_ns(Some("http://www.w3.org/2000/svg"), "svg")
         .expect("could not create `svg`");

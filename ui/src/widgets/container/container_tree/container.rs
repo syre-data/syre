@@ -1,5 +1,4 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
-use crate::constants;
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
 use crate::widgets::container::script_associations::ScriptAssociationsPreview;
@@ -207,66 +206,54 @@ pub fn container(props: &ContainerProps) -> Html {
         .map(|(_rid, asset): (&ResourceId, &Asset)| asset.clone())
         .collect::<Vec<Asset>>();
 
-    let ondragenter = {
-        let ondragenter = props.ondragenter.clone();
-        let dragover_counter = dragover_counter.clone();
-
-        Callback::from(move |e: DragEvent| {
+    let ondragenter = use_callback(
+        (props.ondragenter.clone(), dragover_counter.clone()),
+        move |e: DragEvent, (ondragenter, dragover_counter)| {
             e.prevent_default();
 
-            if *dragover_counter == 0 {
+            if **dragover_counter == 0 {
                 ondragenter.emit(e);
             }
 
-            dragover_counter.set(*dragover_counter + 1);
-        })
-    };
+            dragover_counter.set(**dragover_counter + 1);
+        },
+    );
 
-    let ondragover = {
-        let ondragover = props.ondragover.clone();
+    let ondragover = use_callback(props.ondragover.clone(), move |e: DragEvent, ondragover| {
+        e.prevent_default();
+        ondragover.emit(e);
+    });
 
-        Callback::from(move |e: DragEvent| {
+    let ondragleave = use_callback(
+        (props.ondragleave.clone(), dragover_counter.clone()),
+        move |e: DragEvent, (ondragleave, dragover_counter)| {
             e.prevent_default();
-            ondragover.emit(e);
-        })
-    };
-
-    let ondragleave = {
-        let ondragleave = props.ondragleave.clone();
-        let dragover_counter = dragover_counter.clone();
-
-        Callback::from(move |e: DragEvent| {
-            e.prevent_default();
-            if *dragover_counter == 1 {
+            if **dragover_counter == 1 {
                 ondragleave.emit(e);
             }
 
-            dragover_counter.set(*dragover_counter - 1);
-        })
-    };
+            dragover_counter.set(**dragover_counter - 1);
+        },
+    );
 
-    let ondrop = {
-        let dragover_counter = dragover_counter.clone();
-        let ondrop = props.ondrop.clone();
-
-        Callback::from(move |e: DragEvent| {
+    let ondrop = use_callback(props.ondrop.clone(), {
+        let dragover_counter = dragover_counter.setter();
+        move |e: DragEvent, ondrop| {
             e.prevent_default();
             dragover_counter.set(0);
             ondrop.emit(e);
-        })
-    };
+        }
+    });
 
-    let onadd_child = {
-        let onadd_child = props.onadd_child.clone();
-        let rid = props.rid.clone();
-
-        Callback::from(move |e: MouseEvent| {
+    let onadd_child = use_callback(
+        (props.rid.clone(), props.onadd_child.clone()),
+        move |e: MouseEvent, (rid, onadd_child)| {
             e.stop_propagation();
             if let Some(onadd_child) = onadd_child.clone() {
                 onadd_child.emit(rid.clone());
             }
-        })
-    };
+        },
+    );
 
     // inject closing setings menu on click to `on_menu_event` callback
     let on_menu_event = props.on_menu_event.clone().map(|on_menu_event| {

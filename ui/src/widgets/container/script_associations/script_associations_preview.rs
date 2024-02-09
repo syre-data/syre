@@ -1,7 +1,6 @@
 //! ScriptAssociation preview for
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
-use crate::constants;
 use syre_core::project::container::ScriptMap;
 use syre_core::project::{RunParameters, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
@@ -30,26 +29,22 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
         }
     });
 
-    use_effect_with(
-        (parameter_state.clone(), props.onchange.clone()),
-        move |(parameter_state, onchange)| {
-            onchange.emit((**parameter_state).clone());
-        },
-    );
-
     let onremove = use_callback(props.onremove.clone(), move |e: MouseEvent, onremove| {
         e.stop_propagation();
         onremove.emit(());
     });
 
     let toggle_autorun = use_callback(
-        parameter_state.clone(),
-        move |e: MouseEvent, parameter_state| {
+        (props.onchange.clone(), parameter_state.clone()),
+        move |e: MouseEvent, (onchange, parameter_state)| {
             e.stop_propagation();
-            parameter_state.set(RunParameters {
+
+            let params = RunParameters {
                 autorun: !parameter_state.autorun,
                 priority: parameter_state.priority,
-            });
+            };
+
+            onchange.emit(params);
         },
     );
 
@@ -112,9 +107,9 @@ pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Ht
     let onchange = move |script: ResourceId| {
         let onchange = props.onchange.clone();
         let script = script.clone();
-        Callback::from(move |params| {
+        move |params| {
             onchange.emit(ScriptAssociation::new_with_params(script.clone(), params));
-        })
+        }
     };
 
     let onremove = move |script: ResourceId| {

@@ -152,7 +152,7 @@ pub fn drawer(props: &DrawerProps) -> Html {
     );
 
     let mut style = vec![];
-    let mut resizer_style = vec![];
+    let mut resizer_style = vec!["flex-shrink: 0;"];
     let mut resizer_class = classes!("resize-handle");
     let mut contents_style = vec![];
     match &props.resize {

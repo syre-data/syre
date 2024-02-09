@@ -89,9 +89,6 @@ pub enum GraphStateAction {
         path: PathBuf,
     },
 
-    SetDragOverContainer(ResourceId),
-    ClearDragOverContainer,
-
     /// Bulk update `Container`s.
     BulkUpdateContainerProperties(BulkUpdateContainerPropertiesArgs),
 
@@ -111,10 +108,6 @@ pub struct GraphState {
 
     /// Map from an [`Asset`](Asset)'s id to its [`Container`](Container)'s.
     pub asset_map: AssetContainerMap,
-
-    /// Indicates the `Container` which currently has something dragged over it.
-    /// Used to indicate which `Container` dropped files should be added to as `Asset`s.
-    pub dragover_container: Option<ResourceId>,
 }
 
 impl GraphState {
@@ -126,11 +119,7 @@ impl GraphState {
             }
         }
 
-        Self {
-            graph,
-            asset_map,
-            dragover_container: None,
-        }
+        Self { graph, asset_map }
     }
 
     /// Update a `Container`'s properties.
@@ -462,14 +451,6 @@ impl Reducible for GraphState {
                 let aid = asset.rid.clone();
                 container.insert_asset(asset);
                 current.asset_map.insert(aid, container.rid.clone());
-            }
-
-            GraphStateAction::SetDragOverContainer(rid) => {
-                current.dragover_container = Some(rid);
-            }
-
-            GraphStateAction::ClearDragOverContainer => {
-                current.dragover_container = None;
             }
 
             GraphStateAction::BulkUpdateContainerProperties(

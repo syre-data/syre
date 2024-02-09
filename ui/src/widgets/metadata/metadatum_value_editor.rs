@@ -6,9 +6,6 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Debug)]
 pub struct MetadatumValueEditorProps {
-    #[prop_or_default]
-    pub class: Classes,
-
     #[prop_or(JsValue::Null)]
     pub value: JsValue,
 
@@ -144,13 +141,15 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
         }
     };
 
-    let class = classes!("syre-ui-metadatum-value-editor", props.class.clone());
     html! {
-        <span {class}>
+    <>
+        <span class={"metadatum-type"}>
             <select ref={kind_ref} onchange={onchange_kind.clone()}>
                 { kind_opts }
             </select>
+        </span>
 
+        <span class={"metadatum-value"}>
             { match (*value).clone() {
                 JsValue::String(value) => html! {
                     <input
@@ -197,5 +196,6 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
                 JsValue::Null => html! {}
             }}
         </span>
+    </>
     }
 }

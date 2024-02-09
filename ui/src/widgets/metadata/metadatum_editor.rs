@@ -34,22 +34,21 @@ pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     });
 
     html! {
-        <div class={classes!("syre-ui-metadatum")}>
-            <div class={classes!("metadatum-fields")}>
-                <span class={classes!("metadatum-key")}
+        <div class={"syre-ui-metadatum"}>
+            <div class={"metadatum-fields"}>
+                <span class={"metadatum-key"}
                     title={props.name.clone()}>
                     { &props.name }
                 </span>
 
                 <MetadatumValueEditor
-                    class={classes!("metadatum-value")}
                     value={props.value.clone()}
                     {onchange}
                     {onerror} />
             </div>
 
             if let Some(msg) = error.as_ref() {
-                <span class={classes!("error")}>{ msg }</span>
+                <span class={"error"}>{ msg }</span>
             }
         </div>
     }

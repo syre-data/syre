@@ -213,13 +213,15 @@
             flex-grow: 1;
             width: t.$drawer-content-width-1-4;
           }
-        }
-      }
 
-      .syre-ui-metadatum-value-editor {
-        display: flex;
-        align-items: center;
-        gap: t.$gap-s;
+          .metadatum-value {
+            flex-grow: 3;
+
+            input {
+              width: 100%;
+            }
+          }
+        }
       }
     }
 

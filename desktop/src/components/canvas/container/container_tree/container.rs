@@ -439,22 +439,19 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
-    // NOTE Used for Windows machines.
-    //      For *nix and macOS machine, look in the `ContainerTreeController` component.
+    // let ondragenter = use_callback(props.rid.clone(), {
+    //     let graph_state = graph_state.dispatcher();
+    //     move |_: DragEvent, container_id| {
+    //         graph_state.dispatch(GraphStateAction::SetDragOverContainer(container_id.clone()));
+    //     }
+    // });
 
-    let ondragenter = use_callback(props.rid.clone(), {
-        let graph_state = graph_state.dispatcher();
-        move |_: DragEvent, container_id| {
-            graph_state.dispatch(GraphStateAction::SetDragOverContainer(container_id.clone()));
-        }
-    });
-
-    let ondragleave = use_callback((), {
-        let graph_state = graph_state.dispatcher();
-        move |_: DragEvent, _| {
-            graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
-        }
-    });
+    // let ondragleave = use_callback((), {
+    //     let graph_state = graph_state.dispatcher();
+    //     move |_: DragEvent, _| {
+    //         graph_state.dispatch(GraphStateAction::ClearDragOverContainer);
+    //     }
+    // });
 
     let ondrop = use_callback(
         (props.rid.clone(), graph_state.clone()),
@@ -463,6 +460,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
             let drop_data = e.data_transfer().unwrap();
             let action = drop_data.get_data("application/json").unwrap();
+
             let action: Option<ContainerAction> = serde_json::from_str(&action).ok();
             if let Some(action) = action {
                 match action {
@@ -602,8 +600,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 onremove_script_association,
                 onadd_child: props.onadd_child.clone(),
                 on_menu_event,
-                ondragenter,
-                ondragleave,
+                // ondragenter,
+                // ondragleave,
                 ondrop,
             }
     };

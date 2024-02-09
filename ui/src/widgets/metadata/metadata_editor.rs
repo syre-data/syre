@@ -17,11 +17,6 @@ pub struct MetadataEditorProps {
     #[prop_or(Metadata::new())]
     pub value: Metadata,
 
-    /// Callback triggered when the value of a single `Metadatum` is changed
-    /// or a new `Metadatum` is added.
-    ///
-    /// # Fields
-    /// 1. Current value
     #[prop_or_default]
     pub onchange: Callback<Metadata>,
 }
@@ -30,34 +25,31 @@ pub struct MetadataEditorProps {
 pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
     let add_metadatum_visible = use_state(|| false);
 
-    let show_add_metadatum = {
-        let add_metadatum_visible = add_metadatum_visible.clone();
+    let show_add_metadatum = use_callback((), {
+        let add_metadatum_visible = add_metadatum_visible.setter();
 
-        Callback::from(move |_: MouseEvent| {
+        move |_: MouseEvent, _| {
             add_metadatum_visible.set(true);
-        })
-    };
+        }
+    });
 
-    let add_metadatum = {
-        let metadata = props.value.clone();
-        let onchange = props.onchange.clone();
-        let add_metadatum_visible = add_metadatum_visible.clone();
+    let add_metadatum = use_callback((props.value.clone(), props.onchange.clone()), {
+        let add_metadatum_visible = add_metadatum_visible.setter();
 
-        Callback::from(move |(key, value)| {
+        move |(key, value), (metadata, onchange)| {
             let mut metadata = metadata.clone();
             metadata.insert(key, value);
             onchange.emit(metadata);
             add_metadatum_visible.set(false);
-        })
-    };
+        }
+    });
 
-    let oncancel_add_metadatum = {
-        let add_metadatum_visible = add_metadatum_visible.clone();
-
-        Callback::from(move |_| {
+    let oncancel_add_metadatum = use_callback((), {
+        let add_metadatum_visible = add_metadatum_visible.setter();
+        move |_, _| {
             add_metadatum_visible.set(false);
-        })
-    };
+        }
+    });
 
     let remove_metadatum = move |key: String| {
         let metadata = props.value.clone();
@@ -65,7 +57,6 @@ pub fn metadata_editor(props: &MetadataEditorProps) -> Html {
 
         Callback::from(move |_: MouseEvent| {
             let mut metadata = metadata.clone();
-
             metadata.remove(&key);
             onchange.emit(metadata);
         })

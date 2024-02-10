@@ -18,41 +18,37 @@ pub struct MetadatumEditorProps {
 #[function_component(MetadatumEditor)]
 pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let error = use_state(|| None);
-    let onerror = {
-        let error = error.clone();
-        Callback::from(move |message: String| {
+    let onerror = use_callback((), {
+        let error = error.setter();
+        move |message: String, _| {
             error.set(message.into());
-        })
-    };
+        }
+    });
 
-    let onchange = {
-        let onchange = props.onchange.clone();
-        let error = error.clone();
-
-        Callback::from(move |value| {
+    let onchange = use_callback(props.onchange.clone(), {
+        let error = error.setter();
+        move |value, onchange| {
             error.set(None);
             onchange.emit(value);
-        })
-    };
+        }
+    });
 
-    // ui
     html! {
-        <div class={classes!("syre-ui-metadatum")}>
-            <div class={classes!("metadatum-fields")}>
-                <span class={classes!("metadatum-key")}
+        <div class={"syre-ui-metadatum"}>
+            <div class={"metadatum-fields"}>
+                <span class={"metadatum-key"}
                     title={props.name.clone()}>
                     { &props.name }
                 </span>
 
                 <MetadatumValueEditor
-                    class={classes!("metadatum-value")}
                     value={props.value.clone()}
                     {onchange}
                     {onerror} />
             </div>
 
             if let Some(msg) = error.as_ref() {
-                <span class={classes!("error")}>{ msg }</span>
+                <span class={"error"}>{ msg }</span>
             }
         </div>
     }

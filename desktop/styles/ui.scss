@@ -63,6 +63,25 @@
       flex-grow: 1;
       text-align: left;
       padding: t.$padding-m t.$padding-xl t.$padding-m t.$padding-3xl;
+      .message {
+        user-select: text;
+      }
+
+      .details-title {
+        cursor: pointer;
+
+        svg {
+          padding-left: t.$padding-m;
+          vertical-align: middle;
+        }
+      }
+
+      .details-body {
+        user-select: text;
+        max-height: 25vh;
+        overflow: auto;
+        overflow-wrap: anywhere;
+      }
     }
 
     .close-btn {
@@ -74,20 +93,6 @@
       padding: 0 t.$padding-m;
       border-left: solid;
       border-left-width: t.$border-width-s;
-    }
-
-    .details-title {
-      cursor: pointer;
-
-      svg {
-        padding-left: t.$padding-m;
-        vertical-align: middle;
-      }
-    }
-
-    .details-body {
-      max-height: 25vh;
-      overflow: auto;
     }
   }
 }
@@ -116,6 +121,7 @@
   .syre-ui-asset-file_name {
     overflow: auto;
     max-width: t.$drawer-content-width;
+    user-select: all;
   }
 }
 
@@ -150,14 +156,15 @@
   input,
   textarea {
     display: block;
-    width: t.$drawer-content-width; //Using % gives centering issues.
+    box-sizing: border-box;
+    width: 100%;
     padding: t.$input-padding-y t.$input-padding-x;
     border: t.$input-border-color t.$border-width-m solid;
     background-color: t.$input-background-color;
     box-shadow: none;
     overflow: auto;
     outline: none;
-    resize: none; /*remove the resize handle on the bottom right*/
+    resize: none;
   }
 
   .script-add-cancel-buttons {

@@ -83,13 +83,19 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
     match trash::delete(path) {
         Ok(_) => Ok(()),
 
-        Err(trash::Error::CanonicalizePath { original: _ }) => Err(TrashError::NotFound.into()),
+        Err(trash::Error::CanonicalizePath { original: _ }) => match remove_asset_from_db(rid) {
+            Ok(_) => Err(TrashError::NotFound.into()),
+            Err(err) => Err(err),
+        },
 
         Err(trash::Error::CouldNotAccess { target }) => {
             if Path::new(&target).exists() {
                 Err(TrashError::PermissionDenied.into())
             } else {
-                Err(TrashError::NotFound.into())
+                match remove_asset_from_db(rid) {
+                    Ok(_) => Err(TrashError::NotFound.into()),
+                    Err(err) => Err(err),
+                }
             }
         }
 

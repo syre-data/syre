@@ -155,9 +155,6 @@ pub struct InputDataParameters {
     /// Where data sits in each Asset.
     pub data_selection: DataSelection,
 
-    /// Index columns.
-    pub index_columns: ,
-
     /// Number of rows to skip until meaningful data (i.e. header or data rows).
     pub skip_rows: u32,
 }
@@ -174,6 +171,9 @@ pub struct ExcelTemplateParameters {
 
     /// How new data should labeled.
     pub data_label_action: DataLabelAction,
+
+    /// Index columns.
+    pub index_columns: Vec<u32>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

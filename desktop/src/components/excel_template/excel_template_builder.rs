@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use syre_core::db::StandardSearchFilter;
 use syre_core::project::AssetProperties;
-use syre_desktop_lib::excel_template;
+use syre_desktop_lib::excel_template::{self, SpreadsheetColumns};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -116,12 +116,7 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                         .collect(),
                 )
             } else {
-                excel_template::SpreadsheetColumns::Names(
-                    data_selection
-                        .into_iter()
-                        .map(|name| name.to_string())
-                        .collect(),
-                )
+                todo!();
             };
 
             let data_selection = excel_template::DataSelection::Spreadsheet(data_selection);
@@ -452,8 +447,8 @@ impl TemplateBuilder {
                 .join(", "),
 
             excel_template::DataSelection::Spreadsheet(
-                excel_template::SpreadsheetColumns::Names(names),
-            ) => names.join(", "),
+                excel_template::SpreadsheetColumns::Header(headers),
+            ) => todo!(),
         }
     }
 
@@ -515,6 +510,7 @@ struct TemplateParamsBuilder {
     pub sheet: Option<excel_template::WorksheetId>,
     pub range: Option<excel_template::Range>,
     pub data_label_action: excel_template::DataLabelAction,
+    pub index_columns: Vec<u32>,
 }
 
 impl TemplateParamsBuilder {
@@ -524,6 +520,7 @@ impl TemplateParamsBuilder {
             sheet: None,
             range: None,
             data_label_action: excel_template::DataLabelAction::None,
+            index_columns: Vec::new(),
         }
     }
 
@@ -566,6 +563,7 @@ impl TryInto<excel_template::ExcelTemplateParameters> for TemplateParamsBuilder 
             path: self.path,
             replace_range: excel_template::WorkbookRange { worksheet, range },
             data_label_action: self.data_label_action,
+            index_columns: self.index_columns,
         })
     }
 }

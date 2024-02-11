@@ -86,31 +86,31 @@ class Database:
         self._socket.send_json({"ProjectCommand": {"ResourceRootPath": self._root_path}})
         project_path = self._socket.recv_json()
         if "Ok" not in project_path:
-            raise RuntimeError("could not get project path")
+            raise RuntimeError("Could not get project path")
         
         project_path = project_path["Ok"]
         self._socket.send_json({"ProjectCommand": {"Load": project_path}})
         project = self._socket.recv_json()
         if "Ok" not in project:
-            raise RuntimeError(f"could not load project")
+            raise RuntimeError(f"Could not load project")
         
         project = project["Ok"]
         self._socket.send_json({"GraphCommand": {"Load": project["rid"]}})
         graph = self._socket.recv_json()
         if "Ok" not in graph:
-            raise RuntimeError("could not load graph")
+            raise RuntimeError("Could not load graph")
         
         self._socket.send_json({"ContainerCommand": {"ByPath": self._root_path}})
         root = self._socket.recv_json()
         if root is None:
-            raise RuntimeError("could not get root Container")
+            raise RuntimeError("Could not get root Container")
         
         self._root: str = root["rid"]
         
         if chdir:
             analysis_root = project["analysis_root"]
             if analysis_root is None:
-                raise RuntimeError("analysis root is not set, can not change directory")
+                raise RuntimeError("Analysis root is not set, can not change directory")
             
             analysis_path = os.path.join(project_path, analysis_root)
             os.chdir(analysis_path)

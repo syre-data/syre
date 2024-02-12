@@ -160,8 +160,21 @@ fn handle_trash_error_os_windows(code: i32, description: String) -> TrashError {
 }
 
 fn handle_trash_error_os_macos(code: i32, description: String) -> TrashError {
+    tracing::debug!(?code, ?description);
     match code {
         -10010 => TrashError::NotFound,
-        _ => TrashError::Other(description),
+        _ => {
+            let code_pattern = regex::Regex::new(r"\((-?\d+)\)\s*$").unwrap();
+            let Some(matches) = code_pattern.captures(&description) else {
+                return TrashError::Other(description);
+            };
+
+            let extracted_code = matches.get(1).unwrap();
+            let extracted_code = extracted_code.as_str().parse::<i32>().unwrap();
+            match extracted_code {
+                -10010 => TrashError::NotFound,
+                _ => TrashError::Other(description),
+            }
+        }
     }
 }

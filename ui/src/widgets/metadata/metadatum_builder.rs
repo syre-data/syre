@@ -103,22 +103,25 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
         <div class={"syre-ui-metadatum-builder"}>
             <form {onsubmit}>
                 <div class={"form-fields"}>
-                    <input
-                        ref={key_ref}
-                        placeholder="Name"
-                        value={(*key).clone()}
-                        minlength="1"
-                        onchange={onchange_key}
-                        required={true} />
+                    <div class={"metadatum-fields"}>
+                        <span class={"metadatum-name"}>
+                            <input
+                                ref={key_ref}
+                                placeholder={"Name"}
+                                value={(*key).clone()}
+                                minlength={"1"}
+                                onchange={onchange_key}
+                                required={true} />
+                        </span>
 
-                    <MetadatumValueEditor
-                        value={props.value.clone()}
-                        onchange={onchange_value}
-                        {onerror} />
-
+                        <MetadatumValueEditor
+                            value={props.value.clone()}
+                            onchange={onchange_value}
+                            {onerror} />
+                    </div>
                     <div class={"form-controls"}>
                         <button>{ "Add" }</button>
-                        <button type="button" onclick={oncancel}>{ "Cancel" }</button>
+                        <button type={"button"} onclick={oncancel}>{ "Cancel" }</button>
                     </div>
                 </div>
             </form>

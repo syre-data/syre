@@ -184,9 +184,6 @@
     margin-top: t.$margin-l;
 
     input {
-      all: unset;
-      appearance: auto;
-      width: t.$drawer-content-width-1-4;
       border: solid t.$border-width-s transparent;
 
       &:focus {
@@ -199,36 +196,66 @@
       }
     }
 
+    .syre-ui-metadatum-builder {
+      .form-fields {
+        display: block;
+      }
+
+      .metadatum-fields {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+        flex-grow: 1;
+
+        .metadatum-key {
+          @include mixins.hide-text-overflow;
+          width: t.$drawer-content-width-1-4;
+        }
+
+        .metadatum-value {
+          width: 100%;
+          flex-grow: 3;
+
+          input {
+            width: 100%;
+          }
+        }
+      }
+
+      .form-controls {
+        display: flex;
+      }
+    }
+
+    .syre-ui-metadatum {
+      flex-grow: 1;
+
+      .metadatum-fields {
+        display: flex;
+        align-items: center;
+        gap: t.$gap-s;
+
+        .metadatum-key {
+          @include mixins.hide-text-overflow;
+          width: t.$drawer-content-width-1-4;
+        }
+
+        .metadatum-value {
+          flex-grow: 3;
+
+          input {
+            width: 100%;
+          }
+        }
+      }
+    }
+
     .metadata-editor {
       list-style: none;
       padding: 0;
 
       li {
         display: flex;
-      }
-
-      .syre-ui-metadatum {
-        flex-grow: 1;
-
-        .metadatum-fields {
-          display: flex;
-          align-items: center;
-          gap: t.$gap-s;
-
-          .metadatum-key {
-            @include mixins.hide-text-overflow;
-            flex-grow: 1;
-            width: t.$drawer-content-width-1-4;
-          }
-
-          .metadatum-value {
-            flex-grow: 3;
-
-            input {
-              width: 100%;
-            }
-          }
-        }
       }
     }
 

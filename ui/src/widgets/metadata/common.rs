@@ -2,7 +2,6 @@
 use super::MetadatumType;
 use serde_json::{Result as JsResult, Value as JsValue};
 use std::result::Result as StdResult;
-use std::str::FromStr;
 use yew::prelude::NodeRef;
 
 /// Converts a string to a number.
@@ -18,7 +17,7 @@ use yew::prelude::NodeRef;
 /// # Errors
 /// + If the value can not be parsed as a number.
 #[tracing::instrument]
-pub fn str_to_number(input: &str) -> StdResult<JsValue, <f64 as FromStr>::Err> {
+pub fn str_to_number(input: &str) -> StdResult<JsValue, ()> {
     fn parse_as_int(input: &str) -> Option<JsValue> {
         if let Ok(val) = input.parse::<u64>() {
             return Some(JsValue::from(val));
@@ -36,12 +35,22 @@ pub fn str_to_number(input: &str) -> StdResult<JsValue, <f64 as FromStr>::Err> {
     }
 
     match input.split_once('.') {
-        None => Ok(parse_as_int(input).expect("could not parse as number")),
+        None => match parse_as_int(input) {
+            Some(val) => Ok(val),
+            None => Err(()),
+        },
+
         Some((_, decs)) => {
             if decs.is_empty() {
-                Ok(parse_as_int(input).expect("could not parse as number"))
+                match parse_as_int(input) {
+                    Some(val) => Ok(val),
+                    None => Err(()),
+                }
             } else {
-                let val = input.parse::<f64>()?;
+                let Ok(val) = input.parse::<f64>() else {
+                    return Err(());
+                };
+
                 match val.is_nan() {
                     true => Ok(JsValue::Null),
                     false => Ok(JsValue::from(val)),

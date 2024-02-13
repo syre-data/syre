@@ -214,7 +214,11 @@
 
         .metadatum-value {
           width: 100%;
-          flex-grow: 3;
+		  flex-grow: 1;
+
+		  &[data-value-kind="string"] {
+			  flex-grow: 3;
+		  }
 
           input {
             width: 100%;
@@ -228,7 +232,7 @@
     }
 
     .syre-ui-metadatum {
-      flex-grow: 1;
+	  width: 100%;
 
       .metadatum-fields {
         display: flex;
@@ -237,11 +241,15 @@
 
         .metadatum-key {
           @include mixins.hide-text-overflow;
-          width: t.$drawer-content-width-1-4;
+		  flex-grow: 1;
         }
 
         .metadatum-value {
-          flex-grow: 3;
+          flex-grow: 1;
+
+		  &[data-value-kind="string"] {
+			  flex-grow: 3;
+		  }
 
           input {
             width: 100%;

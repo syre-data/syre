@@ -36,40 +36,42 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
     let key = use_state(|| props.name.clone());
     let key_ref = use_node_ref();
 
-    let onchange_key = {
-        let key = key.clone();
+    let onchange_key = use_callback((), {
+        let key = key.setter();
         let key_ref = key_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             let key_input = key_ref
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not cast node ref to input");
 
             key.set(key_input.value().trim().into());
-        })
-    };
+        }
+    });
 
-    let onchange_value = {
-        let value = value.clone();
-        Callback::from(move |val| {
+    let onchange_value = use_callback((), {
+        let value = value.setter();
+        move |val, _| {
             value.set(val);
-        })
-    };
+        }
+    });
 
-    let onerror = {
-        let error = error.clone();
-        Callback::from(move |message: String| {
+    let onerror = use_callback((), {
+        let error = error.setter();
+        move |message: String, _| {
             error.set(message.into());
-        })
-    };
+        }
+    });
 
-    let onsubmit = {
-        let name_filter = props.name_filter.clone();
-        let onsave = props.onsave.clone();
-        let key = key.clone();
-        let error = error.clone();
-
-        Callback::from(move |e: SubmitEvent| {
+    let onsubmit = use_callback(
+        (
+            key.clone(),
+            value.clone(),
+            error.clone(),
+            props.name_filter.clone(),
+            props.onsave.clone(),
+        ),
+        move |e: SubmitEvent, (key, value, error, name_filter, onsave)| {
             e.prevent_default();
 
             // get key
@@ -79,7 +81,7 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 return;
             }
 
-            if name_filter.contains(&*key) {
+            if name_filter.contains(&**key) {
                 error.set(Some("Key already exists".to_string()));
                 return;
             }
@@ -88,16 +90,13 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                 return;
             }
 
-            onsave.emit(((*key).clone(), (*value).clone()));
-        })
-    };
+            onsave.emit(((**key).clone(), (**value).clone()));
+        },
+    );
 
-    let oncancel = {
-        let oncancel = props.oncancel.clone();
-        Callback::from(move |_: MouseEvent| {
-            oncancel.emit(());
-        })
-    };
+    let oncancel = use_callback(props.oncancel.clone(), move |_: MouseEvent, oncancel| {
+        oncancel.emit(());
+    });
 
     html! {
         <div class={"syre-ui-metadatum-builder"}>
@@ -115,7 +114,7 @@ pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
                         </span>
 
                         <MetadatumValueEditor
-                            value={props.value.clone()}
+                            value={(*value).clone()}
                             onchange={onchange_value}
                             {onerror} />
                     </div>

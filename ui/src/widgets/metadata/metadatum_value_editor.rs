@@ -149,7 +149,7 @@ pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
             </select>
         </span>
 
-        <span class={"metadatum-value"}>
+        <span class={"metadatum-value"} data-value-kind={Into::<String>::into(kind).to_lowercase()}>
             { match (*value).clone() {
                 JsValue::String(value) => html! {
                     <input

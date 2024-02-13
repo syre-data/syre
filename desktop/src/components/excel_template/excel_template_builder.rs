@@ -5,8 +5,13 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use syre_core::db::StandardSearchFilter;
 use syre_core::project::AssetProperties;
-use syre_desktop_lib::excel_template::{self, SpreadsheetColumns};
+use syre_desktop_lib::excel_template::{self};
 use yew::prelude::*;
+
+static ALPHABET: [char; 26] = [
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+    't', 'u', 'v', 'w', 'x', 'y', 'z',
+];
 
 #[derive(Properties, PartialEq)]
 pub struct ExcelTemplateBuilderProps {
@@ -19,6 +24,10 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
     let builder = use_reducer(|| TemplateBuilder::new(props.template_path.clone()));
     let template_replace_column_start: UseStateHandle<Option<u32>> = use_state(|| None);
     let template_form_node_ref = use_node_ref();
+    let data_label_action_none_node_ref = use_node_ref();
+    let data_label_action_insert_node_ref = use_node_ref();
+    let data_label_action_replace_node_ref = use_node_ref();
+    let template_index_columns_node_ref = use_node_ref();
     let input_data_form_node_ref = use_node_ref();
     let output_asset_form_node_ref = use_node_ref();
 
@@ -39,16 +48,49 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                             sheet,
                             range: excel_template::Range { start, end },
                         });
-
-                        builder.dispatch(TemplateBuilderAction::NextStep);
                     }
                 }
             }
         });
 
+    let onchange_data_label_action = use_callback(builder.clone(), {
+        let none_node_ref = data_label_action_none_node_ref.clone();
+        let insert_node_ref = data_label_action_insert_node_ref.clone();
+        let replace_node_ref = data_label_action_replace_node_ref.clone();
+
+        move |_, builder| {
+            let none_elm = none_node_ref
+                .cast::<web_sys::HtmlInputElement>()
+                .expect("could not cast node ref as input");
+
+            let insert_elm = insert_node_ref
+                .cast::<web_sys::HtmlInputElement>()
+                .expect("could not cast node ref as input");
+
+            let replace_elm = replace_node_ref
+                .cast::<web_sys::HtmlInputElement>()
+                .expect("could not cast node ref as input");
+
+            if none_elm.checked() {
+                builder.dispatch(TemplateBuilderAction::SetTemplateDataLabelAction(
+                    excel_template::DataLabelAction::None,
+                ));
+            } else if insert_elm.checked() {
+                builder.dispatch(TemplateBuilderAction::SetTemplateDataLabelAction(
+                    excel_template::DataLabelAction::Insert { index: Vec::new() },
+                ));
+            } else if replace_elm.checked() {
+                builder.dispatch(TemplateBuilderAction::SetTemplateDataLabelAction(
+                    excel_template::DataLabelAction::Replace,
+                ));
+            }
+        }
+    });
+
     let onsubmit_template = use_callback((), {
         let builder = builder.dispatcher();
         let template_form_node_ref = template_form_node_ref.clone();
+        let index_cols_node_ref = template_index_columns_node_ref.clone();
 
         move |e: SubmitEvent, _| {
             e.prevent_default();
@@ -60,7 +102,19 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
             let data_label_action = form_data.get("data-label-action");
             let data_label_action = match data_label_action.as_string().unwrap().as_str() {
                 "none" => excel_template::DataLabelAction::None,
-                "insert" => excel_template::DataLabelAction::Insert,
+                "insert" => {
+                    let index_cols_elm = index_cols_node_ref
+                        .cast::<web_sys::HtmlInputElement>()
+                        .unwrap();
+
+                    let index = index_cols_elm
+                        .value()
+                        .split(",")
+                        .filter_map(|col| col.trim().parse::<u32>().ok())
+                        .collect::<Vec<_>>();
+
+                    excel_template::DataLabelAction::Insert { index }
+                }
                 "replace" => excel_template::DataLabelAction::Replace,
                 other => panic!("unknown data label action value `{other}`"),
             };
@@ -116,13 +170,18 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                         .collect(),
                 )
             } else {
-                todo!();
+                let data_selection = data_selection
+                    .iter()
+                    .filter_map(|label| column_index_from_str(label))
+                    .collect::<Vec<_>>();
+
+                excel_template::SpreadsheetColumns::Indices(data_selection)
             };
 
             let data_selection = excel_template::DataSelection::Spreadsheet(data_selection);
 
             let skip_rows = form_data.get("input-skip-rows");
-            let skip_rows = skip_rows.as_f64().unwrap() as u32;
+            let skip_rows = skip_rows.as_string().unwrap().parse::<u32>().unwrap();
 
             let input_params = excel_template::InputDataParameters {
                 asset_filter,
@@ -271,10 +330,12 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                             <fieldset>
                                 <legend>{ "How should data be inserted?" }</legend>
                                 <div>
-                                    <input type={"radio"}
+                                    <input ref={data_label_action_none_node_ref}
+                                        type={"radio"}
                                         name={"data-label-action"}
                                         value={"none"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::None} />
+                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::None}
+                                        onchange={onchange_data_label_action.clone()} />
 
                                     <label for={"none"}
                                         title={"Data will be inserted as is from the input source."}>
@@ -283,10 +344,12 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                                 </div>
 
                                 <div>
-                                    <input type={"radio"}
+                                    <input ref={data_label_action_insert_node_ref}
+                                        type={"radio"}
                                         name={"data-label-action"}
                                         value={"insert"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::Insert} />
+                                        checked={matches!(&builder.template_params.data_label_action, &excel_template::DataLabelAction::Insert { index: _ })}
+                                        onchange={onchange_data_label_action.clone()} />
 
                                     <label for={"insert"}
                                         title={"Input asset's path will be appended as a header."}>
@@ -295,10 +358,12 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                                 </div>
 
                                 <div>
-                                    <input type={"radio"}
+                                    <input ref={data_label_action_replace_node_ref}
+                                        type={"radio"}
                                         name={"data-label-action"}
                                         value={"replace"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::Replace} />
+                                        checked={&builder.template_params.data_label_action == &excel_template::DataLabelAction::Replace}
+                                        onchange={onchange_data_label_action} />
 
                                     <label for={"replace"}
                                         title={"Input asset's path will replace any headers."}>
@@ -307,6 +372,26 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                                 </div>
                             </fieldset>
                         </div>
+
+                        if let excel_template::DataLabelAction::Insert { index } = &builder.template_params.data_label_action {
+                            <div>
+                                <p>
+                                    { "Select the index columns in the template." }
+                                </p>
+                                <p>
+                                    <label>
+                                        {"Template index columns"}
+                                        <input ref={template_index_columns_node_ref}
+                                            name={"template_index_columns"}
+                                            value={index
+                                                    .iter()
+                                                    .map(|idx| idx.to_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join(", ")} />
+                                    </label>
+                                </p>
+                            </div>
+                        }
 
                         <div>
                             <button>{ "Next" }</button>
@@ -334,7 +419,7 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
 
                     <div>
                         <label for={"input-skip-rows"}>{ "How many rows should be skipped until the header rows or first data?" }</label>
-                        <input type={"number"} name={"skip-rows"} value={builder.input_data_skip_rows().unwrap_or(&0).to_string()} />
+                        <input type={"number"} name={"input-skip-rows"} value={builder.input_data_skip_rows().unwrap_or(&0).to_string()} />
                     </div>
 
                     <div>
@@ -344,12 +429,13 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
             </div>
 
             <div class={output_step_class}>
+                <h2>{ "Output Asset" }</h2>
                 <form ref={output_asset_form_node_ref} onsubmit={onsubmit_output_asset}>
                     <div>
                         <input name={"name"} placeholder={"name"} />
                     </div>
                     <div>
-                        <input name={"type"} placeholder={"type"} />
+                        <input name={"kind"} placeholder={"type"} />
                     </div>
                     <div>
                         <input name={"tags"} placeholder={"tags"} />
@@ -570,4 +656,32 @@ impl TryInto<excel_template::ExcelTemplateParameters> for TemplateParamsBuilder 
 
 enum TemplateParamsBuilderError {
     Incomplete,
+}
+
+fn column_index_from_str(label: impl AsRef<str>) -> Option<u32> {
+    let label = label.as_ref();
+    if !label.is_ascii() {
+        return None;
+    }
+
+    let chars = label.chars().collect::<Vec<_>>();
+    match chars[..] {
+        [c] => ALPHABET.iter().position(|&l| l == c).map(|idx| idx as u32),
+        [c1, c2] => {
+            let Some(idx1) = ALPHABET.iter().position(|&l| l == c1) else {
+                return None;
+            };
+
+            let Some(idx2) = ALPHABET.iter().position(|&l| l == c2) else {
+                return None;
+            };
+
+            let Ok(idx) = ((idx1 + 1) * 26 + idx2).try_into() else {
+                return None;
+            };
+
+            Some(idx)
+        }
+        _ => None,
+    }
 }

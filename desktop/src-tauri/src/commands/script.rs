@@ -1,11 +1,12 @@
 //! Commands related to `Script`s.
 use crate::error::Result;
-use std::fs;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
+use std::{fs, io};
 use syre_core::error::{Error as CoreError, Project as ProjectError, Resource as ResourceError};
 use syre_core::project::{Project, Script};
 use syre_core::types::ResourceId;
+use syre_desktop_lib::excel_template;
 use syre_local::common;
 use syre_local_database::client::Client as DbClient;
 use syre_local_database::command::{ProjectCommand, ScriptCommand};
@@ -50,14 +51,19 @@ pub fn add_script(
         .into());
     };
 
-    let file_name = path.file_name().unwrap();
+    let Some(file_name) = path.file_name() else {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidFilename, "could not get file name").into(),
+        );
+    };
+
     let file_name = PathBuf::from(file_name);
 
     let mut to_path = project_path;
     to_path.push(analysis_root);
     to_path.push(file_name.clone());
 
-    let from_path = fs::canonicalize(path).unwrap();
+    let from_path = fs::canonicalize(path)?;
     if to_path != from_path {
         fs::copy(&from_path, to_path)?;
         Ok(None)
@@ -103,13 +109,54 @@ pub fn add_script_windows(
 // **************************
 
 /// Add an excel template as a script.
+///
+/// # Returns
+/// + `None` if the file is copied into the analysis folder, so should be picked up by the
+/// file system watcher.
+/// + `Script` if the file was in the analysis folder, and so is manually added to the project as a
+/// script.
 #[tauri::command]
 pub fn add_excel_template(
     db: State<DbClient>,
     project: ResourceId,
-    path: PathBuf,
-) -> StdResult<Script, String> {
-    Err("".to_string())
+    template: excel_template::ExcelTemplate,
+) -> Result<Option<Script>> {
+    // copy script to analysis root
+    let project = get_project(&db, project)?;
+    let project_path = get_project_path(&db, project.rid.clone())?;
+    let Some(analysis_root) = project.analysis_root.clone() else {
+        return Err(CoreError::Project(ProjectError::misconfigured(
+            "`Project` does not have an analysis root set",
+        ))
+        .into());
+    };
+
+    let path = template.template_params.path.clone();
+    let Some(file_name) = path.file_name() else {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidFilename, "could not get file name").into(),
+        );
+    };
+
+    let file_name = PathBuf::from(file_name);
+
+    let mut to_path = project_path;
+    to_path.push(analysis_root);
+    to_path.push(file_name.clone());
+
+    let from_path = fs::canonicalize(path)?;
+    if to_path != from_path {
+        fs::copy(&from_path, to_path)?;
+        Ok(None)
+    } else {
+        // add script to project
+        let script = db
+            .send(ScriptCommand::Add(project.rid.clone(), file_name).into())
+            .unwrap();
+
+        let script: DbResult<Script> = serde_json::from_value(script).unwrap();
+        Ok(Some(script?))
+    }
 }
 // *********************
 // *** remove script ***

@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 #![feature(path_file_prefix)]
+#![feature(io_error_more)]
 mod commands;
 mod common;
 mod db;

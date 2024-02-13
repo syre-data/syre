@@ -182,7 +182,10 @@ pub enum DataLabelAction {
     None,
 
     /// Insert the data's labels into the template, preserving the template's.
-    Insert,
+    ///
+    /// # Fields
+    /// + `index`: Index columns of the template. Shifted when headers are inserted.
+    Insert { index: Vec<u32> },
 
     /// Replace the template's labels with the data's.
     Replace,

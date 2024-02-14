@@ -3,11 +3,14 @@ use crate::common::scripts_file;
 use crate::file_resource::LocalResource;
 use crate::system::settings::user_settings::UserSettings;
 use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::project::{Script as CoreScript, Scripts as CoreScripts};
+use syre_core::project::Script as CoreScript;
+use syre_core::types::resource_map::values_only;
+use syre_core::types::ResourceMap;
 
 // **************
 // *** Script ***
@@ -34,16 +37,21 @@ impl Script {
 // *** Scripts ***
 // ***************
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
+#[serde(transparent)]
 pub struct Scripts {
+    #[serde(skip)]
     base_path: PathBuf,
-    scripts: CoreScripts,
+
+    #[serde(with = "values_only")]
+    scripts: ResourceMap<CoreScript>,
 }
 
 impl Scripts {
     pub fn new(path: PathBuf) -> Self {
         Self {
             base_path: path,
-            scripts: CoreScripts::default(),
+            scripts: ResourceMap::new(),
         }
     }
 
@@ -51,14 +59,34 @@ impl Scripts {
         let base_path = base_path.into();
         let path = base_path.join(Self::rel_path());
         let fh = fs::OpenOptions::new().read(true).open(path)?;
-        let scripts = serde_json::from_reader(fh)?;
+        let Self {
+            base_path: _,
+            scripts,
+        } = serde_json::from_reader(fh)?;
 
         Ok(Self { base_path, scripts })
     }
 
     pub fn save(&self) -> Result {
-        fs::write(self.path(), serde_json::to_string_pretty(&self.scripts)?)?;
+        fs::write(self.path(), serde_json::to_string_pretty(&self)?)?;
         Ok(())
+    }
+
+    /// Returns whether a script with the given path is registered.
+    pub fn contains_path(&self, path: impl AsRef<Path>) -> bool {
+        self.by_path(path).is_some()
+    }
+
+    /// Gets a script by its path if it is registered.
+    pub fn by_path(&self, path: impl AsRef<Path>) -> Option<&CoreScript> {
+        let path = path.as_ref();
+        for script in self.scripts.values() {
+            if script.path == path {
+                return Some(script);
+            }
+        }
+
+        None
     }
 
     /// Inserts a script.
@@ -67,7 +95,7 @@ impl Scripts {
     /// + [`ResourceError::AlreadyExists`] if a script with the same path is
     /// already present.
     pub fn insert_script(&mut self, script: CoreScript) -> Result {
-        if self.scripts.contains_path(&script.path) {
+        if self.contains_path(&script.path) {
             return Err(CoreError::Resource(ResourceError::already_exists(
                 "`Script` with same path is already present",
             ))
@@ -80,7 +108,7 @@ impl Scripts {
 }
 
 impl Deref for Scripts {
-    type Target = CoreScripts;
+    type Target = ResourceMap<CoreScript>;
 
     fn deref(&self) -> &Self::Target {
         &self.scripts
@@ -93,13 +121,7 @@ impl DerefMut for Scripts {
     }
 }
 
-impl Into<CoreScripts> for Scripts {
-    fn into(self) -> CoreScripts {
-        self.scripts
-    }
-}
-
-impl LocalResource<CoreScripts> for Scripts {
+impl LocalResource<ResourceMap<CoreScript>> for Scripts {
     fn rel_path() -> PathBuf {
         scripts_file()
     }

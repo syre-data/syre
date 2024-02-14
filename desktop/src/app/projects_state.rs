@@ -3,13 +3,14 @@
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use std::rc::Rc;
-use syre_core::project::{Project, Script, Scripts};
+use syre_core::project::{Project, Script};
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_local::types::ProjectSettings;
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;
 pub type SettingsMap = ResourceMap<ProjectSettings>;
+pub type Scripts = ResourceMap<Script>;
 
 /// Map from a `Project` to its `Scripts`.
 pub type ProjectScriptsMap = ResourceMap<Scripts>;

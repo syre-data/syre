@@ -17,5 +17,5 @@ pub use container_properties::ContainerProperties;
 pub use metadata::Metadata;
 pub use project::Project;
 pub use resources::ResourceProperties;
-pub use script::{Script, ScriptEnv, ScriptLang, Scripts};
+pub use script::{Script, ScriptEnv, ScriptLang};
 pub use script_association::{RunParameters, ScriptAssociation};

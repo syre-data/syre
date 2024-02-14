@@ -160,10 +160,13 @@ impl Into<Script> for ExcelTemplate {
             replace_range,
             data_label_action,
         } = template_params;
-        let worksheet = match template_params.replace_range.worksheet {
+
+        let worksheet = match replace_range.worksheet {
             WorksheetId::Name(name) => name,
             WorksheetId::Index(idx) => todo!(),
         };
+
+        let template_path = template_path.to_str().unwrap().to_string();
 
         let Range {
             start: replace_start,
@@ -207,7 +210,7 @@ impl Into<Script> for ExcelTemplate {
         env.args = vec![
             "-m".into(),
             "syre_excel_template_runner".into(),
-            template_path.to_str().unwrap().into(),
+            template_path.clone(),
             worksheet,
             replace_start.to_string(),
             replace_end.to_string(),
@@ -238,6 +241,8 @@ impl Into<Script> for ExcelTemplate {
         if let Some(filter_tags) = filter_tags {
             todo!();
         }
+
+        Script::new(template_path, env)
     }
 }
 

@@ -70,7 +70,7 @@ impl Database {
         };
 
         let scripts = ProjectScripts::load_from(project.base_path())?;
-        let script_vals = (**scripts).clone().into_values().collect();
+        let script_vals = (*scripts).clone().into_values().collect();
         self.store.insert_project_scripts(rid, scripts);
         Ok(script_vals)
     }

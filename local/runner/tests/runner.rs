@@ -4,7 +4,8 @@
 //! + local/database must be running.
 use std::fs;
 use std::path::PathBuf;
-use syre_core::project::{Container, Project};
+use syre_core::project::{Container, Project, Script};
+use syre_core::types::ResourceMap;
 use syre_local_database as ldb;
 use syre_local_runner;
 use syre_local_runner::runner::Runner;
@@ -41,8 +42,7 @@ fn load_project_resources(path: &str) -> syre_core::graph::ResourceTree<Containe
         .send(ldb::ScriptCommand::LoadProject(project.rid.clone()).into())
         .unwrap();
 
-    let scripts: ldb::Result<syre_core::project::Scripts> =
-        serde_json::from_value(scripts).unwrap();
+    let scripts: ldb::Result<ResourceMap<Script>> = serde_json::from_value(scripts).unwrap();
 
     scripts.unwrap();
 

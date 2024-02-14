@@ -95,53 +95,6 @@ impl crate::runner::Runnable for Script {
     }
 }
 
-// ***************
-// *** Scripts ***
-// ***************
-
-/// Project scripts.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Scripts(#[cfg_attr(feature = "serde", serde(with = "values_only"))] ResourceMap<Script>);
-impl Scripts {
-    /// Returns whether a script with the given path is registered.
-    pub fn contains_path(&self, path: impl AsRef<Path>) -> bool {
-        self.by_path(path).is_some()
-    }
-
-    /// Gets a script by its path if it is registered.
-    pub fn by_path(&self, path: impl AsRef<Path>) -> Option<&Script> {
-        let path = path.as_ref();
-        for script in self.values() {
-            if &script.path == path {
-                return Some(&script);
-            }
-        }
-
-        None
-    }
-}
-
-impl Deref for Scripts {
-    type Target = ResourceMap<Script>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Scripts {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl From<ResourceMap<Script>> for Scripts {
-    fn from(scripts: ResourceMap<Script>) -> Self {
-        Self(scripts)
-    }
-}
-
 // ******************
 // *** Script Env ***
 // ******************

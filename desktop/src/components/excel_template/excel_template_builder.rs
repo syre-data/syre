@@ -649,7 +649,6 @@ impl TryInto<excel_template::ExcelTemplateParameters> for TemplateParamsBuilder 
             path: self.path,
             replace_range: excel_template::WorkbookRange { worksheet, range },
             data_label_action: self.data_label_action,
-            index_columns: self.index_columns,
         })
     }
 }

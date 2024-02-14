@@ -7,3 +7,7 @@ pub mod runner;
 // Re-exports
 pub use env::CONTAINER_ID_KEY;
 pub use runner::{Runner, RunnerHooks, ScriptExecutionContext};
+
+pub trait Runnable {
+    fn command(&self) -> std::process::Command;
+}

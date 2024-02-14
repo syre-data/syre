@@ -28,6 +28,7 @@ pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<S
 // *** add script ***
 // ******************
 
+// TODO May not be used any more. Can possible remove.
 /// Adds a Script to the Project.
 ///
 /// # Returns
@@ -78,6 +79,8 @@ pub fn add_script(
     }
 }
 
+// TODO: Check if file contents matches that of a file already in the analysis folder
+// If so, don't need to write the contents to disk, just use existing file.
 #[tauri::command]
 pub fn add_script_windows(
     db: State<DbClient>,
@@ -109,18 +112,12 @@ pub fn add_script_windows(
 // **************************
 
 /// Add an excel template as a script.
-///
-/// # Returns
-/// + `None` if the file is copied into the analysis folder, so should be picked up by the
-/// file system watcher.
-/// + `Script` if the file was in the analysis folder, and so is manually added to the project as a
-/// script.
 #[tauri::command]
 pub fn add_excel_template(
     db: State<DbClient>,
     project: ResourceId,
     template: excel_template::ExcelTemplate,
-) -> Result<Option<Script>> {
+) -> Result<Script> {
     // copy script to analysis root
     let project = get_project(&db, project)?;
     let project_path = get_project_path(&db, project.rid.clone())?;

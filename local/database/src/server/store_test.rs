@@ -392,19 +392,6 @@ fn find_assets_should_work() {
 }
 
 #[test]
-fn insert_project_scripts_should_work() {
-    // setup
-    let mut _dir = TempDir::new().unwrap();
-    let project = LocalProject::load_from(_dir.path()).unwrap();
-    let pid = project.rid.clone();
-
-    let db = Datastore::new();
-
-    // test
-    todo!();
-}
-
-#[test]
 fn remove_project_script_should_work() {
     // setup
     let _dir = TempDir::new().expect("could not create temporary directory");
@@ -412,7 +399,7 @@ fn remove_project_script_should_work() {
     let pid = ResourceId::new();
 
     let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
-    let script = CoreScript::new("script.py").unwrap();
+    let script = CoreScript::from_path("script.py").unwrap();
     let sid = script.rid.clone();
 
     scripts
@@ -420,7 +407,7 @@ fn remove_project_script_should_work() {
         .expect("could not insert `Script`");
 
     // add other script that is not to be removed
-    let other_script = CoreScript::new("other_script.py").unwrap();
+    let other_script = CoreScript::from_path("other_script.py").unwrap();
     let other_sid = other_script.rid.clone();
 
     scripts

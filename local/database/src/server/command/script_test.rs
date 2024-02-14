@@ -24,8 +24,8 @@ fn remove_script_should_work() {
     let pid = project.rid.clone();
 
     // initialize scripts
-    let script_0 = Script::new("script-0.py").unwrap();
-    let script_1 = Script::new("script-1.py").unwrap();
+    let script_0 = Script::from_path("script-0.py").unwrap();
+    let script_1 = Script::from_path("script-1.py").unwrap();
     let sid_0 = script_0.rid.clone();
     let sid_1 = script_1.rid.clone();
 

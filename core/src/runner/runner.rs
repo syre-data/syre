@@ -1,10 +1,11 @@
 //! Syre project runner.
 use super::resources::script_groups::{ScriptGroups, ScriptSet};
-use super::CONTAINER_ID_KEY;
+use super::{Runnable, CONTAINER_ID_KEY};
 use crate::error::Runner as RunnerError;
 use crate::graph::ResourceTree;
 use crate::project::{Container, Script};
 use crate::types::ResourceId;
+use has_id::HasId;
 use std::collections::{HashMap, HashSet};
 use std::result::Result as StdResult;
 use std::{process, str};
@@ -365,29 +366,21 @@ impl<'a> TreeRunner<'a> {
     ///
     /// # Errors
     /// + [`RunnerError`]: The script returned a `status` other than `0`.
-    #[tracing::instrument(skip(self))]
-    fn run_script(&self, script: &Script, container: &Container) -> Result<process::Output> {
-        #[cfg(target_os = "windows")]
-        let mut out = process::Command::new("cmd");
-
-        #[cfg(target_os = "windows")]
-        out.args(["/c", &script.env.cmd]);
-
-        #[cfg(not(target_os = "windows"))]
-        let mut out = process::Command::new(&script.env.cmd);
-
+    #[tracing::instrument(skip(self, script))]
+    fn run_script<S>(&self, script: &S, container: &Container) -> Result<process::Output>
+    where
+        S: Runnable + HasId<Id = ResourceId>,
+    {
+        let mut out = script.command();
         let out = match out
-            .arg(script.path.as_path())
-            .args(&script.env.args)
             .env(CONTAINER_ID_KEY, container.rid.clone().to_string())
-            .envs(&script.env.env)
             .output()
         {
             Ok(out) => out,
             Err(err) => {
                 tracing::debug!(?err);
                 return Err(RunnerError::CommandError {
-                    script: script.rid.clone(),
+                    script: script.id().clone(),
                     container: container.rid.clone(),
                     cmd: format!("{out:?}"),
                 }
@@ -399,7 +392,7 @@ impl<'a> TreeRunner<'a> {
             let stderr = str::from_utf8(out.stderr.as_slice()).unwrap().to_string();
 
             return Err(RunnerError::ScriptError {
-                script: script.rid.clone(),
+                script: script.id().clone(),
                 container: container.rid.clone(),
                 description: stderr,
             }

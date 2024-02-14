@@ -346,7 +346,7 @@ pub mod converter {
                 // initialize scripts
                 let mut scripts = Scripts::load_from(&root)?;
                 for script_path in script_paths {
-                    let Ok(script) = Script::new(script_path) else {
+                    let Ok(script) = Script::from_path(script_path) else {
                         continue;
                     };
 

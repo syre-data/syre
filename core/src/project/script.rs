@@ -37,13 +37,25 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
+    pub fn new(path: impl Into<PathBuf>, env: ScriptEnv) -> Self {
+        Script {
+            rid: ResourceId::new(),
+            path: path.into(),
+            name: None,
+            description: None,
+            creator: None,
+            created: Utc::now(),
+            env,
+        }
+    }
+
+    pub fn from_path(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
         let path = path.into();
         let Some(file_name) = path.file_name() else {
             return Err(ScriptError::UnknownLanguage(None));
         };
 
-        let env = ScriptEnv::new(Path::new(file_name))?;
+        let env = ScriptEnv::from_path(Path::new(file_name))?;
         Ok(Script {
             rid: ResourceId::new(),
             path,
@@ -60,6 +72,26 @@ impl Script {
     /// but rather the abstract Script object.
     pub fn created(&self) -> &DateTime<Utc> {
         &self.created
+    }
+}
+
+#[cfg(feature = "runner")]
+impl crate::runner::Runnable for Script {
+    fn command(&self) -> std::process::Command {
+        #[cfg(target_os = "windows")]
+        let mut out = process::Command::new("cmd");
+
+        #[cfg(target_os = "windows")]
+        out.args(["/c", &self.env.cmd]);
+
+        #[cfg(not(target_os = "windows"))]
+        let mut out = std::process::Command::new(&self.env.cmd);
+
+        out.arg(self.path.as_path())
+            .args(&self.env.args)
+            .envs(&self.env.env);
+
+        out
     }
 }
 
@@ -132,8 +164,17 @@ pub struct ScriptEnv {
 }
 
 impl ScriptEnv {
+    pub fn new(language: ScriptLang, cmd: impl Into<String>) -> Self {
+        Self {
+            language,
+            cmd: cmd.into(),
+            args: Vec::new(),
+            env: HashMap::new(),
+        }
+    }
+
     /// Creates a new script environment for the given script.
-    pub fn new(script: &Path) -> StdResult<Self, ScriptError> {
+    pub fn from_path(script: &Path) -> StdResult<Self, ScriptError> {
         let path_ext = script.extension();
         if path_ext.is_none() {
             return Err(ScriptError::UnknownLanguage(None));

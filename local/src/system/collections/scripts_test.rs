@@ -5,7 +5,7 @@ use syre_core::project::Script as CoreScript;
 fn scripts_contains_path_should_work() {
     // setup
     let path = PathBuf::from("script.py");
-    let script = CoreScript::new(path.clone()).unwrap();
+    let script = CoreScript::from_path(path.clone()).unwrap();
     let rid = script.rid.clone();
 
     let mut scripts = Scripts::load().unwrap();
@@ -34,7 +34,7 @@ fn scripts_contains_path_should_work() {
 fn scripts_by_path_should_work() {
     // setup
     let path = PathBuf::from("script.py");
-    let script = CoreScript::new(path.clone()).unwrap();
+    let script = CoreScript::from_path(path.clone()).unwrap();
     let rid = script.rid.clone();
 
     let mut scripts = Scripts::load().unwrap();

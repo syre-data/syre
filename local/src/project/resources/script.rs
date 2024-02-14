@@ -20,7 +20,7 @@ impl Script {
         let settings = UserSettings::load()?;
         let creator = settings.active_user.clone().map(|c| c.into());
 
-        let mut script = match CoreScript::new(path) {
+        let mut script = match CoreScript::from_path(path) {
             Ok(script) => script,
             Err(err) => return Err(CoreError::Script(err).into()),
         };

@@ -5,7 +5,7 @@ use std::io::{Read, Seek};
 use std::ops::Deref;
 use std::path::PathBuf;
 use syre_core::db::StandardSearchFilter;
-use syre_core::project::AssetProperties;
+use syre_core::project::{AssetProperties, Script, ScriptEnv, ScriptLang};
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Spreadsheet(Vec<Vec<String>>);
@@ -146,6 +146,101 @@ pub struct ExcelTemplate {
     pub output_asset: AssetProperties,
 }
 
+impl Into<Script> for ExcelTemplate {
+    fn into(self) -> Script {
+        let ExcelTemplate {
+            input_data_params,
+            template_params,
+            output_asset,
+        } = self;
+
+        // template params
+        let ExcelTemplateParameters {
+            path: template_path,
+            replace_range,
+            data_label_action,
+        } = template_params;
+        let worksheet = match template_params.replace_range.worksheet {
+            WorksheetId::Name(name) => name,
+            WorksheetId::Index(idx) => todo!(),
+        };
+
+        let Range {
+            start: replace_start,
+            end: replace_end,
+        } = replace_range.range;
+
+        let (header_action, template_index) = match data_label_action {
+            DataLabelAction::None => ("none", None),
+            DataLabelAction::Replace => ("replace", None),
+            DataLabelAction::Insert { index } => ("insert", Some(index)),
+        };
+
+        // input data params
+        let InputDataParameters {
+            asset_filter,
+            data_selection,
+            skip_rows,
+        } = input_data_params;
+        let data_selection = match data_selection {
+            DataSelection::Spreadsheet(cols) => match cols {
+                SpreadsheetColumns::Indices(indices) => indices
+                    .into_iter()
+                    .map(|idx| idx.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+
+                SpreadsheetColumns::Header(header) => todo!(),
+            },
+        };
+
+        let StandardSearchFilter {
+            rid: _,
+            name: filter_name,
+            kind: filter_type,
+            tags: filter_tags,
+            metadata: filter_metadata,
+        } = asset_filter;
+
+        // script
+        let mut env = ScriptEnv::new(ScriptLang::Python, "python3");
+        env.args = vec![
+            "-m".into(),
+            "syre_excel_template_runner".into(),
+            template_path.to_str().unwrap().into(),
+            worksheet,
+            replace_start.to_string(),
+            replace_end.to_string(),
+            data_selection,
+            format!("--skip-rows {skip_rows}"),
+        ];
+
+        if let Some(template_index) = template_index {
+            let template_index = template_index
+                .into_iter()
+                .map(|idx| idx.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+
+            env.args.push(format!("--template-index {template_index}"));
+        }
+
+        if let Some(filter_name) = filter_name {
+            let filter_name = filter_name.unwrap_or("''".into());
+            env.args.push(format!("--filter-name {filter_name}"));
+        }
+
+        if let Some(filter_type) = filter_type {
+            let filter_type = filter_type.unwrap_or("''".into());
+            env.args.push(format!("--filter-type {filter_type}"));
+        }
+
+        if let Some(filter_tags) = filter_tags {
+            todo!();
+        }
+    }
+}
+
 /// Describes the shape of the input data.
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct InputDataParameters {
@@ -171,9 +266,6 @@ pub struct ExcelTemplateParameters {
 
     /// How new data should labeled.
     pub data_label_action: DataLabelAction,
-
-    /// Index columns.
-    pub index_columns: Vec<u32>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

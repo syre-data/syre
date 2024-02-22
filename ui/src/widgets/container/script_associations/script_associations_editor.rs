@@ -1,6 +1,6 @@
 //! Editor for [`ScriptAssociation`]s.
 use std::rc::Rc;
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::RunParameters;
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
@@ -159,14 +159,14 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
 #[derive(PartialEq, Properties)]
 pub struct ScriptAssociationsEditorProps {
     /// [`ScriptAssociation`]s to edit.
-    pub associations: ScriptMap,
+    pub associations: AnalysisMap,
 
     /// Map of [`Script`] [`ResourceId`]s to display names.
     #[prop_or_default]
     pub name_map: Option<NameMap>,
 
     /// Called when the value changes.
-    pub onchange: Callback<ScriptMap>,
+    pub onchange: Callback<AnalysisMap>,
 }
 
 #[function_component(ScriptAssociationsEditor)]

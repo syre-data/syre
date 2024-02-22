@@ -83,7 +83,7 @@ impl ContainerTreeDuplicator {
         // duplicate container to new location
         let mut container = Container::new(node.base_path());
         container.properties = node.properties.clone();
-        container.scripts = node.scripts.clone();
+        container.analyses = node.analyses.clone();
         for asset_base in node.assets.values() {
             let mut asset = Asset::new(asset_base.path.clone());
             asset.properties = asset_base.properties.clone();
@@ -133,7 +133,7 @@ impl ContainerTreeDuplicator {
         // duplicate container to new location
         let mut container = Container::new(path);
         container.properties = node.properties.clone();
-        container.scripts = node.scripts.clone();
+        container.analyses = node.analyses.clone();
         container.save()?;
 
         let dup_root = container.rid.clone();

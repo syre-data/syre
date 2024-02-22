@@ -382,7 +382,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 return;
             };
 
-            let mut associations = container.scripts.clone();
+            let mut associations = container.analyses.clone();
             associations.insert(assoc.script.clone(), assoc.into());
             let app_state = app_state.clone();
             let graph_state = graph_state.dispatcher();
@@ -418,7 +418,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 return;
             };
 
-            let mut associations = container.scripts.clone();
+            let mut associations = container.analyses.clone();
             associations.remove(&script);
             let app_state = app_state.clone();
             let graph_state = graph_state.dispatcher();
@@ -459,11 +459,11 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 match action {
                     ContainerAction::AddScriptAssociation(script) => 'add_script: {
                         let container = graph_state.graph.get(&container_id).unwrap();
-                        if container.scripts.contains_key(&script) {
+                        if container.analyses.contains_key(&script) {
                             break 'add_script;
                         }
 
-                        let mut associations = container.scripts.clone();
+                        let mut associations = container.analyses.clone();
                         associations.insert(script, RunParameters::new());
 
                         let app_state = app_state.dispatcher();
@@ -581,7 +581,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 assets: container.assets.clone(),
                 flags,
                 active_assets: canvas_state.selected.clone(),
-                scripts: container.scripts.clone(),
+                scripts: container.analyses.clone(),
                 script_names,
                 preview: canvas_state.preview.clone(),
                 onmousedown,

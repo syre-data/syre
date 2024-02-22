@@ -241,7 +241,7 @@ impl GraphState {
             .expect("could not find `Container`");
 
         for assoc in update.add.iter() {
-            container.scripts.insert(
+            container.analyses.insert(
                 assoc.script.clone(),
                 RunParameters {
                     priority: assoc.priority.clone(),
@@ -251,7 +251,7 @@ impl GraphState {
         }
 
         for u in update.update.iter() {
-            let Some(script) = container.scripts.get_mut(&u.script) else {
+            let Some(script) = container.analyses.get_mut(&u.script) else {
                 continue;
             };
 
@@ -265,7 +265,7 @@ impl GraphState {
         }
 
         for script in update.remove.iter() {
-            container.scripts.remove(script);
+            container.analyses.remove(script);
         }
     }
 }
@@ -323,7 +323,7 @@ impl Reducible for GraphState {
                     .get_mut(&update.rid)
                     .expect("`Container` not found");
 
-                container.scripts = update.associations;
+                container.analyses = update.associations;
             }
 
             GraphStateAction::RemoveContainerScriptAssociations(rid) => {
@@ -332,7 +332,7 @@ impl Reducible for GraphState {
                         .graph
                         .get_mut(&cid)
                         .expect("`Container` not found in graph");
-                    container.scripts.remove(&rid);
+                    container.analyses.remove(&rid);
                 }
             }
 

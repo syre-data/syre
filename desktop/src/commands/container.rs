@@ -3,7 +3,7 @@ use super::common::ResourceIdArgs;
 use crate::common::{invoke, invoke_result};
 use serde::Serialize;
 use std::path::PathBuf;
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::{Container, ContainerProperties};
 use syre_core::types::ResourceId;
 use syre_desktop_lib::types::AddAssetInfo;
@@ -48,7 +48,7 @@ pub async fn bulk_update_properties(
 
 pub async fn update_script_associations(
     container: ResourceId,
-    associations: ScriptMap,
+    associations: AnalysisMap,
 ) -> DbResult {
     tracing::debug!(?associations);
     // TODO Issue with deserializing `HashMap` in Tauri, send as string.
@@ -148,7 +148,7 @@ pub struct UpdateScriptAssociationsArgs {
     // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
     // See: https://github.com/tauri-apps/tauri/issues/6078
     /// Updated script associations.
-    pub associations: ScriptMap,
+    pub associations: AnalysisMap,
 }
 
 /// TEMPORARY

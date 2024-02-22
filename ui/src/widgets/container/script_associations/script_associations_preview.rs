@@ -1,7 +1,7 @@
 //! ScriptAssociation preview for
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::{RunParameters, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
@@ -79,7 +79,7 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
 
 #[derive(PartialEq, Properties)]
 pub struct ScriptAssociationsPreviewProps {
-    pub scripts: ScriptMap,
+    pub scripts: AnalysisMap,
     pub names: ResourceMap<String>,
 
     /// Map from `Script` id to name.

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 // *************
 
 pub type AssetMap = ResourceMap<Asset>;
-pub type ScriptMap = ResourceMap<RunParameters>;
+pub type AnalysisMap = ResourceMap<RunParameters>;
 
 // *****************
 // *** Container ***
@@ -32,7 +32,7 @@ pub struct Container {
     pub rid: ResourceId,
     pub properties: ContainerProperties,
     pub assets: AssetMap,
-    pub scripts: ScriptMap,
+    pub analyses: AnalysisMap,
 }
 
 impl Container {
@@ -41,7 +41,7 @@ impl Container {
             rid: ResourceId::new(),
             properties: ContainerProperties::new(name),
             assets: AssetMap::default(),
-            scripts: ScriptMap::default(),
+            analyses: AnalysisMap::default(),
         }
     }
 
@@ -72,7 +72,7 @@ impl Resource for Container {}
 pub struct Builder {
     properties: PropertiesBuilder,
     assets: AssetMap,
-    scripts: ScriptMap,
+    scripts: AnalysisMap,
 }
 
 impl Builder {
@@ -187,7 +187,7 @@ impl Into<Container> for Builder {
             rid: ResourceId::new(),
             properties: self.properties.into(),
             assets: self.assets,
-            scripts: self.scripts,
+            analyses: self.scripts,
         }
     }
 }

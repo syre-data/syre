@@ -2,7 +2,7 @@
 use crate::app::ProjectsStateReducer;
 use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
 use syre_local::types::script::{ScriptKind, ScriptStore};
@@ -34,7 +34,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .expect("`Container not found");
 
     let dirty_state = use_state(|| false); // track if changes come from user or are internal
-    let associations = use_state(|| container.scripts.clone());
+    let associations = use_state(|| container.analyses.clone());
 
     let project_scripts = use_state(|| {
         projects_state
@@ -96,7 +96,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         let associations = associations.setter();
 
         move |container| {
-            associations.set(container.scripts.clone());
+            associations.set(container.analyses.clone());
             dirty_state.set(false);
         }
     });
@@ -204,7 +204,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
-        Callback::from(move |assocs: ScriptMap| {
+        Callback::from(move |assocs: AnalysisMap| {
             associations.set(assocs);
             dirty_state.set(true);
         })

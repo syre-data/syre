@@ -55,7 +55,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
     let mut associations = ScriptBulkMap::new();
     for container in containers.iter() {
-        for (script, params) in container.scripts.iter() {
+        for (script, params) in container.analyses.iter() {
             if let Some(param_vec) = associations.get_mut(script) {
                 param_vec.push(params.clone());
             } else {
@@ -291,7 +291,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();
@@ -328,7 +328,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();
@@ -364,7 +364,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();

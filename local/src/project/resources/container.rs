@@ -14,7 +14,7 @@ use std::result::Result as StdResult;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::project::container::AssetMap;
 use syre_core::project::{
-    container::ScriptMap, Container as CoreContainer,
+    container::AnalysisMap, Container as CoreContainer,
     ContainerProperties as CoreContainerProperties, ScriptAssociation,
 };
 use syre_core::types::{Creator, ResourceId, UserId};
@@ -50,7 +50,7 @@ impl ContainerProperties {
 pub struct StoredContainerProperties {
     pub rid: ResourceId,
     pub properties: CoreContainerProperties,
-    pub scripts: ScriptMap,
+    pub scripts: AnalysisMap,
 }
 
 impl From<CoreContainer> for StoredContainerProperties {
@@ -58,7 +58,7 @@ impl From<CoreContainer> for StoredContainerProperties {
         Self {
             rid: container.rid,
             properties: container.properties,
-            scripts: container.scripts,
+            scripts: container.analyses,
         }
     }
 }
@@ -132,7 +132,7 @@ impl Container {
     /// Returns if the container is already associated with the script with the given id,
     /// regardless of the associations priority or autorun status.
     pub fn contains_script_association(&self, rid: &ResourceId) -> bool {
-        self.scripts.get(rid).is_some()
+        self.analyses.get(rid).is_some()
     }
 
     /// Adds an association to the Container.
@@ -148,7 +148,7 @@ impl Container {
         }
 
         let script = assoc.script.clone();
-        self.scripts.insert(script, assoc.into());
+        self.analyses.insert(script, assoc.into());
         Ok(())
     }
 
@@ -159,14 +159,14 @@ impl Container {
     /// + [`add_script_association`]
     pub fn set_script_association(&mut self, assoc: ScriptAssociation) -> bool {
         let script = assoc.script.clone();
-        let old = self.scripts.insert(script, assoc.into());
+        let old = self.analyses.insert(script, assoc.into());
         old.is_none()
     }
 
     /// Removes as association with the given script.
     /// Returns if an association with the script existed.
     pub fn remove_script_association(&mut self, rid: &ResourceId) -> bool {
-        let old = self.scripts.remove(rid);
+        let old = self.analyses.remove(rid);
         old.is_some()
     }
 

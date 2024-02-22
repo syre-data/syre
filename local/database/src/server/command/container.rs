@@ -12,7 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 use syre_core::db::StandardSearchFilter;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::{Container as CoreContainer, ContainerProperties, RunParameters};
 use syre_core::types::ResourceId;
 use syre_local::common;
@@ -237,7 +237,7 @@ impl Database {
     fn update_container_script_associations(
         &mut self,
         rid: ResourceId,
-        associations: ScriptMap,
+        associations: AnalysisMap,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
@@ -246,7 +246,7 @@ impl Database {
             .into());
         };
 
-        container.scripts = associations;
+        container.analyses = associations;
         container.save()?;
         Ok(())
     }
@@ -377,7 +377,7 @@ impl Database {
         };
 
         for assoc in update.add.iter() {
-            container.scripts.insert(
+            container.analyses.insert(
                 assoc.script.clone(),
                 RunParameters {
                     priority: assoc.priority.clone(),
@@ -387,7 +387,7 @@ impl Database {
         }
 
         for u in update.update.iter() {
-            let Some(script) = container.scripts.get_mut(&u.script) else {
+            let Some(script) = container.analyses.get_mut(&u.script) else {
                 continue;
             };
 
@@ -401,7 +401,7 @@ impl Database {
         }
 
         for script in update.remove.iter() {
-            container.scripts.remove(script);
+            container.analyses.remove(script);
         }
 
         container.save()?;

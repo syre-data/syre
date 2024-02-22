@@ -1275,7 +1275,7 @@ impl Datastore {
         };
 
         for (_cid, container) in graph.iter_nodes_mut() {
-            container.scripts.remove(script);
+            container.analyses.remove(script);
             container.save()?;
         }
 

@@ -1,6 +1,6 @@
 //! [`ScriptAssociation`]s grouped by `priority`.
 // use super::script_association::ScriptAssociation;
-use crate::project::container::ScriptMap;
+use crate::project::container::AnalysisMap;
 use crate::project::ScriptAssociation;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
@@ -34,8 +34,8 @@ impl DerefMut for ScriptGroups {
     }
 }
 
-impl From<ScriptMap> for ScriptGroups {
-    fn from(scripts: ScriptMap) -> Self {
+impl From<AnalysisMap> for ScriptGroups {
+    fn from(scripts: AnalysisMap) -> Self {
         let mut groups = HashMap::new();
         for (rid, params) in scripts.into_iter() {
             let p = params.priority;

@@ -18,7 +18,7 @@ fn container_contains_script_association_should_work() {
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let assoc = ScriptAssociation::new(sid.clone());
-    container.scripts.insert(sid.clone(), assoc.into());
+    container.analyses.insert(sid.clone(), assoc.into());
 
     // test
     assert!(
@@ -77,7 +77,7 @@ fn container_set_script_association_should_work() {
     // test
     // initial
     let init = container.set_script_association(assoc.clone());
-    let found = container.scripts.get(&sid);
+    let found = container.analyses.get(&sid);
     assert!(found.is_some(), "association should be added");
 
     let found = found.unwrap();
@@ -90,7 +90,7 @@ fn container_set_script_association_should_work() {
     // second
     assoc.priority = 1;
     let sec = container.set_script_association(assoc.clone());
-    let found = container.scripts.get(&sid);
+    let found = container.analyses.get(&sid);
     assert!(found.is_some(), "association should still exist");
 
     let found = found.unwrap();
@@ -108,7 +108,7 @@ fn container_remove_script_association_should_work() {
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let params = RunParameters::new();
-    container.scripts.insert(sid.clone(), params);
+    container.analyses.insert(sid.clone(), params);
 
     // test
     // first

@@ -2,7 +2,7 @@
 use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::{Container, ContainerProperties};
 use syre_core::types::ResourceId;
 use syre_desktop_lib::types::AddAssetInfo;
@@ -58,7 +58,7 @@ pub fn update_container_script_associations(
 ) -> Result {
     // TODO Issue with deserializing `HashMap`. perform manually.
     // See: https://github.com/tauri-apps/tauri/issues/6078
-    let associations: ScriptMap = serde_json::from_str(&associations).unwrap();
+    let associations: AnalysisMap = serde_json::from_str(&associations).unwrap();
     let res = db
         .send(
             ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {

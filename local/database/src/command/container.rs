@@ -3,7 +3,7 @@ use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::db::StandardSearchFilter;
-use syre_core::project::container::ScriptMap;
+use syre_core::project::container::AnalysisMap;
 use syre_core::project::{ContainerProperties, ScriptAssociation};
 use syre_core::types::ResourceId;
 
@@ -85,7 +85,7 @@ pub struct BulkUpdatePropertiesArgs {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateScriptAssociationsArgs {
     pub rid: ResourceId,
-    pub associations: ScriptMap,
+    pub associations: AnalysisMap,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

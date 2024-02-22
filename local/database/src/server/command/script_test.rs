@@ -101,19 +101,19 @@ fn remove_script_should_work() {
 
     // scripts are properly removed from container
     assert!(
-        !container.scripts.contains_key(&sid_0),
+        !container.analyses.contains_key(&sid_0),
         "root container should not contain removed script"
     );
     assert!(
-        container.scripts.contains_key(&sid_1),
+        container.analyses.contains_key(&sid_1),
         "root container should contain unremoved script"
     );
     assert!(
-        !child_container.scripts.contains_key(&sid_0),
+        !child_container.analyses.contains_key(&sid_0),
         "child container should not contain removed script"
     );
     assert!(
-        child_container.scripts.contains_key(&sid_1),
+        child_container.analyses.contains_key(&sid_1),
         "child container should contain unremoved script"
     );
     // TODO ensure changes save to disk

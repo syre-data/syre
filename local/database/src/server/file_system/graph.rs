@@ -64,7 +64,7 @@ impl Database {
                 let scripts = self.store.get_project_scripts(&project).unwrap();
                 for (_, container) in graph.iter_nodes_mut() {
                     container
-                        .scripts
+                        .analyses
                         .retain(|script, _| scripts.scripts_contains_key(script));
 
                     container.save()?;

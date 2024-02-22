@@ -5,7 +5,7 @@ use crate::widgets::container::script_associations::ScriptAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::{HashMap, HashSet};
-use syre_core::project::container::{AssetMap, ScriptMap};
+use syre_core::project::container::{AnalysisMap, AssetMap};
 use syre_core::project::{Asset, ContainerProperties, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
@@ -108,7 +108,7 @@ pub struct ContainerProps {
     pub rid: ResourceId,
     pub properties: ContainerProperties,
     pub assets: AssetMap,
-    pub scripts: ScriptMap,
+    pub scripts: AnalysisMap,
     pub script_names: ResourceMap<String>,
 
     #[prop_or_default]

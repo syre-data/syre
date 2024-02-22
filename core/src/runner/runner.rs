@@ -212,7 +212,7 @@ impl<'a> TreeRunner<'a> {
         let get_script = self.hooks.get_script;
         let mut script_errors = HashMap::new();
         for (_, container) in self.tree.iter_nodes() {
-            for sid in container.scripts.keys() {
+            for sid in container.analyses.keys() {
                 if self.scripts.contains_key(sid) {
                     continue;
                 }
@@ -273,7 +273,7 @@ impl<'a> TreeRunner<'a> {
 
         // batch and sort scripts by priority
         let mut script_groups: Vec<(i32, ScriptSet)> =
-            ScriptGroups::from(container.scripts.clone()).into();
+            ScriptGroups::from(container.analyses.clone()).into();
 
         script_groups.sort_by(|(p0, _), (p1, _)| p0.cmp(p1));
 

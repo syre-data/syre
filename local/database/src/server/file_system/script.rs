@@ -73,7 +73,7 @@ impl Database {
                         .to_owned();
 
                     let scripts = self.store.get_project_scripts_mut(&from_project).unwrap();
-                    let script = scripts.get_mut(&script).unwrap();
+                    let script = scripts.get_script_mut(&script).unwrap();
                     let sid = script.rid.clone();
                     script.path = script_path.clone();
                     scripts.save()?;

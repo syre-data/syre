@@ -1,11 +1,22 @@
 //! Spreadsheet interface.
 use super::common;
+use std::collections::HashMap;
+use syre_core::project::excel_template::{CoordinateMap, Index};
 use syre_desktop_lib::excel_template;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct SpreadsheetProps {
     pub spreadsheet: excel_template::Spreadsheet,
+
+    #[prop_or_default]
+    pub column_classes: HashMap<Index, Classes>,
+
+    #[prop_or_default]
+    pub row_classes: HashMap<Index, Classes>,
+
+    #[prop_or_default]
+    pub cell_classes: CoordinateMap<Classes>,
 
     #[prop_or_default]
     pub onclick_header: Option<Callback<(MouseEvent, u32)>>,
@@ -30,12 +41,6 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
     };
 
     let headers = (0..n_cols).map(common::index_to_column).collect::<Vec<_>>();
-
-    let mut th_class = classes!();
-    if props.onclick_header.is_some() {
-        th_class.push("clickable");
-    }
-
     Ok(html! {
         <div>
             <table>
@@ -44,14 +49,21 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
                     { headers
                         .iter()
                         .enumerate()
-                        .map(|(index, header)| html! {
-                            <th key={index}
-                                class={th_class.clone()}
-                                data-index={(index).to_string()}
-                                onclick={onclick_header(index as u32)}>
+                        .map(|(index, header)| {
+                            let mut class = classes!("table-label", "column-label");
+                            if let Some(cell_class) = props.column_classes.get(&(index as Index)) {
+                                class.push(cell_class.clone())
+                            }
 
-                                { header }
-                            </th>
+                            html! {
+                                <th key={index}
+                                    {class}
+                                    data-index={(index).to_string()}
+                                    onclick={onclick_header(index as u32)}>
+
+                                    { header }
+                                </th>
+                            }
                         })
                         .collect::<Html>()
                     }
@@ -60,16 +72,46 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
                     { props.spreadsheet
                         .iter()
                         .enumerate()
-                        .map(|(index, row)| { html! {
-                            <tr>
-                                <th>{ index + 1 }</th>
-                                { row
-                                    .iter()
-                                    .map(|cell_value| html! { <td>{ cell_value }</td> })
-                                    .collect::<Html>()
-                                }
-                            </tr>
-                        }})
+                        .map(|(row_index, row)| {
+                            let mut row_class = classes!("table-label", "row-label");
+                            if let Some(cell_class) = props.row_classes.get(&(row_index as Index)) {
+                                row_class.push(cell_class.clone());
+                            }
+
+                            html! {
+                                <tr data-index={row_index.to_string()}>
+                                    <th class={row_class}>{ row_index + 1 }</th>
+                                    { row
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(col_index, cell_value)| {
+                                            let mut class = classes!();
+                                            if let Some(row_class) = props.row_classes.get(&(row_index as Index)) {
+                                                class.push(row_class.clone());
+                                            }
+
+                                            if let Some(col_class) = props.column_classes.get(&(col_index as Index)) {
+                                                class.push(col_class.clone());
+                                            }
+
+                                            if let Some(cell_class) = props.cell_classes.get_coordinate(&(row_index as Index), &(col_index as Index)) {
+                                                class.push(cell_class.clone());
+                                            }
+
+                                            html! {
+                                                <td {class}
+                                                    data-row={row_index.to_string()}
+                                                    data-column={col_index.to_string()}>
+
+                                                    { cell_value }
+                                                </td>
+                                            }
+                                        })
+                                        .collect::<Html>()
+                                    }
+                                </tr>
+                            }
+                        })
                         .collect::<Html>()
                     }
                 </tbody>

@@ -8,6 +8,9 @@ pub mod runner;
 pub use env::CONTAINER_ID_KEY;
 pub use runner::{Runner, RunnerHooks, ScriptExecutionContext};
 
-pub trait Runnable {
+use crate::types::ResourceId;
+use has_id::HasId;
+
+pub trait Runnable: HasId<Id = ResourceId> {
     fn command(&self) -> std::process::Command;
 }

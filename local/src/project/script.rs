@@ -1,19 +1,12 @@
 //! High level functionality for handling `Scripts`.
 use super::container;
-use super::resources::{Script as ProjectScript, Scripts as ProjectScripts};
 use crate::error::{ContainerError, Result};
 use crate::loader::container::Loader as ContainerLoader;
-use crate::system::collections::{ProjectManifest, Scripts as SystemScripts};
-use std::path::{Path, PathBuf};
-use syre_core::error::{
-    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
-};
+use crate::system::collections::Scripts as SystemScripts;
+use std::path::Path;
+use syre_core::error::{Error as CoreError, Project as CoreProjectError};
 use syre_core::project::ScriptAssociation;
 use syre_core::types::ResourceId;
-
-// **************************
-// *** Script Association ***
-// **************************
 
 /// Add an associaiton with the given script to the given container.
 /// Returns the resource id of the script.

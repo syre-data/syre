@@ -65,7 +65,7 @@ impl Database {
                 for (_, container) in graph.iter_nodes_mut() {
                     container
                         .scripts
-                        .retain(|script, _| scripts.contains_key(script));
+                        .retain(|script, _| scripts.scripts_contains_key(script));
 
                     container.save()?;
                 }

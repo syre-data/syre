@@ -3,11 +3,11 @@ use super::common::ResourceIdArgs;
 use crate::common::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
-use syre_core::project::Script;
+use syre_core::project::{ExcelTemplate, Script};
 use syre_core::types::ResourceId;
-use syre_desktop_lib::excel_template;
+use syre_local::types::ScriptStore;
 
-pub async fn get_project_scripts(project: ResourceId) -> Result<Vec<Script>, String> {
+pub async fn get_project_scripts(project: ResourceId) -> Result<ScriptStore, String> {
     invoke_result("get_project_scripts", ResourceIdArgs { rid: project }).await
 }
 
@@ -31,12 +31,17 @@ pub async fn add_script_windows(
     .await
 }
 
+/// # Returns
+/// Final path of the template.
 pub async fn add_excel_template(
     project: ResourceId,
-    template: excel_template::ExcelTemplate,
-) -> Result<Script, String> {
+    template: ExcelTemplate,
+) -> Result<PathBuf, String> {
+    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let template = serde_json::to_string(&template).unwrap();
     invoke_result(
-        "add_excel_script",
+        "add_excel_template",
         AddExcelTemplateArgs { project, template },
     )
     .await
@@ -69,5 +74,6 @@ pub struct RemoveScriptArgs {
 #[derive(Serialize)]
 struct AddExcelTemplateArgs {
     project: ResourceId,
-    template: excel_template::ExcelTemplate,
+    template: String,
+    // template: ExcelTemplate,
 }

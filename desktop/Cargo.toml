@@ -54,6 +54,7 @@ features = [
     "HtmlFormElement",
     "HtmlInputElement",
     "InputEvent",
+	"ResizeObserver",
     "ScrollBehavior",
     "ScrollIntoViewOptions",
     "ScrollLogicalPosition",

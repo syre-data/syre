@@ -18,7 +18,6 @@ use crate::components::canvas::{
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use syre_core::project::{Asset, RunParameters, ScriptAssociation};
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_desktop_lib::error::{RemoveResource, Trash as TrashError};
@@ -73,19 +72,29 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let script_names = project_scripts
-        .iter()
-        .map(|(rid, script)| {
-            let name = script.name.clone().unwrap_or(
-                Into::<PathBuf>::into(script.path.clone())
-                    .file_name()
-                    .expect("could not get `Script`'s file name")
-                    .to_str()
-                    .expect("could not convert file name to str")
-                    .to_string(),
-            );
+        .scripts()
+        .into_iter()
+        .map(|script| {
+            let name = script
+                .name
+                .clone()
+                .unwrap_or(script.path.to_string_lossy().to_string());
 
-            (rid.clone(), name)
+            (script.rid.clone(), name)
         })
+        .chain(
+            project_scripts
+                .excel_templates()
+                .into_iter()
+                .map(|template| {
+                    let name = template
+                        .name
+                        .clone()
+                        .unwrap_or(template.template.path.to_string_lossy().to_string());
+
+                    (template.rid.clone(), name)
+                }),
+        )
         .collect::<ResourceMap<String>>();
 
     // -------------------

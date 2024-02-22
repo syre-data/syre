@@ -2,7 +2,7 @@
 use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use syre_core::db::StandardSearchFilter;
-use syre_core::project::{Asset, AssetProperties};
+use syre_core::project::{Asset, AssetProperties, ExcelTemplate};
 use syre_core::types::ResourceId;
 
 /// Asset realated commands.

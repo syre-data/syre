@@ -1,54 +1,45 @@
 //! Local runner hooks.
 use std::path::PathBuf;
-use syre_core::project::{Project, Script, ScriptLang};
-use syre_core::runner::RunnerHooks as CoreRunnerHooks;
+use syre_core::project::{ExcelTemplate, Project, Script, ScriptLang};
+use syre_core::runner::{Runnable, RunnerHooks as CoreRunnerHooks};
 use syre_core::types::ResourceId;
 use syre_local::system::settings::RunnerSettings;
+use syre_local::types::script::ScriptKind;
 use syre_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
 #[tracing::instrument]
-pub fn get_script(rid: &ResourceId) -> Result<Script, String> {
+pub fn get_script(rid: &ResourceId) -> Result<Box<dyn Runnable>, String> {
     let db = DbClient::new();
-    let script = db
-        .send(ScriptCommand::Get(rid.clone()).into())
-        .expect("could not retrieve `Script`");
-
-    let script: Option<Script> = serde_json::from_value(script).unwrap();
-
-    let Some(mut script) = script else {
-        return Err("`Script` not loaded".to_string());
+    let Ok(script) = db.send(ScriptCommand::Get(rid.clone()).into()) else {
+        return Err("could not retrieve script".to_string());
     };
 
-    // get absolute path to script
+    let script: Option<ScriptKind> = serde_json::from_value(script).unwrap();
+    let Some(script) = script else {
+        return Err("script not loaded".to_string());
+    };
+
+    match script {
+        ScriptKind::Script(script) => Ok(handle_script(&db, script.into_owned())?),
+        ScriptKind::ExcelTemplate(template) => {
+            Ok(handle_excel_template(&db, template.into_owned())?)
+        }
+    }
+}
+
+pub struct RunnerHooks {}
+impl RunnerHooks {
+    pub fn new() -> CoreRunnerHooks {
+        CoreRunnerHooks::new(get_script)
+    }
+}
+
+fn handle_script(db: &DbClient, mut script: Script) -> Result<Box<Script>, String> {
     if script.path.is_relative() {
-        let project = db
-            .send(ScriptCommand::GetProject(script.rid.clone()).into())
-            .expect("could not retrieve `Project`");
-
-        let project: Option<Project> = serde_json::from_value(project)
-            .expect("could not convert `GetProject` result to `ResourceId`");
-
-        let project = project.expect("`Script`'s `Project` does not exist");
-
-        let analysis_root = project
-            .analysis_root
-            .expect("`Project`'s analysis root not set")
-            .clone();
-
-        let project_path = db
-            .send(ProjectCommand::GetPath(project.rid.clone()).into())
-            .expect("could not retrieve `Project` path");
-
-        let project_path: Option<PathBuf> = serde_json::from_value(project_path)
-            .expect("could not convert result of `GetPath` to `PathBuf`");
-
-        let project_path = project_path.expect("`Project` not loaded");
-
-        let mut abs_path = project_path;
-        abs_path.push(analysis_root);
+        // get absolute path to script
+        let mut abs_path = get_base_path(db, script.rid.clone());
         abs_path.push(script.path);
-
         script.path = abs_path;
     } else if script.path.is_absolute() {
         todo!();
@@ -74,12 +65,49 @@ pub fn get_script(rid: &ResourceId) -> Result<Script, String> {
         }
     };
 
-    Ok(script)
+    Ok(Box::new(script))
 }
 
-pub struct RunnerHooks {}
-impl RunnerHooks {
-    pub fn new() -> CoreRunnerHooks {
-        CoreRunnerHooks::new(get_script)
+fn handle_excel_template(
+    db: &DbClient,
+    mut template: ExcelTemplate,
+) -> Result<Box<ExcelTemplate>, String> {
+    if template.template.path.is_relative() {
+        // get absolute path to template
+        let mut abs_path = get_base_path(db, template.rid.clone());
+        abs_path.push(template.template.path);
+        template.template.path = abs_path;
+    } else if template.template.path.is_absolute() {
+        todo!();
+    } else {
+        todo!();
     }
+
+    // TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
+    // Get runner settings and override script's cmd if necessary
+    if let Ok(runner_settings) = RunnerSettings::load() {
+        if let Some(_python_path) = runner_settings.python_path.clone() {
+            todo!();
+        }
+    }
+
+    Ok(Box::new(template))
+}
+
+fn get_base_path(db: &DbClient, rid: ResourceId) -> PathBuf {
+    let project = db.send(ScriptCommand::GetProject(rid).into()).unwrap();
+
+    let project: Option<Project> = serde_json::from_value(project).unwrap();
+    let project = project.unwrap();
+    let analysis_root = project.analysis_root.unwrap().clone();
+    let project_path = db
+        .send(ProjectCommand::GetPath(project.rid.clone()).into())
+        .unwrap();
+
+    let project_path: Option<PathBuf> = serde_json::from_value(project_path).unwrap();
+    let project_path = project_path.unwrap();
+
+    let mut abs_path = project_path;
+    abs_path.push(analysis_root);
+    abs_path
 }

@@ -1,19 +1,17 @@
 //! Projects state.
-// use crate::commands::settings::UserAppStateArgs;
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use std::rc::Rc;
-use syre_core::project::{Project, Script};
+use syre_core::project::{ExcelTemplate, Project, Script};
 use syre_core::types::{ResourceId, ResourceMap};
-use syre_local::types::ProjectSettings;
+use syre_local::types::{ProjectSettings, ScriptStore};
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;
 pub type SettingsMap = ResourceMap<ProjectSettings>;
-pub type Scripts = ResourceMap<Script>;
 
 /// Map from a `Project` to its `Scripts`.
-pub type ProjectScriptsMap = ResourceMap<Scripts>;
+pub type ProjectScriptsMap = ResourceMap<ScriptStore>;
 
 /// Actions for [`ProjectsState`].
 #[derive(Debug)]
@@ -51,11 +49,15 @@ pub enum ProjectsStateAction {
     },
 
     /// Inserts `Script`s into a `Project`.
-    ///
-    /// # Fields
-    /// 1. `Project`'s id.
-    /// 2. `Project`'s `Script`s.
-    InsertProjectScripts(ResourceId, Scripts),
+    InsertProjectScripts {
+        project: ResourceId,
+        scripts: ScriptStore,
+    },
+
+    InsertProjectExcelTemplate {
+        project: ResourceId,
+        template: ExcelTemplate,
+    },
 
     RemoveProjectScript(ResourceId),
 
@@ -107,7 +109,7 @@ impl Reducible for ProjectsState {
                 current.settings.remove(&project);
                 current.project_scripts.remove(&project);
                 current.projects.remove(&project);
-                current.open_projects.remove(&project);
+                current.open_projects.shift_remove(&project);
                 if let Some(active_project) = current.active_project.as_ref() {
                     if active_project == &project {
                         current.active_project = None;
@@ -125,7 +127,7 @@ impl Reducible for ProjectsState {
                     current.active_project = activate;
                 }
 
-                current.open_projects.remove(&project);
+                current.open_projects.shift_remove(&project);
             }
 
             ProjectsStateAction::SetActiveProject(rid) => {
@@ -134,17 +136,22 @@ impl Reducible for ProjectsState {
 
             ProjectsStateAction::InsertProjectScript { project, script } => {
                 let scripts = current.project_scripts.get_mut(&project).unwrap();
-                scripts.insert(script.rid.clone(), script);
+                scripts.insert_script(script);
             }
 
-            ProjectsStateAction::InsertProjectScripts(project, scripts) => {
+            ProjectsStateAction::InsertProjectScripts { project, scripts } => {
                 current.project_scripts.insert(project, scripts);
+            }
+
+            ProjectsStateAction::InsertProjectExcelTemplate { project, template } => {
+                let scripts = current.project_scripts.get_mut(&project).unwrap();
+                scripts.insert_excel_template(template);
             }
 
             ProjectsStateAction::RemoveProjectScript(script) => {
                 for (_project, scripts) in current.project_scripts.iter_mut() {
-                    if scripts.contains_key(&script) {
-                        scripts.remove(&script);
+                    if scripts.scripts_contains_key(&script) {
+                        scripts.remove_script(&script);
                         break;
                     }
                 }
@@ -152,7 +159,7 @@ impl Reducible for ProjectsState {
 
             ProjectsStateAction::MoveProjectScript { script, path } => {
                 for (_project, scripts) in current.project_scripts.iter_mut() {
-                    if let Some(script) = scripts.get_mut(&script) {
+                    if let Some(script) = scripts.get_script_mut(&script) {
                         script.path = path;
                         break;
                     }

@@ -3,9 +3,8 @@ use super::resources::script_groups::{ScriptGroups, ScriptSet};
 use super::{Runnable, CONTAINER_ID_KEY};
 use crate::error::Runner as RunnerError;
 use crate::graph::ResourceTree;
-use crate::project::{Container, Script};
+use crate::project::Container;
 use crate::types::ResourceId;
-use has_id::HasId;
 use std::collections::{HashMap, HashSet};
 use std::result::Result as StdResult;
 use std::{process, str};
@@ -29,7 +28,7 @@ pub struct ScriptExecutionContext {
 // *************
 
 /// Retrieves a [`Script`] from its [`ResouceId`].
-pub type GetScriptHook = fn(&ResourceId) -> StdResult<Script, String>;
+pub type GetScriptHook = fn(&ResourceId) -> StdResult<Box<dyn Runnable>, String>;
 
 /// Used to handle script errors during execution.
 ///
@@ -176,7 +175,7 @@ struct TreeRunner<'a> {
     max_tasks: Option<usize>,
     ignore_errors: bool,
     verbose: bool,
-    scripts: HashMap<ResourceId, Script>,
+    scripts: HashMap<ResourceId, Box<dyn Runnable>>,
 }
 
 impl<'a> TreeRunner<'a> {
@@ -311,11 +310,11 @@ impl<'a> TreeRunner<'a> {
     ///    ignore_errors -- "true" --> post_script
     ///    ignore_errors -- "false" ---> break("return Err(_)")
     /// ```
-    #[tracing::instrument(skip(self))]
-    fn run_scripts(&self, scripts: Vec<&Script>, container: &Container) -> Result {
+    #[tracing::instrument(skip(self, scripts))]
+    fn run_scripts(&self, scripts: Vec<&Box<dyn Runnable>>, container: &Container) -> Result {
         for script in scripts {
             let exec_ctx = ScriptExecutionContext {
-                script: script.rid.clone(),
+                script: script.id().clone(),
                 container: container.rid.clone(),
             };
 
@@ -367,10 +366,11 @@ impl<'a> TreeRunner<'a> {
     /// # Errors
     /// + [`RunnerError`]: The script returned a `status` other than `0`.
     #[tracing::instrument(skip(self, script))]
-    fn run_script<S>(&self, script: &S, container: &Container) -> Result<process::Output>
-    where
-        S: Runnable + HasId<Id = ResourceId>,
-    {
+    fn run_script(
+        &self,
+        script: &Box<dyn Runnable>,
+        container: &Container,
+    ) -> Result<process::Output> {
         let mut out = script.command();
         let out = match out
             .env(CONTAINER_ID_KEY, container.rid.clone().to_string())

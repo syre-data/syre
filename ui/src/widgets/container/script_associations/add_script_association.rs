@@ -1,6 +1,5 @@
 //! Add a [`ScriptAssociation`] to a [`Container`].
 use std::str::FromStr;
-use syre_core::project::Script as CoreScript;
 use syre_core::types::ResourceId;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
@@ -8,7 +7,11 @@ use yew_icons::{Icon, IconId};
 #[derive(Properties, PartialEq)]
 pub struct AddScriptAssociationProps {
     /// Available `Script`s.
-    pub scripts: Vec<CoreScript>, // TODO Use indexmap::IndexSet.
+    ///
+    /// # Fields
+    /// 1. Id
+    /// 2. Name
+    pub scripts: Vec<(ResourceId, String)>, // TODO Use indexmap::IndexSet.
     pub onadd: Callback<ResourceId>,
 }
 
@@ -62,14 +65,9 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
             if *active {
                 <div>
                     <select ref={script_ref}>
-                        { props.scripts.iter().map(|script| {
-                            let name = match script.name.clone() {
-                                Some(name) => name,
-                                None => script.path.as_path().to_str().expect("could not convert `path` to `str`").to_string()
-                            };
-
+                        { props.scripts.iter().map(|(rid, name)| {
                             html! {
-                                <option value={script.rid.clone()}>{ &name }</option>
+                                <option value={rid.clone()}>{ &name }</option>
                             }
                         }).collect::<Html>() }
                     </select>

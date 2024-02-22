@@ -31,11 +31,11 @@ fn remove_script_should_work() {
 
     let mut scripts = LocalScripts::load_from(dir.path()).expect("could not load `Scripts`");
     scripts
-        .insert_script(script_0)
+        .insert_script_unique_path(script_0)
         .expect("could not insert `Script`");
 
     scripts
-        .insert_script(script_1)
+        .insert_script_unique_path(script_1)
         .expect("could not insert `Script` 1");
 
     // add script association
@@ -86,8 +86,8 @@ fn remove_script_should_work() {
         .expect("could not get `Project`");
 
     // scripts are properly removed from project
-    assert!(!scripts.contains_key(&sid_0));
-    assert!(scripts.contains_key(&sid_1));
+    assert!(!scripts.scripts_contains_key(&sid_0));
+    assert!(scripts.scripts_contains_key(&sid_1));
 
     let container = db
         .store

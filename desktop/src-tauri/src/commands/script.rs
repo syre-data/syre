@@ -1,13 +1,12 @@
 //! Commands related to `Script`s.
 use crate::error::Result;
 use std::path::PathBuf;
-use std::result::Result as StdResult;
 use std::{fs, io};
 use syre_core::error::{Error as CoreError, Project as ProjectError, Resource as ResourceError};
-use syre_core::project::{Project, Script};
+use syre_core::project::{ExcelTemplate, Project, Script};
 use syre_core::types::ResourceId;
-use syre_desktop_lib::excel_template;
 use syre_local::common;
+use syre_local::types::ScriptStore;
 use syre_local_database::client::Client as DbClient;
 use syre_local_database::command::{ProjectCommand, ScriptCommand};
 use syre_local_database::Result as DbResult;
@@ -18,9 +17,9 @@ use tauri::State;
 // ***********************
 
 #[tauri::command]
-pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<Vec<Script>> {
+pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<ScriptStore> {
     let scripts = db.send(ScriptCommand::LoadProject(rid).into()).unwrap();
-    let scripts: DbResult<Vec<Script>> = serde_json::from_value(scripts).unwrap();
+    let scripts: DbResult<ScriptStore> = serde_json::from_value(scripts)?;
     Ok(scripts?)
 }
 
@@ -112,12 +111,20 @@ pub fn add_script_windows(
 // **************************
 
 /// Add an excel template as a script.
+///
+/// # Returns
+/// Final path of the template.
 #[tauri::command]
 pub fn add_excel_template(
     db: State<DbClient>,
     project: ResourceId,
-    template: excel_template::ExcelTemplate,
-) -> Result<Script> {
+    template: String,
+    // mut template: ExcelTemplate,
+) -> Result<PathBuf> {
+    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let mut template: ExcelTemplate = serde_json::from_str(&template).unwrap();
+
     // copy script to analysis root
     let project = get_project(&db, project)?;
     let project_path = get_project_path(&db, project.rid.clone())?;
@@ -128,7 +135,7 @@ pub fn add_excel_template(
         .into());
     };
 
-    let path = template.template_params.path.clone();
+    let path = template.template.path.clone();
     let Some(file_name) = path.file_name() else {
         return Err(
             io::Error::new(io::ErrorKind::InvalidFilename, "could not get file name").into(),
@@ -138,22 +145,31 @@ pub fn add_excel_template(
     let file_name = PathBuf::from(file_name);
 
     let mut to_path = project_path;
-    to_path.push(analysis_root);
+    to_path.push(&analysis_root);
     to_path.push(file_name.clone());
 
     let from_path = fs::canonicalize(path)?;
     if to_path != from_path {
-        fs::copy(&from_path, to_path)?;
-        Ok(None)
-    } else {
-        // add script to project
-        let script = db
-            .send(ScriptCommand::Add(project.rid.clone(), file_name).into())
-            .unwrap();
-
-        let script: DbResult<Script> = serde_json::from_value(script).unwrap();
-        Ok(Some(script?))
+        fs::copy(&from_path, &to_path)?;
     }
+
+    // make path relative
+    template.template.path = file_name.clone();
+
+    // add script to project
+    let res = db
+        .send(
+            ScriptCommand::AddExcelTemplate {
+                project: project.rid.clone(),
+                template,
+            }
+            .into(),
+        )
+        .unwrap();
+
+    let res: DbResult = serde_json::from_value(res).unwrap();
+    res?;
+    Ok(file_name)
 }
 // *********************
 // *** remove script ***

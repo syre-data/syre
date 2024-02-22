@@ -403,7 +403,7 @@ fn remove_project_script_should_work() {
     let sid = script.rid.clone();
 
     scripts
-        .insert_script(script)
+        .insert_script_unique_path(script)
         .expect("could not insert `Script`");
 
     // add other script that is not to be removed
@@ -411,7 +411,7 @@ fn remove_project_script_should_work() {
     let other_sid = other_script.rid.clone();
 
     scripts
-        .insert_script(other_script)
+        .insert_script_unique_path(other_script)
         .expect("could not insert other `Script`");
 
     let mut store = Datastore::new();
@@ -428,7 +428,7 @@ fn remove_project_script_should_work() {
         .expect("could not get `Scripts`");
 
     assert!(
-        !scripts.contains_key(&sid),
+        !scripts.scripts_contains_key(&sid),
         "removed script should not be there"
     );
 
@@ -438,7 +438,7 @@ fn remove_project_script_should_work() {
     );
 
     assert!(
-        scripts.contains_key(&other_sid),
+        scripts.scripts_contains_key(&other_sid),
         "non removed script should be there"
     );
 

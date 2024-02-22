@@ -1,7 +1,7 @@
 //! Script related commands.
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use syre_core::project::Script as CoreScript;
+use syre_core::project::{ExcelTemplate, Script as CoreScript};
 use syre_core::types::ResourceId;
 
 /// Script related commands.
@@ -13,14 +13,11 @@ pub enum ScriptCommand {
     /// 1. `Project`'s `ResourceId`.
     LoadProject(ResourceId),
 
-    /// Gets a `Script`.
-    ///
-    /// # Fields
-    /// 1. `Script`'s `ResourceId`.
+    /// Returns a `ScriptKind`.
     Get(ResourceId),
 
     /// Updates a `Script`.
-    Update(CoreScript),
+    UpdateScript(CoreScript),
 
     /// Adds a `Script` to a `Project`.
     ///
@@ -29,13 +26,18 @@ pub enum ScriptCommand {
     /// 2. `Script`'s path.
     Add(ResourceId, PathBuf),
 
-    /// Removes `Script` from a `Project`.
+    AddExcelTemplate {
+        project: ResourceId,
+        template: ExcelTemplate,
+    },
+
+    /// Removes a script from a `Project`.
     ///
     /// # Fields
     /// 1. `Project`'s id.
     /// 2. `Script`'s id.
     Remove(ResourceId, ResourceId),
 
-    /// Gets the `Project` of a `Script`.
+    /// Gets the `Project` of a script.
     GetProject(ResourceId),
 }

@@ -10,13 +10,14 @@ use syre_core::types::ResourceId;
 use syre_local::project::resources::{
     Project as LocalProject, Script as LocalScript, Scripts as ProjectScripts,
 };
+use syre_local::types::ScriptStore;
 
 impl Database {
     pub fn handle_command_script(&mut self, cmd: ScriptCommand) -> JsValue {
         match cmd {
             ScriptCommand::Get(script) => {
-                let script = self.store.get_script(&script);
-                serde_json::to_value(script.clone()).unwrap()
+                let script = self.store.get_script_or_excel_template(&script);
+                serde_json::to_value(&script).unwrap()
             }
 
             ScriptCommand::Add(project, script) => {
@@ -24,12 +25,17 @@ impl Database {
                 serde_json::to_value(script).unwrap()
             }
 
+            ScriptCommand::AddExcelTemplate { project, template } => {
+                let res = self.store.insert_excel_template(project, template);
+                serde_json::to_value(res).unwrap()
+            }
+
             ScriptCommand::Remove(project, script) => {
                 let res = self.remove_script(&project, &script);
                 serde_json::to_value(res).unwrap()
             }
 
-            ScriptCommand::Update(script) => {
+            ScriptCommand::UpdateScript(script) => {
                 let res = self.update_script(script);
                 serde_json::to_value(res).unwrap()
             }
@@ -56,10 +62,10 @@ impl Database {
     ///
     /// # Arguments
     /// 1. `Project`'s id.
-    fn load_project_scripts(&mut self, rid: ResourceId) -> Result<Vec<CoreScript>> {
+    fn load_project_scripts(&mut self, rid: ResourceId) -> Result<ScriptStore> {
         if let Some(scripts) = self.store.get_project_scripts(&rid) {
             // project scripts already loaded
-            return Ok(scripts.values().map(|script| script.clone()).collect());
+            return Ok((**scripts).clone());
         }
 
         let Some(project) = self.store.get_project(&rid) else {
@@ -70,7 +76,7 @@ impl Database {
         };
 
         let scripts = ProjectScripts::load_from(project.base_path())?;
-        let script_vals = (*scripts).clone().into_values().collect();
+        let script_vals = (*scripts).clone();
         self.store.insert_project_scripts(rid, scripts);
         Ok(script_vals)
     }

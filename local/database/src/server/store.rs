@@ -11,12 +11,13 @@ use syre_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::graph::ResourceTree;
 use syre_core::project::{
-    asset, Asset, Container as CoreContainer, Metadata, Script as CoreScript,
+    Asset, Container as CoreContainer, ExcelTemplate, Metadata, Script as CoreScript,
 };
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_local::project::resources::{
     Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
 };
+use syre_local::types::script::ScriptKind;
 
 // *************
 // *** Types ***
@@ -1238,7 +1239,7 @@ impl Datastore {
         };
 
         let sid = script.rid.clone();
-        let o_script = scripts.insert(sid.clone(), script);
+        let o_script = scripts.insert_script(script);
         scripts.save()?;
 
         // map script
@@ -1279,7 +1280,7 @@ impl Datastore {
         }
 
         // remove from project
-        let o_script = scripts.remove(script);
+        let o_script = scripts.remove_script(script);
         scripts.save()?;
 
         // remove map script
@@ -1297,19 +1298,52 @@ impl Datastore {
             return None;
         };
 
-        scripts.get(&script)
+        scripts.get_script(&script)
     }
 
-    pub fn get_script_mut(&mut self, script: ResourceId) -> Option<&mut CoreScript> {
+    pub fn get_script_mut(&mut self, script: &ResourceId) -> Option<&mut CoreScript> {
+        let Some(project) = self.script_projects.get(script) else {
+            return None;
+        };
+
+        let Some(scripts) = self.scripts.get_mut(project) else {
+            return None;
+        };
+
+        scripts.get_script_mut(script)
+    }
+
+    pub fn insert_excel_template(
+        &mut self,
+        project: ResourceId,
+        template: ExcelTemplate,
+    ) -> Result {
+        let Some(scripts) = self.scripts.get_mut(&project) else {
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
+                "`Project` does not exist",
+            ))
+            .into());
+        };
+
+        let tid = template.rid.clone();
+        scripts.insert_excel_template(template);
+        scripts.save()?;
+
+        // map script
+        self.script_projects.insert(tid, project);
+        Ok(())
+    }
+
+    pub fn get_script_or_excel_template(&self, script: &ResourceId) -> Option<ScriptKind> {
         let Some(project) = self.script_projects.get(&script) else {
             return None;
         };
 
-        let Some(scripts) = self.scripts.get_mut(&project) else {
+        let Some(scripts) = self.scripts.get(project) else {
             return None;
         };
 
-        scripts.get_mut(&script)
+        scripts.get(script)
     }
 }
 

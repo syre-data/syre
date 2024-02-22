@@ -7,6 +7,8 @@ use crate::commands::container::{
 use std::collections::HashSet;
 use syre_core::project::ScriptAssociation;
 use syre_core::types::{ResourceId, ResourceMap};
+use syre_local::types::script::ScriptKind;
+use syre_local::types::ScriptStore;
 use syre_local_database::command::container::{
     BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
     ScriptAssociationBulkUpdate,
@@ -71,7 +73,10 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         .clone()
         .into_keys()
         .map(|assoc| {
-            let script = project_scripts.get(&assoc).expect("`Script` not found");
+            let script = project_scripts
+                .get_script(&assoc)
+                .expect("`Script` not found");
+
             let name = match script.name.clone() {
                 Some(name) => name,
                 None => {
@@ -94,17 +99,20 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     let remaining_scripts = {
         let num_containers = containers.len();
         project_scripts
-            .iter()
-            .filter_map(|(sid, script)| {
-                let Some(script_containers) = associations.get(&sid) else {
-                    return Some(script.clone());
+            .keys()
+            .into_iter()
+            .filter_map(|script| {
+                let Some(script_containers) = associations.get(&script) else {
+                    let name = get_script_name(project_scripts, script);
+                    return Some((script.clone(), name));
                 };
 
                 if script_containers.len() == num_containers {
                     return None;
                 }
 
-                Some(script.clone())
+                let name = get_script_name(project_scripts, script);
+                Some((script.clone(), name))
             })
             .collect::<Vec<_>>()
     };
@@ -461,5 +469,19 @@ async fn update_script_associations(
             msg.set_details(format!("{err:?}"));
             app_state.dispatch(AppStateAction::AddMessage(msg));
         }
+    }
+}
+
+fn get_script_name(script_store: &ScriptStore, script: &ResourceId) -> String {
+    match script_store.get(&script).unwrap() {
+        ScriptKind::Script(script) => script
+            .name
+            .clone()
+            .unwrap_or(script.path.to_string_lossy().to_string()),
+
+        ScriptKind::ExcelTemplate(template) => template
+            .name
+            .clone()
+            .unwrap_or(template.template.path.to_string_lossy().to_string()),
     }
 }

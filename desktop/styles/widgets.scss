@@ -56,29 +56,60 @@
 
   .excel-template {
     .workbook {
-      position: relative;
+		display: grid;
+
+	.spreadsheets {
+		display: grid;
 
       .spreadsheet {
-        position: absolute;
-        top: 0;
-        left: 0;
+		  grid-column: 1;
+		  grid-row: 1;
+		  overflow: auto;
 
         &:not(.active) {
-          visibility: hidden;
+			visibility: hidden;
         }
 
         table {
-          border-collapse: collapse;
+			border-collapse: collapse;
 
           th,
           td {
             @include mixins.hide-text-overflow;
             padding: t.$padding-m t.$padding-xl;
-            border: t.$border-width-s t.$background-accent-color solid;
+            border: t.$border-width-m t.$background-accent-color solid;
           }
+
+		  thead th {
+			  pointer: cursor;
+		  }
         }
+
+		:nth-child(1 of .replace-range) {
+			border-style: double;
+			border-left-color: t.$primary-color;
+		}
+
+		:nth-last-child(1 of .replace-range) {
+			border-style: double;
+			border-right-color: t.$primary-color;
+		}
+
+		th.replace-range {
+			border-style: double;
+			border-top-color: t.$primary-color;
+		}
+
+		tr:last-child .replace-range {
+			border-style: double;
+			border-bottom-color: t.$primary-color;
+		}
       }
-    }
+  }
+	  .spreadsheet-tabs {
+		  grid-column: 1;
+		  grid-row: 2;
+		  overflow-x: auto;
 
     .spreadsheet-tab {
       padding: t.$padding-s t.$padding-l;
@@ -87,5 +118,8 @@
         background-color: t.$background-accent-color;
       }
     }
+}
+    }
+
   }
 }

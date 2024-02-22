@@ -3,8 +3,9 @@ use crate::app::ProjectsStateReducer;
 use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use syre_core::project::container::ScriptMap;
-use syre_core::project::{RunParameters, Script as CoreScript};
+use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
+use syre_local::types::script::{ScriptKind, ScriptStore};
 use syre_ui::widgets::container::script_associations::{
     AddScriptAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
 };
@@ -23,14 +24,9 @@ pub struct ScriptAssociationsEditorProps {
 #[tracing::instrument]
 #[function_component(ScriptAssociationsEditor)]
 pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> HtmlResult {
-    let projects_state =
-        use_context::<ProjectsStateReducer>().expect("`ProjectsStateReducer` context not found");
-
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
-
-    let graph_state =
-        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
+    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
 
     let container = graph_state
         .graph
@@ -50,22 +46,21 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
     let remaining_scripts = use_state(|| {
         project_scripts
-            .values()
+            .keys()
+            .into_iter()
             .filter_map(|script| {
-                if associations.contains_key(&script.rid) {
+                if associations.contains_key(&script) {
                     None
                 } else {
-                    Some(script.clone())
+                    Some((script.clone(), get_script_name(&project_scripts, script)))
                 }
             })
-            .collect::<Vec<CoreScript>>()
+            .collect::<Vec<_>>()
     });
 
-    {
-        let projects_state = projects_state.clone();
-        let project_scripts = project_scripts.clone();
-
-        use_effect_with(projects_state, move |projects_state| {
+    use_effect_with(projects_state.clone(), {
+        let project_scripts = project_scripts.setter();
+        move |projects_state| {
             project_scripts.set(
                 projects_state
                     .project_scripts
@@ -73,120 +68,123 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                     .expect("`Project`'s `Scripts` not loaded")
                     .clone(),
             );
-        });
-    }
+        }
+    });
 
-    {
-        let project_scripts = project_scripts.clone();
-        let remaining_scripts = remaining_scripts.clone();
-        let associations = associations.clone();
-
-        use_effect_with(project_scripts, move |project_scripts| {
+    use_effect_with((project_scripts.clone(), associations.clone()), {
+        let remaining_scripts = remaining_scripts.setter();
+        move |(project_scripts, associations)| {
             remaining_scripts.set(
                 project_scripts
-                    .values()
+                    .keys()
+                    .into_iter()
                     .filter_map(|script| {
-                        if associations.contains_key(&script.rid) {
+                        if associations.contains_key(script) {
                             None
                         } else {
-                            Some(script.clone())
+                            Some((script.clone(), get_script_name(&project_scripts, script)))
                         }
                     })
-                    .collect::<Vec<CoreScript>>(),
+                    .collect::<Vec<_>>(),
             );
-        });
-    }
+        }
+    });
 
-    {
-        // Update associations based on container
-        let container = container.clone();
-        let dirty_state = dirty_state.clone();
-        let associations = associations.clone();
+    // Update associations based on container
+    use_effect_with(container.clone(), {
+        let dirty_state = dirty_state.setter();
+        let associations = associations.setter();
 
-        use_effect_with(container, move |container| {
+        move |container| {
             associations.set(container.scripts.clone());
             dirty_state.set(false);
-        });
-    }
+        }
+    });
 
-    {
-        // Update remaining scripts based on associations
-        let project_scripts = project_scripts.clone();
-        let associations = associations.clone();
-        let remaining_scripts = remaining_scripts.clone();
-
-        use_effect_with(associations, move |associations| {
+    // Update remaining scripts based on associations
+    use_effect_with((associations.clone(), project_scripts.clone()), {
+        let remaining_scripts = remaining_scripts.setter();
+        move |(associations, project_scripts)| {
             let scripts = project_scripts
-                .values()
+                .keys()
+                .into_iter()
                 .filter_map(|script| {
-                    if associations.contains_key(&script.rid) {
+                    if associations.contains_key(script) {
                         None
                     } else {
-                        Some(script.clone())
+                        Some((script.clone(), get_script_name(&project_scripts, script)))
                     }
                 })
-                .collect::<Vec<CoreScript>>();
+                .collect::<Vec<_>>();
 
             remaining_scripts.set(scripts);
-        });
-    }
+        }
+    });
 
-    {
-        // Save associations on change
-        let container = props.container.clone();
-        let graph_state = graph_state.clone();
-        let dirty_state = dirty_state.clone();
-        let associations = associations.clone();
-
-        use_effect_with(associations, move |associations| {
-            if !*dirty_state {
-                return;
-            }
-
-            let container = container.clone();
-            let graph_state = graph_state.clone();
-            let associations = associations.clone();
-
-            spawn_local(async move {
-                match update_script_associations(container.clone(), (*associations).clone()).await {
-                    Ok(_) => {}
-                    Err(err) => {
-                        tracing::debug!(?err);
-                        panic!("{err:?}");
-                    }
+    // Save associations on change
+    use_effect_with(
+        (
+            props.container.clone(),
+            associations.clone(),
+            dirty_state.clone(),
+        ),
+        {
+            let graph_state = graph_state.dispatcher();
+            move |(container, associations, dirty_state)| {
+                if !**dirty_state {
+                    return;
                 }
 
-                let update = UpdateScriptAssociationsArgs {
-                    rid: container,
-                    associations: (*associations).clone(),
-                };
+                let container = container.clone();
+                let graph_state = graph_state.clone();
+                let associations = associations.clone();
 
-                graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
-            });
-        });
-    }
+                spawn_local(async move {
+                    match update_script_associations(container.clone(), (*associations).clone())
+                        .await
+                    {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::debug!(?err);
+                            panic!("{err:?}");
+                        }
+                    }
+
+                    let update = UpdateScriptAssociationsArgs {
+                        rid: container,
+                        associations: (*associations).clone(),
+                    };
+
+                    graph_state
+                        .dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
+                });
+            }
+        },
+    );
 
     let name_map = (*associations)
         .clone()
         .into_keys()
-        .map(|assoc| {
-            let script = project_scripts.get(&assoc).expect("`Script` not found");
-            let name = match script.name.clone() {
-                Some(name) => name,
-                None => {
-                    let name = script
-                        .path
-                        .as_path()
-                        .file_name()
-                        .expect("could not get path's file name");
+        .filter_map(|assoc| {
+            if let Some(script) = project_scripts.get_script(&assoc) {
+                let name = match script.name.clone() {
+                    Some(name) => name,
+                    None => script.path.to_string_lossy().to_string(),
+                };
 
-                    name.to_str()
-                        .expect("could not convert file name to string")
-                        .to_string()
-                }
-            };
+                return Some((assoc, name));
+            }
 
-            (assoc, name)
+            if let Some(template) = project_scripts.get_excel_template(&assoc) {
+                let name = match template.name.clone() {
+                    Some(name) => name,
+                    None => template.template.path.to_string_lossy().to_string(),
+                };
+
+                return Some((assoc, name));
+            }
+
+            None
         })
         .collect::<NameMap>();
 
@@ -224,4 +222,18 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                 {onchange} />
         </div>
     })
+}
+
+fn get_script_name(script_store: &ScriptStore, script: &ResourceId) -> String {
+    match script_store.get(&script).unwrap() {
+        ScriptKind::Script(script) => script
+            .name
+            .clone()
+            .unwrap_or(script.path.to_string_lossy().to_string()),
+
+        ScriptKind::ExcelTemplate(template) => template
+            .name
+            .clone()
+            .unwrap_or(template.template.path.to_string_lossy().to_string()),
+    }
 }

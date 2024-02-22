@@ -1,6 +1,6 @@
 //! Project scripts editor.
 use crate::actions::container::Action as ContainerAction;
-use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
+use crate::app::{AppStateAction, AppStateDispatcher, AppStateReducer, ProjectsStateReducer};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
 use crate::commands::script::add_script_windows;
@@ -8,8 +8,8 @@ use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use syre_core::project::ExcelTemplate;
 use syre_core::types::ResourceId;
-use syre_desktop_lib::excel_template;
 use syre_ui::types::Message;
 use syre_ui::widgets::script::CreateScript;
 use wasm_bindgen::prelude::Closure;
@@ -27,7 +27,7 @@ pub struct ProjectScriptsProps {
 
     /// Called when a user adds Excel Templates to the `Project`.
     #[prop_or_default]
-    pub onadd_excel_template: Option<Callback<excel_template::ExcelTemplate>>,
+    pub onadd_excel_template: Option<Callback<ExcelTemplate>>,
 
     /// Called when a user removes a `Script`.
     #[prop_or_default]
@@ -46,55 +46,49 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
     let drag_over_state = use_state(|| 0);
 
     let ondblclick_script = {
-        let app_state = app_state.clone();
+        let app_state = app_state.dispatcher();
         let projects_state = projects_state.clone();
         let project = project.clone();
 
         move |script: ResourceId| {
             let app_state = app_state.clone();
             let project = projects_state.projects.get(&*project).unwrap();
-            let pid = project.rid.clone();
             let analysis_root = project.analysis_root.clone().unwrap();
             let script_path = projects_state
                 .project_scripts
                 .get(&project.rid)
                 .unwrap()
-                .get(&script)
+                .get_script(&script)
                 .unwrap()
                 .path
                 .clone();
 
-            Callback::from(move |e: MouseEvent| {
-                e.stop_propagation();
-                let app_state = app_state.clone();
-                let pid = pid.clone();
-                let analysis_root = analysis_root.clone();
-                let script_path = script_path.clone();
+            let script_rel_path = analysis_root.join(script_path);
+            open_script_callback(app_state, project.rid.clone(), script_rel_path)
+        }
+    };
 
-                spawn_local(async move {
-                    let mut path = match get_project_path(pid).await {
-                        Ok(path) => path,
-                        Err(err) => {
-                            let mut msg = Message::error("Could not get project path");
-                            msg.set_details(err);
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
-                            return;
-                        }
-                    };
+    let ondblclick_excel_template = {
+        let app_state = app_state.dispatcher();
+        let projects_state = projects_state.clone();
+        let project = project.clone();
 
-                    path.push(analysis_root);
-                    path.push(script_path.as_path());
-                    match open_file(path).await {
-                        Ok(_) => {}
-                        Err(err) => {
-                            let mut msg = Message::error("Could not open file");
-                            msg.set_details(err);
-                            app_state.dispatch(AppStateAction::AddMessage(msg));
-                            return;
-                        }
-                    };
-                });
-            })
+        move |script: ResourceId| {
+            let app_state = app_state.clone();
+            let project = projects_state.projects.get(&*project).unwrap();
+            let analysis_root = project.analysis_root.clone().unwrap();
+            let template_path = projects_state
+                .project_scripts
+                .get(&project.rid)
+                .unwrap()
+                .get_excel_template(&script)
+                .unwrap()
+                .template
+                .path
+                .clone();
+
+            let template_rel_path = analysis_root.join(template_path);
+            open_script_callback(app_state, project.rid.clone(), template_rel_path)
         }
     };
 
@@ -244,13 +238,12 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
             }
 
             <ul>
-                { project_scripts.values().map(|script| {
+                { project_scripts.scripts().into_iter().map(|script| {
                     let name = match script.name.as_ref() {
                         Some(name) => name.clone(),
                         None => {
                             let path = script.path.as_path();
-                            let file_name = path.file_name().expect("could not get file name");
-                            let name = file_name.to_string_lossy().to_string();
+                            let name = path.to_string_lossy().to_string();
 
                             name
                         }
@@ -279,7 +272,78 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
                         </li>
                     }
                 }).collect::<Html>() }
+
+                { project_scripts.excel_templates().into_iter().map(|template| {
+                    let name = match template.name.as_ref() {
+                        Some(name) => name.clone(),
+                        None => {
+                            let path = template.template.path.as_path();
+                            let name = path.to_string_lossy().to_string();
+
+                            name
+                        }
+                    };
+
+                    html! {
+                        <li key={template.rid.clone()}
+                            data-rid={format!("{}", template.rid)}>
+
+                            <span class={"name clickable"}
+                                title={name.clone()}
+                                ondblclick={ondblclick_excel_template(template.rid.clone())}
+                                ondragstart={ondragstart_script(template.rid.clone())}
+                                draggable={"true"} >
+                                { name }
+                            </span>
+
+                            if props.onremove.is_some() {
+                                <button class={"btn-icon"} type={"button"}
+                                    onclick={onclick_remove(template.rid.clone())}>
+
+                                    <Icon class={"syre-ui-add-remove-icon"}
+                                        icon_id={IconId::HeroiconsSolidMinus}/>
+                                </button>
+                            }
+                        </li>
+                    }
+                }).collect::<Html>() }
             </ul>
         </div>
+    })
+}
+
+fn open_script_callback(
+    app_state: AppStateDispatcher,
+    project: ResourceId,
+    rel_script_path: PathBuf,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        e.stop_propagation();
+        let app_state = app_state.clone();
+        let project = project.clone();
+        let rel_script_path = rel_script_path.clone();
+
+        spawn_local(async move {
+            let mut path = match get_project_path(project).await {
+                Ok(path) => path,
+                Err(err) => {
+                    let mut msg = Message::error("Could not get project path.");
+                    msg.set_details(err);
+                    app_state.dispatch(AppStateAction::AddMessage(msg));
+                    return;
+                }
+            };
+
+            path.push(rel_script_path);
+            match open_file(path).await {
+                Ok(_) => {}
+                Err(err) => {
+                    let mut msg = Message::error("Could not open file.");
+                    msg.set_details(err);
+                    app_state.dispatch(AppStateAction::AddMessage(msg));
+                    return;
+                }
+            };
+        });
     })
 }

@@ -1,11 +1,10 @@
 use crate::error::ScriptError;
-use crate::types::{ResourceId, ResourceMap};
+use crate::types::ResourceId;
 use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 
@@ -14,9 +13,6 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serde")]
 use has_id::HasIdSerde;
-
-#[cfg(feature = "serde")]
-use crate::types::resource_map::values_only;
 
 // **************
 // *** Script ***

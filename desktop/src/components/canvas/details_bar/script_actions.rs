@@ -6,8 +6,8 @@ use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphState
 use crate::hooks::use_project;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use syre_core::project::ExcelTemplate;
 use syre_core::types::ResourceId;
-use syre_desktop_lib::excel_template::ExcelTemplate;
 use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -51,27 +51,27 @@ pub fn project_scripts_actions() -> HtmlResult {
                     };
 
                     if let Some(script) = script {
-                        project_scripts.insert(script.rid.clone(), script);
+                        project_scripts.insert_script(script);
                     }
                 }
 
-                projects_state.dispatch(ProjectsStateAction::InsertProjectScripts(
+                projects_state.dispatch(ProjectsStateAction::InsertProjectScripts {
                     project,
-                    project_scripts,
-                ));
+                    scripts: project_scripts,
+                });
             });
         }
     });
 
     let onadd_excel_template = use_callback((project.rid.clone(), projects_state.clone()), {
         let app_state = app_state.dispatcher();
-        move |template: ExcelTemplate, (project, projects_state)| {
+        move |mut template: ExcelTemplate, (project, projects_state)| {
             let project = project.clone();
             let projects_state = projects_state.clone();
             let app_state = app_state.clone();
             spawn_local(async move {
-                let script = match add_excel_template(project.clone(), template).await {
-                    Ok(script) => script,
+                let path = match add_excel_template(project.clone(), template.clone()).await {
+                    Ok(template) => template,
                     Err(err) => {
                         let mut msg = Message::error("Could not create template script.");
                         msg.set_details(err);
@@ -80,8 +80,11 @@ pub fn project_scripts_actions() -> HtmlResult {
                     }
                 };
 
-                projects_state
-                    .dispatch(ProjectsStateAction::InsertProjectScript { project, script });
+                template.template.path = path;
+                projects_state.dispatch(ProjectsStateAction::InsertProjectExcelTemplate {
+                    project,
+                    template,
+                });
             });
         }
     });
@@ -121,9 +124,9 @@ pub fn project_scripts_actions() -> HtmlResult {
                 // found error.
 
                 // Remove from scripts
-                scripts.remove(&rid);
+                scripts.remove_script(&rid);
                 projects_state
-                    .dispatch(ProjectsStateAction::InsertProjectScripts(project, scripts));
+                    .dispatch(ProjectsStateAction::InsertProjectScripts { project, scripts });
 
                 // Remove from containers
                 graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(

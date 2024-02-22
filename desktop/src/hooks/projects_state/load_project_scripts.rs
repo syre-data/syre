@@ -23,7 +23,7 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
         let app_state = app_state.dispatcher();
         let projects_state = projects_state.dispatcher();
         spawn_local(async move {
-            let prj_scripts = match get_project_scripts(project.clone()).await {
+            let scripts = match get_project_scripts(project.clone()).await {
                 Ok(scripts) => scripts,
                 Err(err) => {
                     tracing::debug!(err);
@@ -34,16 +34,10 @@ pub fn use_load_project_scripts(project: &ResourceId) -> SuspensionResult<()> {
                 }
             };
 
-            let prj_scripts = prj_scripts
-                .into_iter()
-                .map(|script| (script.rid.clone(), script))
-                .collect::<ResourceMap<Script>>()
-                .into();
-
-            projects_state.dispatch(ProjectsStateAction::InsertProjectScripts(
-                project.clone(),
-                prj_scripts,
-            ));
+            projects_state.dispatch(ProjectsStateAction::InsertProjectScripts {
+                project: project.clone(),
+                scripts,
+            });
 
             handle.resume();
         });

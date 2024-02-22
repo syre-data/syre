@@ -436,7 +436,7 @@ fn script_name(
     match project_scripts.get(project) {
         None => None,
 
-        Some(scripts) => match scripts.get(script) {
+        Some(scripts) => match scripts.get_script(script) {
             None => None,
             Some(script) => Some(script.path.as_path().to_string_lossy().to_string()),
         },

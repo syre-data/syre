@@ -4,6 +4,7 @@ pub mod create_template;
 pub mod excel_template;
 pub mod excel_template_builder;
 pub mod spreadsheet;
+pub mod steps;
 pub mod workbook;
 
 pub use create_template::CreateExcelTemplate;

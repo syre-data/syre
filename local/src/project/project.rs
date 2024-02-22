@@ -350,7 +350,9 @@ pub mod converter {
                         continue;
                     };
 
-                    scripts.insert_script(script)?;
+                    scripts
+                        .insert_script_unique_path(script)
+                        .map_err(|err| Error::Core(err.into()))?;
                 }
 
                 scripts.save()?;
@@ -366,7 +368,7 @@ pub mod converter {
                 // assign scripts
                 let scripts = Scripts::load_from(&root)?;
                 let mut container_scripts = HashMap::new();
-                for script in scripts.values() {
+                for script in scripts.scripts() {
                     let entry = container_scripts
                         .entry(script.path.parent().unwrap())
                         .or_insert(Vec::new());

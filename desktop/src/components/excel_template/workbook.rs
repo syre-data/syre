@@ -24,7 +24,14 @@ pub struct WorkbookProps {
     /// 1. (sheet name, column index).
     ///
     #[prop_or_default]
-    pub onclick_header: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
+    pub onclick_column_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
+
+    /// # Fields
+    /// 0. Original event.
+    /// 1. (sheet name, row index).
+    ///
+    #[prop_or_default]
+    pub onclick_row_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
 }
 
 #[function_component(Workbook)]
@@ -42,13 +49,25 @@ pub fn workbook(props: &WorkbookProps) -> Html {
         }
     };
 
-    let onclick_header = move |sheet: WorksheetId| {
+    let onclick_column_label = move |sheet: WorksheetId| {
         Callback::from({
-            let onclick_header = props.onclick_header.clone();
+            let onclick_column_label = props.onclick_column_label.clone();
             move |(e, index): (MouseEvent, u32)| {
                 e.stop_propagation();
-                if let Some(onclick_header) = onclick_header.as_ref() {
-                    onclick_header.emit((e, (sheet.clone(), index)));
+                if let Some(onclick_column_label) = onclick_column_label.as_ref() {
+                    onclick_column_label.emit((e, (sheet.clone(), index)));
+                }
+            }
+        })
+    };
+
+    let onclick_row_label = move |sheet: WorksheetId| {
+        Callback::from({
+            let onclick_row_label = props.onclick_column_label.clone();
+            move |(e, index): (MouseEvent, u32)| {
+                e.stop_propagation();
+                if let Some(onclick_row_label) = onclick_row_label.as_ref() {
+                    onclick_row_label.emit((e, (sheet.clone(), index)));
                 }
             }
         })
@@ -105,7 +124,8 @@ pub fn workbook(props: &WorkbookProps) -> Html {
                                 {row_classes}
                                 {column_classes}
                                 {cell_classes}
-                                onclick_header={onclick_header(WorksheetId::Name(spreadsheet_names[index].clone()))} />
+                                onclick_column_label={onclick_column_label(WorksheetId::Name(spreadsheet_names[index].clone()))}
+                                onclick_row_label={onclick_row_label(WorksheetId::Name(spreadsheet_names[index].clone()))} />
                         </div>
                     }
                 }).collect::<Html>()}

@@ -281,7 +281,7 @@ impl<'a> TreeRunner<'a> {
             let scripts = script_group
                 .into_iter()
                 .filter(|s| s.autorun)
-                .map(|assoc| self.scripts.get(&assoc.script).unwrap())
+                .map(|assoc| self.scripts.get(&assoc.analysis).unwrap())
                 .collect();
 
             self.run_scripts(scripts, &container)?;

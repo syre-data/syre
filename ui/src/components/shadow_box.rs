@@ -1,5 +1,6 @@
 //! Shadow box.
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(PartialEq, Properties)]
 pub struct ShadowBoxProps {
@@ -54,18 +55,21 @@ pub fn shadow_box(props: &ShadowBoxProps) -> Html {
         .expect("could not get host element");
 
     let out = html! {
-        <div class={classes!("syre-ui-shadow-box-wrapper")} style={CONTAINER_STYLE}>
-            <div class={classes!("syre-ui-shadow-box")} style={"position: relative;"}>
+        <div class={"syre-ui-shadow-box-wrapper"} style={CONTAINER_STYLE}>
+            <div class={"syre-ui-shadow-box"} style={"position: relative;"}>
                 <button
                     style={CLOSE_BTN_STYLES}
-                    onclick={props.onclose.clone()}>{ "X" }</button>
+                    onclick={props.onclose.clone()}>
+
+                    <Icon icon_id={IconId::FontAwesomeSolidXmark} />
+                </button>
 
                 if props.title.is_some() {
-                    <div class={classes!("shadow-box-header")}>
+                    <div class={"shadow-box-header"}>
                         <h2>{ props.title.clone().unwrap() }</h2>
                     </div>
                 }
-                <div class={classes!("shadow-box-content")}>
+                <div class={"shadow-box-content"}>
                     { for props.children.iter() }
                 </div>
             </div>

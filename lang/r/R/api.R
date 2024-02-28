@@ -90,7 +90,7 @@ find_containers <-
     ))
 
     cmd <-
-      sprintf('{"ContainerCommand": {"FindWithMetadata": %s}}', args)
+      sprintf('{"Container": {"FindWithMetadata": %s}}', args)
     containers <- send_cmd(db@socket, cmd, result = FALSE)
     containers |> map(container_from_json)
   }
@@ -161,7 +161,7 @@ find_assets <-
       )
     ))
 
-    cmd <- sprintf('{"AssetCommand": {"FindWithMetadata": %s}}', args)
+    cmd <- sprintf('{"Asset": {"FindWithMetadata": %s}}', args)
     assets <- send_cmd(db@socket, cmd, result = FALSE)
     assets |> map(asset_from_json)
   }
@@ -238,7 +238,7 @@ add_asset <- function(db,
 
   args <- to_json(list(asset, db@root))
   args <- json_empty_list_to_obj("metadata", args)
-  cmd <- sprintf('{"AssetCommand": {"Add": %s}}', args)
+  cmd <- sprintf('{"Asset": {"Add": %s}}', args)
   send_cmd(db@socket, cmd)
   if (SYSNAME == "Windows") {
     path <- join_path_windows(db@root_path, asset$path[[1]])
@@ -270,6 +270,6 @@ flag <- function(db, resource, message) {
     resource = resource@.rid,
     message = message
   ))
-  cmd <- sprintf('{"AnalysisCommand": {"Flag": %s}}', args)
+  cmd <- sprintf('{"Runner": {"Flag": %s}}', args)
   send_cmd(db@socket, cmd)
 }

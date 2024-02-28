@@ -39,7 +39,7 @@ fn load_project_resources(path: &str) -> syre_core::graph::ResourceTree<Containe
     let project = project.unwrap();
 
     let scripts = db
-        .send(ldb::ScriptCommand::LoadProject(project.rid.clone()).into())
+        .send(ldb::AnalysisCommand::LoadProject(project.rid.clone()).into())
         .unwrap();
 
     let scripts: ldb::Result<ResourceMap<Script>> = serde_json::from_value(scripts).unwrap();

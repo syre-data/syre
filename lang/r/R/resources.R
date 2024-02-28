@@ -145,14 +145,14 @@ container_from_json <- function(container) {
 #' childs <- db |> children(container)
 children <- function(db, container) {
   cmd <-
-    sprintf('{"GraphCommand": {"Children": %s}}',
+    sprintf('{"Graph": {"Children": %s}}',
             to_json(container@.rid))
 
   children_ids <- send_cmd(db@socket, cmd, result = FALSE)
   childs <- vector("list", length(children_ids))
   for (i in seq_along(children_ids)) {
     cmd <-
-      sprintf('{"ContainerCommand": {"GetWithMetadata": %s}}',
+      sprintf('{"Container": {"GetWithMetadata": %s}}',
               to_json(children_ids[[i]]))
 
     container <- send_cmd(db@socket, cmd, result = FALSE)
@@ -190,12 +190,12 @@ setMethod("parent", signature(db = "Database", resource = "Container"), function
   }
 
   cmd <-
-    sprintf('{"GraphCommand": {"Parent": %s}}', to_json(resource@.rid))
+    sprintf('{"Graph": {"Parent": %s}}', to_json(resource@.rid))
 
   container <- send_cmd(db@socket, cmd, result = FALSE)
 
   cmd <-
-    sprintf('{"ContainerCommand": {"GetWithMetadata": %s}}',
+    sprintf('{"Container": {"GetWithMetadata": %s}}',
             to_json(container))
 
   container <- send_cmd(db@socket, cmd, result = FALSE)
@@ -216,12 +216,12 @@ setMethod("parent", signature(db = "Database", resource = "Container"), function
 #' container <- db |> parent(asset)
 setMethod("parent", signature(db = "Database", resource = "Asset"), function(db, resource) {
   cmd <-
-    sprintf('{"AssetCommand": {"Parent": %s}}', to_json(resource@.rid))
+    sprintf('{"Asset": {"Parent": %s}}', to_json(resource@.rid))
 
   container <- send_cmd(db@socket, cmd, result = FALSE)
 
   cmd <-
-    sprintf('{"ContainerCommand": {"GetWithMetadata": %s}}',
+    sprintf('{"Container": {"GetWithMetadata": %s}}',
             to_json(container$rid))
 
   container <- send_cmd(db@socket, cmd, result = FALSE)

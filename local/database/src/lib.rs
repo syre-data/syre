@@ -24,8 +24,8 @@ pub mod server;
 
 // Re-exports
 pub use command::{
-    AssetCommand, Command, ContainerCommand, DatabaseCommand, GraphCommand, ProjectCommand,
-    ScriptCommand,
+    AnalysisCommand, AssetCommand, Command, ContainerCommand, DatabaseCommand, GraphCommand,
+    ProjectCommand,
 };
 
 pub use event::Update;

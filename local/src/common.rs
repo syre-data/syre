@@ -228,14 +228,14 @@ pub fn assets_file_of(path: impl AsRef<Path>) -> PathBuf {
 
 // --- scirpts ---
 /// Path to the Assets file from a base path.
-pub fn scripts_file() -> PathBuf {
-    app_dir().join(SCRIPTS_FILE)
+pub fn analyses_file() -> PathBuf {
+    app_dir().join(ANALYSES_FILE)
 }
 
-/// Path to the Assets file for a given path.
-/// app_dir(path)/\<SCRIPTS_FILE\>
-pub fn scripts_file_of(path: impl AsRef<Path>) -> PathBuf {
-    app_dir_of(path).join(SCRIPTS_FILE)
+/// Path to the analyses file for a given path.
+/// app_dir(path)/\<ANALYSES_FIL\>
+pub fn analyses_file_of(path: impl AsRef<Path>) -> PathBuf {
+    app_dir_of(path).join(ANALYSES_FILE)
 }
 
 #[cfg(test)]

@@ -14,8 +14,8 @@ use std::result::Result as StdResult;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::project::container::AssetMap;
 use syre_core::project::{
-    container::AnalysisMap, Container as CoreContainer,
-    ContainerProperties as CoreContainerProperties, ScriptAssociation,
+    container::AnalysisMap, AnalysisAssociation, Container as CoreContainer,
+    ContainerProperties as CoreContainerProperties,
 };
 use syre_core::types::{Creator, ResourceId, UserId};
 
@@ -140,14 +140,14 @@ impl Container {
     ///
     /// # See also
     /// + `set_script_association`
-    pub fn add_script_association(&mut self, assoc: ScriptAssociation) -> Result {
-        if self.contains_script_association(&assoc.script) {
+    pub fn add_script_association(&mut self, assoc: AnalysisAssociation) -> Result {
+        if self.contains_script_association(&assoc.analysis) {
             return Err(Error::Core(CoreError::Resource(
                 ResourceError::already_exists("Association with script already exists"),
             )));
         }
 
-        let script = assoc.script.clone();
+        let script = assoc.analysis.clone();
         self.analyses.insert(script, assoc.into());
         Ok(())
     }
@@ -157,8 +157,8 @@ impl Container {
     ///
     /// # See also
     /// + [`add_script_association`]
-    pub fn set_script_association(&mut self, assoc: ScriptAssociation) -> bool {
-        let script = assoc.script.clone();
+    pub fn set_script_association(&mut self, assoc: AnalysisAssociation) -> bool {
+        let script = assoc.analysis.clone();
         let old = self.analyses.insert(script, assoc.into());
         old.is_none()
     }

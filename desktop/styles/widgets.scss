@@ -1,5 +1,6 @@
 @use "themes" as t;
 @use "mixins";
+@use "utilities";
 
 .project-scripts-widget {
   button {
@@ -49,77 +50,113 @@
   }
 }
 
+.syre-ui-page-overlay:has(.excel-template-builder) {
+  height: 100%;
+  overflow-y: auto;
+
+  .page-overlay-content {
+    height: 100%;
+  }
+}
+
 .excel-template-builder {
-  .builder-step:not(.active) {
-    display: none;
+  height: 100%;
+  overflow-y: auto;
+
+  .builder-step {
+    min-height: 100%;
+    padding-bottom: 10%;
+  }
+
+  form {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
   }
 
   .excel-template {
-    .workbook {
-		display: grid;
+    form {
+      overflow-y: auto;
 
-	.spreadsheets {
-		display: grid;
+      .template-step {
+        position: relative;
+        min-height: 100%;
+        padding-bottom: 10%;
 
-      .spreadsheet {
-		  grid-column: 1;
-		  grid-row: 1;
-		  overflow: auto;
-
-        &:not(.active) {
-			visibility: hidden;
+        .step-controls {
+          position: sticky;
+          bottom: 0;
         }
+      }
+    }
 
-        table {
-			border-collapse: collapse;
+    .workbook {
+      display: grid;
 
-          th,
-          td {
-            @include mixins.hide-text-overflow;
-            padding: t.$padding-m t.$padding-xl;
-            border: t.$border-width-m t.$background-accent-color solid;
+      .spreadsheets {
+        display: grid;
+
+        .spreadsheet {
+          grid-column: 1;
+          grid-row: 1;
+          overflow: auto;
+
+          &:not(.active) {
+            visibility: hidden;
           }
 
-		  thead th {
-			  pointer: cursor;
-		  }
+          table {
+            border-collapse: collapse;
+
+            th,
+            td {
+              @include mixins.hide-text-overflow;
+              padding: t.$padding-m t.$padding-xl;
+              border: t.$border-width-m t.$background-accent-color solid;
+            }
+
+            thead th {
+              cursor: pointer;
+            }
+          }
+
+          :nth-child(1 of .replace-range) {
+            border-style: double;
+            border-left-color: t.$primary-color;
+          }
+
+          :nth-last-child(1 of .replace-range) {
+            border-style: double;
+            border-right-color: t.$primary-color;
+          }
+
+          th.replace-range {
+            border-style: double;
+            border-top-color: t.$primary-color;
+          }
+
+          tr:last-child .replace-range {
+            border-style: double;
+            border-bottom-color: t.$primary-color;
+          }
+
+          .header-row {
+            filter: brightness(60%);
+          }
         }
-
-		:nth-child(1 of .replace-range) {
-			border-style: double;
-			border-left-color: t.$primary-color;
-		}
-
-		:nth-last-child(1 of .replace-range) {
-			border-style: double;
-			border-right-color: t.$primary-color;
-		}
-
-		th.replace-range {
-			border-style: double;
-			border-top-color: t.$primary-color;
-		}
-
-		tr:last-child .replace-range {
-			border-style: double;
-			border-bottom-color: t.$primary-color;
-		}
       }
-  }
-	  .spreadsheet-tabs {
-		  grid-column: 1;
-		  grid-row: 2;
-		  overflow-x: auto;
+      .spreadsheet-tabs {
+        grid-column: 1;
+        grid-row: 2;
+        overflow-x: auto;
 
-    .spreadsheet-tab {
-      padding: t.$padding-s t.$padding-l;
+        .spreadsheet-tab {
+          padding: t.$padding-s t.$padding-l;
 
-      &.active {
-        background-color: t.$background-accent-color;
+          &.active {
+            background-color: t.$background-accent-color;
+          }
+        }
       }
     }
-}
-    }
-
   }
 }

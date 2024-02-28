@@ -6,19 +6,19 @@ use crate::types::ResourceId;
 // **************************
 
 #[test]
-fn script_association_new_works() {
+fn association_new_works() {
     let id = ResourceId::new(); // fake id of script
-    let script = ScriptAssociation::new(id);
+    let script = AnalysisAssociation::new(id);
 
     assert_eq!(true, script.autorun, "autorun should default to true");
     assert_eq!(0, script.priority, "order should default to 0");
 }
 
 #[test]
-fn script_association_into_run_parameters_should_work() {
+fn association_into_run_parameters_should_work() {
     // setup
     let id = ResourceId::new(); // fake id of script
-    let mut script = ScriptAssociation::new(id);
+    let mut script = AnalysisAssociation::new(id);
     script.autorun = false;
     script.priority = 1;
 
@@ -51,7 +51,7 @@ fn run_parameteres_to_association_should_work() {
     let params = RunParameters::new();
     let assoc = params.clone().to_association(rid.clone());
 
-    assert_eq!(rid, assoc.script, "scripts should match");
+    assert_eq!(rid, assoc.analysis, "scripts should match");
     assert_eq!(params.autorun, assoc.autorun, "autoruns should match");
     assert_eq!(params.priority, assoc.priority, "priorities should match");
 }

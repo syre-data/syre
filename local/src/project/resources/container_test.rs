@@ -1,6 +1,6 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use syre_core::project::{RunParameters, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, RunParameters};
 use syre_core::types::ResourceId;
 
 // *****************
@@ -17,7 +17,7 @@ fn container_contains_script_association_should_work() {
     let dir = TempDir::new().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
-    let assoc = ScriptAssociation::new(sid.clone());
+    let assoc = AnalysisAssociation::new(sid.clone());
     container.analyses.insert(sid.clone(), assoc.into());
 
     // test
@@ -38,7 +38,7 @@ fn container_add_script_association_should_work() {
     let dir = TempDir::new().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
-    let assoc = ScriptAssociation::new(sid.clone());
+    let assoc = AnalysisAssociation::new(sid.clone());
 
     // test
     container
@@ -57,7 +57,7 @@ fn container_add_script_association_if_already_exists_should_error() {
     let dir = TempDir::new().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
-    let assoc = ScriptAssociation::new(sid.clone());
+    let assoc = AnalysisAssociation::new(sid.clone());
     container
         .add_script_association(assoc.clone())
         .expect("add association should work");
@@ -72,7 +72,7 @@ fn container_set_script_association_should_work() {
     let dir = TempDir::new().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
-    let mut assoc = ScriptAssociation::new(sid.clone());
+    let mut assoc = AnalysisAssociation::new(sid.clone());
 
     // test
     // initial

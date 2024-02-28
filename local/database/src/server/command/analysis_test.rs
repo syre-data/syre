@@ -1,9 +1,9 @@
 use super::*;
 use dev_utils::fs::TempDir;
 use syre_core::graph::ResourceTree;
-use syre_core::project::{Script, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, Script};
 use syre_local::project::resources::{
-    Container as LocalContainer, Project as LocalProject, Scripts as LocalScripts,
+    Analyses as LocalScripts, Container as LocalContainer, Project as LocalProject,
 };
 
 #[test]
@@ -39,10 +39,10 @@ fn remove_script_should_work() {
         .expect("could not insert `Script` 1");
 
     // add script association
-    let assoc_root_0 = ScriptAssociation::new(sid_0.clone());
-    let assoc_root_1 = ScriptAssociation::new(sid_1.clone());
-    let assoc_child_0 = ScriptAssociation::new(sid_0.clone());
-    let assoc_child_1 = ScriptAssociation::new(sid_1.clone());
+    let assoc_root_0 = AnalysisAssociation::new(sid_0.clone());
+    let assoc_root_1 = AnalysisAssociation::new(sid_1.clone());
+    let assoc_child_0 = AnalysisAssociation::new(sid_0.clone());
+    let assoc_child_1 = AnalysisAssociation::new(sid_1.clone());
 
     container
         .add_script_association(assoc_root_0.clone())
@@ -77,7 +77,7 @@ fn remove_script_should_work() {
 
     // test
 
-    db.remove_script(&pid, &sid_0)
+    db.remove_analysis(&pid, &sid_0)
         .expect("could not remove `Script`");
 
     let scripts = db
@@ -86,8 +86,8 @@ fn remove_script_should_work() {
         .expect("could not get `Project`");
 
     // scripts are properly removed from project
-    assert!(!scripts.scripts_contains_key(&sid_0));
-    assert!(scripts.scripts_contains_key(&sid_1));
+    assert!(!scripts.contains_key(&sid_0));
+    assert!(scripts.contains_key(&sid_1));
 
     let container = db
         .store

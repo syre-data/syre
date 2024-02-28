@@ -1,12 +1,12 @@
 //! [`ScriptAssociation`]s grouped by `priority`.
 // use super::script_association::ScriptAssociation;
 use crate::project::container::AnalysisMap;
-use crate::project::ScriptAssociation;
+use crate::project::AnalysisAssociation;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
 /// A set of [`ScriptAssociation`]s.
-pub type ScriptSet = HashSet<ScriptAssociation>;
+pub type ScriptSet = HashSet<AnalysisAssociation>;
 
 /// Map of priorities to [`ScritSet`]s.
 pub type ScriptGroupMap = HashMap<i32, ScriptSet>;

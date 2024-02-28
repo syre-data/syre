@@ -5,7 +5,8 @@ use syre_core::project::excel_template::{
 };
 use yew::prelude::*;
 
-static ALPHABET: [char; 26] = [
+const ALPHABET_LENGTH: u32 = 26;
+static ALPHABET: [char; ALPHABET_LENGTH as usize] = [
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
     't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
@@ -44,32 +45,9 @@ pub fn input_builder(props: &InputBuilderProps) -> Html {
 
             let data_selection = form_data.get("data-selection");
             let data_selection = data_selection.as_string().unwrap();
-            let data_selection = data_selection.as_str().split(",").collect::<Vec<_>>();
-
-            let data_selection_as_indices = data_selection
-                .iter()
-                .map(|selector| selector.parse::<u32>())
-                .collect::<Vec<_>>();
-
-            let data_selection = if data_selection_as_indices
-                .iter()
-                .all(|index_result| index_result.is_ok())
-            {
-                SpreadsheetColumns::Indices(
-                    data_selection_as_indices
-                        .into_iter()
-                        .map(|index_result| index_result.unwrap())
-                        .collect(),
-                )
-            } else {
-                let data_selection = data_selection
-                    .iter()
-                    .filter_map(|label| column_index_from_str(label))
-                    .collect::<Vec<_>>();
-
-                SpreadsheetColumns::Indices(data_selection)
+            let Some(data_selection) = str_to_spreadsheet_columns(&data_selection) else {
+                return;
             };
-
             let data_selection = DataSelection::Spreadsheet(data_selection);
 
             let skip_rows = form_data.get("skip-rows");
@@ -106,7 +84,7 @@ pub fn input_builder(props: &InputBuilderProps) -> Html {
                     value={props.input.clone().map_or("".to_string(), |input| data_selection_to_string(&input.data_selection))} />
 
                 <small class="form-hint">
-                    { "Either indices or labels separated by commas." }
+                    { "Column labels separated by commas." }
                 </small>
             </div>
 
@@ -130,6 +108,7 @@ fn column_index_from_str(label: impl AsRef<str>) -> Option<Index> {
         return None;
     }
 
+    let label = label.to_lowercase();
     let chars = label.chars().collect::<Vec<_>>();
     match chars[..] {
         [c] => ALPHABET
@@ -155,14 +134,100 @@ fn column_index_from_str(label: impl AsRef<str>) -> Option<Index> {
     }
 }
 
+/// Converts an index into a column label.
+/// e.g. 0 -> A, 1 -> B, 26 -> AA
+///
+/// # Returns
+/// + `Some` if index is valid. Letters are uppercased.
+/// + `None` if index exceeds maximum.
+fn column_index_to_str(index: u32) -> Option<String> {
+    const COLUMN_LABEL_MAX_INDEX: u32 = ALPHABET_LENGTH * ALPHABET_LENGTH;
+
+    if index < ALPHABET_LENGTH {
+        let char = ALPHABET[index as usize];
+        let char = char.to_uppercase().to_string();
+        return Some(char);
+    } else if index < COLUMN_LABEL_MAX_INDEX {
+        let i1 = index / ALPHABET_LENGTH;
+        let i2 = index % ALPHABET_LENGTH;
+        assert!(i1 > 0);
+
+        let c1 = ALPHABET[(i1 - 1) as usize];
+        let c2 = ALPHABET[i2 as usize];
+        return Some(format!("{}{}", c1.to_uppercase(), c2.to_uppercase()));
+    } else {
+        return None;
+    }
+}
+
 fn data_selection_to_string(selection: &DataSelection) -> String {
     match selection {
         DataSelection::Spreadsheet(SpreadsheetColumns::Indices(indices)) => indices
             .iter()
-            .map(|index| index.to_string())
+            .map(|index| column_index_to_str(index.clone()).unwrap())
             .collect::<Vec<_>>()
             .join(", "),
 
         DataSelection::Spreadsheet(SpreadsheetColumns::Header(headers)) => todo!(),
+    }
+}
+
+/// Parses a string as spreadsheet columns.
+///
+/// # Notes
+/// + Valid input consists of comma-separated column labels.
+///     e.g. A, BA
+fn str_to_spreadsheet_columns(input: &str) -> Option<SpreadsheetColumns> {
+    if input.trim().is_empty() {
+        return Some(SpreadsheetColumns::Indices(vec![]));
+    }
+
+    let input = input.split(",").collect::<Vec<_>>();
+    let mut labels = Vec::with_capacity(input.len());
+    for label in input {
+        if let Some(label) = column_index_from_str(label.trim()) {
+            labels.push(label);
+        } else {
+            return None;
+        }
+    }
+
+    Some(SpreadsheetColumns::Indices(labels))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::components::excel_template::steps::input::str_to_spreadsheet_columns;
+    use syre_core::project::excel_template::SpreadsheetColumns;
+
+    #[test]
+    fn parse_data_selection_should_work() {
+        // empty
+        let input = "";
+        let Some(output) = str_to_spreadsheet_columns(input) else {
+            panic!("empty returned None");
+        };
+
+        assert_eq!(output, SpreadsheetColumns::Indices(vec![]));
+
+        // single
+        let input = "a";
+        let Some(output) = str_to_spreadsheet_columns(input) else {
+            panic!("single returned None");
+        };
+
+        assert_eq!(output, SpreadsheetColumns::Indices(vec![0]));
+
+        // multiple
+        let input = "a, b, c";
+        let Some(output) = str_to_spreadsheet_columns(input) else {
+            panic!("multiple returned None");
+        };
+
+        assert_eq!(output, SpreadsheetColumns::Indices(vec![0, 1, 2]));
+
+        // invalid
+        assert!(str_to_spreadsheet_columns("0").is_none());
+        assert!(str_to_spreadsheet_columns("abc").is_none());
     }
 }

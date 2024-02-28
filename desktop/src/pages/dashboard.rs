@@ -60,7 +60,6 @@ pub fn dashboard_view() -> HtmlResult {
 
         move |rid: Key, _| {
             let rid = ResourceId::from_str(&rid.to_string()).expect("invalid `ResourceId`");
-
             projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
             projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid.clone()));
             navigator.push(&Route::Workspace);
@@ -69,45 +68,45 @@ pub fn dashboard_view() -> HtmlResult {
 
     Ok(html! {
         <>
-            <MainNavigation />
-            <div id={"dashboard"}>
-                    <div id={"dashboard-container"}>
-                        <div id={"dashboard-header"}>
-                            <h1 class={"title"}>
-                                { "Dashboard" }
-                            </h1>
-                            <div>
-                                <button
-                                    class={"btn-primary"}
-                                    title={"Create a new project."}
-                                    onclick={create_project}>
+        <MainNavigation />
+        <div id={"dashboard"}>
+            <div id={"dashboard-container"}>
+                <div id={"dashboard-header"}>
+                    <h1 class={"title"}>
+                        { "Dashboard" }
+                    </h1>
+                    <div>
+                        <button
+                            class={"btn-primary"}
+                            title={"Create a new project."}
+                            onclick={create_project}>
 
-                                    { "New" }
-                                </button>
-                            </div>
-                            <div>
-                                <button
-                                    class={"btn-secondary"}
-                                    title={"Initialize an existing folder as a project."}
-                                    onclick={init_project}>
-
-                                    { "Initialize" }
-                                </button>
-                            </div>
-                            <div>
-                                <button
-                                    class={"btn-secondary"}
-                                    title={"Import an existing project."}
-                                    onclick={import_project}>
-
-                                    { "Import" }
-                                </button>
-                            </div>
-                        </div>
-
-                        <ProjectDeck items={(*projects).clone()} {onclick_card} />
+                            { "New" }
+                        </button>
                     </div>
+                    <div>
+                        <button
+                            class={"btn-secondary"}
+                            title={"Initialize an existing folder as a project."}
+                            onclick={init_project}>
+
+                            { "Initialize" }
+                        </button>
+                    </div>
+                    <div>
+                        <button
+                            class={"btn-secondary"}
+                            title={"Import an existing project."}
+                            onclick={import_project}>
+
+                            { "Import" }
+                        </button>
+                    </div>
+                </div>
+
+                <ProjectDeck items={(*projects).clone()} {onclick_card} />
             </div>
+        </div>
         </>
     })
 }

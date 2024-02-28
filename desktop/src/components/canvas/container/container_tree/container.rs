@@ -18,9 +18,10 @@ use crate::components::canvas::{
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
-use syre_core::project::{Asset, RunParameters, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, Asset, RunParameters};
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_desktop_lib::error::{RemoveResource, Trash as TrashError};
+use syre_local::types::AnalysisKind;
 use syre_ui::types::Message;
 use syre_ui::widgets::container::container_tree::container::{
     Container as ContainerUi, ContainerMenuEvent, ContainerProps as ContainerUiProps, Flags,
@@ -62,7 +63,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let selected = canvas_state.selected.contains(&props.rid);
     let multiple_selected = canvas_state.selected.len() > 1;
 
-    let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
+    let Some(project_scripts) = projects_state.project_analyses.get(&canvas_state.project) else {
         app_state.dispatch(AppStateAction::AddMessage(Message::error(
             "Project scripts not loaded.",
         )));
@@ -72,29 +73,26 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     };
 
     let script_names = project_scripts
-        .scripts()
-        .into_iter()
-        .map(|script| {
-            let name = script
-                .name
-                .clone()
-                .unwrap_or(script.path.to_string_lossy().to_string());
+        .values()
+        .map(|analysis| match analysis {
+            AnalysisKind::Script(script) => {
+                let name = script
+                    .name
+                    .clone()
+                    .unwrap_or(script.path.to_string_lossy().to_string());
 
-            (script.rid.clone(), name)
+                (script.rid.clone(), name)
+            }
+
+            AnalysisKind::ExcelTemplate(template) => {
+                let name = template
+                    .name
+                    .clone()
+                    .unwrap_or(template.template.path.to_string_lossy().to_string());
+
+                (template.rid.clone(), name)
+            }
         })
-        .chain(
-            project_scripts
-                .excel_templates()
-                .into_iter()
-                .map(|template| {
-                    let name = template
-                        .name
-                        .clone()
-                        .unwrap_or(template.template.path.to_string_lossy().to_string());
-
-                    (template.rid.clone(), name)
-                }),
-        )
         .collect::<ResourceMap<String>>();
 
     // -------------------
@@ -374,7 +372,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
 
     let onchange_script_association = use_callback((props.rid.clone(), graph_state.clone()), {
         let app_state = app_state.dispatcher();
-        move |assoc: ScriptAssociation, (container_id, graph_state)| {
+        move |assoc: AnalysisAssociation, (container_id, graph_state)| {
             let Some(container) = graph_state.graph.get(container_id) else {
                 let mut msg = Message::error("Could not add Script association.");
                 msg.set_details("Container not found in graph.");
@@ -383,7 +381,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             };
 
             let mut associations = container.analyses.clone();
-            associations.insert(assoc.script.clone(), assoc.into());
+            associations.insert(assoc.analysis.clone(), assoc.into());
             let app_state = app_state.clone();
             let graph_state = graph_state.dispatcher();
             let container_id = container_id.clone();

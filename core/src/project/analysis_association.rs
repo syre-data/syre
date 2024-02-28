@@ -4,41 +4,37 @@ use std::cmp::{Eq, Ordering, PartialEq, PartialOrd};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// **************************
-// *** Script Association ***
-// **************************
-
 /// Represents an association between a Script and a Container.
 /// Contains information on the script to be run,
 /// whether the Script should be run,
 /// and the order of its execution relative to the current Container.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct ScriptAssociation {
-    pub script: ResourceId,
+pub struct AnalysisAssociation {
+    pub analysis: ResourceId,
     pub autorun: bool,
     pub priority: i32,
 }
 
-impl ScriptAssociation {
-    pub fn new(script: ResourceId) -> Self {
-        ScriptAssociation {
-            script,
+impl AnalysisAssociation {
+    pub fn new(analysis: ResourceId) -> Self {
+        AnalysisAssociation {
+            analysis,
             autorun: true,
             priority: 0,
         }
     }
 
-    pub fn new_with_params(script: ResourceId, params: RunParameters) -> Self {
-        ScriptAssociation {
-            script,
+    pub fn new_with_params(analysis: ResourceId, params: RunParameters) -> Self {
+        AnalysisAssociation {
+            analysis,
             autorun: params.autorun,
             priority: params.priority,
         }
     }
 }
 
-impl Into<RunParameters> for ScriptAssociation {
+impl Into<RunParameters> for AnalysisAssociation {
     fn into(self) -> RunParameters {
         RunParameters {
             autorun: self.autorun,
@@ -67,8 +63,8 @@ impl RunParameters {
     }
 
     /// Converts self into a script association for the given Script.
-    pub fn to_association(self, script: ResourceId) -> ScriptAssociation {
-        let mut assoc = ScriptAssociation::new(script);
+    pub fn to_association(self, script: ResourceId) -> AnalysisAssociation {
+        let mut assoc = AnalysisAssociation::new(script);
         assoc.autorun = self.autorun;
         assoc.priority = self.priority;
 
@@ -101,5 +97,5 @@ impl PartialOrd for RunParameters {
 }
 
 #[cfg(test)]
-#[path = "./script_association_test.rs"]
-mod script_association_test;
+#[path = "./analysis_association_test.rs"]
+mod analysis_association_test;

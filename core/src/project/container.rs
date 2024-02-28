@@ -1,7 +1,7 @@
 //! Container.
 use super::container_properties::{Builder as PropertiesBuilder, ContainerProperties};
 use super::Metadata;
-use super::{Asset, RunParameters, ScriptAssociation};
+use super::{AnalysisAssociation, Asset, RunParameters};
 use crate::db::Resource;
 use crate::types::Creator;
 use crate::types::{ResourceId, ResourceMap};
@@ -170,8 +170,8 @@ impl Builder {
         self
     }
 
-    pub fn add_script(&mut self, script: ScriptAssociation) -> &mut Self {
-        self.scripts.insert(script.script.clone(), script.into());
+    pub fn add_script(&mut self, script: AnalysisAssociation) -> &mut Self {
+        self.scripts.insert(script.analysis.clone(), script.into());
         self
     }
 

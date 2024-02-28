@@ -4,27 +4,25 @@ use syre_core::project::{ExcelTemplate, Project, Script, ScriptLang};
 use syre_core::runner::{Runnable, RunnerHooks as CoreRunnerHooks};
 use syre_core::types::ResourceId;
 use syre_local::system::settings::RunnerSettings;
-use syre_local::types::script::ScriptKind;
-use syre_local_database::{Client as DbClient, ProjectCommand, ScriptCommand};
+use syre_local::types::analysis::AnalysisKind;
+use syre_local_database::{AnalysisCommand, Client as DbClient, ProjectCommand};
 
 /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
 #[tracing::instrument]
 pub fn get_script(rid: &ResourceId) -> Result<Box<dyn Runnable>, String> {
     let db = DbClient::new();
-    let Ok(script) = db.send(ScriptCommand::Get(rid.clone()).into()) else {
+    let Ok(script) = db.send(AnalysisCommand::Get(rid.clone()).into()) else {
         return Err("could not retrieve script".to_string());
     };
 
-    let script: Option<ScriptKind> = serde_json::from_value(script).unwrap();
+    let script: Option<AnalysisKind> = serde_json::from_value(script).unwrap();
     let Some(script) = script else {
         return Err("script not loaded".to_string());
     };
 
     match script {
-        ScriptKind::Script(script) => Ok(handle_script(&db, script.into_owned())?),
-        ScriptKind::ExcelTemplate(template) => {
-            Ok(handle_excel_template(&db, template.into_owned())?)
-        }
+        AnalysisKind::Script(script) => Ok(handle_script(&db, script)?),
+        AnalysisKind::ExcelTemplate(template) => Ok(handle_excel_template(&db, template)?),
     }
 }
 
@@ -95,7 +93,7 @@ fn handle_excel_template(
 }
 
 fn get_base_path(db: &DbClient, rid: ResourceId) -> PathBuf {
-    let project = db.send(ScriptCommand::GetProject(rid).into()).unwrap();
+    let project = db.send(AnalysisCommand::GetProject(rid).into()).unwrap();
 
     let project: Option<Project> = serde_json::from_value(project).unwrap();
     let project = project.unwrap();

@@ -120,7 +120,7 @@ fn main() {
             add_script,
             add_script_windows,
             add_excel_template,
-            remove_script,
+            remove_analysis,
             // spreadsheet
             load_excel,
             load_csv,

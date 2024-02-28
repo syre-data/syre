@@ -2,10 +2,11 @@
 use crate::app::ProjectsStateReducer;
 use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
+use crate::lib::DisplayName;
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
-use syre_local::types::script::{ScriptKind, ScriptStore};
+use syre_local::types::analysis::{AnalysisKind, Store as AnalysisStore};
 use syre_ui::widgets::container::script_associations::{
     AddScriptAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
 };
@@ -13,7 +14,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Debug)]
-pub struct ScriptAssociationsEditorProps {
+pub struct AnalysisAssociationsEditorProps {
     pub container: ResourceId,
 
     /// Called after save.
@@ -22,8 +23,8 @@ pub struct ScriptAssociationsEditorProps {
 }
 
 #[tracing::instrument]
-#[function_component(ScriptAssociationsEditor)]
-pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> HtmlResult {
+#[function_component(AnalysisAssociationsEditor)]
+pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> HtmlResult {
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();
     let graph_state = use_context::<GraphStateReducer>().unwrap();
@@ -38,7 +39,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
 
     let project_scripts = use_state(|| {
         projects_state
-            .project_scripts
+            .project_analyses
             .get(&canvas_state.project)
             .expect("`Project`'s `Scripts` not loaded")
             .clone()
@@ -63,7 +64,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         move |projects_state| {
             project_scripts.set(
                 projects_state
-                    .project_scripts
+                    .project_analyses
                     .get(&canvas_state.project)
                     .expect("`Project`'s `Scripts` not loaded")
                     .clone(),
@@ -166,25 +167,9 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
         .clone()
         .into_keys()
         .filter_map(|assoc| {
-            if let Some(script) = project_scripts.get_script(&assoc) {
-                let name = match script.name.clone() {
-                    Some(name) => name,
-                    None => script.path.to_string_lossy().to_string(),
-                };
-
-                return Some((assoc, name));
-            }
-
-            if let Some(template) = project_scripts.get_excel_template(&assoc) {
-                let name = match template.name.clone() {
-                    Some(name) => name,
-                    None => template.template.path.to_string_lossy().to_string(),
-                };
-
-                return Some((assoc, name));
-            }
-
-            None
+            project_scripts
+                .get(&assoc)
+                .map(|analysis| (assoc, analysis.display_name()))
         })
         .collect::<NameMap>();
 
@@ -224,14 +209,14 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
     })
 }
 
-fn get_script_name(script_store: &ScriptStore, script: &ResourceId) -> String {
+fn get_script_name(script_store: &AnalysisStore, script: &ResourceId) -> String {
     match script_store.get(&script).unwrap() {
-        ScriptKind::Script(script) => script
+        AnalysisKind::Script(script) => script
             .name
             .clone()
             .unwrap_or(script.path.to_string_lossy().to_string()),
 
-        ScriptKind::ExcelTemplate(template) => template
+        AnalysisKind::ExcelTemplate(template) => template
             .name
             .clone()
             .unwrap_or(template.template.path.to_string_lossy().to_string()),

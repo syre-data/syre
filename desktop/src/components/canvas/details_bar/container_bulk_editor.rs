@@ -4,11 +4,12 @@ use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::{
     bulk_update_properties, bulk_update_script_associations, BulkUpdatePropertiesArgs,
 };
+use crate::lib::DisplayName;
 use std::collections::HashSet;
-use syre_core::project::ScriptAssociation;
+use syre_core::project::AnalysisAssociation;
 use syre_core::types::{ResourceId, ResourceMap};
-use syre_local::types::script::ScriptKind;
-use syre_local::types::ScriptStore;
+use syre_local::types::analysis::AnalysisKind;
+use syre_local::types::AnalysisStore;
 use syre_local_database::command::container::{
     BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
     ScriptAssociationBulkUpdate,
@@ -65,7 +66,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     }
 
     let project_scripts = project_state
-        .project_scripts
+        .project_analyses
         .get(&canvas_state.project)
         .expect("`Project`'s `Script`s not loaded");
 
@@ -73,26 +74,9 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         .clone()
         .into_keys()
         .map(|assoc| {
-            let script = project_scripts
-                .get_script(&assoc)
-                .expect("`Script` not found");
+            let analysis = project_scripts.get(&assoc).expect("`Script` not found");
 
-            let name = match script.name.clone() {
-                Some(name) => name,
-                None => {
-                    let name = script
-                        .path
-                        .as_path()
-                        .file_name()
-                        .expect("could not get path's file name");
-
-                    name.to_str()
-                        .expect("could not convert file name to string")
-                        .to_string()
-                }
-            };
-
-            (assoc, name)
+            (assoc, analysis.display_name())
         })
         .collect::<NameMap>();
 
@@ -312,7 +296,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 .collect();
 
             let mut update = ScriptAssociationBulkUpdate::default();
-            update.add.push(ScriptAssociation::new(script.clone()));
+            update.add.push(AnalysisAssociation::new(script.clone()));
 
             spawn_local(async move {
                 update_script_associations(update_containers, update, app_state, graph_state).await
@@ -472,14 +456,14 @@ async fn update_script_associations(
     }
 }
 
-fn get_script_name(script_store: &ScriptStore, script: &ResourceId) -> String {
+fn get_script_name(script_store: &AnalysisStore, script: &ResourceId) -> String {
     match script_store.get(&script).unwrap() {
-        ScriptKind::Script(script) => script
+        AnalysisKind::Script(script) => script
             .name
             .clone()
             .unwrap_or(script.path.to_string_lossy().to_string()),
 
-        ScriptKind::ExcelTemplate(template) => template
+        AnalysisKind::ExcelTemplate(template) => template
             .name
             .clone()
             .unwrap_or(template.template.path.to_string_lossy().to_string()),

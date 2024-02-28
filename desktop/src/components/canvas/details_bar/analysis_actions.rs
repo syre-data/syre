@@ -1,7 +1,7 @@
 //! Project actions detail widget bar.
-use super::project_scripts::ProjectScripts;
+use super::project_analyses::ProjectAnalyses;
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateAction, ProjectsStateReducer};
-use crate::commands::script::{add_excel_template, add_script, remove_script};
+use crate::commands::analysis::{add_excel_template, add_script, remove_analysis};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::hooks::use_project;
 use std::collections::HashSet;
@@ -12,8 +12,8 @@ use syre_ui::types::Message;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
-#[function_component(ProjectScriptsActions)]
-pub fn project_scripts_actions() -> HtmlResult {
+#[function_component(ProjectAnalysisActions)]
+pub fn project_analysis_actions() -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();
@@ -29,7 +29,7 @@ pub fn project_scripts_actions() -> HtmlResult {
         move |paths: HashSet<PathBuf>, (project, projects_state)| {
             let project = project.clone();
             let projects_state = projects_state.clone();
-            let Some(mut project_scripts) = projects_state.project_scripts.get(&project).cloned()
+            let Some(mut project_scripts) = projects_state.project_analyses.get(&project).cloned()
             else {
                 let msg = Message::error("Could not load project's scripts.");
                 app_state.dispatch(AppStateAction::AddMessage(msg));
@@ -51,13 +51,13 @@ pub fn project_scripts_actions() -> HtmlResult {
                     };
 
                     if let Some(script) = script {
-                        project_scripts.insert_script(script);
+                        project_scripts.insert(script.rid.clone(), script.into());
                     }
                 }
 
                 projects_state.dispatch(ProjectsStateAction::InsertProjectScripts {
                     project,
-                    scripts: project_scripts,
+                    analyses: project_scripts,
                 });
             });
         }
@@ -99,7 +99,7 @@ pub fn project_scripts_actions() -> HtmlResult {
             let graph_state = graph_state.clone();
             let project = project.clone();
 
-            let Some(mut scripts) = projects_state.project_scripts.get(&project).cloned() else {
+            let Some(mut analyses) = projects_state.project_analyses.get(&project).cloned() else {
                 app_state.dispatch(AppStateAction::AddMessage(Message::error(
                     "Could not remove script",
                 )));
@@ -107,7 +107,7 @@ pub fn project_scripts_actions() -> HtmlResult {
             };
 
             spawn_local(async move {
-                match remove_script(project.clone(), rid.clone()).await {
+                match remove_analysis(project.clone(), rid.clone()).await {
                     Ok(_) => {}
                     Err(err) => {
                         let mut msg = Message::error("Could not remove script");
@@ -124,9 +124,9 @@ pub fn project_scripts_actions() -> HtmlResult {
                 // found error.
 
                 // Remove from scripts
-                scripts.remove_script(&rid);
+                analyses.remove(&rid);
                 projects_state
-                    .dispatch(ProjectsStateAction::InsertProjectScripts { project, scripts });
+                    .dispatch(ProjectsStateAction::InsertProjectScripts { project, analyses });
 
                 // Remove from containers
                 graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(
@@ -137,7 +137,7 @@ pub fn project_scripts_actions() -> HtmlResult {
     });
 
     Ok(html! {
-        <ProjectScripts
+        <ProjectAnalyses
             onadd={onadd_scripts}
             onadd_excel_template={onadd_excel_template}
             onremove={onremove_script} />

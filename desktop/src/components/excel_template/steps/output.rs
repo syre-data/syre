@@ -28,7 +28,15 @@ pub fn output_builder(props: &OutputBuilderProps) -> Html {
 
             let form_data = web_sys::FormData::new_with_form(&form).unwrap();
             let path = form_data.get("path").as_string().unwrap();
-            let path = PathBuf::from(path.trim());
+            let mut path = PathBuf::from(path.trim());
+            match path.extension() {
+                None => {
+                    path.set_extension("xlsx");
+                }
+
+                Some(ext) if ext == "xlsx" => {}
+                _ => path.push(".xlsx"),
+            }
 
             let name = form_data.get("name").as_string().unwrap();
             let name = name.as_str().trim();
@@ -83,22 +91,25 @@ pub fn output_builder(props: &OutputBuilderProps) -> Html {
 
     html! {
         <form ref={output_asset_form_node_ref} {onsubmit}>
-            <div>
-                <input name={"path"} placeholder={"Path"} />
+            <div class={"flex form-control"}>
+                <input name={"path"} placeholder={"File name"} />
+                <div class={"input-group-append"}>
+                    <div class={"input-group-text"}>{ ".xlsx" }</div>
+                </div>
             </div>
-            <div>
+            <div class="form-control">
                 <input name={"name"} placeholder={"Name"} />
             </div>
-            <div>
+            <div class="form-control">
                 <input name={"kind"} placeholder={"Type"} />
             </div>
-            <div>
+            <div class="form-control">
                 <input name={"tags"} placeholder={"Tags"} />
             </div>
-            <div>
+            <div class="form-control">
                 <textarea name={"description"} placeholder={"Description"}></textarea>
             </div>
-            <div>
+            <div class="form-control">
                 <button>{ "Next" }</button>
             </div>
         </form>

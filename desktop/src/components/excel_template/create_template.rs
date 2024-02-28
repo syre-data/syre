@@ -1,6 +1,6 @@
 //! Create an Excel template.
 use super::excel_template_builder::ExcelTemplateBuilder;
-use crate::app::ShadowBox;
+use crate::app::PageOverlay;
 use syre_core::project::ExcelTemplate;
 use tauri_sys::dialog::FileDialogBuilder;
 use wasm_bindgen_futures::spawn_local;
@@ -39,13 +39,22 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
         }
     });
 
+    let oncreate = use_callback(props.oncreate.clone(), {
+        let template_path = template_path.setter();
+        move |template, oncreate| {
+            template_path.set(None);
+            oncreate.emit(template);
+        }
+    });
+
     html! {
         <div>
             <button {onclick}>{ "Create Excel Template" }</button>
             if let Some(path) = (*template_path).clone() {
-                <ShadowBox title={"Create an Excel template"} {onclose} >
-                    <ExcelTemplateBuilder {path} oncreate={props.oncreate.clone()} />
-                </ShadowBox>
+                <PageOverlay {onclose} >
+                    <h1>{ "Create an Excel template" }</h1>
+                    <ExcelTemplateBuilder {path} {oncreate} />
+                </PageOverlay>
             }
         </div>
     }

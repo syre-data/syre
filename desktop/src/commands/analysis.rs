@@ -5,9 +5,9 @@ use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::project::{ExcelTemplate, Script};
 use syre_core::types::ResourceId;
-use syre_local::types::ScriptStore;
+use syre_local::types::AnalysisStore;
 
-pub async fn get_project_scripts(project: ResourceId) -> Result<ScriptStore, String> {
+pub async fn get_project_scripts(project: ResourceId) -> Result<AnalysisStore, String> {
     invoke_result("get_project_scripts", ResourceIdArgs { rid: project }).await
 }
 
@@ -47,8 +47,8 @@ pub async fn add_excel_template(
     .await
 }
 
-pub async fn remove_script(project: ResourceId, script: ResourceId) -> Result<(), String> {
-    invoke_result("remove_script", RemoveScriptArgs { project, script }).await
+pub async fn remove_analysis(project: ResourceId, script: ResourceId) -> Result<(), String> {
+    invoke_result("remove_analysis", RemoveScriptArgs { project, script }).await
 }
 
 #[derive(Serialize)]

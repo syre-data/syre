@@ -7,8 +7,8 @@ use syre_local::loader::{
     container::Loader as ContainerLoader, tree::Loader as ContainerTreeLoader,
 };
 use syre_local::project::resources::{
-    Asset as LocalAsset, Container as LocalContainer, Project as LocalProject,
-    Scripts as LocalScripts,
+    Analyses as LocalScripts, Asset as LocalAsset, Container as LocalContainer,
+    Project as LocalProject,
 };
 
 #[test]
@@ -399,7 +399,7 @@ fn remove_project_script_should_work() {
     let pid = ResourceId::new();
 
     let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");
-    let script = CoreScript::from_path("script.py").unwrap();
+    let script = Script::from_path("script.py").unwrap();
     let sid = script.rid.clone();
 
     scripts
@@ -407,7 +407,7 @@ fn remove_project_script_should_work() {
         .expect("could not insert `Script`");
 
     // add other script that is not to be removed
-    let other_script = CoreScript::from_path("other_script.py").unwrap();
+    let other_script = Script::from_path("other_script.py").unwrap();
     let other_sid = other_script.rid.clone();
 
     scripts
@@ -423,27 +423,27 @@ fn remove_project_script_should_work() {
         .remove_project_script(&pid, &sid)
         .expect("could not remove `Script`");
 
-    let scripts = store
+    let analyses = store
         .get_project_scripts(&pid)
         .expect("could not get `Scripts`");
 
     assert!(
-        !scripts.scripts_contains_key(&sid),
+        !analyses.contains_key(&sid),
         "removed script should not be there"
     );
 
     assert!(
-        !store.script_projects.contains_key(&sid),
+        !store.analysis_projects.contains_key(&sid),
         "project map for removed script should not exist"
     );
 
     assert!(
-        scripts.scripts_contains_key(&other_sid),
+        analyses.contains_key(&other_sid),
         "non removed script should be there"
     );
 
     assert!(
-        store.script_projects.contains_key(&other_sid),
+        store.analysis_projects.contains_key(&other_sid),
         "project map for not removed script should exist"
     );
 }

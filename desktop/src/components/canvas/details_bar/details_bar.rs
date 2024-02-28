@@ -1,11 +1,11 @@
 //! Project workspace details bar.
+use super::analysis_actions::ProjectAnalysisActions;
 use super::asset_bulk_editor::AssetBulkEditor;
 use super::asset_editor::AssetEditor;
 use super::container_bulk_editor::ContainerBulkEditor;
 use super::container_editor::ContainerEditor;
 use super::mixed_bulk_editor::MixedBulkEditor;
 use super::project_actions::ProjectActions;
-use super::script_actions::ProjectScriptsActions;
 use crate::components::canvas::CanvasStateReducer;
 use std::collections::HashSet;
 use syre_core::types::ResourceId;
@@ -66,7 +66,7 @@ pub fn details_bar() -> Html {
             } else {{
                 // default
                 html! {
-                    <ProjectScriptsActions />
+                    <ProjectAnalysisActions />
                 }}
             }
         </div>

@@ -242,7 +242,7 @@ impl GraphState {
 
         for assoc in update.add.iter() {
             container.analyses.insert(
-                assoc.script.clone(),
+                assoc.analysis.clone(),
                 RunParameters {
                     priority: assoc.priority.clone(),
                     autorun: assoc.autorun.clone(),

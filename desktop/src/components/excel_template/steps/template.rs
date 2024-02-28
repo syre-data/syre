@@ -17,19 +17,31 @@ pub struct TemplateBuilderProps {
 
     #[prop_or_default]
     pub template: Option<TemplateParameters>,
+
+    #[prop_or_default]
+    pub step: Option<Step>,
 }
 
 #[function_component(TemplateBuilder)]
 pub fn template_builder(props: &TemplateBuilderProps) -> Html {
     let builder = use_reducer(|| {
-        if let Some(template) = props.template.as_ref() {
+        let mut builder = if let Some(template) = props.template.as_ref() {
             TemplateBuilderState::from_template(template.clone())
         } else {
             TemplateBuilderState::new()
+        };
+
+        if let Some(step) = props.step.as_ref() {
+            builder.step = step.clone();
         }
+
+        builder
     });
-    let data_label_action_state = use_state(|| DataLabelAction::None);
+
     let template_form_node_ref = use_node_ref();
+    let replace_range_node_ref = use_node_ref();
+    let headers_input_node_ref = use_node_ref();
+    let data_label_action_node_ref = use_node_ref();
     let data_label_action_none_node_ref = use_node_ref();
     let data_label_action_insert_node_ref = use_node_ref();
     let data_label_action_replace_node_ref = use_node_ref();
@@ -46,60 +58,62 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
         }
     });
 
-    let onclick_header =
-        use_callback(
-            builder.clone(),
-            move |(_e, (sheet, index)), builder| match builder.replace_range.as_ref() {
-                Some(WorkbookRangeKind::Open(WorkbookOpenRange {
-                    sheet: set_sheet,
-                    start,
-                })) if set_sheet == &sheet => {
-                    builder.dispatch(TemplateBuilderAction::SetReplaceRange {
-                        sheet,
-                        start: start.clone(),
-                        end: index,
-                    });
-                }
-
-                _ => {
-                    builder.dispatch(TemplateBuilderAction::SetOpenReplaceRange {
-                        sheet,
-                        start: index,
-                    });
-                }
-            },
-        );
-
-    let onchange_data_label_action = use_callback((), {
-        let data_label_action_state = data_label_action_state.setter();
-        let none_node_ref = data_label_action_none_node_ref.clone();
-        let insert_node_ref = data_label_action_insert_node_ref.clone();
-        let replace_node_ref = data_label_action_replace_node_ref.clone();
-
-        move |_, _| {
-            let none_elm = none_node_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not cast node ref as input");
-
-            let insert_elm = insert_node_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not cast node ref as input");
-
-            let replace_elm = replace_node_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .expect("could not cast node ref as input");
-
-            if none_elm.checked() {
-                data_label_action_state.set(DataLabelAction::None);
-            } else if insert_elm.checked() {
-                data_label_action_state.set(DataLabelAction::Insert { index: Vec::new() });
-            } else if replace_elm.checked() {
-                data_label_action_state.set(DataLabelAction::Replace);
-            } else {
-                data_label_action_state.set(DataLabelAction::None);
-            }
+    use_effect_with(props.step.clone(), {
+        let builder = builder.dispatcher();
+        move |step| {
+            let step = step.clone().unwrap_or(Step::ReplaceRange);
+            builder.dispatch(TemplateBuilderAction::SetStep(step));
         }
     });
+
+    use_effect_with(builder.step.clone(), {
+        let replace_range_node_ref = replace_range_node_ref.clone();
+        let data_label_action_node_ref = data_label_action_node_ref.clone();
+
+        move |step| {
+            let node_ref = match step {
+                Step::ReplaceRange => replace_range_node_ref,
+                Step::DataLabelAction => data_label_action_node_ref,
+            };
+
+            let elm = node_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast node ref as element");
+
+            elm.scroll_into_view();
+        }
+    });
+
+    let set_step = |step: Step| {
+        let builder = builder.dispatcher();
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            builder.dispatch(TemplateBuilderAction::SetStep(step.clone()));
+        })
+    };
+
+    let onclick_column_label = use_callback(
+        builder.clone(),
+        move |(_e, (sheet, index)), builder| match builder.replace_range.as_ref() {
+            Some(WorkbookRangeKind::Open(WorkbookOpenRange {
+                sheet: set_sheet,
+                start,
+            })) if set_sheet == &sheet => {
+                builder.dispatch(TemplateBuilderAction::SetReplaceRange {
+                    sheet,
+                    start: start.clone(),
+                    end: index,
+                });
+            }
+
+            _ => {
+                builder.dispatch(TemplateBuilderAction::SetOpenReplaceRange {
+                    sheet,
+                    start: index,
+                });
+            }
+        },
+    );
 
     let onsubmit = use_callback(
         (props.onsubmit.clone(), props.path.clone(), builder.clone()),
@@ -109,9 +123,9 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
 
             move |e: SubmitEvent, (onsubmit, path, builder)| {
                 e.prevent_default();
-
                 let Some(WorkbookRangeKind::Closed(replace_range)) = builder.replace_range.as_ref()
                 else {
+                    builder.dispatch(TemplateBuilderAction::SetStep(Step::ReplaceRange));
                     return;
                 };
 
@@ -123,19 +137,7 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                 let data_label_action = form_data.get("data-label-action");
                 let data_label_action = match data_label_action.as_string().unwrap().as_str() {
                     "none" => DataLabelAction::None,
-                    "insert" => {
-                        let index_cols_elm = index_cols_node_ref
-                            .cast::<web_sys::HtmlInputElement>()
-                            .unwrap();
-
-                        let index = index_cols_elm
-                            .value()
-                            .split(",")
-                            .filter_map(|col| col.trim().parse::<u32>().ok())
-                            .collect::<Vec<_>>();
-
-                        DataLabelAction::Insert { index }
-                    }
+                    "insert" => DataLabelAction::Insert,
                     "replace" => DataLabelAction::Replace,
                     other => panic!("unknown data label action value `{other}`"),
                 };
@@ -155,8 +157,21 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
         range: Range { start, end },
     })) = builder.replace_range.as_ref()
     {
-        for idx in *start..=*end {
-            column_classes.insert_for(sheet.clone(), idx, classes!("replace-range"));
+        for col in *start..=*end {
+            column_classes.insert_for(sheet.clone(), col, classes!("replace-range"));
+        }
+    }
+
+    let mut replace_range_class = classes!("template-step");
+    let mut headers_class = classes!("template-step");
+    let mut data_label_action_class = classes!("template-step");
+    match builder.step {
+        Step::ReplaceRange => {
+            replace_range_class.push("active");
+        }
+
+        Step::DataLabelAction => {
+            data_label_action_class.push("active");
         }
     }
 
@@ -169,10 +184,15 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
             <div>
                 <ExcelWorkbook path={props.path.clone()}
                     {column_classes}
-                    {onclick_header} />
+                    {onclick_column_label} />
             </div>
-            <form ref={template_form_node_ref} {onsubmit}>
-                <div>
+            <form ref={template_form_node_ref}
+                class={"pl-xl"}
+                {onsubmit}>
+
+                <div ref={replace_range_node_ref}
+                    class={replace_range_class}>
+
                     <p>
                         { "Select the column range that should be replaced with new data" }
                     </p>
@@ -182,77 +202,62 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                             <input value={builder.range_as_value()} disabled={true} />
                         </label>
                     </p>
-                </div>
-
-                <div>
-                    <fieldset>
-                        <legend>{ "How should inserted data be labeled?" }</legend>
-                        <div>
-                            <input ref={data_label_action_none_node_ref}
-                                type={"radio"}
-                                name={"data-label-action"}
-                                value={"none"}
-                                checked={builder.data_label_action == DataLabelAction::None}
-                                onchange={onchange_data_label_action.clone()} />
-
-                            <label for={"none"}
-                                title={"Data will be inserted as is from the input."}>
-                                { "No label" }
-                            </label>
-                        </div>
-
-                        <div>
-                            <input ref={data_label_action_insert_node_ref}
-                                type={"radio"}
-                                name={"data-label-action"}
-                                value={"insert"}
-                                checked={matches!(&builder.data_label_action, &DataLabelAction::Insert { index: _ })}
-                                onchange={onchange_data_label_action.clone()} />
-
-                            <label for={"insert"}
-                                title={"File path will be appended as a header."}>
-                                { "Append file path" }
-                            </label>
-                        </div>
-
-                        <div>
-                            <input ref={data_label_action_replace_node_ref}
-                                type={"radio"}
-                                name={"data-label-action"}
-                                value={"replace"}
-                                checked={&builder.data_label_action == &DataLabelAction::Replace}
-                                onchange={onchange_data_label_action} />
-
-                            <label for={"replace"}
-                                title={"Input asset's path will replace any headers."}>
-                                { "Replace headers" }
-                            </label>
-                        </div>
-                    </fieldset>
-                </div>
-
-                if let DataLabelAction::Insert { index } = &builder.data_label_action {
-                    <div>
-                        <p>
-                            { "Select the index columns in the template." }
-                        </p>
-                        <p>
-                            <label>
-                                {"Template index columns"}
-                                <input ref={template_index_columns_node_ref}
-                                    name={"template_index_columns"}
-                                    value={index
-                                            .iter()
-                                            .map(|idx| idx.to_string())
-                                            .collect::<Vec<_>>()
-                                            .join(", ")} />
-                            </label>
-                        </p>
+                    <div class={"step-controls"}>
+                        <button onclick={set_step(Step::DataLabelAction)}>{ "Next" }</button>
                     </div>
-                }
+                </div>
 
-                <div>
-                    <button>{ "Next" }</button>
+                <div ref={data_label_action_node_ref}
+                    class={data_label_action_class}>
+
+                    <div>
+                        <fieldset>
+                            <legend>{ "How should inserted data be labeled?" }</legend>
+                            <div>
+                                <input ref={data_label_action_none_node_ref}
+                                    type={"radio"}
+                                    name={"data-label-action"}
+                                    value={"none"}
+                                    checked={builder.data_label_action == DataLabelAction::None} />
+
+                                <label for={"none"}
+                                    title={"Data will be inserted as is from the input."}>
+                                    { "No label" }
+                                </label>
+                            </div>
+
+                            <div>
+                                <input ref={data_label_action_insert_node_ref}
+                                    type={"radio"}
+                                    name={"data-label-action"}
+                                    value={"insert"}
+                                    checked={&builder.data_label_action == &DataLabelAction::Insert} />
+
+                                <label for={"insert"}
+                                    title={"File path will be appended as a header."}>
+                                    { "Append file path" }
+                                </label>
+                            </div>
+
+                            <div>
+                                <input ref={data_label_action_replace_node_ref}
+                                    type={"radio"}
+                                    name={"data-label-action"}
+                                    value={"replace"}
+                                    checked={&builder.data_label_action == &DataLabelAction::Replace} />
+
+                                <label for={"replace"}
+                                    title={"Input asset's path will replace any headers."}>
+                                    { "Replace headers" }
+                                </label>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class={"step-controls"}>
+                        <button onclick={set_step(Step::ReplaceRange)}>{ "Previous" }</button>
+                        <button>{ "Next" }</button>
+                    </div>
                 </div>
             </form>
         </Suspense>
@@ -273,7 +278,10 @@ struct ExcelWorkbookProps {
     pub cell_classes: WorkbookCoordinateMap<Classes>,
 
     #[prop_or_default]
-    pub onclick_header: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
+    pub onclick_column_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
+
+    #[prop_or_default]
+    pub onclick_row_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
 }
 
 #[function_component(ExcelWorkbook)]
@@ -284,8 +292,15 @@ fn excel_workbook(props: &ExcelWorkbookProps) -> HtmlResult {
             row_classes={props.row_classes.clone()}
             column_classes={props.column_classes.clone()}
             cell_classes={props.cell_classes.clone()}
-            onclick_header={props.onclick_header.clone()} />
+            onclick_column_label={props.onclick_column_label.clone()}
+            onclick_row_label={props.onclick_row_label.clone()} />
     })
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum Step {
+    ReplaceRange,
+    DataLabelAction,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -303,7 +318,7 @@ enum WorkbookRangeKind {
 enum TemplateBuilderAction {
     Set(TemplateParameters),
     Clear,
-
+    SetStep(Step),
     SetOpenReplaceRange {
         sheet: WorksheetId,
         start: Index,
@@ -314,14 +329,12 @@ enum TemplateBuilderAction {
         start: Index,
         end: Index,
     },
-
-    SetDataLabelAction(DataLabelAction),
 }
 
 #[derive(PartialEq, Clone, Debug)]
 struct TemplateBuilderState {
+    pub step: Step,
     pub replace_range: Option<WorkbookRangeKind>,
-    pub header_rows: u32,
     pub data_label_action: DataLabelAction,
     pub index_columns: Vec<Index>,
 }
@@ -329,8 +342,8 @@ struct TemplateBuilderState {
 impl TemplateBuilderState {
     pub fn new() -> Self {
         Self {
+            step: Step::ReplaceRange,
             replace_range: None,
-            header_rows: 0,
             data_label_action: DataLabelAction::None,
             index_columns: Vec::new(),
         }
@@ -344,8 +357,8 @@ impl TemplateBuilderState {
         } = template;
 
         Self {
+            step: Step::ReplaceRange,
             replace_range: Some(WorkbookRangeKind::Closed(replace_range)),
-            header_rows: 0,
             data_label_action,
             index_columns: Vec::new(),
         }
@@ -381,11 +394,19 @@ impl Reducible for TemplateBuilderState {
         let mut current = (*self).clone();
         match action {
             TemplateBuilderAction::Set(template) => {
-                return Self::from_template(template).into();
+                let mut current = Self::from_template(template);
+                current.step = self.step.clone();
+                return current.into();
             }
 
             TemplateBuilderAction::Clear => {
-                return Self::new().into();
+                let mut current = Self::new();
+                current.step = self.step.clone();
+                return current.into();
+            }
+
+            TemplateBuilderAction::SetStep(step) => {
+                current.step = step;
             }
 
             TemplateBuilderAction::SetOpenReplaceRange { sheet, start } => {
@@ -398,10 +419,6 @@ impl Reducible for TemplateBuilderState {
                     sheet,
                     range: Range { start, end },
                 }));
-            }
-
-            TemplateBuilderAction::SetDataLabelAction(action) => {
-                current.data_label_action = action;
             }
         }
 

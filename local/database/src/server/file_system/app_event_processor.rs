@@ -18,7 +18,7 @@ use syre_local::loader::tree::incremental::{
 use syre_local::loader::tree::Loader as ContainerTreeLoader;
 use syre_local::project::project;
 use syre_local::project::project::project_root_path;
-use syre_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};
+use syre_local::project::resources::{Analyses as ProjectScripts, Project as LocalProject};
 
 impl Database {
     #[tracing::instrument(skip(self))]

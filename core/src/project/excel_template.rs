@@ -66,16 +66,13 @@ pub struct OutputParameters {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Clone, Debug)]
 pub enum DataLabelAction {
-    /// Do not add additional labels to data.
+    /// No modification to input data.
     None,
 
-    /// Insert the data's labels into the template, preserving the template's.
-    ///
-    /// # Fields
-    /// + `index`: Index columns of the template. Shifted when headers are inserted.
-    Insert { index: Vec<Index> },
+    /// Insert the input sources path as an additional header above the data.
+    Insert,
 
-    /// Replace the template's labels with the data's.
+    /// Replace data headers with input source's path.
     Replace,
 }
 
@@ -110,10 +107,10 @@ impl Runnable for ExcelTemplate {
             end: replace_end,
         } = replace_range.range;
 
-        let (header_action, template_index) = match data_label_action {
-            DataLabelAction::None => ("none", None),
-            DataLabelAction::Replace => ("replace", None),
-            DataLabelAction::Insert { index } => ("insert", Some(index)),
+        let header_action = match data_label_action {
+            DataLabelAction::None => "none",
+            DataLabelAction::Replace => "replace",
+            DataLabelAction::Insert => "insert",
         };
 
         // input data params
@@ -174,16 +171,6 @@ impl Runnable for ExcelTemplate {
             format!("--skip-rows={skip_rows}"),
             format!("--header-action={header_action}"),
         ]);
-
-        if let Some(template_index) = template_index {
-            let template_index = template_index
-                .into_iter()
-                .map(|idx| idx.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-
-            cmd.arg(format!("--template-index={template_index}"));
-        }
 
         if let Some(filter_name) = filter_name {
             let filter_name = filter_name.clone().unwrap_or("''".into());
@@ -252,63 +239,6 @@ pub mod coordinates {
     pub struct WorkbookTrack {
         pub worksheet: WorksheetId,
         pub track: Index,
-    }
-
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-    #[cfg_attr(feature = "serde", serde(transparent))]
-    #[derive(PartialEq, Clone, Debug, Default)]
-    pub struct WorkbookTrackMap<T>(HashMap<WorkbookTrack, T>);
-    impl<T> WorkbookTrackMap<T> {
-        pub fn new() -> Self {
-            Self(HashMap::new())
-        }
-
-        pub fn get_track(&self, worksheet: WorksheetId, track: Index) -> Option<&T> {
-            self.0.get(&WorkbookTrack { worksheet, track })
-        }
-
-        pub fn insert_for(&mut self, worksheet: WorksheetId, track: Index, value: T) -> Option<T> {
-            self.0.insert(WorkbookTrack { worksheet, track }, value)
-        }
-
-        /// Get all values assocated with the given worksheet.
-        ///
-        /// # Returns
-        /// + `None` if no entries for the worksheet exist.
-        pub fn get_worksheet(&self, worksheet: &WorksheetId) -> Option<HashMap<Index, &T>> {
-            let mut values = HashMap::new();
-            for (
-                WorkbookTrack {
-                    worksheet: wid,
-                    track,
-                },
-                value,
-            ) in self.iter()
-            {
-                if wid == worksheet {
-                    values.insert(track.clone(), value);
-                }
-            }
-
-            if values.is_empty() {
-                None
-            } else {
-                Some(values)
-            }
-        }
-    }
-
-    impl<T> Deref for WorkbookTrackMap<T> {
-        type Target = HashMap<WorkbookTrack, T>;
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
-
-    impl<T> DerefMut for WorkbookTrackMap<T> {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.0
-        }
     }
 
     #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -467,6 +397,63 @@ pub mod coordinates {
     }
 
     impl<T> DerefMut for WorkbookCoordinateMap<T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
+    }
+
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[cfg_attr(feature = "serde", serde(transparent))]
+    #[derive(PartialEq, Clone, Debug, Default)]
+    pub struct WorkbookTrackMap<T>(HashMap<WorkbookTrack, T>);
+    impl<T> WorkbookTrackMap<T> {
+        pub fn new() -> Self {
+            Self(HashMap::new())
+        }
+
+        pub fn get_track(&self, worksheet: WorksheetId, track: Index) -> Option<&T> {
+            self.0.get(&WorkbookTrack { worksheet, track })
+        }
+
+        pub fn insert_for(&mut self, worksheet: WorksheetId, track: Index, value: T) -> Option<T> {
+            self.0.insert(WorkbookTrack { worksheet, track }, value)
+        }
+
+        /// Get all values assocated with the given worksheet.
+        ///
+        /// # Returns
+        /// + `None` if no entries for the worksheet exist.
+        pub fn get_worksheet(&self, worksheet: &WorksheetId) -> Option<HashMap<Index, &T>> {
+            let mut values = HashMap::new();
+            for (
+                WorkbookTrack {
+                    worksheet: wid,
+                    track,
+                },
+                value,
+            ) in self.iter()
+            {
+                if wid == worksheet {
+                    values.insert(track.clone(), value);
+                }
+            }
+
+            if values.is_empty() {
+                None
+            } else {
+                Some(values)
+            }
+        }
+    }
+
+    impl<T> Deref for WorkbookTrackMap<T> {
+        type Target = HashMap<WorkbookTrack, T>;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<T> DerefMut for WorkbookTrackMap<T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.0
         }

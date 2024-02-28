@@ -61,11 +61,11 @@ impl Database {
 
                 // remove scripts if not in project
                 let project = self.store.get_container_project(&parent).unwrap().clone();
-                let scripts = self.store.get_project_scripts(&project).unwrap();
+                let analyses = self.store.get_project_scripts(&project).unwrap();
                 for (_, container) in graph.iter_nodes_mut() {
                     container
                         .analyses
-                        .retain(|script, _| scripts.scripts_contains_key(script));
+                        .retain(|script, _| analyses.contains_key(script));
 
                     container.save()?;
                 }

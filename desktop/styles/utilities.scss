@@ -5,6 +5,10 @@
   padding-right: t.$padding-xl;
 }
 
+.pl-xl {
+  padding-left: t.$padding-xl;
+}
+
 .m-0 {
   margin: 0;
 }
@@ -79,4 +83,9 @@
 
 .c-warning {
   color: t.$warning-color;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
 }

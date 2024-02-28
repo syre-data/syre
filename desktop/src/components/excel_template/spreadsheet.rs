@@ -19,17 +19,30 @@ pub struct SpreadsheetProps {
     pub cell_classes: CoordinateMap<Classes>,
 
     #[prop_or_default]
-    pub onclick_header: Option<Callback<(MouseEvent, u32)>>,
+    pub onclick_column_label: Option<Callback<(MouseEvent, u32)>>,
+
+    #[prop_or_default]
+    pub onclick_row_label: Option<Callback<(MouseEvent, u32)>>,
 }
 
 #[function_component(Spreadsheet)]
 pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
-    let onclick_header = |index| {
-        let onclick_header = props.onclick_header.clone();
+    let onclick_column_label = |index| {
+        let onclick_label = props.onclick_column_label.clone();
         Callback::from(move |e: MouseEvent| {
             e.stop_propagation();
-            if let Some(onclick_header) = onclick_header.as_ref() {
-                onclick_header.emit((e, index));
+            if let Some(onclick_label) = onclick_label.as_ref() {
+                onclick_label.emit((e, index));
+            }
+        })
+    };
+
+    let onclick_row_label = |index| {
+        let onclick_label = props.onclick_row_label.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
+            if let Some(onclick_label) = onclick_label.as_ref() {
+                onclick_label.emit((e, index));
             }
         })
     };
@@ -59,7 +72,7 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
                                 <th key={index}
                                     {class}
                                     data-index={(index).to_string()}
-                                    onclick={onclick_header(index as u32)}>
+                                    onclick={onclick_column_label(index as u32)}>
 
                                     { header }
                                 </th>
@@ -80,7 +93,12 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
 
                             html! {
                                 <tr data-index={row_index.to_string()}>
-                                    <th class={row_class}>{ row_index + 1 }</th>
+                                    <th class={row_class}
+                                        onclick={onclick_row_label(row_index as u32)}>
+
+                                        { row_index + 1 }
+                                    </th>
+
                                     { row
                                         .iter()
                                         .enumerate()

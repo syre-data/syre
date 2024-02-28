@@ -2,7 +2,7 @@
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
 use super::script_associations_editor::NameMap;
 use syre_core::project::container::AnalysisMap;
-use syre_core::project::{RunParameters, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, RunParameters};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
@@ -88,7 +88,7 @@ pub struct ScriptAssociationsPreviewProps {
 
     /// Callback run when a script association is modified.
     #[prop_or_default]
-    pub onchange: Callback<ScriptAssociation>,
+    pub onchange: Callback<AnalysisAssociation>,
 
     /// Callback when an association is requesting removal.
     #[prop_or_default]
@@ -108,7 +108,7 @@ pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Ht
         let onchange = props.onchange.clone();
         let script = script.clone();
         move |params| {
-            onchange.emit(ScriptAssociation::new_with_params(script.clone(), params));
+            onchange.emit(AnalysisAssociation::new_with_params(script.clone(), params));
         }
     };
 

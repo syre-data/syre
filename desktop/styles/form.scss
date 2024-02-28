@@ -1,0 +1,71 @@
+@use "themes" as t;
+
+input,
+textarea,
+button {
+  color: t.$body-text-color;
+  border-radius: t.$border-radius-l;
+  border: t.$border-width-s solid transparent;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  background-color: t.$secondary-button-background-color;
+  transition: border-color 0.25s;
+
+  &:focus {
+    border-color: t.$primary-color;
+  }
+}
+
+.form-control {
+  padding-bottom: t.$padding-m;
+
+  input,
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+}
+
+input {
+  outline: none;
+}
+
+input[type="number"] {
+  padding: 7px;
+  border-radius: 0;
+}
+
+input:has(+ .input-group-append) {
+  margin-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-group-append {
+  display: inline-block;
+  box-sizing: border-box;
+  height: 100%;
+
+  padding: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+
+  color: t.$body-text-color;
+  background-color: t.$secondary-button-background-color;
+
+  border-bottom-right-radius: t.$border-radius-l;
+  border-top-right-radius: t.$border-radius-l;
+}
+
+.inline-form-element {
+  display: inline-block;
+
+  &:not(.active):hover {
+    cursor: pointer;
+    border-radius: t.$border-radius-s;
+    padding: 0.25em 0.5em;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
+  }
+}

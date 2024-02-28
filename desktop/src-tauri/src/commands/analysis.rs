@@ -6,9 +6,9 @@ use syre_core::error::{Error as CoreError, Project as ProjectError, Resource as 
 use syre_core::project::{ExcelTemplate, Project, Script};
 use syre_core::types::ResourceId;
 use syre_local::common;
-use syre_local::types::ScriptStore;
+use syre_local::types::AnalysisStore;
 use syre_local_database::client::Client as DbClient;
-use syre_local_database::command::{ProjectCommand, ScriptCommand};
+use syre_local_database::command::{AnalysisCommand, ProjectCommand};
 use syre_local_database::Result as DbResult;
 use tauri::State;
 
@@ -17,9 +17,9 @@ use tauri::State;
 // ***********************
 
 #[tauri::command]
-pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<ScriptStore> {
-    let scripts = db.send(ScriptCommand::LoadProject(rid).into()).unwrap();
-    let scripts: DbResult<ScriptStore> = serde_json::from_value(scripts)?;
+pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<AnalysisStore> {
+    let scripts = db.send(AnalysisCommand::LoadProject(rid).into()).unwrap();
+    let scripts: DbResult<AnalysisStore> = serde_json::from_value(scripts)?;
     Ok(scripts?)
 }
 
@@ -70,7 +70,7 @@ pub fn add_script(
     } else {
         // add script to project
         let script = db
-            .send(ScriptCommand::Add(project.rid.clone(), file_name).into())
+            .send(AnalysisCommand::AddScript(project.rid.clone(), file_name).into())
             .unwrap();
 
         let script: DbResult<Script> = serde_json::from_value(script).unwrap();
@@ -159,7 +159,7 @@ pub fn add_excel_template(
     // add script to project
     let res = db
         .send(
-            ScriptCommand::AddExcelTemplate {
+            AnalysisCommand::AddExcelTemplate {
                 project: project.rid.clone(),
                 template,
             }
@@ -171,30 +171,29 @@ pub fn add_excel_template(
     res?;
     Ok(file_name)
 }
-// *********************
-// *** remove script ***
-// *********************
 
+// ***********************
+// *** remove analysis ***
+// ***********************
+
+// TODO: Let file system watcher take care of removal.
+//      Must be careful of removing file for excel templates if multiple templates based on same file.
 #[tauri::command]
-pub fn remove_script(db: State<DbClient>, project: ResourceId, script: ResourceId) -> Result {
+pub fn remove_analysis(db: State<DbClient>, project: ResourceId, script: ResourceId) -> Result {
     let res = db
-        .send(ScriptCommand::Remove(project, script).into())
-        .expect("could not remove `Script`");
+        .send(AnalysisCommand::Remove { project, script }.into())
+        .unwrap();
 
-    let res: DbResult =
-        serde_json::from_value(res).expect("could not convert `RemoveScript` result to `Result`");
-
-    res.expect("error removing `Script`");
-    Ok(())
+    let res: DbResult = serde_json::from_value(res).unwrap();
+    Ok(res?)
 }
 
 fn get_project(db: &State<DbClient>, project: ResourceId) -> Result<Project> {
     let project = db
         .send(ProjectCommand::Get(project.clone()).into())
-        .expect("could not get `Project`");
+        .unwrap();
 
-    let project: Option<Project> =
-        serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
+    let project: Option<Project> = serde_json::from_value(project).unwrap();
 
     let Some(project) = project else {
         return Err(
@@ -206,12 +205,9 @@ fn get_project(db: &State<DbClient>, project: ResourceId) -> Result<Project> {
 }
 
 fn get_project_path(db: &State<DbClient>, project: ResourceId) -> Result<PathBuf> {
-    let project_path = db
-        .send(ProjectCommand::GetPath(project).into())
-        .expect("could not get `Project` path");
+    let project_path = db.send(ProjectCommand::GetPath(project).into()).unwrap();
 
-    let project_path: Option<PathBuf> =
-        serde_json::from_value(project_path).expect("could not convert `GetPath` to `PathBuf`");
+    let project_path: Option<PathBuf> = serde_json::from_value(project_path).unwrap();
 
     let Some(project_path) = project_path else {
         return Err(

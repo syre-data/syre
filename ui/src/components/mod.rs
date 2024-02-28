@@ -7,9 +7,9 @@ pub mod form;
 pub mod funnel;
 pub mod messages;
 pub mod navigation;
+pub mod page_overlay;
 pub mod route_guard;
 pub mod shadow_box;
-// pub mod tree_view;
 
 // Re-exports
 pub use card::Card;
@@ -18,4 +18,5 @@ pub use drawer::{Drawer, ResizeHandle};
 pub use file_selector::{FileSelector, FileSelectorAction};
 pub use funnel::Funnel;
 pub use messages::{Message, Messages};
+pub use page_overlay::PageOverlay;
 pub use shadow_box::ShadowBox;

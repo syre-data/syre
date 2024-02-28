@@ -57,9 +57,6 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
         }
 
         None => {
-            // app_state.dispatch(AppStateAction::AddMessage(Message::error(
-            //     "Could not load project",
-            // )));
             tracing::debug!("could not load project");
             navigator.push(&Route::Dashboard);
             html! {
@@ -83,8 +80,22 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let canvas_state = use_reducer(|| CanvasState::new(props.project.rid.clone()));
+    let navigator = use_navigator().unwrap();
 
-    use_load_project_scripts(&props.project.rid)?;
+    if !*use_load_project_scripts(&props.project.rid)? {
+        projects_state.dispatch(ProjectsStateAction::RemoveOpenProject {
+            project: props.project.rid.clone(),
+            activate: None,
+        });
+
+        navigator.push(&Route::Dashboard);
+        return Ok(html! {
+            <div>
+                <h1>{ "Could not load project scripts" }</h1>
+            </div>
+        });
+    };
+
     let (graph, asset_errors) = match use_load_project_graph(&props.project.rid)? {
         Ok(graph) => (graph, None),
         Err(LoadProjectGraph::ProjectNotFound) => {

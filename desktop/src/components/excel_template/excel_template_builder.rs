@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use syre_core::project::excel_template::{InputParameters, OutputParameters, TemplateParameters};
 use syre_core::project::{AssetProperties, ExcelTemplate};
+use syre_core::system::template;
 use syre_core::types::ResourceId;
 use yew::prelude::*;
 
@@ -15,7 +16,33 @@ pub struct ExcelTemplateBuilderProps {
 
 #[function_component(ExcelTemplateBuilder)]
 pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
-    let builder = use_reducer(|| TemplateState::new(props.path.clone()));
+    let builder = use_reducer(|| TemplateState::new());
+    let template_node_ref = use_node_ref();
+    let input_node_ref = use_node_ref();
+    let output_node_ref = use_node_ref();
+    let review_node_ref = use_node_ref();
+
+    use_effect_with(builder.step.clone(), {
+        let template_node_ref = template_node_ref.clone();
+        let input_node_ref = input_node_ref.clone();
+        let output_node_ref = output_node_ref.clone();
+        let review_node_ref = review_node_ref.clone();
+
+        move |step| {
+            let node_ref = match step {
+                BuilderStep::Template => template_node_ref,
+                BuilderStep::Input => input_node_ref,
+                BuilderStep::Output => output_node_ref,
+                BuilderStep::Review => review_node_ref,
+            };
+
+            let elm = node_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast node ref as element");
+
+            elm.scroll_into_view();
+        }
+    });
 
     let onsubmit_template = use_callback((), {
         let builder = builder.dispatcher();
@@ -83,26 +110,35 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
 
     html! {
         <div class={"excel-template-builder"}>
-            <div class={template_step_class}>
+            <div ref={template_node_ref}
+                class={template_step_class}>
+
                 <TemplateBuilder
                     path={props.path.clone()}
                     onsubmit={onsubmit_template}
                     template={builder.template.clone()} />
             </div>
-            <div class={input_step_class}>
+
+            <div ref={input_node_ref}
+                class={input_step_class}>
+
                 <InputBuilder
                     input={builder.input.clone()}
                     onsubmit={onsubmit_input} />
             </div>
 
-            <div class={output_step_class}>
+            <div ref={output_node_ref}
+                class={output_step_class}>
+
                 <OutputBuilder
                     path={builder.output.clone().map(|output| output.path)}
                     properties={builder.output.clone().map(|output| output.properties)}
                     onsubmit={onsubmit_output} />
             </div>
 
-            <div class={review_step_class}>
+            <div ref={review_node_ref}
+                class={review_step_class}>
+
                 <TemplateReview onaccept={create_template} />
             </div>
         </div>
@@ -137,21 +173,12 @@ struct TemplateState {
 }
 
 impl TemplateState {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new() -> Self {
         Self {
             step: BuilderStep::default(),
             template: None,
             input: None,
             output: None,
-        }
-    }
-
-    pub fn progress_step(&mut self) {
-        self.step = match self.step {
-            BuilderStep::Template => BuilderStep::Input,
-            BuilderStep::Input => BuilderStep::Output,
-            BuilderStep::Output => BuilderStep::Review,
-            BuilderStep::Review => unreachable!(),
         }
     }
 }
@@ -165,17 +192,17 @@ impl Reducible for TemplateState {
 
             TemplateStateAction::SetTemplate(template) => {
                 current.template = Some(template);
-                current.progress_step();
+                current.step = BuilderStep::Input;
             }
 
             TemplateStateAction::SetInput(params) => {
                 current.input = Some(params);
-                current.progress_step();
+                current.step = BuilderStep::Output;
             }
 
             TemplateStateAction::SetOutput { path, properties } => {
                 current.output = Some(OutputParameters { path, properties });
-                current.progress_step();
+                current.step = BuilderStep::Review;
             }
         }
 

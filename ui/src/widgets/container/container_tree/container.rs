@@ -6,7 +6,7 @@ use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::{HashMap, HashSet};
 use syre_core::project::container::{AnalysisMap, AssetMap};
-use syre_core::project::{Asset, ContainerProperties, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, Asset, ContainerProperties};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
@@ -165,7 +165,7 @@ pub struct ContainerProps {
 
     /// Callback when a script association changes from the preview.
     #[prop_or_default]
-    pub onchange_script_association: Callback<ScriptAssociation>,
+    pub onchange_script_association: Callback<AnalysisAssociation>,
 
     /// Callback when a script association changes from the preview.
     #[prop_or_default]

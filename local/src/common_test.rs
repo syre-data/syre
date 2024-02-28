@@ -172,10 +172,10 @@ fn scripts_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(APP_DIR).join(SCRIPTS_FILE);
+    let expected = base_path.join(APP_DIR).join(ANALYSES_FILE);
 
     // test
-    let path = scripts_file_of(&base_path);
+    let path = analyses_file_of(&base_path);
     assert_eq!(expected, path, "path should be correct");
 }
 

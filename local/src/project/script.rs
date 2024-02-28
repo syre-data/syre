@@ -5,7 +5,7 @@ use crate::loader::container::Loader as ContainerLoader;
 use crate::system::collections::Scripts as SystemScripts;
 use std::path::Path;
 use syre_core::error::{Error as CoreError, Project as CoreProjectError};
-use syre_core::project::ScriptAssociation;
+use syre_core::project::AnalysisAssociation;
 use syre_core::types::ResourceId;
 
 /// Add an associaiton with the given script to the given container.
@@ -35,7 +35,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
 
     // add association
     let mut container = ContainerLoader::load(container)?;
-    container.add_script_association(ScriptAssociation::new(script.rid.clone()))?;
+    container.add_script_association(AnalysisAssociation::new(script.rid.clone()))?;
     Ok(container.save()?)
 }
 

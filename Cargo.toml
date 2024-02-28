@@ -57,3 +57,6 @@ debug = true
 [profile.release]
 opt-level = 3
 debug = false
+
+[build]
+rustflags = ["-Z", "threads=8"]

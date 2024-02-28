@@ -1,15 +1,17 @@
 //! Project scripts editor.
 use crate::actions::container::Action as ContainerAction;
 use crate::app::{AppStateAction, AppStateDispatcher, AppStateReducer, ProjectsStateReducer};
+use crate::commands::analysis::add_script_windows;
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
-use crate::commands::script::add_script_windows;
 use crate::components::excel_template::CreateExcelTemplate;
 use crate::hooks::use_canvas_project;
+use crate::lib::DisplayName;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use syre_core::project::ExcelTemplate;
 use syre_core::types::ResourceId;
+use syre_local::types::AnalysisKind;
 use syre_ui::types::Message;
 use syre_ui::widgets::script::CreateScript;
 use wasm_bindgen::prelude::Closure;
@@ -20,7 +22,7 @@ use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
-pub struct ProjectScriptsProps {
+pub struct ProjectAnalysesProps {
     /// Called when a user adds `Script`s to the `Project`.
     #[prop_or_default]
     pub onadd: Option<Callback<HashSet<PathBuf>>>,
@@ -34,18 +36,18 @@ pub struct ProjectScriptsProps {
     pub onremove: Option<Callback<ResourceId>>,
 }
 
-#[function_component(ProjectScripts)]
-pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
+#[function_component(ProjectAnalyses)]
+pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().unwrap();
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let project = use_canvas_project();
-    let Some(project_scripts) = projects_state.project_scripts.get(&*project) else {
-        panic!("`Project`'s `Scripts` not loaded");
+    let Some(project_analyses) = projects_state.project_analyses.get(&*project) else {
+        panic!("`Project`'s analyses not loaded");
     };
 
     let drag_over_state = use_state(|| 0);
 
-    let ondblclick_script = {
+    let ondblclick_analysis = {
         let app_state = app_state.dispatcher();
         let projects_state = projects_state.clone();
         let project = project.clone();
@@ -54,41 +56,20 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
             let app_state = app_state.clone();
             let project = projects_state.projects.get(&*project).unwrap();
             let analysis_root = project.analysis_root.clone().unwrap();
-            let script_path = projects_state
-                .project_scripts
+            let analysis_path = match projects_state
+                .project_analyses
                 .get(&project.rid)
                 .unwrap()
-                .get_script(&script)
+                .get(&script)
                 .unwrap()
-                .path
-                .clone();
+            {
+                AnalysisKind::Script(script) => &script.path,
+                AnalysisKind::ExcelTemplate(template) => &template.template.path,
+            }
+            .clone();
 
-            let script_rel_path = analysis_root.join(script_path);
+            let script_rel_path = analysis_root.join(analysis_path);
             open_script_callback(app_state, project.rid.clone(), script_rel_path)
-        }
-    };
-
-    let ondblclick_excel_template = {
-        let app_state = app_state.dispatcher();
-        let projects_state = projects_state.clone();
-        let project = project.clone();
-
-        move |script: ResourceId| {
-            let app_state = app_state.clone();
-            let project = projects_state.projects.get(&*project).unwrap();
-            let analysis_root = project.analysis_root.clone().unwrap();
-            let template_path = projects_state
-                .project_scripts
-                .get(&project.rid)
-                .unwrap()
-                .get_excel_template(&script)
-                .unwrap()
-                .template
-                .path
-                .clone();
-
-            let template_rel_path = analysis_root.join(template_path);
-            open_script_callback(app_state, project.rid.clone(), template_rel_path)
         }
     };
 
@@ -238,67 +219,27 @@ pub fn project_scripts(props: &ProjectScriptsProps) -> HtmlResult {
             }
 
             <ul>
-                { project_scripts.scripts().into_iter().map(|script| {
-                    let name = match script.name.as_ref() {
-                        Some(name) => name.clone(),
-                        None => {
-                            let path = script.path.as_path();
-                            let name = path.to_string_lossy().to_string();
-
-                            name
-                        }
+                { project_analyses.values().map(|analysis| {
+                    let rid = match analysis {
+                        AnalysisKind::Script(script) => &script.rid,
+                        AnalysisKind::ExcelTemplate(template) => &template.rid,
                     };
 
                     html! {
-                        <li key={script.rid.clone()}
-                            data-rid={format!("{}", script.rid)}>
+                        <li key={rid.clone()}
+                            data-rid={format!("{}", rid)}>
 
                             <span class={"name clickable"}
-                                title={name.clone()}
-                                ondblclick={ondblclick_script(script.rid.clone())}
-                                ondragstart={ondragstart_script(script.rid.clone())}
+                                title={analysis.display_name()}
+                                ondblclick={ondblclick_analysis(rid.clone())}
+                                ondragstart={ondragstart_script(rid.clone())}
                                 draggable={"true"} >
-                                { name }
+                                { analysis.display_name() }
                             </span>
 
                             if props.onremove.is_some() {
                                 <button class={"btn-icon"} type={"button"}
-                                    onclick={onclick_remove(script.rid.clone())}>
-
-                                    <Icon class={"syre-ui-add-remove-icon"}
-                                        icon_id={IconId::HeroiconsSolidMinus}/>
-                                </button>
-                            }
-                        </li>
-                    }
-                }).collect::<Html>() }
-
-                { project_scripts.excel_templates().into_iter().map(|template| {
-                    let name = match template.name.as_ref() {
-                        Some(name) => name.clone(),
-                        None => {
-                            let path = template.template.path.as_path();
-                            let name = path.to_string_lossy().to_string();
-
-                            name
-                        }
-                    };
-
-                    html! {
-                        <li key={template.rid.clone()}
-                            data-rid={format!("{}", template.rid)}>
-
-                            <span class={"name clickable"}
-                                title={name.clone()}
-                                ondblclick={ondblclick_excel_template(template.rid.clone())}
-                                ondragstart={ondragstart_script(template.rid.clone())}
-                                draggable={"true"} >
-                                { name }
-                            </span>
-
-                            if props.onremove.is_some() {
-                                <button class={"btn-icon"} type={"button"}
-                                    onclick={onclick_remove(template.rid.clone())}>
+                                    onclick={onclick_remove(rid.clone())}>
 
                                     <Icon class={"syre-ui-add-remove-icon"}
                                         icon_id={IconId::HeroiconsSolidMinus}/>

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::db::StandardSearchFilter;
 use syre_core::project::container::AnalysisMap;
-use syre_core::project::{ContainerProperties, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, ContainerProperties};
 use syre_core::types::ResourceId;
 
 /// Container related commands.
@@ -96,7 +96,7 @@ pub struct BulkUpdateScriptAssociationsArgs {
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ScriptAssociationBulkUpdate {
-    pub add: Vec<ScriptAssociation>,
+    pub add: Vec<AnalysisAssociation>,
     pub remove: Vec<ResourceId>,
     pub update: Vec<RunParametersUpdate>,
 }

@@ -82,7 +82,7 @@ impl Client {
 
         req_socket
             .send(
-                &serde_json::to_string(&Command::DatabaseCommand(DatabaseCommand::Id))
+                &serde_json::to_string(&Command::Database(DatabaseCommand::Id))
                     .expect("could not serialize `Command`"),
                 0,
             )

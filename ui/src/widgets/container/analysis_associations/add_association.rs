@@ -15,14 +15,13 @@ pub struct AddScriptAssociationProps {
     pub onadd: Callback<ResourceId>,
 }
 
-#[function_component(AddScriptAssociation)]
-pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
+#[function_component(AddAnalysisAssociation)]
+pub fn add_analysis_association(props: &AddScriptAssociationProps) -> Html {
     let active = use_state(|| false);
-    let script_ref = use_node_ref();
+    let analysis_ref = use_node_ref();
 
     let set_active = {
         let active = active.clone();
-
         move |is_active: bool| {
             let active = active.clone();
 
@@ -35,27 +34,27 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
     let add_association = {
         let onadd = props.onadd.clone();
         let active = active.clone();
-        let script_ref = script_ref.clone();
+        let analysis_ref = analysis_ref.clone();
 
         Callback::from(move |_: MouseEvent| {
-            let script_elm = script_ref
+            let analysis_elm = analysis_ref
                 .cast::<web_sys::HtmlSelectElement>()
                 .expect("could not cast `NodeRef` to `HtmlSelectElement`");
 
-            let script = script_elm.value();
-            let script =
-                ResourceId::from_str(script.as_str()).expect("could not parse to `ResoruceId`");
+            let analysis = analysis_elm.value();
+            let analysis =
+                ResourceId::from_str(analysis.as_str()).expect("could not parse to `ResoruceId`");
 
-            onadd.emit(script);
+            onadd.emit(analysis);
             active.set(false);
         })
     };
 
     html! {
         <>
-            <div class={"script-association-header"}>
+            <div class={"analysis-association-header"}>
                 <h3>
-                    { "Scripts" }
+                    { "Analyses" }
                 </h3>
                 <button class={"add-button"} type={"button"} onclick={set_active(true)}>
                     <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
@@ -64,14 +63,14 @@ pub fn add_script_association(props: &AddScriptAssociationProps) -> Html {
             </div>
             if *active {
                 <div>
-                    <select ref={script_ref}>
+                    <select ref={analysis_ref}>
                         { props.scripts.iter().map(|(rid, name)| {
                             html! {
                                 <option value={rid.clone()}>{ &name }</option>
                             }
                         }).collect::<Html>() }
                     </select>
-                    <div class={"script-add-cancel-buttons"}>
+                    <div class={"analysis-add-cancel-buttons"}>
                         <button onclick={add_association}>{ "Add" }</button>
                         <button onclick={set_active(false)}>{ "Cancel" }</button>
                     </div>

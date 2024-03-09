@@ -12,20 +12,12 @@ use syre_local_database::command::{AnalysisCommand, ProjectCommand};
 use syre_local_database::Result as DbResult;
 use tauri::State;
 
-// ***********************
-// *** project scripts ***
-// ***********************
-
 #[tauri::command]
-pub fn get_project_scripts(db: State<DbClient>, rid: ResourceId) -> Result<AnalysisStore> {
-    let scripts = db.send(AnalysisCommand::LoadProject(rid).into()).unwrap();
-    let scripts: DbResult<AnalysisStore> = serde_json::from_value(scripts)?;
-    Ok(scripts?)
+pub fn get_project_analyses(db: State<DbClient>, rid: ResourceId) -> Result<AnalysisStore> {
+    let analyses = db.send(AnalysisCommand::LoadProject(rid).into()).unwrap();
+    let analyses: DbResult<AnalysisStore> = serde_json::from_value(analyses)?;
+    Ok(analyses?)
 }
-
-// ******************
-// *** add script ***
-// ******************
 
 // TODO May not be used any more. Can possible remove.
 /// Adds a Script to the Project.
@@ -106,11 +98,7 @@ pub fn add_script_windows(
     Ok(())
 }
 
-// **************************
-// *** add excel template ***
-// **************************
-
-/// Add an excel template as a script.
+/// Add an excel template.
 ///
 /// # Returns
 /// Final path of the template.
@@ -143,20 +131,19 @@ pub fn add_excel_template(
     };
 
     let file_name = PathBuf::from(file_name);
-
-    let mut to_path = project_path;
-    to_path.push(&analysis_root);
-    to_path.push(file_name.clone());
+    let analysis_path = project_path.join(analysis_root.clone());
+    let mut to_path = analysis_path.join(&file_name);
 
     let from_path = fs::canonicalize(path)?;
     if to_path != from_path {
+        to_path = common::unique_file_name(to_path)?;
         fs::copy(&from_path, &to_path)?;
     }
 
-    // make path relative
-    template.template.path = file_name.clone();
+    let template_path = to_path.strip_prefix(&analysis_path).unwrap().to_path_buf();
+    template.template.path = template_path.clone();
 
-    // add script to project
+    // add template to project
     let res = db
         .send(
             AnalysisCommand::AddExcelTemplate {
@@ -169,12 +156,24 @@ pub fn add_excel_template(
 
     let res: DbResult = serde_json::from_value(res).unwrap();
     res?;
-    Ok(file_name)
+    Ok(template_path)
 }
 
-// ***********************
-// *** remove analysis ***
-// ***********************
+#[tauri::command]
+pub fn update_excel_template(
+    db: State<DbClient>,
+    template: String, /*ExcelTemplate*/
+) -> Result {
+    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
+    // See https://github.com/tauri-apps/tauri/issues/6078
+    let template: ExcelTemplate = serde_json::from_str(&template).unwrap();
+    let res = db
+        .send(AnalysisCommand::UpdateExcelTemplate(template).into())
+        .unwrap();
+
+    let res: DbResult = serde_json::from_value(res).unwrap();
+    Ok(res?)
+}
 
 // TODO: Let file system watcher take care of removal.
 //      Must be careful of removing file for excel templates if multiple templates based on same file.
@@ -206,9 +205,7 @@ fn get_project(db: &State<DbClient>, project: ResourceId) -> Result<Project> {
 
 fn get_project_path(db: &State<DbClient>, project: ResourceId) -> Result<PathBuf> {
     let project_path = db.send(ProjectCommand::GetPath(project).into()).unwrap();
-
     let project_path: Option<PathBuf> = serde_json::from_value(project_path).unwrap();
-
     let Some(project_path) = project_path else {
         return Err(
             CoreError::Resource(ResourceError::does_not_exist("`Project` not loaded")).into(),

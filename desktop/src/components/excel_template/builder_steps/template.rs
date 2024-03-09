@@ -3,10 +3,9 @@ use super::super::{common, workbook::Workbook};
 use crate::hooks::spreadsheet::use_excel;
 use std::path::PathBuf;
 use std::rc::Rc;
-use syre_core::project::excel_template::Index;
 use syre_core::project::excel_template::{
-    DataLabelAction, Range, TemplateParameters, WorkbookCoordinateMap, WorkbookRange,
-    WorkbookTrackMap, WorksheetId,
+    utils as excel_utils, DataLabelAction, Index, Range, TemplateParameters, WorkbookCoordinateMap,
+    WorkbookRange, WorkbookTrackMap, WorksheetId,
 };
 use yew::prelude::*;
 
@@ -40,12 +39,7 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
 
     let template_form_node_ref = use_node_ref();
     let replace_range_node_ref = use_node_ref();
-    let headers_input_node_ref = use_node_ref();
     let data_label_action_node_ref = use_node_ref();
-    let data_label_action_none_node_ref = use_node_ref();
-    let data_label_action_insert_node_ref = use_node_ref();
-    let data_label_action_replace_node_ref = use_node_ref();
-    let template_index_columns_node_ref = use_node_ref();
 
     use_effect_with(props.template.clone(), {
         let builder = builder.dispatcher();
@@ -119,7 +113,6 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
         (props.onsubmit.clone(), props.path.clone(), builder.clone()),
         {
             let template_form_node_ref = template_form_node_ref.clone();
-            let index_cols_node_ref = template_index_columns_node_ref.clone();
 
             move |e: SubmitEvent, (onsubmit, path, builder)| {
                 e.prevent_default();
@@ -162,9 +155,9 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
         }
     }
 
-    let mut replace_range_class = classes!("template-step");
-    let mut headers_class = classes!("template-step");
-    let mut data_label_action_class = classes!("template-step");
+    let mut replace_range_class = classes!("form-step");
+    let mut headers_class = classes!("form-step");
+    let mut data_label_action_class = classes!("form-step");
     match builder.step {
         Step::ReplaceRange => {
             replace_range_class.push("active");
@@ -187,7 +180,7 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                     {onclick_column_label} />
             </div>
             <form ref={template_form_node_ref}
-                class={"pl-xl"}
+                class={"builder-steps pl-xl"}
                 {onsubmit}>
 
                 <div ref={replace_range_node_ref}
@@ -214,8 +207,7 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                         <fieldset>
                             <legend>{ "How should inserted data be labeled?" }</legend>
                             <div>
-                                <input ref={data_label_action_none_node_ref}
-                                    type={"radio"}
+                                <input type={"radio"}
                                     name={"data-label-action"}
                                     value={"none"}
                                     checked={builder.data_label_action == DataLabelAction::None} />
@@ -227,11 +219,10 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                             </div>
 
                             <div>
-                                <input ref={data_label_action_insert_node_ref}
-                                    type={"radio"}
+                                <input type={"radio"}
                                     name={"data-label-action"}
                                     value={"insert"}
-                                    checked={&builder.data_label_action == &DataLabelAction::Insert} />
+                                    checked={builder.data_label_action == DataLabelAction::Insert} />
 
                                 <label for={"insert"}
                                     title={"File path will be appended as a header."}>
@@ -240,11 +231,10 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                             </div>
 
                             <div>
-                                <input ref={data_label_action_replace_node_ref}
-                                    type={"radio"}
+                                <input type={"radio"}
                                     name={"data-label-action"}
                                     value={"replace"}
-                                    checked={&builder.data_label_action == &DataLabelAction::Replace} />
+                                    checked={builder.data_label_action == DataLabelAction::Replace} />
 
                                 <label for={"replace"}
                                     title={"Input asset's path will replace any headers."}>
@@ -373,9 +363,8 @@ impl TemplateBuilderState {
             return "".into();
         };
 
-        let col_start = common::index_to_column(*start as usize);
-        let col_end = common::index_to_column(*end as usize);
-
+        let col_start = excel_utils::index_to_column(*start as usize);
+        let col_end = excel_utils::index_to_column(*end as usize);
         match sheet {
             WorksheetId::Name(sheet_name) => {
                 format!("{sheet_name}!{col_start}:{col_end}")

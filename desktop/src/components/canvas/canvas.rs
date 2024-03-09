@@ -11,7 +11,7 @@ use crate::app::{
     ProjectsStateDispatcher, ProjectsStateReducer,
 };
 use crate::commands::container::UpdatePropertiesArgs as UpdateContainerPropertiesArgs;
-use crate::hooks::{use_load_project_graph, use_load_project_scripts};
+use crate::hooks::{use_load_project_analyses, use_load_project_graph};
 use crate::routes::Route;
 use futures::stream::StreamExt;
 use std::io;
@@ -82,7 +82,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
     let canvas_state = use_reducer(|| CanvasState::new(props.project.rid.clone()));
     let navigator = use_navigator().unwrap();
 
-    if !*use_load_project_scripts(&props.project.rid)? {
+    if !*use_load_project_analyses(&props.project.rid)? {
         projects_state.dispatch(ProjectsStateAction::RemoveOpenProject {
             project: props.project.rid.clone(),
             activate: None,
@@ -348,7 +348,9 @@ fn handle_file_system_event(
 
             ScriptUpdate::Removed(script) => {
                 projects_state.dispatch(ProjectsStateAction::RemoveProjectScript(script.clone()));
-                graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(script));
+                graph_state.dispatch(GraphStateAction::RemoveContainerAnalysisAssociations(
+                    script,
+                ));
             }
 
             ScriptUpdate::Moved { script, path } => {

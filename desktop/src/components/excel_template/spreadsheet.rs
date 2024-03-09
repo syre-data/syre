@@ -1,7 +1,8 @@
 //! Spreadsheet interface.
-use super::common;
 use std::collections::HashMap;
-use syre_core::project::excel_template::{CoordinateMap, Index};
+use syre_core::project::excel_template::{
+    utils as excel_utils, CoordinateIndex, CoordinateMap, Index,
+};
 use syre_desktop_lib::excel_template;
 use yew::prelude::*;
 
@@ -53,7 +54,9 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
         10
     };
 
-    let headers = (0..n_cols).map(common::index_to_column).collect::<Vec<_>>();
+    let headers = (0..n_cols)
+        .map(excel_utils::index_to_column)
+        .collect::<Vec<_>>();
     Ok(html! {
         <div>
             <table>
@@ -87,7 +90,7 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
                         .enumerate()
                         .map(|(row_index, row)| {
                             let mut row_class = classes!("table-label", "row-label");
-                            if let Some(cell_class) = props.row_classes.get(&(row_index as Index)) {
+                            if let Some(cell_class) = props.row_classes.get(&(row_index as CoordinateIndex)) {
                                 row_class.push(cell_class.clone());
                             }
 
@@ -104,15 +107,15 @@ pub fn spreadsheet(props: &SpreadsheetProps) -> HtmlResult {
                                         .enumerate()
                                         .map(|(col_index, cell_value)| {
                                             let mut class = classes!();
-                                            if let Some(row_class) = props.row_classes.get(&(row_index as Index)) {
+                                            if let Some(row_class) = props.row_classes.get(&(row_index as CoordinateIndex)) {
                                                 class.push(row_class.clone());
                                             }
 
-                                            if let Some(col_class) = props.column_classes.get(&(col_index as Index)) {
+                                            if let Some(col_class) = props.column_classes.get(&(col_index as CoordinateIndex)) {
                                                 class.push(col_class.clone());
                                             }
 
-                                            if let Some(cell_class) = props.cell_classes.get_coordinate(&(row_index as Index), &(col_index as Index)) {
+                                            if let Some(cell_class) = props.cell_classes.get_coordinate(&(row_index as CoordinateIndex), &(col_index as CoordinateIndex)) {
                                                 class.push(cell_class.clone());
                                             }
 

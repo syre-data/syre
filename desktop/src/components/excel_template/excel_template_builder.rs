@@ -1,10 +1,9 @@
 //! Excel template builder.
-use super::steps::{InputBuilder, OutputBuilder, TemplateBuilder, TemplateReview};
+use super::builder_steps::{InputBuilder, OutputBuilder, TemplateBuilder, TemplateReview};
 use std::path::PathBuf;
 use std::rc::Rc;
 use syre_core::project::excel_template::{InputParameters, OutputParameters, TemplateParameters};
 use syre_core::project::{AssetProperties, ExcelTemplate};
-use syre_core::system::template;
 use syre_core::types::ResourceId;
 use yew::prelude::*;
 
@@ -90,6 +89,7 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
                 template: template.clone(),
                 input: input.clone(),
                 output: output.clone(),
+                python_exe: "python3".to_string(),
             };
 
             oncreate.emit(template);

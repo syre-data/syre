@@ -1,35 +1,35 @@
 use super::*;
 use crate::types::ResourceId;
 
-// **************************
-// *** Script Association ***
-// **************************
+// *******************
+// *** Association ***
+// *******************
 
 #[test]
 fn association_new_works() {
-    let id = ResourceId::new(); // fake id of script
-    let script = AnalysisAssociation::new(id);
+    let id = ResourceId::new(); // fake id
+    let association = AnalysisAssociation::new(id);
 
-    assert_eq!(true, script.autorun, "autorun should default to true");
-    assert_eq!(0, script.priority, "order should default to 0");
+    assert_eq!(true, association.autorun, "autorun should default to true");
+    assert_eq!(0, association.priority, "order should default to 0");
 }
 
 #[test]
 fn association_into_run_parameters_should_work() {
     // setup
     let id = ResourceId::new(); // fake id of script
-    let mut script = AnalysisAssociation::new(id);
-    script.autorun = false;
-    script.priority = 1;
+    let mut association = AnalysisAssociation::new(id);
+    association.autorun = false;
+    association.priority = 1;
 
     // test
-    let params: RunParameters = script.clone().into();
+    let params: RunParameters = association.clone().into();
     assert_eq!(
-        &script.autorun, &params.autorun,
+        &association.autorun, &params.autorun,
         "converted autorun should match"
     );
     assert_eq!(
-        &script.priority, &params.priority,
+        &association.priority, &params.priority,
         "converted priority should be correct"
     );
 }
@@ -51,7 +51,7 @@ fn run_parameteres_to_association_should_work() {
     let params = RunParameters::new();
     let assoc = params.clone().to_association(rid.clone());
 
-    assert_eq!(rid, assoc.analysis, "scripts should match");
+    assert_eq!(rid, assoc.analysis, "associations should match");
     assert_eq!(params.autorun, assoc.autorun, "autoruns should match");
     assert_eq!(params.priority, assoc.priority, "priorities should match");
 }

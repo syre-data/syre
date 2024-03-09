@@ -12,32 +12,32 @@ pub type NameMap = ResourceMap<String>;
 // *** Association Editor ***
 // **************************
 
-pub enum ScriptAssociationStateAction {
+pub enum AnalysisAssociationStateAction {
     SetValue(RunParameters),
     SetPriority(i32),
     SetAutorun(bool),
 }
 
 #[derive(PartialEq, Clone)]
-pub struct ScriptAssociationState {
+pub struct AnalysisAssociationState {
     run_parameters: RunParameters,
 }
 
-impl Reducible for ScriptAssociationState {
-    type Action = ScriptAssociationStateAction;
+impl Reducible for AnalysisAssociationState {
+    type Action = AnalysisAssociationStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
-            ScriptAssociationStateAction::SetValue(params) => {
+            AnalysisAssociationStateAction::SetValue(params) => {
                 current.run_parameters = params;
             }
 
-            ScriptAssociationStateAction::SetPriority(priority) => {
+            AnalysisAssociationStateAction::SetPriority(priority) => {
                 current.run_parameters.priority = priority;
             }
 
-            ScriptAssociationStateAction::SetAutorun(autorun) => {
+            AnalysisAssociationStateAction::SetAutorun(autorun) => {
                 current.run_parameters.autorun = autorun;
             }
         }
@@ -47,7 +47,7 @@ impl Reducible for ScriptAssociationState {
 }
 
 #[derive(PartialEq, Properties)]
-pub struct ScriptAssociationEditorProps {
+pub struct AnalysisAssociationEditorProps {
     pub name: String,
     pub run_parameters: RunParameters,
 
@@ -55,10 +55,10 @@ pub struct ScriptAssociationEditorProps {
     pub onchange: Callback<RunParameters>,
 }
 
-#[function_component(ScriptAssociationEditor)]
-pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
+#[function_component(AnalysisAssociationEditor)]
+pub fn analysis_association_editor(props: &AnalysisAssociationEditorProps) -> Html {
     let dirty_state = use_state(|| false); // track if changes are from user interaction
-    let association_state = use_reducer(|| ScriptAssociationState {
+    let association_state = use_reducer(|| AnalysisAssociationState {
         run_parameters: props.run_parameters.clone(),
     });
 
@@ -70,7 +70,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
         let dirty_state = dirty_state.clone();
 
         use_effect_with(props.run_parameters.clone(), move |run_parameters| {
-            association_state.dispatch(ScriptAssociationStateAction::SetValue(
+            association_state.dispatch(AnalysisAssociationStateAction::SetValue(
                 run_parameters.clone(),
             ));
 
@@ -108,7 +108,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
                 .parse()
                 .expect("could not parse input as number");
 
-            association_state.dispatch(ScriptAssociationStateAction::SetPriority(priority));
+            association_state.dispatch(AnalysisAssociationStateAction::SetPriority(priority));
             dirty_state.set(true);
         })
     };
@@ -124,7 +124,7 @@ pub fn script_association_editor(props: &ScriptAssociationEditorProps) -> Html {
                 .expect("could not cast `NodeRef` into element");
 
             let autorun = autorun_ref.checked();
-            association_state.dispatch(ScriptAssociationStateAction::SetAutorun(autorun));
+            association_state.dispatch(AnalysisAssociationStateAction::SetAutorun(autorun));
             dirty_state.set(true);
         })
     };
@@ -205,7 +205,7 @@ pub fn script_associations_editor(props: &ScriptAssociationsEditorProps) -> Html
                      };
                      html! {
                         <li key={script.clone()} class={"script-association"} >
-                            <ScriptAssociationEditor
+                            <AnalysisAssociationEditor
                                 {name}
                                 run_parameters={run_parameters.clone()}
                                 onchange={onchange_association(script.clone())} />

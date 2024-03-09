@@ -84,8 +84,8 @@ fn handle_excel_template(
     // TODO[h]: Settings should be passed in and not loaded here. This is a temporary fix.
     // Get runner settings and override script's cmd if necessary
     if let Ok(runner_settings) = RunnerSettings::load() {
-        if let Some(_python_path) = runner_settings.python_path.clone() {
-            todo!();
+        if let Some(python_path) = runner_settings.python_path.clone() {
+            template.python_exe = python_path;
         }
     }
 

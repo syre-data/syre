@@ -10,8 +10,8 @@ use syre_local::common::unique_file_name;
 use syre_local::types::AssetFileAction;
 use syre_local_database::client::Client as DbClient;
 use syre_local_database::command::container::{
-    BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationsArgs, PropertiesUpdate,
-    ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, BulkUpdatePropertiesArgs,
+    PropertiesUpdate, UpdateAnalysisAssociationsArgs, UpdatePropertiesArgs,
 };
 use syre_local_database::command::ContainerCommand;
 use syre_local_database::Result as DbResult;
@@ -61,7 +61,7 @@ pub fn update_container_script_associations(
     let associations: AnalysisMap = serde_json::from_str(&associations).unwrap();
     let res = db
         .send(
-            ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
+            ContainerCommand::UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs {
                 rid,
                 associations,
             })
@@ -157,12 +157,13 @@ pub fn bulk_update_container_properties(
 pub fn bulk_update_container_script_associations(
     db: State<DbClient>,
     containers: Vec<ResourceId>,
-    update: ScriptAssociationBulkUpdate,
+    update: AnalysisAssociationBulkUpdate,
 ) -> DbResult {
-    let update = ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
-        containers,
-        update,
-    });
+    let update =
+        ContainerCommand::BulkUpdateAnalysisAssociations(BulkUpdateAnalysisAssociationsArgs {
+            containers,
+            update,
+        });
 
     let res = db.send(update.into()).unwrap();
     serde_json::from_value(res).unwrap()

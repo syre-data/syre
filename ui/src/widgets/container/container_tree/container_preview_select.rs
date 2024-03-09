@@ -40,7 +40,7 @@ pub fn container_preview_select(props: &ContainerPreviewSelectProps) -> Html {
             <option value={ContainerPreview::Description}>{ ContainerPreview::Description }</option>
             <option value={ContainerPreview::Tags}>{ ContainerPreview::Tags }</option>
             <option value={ContainerPreview::Metadata}>{ ContainerPreview::Metadata }</option>
-            <option value={ContainerPreview::Scripts}>{ ContainerPreview::Scripts }</option>
+            <option value={ContainerPreview::Analysis}>{ ContainerPreview::Analysis }</option>
             <option value={ContainerPreview::None}>{ ContainerPreview::None }</option>
         </select>
     }

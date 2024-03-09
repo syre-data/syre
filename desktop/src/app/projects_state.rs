@@ -10,7 +10,7 @@ use yew::prelude::*;
 pub type ProjectMap = ResourceMap<Project>;
 pub type SettingsMap = ResourceMap<ProjectSettings>;
 
-/// Map from a `Project` to its `Scripts`.
+/// Map from a `Project` to its analyses.
 pub type ProjectAnalysesMap = ResourceMap<AnalysisStore>;
 
 /// Actions for [`ProjectsState`].
@@ -48,13 +48,18 @@ pub enum ProjectsStateAction {
         script: Script,
     },
 
-    /// Inserts `Script`s into a `Project`.
-    InsertProjectScripts {
+    /// Inserts a `Project`'s analyses.
+    InsertProjectAnalyses {
         project: ResourceId,
         analyses: AnalysisStore,
     },
 
     InsertProjectExcelTemplate {
+        project: ResourceId,
+        template: ExcelTemplate,
+    },
+
+    UpdateExcelTemplate {
         project: ResourceId,
         template: ExcelTemplate,
     },
@@ -139,13 +144,18 @@ impl Reducible for ProjectsState {
                 scripts.insert(script.rid.clone(), script.into());
             }
 
-            ProjectsStateAction::InsertProjectScripts { project, analyses } => {
+            ProjectsStateAction::InsertProjectAnalyses { project, analyses } => {
                 current.project_analyses.insert(project, analyses);
             }
 
             ProjectsStateAction::InsertProjectExcelTemplate { project, template } => {
                 let scripts = current.project_analyses.get_mut(&project).unwrap();
                 scripts.insert(template.rid.clone(), template.into());
+            }
+
+            ProjectsStateAction::UpdateExcelTemplate { project, template } => {
+                let analyses = current.project_analyses.get_mut(&project).unwrap();
+                analyses.insert(template.rid.clone(), AnalysisKind::ExcelTemplate(template));
             }
 
             ProjectsStateAction::RemoveProjectScript(analysis) => {

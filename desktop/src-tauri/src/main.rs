@@ -115,11 +115,12 @@ fn main() {
             get_assets,
             update_asset_properties,
             remove_asset,
-            // script
-            get_project_scripts,
+            // analyses
+            get_project_analyses,
             add_script,
             add_script_windows,
             add_excel_template,
+            update_excel_template,
             remove_analysis,
             // spreadsheet
             load_excel,

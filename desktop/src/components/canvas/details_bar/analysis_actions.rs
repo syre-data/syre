@@ -55,7 +55,7 @@ pub fn project_analysis_actions() -> HtmlResult {
                     }
                 }
 
-                projects_state.dispatch(ProjectsStateAction::InsertProjectScripts {
+                projects_state.dispatch(ProjectsStateAction::InsertProjectAnalyses {
                     project,
                     analyses: project_scripts,
                 });
@@ -126,10 +126,10 @@ pub fn project_analysis_actions() -> HtmlResult {
                 // Remove from scripts
                 analyses.remove(&rid);
                 projects_state
-                    .dispatch(ProjectsStateAction::InsertProjectScripts { project, analyses });
+                    .dispatch(ProjectsStateAction::InsertProjectAnalyses { project, analyses });
 
                 // Remove from containers
-                graph_state.dispatch(GraphStateAction::RemoveContainerScriptAssociations(
+                graph_state.dispatch(GraphStateAction::RemoveContainerAnalysisAssociations(
                     rid.clone(),
                 ));
             });

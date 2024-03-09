@@ -23,7 +23,7 @@ pub fn tags_editor(props: &TagsEditorProps) -> Html {
                 .cast::<web_sys::HtmlInputElement>()
                 .expect("could not cast node ref into input");
 
-            let value = input
+            let mut value = input
                 .value()
                 .split(",")
                 .into_iter()
@@ -37,6 +37,8 @@ pub fn tags_editor(props: &TagsEditorProps) -> Html {
                 })
                 .collect::<Vec<String>>();
 
+            value.sort();
+            value.dedup();
             onchange.emit(value);
         }
     });

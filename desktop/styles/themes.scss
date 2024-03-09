@@ -9,8 +9,10 @@ $body-font-family: vars.$font-family-secondary;
 
 $font-size-xs: vars.$font-size-xs;
 $font-size-base: vars.$font-size-base;
+$font-size-lg: vars.$font-size-lg;
 $font-weight-base: vars.$font-weight-base;
 $line-height-base: vars.$line-height-base;
+$line-height-lg: vars.$line-height-lg;
 
 // *************
 // *** color ***
@@ -54,11 +56,11 @@ $secondary-button-background-color: vars.$secondary-color-700;
 $secondary-button-hover-background-color: vars.$secondary-color-800;
 $secondary-button-hover-outline-color: vars.$secondary-color-500;
 
+$secondary-button-dark-background-color: vars.$secondary-color-800;
+$secondary-button-dark-hover-background-color: vars.$secondary-color-700;
+
 $danger-button-background-color: vars.$utility-red-300;
 $danger-button-hover-background-color: vars.$utility-red-200;
-
-$project-script-button-background-color: vars.$secondary-color-800;
-$project-script-button-hover-background-color: vars.$secondary-color-700;
 
 $message-font-color: vars.$secondary-color-900;
 $info-color: vars.$primary-color-300;

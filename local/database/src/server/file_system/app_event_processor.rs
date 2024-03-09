@@ -237,7 +237,6 @@ impl Database {
         let project = self.project_by_resource_path(&from).unwrap();
         let from_type = get_path_resource_type(project, from);
         let to_type = get_path_resource_type(project, to);
-        tracing::debug!(?from_type, ?to_type);
 
         match (from_type, to_type) {
             (Location::Data, Location::Data) => {

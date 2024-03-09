@@ -7,8 +7,8 @@ use syre_core::project::{ExcelTemplate, Script};
 use syre_core::types::ResourceId;
 use syre_local::types::AnalysisStore;
 
-pub async fn get_project_scripts(project: ResourceId) -> Result<AnalysisStore, String> {
-    invoke_result("get_project_scripts", ResourceIdArgs { rid: project }).await
+pub async fn get_project_analyses(project: ResourceId) -> Result<AnalysisStore, String> {
+    invoke_result("get_project_analyses", ResourceIdArgs { rid: project }).await
 }
 
 pub async fn add_script(project: ResourceId, path: PathBuf) -> Result<Option<Script>, String> {
@@ -47,6 +47,15 @@ pub async fn add_excel_template(
     .await
 }
 
+pub async fn update_excel_template(template: ExcelTemplate) -> Result<(), String> {
+    let template = serde_json::to_string(&template).unwrap();
+    invoke_result(
+        "update_excel_template",
+        UpdateExcelTemplateArgs { template },
+    )
+    .await
+}
+
 pub async fn remove_analysis(project: ResourceId, script: ResourceId) -> Result<(), String> {
     invoke_result("remove_analysis", RemoveScriptArgs { project, script }).await
 }
@@ -76,4 +85,9 @@ struct AddExcelTemplateArgs {
     project: ResourceId,
     template: String,
     // template: ExcelTemplate,
+}
+
+#[derive(Serialize)]
+struct UpdateExcelTemplateArgs {
+    template: String, /*ExcelTemplate*/
 }

@@ -1,14 +1,14 @@
-//! Edit a [`Container`]'s [`ScriptAssociation`]s.
+//! Edit a [`Container`]'s [`AnalysisAssociation`]s.
 use crate::app::ProjectsStateReducer;
-use crate::commands::container::{update_script_associations, UpdateScriptAssociationsArgs};
+use crate::commands::container::{update_analysis_associations, UpdateAnalysisAssociationsArgs};
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::lib::DisplayName;
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
 use syre_local::types::analysis::{AnalysisKind, Store as AnalysisStore};
-use syre_ui::widgets::container::script_associations::{
-    AddScriptAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
+use syre_ui::widgets::container::analysis_associations::{
+    AddAnalysisAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -37,32 +37,35 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
     let dirty_state = use_state(|| false); // track if changes come from user or are internal
     let associations = use_state(|| container.analyses.clone());
 
-    let project_scripts = use_state(|| {
+    let project_analyses = use_state(|| {
         projects_state
             .project_analyses
             .get(&canvas_state.project)
-            .expect("`Project`'s `Scripts` not loaded")
+            .expect("`Project`'s analyses not loaded")
             .clone()
     });
 
-    let remaining_scripts = use_state(|| {
-        project_scripts
+    let remaining_analyses = use_state(|| {
+        project_analyses
             .keys()
             .into_iter()
-            .filter_map(|script| {
-                if associations.contains_key(&script) {
+            .filter_map(|analysis| {
+                if associations.contains_key(&analysis) {
                     None
                 } else {
-                    Some((script.clone(), get_script_name(&project_scripts, script)))
+                    Some((
+                        analysis.clone(),
+                        get_analysis_name(&project_analyses, analysis),
+                    ))
                 }
             })
             .collect::<Vec<_>>()
     });
 
     use_effect_with(projects_state.clone(), {
-        let project_scripts = project_scripts.setter();
+        let project_analyses = project_analyses.setter();
         move |projects_state| {
-            project_scripts.set(
+            project_analyses.set(
                 projects_state
                     .project_analyses
                     .get(&canvas_state.project)
@@ -72,18 +75,21 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
         }
     });
 
-    use_effect_with((project_scripts.clone(), associations.clone()), {
-        let remaining_scripts = remaining_scripts.setter();
-        move |(project_scripts, associations)| {
-            remaining_scripts.set(
-                project_scripts
+    use_effect_with((project_analyses.clone(), associations.clone()), {
+        let remaining_analyses = remaining_analyses.setter();
+        move |(project_analyses, associations)| {
+            remaining_analyses.set(
+                project_analyses
                     .keys()
                     .into_iter()
-                    .filter_map(|script| {
-                        if associations.contains_key(script) {
+                    .filter_map(|analysis| {
+                        if associations.contains_key(analysis) {
                             None
                         } else {
-                            Some((script.clone(), get_script_name(&project_scripts, script)))
+                            Some((
+                                analysis.clone(),
+                                get_analysis_name(&project_analyses, analysis),
+                            ))
                         }
                     })
                     .collect::<Vec<_>>(),
@@ -102,23 +108,26 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
         }
     });
 
-    // Update remaining scripts based on associations
-    use_effect_with((associations.clone(), project_scripts.clone()), {
-        let remaining_scripts = remaining_scripts.setter();
-        move |(associations, project_scripts)| {
-            let scripts = project_scripts
+    // Update remaining analyses based on associations
+    use_effect_with((associations.clone(), project_analyses.clone()), {
+        let remaining_analyses = remaining_analyses.setter();
+        move |(associations, project_analyses)| {
+            let analyses = project_analyses
                 .keys()
                 .into_iter()
-                .filter_map(|script| {
-                    if associations.contains_key(script) {
+                .filter_map(|analysis| {
+                    if associations.contains_key(analysis) {
                         None
                     } else {
-                        Some((script.clone(), get_script_name(&project_scripts, script)))
+                        Some((
+                            analysis.clone(),
+                            get_analysis_name(&project_analyses, analysis),
+                        ))
                     }
                 })
                 .collect::<Vec<_>>();
 
-            remaining_scripts.set(scripts);
+            remaining_analyses.set(analyses);
         }
     });
 
@@ -141,7 +150,7 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
                 let associations = associations.clone();
 
                 spawn_local(async move {
-                    match update_script_associations(container.clone(), (*associations).clone())
+                    match update_analysis_associations(container.clone(), (*associations).clone())
                         .await
                     {
                         Ok(_) => {}
@@ -151,13 +160,14 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
                         }
                     }
 
-                    let update = UpdateScriptAssociationsArgs {
+                    let update = UpdateAnalysisAssociationsArgs {
                         rid: container,
                         associations: (*associations).clone(),
                     };
 
-                    graph_state
-                        .dispatch(GraphStateAction::UpdateContainerScriptAssociations(update));
+                    graph_state.dispatch(GraphStateAction::UpdateContainerAnalysisAssociations(
+                        update,
+                    ));
                 });
             }
         },
@@ -167,7 +177,7 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
         .clone()
         .into_keys()
         .filter_map(|assoc| {
-            project_scripts
+            project_analyses
                 .get(&assoc)
                 .map(|analysis| (assoc, analysis.display_name()))
         })
@@ -177,9 +187,9 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
         let dirty_state = dirty_state.clone();
         let associations = associations.clone();
 
-        Callback::from(move |script: ResourceId| {
+        Callback::from(move |analysis: ResourceId| {
             let mut assocs = (*associations).clone();
-            assocs.insert(script, RunParameters::new());
+            assocs.insert(analysis, RunParameters::new());
             associations.set(assocs);
             dirty_state.set(true);
         })
@@ -196,9 +206,9 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
     };
 
     Ok(html! {
-        <div class={classes!("script-associations-editor-widget")}>
-            <AddScriptAssociation
-                scripts={(*remaining_scripts).clone()}
+        <div class={classes!("analysis-associations-editor-widget")}>
+            <AddAnalysisAssociation
+                scripts={(*remaining_analyses).clone()}
                 {onadd} />
 
             <ContainerScriptsEditor
@@ -209,8 +219,8 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
     })
 }
 
-fn get_script_name(script_store: &AnalysisStore, script: &ResourceId) -> String {
-    match script_store.get(&script).unwrap() {
+fn get_analysis_name(analysis_store: &AnalysisStore, analysis: &ResourceId) -> String {
+    match analysis_store.get(&analysis).unwrap() {
         AnalysisKind::Script(script) => script
             .name
             .clone()

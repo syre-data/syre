@@ -18,13 +18,28 @@ button {
 }
 
 .form-control {
+  width: 100%;
+  box-sizing: border-box;
   padding-bottom: t.$padding-m;
+
+  label {
+	  padding: t.$padding-m;
+  }
 
   input,
   textarea {
-    width: 100%;
     box-sizing: border-box;
     margin: 0;
+  }
+
+  .label-wrapper {
+	  display: inline-flex;
+	  flex-direction: column;
+	  padding: t.$padding-m;
+
+	  label {
+		  padding: 0;
+	  }
   }
 }
 
@@ -68,4 +83,20 @@ input:has(+ .input-group-append) {
     padding: 0.25em 0.5em;
     box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
   }
+}
+
+form.builder-steps {
+	height: 100vh;
+	overflow-y: auto;
+
+	.form-step {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		min-height: 100vh;
+		padding-bottom: 5%;
+
+		.step-controls {
+		}
+	}
 }

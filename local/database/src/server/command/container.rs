@@ -1,8 +1,8 @@
 //! Implementation of `Container` related functionality.
 use super::super::Database;
 use crate::command::container::{
-    BulkUpdatePropertiesArgs, BulkUpdateScriptAssociationsArgs, PropertiesUpdate,
-    ScriptAssociationBulkUpdate, UpdatePropertiesArgs, UpdateScriptAssociationsArgs,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, BulkUpdatePropertiesArgs,
+    PropertiesUpdate, UpdateAnalysisAssociationsArgs, UpdatePropertiesArgs,
 };
 use crate::command::ContainerCommand;
 use crate::Result;
@@ -73,7 +73,7 @@ impl Database {
                 serde_json::to_value(res).expect("could not convert result to JSON")
             }
 
-            ContainerCommand::UpdateScriptAssociations(UpdateScriptAssociationsArgs {
+            ContainerCommand::UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs {
                 rid,
                 associations,
             }) => {
@@ -102,10 +102,9 @@ impl Database {
                 serde_json::to_value(res).unwrap()
             }
 
-            ContainerCommand::BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs {
-                containers,
-                update,
-            }) => {
+            ContainerCommand::BulkUpdateAnalysisAssociations(
+                BulkUpdateAnalysisAssociationsArgs { containers, update },
+            ) => {
                 let res = self.bulk_update_container_script_associations(&containers, &update);
                 serde_json::to_value(res).unwrap()
             }
@@ -347,7 +346,7 @@ impl Database {
     fn bulk_update_container_script_associations(
         &mut self,
         containers: &Vec<ResourceId>,
-        update: &ScriptAssociationBulkUpdate,
+        update: &AnalysisAssociationBulkUpdate,
     ) -> Result {
         // TODO Collect errors
         for rid in containers {
@@ -367,7 +366,7 @@ impl Database {
     fn update_container_script_associations_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &ScriptAssociationBulkUpdate,
+        update: &AnalysisAssociationBulkUpdate,
     ) -> Result {
         let Some(container) = self.store.get_container_mut(&rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
@@ -387,7 +386,7 @@ impl Database {
         }
 
         for u in update.update.iter() {
-            let Some(script) = container.analyses.get_mut(&u.script) else {
+            let Some(script) = container.analyses.get_mut(&u.analysis) else {
                 continue;
             };
 

@@ -138,12 +138,12 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
         });
     }
 
-    let onchange_name = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_name = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
         let elm = name_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlInputElement>()
@@ -158,15 +158,15 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
 
             properties_state.dispatch(action);
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_kind = {
+    let onchange_kind = use_callback((), {
         let properties_state = properties_state.clone();
         let dirty_state = dirty_state.clone();
         let elm = kind_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlInputElement>()
@@ -181,15 +181,15 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
 
             properties_state.dispatch(action);
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_description = {
+    let onchange_description = use_callback((), {
         let properties_state = properties_state.clone();
         let dirty_state = dirty_state.clone();
         let elm = description_ref.clone();
 
-        Callback::from(move |_: Event| {
+        move |_: Event, _| {
             // update state
             let elm = elm
                 .cast::<web_sys::HtmlTextAreaElement>()
@@ -204,18 +204,18 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
 
             properties_state.dispatch(action);
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
-    let onchange_tags = {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    let onchange_tags = use_callback((), {
+        let properties_state = properties_state.dispatcher();
+        let dirty_state = dirty_state.setter();
 
-        Callback::from(move |value: Vec<String>| {
+        move |value: Vec<String>, _| {
             properties_state.dispatch(AssetPropertiesStateAction::SetTags(value));
             dirty_state.set(true);
-        })
-    };
+        }
+    });
 
     let onchange_metadata = {
         let properties_state = properties_state.clone();
@@ -227,21 +227,16 @@ pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
         })
     };
 
-    {
-        let properties_state = properties_state.clone();
-        let dirty_state = dirty_state.clone();
+    use_effect_with((properties_state.clone(), dirty_state.clone()), {
         let onchange = props.onchange.clone();
 
-        use_effect_with(
-            (properties_state, dirty_state),
-            move |(properties_state, dirty_state)| {
-                if !(**dirty_state) {
-                    return;
-                }
-                onchange.emit((**properties_state).clone().into());
-            },
-        );
-    }
+        move |(properties_state, dirty_state)| {
+            if !(**dirty_state) {
+                return;
+            }
+            onchange.emit((**properties_state).clone().into());
+        }
+    });
 
     html! {
         <form class={classes!("syre-ui-asset-properties-editor")}>

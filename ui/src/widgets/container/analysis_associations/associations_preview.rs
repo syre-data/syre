@@ -1,6 +1,6 @@
-//! ScriptAssociation preview for
+//! Analysis associationpreview for
 //! [`Container`](crate::widgets::container::container_tree::Container)s in the `Container` tree.
-use super::script_associations_editor::NameMap;
+use super::associations_editor::NameMap;
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::{AnalysisAssociation, RunParameters};
 use syre_core::types::{ResourceId, ResourceMap};
@@ -8,9 +8,12 @@ use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
 #[derive(PartialEq, Properties)]
-struct ScriptAssociationPreviewProps {
+struct AnalysisAssociationPreviewProps {
     pub name: String,
     pub run_parameters: RunParameters,
+
+    #[prop_or_default]
+    pub class: Classes,
 
     #[prop_or_default]
     pub onchange: Callback<RunParameters>,
@@ -19,8 +22,8 @@ struct ScriptAssociationPreviewProps {
     pub onremove: Callback<()>,
 }
 
-#[function_component(ScriptAssociationPreview)]
-fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
+#[function_component(AnalysisAssociationPreview)]
+fn analysis_association_preview(props: &AnalysisAssociationPreviewProps) -> Html {
     let parameter_state = use_state(|| props.run_parameters.clone());
     use_effect_with(props.run_parameters.clone(), {
         let parameter_state = parameter_state.setter();
@@ -48,14 +51,15 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
         },
     );
 
+    let class = classes!("syre-ui-analysis-association-preview", props.class.clone());
     html! {
-        <div class={"syre-ui-script-association-preview"}
+        <div {class}
             data-priority={props.run_parameters.priority.to_string()}
             data-autorun={props.run_parameters.autorun.to_string()}>
 
-            <span class={"script-name"} title={props.name.clone()}>{ &props.name }</span>
-            <span class={"script-priority"}>{ props.run_parameters.priority }</span>
-            <span class={"script-autorun"}
+            <span class={"analysis-name"} title={props.name.clone()}>{ &props.name }</span>
+            <span class={"analysis-priority"}>{ props.run_parameters.priority }</span>
+            <span class={"analysis-autorun"}
                 onclick={toggle_autorun}>
 
                 if props.run_parameters.autorun {
@@ -78,15 +82,15 @@ fn script_association_preview(props: &ScriptAssociationPreviewProps) -> Html {
 }
 
 #[derive(PartialEq, Properties)]
-pub struct ScriptAssociationsPreviewProps {
-    pub scripts: AnalysisMap,
+pub struct AnalysisAssociationsPreviewProps {
+    pub analyses: AnalysisMap,
     pub names: ResourceMap<String>,
 
-    /// Map from `Script` id to name.
+    /// Map from analysis id to name.
     #[prop_or_default]
     pub name_map: Option<NameMap>,
 
-    /// Callback run when a script association is modified.
+    /// Callback run when an analysis association is modified.
     #[prop_or_default]
     pub onchange: Callback<AnalysisAssociation>,
 
@@ -95,46 +99,62 @@ pub struct ScriptAssociationsPreviewProps {
     pub onremove: Callback<ResourceId>,
 }
 
-#[function_component(ScriptAssociationsPreview)]
-pub fn script_associations_preview(props: &ScriptAssociationsPreviewProps) -> Html {
-    let mut scripts = props.scripts.iter().collect::<Vec<_>>();
-    scripts.sort_by(
+#[function_component(AnalysisAssociationsPreview)]
+pub fn analysis_associations_preview(props: &AnalysisAssociationsPreviewProps) -> Html {
+    let mut analyses = props.analyses.iter().collect::<Vec<_>>();
+    analyses.sort_by(
         |(_, RunParameters { priority: p1, .. }), (_, RunParameters { priority: p2, .. })| {
             p2.cmp(p1)
         },
     );
 
-    let onchange = move |script: ResourceId| {
+    let onchange = move |analysis: ResourceId| {
         let onchange = props.onchange.clone();
-        let script = script.clone();
+        let analysis = analysis.clone();
         move |params| {
-            onchange.emit(AnalysisAssociation::new_with_params(script.clone(), params));
+            onchange.emit(AnalysisAssociation::new_with_params(
+                analysis.clone(),
+                params,
+            ));
         }
     };
 
-    let onremove = move |script: ResourceId| {
+    let onremove = move |analysis: ResourceId| {
         let onremove = props.onremove.clone();
-        let script = script.clone();
+        let analysis = analysis.clone();
         Callback::from(move |_| {
-            onremove.emit(script.clone());
+            onremove.emit(analysis.clone());
         })
     };
 
     html! {
-        <div class={classes!("syre-ui-script-associations-preview")}>
-            if props.scripts.len() == 0 {
-                { "(no scripts)" }
+        <div class={classes!("syre-ui-analysis-associations-preview")}>
+            if props.analyses.len() == 0 {
+                { "(no analyses)" }
             } else {
-                <ol class={classes!("syre-ui-script-associations-list")}>
-                    { scripts.into_iter().map(|(script, run_parameters)| {
-                        let name = props.names.get(script).expect("script name not found.");
+                <ol class={classes!("syre-ui-analysis-associations-list")}>
+                    { analyses.into_iter().map(|(analysis, run_parameters)| {
+                        let mut class = classes!();
+                        let name = props
+                            .names
+                            .get(analysis)
+                            .map(|name| name.clone());
+
+                        let name = if let Some(name) = name {
+                            name
+                        } else {
+                            class.push("no-name");
+                            analysis.to_string()
+                        };
+
                         html! {
                             <li>
-                                <ScriptAssociationPreview
-                                    name={name.clone()}
+                                <AnalysisAssociationPreview
+                                    {class}
+                                    {name}
                                     run_parameters={run_parameters.clone()}
-                                    onchange={onchange(script.clone())}
-                                    onremove={onremove(script.clone())}/>
+                                    onchange={onchange(analysis.clone())}
+                                    onremove={onremove(analysis.clone())}/>
                             </li>
                         }
                     }).collect::<Html>() }

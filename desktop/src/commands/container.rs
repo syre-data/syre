@@ -8,7 +8,7 @@ use syre_core::project::{Container, ContainerProperties};
 use syre_core::types::ResourceId;
 use syre_desktop_lib::types::AddAssetInfo;
 use syre_local_database::command::container::{
-    BulkUpdateScriptAssociationsArgs, PropertiesUpdate, ScriptAssociationBulkUpdate,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, PropertiesUpdate,
 };
 use syre_local_database::Result as DbResult;
 
@@ -46,15 +46,14 @@ pub async fn bulk_update_properties(
     .await
 }
 
-pub async fn update_script_associations(
+pub async fn update_analysis_associations(
     container: ResourceId,
     associations: AnalysisMap,
 ) -> DbResult {
-    tracing::debug!(?associations);
     // TODO Issue with deserializing `HashMap` in Tauri, send as string.
     // See https://github.com/tauri-apps/tauri/issues/6078
     let associations_str = serde_json::to_string(&associations).unwrap();
-    let update = UpdateScriptAssociationsStringArgs {
+    let update = UpdateAnalysisAssociationsStringArgs {
         rid: container,
         associations: associations_str,
     };
@@ -62,13 +61,13 @@ pub async fn update_script_associations(
     invoke_result("update_container_script_associations", update).await
 }
 
-pub async fn bulk_update_script_associations(
+pub async fn bulk_update_analysis_associations(
     containers: Vec<ResourceId>,
-    update: ScriptAssociationBulkUpdate,
+    update: AnalysisAssociationBulkUpdate,
 ) -> DbResult {
     invoke_result(
         "bulk_update_container_script_associations",
-        BulkUpdateScriptAssociationsArgs { containers, update },
+        BulkUpdateAnalysisAssociationsArgs { containers, update },
     )
     .await
 }
@@ -139,9 +138,9 @@ pub struct UpdatePropertiesStringArgs {
 }
 
 /// Arguments to update a [`Container`](syre_core::project::Container)'s
-/// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
+/// [`AnalysisAssociation`](syre_core::project::AnalysisAssociation)s.
 #[derive(Clone, Serialize)]
-pub struct UpdateScriptAssociationsArgs {
+pub struct UpdateAnalysisAssociationsArgs {
     /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
     pub rid: ResourceId,
 
@@ -153,17 +152,17 @@ pub struct UpdateScriptAssociationsArgs {
 
 /// TEMPORARY
 ///
-/// Intermediate value for [`UpdateScriptAssociationsArgs`] while dealing with
+/// Intermediate value for [`UpdateAnalysisAssociationsArgs`] while dealing with
 /// (https://github.com/tauri-apps/tauri/issues/6078)
 #[derive(Clone, Serialize)]
-pub struct UpdateScriptAssociationsStringArgs {
+pub struct UpdateAnalysisAssociationsStringArgs {
     /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
     pub rid: ResourceId,
 
     // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
-    // Unify with `UpdateScriptAssociationsArgs` once resolved.
+    // Unify with `UpdateAnalysisAssociationsArgs` once resolved.
     // See: https://github.com/tauri-apps/tauri/issues/6078
-    /// Updated script associations.
+    /// Updated analysis associations.
     pub associations: String,
 }
 

@@ -8,6 +8,8 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct CreateExcelTemplateProps {
+    /// Button content.
+    pub children: Html,
     pub oncreate: Callback<ExcelTemplate>,
 }
 
@@ -48,14 +50,21 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
     });
 
     html! {
-        <div>
-            <button {onclick}>{ "Create Excel Template" }</button>
-            if let Some(path) = (*template_path).clone() {
-                <PageOverlay {onclose} >
+    <>
+        <button title={"Add an Excel template"}
+            {onclick}>
+
+            { props.children.clone() }
+        </button>
+
+        if let Some(path) = (*template_path).clone() {
+            <PageOverlay {onclose} >
+                <div class={"excel-template-builder-wrapper"}>
                     <h1>{ "Create an Excel template" }</h1>
                     <ExcelTemplateBuilder {path} {oncreate} />
-                </PageOverlay>
-            }
-        </div>
+                </div>
+            </PageOverlay>
+        }
+    </>
     }
 }

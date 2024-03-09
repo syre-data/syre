@@ -4,9 +4,9 @@ use std::cmp::{Eq, Ordering, PartialEq, PartialOrd};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// Represents an association between a Script and a Container.
-/// Contains information on the script to be run,
-/// whether the Script should be run,
+/// Represents an association between an analysis  and a Container.
+/// Contains information on the analysis to run,
+/// whether the analysis should be run,
 /// and the order of its execution relative to the current Container.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -62,7 +62,7 @@ impl RunParameters {
         }
     }
 
-    /// Converts self into a script association for the given Script.
+    /// Converts self into an analysis association for the given analysis.
     pub fn to_association(self, script: ResourceId) -> AnalysisAssociation {
         let mut assoc = AnalysisAssociation::new(script);
         assoc.autorun = self.autorun;

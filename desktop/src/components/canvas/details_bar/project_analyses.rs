@@ -1,10 +1,12 @@
 //! Project scripts editor.
 use crate::actions::container::Action as ContainerAction;
-use crate::app::{AppStateAction, AppStateDispatcher, AppStateReducer, ProjectsStateReducer};
-use crate::commands::analysis::add_script_windows;
+use crate::app::{
+    AppStateAction, AppStateDispatcher, AppStateReducer, ProjectsStateAction, ProjectsStateReducer,
+};
+use crate::commands::analysis::{add_script_windows, update_excel_template};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
-use crate::components::excel_template::CreateExcelTemplate;
+use crate::components::excel_template::{CreateExcelTemplate, ExcelTemplateEditor};
 use crate::hooks::use_canvas_project;
 use crate::lib::DisplayName;
 use std::collections::HashSet;
@@ -16,8 +18,8 @@ use syre_ui::types::Message;
 use syre_ui::widgets::script::CreateScript;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::spawn_local;
 use web_sys::FileReader;
+use yew::platform::spawn_local;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -45,31 +47,39 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
         panic!("`Project`'s analyses not loaded");
     };
 
+    let excel_template_editor_state = use_state(|| Option::<syre_core::types::ResourceId>::None);
     let drag_over_state = use_state(|| 0);
 
     let ondblclick_analysis = {
         let app_state = app_state.dispatcher();
         let projects_state = projects_state.clone();
         let project = project.clone();
+        let excel_template_editor_state = excel_template_editor_state.setter();
 
-        move |script: ResourceId| {
+        move |analysis: ResourceId| {
             let app_state = app_state.clone();
             let project = projects_state.projects.get(&*project).unwrap();
             let analysis_root = project.analysis_root.clone().unwrap();
-            let analysis_path = match projects_state
+            match projects_state
                 .project_analyses
                 .get(&project.rid)
                 .unwrap()
-                .get(&script)
+                .get(&analysis)
                 .unwrap()
             {
-                AnalysisKind::Script(script) => &script.path,
-                AnalysisKind::ExcelTemplate(template) => &template.template.path,
-            }
-            .clone();
+                AnalysisKind::Script(script) => {
+                    let script_rel_path = analysis_root.join(&script.path);
+                    open_script_callback(app_state, project.rid.clone(), script_rel_path)
+                }
 
-            let script_rel_path = analysis_root.join(analysis_path);
-            open_script_callback(app_state, project.rid.clone(), script_rel_path)
+                AnalysisKind::ExcelTemplate(template) => {
+                    let template = template.rid.clone();
+                    let excel_template_editor_state = excel_template_editor_state.clone();
+                    Callback::from(move |_: MouseEvent| {
+                        excel_template_editor_state.set(Some(template.clone()));
+                    })
+                }
+            }
         }
     };
 
@@ -119,8 +129,8 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
         }
     });
 
-    let ondrop = use_callback(
-        (project.clone(), drag_over_state.clone()),
+    let ondrop = use_callback((project.clone(), drag_over_state.clone()), {
+        let app_state = app_state.dispatcher();
         move |e: DragEvent, (project, drag_over_state)| {
             e.prevent_default();
             e.stop_propagation();
@@ -196,8 +206,36 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
                 file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                 onload.forget();
             }
-        },
-    );
+        }
+    });
+
+    let onchange_excel_template = use_callback(project.clone(), {
+        let app_state = app_state.dispatcher();
+        let projects_state = projects_state.dispatcher();
+        move |template: ExcelTemplate, project| {
+            let app_state = app_state.clone();
+            let projects_state = projects_state.clone();
+            let template = template.clone();
+            let project = (**project).clone();
+            spawn_local(async move {
+                match update_excel_template(template.clone()).await {
+                    Ok(_) => {
+                        projects_state.dispatch(ProjectsStateAction::UpdateExcelTemplate {
+                            project,
+                            template,
+                        });
+                    }
+
+                    Err(err) => {
+                        tracing::debug!(?err);
+                        let mut msg = Message::error("Could not update template.");
+                        msg.set_details(err);
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+                    }
+                }
+            });
+        }
+    });
 
     let mut class = classes!("project-scripts-widget", "px-xl", "h-100", "box-border");
     if *drag_over_state > 0 {
@@ -205,18 +243,28 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
     }
 
     Ok(html! {
+    <>
         <div {class}
             {ondragenter}
             {ondragover}
             {ondragleave}
             {ondrop} >
 
-            if let Some(onadd) = props.onadd.as_ref() {
-                <CreateScript class={"block mx-auto"} oncreate={onadd.clone()} />
-            }
-            if let Some(onadd_template) = props.onadd_excel_template.as_ref() {
-                <CreateExcelTemplate oncreate={onadd_template.clone()} />
-            }
+            <div class={"create-analyses-controls flex"}>
+                <label class={"grow"}>{ "Add" }</label>
+
+                if let Some(onadd) = props.onadd.as_ref() {
+                    <CreateScript oncreate={onadd.clone()}>
+                        <Icon icon_id={IconId::FontAwesomeSolidCode} />
+                    </CreateScript>
+                }
+
+                if let Some(onadd_template) = props.onadd_excel_template.as_ref() {
+                    <CreateExcelTemplate oncreate={onadd_template.clone()}>
+                        <Icon icon_id={IconId::FontAwesomeRegularFileExcel} />
+                    </CreateExcelTemplate >
+                }
+            </div>
 
             <ul>
                 { project_analyses.values().map(|analysis| {
@@ -250,6 +298,14 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
                 }).collect::<Html>() }
             </ul>
         </div>
+
+        if let Some(template) = excel_template_editor_state.as_ref() {
+            <ExcelTemplateEditor
+                template={template.clone()}
+                onchange={onchange_excel_template}
+                onclose={move |_| excel_template_editor_state.set(None)} />
+        }
+    </>
     })
 }
 

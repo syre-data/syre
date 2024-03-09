@@ -72,7 +72,7 @@ impl Resource for Container {}
 pub struct Builder {
     properties: PropertiesBuilder,
     assets: AssetMap,
-    scripts: AnalysisMap,
+    analyses: AnalysisMap,
 }
 
 impl Builder {
@@ -171,12 +171,12 @@ impl Builder {
     }
 
     pub fn add_script(&mut self, script: AnalysisAssociation) -> &mut Self {
-        self.scripts.insert(script.analysis.clone(), script.into());
+        self.analyses.insert(script.analysis.clone(), script.into());
         self
     }
 
     pub fn remove_script(&mut self, rid: &ResourceId) -> &mut Self {
-        self.scripts.remove(rid);
+        self.analyses.remove(rid);
         self
     }
 }
@@ -187,7 +187,7 @@ impl Into<Container> for Builder {
             rid: ResourceId::new(),
             properties: self.properties.into(),
             assets: self.assets,
-            analyses: self.scripts,
+            analyses: self.analyses,
         }
     }
 }

@@ -5,7 +5,7 @@ use crate::{Error, Result};
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::project::{Project as CoreProject, Script as CoreScript};
+use syre_core::project::{ExcelTemplate, Project as CoreProject, Script as CoreScript};
 use syre_core::types::ResourceId;
 use syre_local::project::resources::{
     Analyses as ProjectScripts, Project as LocalProject, Script as LocalScript,
@@ -27,6 +27,11 @@ impl Database {
 
             AnalysisCommand::AddExcelTemplate { project, template } => {
                 let res = self.store.insert_excel_template(project, template);
+                serde_json::to_value(res).unwrap()
+            }
+
+            AnalysisCommand::UpdateExcelTemplate(template) => {
+                let res = self.update_excel_template(template);
                 serde_json::to_value(res).unwrap()
             }
 
@@ -139,6 +144,20 @@ impl Database {
         };
 
         self.store.insert_script(project.clone(), script)?;
+        Ok(())
+    }
+
+    fn update_excel_template(&mut self, template: ExcelTemplate) -> Result {
+        let Some(project) = self.store.get_script_project(&template.rid) else {
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
+                "`ExcelTemplate` does not exist",
+            ))
+            .into());
+        };
+
+        self.store
+            .insert_excel_template(project.clone(), template)?;
+
         Ok(())
     }
 

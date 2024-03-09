@@ -31,6 +31,8 @@ pub enum AnalysisCommand {
         template: ExcelTemplate,
     },
 
+    UpdateExcelTemplate(ExcelTemplate),
+
     /// Removes an analysis from a `Project`.
     Remove {
         project: ResourceId,

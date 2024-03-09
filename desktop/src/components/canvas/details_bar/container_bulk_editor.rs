@@ -2,7 +2,7 @@
 use super::super::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::{
-    bulk_update_properties, bulk_update_script_associations, BulkUpdatePropertiesArgs,
+    bulk_update_analysis_associations, bulk_update_properties, BulkUpdatePropertiesArgs,
 };
 use crate::lib::DisplayName;
 use std::collections::HashSet;
@@ -11,8 +11,8 @@ use syre_core::types::{ResourceId, ResourceMap};
 use syre_local::types::analysis::AnalysisKind;
 use syre_local::types::AnalysisStore;
 use syre_local_database::command::container::{
-    BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
-    ScriptAssociationBulkUpdate,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, PropertiesUpdate,
+    RunParametersUpdate,
 };
 use syre_local_database::command::types::{MetadataAction, TagsAction};
 use syre_ui::types::Message;
@@ -20,7 +20,7 @@ use syre_ui::widgets::bulk_editor::{
     ContainerPropertiesBulkEditor, RunParametersUpdate as RunParametersUiUpdate,
     ScriptAssociationsBulkEditor, ScriptBulkMap,
 };
-use syre_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
+use syre_ui::widgets::container::analysis_associations::{AddAnalysisAssociation, NameMap};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -295,7 +295,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationBulkUpdate::default();
+            let mut update = AnalysisAssociationBulkUpdate::default();
             update.add.push(AnalysisAssociation::new(script.clone()));
 
             spawn_local(async move {
@@ -332,7 +332,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationBulkUpdate::default();
+            let mut update = AnalysisAssociationBulkUpdate::default();
             update.remove.push(script.clone());
             spawn_local(async move {
                 update_script_associations(update_containers, update, app_state, graph_state).await
@@ -368,9 +368,9 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut assoc_update = ScriptAssociationBulkUpdate::default();
+            let mut assoc_update = AnalysisAssociationBulkUpdate::default();
             let assoc = RunParametersUpdate {
-                script: update.script,
+                analysis: update.script,
                 autorun: update.autorun,
                 priority: update.priority,
             };
@@ -398,7 +398,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 {onremove_metadata}
                 {onchange_metadata} />
 
-            <AddScriptAssociation
+            <AddAnalysisAssociation
                 scripts={remaining_scripts}
                 onadd={onadd_association} />
 
@@ -437,14 +437,14 @@ async fn update_properties(
 
 async fn update_script_associations(
     containers: Vec<ResourceId>,
-    update: ScriptAssociationBulkUpdate,
+    update: AnalysisAssociationBulkUpdate,
     app_state: AppStateReducer<'_>,
     graph_state: GraphStateReducer,
 ) {
-    match bulk_update_script_associations(containers.clone(), update.clone()).await {
+    match bulk_update_analysis_associations(containers.clone(), update.clone()).await {
         Ok(_) => {
             graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                BulkUpdateScriptAssociationsArgs { containers, update },
+                BulkUpdateAnalysisAssociationsArgs { containers, update },
             ));
         }
 

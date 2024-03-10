@@ -11,3 +11,4 @@ pub mod workbook;
 pub use create_template::CreateExcelTemplate;
 pub use edit_template::ExcelTemplateEditor;
 pub use excel_template::ExcelTemplate;
+pub use excel_template_builder::ExcelTemplateBuilder;

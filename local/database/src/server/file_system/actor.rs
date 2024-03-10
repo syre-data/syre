@@ -14,7 +14,6 @@ mod windows {
     use crate::server::Event;
     use notify::{self, RecursiveMode, Watcher};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
-    use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::sync::mpsc;
     type FileSystemWatcher = notify::RecommendedWatcher;

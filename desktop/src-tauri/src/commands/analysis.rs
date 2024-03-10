@@ -19,9 +19,6 @@ pub fn get_project_analyses(db: State<DbClient>, rid: ResourceId) -> Result<Anal
     Ok(analyses?)
 }
 
-// TODO May not be used any more. Can possible remove.
-/// Adds a Script to the Project.
-///
 /// # Returns
 /// + `None` if the Script was not already in the Project's analysis path,
 ///     so was copied in and the file system watcher will handle it.
@@ -70,15 +67,15 @@ pub fn add_script(
     }
 }
 
-// TODO: Check if file contents matches that of a file already in the analysis folder
-// If so, don't need to write the contents to disk, just use existing file.
+/// # Returns
+/// Final path to file relative to project's analysis root.
 #[tauri::command]
-pub fn add_script_windows(
+pub fn copy_contents_to_analyses(
     db: State<DbClient>,
     project: ResourceId,
     file_name: PathBuf,
     contents: Vec<u8>,
-) -> Result {
+) -> Result<PathBuf> {
     let project = get_project(&db, project)?;
     let project_path = get_project_path(&db, project.rid.clone())?;
 
@@ -89,13 +86,13 @@ pub fn add_script_windows(
         .into());
     };
 
-    let mut to_path = project_path;
-    to_path.push(analysis_root);
-    to_path.push(file_name);
+    let analysis_path = project_path.join(analysis_root);
+    let to_path = analysis_path.join(file_name);
     let to_path = common::unique_file_name(to_path)?;
 
     fs::write(&to_path, contents)?;
-    Ok(())
+    let final_path = to_path.strip_prefix(analysis_path).unwrap();
+    Ok(final_path.to_path_buf())
 }
 
 /// Add an excel template.

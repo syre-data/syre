@@ -13,6 +13,10 @@ pub fn template_builder(props: &ReviewProps) -> Html {
     });
 
     html! {
-        <button onclick={onaccept}>{ "Create template" }</button>
+        <button class={"btn-primary"}
+            onclick={onaccept}>
+
+            { "Create template" }
+        </button>
     }
 }

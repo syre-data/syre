@@ -52,10 +52,8 @@ pub fn add_analysis_association(props: &AddScriptAssociationProps) -> Html {
 
     html! {
         <>
-            <div class={"analysis-association-header"}>
-                <h3>
-                    { "Analyses" }
-                </h3>
+            <div class={"analysis-association-header flex"}>
+                <h3 class={"grow"}>{ "Analyses" }</h3>
                 <button class={"add-button"} type={"button"} onclick={set_active(true)}>
                     <Icon class={"syre-ui-icon syre-ui-add-remove-icon"}
                         icon_id={IconId::HeroiconsSolidPlus }/>

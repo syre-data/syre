@@ -27,6 +27,13 @@ pub struct ExcelTemplate {
     pub python_exe: String,
 }
 
+impl ExcelTemplate {
+    /// Returns a list of supported extensions.
+    pub fn supported_extensions() -> Vec<&'static str> {
+        vec!["xlsx"]
+    }
+}
+
 /// Describes the shape of the template and manipulations to take.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, PartialEq, Debug)]

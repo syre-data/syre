@@ -33,7 +33,7 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
                 let mut path = FileDialogBuilder::new();
                 // path.set_default_path(&default_path); TODO Set default path
                 path.set_title("Select an Excel template")
-                    .add_filter("Excel", &["xlsx"]);
+                    .add_filter("Excel", &["xlsx"]); // TODO: Pull valid extensions from `ExcelTemplate`.
 
                 let path = path.pick_file().await.unwrap();
                 template_path.set(path);

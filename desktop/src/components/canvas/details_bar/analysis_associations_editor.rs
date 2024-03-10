@@ -8,7 +8,7 @@ use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
 use syre_local::types::analysis::{AnalysisKind, Store as AnalysisStore};
 use syre_ui::widgets::container::analysis_associations::{
-    AddAnalysisAssociation, NameMap, ScriptAssociationsEditor as ContainerScriptsEditor,
+    AddAnalysisAssociation, NameMap, ScriptAssociationsEditor as ContainerAssociationsEditor,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -211,7 +211,7 @@ pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> 
                 scripts={(*remaining_analyses).clone()}
                 {onadd} />
 
-            <ContainerScriptsEditor
+            <ContainerAssociationsEditor
                 associations={(*associations).clone()}
                 {name_map}
                 {onchange} />

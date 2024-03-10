@@ -204,7 +204,7 @@ pub fn template_builder(props: &TemplateBuilderProps) -> Html {
                     class={data_label_action_class}>
 
                     <div>
-                        <fieldset>
+                        <fieldset class={"form-control"}>
                             <legend>{ "How should inserted data be labeled?" }</legend>
                             <div>
                                 <input type={"radio"}

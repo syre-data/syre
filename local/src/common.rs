@@ -8,11 +8,8 @@ use std::{fs, io};
 /// Creates a unique file name.
 pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
     let path = path.as_ref();
-    match fs::canonicalize(path) {
-        Ok(canon_path) if path != canon_path => return Ok(path.to_path_buf()),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(path.to_path_buf()),
-        Err(err) => return Err(err.into()),
-        _ => {}
+    if !path.exists() {
+        return Ok(path.to_path_buf());
     }
 
     // get file name
@@ -76,11 +73,11 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
     let mut file_name = file_prefix.to_string();
     match highest {
         None => file_name.push_str(" (1)"),
-
         Some(n) => {
-            let match_len = &format!("({n})").len();
-            let replace_range = (file_prefix.len() - match_len)..;
-            file_name.replace_range(replace_range, &format!("({})", n + 1));
+            // let match_len = &format!("({n})").len();
+            // let replace_range = (file_prefix.len() - match_len)..;
+            // file_name.replace_range(replace_range, &format!("({})", n + 1));
+            file_name.push_str(&format!(" ({})", n + 1));
         }
     };
     file_name.push_str(ext);

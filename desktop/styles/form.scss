@@ -23,7 +23,7 @@ button {
   padding-bottom: t.$padding-m;
 
   label {
-	  padding: t.$padding-m;
+    padding: t.$padding-m;
   }
 
   input,
@@ -33,14 +33,18 @@ button {
   }
 
   .label-wrapper {
-	  display: inline-flex;
-	  flex-direction: column;
-	  padding: t.$padding-m;
+    display: inline-flex;
+    flex-direction: column;
+    padding: t.$padding-m;
 
-	  label {
-		  padding: 0;
-	  }
+    label {
+      padding: 0;
+    }
   }
+}
+
+fieldset.form-control {
+  margin-bottom: t.$margin-l;
 }
 
 input {
@@ -86,17 +90,19 @@ input:has(+ .input-group-append) {
 }
 
 form.builder-steps {
-	height: 100vh;
-	overflow-y: auto;
+  height: 100vh;
+  overflow-y: auto;
 
-	.form-step {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		min-height: 100vh;
-		padding-bottom: 5%;
+  .form-step {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
+    padding-bottom: 5%;
 
-		.step-controls {
-		}
-	}
+    .step-controls {
+      display: flex;
+      gap: t.$padding-m;
+    }
+  }
 }

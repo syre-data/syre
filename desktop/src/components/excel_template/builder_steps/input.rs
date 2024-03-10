@@ -188,7 +188,7 @@ pub fn input_builder(props: &InputBuilderProps) -> Html {
             <div ref={data_format_type_node_ref}
                 class={"form-step"}>
 
-                <fieldset>
+                <fieldset class={"form-control"}>
                     <legend>{ "What type of data will be ingested?" }</legend>
 
                     <div>
@@ -371,6 +371,7 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
             <label for={"skip-rows"}>{ "How many rows should be skipped until the header rows or first data?" }</label>
             <input type={"number"}
                 name={"skip-rows"}
+                min={"0"}
                 value={props.skip_rows.to_string()} />
         </div>
 
@@ -409,7 +410,7 @@ struct ExcelInputProps {
 fn excel_input(props: &ExcelInputProps) -> Html {
     html! {
         <>
-        <div>
+        <div class={"form-control"}>
             <input name={"data-sheet"}
                 value={props
                         .sheet
@@ -419,7 +420,7 @@ fn excel_input(props: &ExcelInputProps) -> Html {
                 placeholder={"Spreadsheet id"} />
         </div>
 
-        <div>
+        <div class={"form-control"}>
             <div class={"label-wrapper"}>
                 <label for={"column-selection"}>{ "Which columns should be copied?" }</label>
                 <small class="form-hint">
@@ -436,9 +437,10 @@ fn excel_input(props: &ExcelInputProps) -> Html {
 
         </div>
 
-        <div>
+        <div class={"form-control"}>
             <label for={"skip-rows"}>{ "How many rows should be skipped until the header rows or first data?" }</label>
             <input type={"number"}
+                min={"0"}
                 name={"skip-rows"}
                 value={props.skip_rows.to_string()} />
         </div>

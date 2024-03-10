@@ -1,12 +1,15 @@
 //! Project scripts editor.
 use crate::actions::container::Action as ContainerAction;
 use crate::app::{
-    AppStateAction, AppStateDispatcher, AppStateReducer, ProjectsStateAction, ProjectsStateReducer,
+    AppStateAction, AppStateDispatcher, AppStateReducer, PageOverlay, ProjectsStateAction,
+    ProjectsStateReducer,
 };
-use crate::commands::analysis::{add_script_windows, update_excel_template};
+use crate::commands::analysis::{copy_contents_to_analyses, update_excel_template};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
-use crate::components::excel_template::{CreateExcelTemplate, ExcelTemplateEditor};
+use crate::components::excel_template::{
+    CreateExcelTemplate, ExcelTemplateBuilder, ExcelTemplateEditor,
+};
 use crate::hooks::use_canvas_project;
 use crate::lib::DisplayName;
 use std::collections::HashSet;
@@ -47,14 +50,15 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
         panic!("`Project`'s analyses not loaded");
     };
 
-    let excel_template_editor_state = use_state(|| Option::<syre_core::types::ResourceId>::None);
+    let excel_template_create_state = use_state(|| Option::<PathBuf>::None);
+    let excel_template_edit_state = use_state(|| Option::<syre_core::types::ResourceId>::None);
     let drag_over_state = use_state(|| 0);
 
     let ondblclick_analysis = {
         let app_state = app_state.dispatcher();
         let projects_state = projects_state.clone();
         let project = project.clone();
-        let excel_template_editor_state = excel_template_editor_state.setter();
+        let excel_template_editor_state = excel_template_edit_state.setter();
 
         move |analysis: ResourceId| {
             let app_state = app_state.clone();
@@ -131,19 +135,71 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
 
     let ondrop = use_callback((project.clone(), drag_over_state.clone()), {
         let app_state = app_state.dispatcher();
+        let excel_template_create_state = excel_template_create_state.setter();
+
+        let project = projects_state.projects.get(&*project).unwrap();
+        let analysis_root = project.analysis_root.clone().unwrap();
         move |e: DragEvent, (project, drag_over_state)| {
             e.prevent_default();
             e.stop_propagation();
             drag_over_state.set(0);
 
+            let project = (**project).clone();
             let drop_data = e.data_transfer().unwrap();
             let files = drop_data.files().unwrap();
+
+            if files.length() == 1 {
+                let file = files.item(0).unwrap();
+                let file_name = PathBuf::from(file.name());
+                if let Some(extension) = file_name.extension() {
+                    if ExcelTemplate::supported_extensions().contains(&extension.to_str().unwrap())
+                    {
+                        let app_state = app_state.clone();
+                        let excel_template_create_state = excel_template_create_state.clone();
+                        let project = project.clone();
+                        let analysis_root = analysis_root.clone();
+                        spawn_local(async move {
+                            let Ok(project_path) = get_project_path(project.clone()).await else {
+                                let mut msg = Message::error("Could not create Excel template");
+                                msg.set_details("Could not get project path.");
+                                app_state.dispatch(AppStateAction::AddMessage(msg));
+                                return;
+                            };
+
+                            copy_file_contents_to_analyses(file, project, {
+                                let app_state = app_state.clone();
+                                let file_name = file_name.clone();
+                                move |res| match res {
+                                    Ok(file_name) => {
+                                        let template_path =
+                                            project_path.join(analysis_root).join(file_name);
+
+                                        excel_template_create_state.set(Some(template_path));
+                                    }
+
+                                    Err(err) => {
+                                        tracing::error!(?err);
+
+                                        let mut msg = Message::error(
+                                            "Could not copy file contents to analyses folder.",
+                                        );
+                                        msg.set_details(format!("[{file_name:?}] {err:?}"));
+                                        app_state.dispatch(AppStateAction::AddMessage(msg))
+                                    }
+                                }
+                            });
+                        });
+
+                        return;
+                    }
+                }
+            }
 
             let supported_ext = syre_core::project::ScriptLang::supported_extensions();
             let mut scripts = Vec::with_capacity(files.length() as usize);
             let mut invalid = Vec::with_capacity(files.length() as usize);
             for index in 0..files.length() {
-                let file = files.item(index).expect("could not get `File`");
+                let file = files.item(index).unwrap();
                 let file_name = PathBuf::from(file.name());
                 match file_name.extension() {
                     Some(ext)
@@ -177,34 +233,20 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
             for index in scripts {
                 let file = files.item(index).unwrap();
                 let file_name = file.name();
+                copy_file_contents_to_analyses(file, project.clone(), {
+                    let app_state = app_state.clone();
+                    move |res| match res {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::error!(?err);
 
-                let file_reader = web_sys::FileReader::new().unwrap();
-                file_reader.read_as_array_buffer(&file).unwrap();
-                let project = (**project).clone();
-                let onload = Closure::<dyn FnMut(Event)>::new(move |e: Event| {
-                    let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
-                    let file = file_reader.result().unwrap();
-                    let file = js_sys::Uint8Array::new(&file);
-
-                    let mut contents = vec![0; file.length() as usize];
-                    file.copy_to(&mut contents);
-
-                    let file_name = file_name.clone();
-                    let project = project.clone();
-                    spawn_local(async move {
-                        match add_script_windows(project, PathBuf::from(file_name), contents).await
-                        {
-                            Ok(_) => {}
-                            Err(err) => {
-                                tracing::debug!(err);
-                                panic!("{err}");
-                            }
+                            let mut msg =
+                                Message::error("Could not copy file contents to analyses folder.");
+                            msg.set_details(format!("[{file_name}] {err:?}"));
+                            app_state.dispatch(AppStateAction::AddMessage(msg))
                         }
-                    });
+                    }
                 });
-
-                file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
-                onload.forget();
             }
         }
     });
@@ -227,7 +269,7 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
                     }
 
                     Err(err) => {
-                        tracing::debug!(?err);
+                        tracing::error!(?err);
                         let mut msg = Message::error("Could not update template.");
                         msg.set_details(err);
                         app_state.dispatch(AppStateAction::AddMessage(msg));
@@ -237,7 +279,7 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
         }
     });
 
-    let mut class = classes!("project-scripts-widget", "px-xl", "h-100", "box-border");
+    let mut class = classes!("project-analyses-widget", "px-xl", "h-100", "box-border");
     if *drag_over_state > 0 {
         class.push("dragover-active");
     }
@@ -299,11 +341,28 @@ pub fn project_analyses(props: &ProjectAnalysesProps) -> HtmlResult {
             </ul>
         </div>
 
-        if let Some(template) = excel_template_editor_state.as_ref() {
+        if let Some(template) = excel_template_edit_state.as_ref() {
             <ExcelTemplateEditor
                 template={template.clone()}
                 onchange={onchange_excel_template}
-                onclose={move |_| excel_template_editor_state.set(None)} />
+                onclose={move |_| excel_template_edit_state.set(None)} />
+        }
+
+        if let Some(path) = excel_template_create_state.as_ref() {
+            if let Some(oncreate_template) = props.onadd_excel_template.clone() {
+                <PageOverlay
+                    onclose={
+                        let state = excel_template_create_state.setter();
+                        move |_| { state.set(None); }
+                    } >
+                    <div class={"excel-template-builder-wrapper"}>
+                        <h1>{ "Create an Excel template" }</h1>
+                        <ExcelTemplateBuilder
+                            path={path.clone()}
+                            oncreate={oncreate_template.clone()} />
+                    </div>
+                </PageOverlay>
+            }
         }
     </>
     })
@@ -343,4 +402,31 @@ fn open_script_callback(
             };
         });
     })
+}
+
+fn copy_file_contents_to_analyses<F>(file: web_sys::File, project: ResourceId, on_result: F)
+where
+    F: 'static + FnOnce(Result<PathBuf, String>),
+{
+    let file_name = file.name();
+    let file_reader = web_sys::FileReader::new().unwrap();
+    file_reader.read_as_array_buffer(&file).unwrap();
+    let onload = Closure::once(move |e: Event| {
+        let file_reader: FileReader = e.target().unwrap().dyn_into().unwrap();
+        let file = file_reader.result().unwrap();
+        let file = js_sys::Uint8Array::new(&file);
+
+        let mut contents = vec![0; file.length() as usize];
+        file.copy_to(&mut contents);
+
+        let file_name = PathBuf::from(file_name.clone());
+        let project = project.clone();
+        spawn_local(async move {
+            let res = copy_contents_to_analyses(project, file_name.clone(), contents).await;
+            on_result(res);
+        });
+    });
+
+    file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+    onload.forget();
 }

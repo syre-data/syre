@@ -23,7 +23,7 @@
       position: absolute;
       top: 0;
       right: 0;
-	  z-index: 100;
+      z-index: 100;
 
       padding: 0;
       margin: 0;
@@ -259,17 +259,20 @@
         display: flex;
         align-items: center;
         gap: t.$gap-s;
+        min-width: 1.5rem;
 
         .metadatum-key {
           @include mixins.hide-text-overflow;
+          flex-basis: 0;
           flex-grow: 1;
         }
 
         .metadatum-value {
+          flex-basis: 0;
           flex-grow: 1;
 
           &[data-value-kind="string"] {
-            flex-grow: 3;
+            flex-grow: 2;
           }
 
           input {
@@ -347,7 +350,7 @@
     display: flex;
   }
 
-  // NOTE! This is note the same as the associations editor.
+  // NOTE! This is not the same as the associations editor.
   .syre-ui-script-association-editor {
     display: flex;
     align-items: center;

@@ -75,7 +75,7 @@ impl Script {
 impl crate::runner::Runnable for Script {
     fn command(&self) -> std::process::Command {
         #[cfg(target_os = "windows")]
-        let mut out = process::Command::new("cmd");
+        let mut out = std::process::Command::new("cmd");
 
         #[cfg(target_os = "windows")]
         out.args(["/c", &self.env.cmd]);

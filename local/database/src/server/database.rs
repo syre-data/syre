@@ -13,7 +13,7 @@ use super::Event;
 use crate::command::Command;
 use crate::event::Update;
 use crate::{common, constants, Result};
-use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
+use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
@@ -146,7 +146,7 @@ mod windows {
             let events = match events {
                 Ok(events) => events,
                 Err(errs) => {
-                    tracing::debug!("watch error: {errs:?}");
+                    tracing::error!("watch error: {errs:?}");
                     return Err(crate::Error::Database(format!("{errs:?}")));
                 }
             };
@@ -168,6 +168,7 @@ mod windows {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::*;
+    use notify_debouncer_full::DebouncedEvent;
     use std::path::{Component, Path};
     use std::time::Instant;
 

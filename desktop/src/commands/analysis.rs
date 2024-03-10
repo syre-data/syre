@@ -15,14 +15,16 @@ pub async fn add_script(project: ResourceId, path: PathBuf) -> Result<Option<Scr
     invoke_result("add_script", AddScriptArgs { project, path }).await
 }
 
-pub async fn add_script_windows(
+/// # Returns
+/// Final path to the file relative to the project's analysis root.
+pub async fn copy_contents_to_analyses(
     project: ResourceId,
     file_name: PathBuf,
     contents: Vec<u8>,
-) -> Result<(), String> {
+) -> Result<PathBuf, String> {
     invoke_result(
-        "add_script_windows",
-        AddScriptWindowsArgs {
+        "copy_contents_to_analyses",
+        CopyContentsToAnalysesArgs {
             project,
             file_name,
             contents,
@@ -68,7 +70,7 @@ pub struct AddScriptArgs {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AddScriptWindowsArgs {
+pub struct CopyContentsToAnalysesArgs {
     pub project: ResourceId,
     pub file_name: PathBuf,
     pub contents: Vec<u8>,

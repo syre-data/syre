@@ -118,7 +118,7 @@ fn main() {
             // analyses
             get_project_analyses,
             add_script,
-            add_script_windows,
+            copy_contents_to_analyses,
             add_excel_template,
             update_excel_template,
             remove_analysis,

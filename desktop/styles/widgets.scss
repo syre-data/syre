@@ -2,23 +2,32 @@
 @use "mixins";
 @use "utilities";
 
-.project-scripts-widget {
-	.create-analyses-controls {
-	  button {
-		display: inline-flex;
-		background-color: t.$secondary-button-dark-background-color;
-		padding: t.$padding-s t.$padding-m;
-		border-radius: t.$border-radius-s;
+.project-analyses-widget {
+  padding-top: t.$padding-m;
+  border: t.$border-width-m transparent solid;
 
-		&:hover {
-		  background-color: t.$secondary-button-dark-hover-background-color;
-		}
+  &.dragover-active {
+    border-color: t.$primary-color;
+  }
 
-		svg {
-			width: 16px;
-			height: 16px;
-		}
-	  }
+  .create-analyses-controls {
+    gap: t.$padding-m;
+
+    button {
+      display: inline-flex;
+      background-color: t.$secondary-button-dark-background-color;
+      padding: t.$padding-s t.$padding-m;
+      border-radius: t.$border-radius-s;
+
+      &:hover {
+        background-color: t.$secondary-button-dark-hover-background-color;
+      }
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
   }
 
   ul {
@@ -70,8 +79,8 @@
 
 .excel-template-builder-wrapper {
   h1 {
-	  margin: 0;
-	  padding: t.$padding-xxl 0;
+    margin: 0;
+    padding: t.$padding-xxl 0;
   }
 }
 
@@ -165,41 +174,40 @@
 }
 
 .excel-template-editor {
-	min-height: 100vh;
+  min-height: 100vh;
 
-	.sidebar-nav {
-		background-color: t.$background-color;
+  .sidebar-nav {
+    background-color: t.$background-color;
 
-		nav ol {
-			list-style: none;
-			list-style-position: inside;
-			padding:0;
-			margin: 0;
+    nav ol {
+      list-style: none;
+      list-style-position: inside;
+      padding: 0;
+      margin: 0;
 
-			li {
-				padding: t.$padding-xl;
-				font-size: t.$font-size-lg;
-				line-height: t.$line-height-lg;
+      li {
+        padding: t.$padding-xl;
+        font-size: t.$font-size-lg;
+        line-height: t.$line-height-lg;
 
-				&.active {
-					background-color: t.$frame-background-color;
-			
-				}
-			}
-		}
-	}
-	
-	.editor-content {
-		padding: t.$padding-xl;
+        &.active {
+          background-color: t.$frame-background-color;
+        }
+      }
+    }
+  }
 
-		form {
-			.form-step {
-				display: none;
+  .editor-content {
+    padding: t.$padding-xl;
 
-				&.active {
-					display: block;
-				}
-			}
-		}
-	}
+    form {
+      .form-step {
+        display: none;
+
+        &.active {
+          display: block;
+        }
+      }
+    }
+  }
 }

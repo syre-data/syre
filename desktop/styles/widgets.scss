@@ -171,6 +171,13 @@
       }
     }
   }
+
+  .form-step.input-data-parameters {
+	  .form-control label {
+		  width: 45%;
+		  min-width: 250px;
+	  }
+  }
 }
 
 .excel-template-editor {
@@ -209,5 +216,22 @@
         }
       }
     }
+
+	.excel-template-editor-input-step {
+		label {
+			width: 40%;
+		}
+	}
+
+	.excel-template-editor-output-step {
+		div.form-control {
+			width: 40%;
+
+			input,
+			textarea {
+				width: 100%;
+			}
+		}
+	}
   }
 }

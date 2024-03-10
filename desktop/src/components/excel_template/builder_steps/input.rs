@@ -279,7 +279,7 @@ pub fn input_builder(props: &InputBuilderProps) -> Html {
             </div>
 
             <div ref={data_format_input_node_ref}
-                class={"form-step"}>
+                class={"form-step input-data-parameters"}>
 
                 if let Some(data_selection) = builder.input.data_selection.as_ref() {
                     { match data_selection {
@@ -351,13 +351,12 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
 
     html! {
         <>
-        <div>
-            <div class={"label-wrapper"}>
-                <label for={"column-selection"}>{ "Which columns should be copied?" }</label>
-                <small class="form-hint">
-                    { "Columns separated by commas." }
-                </small>
-            </div>
+        <div class={"form-control"}>
+            <label for={"column-selection"}>
+                { "Which columns should be copied?" }
+                <small>{ "Columns separated by commas." }</small>
+            </label>
+
             <input name={"column-selection"}
                 value={props
                         .columns
@@ -367,7 +366,7 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
                 onchange={onchange_columns} />
         </div>
 
-        <div>
+        <div class={"form-control"}>
             <label for={"skip-rows"}>{ "How many rows should be skipped until the header rows or first data?" }</label>
             <input type={"number"}
                 name={"skip-rows"}
@@ -375,11 +374,11 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
                 value={props.skip_rows.to_string()} />
         </div>
 
-        <div>
-            <div class={"label-wrapper"}>
-                <label>{ "Is there a comment character?" }</label>
+        <div class={"form-control"}>
+            <label>
+                { "Is there a comment character?" }
                 <small>{ "Lines beginning with a comment character are ignored." }</small>
-            </div>
+            </label>
             <input name={"comment-character"}
                 value={props
                         .comment
@@ -411,23 +410,23 @@ fn excel_input(props: &ExcelInputProps) -> Html {
     html! {
         <>
         <div class={"form-control"}>
+            <label for={"data-sheet"}>
+                { "Which worksheet contains the data?" }
+                <small>{ "The worksheet name or 0-based index." }</small>
+            </label>
             <input name={"data-sheet"}
                 value={props
                         .sheet
                         .clone()
                         .map(|sheet| common::worksheet_id_to_string(&sheet))
-                        .unwrap_or("".to_string())}
-                placeholder={"Spreadsheet id"} />
+                        .unwrap_or("".to_string())} />
         </div>
 
         <div class={"form-control"}>
-            <div class={"label-wrapper"}>
-                <label for={"column-selection"}>{ "Which columns should be copied?" }</label>
-                <small class="form-hint">
-                    { "Columns separated by commas." }
-                </small>
-            </div>
-
+            <label for={"column-selection"}>
+                { "Which columns should be copied?" }
+                <small>{ "Columns separated by commas." }</small>
+            </label>
             <input name={"column-selection"}
                 value={props
                         .columns

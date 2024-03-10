@@ -22,24 +22,16 @@ button {
   box-sizing: border-box;
   padding-bottom: t.$padding-m;
 
-  label {
-    padding: t.$padding-m;
-  }
-
   input,
   textarea {
     box-sizing: border-box;
     margin: 0;
   }
 
-  .label-wrapper {
+  label {
     display: inline-flex;
     flex-direction: column;
     padding: t.$padding-m;
-
-    label {
-      padding: 0;
-    }
   }
 }
 

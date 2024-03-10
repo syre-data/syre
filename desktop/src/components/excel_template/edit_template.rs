@@ -156,11 +156,11 @@ pub fn editor_view(props: &EditorViewProps) -> Html {
                             parameters={props.template.template.clone()}
                             onchange={onchange_template} />
 
-                        <InputEditor class={classes!("form-step", input_class)}
+                        <InputEditor class={classes!("form-step", "excel-template-editor-input-step", input_class)}
                             parameters={props.template.input.clone()}
                             onchange={onchange_input} />
 
-                        <OutputEditor class={classes!("form-step", output_class)}
+                        <OutputEditor class={classes!("form-step", "excel-template-editor-output-step", output_class)}
                             parameters={props.template.output.clone()}
                             onchange={onchange_output} />
                     </form>
@@ -440,12 +440,10 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
     html! {
         <>
         <div class={"form-control"}>
-            <div class={"label-wrapper"}>
-                <label for={"column-selection"}>{ "Which columns should be copied?" }</label>
-                <small class="form-hint">
-                    { "Columns separated by commas." }
-                </small>
-            </div>
+            <label for={"column-selection"}>
+                { "Which columns should be copied?" }
+                <small>{ "Columns separated by commas." }</small>
+            </label>
             <input name={"column-selection"}
                 value={common::spreadsheet_columns_to_string(&props.columns)}
                 onchange={onchange.clone()} />
@@ -459,10 +457,10 @@ fn spreadsheet_input(props: &SpreadsheetInputProps) -> Html {
         </div>
 
         <div class={"form-control"}>
-            <div class={"label-wrapper"}>
-                <label>{ "Is there a comment character?" }</label>
+            <label>
+                { "Is there a comment character?" }
                 <small>{ "Lines beginning with a comment character are ignored." }</small>
-            </div>
+            </label>
             <input name={"comment-character"}
                 value={props
                         .comment
@@ -544,13 +542,10 @@ fn excel_input(props: &ExcelInputProps) -> Html {
         </div>
 
         <div class={"form-control"}>
-            <div class={"label-wrapper"}>
-                <label for={"column-selection"}>{ "Which columns should be copied?" }</label>
-                <small class="form-hint">
-                    { "Columns separated by commas." }
-                </small>
-            </div>
-
+            <label for={"column-selection"}>
+                { "Which columns should be copied?" }
+                <small>{ "Columns separated by commas." }</small>
+            </label>
             <input name={"column-selection"}
                 value={common::spreadsheet_columns_to_string(&props.columns)}
                 onchange={onchange.clone()} />

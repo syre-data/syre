@@ -16,6 +16,9 @@ rusty-tags.vi
 # PyCharm
 .idea/
 
+# --- lang ---
+/lang/*.tar.gz
+
 # --- lang / python ---
 # Byte-compiled / optimized / DLL files
 /lang/python/**/__pycache__/

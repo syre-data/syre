@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]

@@ -4058,7 +4058,7 @@ dependencies = [
 
 [[package]]
 name = "syre-core"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
  "chrono",
@@ -4099,7 +4099,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
  "futures",
@@ -4145,7 +4145,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop-tauri"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "calamine",
  "csv",
@@ -4172,7 +4172,7 @@ dependencies = [
 
 [[package]]
 name = "syre-local"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
  "calamine",
@@ -4201,7 +4201,7 @@ dependencies = [
 
 [[package]]
 name = "syre-local-database"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "dev_utils",
  "fake",
@@ -4249,7 +4249,7 @@ dependencies = [
 
 [[package]]
 name = "syre-local-runner"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde_json",
  "syre-core",

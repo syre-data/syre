@@ -28,11 +28,12 @@ to_json <- function(obj) {
 #'
 #' @returns Path to the local database executable for the current system.
 database_server_path <- function() {
+  sys_info <- Sys.info()
   exe <- switch(
-    Sys.info()["sysname"],
+    sys_info["sysname"],
     "Linux" = "x86_64-unknown-linux-gnu",
-    "Darwin" = "aarch64-apple-darwin",
-    "Windows" = "x86_64-pc-windows-msvc.exe"
+    "Darwin" = paste(sys_info["machine"], "-apple-darwin", sep=""),
+    "Windows" = "x86_64-pc-windows-msvc.exe",
   )
 
   exe <- paste("syre-local-database-", exe, sep = "")

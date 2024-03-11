@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
@@ -48,12 +48,15 @@ features = [
     "DragEvent",
     "Element",
     "Event",
+	"EventTarget",
     "FocusEvent",
     "FormData",
     "HtmlElement",
     "HtmlFormElement",
     "HtmlInputElement",
+	"HtmlTextAreaElement",
     "InputEvent",
+	"ResizeObserver",
     "ScrollBehavior",
     "ScrollIntoViewOptions",
     "ScrollLogicalPosition",
@@ -74,8 +77,10 @@ features = [
     "BootstrapFiles",
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",
+	"FontAwesomeRegularFileExcel",
     "FontAwesomeRegularFolder",
     "FontAwesomeSolidCaretDown",
     "FontAwesomeSolidCaretRight",
+	"FontAwesomeSolidCode",
     "OcticonsSync24",
 ]

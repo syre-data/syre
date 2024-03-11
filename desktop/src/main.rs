@@ -8,6 +8,7 @@ mod components;
 mod constants;
 mod error;
 mod hooks;
+mod lib;
 mod navigation;
 mod pages;
 mod routes;

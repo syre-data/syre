@@ -56,10 +56,12 @@ impl CommandActor {
             return Err(Error::ZMQ(err_msg.into()));
         };
 
-        let Ok(cmd) = serde_json::from_str(msg_str) else {
-            let err_msg = "invalid message: could not convert `Message` to `Command";
-            tracing::debug!(err = err_msg, msg = msg_str);
-            return Err(Error::ZMQ(err_msg.into()));
+        let cmd = match serde_json::from_str(msg_str) {
+            Ok(cmd) => cmd,
+            Err(err) => {
+                tracing::debug!(?err, msg = msg_str);
+                return Err(Error::ZMQ(format!("{err:?}")));
+            }
         };
 
         Ok(cmd)

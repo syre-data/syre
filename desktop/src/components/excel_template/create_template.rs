@@ -1,13 +1,15 @@
 //! Create an Excel template.
 use super::excel_template_builder::ExcelTemplateBuilder;
-use crate::app::ShadowBox;
-use syre_desktop_lib::excel_template::ExcelTemplate;
+use crate::app::PageOverlay;
+use syre_core::project::ExcelTemplate;
 use tauri_sys::dialog::FileDialogBuilder;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct CreateExcelTemplateProps {
+    /// Button content.
+    pub children: Html,
     pub oncreate: Callback<ExcelTemplate>,
 }
 
@@ -17,7 +19,7 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
 
     let onclose = use_callback((), {
         let template_path = template_path.setter();
-        move |e, ()| {
+        move |_e, ()| {
             template_path.set(None);
         }
     });
@@ -25,13 +27,13 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
     let onclick = use_callback((), {
         let template_path = template_path.setter();
 
-        move |e, ()| {
+        move |_e, ()| {
             let template_path = template_path.clone();
             spawn_local(async move {
                 let mut path = FileDialogBuilder::new();
                 // path.set_default_path(&default_path); TODO Set default path
                 path.set_title("Select an Excel template")
-                    .add_filter("Excel", &["xlsx"]);
+                    .add_filter("Excel", &["xlsx"]); // TODO: Pull valid extensions from `ExcelTemplate`.
 
                 let path = path.pick_file().await.unwrap();
                 template_path.set(path);
@@ -39,14 +41,30 @@ pub fn create_excel_template(props: &CreateExcelTemplateProps) -> Html {
         }
     });
 
+    let oncreate = use_callback(props.oncreate.clone(), {
+        let template_path = template_path.setter();
+        move |template, oncreate| {
+            template_path.set(None);
+            oncreate.emit(template);
+        }
+    });
+
     html! {
-        <div>
-            <button {onclick}>{ "Create Excel Template" }</button>
-            if let Some(template_path) = (*template_path).clone() {
-                <ShadowBox title={"Create an Excel template"} {onclose} >
-                    <ExcelTemplateBuilder {template_path} oncreate={props.oncreate.clone()} />
-                </ShadowBox>
-            }
-        </div>
+    <>
+        <button title={"Add an Excel template"}
+            {onclick}>
+
+            { props.children.clone() }
+        </button>
+
+        if let Some(path) = (*template_path).clone() {
+            <PageOverlay {onclose} >
+                <div class={"excel-template-builder-wrapper"}>
+                    <h1>{ "Create an Excel template" }</h1>
+                    <ExcelTemplateBuilder {path} {oncreate} />
+                </div>
+            </PageOverlay>
+        }
+    </>
     }
 }

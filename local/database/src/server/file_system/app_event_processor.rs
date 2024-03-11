@@ -18,7 +18,7 @@ use syre_local::loader::tree::incremental::{
 use syre_local::loader::tree::Loader as ContainerTreeLoader;
 use syre_local::project::project;
 use syre_local::project::project::project_root_path;
-use syre_local::project::resources::{Project as LocalProject, Scripts as ProjectScripts};
+use syre_local::project::resources::{Analyses as ProjectScripts, Project as LocalProject};
 
 impl Database {
     #[tracing::instrument(skip(self))]
@@ -166,7 +166,7 @@ impl Database {
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             if let Ok(script_path) = path.strip_prefix(analysis_root) {
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-                if scripts.contains_path(&script_path) {
+                if scripts.scripts_contain_path(&script_path) {
                     return Ok(vec![]);
                 }
 
@@ -202,7 +202,7 @@ impl Database {
             .strip_prefix(project.analysis_root_path().unwrap())
             .unwrap();
 
-        if let Some(script) = scripts.by_path(&script_path) {
+        if let Some(script) = scripts.script_by_path(&script_path) {
             return vec![app::Script::Removed(script.rid.clone()).into()];
         }
 
@@ -237,7 +237,6 @@ impl Database {
         let project = self.project_by_resource_path(&from).unwrap();
         let from_type = get_path_resource_type(project, from);
         let to_type = get_path_resource_type(project, to);
-        tracing::debug!(?from_type, ?to_type);
 
         match (from_type, to_type) {
             (Location::Data, Location::Data) => {
@@ -268,7 +267,7 @@ impl Database {
                     .unwrap();
 
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-                if let Some(script) = scripts.by_path(&from_script_path) {
+                if let Some(script) = scripts.script_by_path(&from_script_path) {
                     return vec![app::Script::Moved {
                         script: script.rid.clone(),
                         path: to.clone(),
@@ -306,7 +305,7 @@ impl Database {
                     .unwrap();
 
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-                if let Some(script) = scripts.by_path(&from_script_path) {
+                if let Some(script) = scripts.script_by_path(&from_script_path) {
                     return vec![app::Script::Removed(script.rid.clone()).into()];
                 }
 
@@ -344,7 +343,7 @@ impl Database {
                     .unwrap();
 
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-                if let Some(script) = scripts.by_path(&from_script_path) {
+                if let Some(script) = scripts.script_by_path(&from_script_path) {
                     events.push(app::Script::Removed(script.rid.clone()).into());
                 }
 
@@ -368,7 +367,7 @@ impl Database {
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             let script_path = from.strip_prefix(analysis_root).unwrap();
             let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-            for script in scripts.values() {
+            for script in scripts.scripts() {
                 if script.path.as_path() == script_path {
                     return vec![app::Script::Moved {
                         script: script.rid.clone(),
@@ -380,7 +379,7 @@ impl Database {
 
             if let Ok(script_path) = to.strip_prefix(analysis_root) {
                 let scripts = self.store.get_project_scripts(&project.rid).unwrap();
-                if scripts.contains_path(&script_path) {
+                if scripts.scripts_contain_path(&script_path) {
                     return vec![];
                 }
 
@@ -515,7 +514,7 @@ impl Database {
         let project = self.project_by_resource_path(&path).unwrap();
         let scripts = self.store.get_project_scripts(&project.rid).unwrap();
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
-            if let Some(script) = scripts.by_path(&script_path) {
+            if let Some(script) = scripts.script_by_path(&script_path) {
                 return vec![app::Script::Removed(script.rid.clone()).into()];
             }
         }

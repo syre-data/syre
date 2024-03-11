@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 #![feature(path_file_prefix)]
+#![feature(io_error_more)]
 mod commands;
 mod common;
 mod db;
@@ -114,11 +115,13 @@ fn main() {
             get_assets,
             update_asset_properties,
             remove_asset,
-            // script
-            get_project_scripts,
+            // analyses
+            get_project_analyses,
             add_script,
-            add_script_windows,
-            remove_script,
+            copy_contents_to_analyses,
+            add_excel_template,
+            update_excel_template,
+            remove_analysis,
             // spreadsheet
             load_excel,
             load_csv,

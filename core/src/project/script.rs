@@ -1,11 +1,10 @@
 use crate::error::ScriptError;
-use crate::types::{ResourceId, ResourceMap};
+use crate::types::ResourceId;
 use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 
@@ -14,9 +13,6 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serde")]
 use has_id::HasIdSerde;
-
-#[cfg(feature = "serde")]
-use crate::types::resource_map::values_only;
 
 // **************
 // *** Script ***
@@ -37,13 +33,25 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
+    pub fn new(path: impl Into<PathBuf>, env: ScriptEnv) -> Self {
+        Script {
+            rid: ResourceId::new(),
+            path: path.into(),
+            name: None,
+            description: None,
+            creator: None,
+            created: Utc::now(),
+            env,
+        }
+    }
+
+    pub fn from_path(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
         let path = path.into();
         let Some(file_name) = path.file_name() else {
             return Err(ScriptError::UnknownLanguage(None));
         };
 
-        let env = ScriptEnv::new(Path::new(file_name))?;
+        let env = ScriptEnv::from_path(Path::new(file_name))?;
         Ok(Script {
             rid: ResourceId::new(),
             path,
@@ -63,50 +71,23 @@ impl Script {
     }
 }
 
-// ***************
-// *** Scripts ***
-// ***************
+#[cfg(feature = "runner")]
+impl crate::runner::Runnable for Script {
+    fn command(&self) -> std::process::Command {
+        #[cfg(target_os = "windows")]
+        let mut out = std::process::Command::new("cmd");
 
-/// Project scripts.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, PartialEq, Debug, Default)]
-pub struct Scripts(#[cfg_attr(feature = "serde", serde(with = "values_only"))] ResourceMap<Script>);
-impl Scripts {
-    /// Returns whether a script with the given path is registered.
-    pub fn contains_path(&self, path: impl AsRef<Path>) -> bool {
-        self.by_path(path).is_some()
-    }
+        #[cfg(target_os = "windows")]
+        out.args(["/c", &self.env.cmd]);
 
-    /// Gets a script by its path if it is registered.
-    pub fn by_path(&self, path: impl AsRef<Path>) -> Option<&Script> {
-        let path = path.as_ref();
-        for script in self.values() {
-            if &script.path == path {
-                return Some(&script);
-            }
-        }
+        #[cfg(not(target_os = "windows"))]
+        let mut out = std::process::Command::new(&self.env.cmd);
 
-        None
-    }
-}
+        out.arg(self.path.as_path())
+            .args(&self.env.args)
+            .envs(&self.env.env);
 
-impl Deref for Scripts {
-    type Target = ResourceMap<Script>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Scripts {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl From<ResourceMap<Script>> for Scripts {
-    fn from(scripts: ResourceMap<Script>) -> Self {
-        Self(scripts)
+        out
     }
 }
 
@@ -132,8 +113,17 @@ pub struct ScriptEnv {
 }
 
 impl ScriptEnv {
+    pub fn new(language: ScriptLang, cmd: impl Into<String>) -> Self {
+        Self {
+            language,
+            cmd: cmd.into(),
+            args: Vec::new(),
+            env: HashMap::new(),
+        }
+    }
+
     /// Creates a new script environment for the given script.
-    pub fn new(script: &Path) -> StdResult<Self, ScriptError> {
+    pub fn from_path(script: &Path) -> StdResult<Self, ScriptError> {
         let path_ext = script.extension();
         if path_ext.is_none() {
             return Err(ScriptError::UnknownLanguage(None));

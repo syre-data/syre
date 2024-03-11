@@ -20,9 +20,7 @@ pub fn project_list() -> HtmlResult {
         panic!("user not set"); // @todo: Redirect to login.
     };
 
-    tracing::debug!("0a");
     let projects = use_user_projects(&user.rid);
-    tracing::debug!("0b");
 
     // Opens the project and navigates to the workspace if needed.
     let open_and_activate_project = move |rid: ResourceId| -> Callback<MouseEvent> {

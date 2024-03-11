@@ -1,5 +1,5 @@
 use super::*;
-use crate::project::ScriptAssociation;
+use crate::project::AnalysisAssociation;
 use crate::types::ResourceId;
 use dev_utils::fs::TempDir;
 use rand::Rng;
@@ -63,7 +63,7 @@ fn iter_should_work() {
 // *** helper functions ***
 // ************************
 
-fn create_script_associations() -> HashSet<ScriptAssociation> {
+fn create_script_associations() -> HashSet<AnalysisAssociation> {
     let mut rng = rand::thread_rng();
     let n_assocs = 20;
     let p_rng = (-n_assocs / 2)..(n_assocs / 2);
@@ -75,8 +75,8 @@ fn create_script_associations() -> HashSet<ScriptAssociation> {
         let priority = rng.gen_range(p_rng.clone());
         let autorun = rng.gen();
 
-        assocs.insert(ScriptAssociation {
-            script,
+        assocs.insert(AnalysisAssociation {
+            analysis: script,
             priority,
             autorun,
         });

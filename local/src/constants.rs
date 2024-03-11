@@ -13,7 +13,7 @@ pub const PROJECT_SETTINGS_FILE: &str = "project_settings.json";
 pub const CONTAINER_FILE: &str = "container.json";
 pub const CONTAINER_SETTINGS_FILE: &str = "container_settings.json";
 pub const ASSETS_FILE: &str = "assets.json";
-pub const SCRIPTS_FILE: &str = "scripts.json";
+pub const ANALYSES_FILE: &str = "analyses.json";
 
 // ************
 // *** misc ***

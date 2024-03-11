@@ -17,7 +17,7 @@ fn add_association_should_work() {
     let container = ContainerLoader::load(_dir.path()).unwrap();
     assert_eq!(
         1,
-        container.scripts.len(),
+        container.analyses.len(),
         "container should has script association added"
     );
 }

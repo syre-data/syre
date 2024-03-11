@@ -7,6 +7,7 @@ use std::fs;
 use syre_local::error::{Error as LocalError, Project as ProjectError};
 use syre_local::project::project;
 use syre_local::project::resources::Script as LocalScript;
+use syre_local::types::AnalysisKind;
 
 impl Database {
     pub fn handle_app_event_script(&mut self, event: &ScriptEvent) -> Result {
@@ -72,11 +73,14 @@ impl Database {
                         .unwrap()
                         .to_owned();
 
-                    let scripts = self.store.get_project_scripts_mut(&from_project).unwrap();
-                    let script = scripts.get_mut(&script).unwrap();
+                    let analyses = self.store.get_project_scripts_mut(&from_project).unwrap();
+                    let AnalysisKind::Script(script) = analyses.get_mut(&script).unwrap() else {
+                        todo!("handle other analysis kinds");
+                    };
+
                     let sid = script.rid.clone();
                     script.path = script_path.clone();
-                    scripts.save()?;
+                    analyses.save()?;
 
                     self.publish_update(&Update::Project {
                         project: from_project,
@@ -87,23 +91,27 @@ impl Database {
                         .into(),
                     })?;
                 } else {
-                    let script = self
+                    let analysis = match self
                         .store
                         .remove_project_script(&from_project, &script)?
-                        .unwrap();
+                        .unwrap()
+                    {
+                        AnalysisKind::Script(script) => script,
+                        AnalysisKind::ExcelTemplate(template) => todo!("handle template"),
+                    };
 
                     self.publish_update(&Update::Project {
                         project: from_project,
-                        update: ScriptUpdate::Removed(script.rid.clone()).into(),
+                        update: ScriptUpdate::Removed(analysis.rid.clone()).into(),
                     })?;
 
                     self.store
-                        .insert_script(to_project.clone(), script.clone())
+                        .insert_script(to_project.clone(), analysis.clone())
                         .unwrap();
 
                     self.publish_update(&Update::Project {
                         project: to_project.clone(),
-                        update: ScriptUpdate::Created(script).into(),
+                        update: ScriptUpdate::Created(analysis).into(),
                     })?;
                 }
 

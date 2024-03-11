@@ -183,22 +183,26 @@ $control-button-size: 25px;
       }
     }
 
-    .syre-ui-script-associations-preview {
-      .syre-ui-script-associations-list {
+    .syre-ui-analysis-associations-preview {
+      .syre-ui-analysis-associations-list {
         text-align: left;
         list-style: none;
         padding: 0;
 
-        .syre-ui-script-association-preview {
+        .syre-ui-analysis-association-preview {
           display: flex;
           gap: t.$padding-m;
 
-          .script-name {
+          &.no-name .analysis-name {
+            text-decoration: line-through;
+          }
+
+          .analyiss-name {
             @include mixins.hide-text-overflow;
             flex-grow: 1;
           }
 
-          .script-priority {
+          .analysis-priority {
             display: inline-block;
 
             &::before {
@@ -210,7 +214,7 @@ $control-button-size: 25px;
             }
           }
 
-          .script-autorun {
+          .analysis-autorun {
             display: flex;
             align-items: center;
             cursor: pointer;

@@ -6,7 +6,7 @@ pub mod container;
 pub mod database;
 pub mod graph;
 pub mod project;
-pub mod script;
+pub mod runner;
 pub mod types;
 pub mod user;
 
@@ -18,5 +18,5 @@ pub use container::ContainerCommand;
 pub use database::DatabaseCommand;
 pub use graph::GraphCommand;
 pub use project::ProjectCommand;
-pub use script::ScriptCommand;
+pub use runner::RunnerCommand;
 pub use user::UserCommand;

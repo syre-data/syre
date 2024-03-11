@@ -1,19 +1,12 @@
 //! High level functionality for handling `Scripts`.
 use super::container;
-use super::resources::{Script as ProjectScript, Scripts as ProjectScripts};
 use crate::error::{ContainerError, Result};
 use crate::loader::container::Loader as ContainerLoader;
-use crate::system::collections::{ProjectManifest, Scripts as SystemScripts};
-use std::path::{Path, PathBuf};
-use syre_core::error::{
-    Error as CoreError, Project as CoreProjectError, Resource as ResourceError,
-};
-use syre_core::project::ScriptAssociation;
+use crate::system::collections::Scripts as SystemScripts;
+use std::path::Path;
+use syre_core::error::{Error as CoreError, Project as CoreProjectError};
+use syre_core::project::AnalysisAssociation;
 use syre_core::types::ResourceId;
-
-// **************************
-// *** Script Association ***
-// **************************
 
 /// Add an associaiton with the given script to the given container.
 /// Returns the resource id of the script.
@@ -42,7 +35,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
 
     // add association
     let mut container = ContainerLoader::load(container)?;
-    container.add_script_association(ScriptAssociation::new(script.rid.clone()))?;
+    container.add_script_association(AnalysisAssociation::new(script.rid.clone()))?;
     Ok(container.save()?)
 }
 

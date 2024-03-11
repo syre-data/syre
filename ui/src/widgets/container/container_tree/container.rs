@@ -1,12 +1,12 @@
 //! UI for a `Container` preview within a [`ContainerTree`](super::ContainerTree).
 use crate::types::ContainerPreview;
 use crate::widgets::asset::AssetsPreview;
-use crate::widgets::container::script_associations::ScriptAssociationsPreview;
+use crate::widgets::container::analysis_associations::AnalysisAssociationsPreview;
 use crate::widgets::metadata::MetadataPreview;
 use crate::widgets::Tags;
 use std::collections::{HashMap, HashSet};
-use syre_core::project::container::{AssetMap, ScriptMap};
-use syre_core::project::{Asset, ContainerProperties, ScriptAssociation};
+use syre_core::project::container::{AnalysisMap, AssetMap};
+use syre_core::project::{AnalysisAssociation, Asset, ContainerProperties};
 use syre_core::types::{ResourceId, ResourceMap};
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
@@ -108,8 +108,8 @@ pub struct ContainerProps {
     pub rid: ResourceId,
     pub properties: ContainerProperties,
     pub assets: AssetMap,
-    pub scripts: ScriptMap,
-    pub script_names: ResourceMap<String>,
+    pub analyses: AnalysisMap,
+    pub analysis_names: ResourceMap<String>,
 
     #[prop_or_default]
     pub r#ref: NodeRef,
@@ -163,13 +163,13 @@ pub struct ContainerProps {
     #[prop_or_default]
     pub onadd_child: Option<Callback<ResourceId>>,
 
-    /// Callback when a script association changes from the preview.
+    /// Callback when a analysis association changes from the preview.
     #[prop_or_default]
-    pub onchange_script_association: Callback<ScriptAssociation>,
+    pub onchange_analysis_association: Callback<AnalysisAssociation>,
 
-    /// Callback when a script association changes from the preview.
+    /// Callback when a analysis association changes from the preview.
     #[prop_or_default]
-    pub onremove_script_association: Callback<ResourceId>,
+    pub onremove_analysis_association: Callback<ResourceId>,
 
     /// Callback when container button is clicked.
     /// If not provided, button is not shown.
@@ -346,12 +346,12 @@ pub fn container(props: &ContainerProps) -> Html {
                                 onclick_asset_remove={&props.onclick_asset_remove} />
                         }},
 
-                        ContainerPreview::Scripts => { html! {
-                            <ScriptAssociationsPreview
-                                scripts={props.scripts.clone()}
-                                names={props.script_names.clone()}
-                                onchange={&props.onchange_script_association}
-                                onremove={&props.onremove_script_association} />
+                        ContainerPreview::Analysis => { html! {
+                            <AnalysisAssociationsPreview
+                                analyses={props.analyses.clone()}
+                                names={props.analysis_names.clone()}
+                                onchange={&props.onchange_analysis_association}
+                                onremove={&props.onremove_analysis_association} />
                         }},
                     }}
                 </div>

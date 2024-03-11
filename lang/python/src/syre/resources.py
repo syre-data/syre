@@ -93,7 +93,7 @@ class Container:
         if self._db is None or not dev_mode():
             return self._assets
         
-        self._db._socket.send_json({"ContainerCommand": {"GetWithMetadata": self._rid}})
+        self._db._socket.send_json({"Container": {"GetWithMetadata": self._rid}})
         container = self._db._socket.recv_json()
         if container is None:
             raise RuntimeError("Could not retrieve Container")
@@ -107,11 +107,11 @@ class Container:
         Returns:
             ContainerList: Container's children.
         """
-        self._db._socket.send_json({"GraphCommand": {"Children": self._rid}})
+        self._db._socket.send_json({"Graph": {"Children": self._rid}})
         child_ids = self._db._socket.recv_json()
         children = []
         for cid in child_ids:
-            self._db._socket.send_json({"ContainerCommand": {"GetWithMetadata": cid}})
+            self._db._socket.send_json({"Container": {"GetWithMetadata": cid}})
             child = self._db._socket.recv_json()
             if child is None:
                 raise RuntimeError("Could not get child Container")
@@ -144,13 +144,13 @@ class Container:
             self._set_parent(None)
             return None
             
-        self._db._socket.send_json({"GraphCommand": {"Parent": self._rid}})
+        self._db._socket.send_json({"Graph": {"Parent": self._rid}})
         parent = self._db._socket.recv_json()
         if parent is None:
             self._set_parent(None)
             return None
         
-        self._db._socket.send_json({"ContainerCommand": {"GetWithMetadata": parent}})
+        self._db._socket.send_json({"Container": {"GetWithMetadata": parent}})
         parent = self._db._socket.recv_json()
         if parent is None:
             raise RuntimeError("Could not get container parent")
@@ -257,12 +257,12 @@ class Asset:
         if self._db is None:
             raise RuntimeError("No database connector")
         
-        self._db._socket.send_json({"AssetCommand": {"Parent": self._rid}})
+        self._db._socket.send_json({"Asset": {"Parent": self._rid}})
         parent = self._db._socket.recv_json()
         if parent is None:
             return None
         
-        self._db._socket.send_json({"ContainerCommand": {"GetWithMetadata": parent["rid"]}})
+        self._db._socket.send_json({"Container": {"GetWithMetadata": parent["rid"]}})
         parent = self._db._socket.recv_json()
         if parent is None:
             raise RuntimeError("Parent Container could not be retrieved")

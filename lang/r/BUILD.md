@@ -2,12 +2,7 @@
 
 ## Building R bindings
 
-Based on this [guide](https://extendr.github.io/rextendr/articles/package.html).
-
-- `rustup toolchain install nightly` (If not yet installed)
-- `r` (Run r)
-- `install.packages("rzmq")`
-- `rextendr::document()` (Compile rust code)
+`devtools::document()`
 
 To install Syre globally (default path is ./)
 
@@ -23,6 +18,4 @@ Based on this [guide](https://support.posit.co/hc/en-us/articles/115000239587-Sh
 
 - Click on the `build` menu on the right hand side menu.
 - Click on `More`
-- Click on `Build binary Package` 
-
-> Once we move to full R w/o Rust dependencies we can then do source package and avoid the need of building for every system.
+- Click on `Build source package` 

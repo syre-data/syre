@@ -6,8 +6,8 @@ use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::asset::remove_asset;
 use crate::commands::common::open_file;
 use crate::commands::container::{
-    add_asset_from_contents, get_container_path, update_script_associations,
-    UpdateScriptAssociationsArgs,
+    add_asset_from_contents, get_container_path, update_analysis_associations,
+    UpdateAnalysisAssociationsArgs,
 };
 use crate::commands::graph::{duplicate_container_tree, remove_container_tree};
 use crate::components::canvas::asset::CreateAssets;
@@ -18,10 +18,10 @@ use crate::components::canvas::{
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::routes::Route;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use syre_core::project::{Asset, RunParameters, ScriptAssociation};
+use syre_core::project::{AnalysisAssociation, Asset, RunParameters};
 use syre_core::types::{ResourceId, ResourceMap};
 use syre_desktop_lib::error::{RemoveResource, Trash as TrashError};
+use syre_local::types::AnalysisKind;
 use syre_ui::types::Message;
 use syre_ui::widgets::container::container_tree::container::{
     Container as ContainerUi, ContainerMenuEvent, ContainerProps as ContainerUiProps, Flags,
@@ -63,7 +63,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     let selected = canvas_state.selected.contains(&props.rid);
     let multiple_selected = canvas_state.selected.len() > 1;
 
-    let Some(project_scripts) = projects_state.project_scripts.get(&canvas_state.project) else {
+    let Some(project_scripts) = projects_state.project_analyses.get(&canvas_state.project) else {
         app_state.dispatch(AppStateAction::AddMessage(Message::error(
             "Project scripts not loaded.",
         )));
@@ -72,19 +72,26 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         return Ok(html! {{ "Project scripts not loaded. Redirecting to home." }});
     };
 
-    let script_names = project_scripts
-        .iter()
-        .map(|(rid, script)| {
-            let name = script.name.clone().unwrap_or(
-                Into::<PathBuf>::into(script.path.clone())
-                    .file_name()
-                    .expect("could not get `Script`'s file name")
-                    .to_str()
-                    .expect("could not convert file name to str")
-                    .to_string(),
-            );
+    let analysis_names = project_scripts
+        .values()
+        .map(|analysis| match analysis {
+            AnalysisKind::Script(script) => {
+                let name = script
+                    .name
+                    .clone()
+                    .unwrap_or(script.path.to_string_lossy().to_string());
 
-            (rid.clone(), name)
+                (script.rid.clone(), name)
+            }
+
+            AnalysisKind::ExcelTemplate(template) => {
+                let name = template
+                    .name
+                    .clone()
+                    .unwrap_or(template.template.path.to_string_lossy().to_string());
+
+                (template.rid.clone(), name)
+            }
         })
         .collect::<ResourceMap<String>>();
 
@@ -363,9 +370,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- scripts ---
     // ---------------
 
-    let onchange_script_association = use_callback((props.rid.clone(), graph_state.clone()), {
+    let onchange_analysis_association = use_callback((props.rid.clone(), graph_state.clone()), {
         let app_state = app_state.dispatcher();
-        move |assoc: ScriptAssociation, (container_id, graph_state)| {
+        move |assoc: AnalysisAssociation, (container_id, graph_state)| {
             let Some(container) = graph_state.graph.get(container_id) else {
                 let mut msg = Message::error("Could not add Script association.");
                 msg.set_details("Container not found in graph.");
@@ -373,24 +380,27 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 return;
             };
 
-            let mut associations = container.scripts.clone();
-            associations.insert(assoc.script.clone(), assoc.into());
+            let mut associations = container.analyses.clone();
+            associations.insert(assoc.analysis.clone(), assoc.into());
             let app_state = app_state.clone();
             let graph_state = graph_state.dispatcher();
             let container_id = container_id.clone();
             spawn_local(async move {
-                match update_script_associations(container_id.clone(), associations.clone()).await {
+                match update_analysis_associations(container_id.clone(), associations.clone()).await
+                {
                     Ok(_) => {
-                        graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(
-                            UpdateScriptAssociationsArgs {
-                                rid: container_id.clone(),
-                                associations,
-                            },
-                        ));
+                        graph_state.dispatch(
+                            GraphStateAction::UpdateContainerAnalysisAssociations(
+                                UpdateAnalysisAssociationsArgs {
+                                    rid: container_id.clone(),
+                                    associations,
+                                },
+                            ),
+                        );
                     }
 
                     Err(err) => {
-                        let mut msg = Message::error("Could not add Script association.");
+                        let mut msg = Message::error("Could not add analysis association.");
                         msg.set_details(format!("{err}"));
                         app_state.dispatch(AppStateAction::AddMessage(msg));
                     }
@@ -399,30 +409,33 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
         }
     });
 
-    let onremove_script_association = use_callback((props.rid.clone(), graph_state.clone()), {
+    let onremove_analysis_association = use_callback((props.rid.clone(), graph_state.clone()), {
         let app_state = app_state.dispatcher();
-        move |script: ResourceId, (container_id, graph_state)| {
+        move |analysis: ResourceId, (container_id, graph_state)| {
             let Some(container) = graph_state.graph.get(container_id) else {
-                let mut msg = Message::error("Could not remove Script association.");
+                let mut msg = Message::error("Could not remove analysis association.");
                 msg.set_details("Container not found in graph.");
                 app_state.dispatch(AppStateAction::AddMessage(msg));
                 return;
             };
 
-            let mut associations = container.scripts.clone();
-            associations.remove(&script);
+            let mut associations = container.analyses.clone();
+            associations.remove(&analysis);
             let app_state = app_state.clone();
             let graph_state = graph_state.dispatcher();
             let container_id = container_id.clone();
             spawn_local(async move {
-                match update_script_associations(container_id.clone(), associations.clone()).await {
+                match update_analysis_associations(container_id.clone(), associations.clone()).await
+                {
                     Ok(_) => {
-                        graph_state.dispatch(GraphStateAction::UpdateContainerScriptAssociations(
-                            UpdateScriptAssociationsArgs {
-                                rid: container_id.clone(),
-                                associations,
-                            },
-                        ));
+                        graph_state.dispatch(
+                            GraphStateAction::UpdateContainerAnalysisAssociations(
+                                UpdateAnalysisAssociationsArgs {
+                                    rid: container_id.clone(),
+                                    associations,
+                                },
+                            ),
+                        );
                     }
 
                     Err(err) => {
@@ -450,18 +463,18 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 match action {
                     ContainerAction::AddScriptAssociation(script) => 'add_script: {
                         let container = graph_state.graph.get(&container_id).unwrap();
-                        if container.scripts.contains_key(&script) {
+                        if container.analyses.contains_key(&script) {
                             break 'add_script;
                         }
 
-                        let mut associations = container.scripts.clone();
+                        let mut associations = container.analyses.clone();
                         associations.insert(script, RunParameters::new());
 
                         let app_state = app_state.dispatcher();
                         let graph_state = graph_state.dispatcher();
                         let container_id = container_id.clone();
                         spawn_local(async move {
-                            match update_script_associations(
+                            match update_analysis_associations(
                                 container_id.clone(),
                                 associations.clone(),
                             )
@@ -469,8 +482,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             {
                                 Ok(_) => {
                                     graph_state.dispatch(
-                                        GraphStateAction::UpdateContainerScriptAssociations(
-                                            UpdateScriptAssociationsArgs {
+                                        GraphStateAction::UpdateContainerAnalysisAssociations(
+                                            UpdateAnalysisAssociationsArgs {
                                                 rid: container_id,
                                                 associations,
                                             },
@@ -572,16 +585,16 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 assets: container.assets.clone(),
                 flags,
                 active_assets: canvas_state.selected.clone(),
-                scripts: container.scripts.clone(),
-                script_names,
+                analyses: container.analyses.clone(),
+                analysis_names,
                 preview: canvas_state.preview.clone(),
                 onmousedown,
                 onclick,
                 onclick_asset,
                 ondblclick_asset,
                 onclick_asset_remove,
-                onchange_script_association,
-                onremove_script_association,
+                onchange_analysis_association,
+                onremove_analysis_association,
                 onadd_child: props.onadd_child.clone(),
                 on_menu_event,
                 ondrop,

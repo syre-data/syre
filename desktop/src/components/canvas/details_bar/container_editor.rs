@@ -1,5 +1,5 @@
 //! Container editor widget.
-use super::script_associations_editor::ScriptAssociationsEditor;
+use super::analysis_associations_editor::AnalysisAssociationsEditor;
 use crate::app::{AppStateAction, AppStateReducer};
 use crate::commands::container::{update_properties, UpdatePropertiesArgs};
 use crate::components::canvas::{GraphStateAction, GraphStateReducer};
@@ -97,7 +97,7 @@ pub fn container_editor(props: &ContainerEditorProps) -> Html {
                 properties={(*properties).clone()}
                 onchange={onchange} />
 
-            <ScriptAssociationsEditor container={props.rid.clone()} />
+            <AnalysisAssociationsEditor container={props.rid.clone()} />
             // TODO Allow Assets to be dropped here.
         </div>
     }

@@ -1,7 +1,7 @@
 //! Container.
 use super::container_properties::{Builder as PropertiesBuilder, ContainerProperties};
 use super::Metadata;
-use super::{Asset, RunParameters, ScriptAssociation};
+use super::{AnalysisAssociation, Asset, RunParameters};
 use crate::db::Resource;
 use crate::types::Creator;
 use crate::types::{ResourceId, ResourceMap};
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 // *************
 
 pub type AssetMap = ResourceMap<Asset>;
-pub type ScriptMap = ResourceMap<RunParameters>;
+pub type AnalysisMap = ResourceMap<RunParameters>;
 
 // *****************
 // *** Container ***
@@ -32,7 +32,7 @@ pub struct Container {
     pub rid: ResourceId,
     pub properties: ContainerProperties,
     pub assets: AssetMap,
-    pub scripts: ScriptMap,
+    pub analyses: AnalysisMap,
 }
 
 impl Container {
@@ -41,7 +41,7 @@ impl Container {
             rid: ResourceId::new(),
             properties: ContainerProperties::new(name),
             assets: AssetMap::default(),
-            scripts: ScriptMap::default(),
+            analyses: AnalysisMap::default(),
         }
     }
 
@@ -72,7 +72,7 @@ impl Resource for Container {}
 pub struct Builder {
     properties: PropertiesBuilder,
     assets: AssetMap,
-    scripts: ScriptMap,
+    analyses: AnalysisMap,
 }
 
 impl Builder {
@@ -170,13 +170,13 @@ impl Builder {
         self
     }
 
-    pub fn add_script(&mut self, script: ScriptAssociation) -> &mut Self {
-        self.scripts.insert(script.script.clone(), script.into());
+    pub fn add_script(&mut self, script: AnalysisAssociation) -> &mut Self {
+        self.analyses.insert(script.analysis.clone(), script.into());
         self
     }
 
     pub fn remove_script(&mut self, rid: &ResourceId) -> &mut Self {
-        self.scripts.remove(rid);
+        self.analyses.remove(rid);
         self
     }
 }
@@ -187,7 +187,7 @@ impl Into<Container> for Builder {
             rid: ResourceId::new(),
             properties: self.properties.into(),
             assets: self.assets,
-            scripts: self.scripts,
+            analyses: self.analyses,
         }
     }
 }

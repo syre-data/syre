@@ -1,76 +1,100 @@
 //! Excel template builder.
-use super::{common, workbook::Workbook};
-use crate::hooks::spreadsheet::use_excel;
+use super::builder_steps::{InputBuilder, OutputBuilder, TemplateBuilder, TemplateReview};
 use std::path::PathBuf;
 use std::rc::Rc;
-use syre_core::db::StandardSearchFilter;
-use syre_core::project::AssetProperties;
-use syre_desktop_lib::excel_template;
-use wasm_bindgen::JsValue;
-use wasm_bindgen_futures::spawn_local;
+use syre_core::project::excel_template::{InputParameters, OutputParameters, TemplateParameters};
+use syre_core::project::{AssetProperties, ExcelTemplate};
+use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct ExcelTemplateBuilderProps {
-    pub template_path: PathBuf,
-    pub oncreate: Callback<excel_template::ExcelTemplate>,
+    pub path: PathBuf,
+    pub oncreate: Callback<ExcelTemplate>,
 }
 
 #[function_component(ExcelTemplateBuilder)]
 pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
-    let builder = use_reducer(|| TemplateBuilder::new(props.template_path.clone()));
-    let template_replace_column_start: UseStateHandle<Option<u32>> = use_state(|| None);
-    let template_form_node_ref = use_node_ref();
+    let builder = use_reducer(|| TemplateState::new());
+    let template_node_ref = use_node_ref();
+    let input_node_ref = use_node_ref();
+    let output_node_ref = use_node_ref();
+    let review_node_ref = use_node_ref();
 
-    let onclick_header_template =
-        use_callback((builder.clone(), template_replace_column_start.clone()), {
-            move |(e, (sheet, index)), (builder, template_replace_column_start)| {
-                match template_replace_column_start.as_ref() {
-                    None => {
-                        builder.dispatch(TemplateBuilderAction::ClearTemplateReplaceRange);
-                        template_replace_column_start.set(Some(index));
-                    }
-                    Some(&temp_index) => {
-                        let start = index.min(temp_index);
-                        let end = index.max(temp_index);
+    use_effect_with(builder.step.clone(), {
+        let template_node_ref = template_node_ref.clone();
+        let input_node_ref = input_node_ref.clone();
+        let output_node_ref = output_node_ref.clone();
+        let review_node_ref = review_node_ref.clone();
 
-                        template_replace_column_start.set(None);
-                        builder.dispatch(TemplateBuilderAction::SetTemplateReplaceRange {
-                            sheet,
-                            range: (start, end),
-                        });
+        move |step| {
+            let node_ref = match step {
+                BuilderStep::Template => template_node_ref,
+                BuilderStep::Input => input_node_ref,
+                BuilderStep::Output => output_node_ref,
+                BuilderStep::Review => review_node_ref,
+            };
 
-                        builder.dispatch(TemplateBuilderAction::NextStep);
-                    }
-                }
-            }
-        });
+            let elm = node_ref
+                .cast::<web_sys::HtmlElement>()
+                .expect("could not cast node ref as element");
+
+            elm.scroll_into_view();
+        }
+    });
 
     let onsubmit_template = use_callback((), {
         let builder = builder.dispatcher();
-        let template_form_node_ref = template_form_node_ref.clone();
-
-        move |e: SubmitEvent, _| {
-            e.prevent_default();
-
-            let form = template_form_node_ref
-                .cast::<web_sys::HtmlFormElement>()
-                .unwrap();
-            let form_data = web_sys::FormData::new_with_form(&form).unwrap();
-            let data_label_action = form_data.get("data-label-action");
-            let data_label_action = match data_label_action.as_string().unwrap().as_str() {
-                "none" => excel_template::DataLabelAction::None,
-                "insert" => excel_template::DataLabelAction::Insert,
-                "replace" => excel_template::DataLabelAction::Replace,
-                other => panic!("unknown data label action value `{other}`"),
-            };
-
-            builder.dispatch(TemplateBuilderAction::SetTemplateDataLabelAction(
-                data_label_action,
-            ));
-            builder.dispatch(TemplateBuilderAction::NextStep);
+        move |template, _| {
+            builder.dispatch(TemplateStateAction::SetTemplate(template));
         }
     });
+
+    let onsubmit_input = use_callback((), {
+        let builder = builder.dispatcher();
+        move |input, _| {
+            builder.dispatch(TemplateStateAction::SetInput(input));
+        }
+    });
+
+    let onsubmit_output = use_callback((), {
+        let builder = builder.dispatcher();
+        move |(path, properties), _| {
+            builder.dispatch(TemplateStateAction::SetOutput { path, properties });
+        }
+    });
+
+    let create_template = use_callback(
+        (builder.clone(), props.oncreate.clone()),
+        move |_, (builder, oncreate)| {
+            let Some(template) = builder.template.as_ref() else {
+                builder.dispatch(TemplateStateAction::SetStep(BuilderStep::Template));
+                return;
+            };
+
+            let Some(input) = builder.input.as_ref() else {
+                builder.dispatch(TemplateStateAction::SetStep(BuilderStep::Input));
+                return;
+            };
+
+            let Some(output) = builder.output.as_ref() else {
+                builder.dispatch(TemplateStateAction::SetStep(BuilderStep::Output));
+                return;
+            };
+
+            let template = ExcelTemplate {
+                rid: ResourceId::new(),
+                name: None,
+                description: None,
+                template: template.clone(),
+                input: input.clone(),
+                output: output.clone(),
+                python_exe: "python3".to_string(),
+            };
+
+            oncreate.emit(template);
+        },
+    );
 
     let mut template_step_class = classes!("builder-step", "excel-template", "flex");
     let mut input_step_class = classes!("builder-step", "input-data");
@@ -79,249 +103,109 @@ pub fn excel_template_builder(props: &ExcelTemplateBuilderProps) -> Html {
 
     match builder.step {
         BuilderStep::Template => template_step_class.push("active"),
-        BuilderStep::InputData => input_step_class.push("active"),
-        BuilderStep::OutputAsset => output_step_class.push("active"),
+        BuilderStep::Input => input_step_class.push("active"),
+        BuilderStep::Output => output_step_class.push("active"),
         BuilderStep::Review => review_step_class.push("active"),
     }
 
-    let template_fallback = html! {
-        { "Loading template..." }
-    };
-
     html! {
         <div class={"excel-template-builder"}>
-            <div class={template_step_class}>
-                <Suspense fallback={template_fallback}>
-                    <div>
-                        <ExcelWorkbook path={props.template_path.clone()}
-                            onclick_header={onclick_header_template} />
-                    </div>
-                    <form ref={template_form_node_ref} onsubmit={onsubmit_template}>
-                        <div>
-                            <p>
-                                { "Select the column range that should be replaced with new data" }
-                            </p>
-                            <p>
-                                <label>
-                                    {"Columns to replace"}
-                                    <input value={builder.template_params.range_as_value()} disabled={true} />
-                                </label>
-                            </p>
-                        </div>
+            <div ref={template_node_ref}
+                class={template_step_class}>
 
-                        <div>
-                            <fieldset>
-                                <legend>{ "How should data be inserted?" }</legend>
+                <TemplateBuilder
+                    path={props.path.clone()}
+                    onsubmit={onsubmit_template}
+                    template={builder.template.clone()} />
+            </div>
 
-                                <div>
-                                    <input type={"radio"}
-                                        name={"data-label-action"}
-                                        value={"none"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::None} />
+            <div ref={input_node_ref}
+                class={input_step_class}>
 
-                                    <label for={"none"}
-                                        title={"Data will be inserted as is from the input source."}>
-                                        { "None" }
-                                    </label>
-                                </div>
+                <InputBuilder
+                    input={builder.input.clone()}
+                    onsubmit={onsubmit_input} />
+            </div>
 
-                                <div>
-                                    <input type={"radio"}
-                                        name={"data-label-action"}
-                                        value={"insert"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::Insert} />
+            <div ref={output_node_ref}
+                class={output_step_class}>
 
-                                    <label for={"insert"}
-                                        title={"Input asset's path will be appended as a header."}>
-                                        { "Append file name" }
-                                    </label>
-                                </div>
+                <OutputBuilder
+                    path={builder.output.clone().map(|output| output.path)}
+                    properties={builder.output.clone().map(|output| output.properties)}
+                    onsubmit={onsubmit_output} />
+            </div>
 
-                                <div>
-                                    <input type={"radio"}
-                                        name={"data-label-action"}
-                                        value={"replace"}
-                                        checked={builder.template_params.data_label_action == excel_template::DataLabelAction::Replace} />
+            <div ref={review_node_ref}
+                class={review_step_class}>
 
-                                    <label for={"replace"}
-                                        title={"Input asset's path will replace any headers."}>
-                                        { "Replace headers" }
-                                    </label>
-                                </div>
-                            </fieldset>
-                        </div>
-
-                        <div>
-                            <button>{ "Next" }</button>
-                        </div>
-                    </form>
-                </Suspense>
+                <TemplateReview onaccept={create_template} />
             </div>
         </div>
     }
-}
-
-#[derive(Properties, PartialEq)]
-struct ExcelWorkbookProps {
-    pub path: PathBuf,
-
-    #[prop_or_default]
-    pub onclick_header: Option<Callback<(MouseEvent, (excel_template::WorksheetId, u32))>>,
-}
-
-#[function_component(ExcelWorkbook)]
-fn excel_workbook(props: &ExcelWorkbookProps) -> HtmlResult {
-    let workbook = use_excel(props.path.clone())?;
-    Ok(html! {
-        <Workbook {workbook} onclick_header={props.onclick_header.clone()} />
-    })
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
 pub enum BuilderStep {
     #[default]
     Template,
-    InputData,
-    OutputAsset,
+    Input,
+    Output,
     Review,
 }
 
-pub enum TemplateBuilderAction {
-    NextStep,
-
-    SetTemplateReplaceRange {
-        sheet: excel_template::WorksheetId,
-        range: (u32, u32),
+pub enum TemplateStateAction {
+    SetStep(BuilderStep),
+    SetTemplate(TemplateParameters),
+    SetInput(InputParameters),
+    SetOutput {
+        path: PathBuf,
+        properties: AssetProperties,
     },
-
-    ClearTemplateReplaceRange,
-
-    SetTemplateDataLabelAction(excel_template::DataLabelAction),
 }
 
 #[derive(PartialEq, Clone, Debug)]
-struct TemplateBuilder {
+struct TemplateState {
     pub step: BuilderStep,
-    pub template_params: TemplateParamsBuilder,
-    pub input_data_params: InputDataParamsBuilder,
+    pub template: Option<TemplateParameters>,
+    pub input: Option<InputParameters>,
+    pub output: Option<OutputParameters>,
 }
 
-impl TemplateBuilder {
-    pub fn new(template_path: PathBuf) -> Self {
+impl TemplateState {
+    pub fn new() -> Self {
         Self {
             step: BuilderStep::default(),
-            template_params: TemplateParamsBuilder::new(template_path),
-            input_data_params: InputDataParamsBuilder::new(),
+            template: None,
+            input: None,
+            output: None,
         }
     }
 }
 
-impl Reducible for TemplateBuilder {
-    type Action = TemplateBuilderAction;
+impl Reducible for TemplateState {
+    type Action = TemplateStateAction;
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {
-            TemplateBuilderAction::NextStep => {
-                current.step = match current.step {
-                    BuilderStep::Template => {
-                        if !current.input_data_params.is_complete() {
-                            BuilderStep::InputData
-                        } else {
-                            BuilderStep::Review
-                        }
-                    }
+            TemplateStateAction::SetStep(step) => current.step = step,
 
-                    BuilderStep::InputData => BuilderStep::Review,
-
-                    BuilderStep::OutputAsset => BuilderStep::Review,
-
-                    BuilderStep::Review => BuilderStep::Review,
-                }
+            TemplateStateAction::SetTemplate(template) => {
+                current.template = Some(template);
+                current.step = BuilderStep::Input;
             }
 
-            TemplateBuilderAction::SetTemplateReplaceRange { sheet, range } => {
-                current.template_params.sheet = Some(sheet);
-                current.template_params.range = Some(range);
+            TemplateStateAction::SetInput(params) => {
+                current.input = Some(params);
+                current.step = BuilderStep::Output;
             }
 
-            TemplateBuilderAction::ClearTemplateReplaceRange => {
-                current.template_params.sheet = None;
-                current.template_params.range = None;
-            }
-
-            TemplateBuilderAction::SetTemplateDataLabelAction(action) => {
-                current.template_params.data_label_action = action;
+            TemplateStateAction::SetOutput { path, properties } => {
+                current.output = Some(OutputParameters { path, properties });
+                current.step = BuilderStep::Review;
             }
         }
 
         current.into()
     }
-}
-
-#[derive(PartialEq, Clone, Debug)]
-struct TemplateParamsBuilder {
-    pub path: PathBuf,
-    pub sheet: Option<excel_template::WorksheetId>,
-    pub range: Option<(u32, u32)>,
-    pub data_label_action: excel_template::DataLabelAction,
-}
-
-impl TemplateParamsBuilder {
-    pub fn new(path: PathBuf) -> Self {
-        Self {
-            path,
-            sheet: None,
-            range: None,
-            data_label_action: excel_template::DataLabelAction::None,
-        }
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.sheet.is_some() && self.range.is_some()
-    }
-
-    pub fn range_as_value(&self) -> String {
-        let Some(sheet) = self.sheet.as_ref() else {
-            return "".into();
-        };
-
-        let Some(range) = self.range.as_ref() else {
-            return "".into();
-        };
-
-        let col_start = common::index_to_column(range.0 as usize);
-        let col_end = common::index_to_column(range.1 as usize);
-
-        match sheet {
-            excel_template::WorksheetId::Name(sheet_name) => {
-                format!("{sheet_name}!{col_start}:{col_end}")
-            }
-
-            excel_template::WorksheetId::Index(sheet_index) => {
-                format!("[{}]!{col_start}:{col_end}", sheet_index + 1)
-            }
-        }
-    }
-}
-
-#[derive(PartialEq, Clone, Debug, Default)]
-struct InputDataParamsBuilder {
-    data: Option<InputRange>,
-    headers: Option<u32>,
-}
-
-impl InputDataParamsBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        return false;
-    }
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum InputRange {
-    Specified(excel_template::Range),
-    UntilBreak(excel_template::Range),
 }

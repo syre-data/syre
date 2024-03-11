@@ -46,7 +46,7 @@ database_available <- function() {
   }
 
   # check if database is responsive
-  cmd <- '{"DatabaseCommand": "Id"}'
+  cmd <- '{"Database": "Id"}'
   id <- send_cmd(zmq_socket(), cmd, result = FALSE)
   id == "syre local database"
 }
@@ -58,7 +58,7 @@ database_available <- function() {
 #'
 #' @returns List of Project properties.
 load_project <- function(socket, path) {
-  cmd <- sprintf('{"ProjectCommand": {"Load": "%s"}}', path)
+  cmd <- sprintf('{"Project": {"Load": "%s"}}', path)
   send_cmd(socket, cmd)
 }
 
@@ -69,7 +69,7 @@ load_project <- function(socket, path) {
 #'
 #' @returns List of graph components.
 load_graph <- function(socket, project) {
-  cmd <- sprintf('{"GraphCommand": {"Load": "%s"}}', project)
+  cmd <- sprintf('{"Graph": {"Load": "%s"}}', project)
   send_cmd(socket, cmd)
 }
 
@@ -80,7 +80,7 @@ load_graph <- function(socket, project) {
 #'
 #' @returns List of Container properties.
 get_container <- function(socket, id) {
-  cmd <- sprintf('{"ContainerCommand": {"Get": "%s"}}', id)
+  cmd <- sprintf('{"Container": {"Get": "%s"}}', id)
   send_cmd(socket, cmd, result = FALSE)
 }
 
@@ -91,7 +91,7 @@ get_container <- function(socket, id) {
 #'
 #' @returns Container's path.
 container_path <- function(socket, id) {
-  cmd <- sprintf('{"ContainerCommand": {"Path": "%s"}}', id)
+  cmd <- sprintf('{"Container": {"Path": "%s"}}', id)
   send_cmd(socket, cmd, result = FALSE)
 }
 
@@ -102,6 +102,6 @@ container_path <- function(socket, id) {
 #'
 #' @returns List of Container properties.
 container_by_path <- function(socket, path) {
-  cmd <- sprintf('{"ContainerCommand": {"ByPath": "%s"}}', path)
+  cmd <- sprintf('{"Container": {"ByPath": "%s"}}', path)
   send_cmd(socket, cmd, result = FALSE)
 }

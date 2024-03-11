@@ -944,6 +944,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
+name = "erased-serde"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55d05712b2d8d88102bc9868020c9e5c7a1f5527c452b9b97450a1d006140ba7"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4049,7 +4058,7 @@ dependencies = [
 
 [[package]]
 name = "syre-core"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
  "chrono",
@@ -4090,7 +4099,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
  "futures",
@@ -4136,7 +4145,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop-tauri"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "calamine",
  "csv",
@@ -4163,12 +4172,15 @@ dependencies = [
 
 [[package]]
 name = "syre-local"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "aquamarine",
+ "calamine",
+ "csv",
  "derivative",
  "dev_utils",
  "directories",
+ "erased-serde",
  "fake",
  "glob",
  "has_id",
@@ -4189,7 +4201,7 @@ dependencies = [
 
 [[package]]
 name = "syre-local-database"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "dev_utils",
  "fake",
@@ -4237,7 +4249,7 @@ dependencies = [
 
 [[package]]
 name = "syre-local-runner"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde_json",
  "syre-core",

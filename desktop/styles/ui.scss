@@ -8,10 +8,31 @@
 
 .syre-ui-shadow-box {
   z-index: 100;
-  background-color: rgba(0, 0, 0, 1);
+  background-color: t.$background-color;
   padding: t.$padding-l;
   border-radius: t.$border-radius-m;
   max-width: 90%;
+}
+
+.syre-ui-page-overlay-wrapper {
+  z-index: 100;
+  background-color: t.$frame-background-color;
+
+  .syre-ui-page-overlay {
+    & > button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 100;
+
+      padding: 0;
+      margin: 0;
+      width: 2rem;
+      height: 2rem;
+
+      background-color: transparent;
+    }
+  }
 }
 
 .syre-ui-messages {
@@ -214,11 +235,11 @@
 
         .metadatum-value {
           width: 100%;
-		  flex-grow: 1;
+          flex-grow: 1;
 
-		  &[data-value-kind="string"] {
-			  flex-grow: 3;
-		  }
+          &[data-value-kind="string"] {
+            flex-grow: 3;
+          }
 
           input {
             width: 100%;
@@ -232,24 +253,27 @@
     }
 
     .syre-ui-metadatum {
-	  width: 100%;
+      width: 100%;
 
       .metadatum-fields {
         display: flex;
         align-items: center;
         gap: t.$gap-s;
+        min-width: 1.5rem;
 
         .metadatum-key {
           @include mixins.hide-text-overflow;
-		  flex-grow: 1;
+          flex-basis: 0;
+          flex-grow: 1;
         }
 
         .metadatum-value {
+          flex-basis: 0;
           flex-grow: 1;
 
-		  &[data-value-kind="string"] {
-			  flex-grow: 3;
-		  }
+          &[data-value-kind="string"] {
+            flex-grow: 2;
+          }
 
           input {
             width: 100%;
@@ -326,7 +350,7 @@
     display: flex;
   }
 
-  // NOTE! This is note the same as the associations editor.
+  // NOTE! This is not the same as the associations editor.
   .syre-ui-script-association-editor {
     display: flex;
     align-items: center;

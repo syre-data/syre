@@ -6,9 +6,11 @@ use crate::commands::project::analyze;
 use crate::components::canvas::canvas_state::ResourceType;
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::use_project;
+use crate::lib::DisplayName;
 use syre_core::error::Runner as RunnerError;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::Analysis as AnalysisError;
+use syre_local::types::AnalysisKind;
 use syre_ui::types::ContainerPreview;
 use syre_ui::types::Message;
 use syre_ui::widgets::container::container_tree::ContainerPreviewSelect;
@@ -355,11 +357,11 @@ fn detail_message_from_analysis_error(
             RunnerError::LoadScripts(errs) => errs
                 .iter()
                 .map(|(script, description)| {
-                    let s_name = match script_name(script, project, &projects_state.project_scripts)
-                    {
-                        None => format!("{script}"),
-                        Some(name) => name,
-                    };
+                    let s_name =
+                        match analysis_name(script, project, &projects_state.project_analyses) {
+                            None => format!("{script}"),
+                            Some(name) => name,
+                        };
 
                     format!("{s_name}: {description}")
                 })
@@ -399,7 +401,8 @@ fn detail_message_from_analysis_error(
                 container,
                 description,
             } => {
-                let s_name = match script_name(&script, project, &projects_state.project_scripts) {
+                let s_name = match analysis_name(&script, project, &projects_state.project_analyses)
+                {
                     None => format!("{script}"),
                     Some(name) => name,
                 };
@@ -428,17 +431,17 @@ fn ancestor_names(container: &ResourceId, graph_state: &GraphStateReducer) -> Ve
         .collect()
 }
 
-fn script_name(
-    script: &ResourceId,
+fn analysis_name(
+    analysis: &ResourceId,
     project: &ResourceId,
-    project_scripts: &crate::app::projects_state::ProjectScriptsMap,
+    project_scripts: &crate::app::projects_state::ProjectAnalysesMap,
 ) -> Option<String> {
     match project_scripts.get(project) {
         None => None,
 
-        Some(scripts) => match scripts.get(script) {
+        Some(analyses) => match analyses.get(analysis) {
             None => None,
-            Some(script) => Some(script.path.as_path().to_string_lossy().to_string()),
+            Some(analysis) => Some(analysis.display_name()),
         },
     }
 }

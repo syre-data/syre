@@ -4,14 +4,15 @@ use std::path::PathBuf;
 use tauri_sys::dialog::FileDialogBuilder;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_icons::{Icon, IconId};
 
 #[derive(Properties, PartialEq)]
 pub struct CreateScriptProps {
+    /// Button contents.
+    pub children: Html,
+
     #[prop_or_default]
     pub class: Classes,
-
-    #[prop_or("Add scripts")]
-    pub text: &'static str,
 
     /// Callback when a user selectr a file to create a path from.
     #[prop_or_default]
@@ -28,9 +29,9 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
 
             spawn_local(async move {
                 let mut path = FileDialogBuilder::new();
+                // path.set_default_path(&default_path); TODO Set default path
                 path.set_title("Script files")
-                    .add_filter("Scripts", &["py", "R", "r"]); // @todo: Pull valid extensions from `Script`.
-                                                               // @todo: Set default path.
+                    .add_filter("Scripts", &["py", "R", "r"]); // TODO: Pull valid extensions from `Script`.
 
                 let paths = path
                     .pick_files()
@@ -46,6 +47,11 @@ pub fn create_script(props: &CreateScriptProps) -> Html {
     };
 
     html! {
-        <button class={props.class.clone()} {onclick}>{ &props.text }</button>
+        <button title={"Add analysis scripts"}
+            class={props.class.clone()}
+            {onclick}>
+
+            { props.children.clone() }
+        </button>
     }
 }

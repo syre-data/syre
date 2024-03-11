@@ -4,7 +4,7 @@ CONTAINER_ID_KEY <- "SYRE_CONTAINER_ID"
 #'
 #' @returns Active user or `NULL`
 active_user <- function() {
-  cmd <- '{"UserCommand": "GetActive"}'
+  cmd <- '{"User": "GetActive"}'
   user <- send_cmd(zmq_socket(), cmd)
   user
 }
@@ -24,7 +24,7 @@ syre_container_id <- function() {
 #' @returns Project path of the resource, or `NULL`.
 project_resource_root_path <- function(path) {
   cmd <-
-    sprintf('{"ProjectCommand": {"ResourceRootPath": "%s"}}',
+    sprintf('{"Project": {"ResourceRootPath": "%s"}}',
             escape_str(path))
   path <- send_cmd(zmq_socket(), cmd)
   path

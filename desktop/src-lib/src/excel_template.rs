@@ -3,7 +3,6 @@ use calamine::{CellErrorType, DataType, Reader};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 use std::ops::Deref;
-use syre_core::project::AssetProperties;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub struct Spreadsheet(Vec<Vec<String>>);
@@ -135,40 +134,6 @@ impl Deref for Workbook {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-#[derive(Debug)]
-pub struct ExcelTemplate {
-    pub input_data_params: InputDataParameters,
-    pub template_params: ExcelTemplateParameters,
-    pub asset: AssetProperties,
-}
-
-#[derive(Debug)]
-pub struct InputDataParameters {}
-
-#[derive(Debug)]
-pub struct ExcelTemplateParameters {}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum WorksheetId {
-    Name(String),
-    Index(i32),
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum DataLabelAction {
-    None,
-    Insert,
-    Replace,
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub struct Range {
-    pub start_row: u32,
-    pub start_col: u32,
-    pub end_row: u32,
-    pub end_col: u32,
 }
 
 pub fn data_type_to_string(value: &DataType) -> String {

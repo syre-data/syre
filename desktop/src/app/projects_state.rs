@@ -1,18 +1,17 @@
 //! Projects state.
-// use crate::commands::settings::UserAppStateArgs;
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use std::rc::Rc;
-use syre_core::project::{Project, Script, Scripts};
+use syre_core::project::{ExcelTemplate, Project, Script};
 use syre_core::types::{ResourceId, ResourceMap};
-use syre_local::types::ProjectSettings;
+use syre_local::types::{AnalysisKind, AnalysisStore, ProjectSettings};
 use yew::prelude::*;
 
 pub type ProjectMap = ResourceMap<Project>;
 pub type SettingsMap = ResourceMap<ProjectSettings>;
 
-/// Map from a `Project` to its `Scripts`.
-pub type ProjectScriptsMap = ResourceMap<Scripts>;
+/// Map from a `Project` to its analyses.
+pub type ProjectAnalysesMap = ResourceMap<AnalysisStore>;
 
 /// Actions for [`ProjectsState`].
 #[derive(Debug)]
@@ -49,12 +48,21 @@ pub enum ProjectsStateAction {
         script: Script,
     },
 
-    /// Inserts `Script`s into a `Project`.
-    ///
-    /// # Fields
-    /// 1. `Project`'s id.
-    /// 2. `Project`'s `Script`s.
-    InsertProjectScripts(ResourceId, Scripts),
+    /// Inserts a `Project`'s analyses.
+    InsertProjectAnalyses {
+        project: ResourceId,
+        analyses: AnalysisStore,
+    },
+
+    InsertProjectExcelTemplate {
+        project: ResourceId,
+        template: ExcelTemplate,
+    },
+
+    UpdateExcelTemplate {
+        project: ResourceId,
+        template: ExcelTemplate,
+    },
 
     RemoveProjectScript(ResourceId),
 
@@ -73,8 +81,8 @@ pub struct ProjectsState {
     /// Project settings.
     pub settings: SettingsMap,
 
-    /// `Project` `Script`s.
-    pub project_scripts: ProjectScriptsMap,
+    /// `Project` analyses.
+    pub project_analyses: ProjectAnalysesMap,
 
     /// Open [`Projects`].
     pub open_projects: IndexSet<ResourceId>,
@@ -104,9 +112,9 @@ impl Reducible for ProjectsState {
 
             ProjectsStateAction::RemoveProject(project) => {
                 current.settings.remove(&project);
-                current.project_scripts.remove(&project);
+                current.project_analyses.remove(&project);
                 current.projects.remove(&project);
-                current.open_projects.remove(&project);
+                current.open_projects.shift_remove(&project);
                 if let Some(active_project) = current.active_project.as_ref() {
                     if active_project == &project {
                         current.active_project = None;
@@ -124,7 +132,7 @@ impl Reducible for ProjectsState {
                     current.active_project = activate;
                 }
 
-                current.open_projects.remove(&project);
+                current.open_projects.shift_remove(&project);
             }
 
             ProjectsStateAction::SetActiveProject(rid) => {
@@ -132,27 +140,40 @@ impl Reducible for ProjectsState {
             }
 
             ProjectsStateAction::InsertProjectScript { project, script } => {
-                let scripts = current.project_scripts.get_mut(&project).unwrap();
-                scripts.insert(script.rid.clone(), script);
+                let scripts = current.project_analyses.get_mut(&project).unwrap();
+                scripts.insert(script.rid.clone(), script.into());
             }
 
-            ProjectsStateAction::InsertProjectScripts(project, scripts) => {
-                current.project_scripts.insert(project, scripts);
+            ProjectsStateAction::InsertProjectAnalyses { project, analyses } => {
+                current.project_analyses.insert(project, analyses);
             }
 
-            ProjectsStateAction::RemoveProjectScript(script) => {
-                for (_project, scripts) in current.project_scripts.iter_mut() {
-                    if scripts.contains_key(&script) {
-                        scripts.remove(&script);
+            ProjectsStateAction::InsertProjectExcelTemplate { project, template } => {
+                let scripts = current.project_analyses.get_mut(&project).unwrap();
+                scripts.insert(template.rid.clone(), template.into());
+            }
+
+            ProjectsStateAction::UpdateExcelTemplate { project, template } => {
+                let analyses = current.project_analyses.get_mut(&project).unwrap();
+                analyses.insert(template.rid.clone(), AnalysisKind::ExcelTemplate(template));
+            }
+
+            ProjectsStateAction::RemoveProjectScript(analysis) => {
+                for (_project, analyses) in current.project_analyses.iter_mut() {
+                    if analyses.contains_key(&analysis) {
+                        analyses.remove(&analysis);
                         break;
                     }
                 }
             }
 
             ProjectsStateAction::MoveProjectScript { script, path } => {
-                for (_project, scripts) in current.project_scripts.iter_mut() {
-                    if let Some(script) = scripts.get_mut(&script) {
-                        script.path = path;
+                for (_project, analyses) in current.project_analyses.iter_mut() {
+                    if let Some(analysis) = analyses.get_mut(&script) {
+                        match analysis {
+                            AnalysisKind::Script(script) => script.path = path,
+                            AnalysisKind::ExcelTemplate(template) => template.template.path = path,
+                        }
                         break;
                     }
                 }

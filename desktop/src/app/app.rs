@@ -120,6 +120,7 @@ pub fn app() -> Html {
                         <Messages />
                         <GlobalWidgets />
                         <div id={"app-main-shadow-box"}></div>
+                        <div id={"app-main-page-overlay"}></div>
                     </div>
                 </ContextProvider<ProjectsStateReducer>>
             } else {

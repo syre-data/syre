@@ -13,7 +13,7 @@ use super::Event;
 use crate::command::Command;
 use crate::event::Update;
 use crate::{common, constants, Result};
-use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
+use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
@@ -122,14 +122,14 @@ impl Database {
     fn handle_command(&mut self, command: Command) -> JsValue {
         tracing::debug!(?command);
         match command {
-            Command::AssetCommand(cmd) => self.handle_command_asset(cmd),
-            Command::ContainerCommand(cmd) => self.handle_command_container(cmd),
-            Command::DatabaseCommand(cmd) => self.handle_command_database(cmd),
-            Command::ProjectCommand(cmd) => self.handle_command_project(cmd),
-            Command::GraphCommand(cmd) => self.handle_command_graph(cmd),
-            Command::ScriptCommand(cmd) => self.handle_command_script(cmd),
-            Command::UserCommand(cmd) => self.handle_command_user(cmd),
-            Command::AnalysisCommand(cmd) => self.handle_command_analysis(cmd),
+            Command::Asset(cmd) => self.handle_command_asset(cmd),
+            Command::Container(cmd) => self.handle_command_container(cmd),
+            Command::Database(cmd) => self.handle_command_database(cmd),
+            Command::Project(cmd) => self.handle_command_project(cmd),
+            Command::Graph(cmd) => self.handle_command_graph(cmd),
+            Command::Analysis(cmd) => self.handle_command_analysis(cmd),
+            Command::User(cmd) => self.handle_command_user(cmd),
+            Command::Runner(cmd) => self.handle_command_runner(cmd),
         }
     }
 }
@@ -146,7 +146,7 @@ mod windows {
             let events = match events {
                 Ok(events) => events,
                 Err(errs) => {
-                    tracing::debug!("watch error: {errs:?}");
+                    tracing::error!("watch error: {errs:?}");
                     return Err(crate::Error::Database(format!("{errs:?}")));
                 }
             };
@@ -168,6 +168,7 @@ mod windows {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::*;
+    use notify_debouncer_full::DebouncedEvent;
     use std::path::{Component, Path};
     use std::time::Instant;
 

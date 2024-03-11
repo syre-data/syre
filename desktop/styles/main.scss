@@ -61,31 +61,9 @@ h1 {
   text-align: center;
 }
 
-input,
-textarea,
-button {
-  color: t.$body-text-color;
-  border-radius: t.$border-radius-l;
-  border: t.$border-width-s solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  background-color: t.$secondary-button-background-color;
-  transition: border-color 0.25s;
-
-  &:focus {
-    border-color: t.$primary-color;
-  }
-}
-
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-input[type="number"] {
-  padding: 7px;
-  border-radius: 0;
 }
 
 button {
@@ -125,10 +103,6 @@ button {
   }
 }
 
-input {
-  outline: none;
-}
-
 .title {
   font-family: t.$title-font-family;
 }
@@ -137,17 +111,6 @@ input {
   display: inline-block;
   padding: 0.5em;
   margin: 0.5em;
-}
-
-.inline-form-element {
-  display: inline-block;
-
-  &:not(.active):hover {
-    cursor: pointer;
-    border-radius: t.$border-radius-s;
-    padding: 0.25em 0.5em;
-    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.2);
-  }
 }
 
 .tag {

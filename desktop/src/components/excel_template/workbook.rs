@@ -1,25 +1,42 @@
 use super::spreadsheet::Spreadsheet;
+use std::collections::HashMap;
+use syre_core::project::excel_template::{
+    CoordinateMap, Index, WorkbookCoordinateMap, WorkbookTrackMap, WorksheetId,
+};
 use syre_desktop_lib::excel_template;
-use wasm_bindgen::JsCast;
-use web_sys::HtmlDivElement;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct WorkbookProps {
     pub workbook: excel_template::Workbook,
 
+    #[prop_or_default]
+    pub row_classes: WorkbookTrackMap<Classes>,
+
+    #[prop_or_default]
+    pub column_classes: WorkbookTrackMap<Classes>,
+
+    #[prop_or_default]
+    pub cell_classes: WorkbookCoordinateMap<Classes>,
+
     /// # Fields
     /// 0. Original event.
     /// 1. (sheet name, column index).
     ///
     #[prop_or_default]
-    pub onclick_header: Option<Callback<(MouseEvent, (excel_template::WorksheetId, u32))>>,
+    pub onclick_column_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
+
+    /// # Fields
+    /// 0. Original event.
+    /// 1. (sheet name, row index).
+    ///
+    #[prop_or_default]
+    pub onclick_row_label: Option<Callback<(MouseEvent, (WorksheetId, u32))>>,
 }
 
 #[function_component(Workbook)]
 pub fn workbook(props: &WorkbookProps) -> Html {
     let active_sheet = use_state(|| 0);
-    let spreadsheets_ref = use_node_ref();
 
     let set_active_worksheet = {
         let active_sheet = active_sheet.setter();
@@ -32,48 +49,29 @@ pub fn workbook(props: &WorkbookProps) -> Html {
         }
     };
 
-    let onclick_header = move |sheet: excel_template::WorksheetId| {
+    let onclick_column_label = move |sheet: WorksheetId| {
         Callback::from({
-            let onclick_header = props.onclick_header.clone();
-            move |(e, index)| {
-                if let Some(onclick_header) = onclick_header.as_ref() {
-                    onclick_header.emit((e, (sheet.clone(), index)));
+            let onclick_column_label = props.onclick_column_label.clone();
+            move |(e, index): (MouseEvent, u32)| {
+                e.stop_propagation();
+                if let Some(onclick_column_label) = onclick_column_label.as_ref() {
+                    onclick_column_label.emit((e, (sheet.clone(), index)));
                 }
             }
         })
     };
 
-    use_effect({
-        let spreadsheets_ref = spreadsheets_ref.clone();
-        move || {
-            let spreadsheets_elm = spreadsheets_ref.cast::<web_sys::HtmlDivElement>().unwrap();
-            let spreadsheets = spreadsheets_elm.query_selector_all(".spreadsheet").unwrap();
-            let mut dimensions = (0.0, 0.0);
-
-            for index in 0..spreadsheets.length() {
-                let spreadsheet = spreadsheets.item(index).unwrap();
-                let spreadsheet = spreadsheet.dyn_ref::<web_sys::Element>().unwrap();
-                let bbox = spreadsheet.get_bounding_client_rect();
-                let width = bbox.width();
-                let height = bbox.height();
-
-                if width > dimensions.0 {
-                    dimensions.0 = width;
-                }
-
-                if height > dimensions.1 {
-                    dimensions.1 = height;
+    let onclick_row_label = move |sheet: WorksheetId| {
+        Callback::from({
+            let onclick_row_label = props.onclick_column_label.clone();
+            move |(e, index): (MouseEvent, u32)| {
+                e.stop_propagation();
+                if let Some(onclick_row_label) = onclick_row_label.as_ref() {
+                    onclick_row_label.emit((e, (sheet.clone(), index)));
                 }
             }
-
-            spreadsheets_elm
-                .set_attribute(
-                    "style",
-                    &format!("width: {}px; height: {}px", dimensions.0, dimensions.1),
-                )
-                .unwrap();
-        }
-    });
+        })
+    };
 
     let (spreadsheet_names, spreadsheets): (Vec<_>, Vec<_>) = props
         .workbook
@@ -83,14 +81,39 @@ pub fn workbook(props: &WorkbookProps) -> Html {
 
     html! {
         <div class={"workbook"}>
-            <div ref={spreadsheets_ref}
-                class={"spreadsheets"}>
-
+            <div class={"spreadsheets"}>
                 {spreadsheets.into_iter().enumerate().map(|(index, spreadsheet)| {
                     let mut class = classes!("spreadsheet");
                     if index == *active_sheet {
                         class.push("active");
                     }
+
+                    let mut row_classes = HashMap::new();
+                    if let Some(ws_classes) = props.row_classes.get_worksheet(&WorksheetId::Index(index as Index)) {
+                        row_classes.extend(ws_classes.into_iter().map(|(k, v)| (k, v.clone())));
+                    };
+
+                    if let Some(ws_classes) = props.row_classes.get_worksheet(&WorksheetId::Name(spreadsheet_names[index].to_string())) {
+                        row_classes.extend(ws_classes.into_iter().map(|(k, v)| (k, v.clone())));
+                    };
+
+                    let mut column_classes = HashMap::new();
+                    if let Some(ws_classes) = props.column_classes.get_worksheet(&WorksheetId::Index(index as Index)) {
+                        column_classes.extend(ws_classes.into_iter().map(|(k, v)| (k, v.clone())));
+                    };
+
+                    if let Some(ws_classes) = props.column_classes.get_worksheet(&WorksheetId::Name(spreadsheet_names[index].to_string())) {
+                        column_classes.extend(ws_classes.into_iter().map(|(k, v)| (k, v.clone())));
+                    };
+
+                    let mut cell_classes = CoordinateMap::new();
+                    if let Some(ws_classes) = props.cell_classes.get_worksheet(&WorksheetId::Index(index as Index)) {
+                        cell_classes.extend(ws_classes.iter().map(|(k, v)| (k.clone(), (*v).clone())));
+                    };
+
+                    if let Some(ws_classes) = props.cell_classes.get_worksheet(&WorksheetId::Name(spreadsheet_names[index].to_string())) {
+                        cell_classes.extend(ws_classes.iter().map(|(k, v)| (k.clone(), (*v).clone())));
+                    };
 
                     html! {
                         <div key={index}
@@ -98,7 +121,11 @@ pub fn workbook(props: &WorkbookProps) -> Html {
                             data-index={index.to_string()}>
 
                             <Spreadsheet spreadsheet={spreadsheet.clone()}
-                                onclick_header={onclick_header(excel_template::WorksheetId::Name(spreadsheet_names[index].clone()))} />
+                                {row_classes}
+                                {column_classes}
+                                {cell_classes}
+                                onclick_column_label={onclick_column_label(WorksheetId::Name(spreadsheet_names[index].clone()))}
+                                onclick_row_label={onclick_row_label(WorksheetId::Name(spreadsheet_names[index].clone()))} />
                         </div>
                     }
                 }).collect::<Html>()}

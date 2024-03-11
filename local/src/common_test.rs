@@ -8,72 +8,71 @@ use std::path::PathBuf;
 
 #[test]
 fn unique_file_name_should_work() {
-    let mut _dir = TempDir::new().expect("new `TempDir` should work");
+    let mut _dir = TempDir::new().unwrap();
     let base_path = _dir.path().to_path_buf();
 
     // already unique
     let mut p = base_path.clone();
     let f_name: String = FileName(EN).fake();
     p.push(f_name.clone());
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
+    let q = unique_file_name(p.clone()).unwrap();
 
     assert_eq!(p, q, "file name should not change");
 
     // basic
-    let p = _dir.mkfile().expect("make temp file should work");
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
+    let p = _dir.mkfile_with_name("test.txt").unwrap();
+    let q = unique_file_name(p.clone()).unwrap();
+    _dir.mkfile_with_name("test (1).txt").unwrap();
+    let s = unique_file_name(p.clone()).unwrap();
+
     let r = postfix_file_name(p.clone(), "1");
+    let t = postfix_file_name(p.clone(), "2");
 
     assert_ne!(p, q, "file name should change");
     assert_eq!(r, q, "unexpected file name");
 
+    assert_ne!(p, s, "file name should change");
+    assert_eq!(t, s, "unexpected file name");
+
     // no extension
-    let p = _dir
-        .mkfile_with_name("test (1)")
-        .expect("make temp file should work");
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
+    let p = _dir.mkfile_with_name("test").unwrap();
+    _dir.mkfile_with_name("test (1)").unwrap();
+    let q = unique_file_name(p.clone()).unwrap();
     let r = p.parent().unwrap().join("test (2)");
 
     assert_ne!(p, q, "file name should change");
     assert_eq!(r, q, "unexpected file name");
 
     // multiple extensions
-    let p = _dir
-        .mkfile_with_extension("gz.txt")
-        .expect("make temp file should work");
+    let p = _dir.mkfile_with_extension("gz.txt").unwrap();
 
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
+    let q = unique_file_name(p.clone()).unwrap();
     let r = postfix_file_name(p.clone(), "1");
 
     assert_ne!(p, q, "file name should change");
     assert_eq!(r, q, "unexpected file name");
 
     // beginning with `.`
-    let p = _dir.mkfile().expect("make temp file should work");
-    let p0 = p
-        .file_name()
-        .expect("could not get file name")
-        .to_str()
-        .expect("could not convert path to string");
+    let p = _dir.mkfile().unwrap();
+    let p0 = p.file_name().unwrap().to_str().unwrap();
 
     let p0 = PathBuf::from(format!(".{p0}"));
     fs::rename(p, &p0).unwrap();
     let p = p0;
 
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
+    let q = unique_file_name(p.clone()).unwrap();
     let r = postfix_file_name(p.clone(), "1");
 
     assert_ne!(p, q, "file name should change");
     assert_eq!(r, q, "unexpected file name");
 
     // changing digit count
-    let p = _dir
-        .mkfile_with_name("test (9).txt")
-        .expect("make temp file should work");
-    let q = unique_file_name(p.clone()).expect("`unique_file_name` should work");
-    let r = p.parent().unwrap().join("test (10).txt");
+    let o = _dir.mkfile_with_name("digits.txt").unwrap();
+    let p = _dir.mkfile_with_name("digits (9).txt").unwrap();
+    let q = unique_file_name(o.clone()).unwrap();
+    let r = p.parent().unwrap().join("digits (10).txt");
 
-    assert_ne!(p, q, "file name should change");
+    assert_ne!(o, q, "file name should change");
     assert_eq!(r, q, "unexpected file name");
 }
 
@@ -172,10 +171,10 @@ fn scripts_file_of_should_work() {
     // setup
     let base_path = FilePath(EN).fake::<String>();
     let base_path = PathBuf::from(base_path);
-    let expected = base_path.join(APP_DIR).join(SCRIPTS_FILE);
+    let expected = base_path.join(APP_DIR).join(ANALYSES_FILE);
 
     // test
-    let path = scripts_file_of(&base_path);
+    let path = analyses_file_of(&base_path);
     assert_eq!(expected, path, "path should be correct");
 }
 

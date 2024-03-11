@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::graph::ResourceTree;
 use syre_core::project::{
-    Container as CoreContainer, ContainerProperties, Project as CoreProject, Script as CoreScript,
+    Container as CoreContainer, ContainerProperties, ExcelTemplate, Project as CoreProject,
+    Script as CoreScript,
 };
 use syre_core::types::ResourceId;
 

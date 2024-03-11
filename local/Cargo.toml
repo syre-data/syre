@@ -1,6 +1,6 @@
 [package]
 name = "syre-local"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
@@ -16,6 +16,8 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 aquamarine = { workspace = true }  # TODO Only needed for documentation.
+calamine = { workspace = true }
+csv = { workspace = true }
 derivative = "2.2"
 directories = { workspace = true, optional = true }
 glob = { version = "0.3.1", optional = true }
@@ -31,6 +33,7 @@ validator = "0.16"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
 syre-core = { path = "../core", features = ["serde"] }
+erased-serde = "0.4.2"
 
 [dev-dependencies]
 fake = { workspace = true }

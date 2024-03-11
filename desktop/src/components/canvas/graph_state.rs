@@ -1,8 +1,8 @@
 //! State Redcucer for the [`ContainerTree`](super::ContainerTree).
 use crate::commands::common::BulkUpdateResourcePropertiesArgs;
 use crate::commands::container::{
-    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs,
-    UpdatePropertiesArgs as UpdateContainerPropertiesArgs, UpdateScriptAssociationsArgs,
+    BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, UpdateAnalysisAssociationsArgs,
+    UpdatePropertiesArgs as UpdateContainerPropertiesArgs,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -15,8 +15,8 @@ use syre_local_database::command::asset::{
     PropertiesUpdate as AssetPropertiesUpdate,
 };
 use syre_local_database::command::container::{
-    BulkUpdateScriptAssociationsArgs, PropertiesUpdate as ContainerPropertiesUpdate,
-    ScriptAssociationBulkUpdate,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs,
+    PropertiesUpdate as ContainerPropertiesUpdate,
 };
 use yew::prelude::*;
 
@@ -65,11 +65,11 @@ pub enum GraphStateAction {
     InsertContainerAssets(ResourceId, Vec<Asset>),
 
     /// Update a [`Container`]'s
-    /// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
-    UpdateContainerScriptAssociations(UpdateScriptAssociationsArgs),
+    /// [`AnalysisAssociation`](syre_core::project::AnalysisAssociation)s.
+    UpdateContainerAnalysisAssociations(UpdateAnalysisAssociationsArgs),
 
-    /// Remove all associations with `Script` from [`Container`]'s.
-    RemoveContainerScriptAssociations(ResourceId),
+    /// Remove all associations with analysis from [`Container`]'s.
+    RemoveContainerAnalysisAssociations(ResourceId),
 
     // Remove an [`Asset`].
     RemoveAsset(ResourceId),
@@ -99,7 +99,7 @@ pub enum GraphStateAction {
     BulkUpdateResourceProperties(BulkUpdateResourcePropertiesArgs),
 
     /// Bulk update `Container` `ScriptAssociation`s.
-    BulkUpdateContainerScriptAssociations(BulkUpdateScriptAssociationsArgs),
+    BulkUpdateContainerScriptAssociations(BulkUpdateAnalysisAssociationsArgs),
 }
 
 #[derive(PartialEq, Clone)]
@@ -233,7 +233,7 @@ impl GraphState {
     pub fn update_container_script_associations_from_update(
         &mut self,
         rid: &ResourceId,
-        update: &ScriptAssociationBulkUpdate,
+        update: &AnalysisAssociationBulkUpdate,
     ) {
         let container = self
             .graph
@@ -241,8 +241,8 @@ impl GraphState {
             .expect("could not find `Container`");
 
         for assoc in update.add.iter() {
-            container.scripts.insert(
-                assoc.script.clone(),
+            container.analyses.insert(
+                assoc.analysis.clone(),
                 RunParameters {
                     priority: assoc.priority.clone(),
                     autorun: assoc.autorun.clone(),
@@ -251,7 +251,7 @@ impl GraphState {
         }
 
         for u in update.update.iter() {
-            let Some(script) = container.scripts.get_mut(&u.script) else {
+            let Some(script) = container.analyses.get_mut(&u.analysis) else {
                 continue;
             };
 
@@ -265,7 +265,7 @@ impl GraphState {
         }
 
         for script in update.remove.iter() {
-            container.scripts.remove(script);
+            container.analyses.remove(script);
         }
     }
 }
@@ -317,22 +317,22 @@ impl Reducible for GraphState {
                 container.properties = update.properties;
             }
 
-            GraphStateAction::UpdateContainerScriptAssociations(update) => {
+            GraphStateAction::UpdateContainerAnalysisAssociations(update) => {
                 let container = current
                     .graph
                     .get_mut(&update.rid)
                     .expect("`Container` not found");
 
-                container.scripts = update.associations;
+                container.analyses = update.associations;
             }
 
-            GraphStateAction::RemoveContainerScriptAssociations(rid) => {
+            GraphStateAction::RemoveContainerAnalysisAssociations(rid) => {
                 for cid in current.graph.nodes().clone().into_keys() {
                     let container = current
                         .graph
                         .get_mut(&cid)
                         .expect("`Container` not found in graph");
-                    container.scripts.remove(&rid);
+                    container.analyses.remove(&rid);
                 }
             }
 
@@ -485,7 +485,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::BulkUpdateContainerScriptAssociations(
-                BulkUpdateScriptAssociationsArgs { containers, update },
+                BulkUpdateAnalysisAssociationsArgs { containers, update },
             ) => {
                 for container in containers {
                     current.update_container_script_associations_from_update(&container, &update);

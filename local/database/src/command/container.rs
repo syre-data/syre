@@ -3,8 +3,8 @@ use super::types::{MetadataAction, TagsAction};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::db::StandardSearchFilter;
-use syre_core::project::container::ScriptMap;
-use syre_core::project::{ContainerProperties, ScriptAssociation};
+use syre_core::project::container::AnalysisMap;
+use syre_core::project::{AnalysisAssociation, ContainerProperties};
 use syre_core::types::ResourceId;
 
 /// Container related commands.
@@ -38,8 +38,8 @@ pub enum ContainerCommand {
     UpdateProperties(UpdatePropertiesArgs),
 
     /// Updates a [`Container`](syre_core::project::Container)'s
-    /// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
-    UpdateScriptAssociations(UpdateScriptAssociationsArgs),
+    /// [`AnalysisAssociation`](syre_core::project::AnalysisAssociation)s.
+    UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs),
 
     /// Gets the path of a [`Container`](syre_local::project::resources::Container).
     Path(ResourceId),
@@ -50,8 +50,8 @@ pub enum ContainerCommand {
     /// Update multiple [`Container`](syre_core::project::Container)s' properties.
     BulkUpdateProperties(BulkUpdatePropertiesArgs),
 
-    /// Update multiple `Container`s `ScriptAssociations`.
-    BulkUpdateScriptAssociations(BulkUpdateScriptAssociationsArgs),
+    /// Update multiple `Container`s `AnalysisAssociations`.
+    BulkUpdateAnalysisAssociations(BulkUpdateAnalysisAssociationsArgs),
 }
 
 // *****************
@@ -81,37 +81,37 @@ pub struct BulkUpdatePropertiesArgs {
 }
 
 /// Arguments for updating a [`Container`](syre_core::project::Container)'s
-/// [`ScriptAssociation`](syre_core::project::ScriptAssociation)s.
+/// [`AnalysisAssociation`](syre_core::project::AnalysisAssociation)s.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct UpdateScriptAssociationsArgs {
+pub struct UpdateAnalysisAssociationsArgs {
     pub rid: ResourceId,
-    pub associations: ScriptMap,
+    pub associations: AnalysisMap,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct BulkUpdateScriptAssociationsArgs {
+pub struct BulkUpdateAnalysisAssociationsArgs {
     pub containers: Vec<ResourceId>,
-    pub update: ScriptAssociationBulkUpdate,
+    pub update: AnalysisAssociationBulkUpdate,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
-pub struct ScriptAssociationBulkUpdate {
-    pub add: Vec<ScriptAssociation>,
+pub struct AnalysisAssociationBulkUpdate {
+    pub add: Vec<AnalysisAssociation>,
     pub remove: Vec<ResourceId>,
     pub update: Vec<RunParametersUpdate>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RunParametersUpdate {
-    pub script: ResourceId,
+    pub analysis: ResourceId,
     pub autorun: Option<bool>,
     pub priority: Option<i32>,
 }
 
 impl RunParametersUpdate {
-    pub fn new(script: ResourceId) -> Self {
+    pub fn new(analysis: ResourceId) -> Self {
         Self {
-            script,
+            analysis,
             autorun: None,
             priority: None,
         }

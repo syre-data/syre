@@ -10,13 +10,10 @@ use std::{fs, io};
 use syre_core::db::{SearchFilter, StandardSearchFilter as StdFilter};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::graph::ResourceTree;
-use syre_core::project::{
-    asset, Asset, Container as CoreContainer, Metadata, Script as CoreScript,
-};
+use syre_core::project::{Asset, Container as CoreContainer, ExcelTemplate, Metadata, Script};
 use syre_core::types::{ResourceId, ResourceMap};
-use syre_local::project::resources::{
-    Container as LocalContainer, Project as LocalProject, Scripts as ProjectScripts,
-};
+use syre_local::project::resources::{Analyses, Container as LocalContainer, Project};
+use syre_local::types::analysis::AnalysisKind;
 
 // *************
 // *** Types ***
@@ -94,11 +91,11 @@ pub type ContainerTree = ResourceTree<LocalContainer>;
 
 pub type IdMap = HashMap<ResourceId, ResourceId>;
 
-/// Map of [`ResourceId`] to [`Project`](LocalProject).
-pub type ProjectMap = ResourceMap<LocalProject>;
+/// Map of [`ResourceId`] to [`Project`].
+pub type ProjectMap = ResourceMap<Project>;
 
-/// Map from [`Project`](LocalProject)s to their [`Script`](CoreScript)s.
-pub type ProjectScriptsMap = HashMap<ResourceId, ProjectScripts>;
+/// Map from [`Project`]s to their [`Script`]s.
+pub type AnalysesMap = HashMap<ResourceId, Analyses>;
 
 /// Map from a `Project`'s id to its [`ContainerTree`]
 pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
@@ -118,10 +115,10 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 /// to these resources.
 /// This means that the `Datastore` should control all resources it stores.
 pub struct Datastore {
-    /// [`Project`](LocalProject) store.
+    /// [`Project`] store.
     projects: ProjectMap,
 
-    /// Map from a [`Project`](LocalProject)'s path to its [`ResourceId`].
+    /// Map from a [`Project`]'s path to its [`ResourceId`].
     project_paths: PathMap<ResourceId>,
 
     /// Map from [`Project`] to its graph.
@@ -139,11 +136,11 @@ pub struct Datastore {
     /// Map from an [`Asset`]'s path to its [`ResourceId`].
     asset_paths: PathMap<ResourceId>,
 
-    /// Map from a [`Script`](CoreScript)'s [`ResourceId`] to its `Project`.
-    script_projects: IdMap,
+    /// Map from an analysis' [`ResourceId`] to its `Project`.
+    analysis_projects: IdMap,
 
-    /// Holds a `Project`'s `Scripts`.
-    scripts: ProjectScriptsMap,
+    /// Holds a `Project`'s [`Analyses`].
+    analyses: AnalysesMap,
 }
 
 impl Datastore {
@@ -156,8 +153,8 @@ impl Datastore {
             container_projects: IdMap::new(),
             asset_containers: IdMap::new(),
             asset_paths: PathMap::new(),
-            script_projects: IdMap::new(),
-            scripts: ProjectScriptsMap::new(),
+            analysis_projects: IdMap::new(),
+            analyses: AnalysesMap::new(),
         }
     }
 
@@ -165,12 +162,12 @@ impl Datastore {
     // *** project ***
     // ***************
 
-    /// Inserts a [`Project`](LocalProject) into the database.
+    /// Inserts a [`Project`] into the database.
     /// Canonicalizes the path.
     ///
     /// # Returns
-    /// Reference to the inserted `Project`(LocalProject).
-    pub fn insert_project(&mut self, project: LocalProject) -> StdResult<(), io::Error> {
+    /// Reference to the inserted `Project`.
+    pub fn insert_project(&mut self, project: Project) -> StdResult<(), io::Error> {
         let pid = project.rid.clone();
         let project_path = project.base_path().to_path_buf();
 
@@ -268,15 +265,15 @@ impl Datastore {
         Ok(old_project_path.to_path_buf())
     }
 
-    /// Gets a [`Project`](LocalProject) from the database if it exists,
+    /// Gets a [`Project`] from the database if it exists,
     /// otherwise `None`.
-    pub fn get_project(&self, rid: &ResourceId) -> Option<&LocalProject> {
+    pub fn get_project(&self, rid: &ResourceId) -> Option<&Project> {
         self.projects.get(rid)
     }
 
-    /// Gets a `mut`able [`Project`](LocalProject) from the database if it exists,
+    /// Gets a `mut`able [`Project`] from the database if it exists,
     /// otherwise `None`.
-    pub fn get_project_mut(&mut self, rid: &ResourceId) -> Option<&mut LocalProject> {
+    pub fn get_project_mut(&mut self, rid: &ResourceId) -> Option<&mut Project> {
         self.projects.get_mut(rid)
     }
 
@@ -305,18 +302,18 @@ impl Datastore {
     // *** graph ***
     // *************
 
-    /// Gets a [`Project`](LocalProject)'s [`ContainerTree`].
+    /// Gets a [`Project`]'s [`ContainerTree`].
     ///
     /// # Arguments
-    /// 1. [`ResourceId`] of the [`Project`](LocalProject).
+    /// 1. [`ResourceId`] of the [`Project`].
     pub fn get_project_graph(&self, rid: &ResourceId) -> Option<&ContainerTree> {
         self.graphs.get(&rid)
     }
 
-    /// Gets a `mut`able reference to a [`Project`](LocalProject)'s [`ContainerTree`].
+    /// Gets a `mut`able reference to a [`Project`]'s [`ContainerTree`].
     ///
     /// # Arguments
-    /// 1. [`ResourceId`] of the [`Project`](LocalProject).
+    /// 1. [`ResourceId`] of the [`Project`].
     pub fn get_project_graph_mut(&mut self, rid: &ResourceId) -> Option<&mut ContainerTree> {
         self.graphs.get_mut(&rid)
     }
@@ -1195,42 +1192,43 @@ impl Datastore {
     pub fn insert_project_scripts(
         &mut self,
         project: ResourceId,
-        scripts: ProjectScripts,
-    ) -> Option<ProjectScripts> {
+        scripts: Analyses,
+    ) -> Option<Analyses> {
         // map scripts
         for script in scripts.keys() {
-            self.script_projects.insert(script.clone(), project.clone());
+            self.analysis_projects
+                .insert(script.clone(), project.clone());
         }
 
-        self.scripts.insert(project, scripts)
+        self.analyses.insert(project, scripts)
     }
 
     /// Gets a `Project`'s `Script`s.
-    pub fn get_project_scripts(&self, project: &ResourceId) -> Option<&ProjectScripts> {
-        self.scripts.get(&project)
+    pub fn get_project_scripts(&self, project: &ResourceId) -> Option<&Analyses> {
+        self.analyses.get(&project)
     }
 
     /// Gets a `mut`able reference to a `Project`'s `Script`s.
-    pub fn get_project_scripts_mut(&mut self, project: &ResourceId) -> Option<&mut ProjectScripts> {
-        self.scripts.get_mut(&project)
+    pub fn get_project_scripts_mut(&mut self, project: &ResourceId) -> Option<&mut Analyses> {
+        self.analyses.get_mut(&project)
     }
 
     /// Returns if the `Project`'s `Scripts` are loaded.
     pub fn are_project_scripts_loaded(&self, project: &ResourceId) -> bool {
-        self.scripts.contains_key(project)
+        self.analyses.contains_key(project)
     }
 
     /// Gets the `Project` of a `Script`.
     pub fn get_script_project(&self, script: &ResourceId) -> Option<&ResourceId> {
-        self.script_projects.get(&script)
+        self.analysis_projects.get(&script)
     }
 
     pub fn insert_script(
         &mut self,
         project: ResourceId,
-        script: CoreScript,
-    ) -> Result<Option<CoreScript>> {
-        let Some(scripts) = self.scripts.get_mut(&project) else {
+        script: Script,
+    ) -> Result<Option<AnalysisKind>> {
+        let Some(analyses) = self.analyses.get_mut(&project) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project` does not exist",
             ))
@@ -1238,17 +1236,16 @@ impl Datastore {
         };
 
         let sid = script.rid.clone();
-        let o_script = scripts.insert(sid.clone(), script);
-        scripts.save()?;
+        let o_script = analyses.insert(sid.clone(), script.into());
+        analyses.save()?;
 
         // map script
-        self.script_projects.insert(sid, project);
-
+        self.analysis_projects.insert(sid, project);
         Ok(o_script)
     }
 
     /// Remove a `Script` from a `Project`.
-    /// Removes all `Container` script associations.
+    /// Removes all `Container` associations.
     ///
     /// # Returns
     /// Removed `Script`.
@@ -1256,8 +1253,8 @@ impl Datastore {
         &mut self,
         project: &ResourceId,
         script: &ResourceId,
-    ) -> Result<Option<CoreScript>> {
-        let Some(scripts) = self.scripts.get_mut(&project) else {
+    ) -> Result<Option<AnalysisKind>> {
+        let Some(analyses) = self.analyses.get_mut(&project) else {
             // project does not exist
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Project`'s `Scripts` does not exist",
@@ -1274,42 +1271,103 @@ impl Datastore {
         };
 
         for (_cid, container) in graph.iter_nodes_mut() {
-            container.scripts.remove(script);
+            container.analyses.remove(script);
             container.save()?;
         }
 
         // remove from project
-        let o_script = scripts.remove(script);
-        scripts.save()?;
+        let o_script = analyses.remove(script);
+        analyses.save()?;
 
         // remove map script
-        self.script_projects.remove(script);
+        self.analysis_projects.remove(script);
 
         Ok(o_script)
     }
 
-    pub fn get_script(&self, script: &ResourceId) -> Option<&CoreScript> {
-        let Some(project) = self.script_projects.get(&script) else {
-            return None;
+    /// Remove an analysis from a `Project`.
+    /// Removes all `Container` associations.
+    ///
+    /// # Returns
+    /// Removed analysis.
+    pub fn remove_project_analysis(
+        &mut self,
+        project: &ResourceId,
+        analysis: &ResourceId,
+    ) -> Result<Option<AnalysisKind>> {
+        let Some(analyses) = self.analyses.get_mut(&project) else {
+            // project does not exist
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
+                "`Project`'s `Scripts` does not exist",
+            ))
+            .into());
         };
 
-        let Some(scripts) = self.scripts.get(&project) else {
-            return None;
+        // remove association from contiainers
+        let Some(graph) = self.graphs.get_mut(project) else {
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
+                "`Project`'s graph does not exist",
+            ))
+            .into());
         };
 
-        scripts.get(&script)
+        for (_cid, container) in graph.iter_nodes_mut() {
+            container.analyses.remove(analysis);
+            container.save()?;
+        }
+
+        // remove from project
+        let o_analysis = analyses.remove(analysis);
+        analyses.save()?;
+
+        // remove map script
+        self.analysis_projects.remove(analysis);
+        Ok(o_analysis)
     }
 
-    pub fn get_script_mut(&mut self, script: ResourceId) -> Option<&mut CoreScript> {
-        let Some(project) = self.script_projects.get(&script) else {
+    pub fn get_analysis(&self, analysis: &ResourceId) -> Option<&AnalysisKind> {
+        let Some(project) = self.analysis_projects.get(analysis) else {
             return None;
         };
 
-        let Some(scripts) = self.scripts.get_mut(&project) else {
+        let Some(analyses) = self.analyses.get(&project) else {
             return None;
         };
 
-        scripts.get_mut(&script)
+        analyses.get(&analysis)
+    }
+
+    pub fn get_analysis_mut(&mut self, analysis: &ResourceId) -> Option<&mut AnalysisKind> {
+        let Some(project) = self.analysis_projects.get(analysis) else {
+            return None;
+        };
+
+        let Some(scripts) = self.analyses.get_mut(project) else {
+            return None;
+        };
+
+        scripts.get_mut(analysis)
+    }
+
+    pub fn insert_excel_template(
+        &mut self,
+        project: ResourceId,
+        template: ExcelTemplate,
+    ) -> Result<Option<AnalysisKind>> {
+        let Some(analyses) = self.analyses.get_mut(&project) else {
+            return Err(CoreError::Resource(ResourceError::does_not_exist(
+                "`Project` does not exist",
+            ))
+            .into());
+        };
+
+        let tid = template.rid.clone();
+        let o_analysis = analyses.insert(tid.clone(), template.into());
+        analyses.save()?;
+
+        // map script
+        self.analysis_projects.insert(tid, project);
+        Ok(o_analysis)
     }
 }
 

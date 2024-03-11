@@ -61,7 +61,7 @@ impl Loader {
             rid: container.rid,
             properties: container.properties,
             assets,
-            scripts: container.scripts,
+            analyses: container.scripts,
         };
 
         Ok(Container {

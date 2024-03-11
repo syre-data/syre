@@ -8,11 +8,8 @@ use std::{fs, io};
 /// Creates a unique file name.
 pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
     let path = path.as_ref();
-    match fs::canonicalize(path) {
-        Ok(canon_path) if path != canon_path => return Ok(path.to_path_buf()),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(path.to_path_buf()),
-        Err(err) => return Err(err.into()),
-        _ => {}
+    if !path.exists() {
+        return Ok(path.to_path_buf());
     }
 
     // get file name
@@ -76,11 +73,11 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
     let mut file_name = file_prefix.to_string();
     match highest {
         None => file_name.push_str(" (1)"),
-
         Some(n) => {
-            let match_len = &format!("({n})").len();
-            let replace_range = (file_prefix.len() - match_len)..;
-            file_name.replace_range(replace_range, &format!("({})", n + 1));
+            // let match_len = &format!("({n})").len();
+            // let replace_range = (file_prefix.len() - match_len)..;
+            // file_name.replace_range(replace_range, &format!("({})", n + 1));
+            file_name.push_str(&format!(" ({})", n + 1));
         }
     };
     file_name.push_str(ext);
@@ -228,14 +225,14 @@ pub fn assets_file_of(path: impl AsRef<Path>) -> PathBuf {
 
 // --- scirpts ---
 /// Path to the Assets file from a base path.
-pub fn scripts_file() -> PathBuf {
-    app_dir().join(SCRIPTS_FILE)
+pub fn analyses_file() -> PathBuf {
+    app_dir().join(ANALYSES_FILE)
 }
 
-/// Path to the Assets file for a given path.
-/// app_dir(path)/\<SCRIPTS_FILE\>
-pub fn scripts_file_of(path: impl AsRef<Path>) -> PathBuf {
-    app_dir_of(path).join(SCRIPTS_FILE)
+/// Path to the analyses file for a given path.
+/// app_dir(path)/\<ANALYSES_FIL\>
+pub fn analyses_file_of(path: impl AsRef<Path>) -> PathBuf {
+    app_dir_of(path).join(ANALYSES_FILE)
 }
 
 #[cfg(test)]

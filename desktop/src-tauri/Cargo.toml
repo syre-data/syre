@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop-tauri"
-version = "0.10.1"
+version = "0.10.2"
 description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 

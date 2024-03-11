@@ -5,8 +5,8 @@
 
 # general
 /tags
+/target
 rusty-tags.vi
-target
 .DS_Store
 
 # github
@@ -15,6 +15,9 @@ target
 # --- IDE ---
 # PyCharm
 .idea/
+
+# --- lang ---
+/lang/*.tar.gz
 
 # --- lang / python ---
 # Byte-compiled / optimized / DLL files

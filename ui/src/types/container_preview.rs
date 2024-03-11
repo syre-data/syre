@@ -12,7 +12,7 @@ pub enum ContainerPreview {
     Tags,
     Metadata,
     Assets,
-    Scripts,
+    Analysis,
 }
 
 impl ContainerPreview {
@@ -24,7 +24,7 @@ impl ContainerPreview {
             ContainerPreview::Tags => "Tags",
             ContainerPreview::Metadata => "Metadata",
             ContainerPreview::Assets => "Data",
-            ContainerPreview::Scripts => "Scripts",
+            ContainerPreview::Analysis => "Analysis",
         }
     }
 }
@@ -54,15 +54,19 @@ impl IntoPropValue<Option<AttrValue>> for ContainerPreview {
 }
 
 impl From<String> for ContainerPreview {
+    /// Converts
     fn from(s: String) -> Self {
-        match s.as_str() {
-            "Type" => ContainerPreview::Type,
-            "Description" => ContainerPreview::Description,
-            "Tags" => ContainerPreview::Tags,
-            "Metadata" => ContainerPreview::Metadata,
-            "Data" => ContainerPreview::Assets,
-            "Scripts" => ContainerPreview::Scripts,
-            _ => ContainerPreview::None,
+        match s.to_ascii_lowercase().as_str() {
+            "type" => ContainerPreview::Type,
+            "description" => ContainerPreview::Description,
+            "tags" => ContainerPreview::Tags,
+            "metadata" => ContainerPreview::Metadata,
+            "data" => ContainerPreview::Assets,
+            "analysis" => ContainerPreview::Analysis,
+            "none" => ContainerPreview::None,
+            _ => {
+                panic!("Invalid container preview string `{s}`");
+            }
         }
     }
 }

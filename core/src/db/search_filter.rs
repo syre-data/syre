@@ -37,7 +37,7 @@ where
 /// Search filter for all properties.
 #[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Default, Debug, Clone)]
+#[derive(PartialEq, Default, Debug, Clone)]
 pub struct StandardSearchFilter {
     pub rid: Option<ResourceId>,
 
@@ -54,6 +54,12 @@ pub struct StandardSearchFilter {
     pub kind: Option<Option<String>>,
     pub tags: Option<HashSet<String>>,
     pub metadata: Option<Metadata>,
+}
+
+impl StandardSearchFilter {
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 // ************************

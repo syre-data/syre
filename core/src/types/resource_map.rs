@@ -40,7 +40,7 @@ pub mod values_only {
         type Value = HashMap<<V as HasIdSerde<'de>>::Id, V>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("map values")
+            formatter.write_str("sequence of values with ids")
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>

@@ -1,5 +1,5 @@
 //! Functionality and resources related to projects.
-use super::resources::{Project, Scripts};
+use super::resources::{Analyses, Project};
 use crate::common;
 use crate::error::{Error, Project as ProjectError, Result};
 use crate::system::collections::ProjectManifest;
@@ -46,7 +46,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     let project = Project::new(path)?;
     project.save()?;
 
-    let scripts = Scripts::new(path.into());
+    let scripts = Analyses::new(path.into());
     scripts.save()?;
 
     project_manifest::register_project(project.base_path())?;
@@ -183,7 +183,7 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
 
 pub mod converter {
     use super::super::container;
-    use super::super::resources::{Project, Scripts};
+    use super::super::resources::{Analyses, Project};
     use crate::common;
     use crate::error::{Error, Project as ProjectError, Result};
     use crate::loader::container::Loader as ContainerLoader;
@@ -192,7 +192,7 @@ pub mod converter {
     use std::collections::HashMap;
     use std::path::{Component, Path, PathBuf};
     use std::{fs, io};
-    use syre_core::project::{Script, ScriptAssociation, ScriptLang};
+    use syre_core::project::{AnalysisAssociation, Script, ScriptLang};
     use syre_core::types::{Creator, ResourceId, UserId, UserPermissions};
 
     pub struct Converter {
@@ -344,13 +344,15 @@ pub mod converter {
                 }
 
                 // initialize scripts
-                let mut scripts = Scripts::load_from(&root)?;
+                let mut scripts = Analyses::load_from(&root)?;
                 for script_path in script_paths {
-                    let Ok(script) = Script::new(script_path) else {
+                    let Ok(script) = Script::from_path(script_path) else {
                         continue;
                     };
 
-                    scripts.insert_script(script)?;
+                    scripts
+                        .insert_script_unique_path(script)
+                        .map_err(|err| Error::Core(err.into()))?;
                 }
 
                 scripts.save()?;
@@ -364,9 +366,9 @@ pub mod converter {
 
             if self.analysis_root.is_some() {
                 // assign scripts
-                let scripts = Scripts::load_from(&root)?;
+                let analyses = Analyses::load_from(&root)?;
                 let mut container_scripts = HashMap::new();
-                for script in scripts.values() {
+                for script in analyses.scripts() {
                     let entry = container_scripts
                         .entry(script.path.parent().unwrap())
                         .or_insert(Vec::new());
@@ -381,7 +383,7 @@ pub mod converter {
                     };
 
                     for script in scripts {
-                        container.set_script_association(ScriptAssociation::new(script));
+                        container.set_script_association(AnalysisAssociation::new(script));
                     }
 
                     container.save()?;

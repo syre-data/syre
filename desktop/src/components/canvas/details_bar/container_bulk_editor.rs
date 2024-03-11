@@ -2,14 +2,17 @@
 use super::super::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::{
-    bulk_update_properties, bulk_update_script_associations, BulkUpdatePropertiesArgs,
+    bulk_update_analysis_associations, bulk_update_properties, BulkUpdatePropertiesArgs,
 };
+use crate::lib::DisplayName;
 use std::collections::HashSet;
-use syre_core::project::ScriptAssociation;
+use syre_core::project::AnalysisAssociation;
 use syre_core::types::{ResourceId, ResourceMap};
+use syre_local::types::analysis::AnalysisKind;
+use syre_local::types::AnalysisStore;
 use syre_local_database::command::container::{
-    BulkUpdateScriptAssociationsArgs, PropertiesUpdate, RunParametersUpdate,
-    ScriptAssociationBulkUpdate,
+    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, PropertiesUpdate,
+    RunParametersUpdate,
 };
 use syre_local_database::command::types::{MetadataAction, TagsAction};
 use syre_ui::types::Message;
@@ -17,7 +20,7 @@ use syre_ui::widgets::bulk_editor::{
     ContainerPropertiesBulkEditor, RunParametersUpdate as RunParametersUiUpdate,
     ScriptAssociationsBulkEditor, ScriptBulkMap,
 };
-use syre_ui::widgets::container::script_associations::{AddScriptAssociation, NameMap};
+use syre_ui::widgets::container::analysis_associations::{AddAnalysisAssociation, NameMap};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -53,7 +56,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
 
     let mut associations = ScriptBulkMap::new();
     for container in containers.iter() {
-        for (script, params) in container.scripts.iter() {
+        for (script, params) in container.analyses.iter() {
             if let Some(param_vec) = associations.get_mut(script) {
                 param_vec.push(params.clone());
             } else {
@@ -63,7 +66,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
     }
 
     let project_scripts = project_state
-        .project_scripts
+        .project_analyses
         .get(&canvas_state.project)
         .expect("`Project`'s `Script`s not loaded");
 
@@ -71,40 +74,29 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
         .clone()
         .into_keys()
         .map(|assoc| {
-            let script = project_scripts.get(&assoc).expect("`Script` not found");
-            let name = match script.name.clone() {
-                Some(name) => name,
-                None => {
-                    let name = script
-                        .path
-                        .as_path()
-                        .file_name()
-                        .expect("could not get path's file name");
+            let analysis = project_scripts.get(&assoc).expect("`Script` not found");
 
-                    name.to_str()
-                        .expect("could not convert file name to string")
-                        .to_string()
-                }
-            };
-
-            (assoc, name)
+            (assoc, analysis.display_name())
         })
         .collect::<NameMap>();
 
     let remaining_scripts = {
         let num_containers = containers.len();
         project_scripts
-            .iter()
-            .filter_map(|(sid, script)| {
-                let Some(script_containers) = associations.get(&sid) else {
-                    return Some(script.clone());
+            .keys()
+            .into_iter()
+            .filter_map(|script| {
+                let Some(script_containers) = associations.get(&script) else {
+                    let name = get_script_name(project_scripts, script);
+                    return Some((script.clone(), name));
                 };
 
                 if script_containers.len() == num_containers {
                     return None;
                 }
 
-                Some(script.clone())
+                let name = get_script_name(project_scripts, script);
+                Some((script.clone(), name))
             })
             .collect::<Vec<_>>()
     };
@@ -283,7 +275,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();
@@ -303,8 +295,8 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationBulkUpdate::default();
-            update.add.push(ScriptAssociation::new(script.clone()));
+            let mut update = AnalysisAssociationBulkUpdate::default();
+            update.add.push(AnalysisAssociation::new(script.clone()));
 
             spawn_local(async move {
                 update_script_associations(update_containers, update, app_state, graph_state).await
@@ -320,7 +312,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();
@@ -340,7 +332,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut update = ScriptAssociationBulkUpdate::default();
+            let mut update = AnalysisAssociationBulkUpdate::default();
             update.remove.push(script.clone());
             spawn_local(async move {
                 update_script_associations(update_containers, update, app_state, graph_state).await
@@ -356,7 +348,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
             .map(|c| {
                 (
                     c.rid.clone(),
-                    c.scripts.keys().cloned().collect::<Vec<ResourceId>>(),
+                    c.analyses.keys().cloned().collect::<Vec<ResourceId>>(),
                 )
             })
             .collect::<ResourceMap<_>>();
@@ -376,9 +368,9 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 })
                 .collect();
 
-            let mut assoc_update = ScriptAssociationBulkUpdate::default();
+            let mut assoc_update = AnalysisAssociationBulkUpdate::default();
             let assoc = RunParametersUpdate {
-                script: update.script,
+                analysis: update.script,
                 autorun: update.autorun,
                 priority: update.priority,
             };
@@ -406,7 +398,7 @@ pub fn container_bulk_editor(props: &ContainerBulkEditorProps) -> Html {
                 {onremove_metadata}
                 {onchange_metadata} />
 
-            <AddScriptAssociation
+            <AddAnalysisAssociation
                 scripts={remaining_scripts}
                 onadd={onadd_association} />
 
@@ -445,14 +437,14 @@ async fn update_properties(
 
 async fn update_script_associations(
     containers: Vec<ResourceId>,
-    update: ScriptAssociationBulkUpdate,
+    update: AnalysisAssociationBulkUpdate,
     app_state: AppStateReducer<'_>,
     graph_state: GraphStateReducer,
 ) {
-    match bulk_update_script_associations(containers.clone(), update.clone()).await {
+    match bulk_update_analysis_associations(containers.clone(), update.clone()).await {
         Ok(_) => {
             graph_state.dispatch(GraphStateAction::BulkUpdateContainerScriptAssociations(
-                BulkUpdateScriptAssociationsArgs { containers, update },
+                BulkUpdateAnalysisAssociationsArgs { containers, update },
             ));
         }
 
@@ -461,5 +453,19 @@ async fn update_script_associations(
             msg.set_details(format!("{err:?}"));
             app_state.dispatch(AppStateAction::AddMessage(msg));
         }
+    }
+}
+
+fn get_script_name(script_store: &AnalysisStore, script: &ResourceId) -> String {
+    match script_store.get(&script).unwrap() {
+        AnalysisKind::Script(script) => script
+            .name
+            .clone()
+            .unwrap_or(script.path.to_string_lossy().to_string()),
+
+        AnalysisKind::ExcelTemplate(template) => template
+            .name
+            .clone()
+            .unwrap_or(template.template.path.to_string_lossy().to_string()),
     }
 }

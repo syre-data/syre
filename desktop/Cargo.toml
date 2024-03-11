@@ -20,7 +20,7 @@ gloo-timers = "0.3"
 indexmap = { workspace = true }
 js-sys = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true } # TODO: Only required for https://github.com/tauri-apps/tauri/issues/6078.
+serde_json = { workspace = true } # TODO: Only required for https://github.com/tauri-apps/tauri/issues/5993.
 serde-wasm-bindgen = { workspace = true }
 tauri-sys = { workspace = true, features = ["dialog", "event", "path"] }
 time = { version = "0.3", features = ["wasm-bindgen"] }

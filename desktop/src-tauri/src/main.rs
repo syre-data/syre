@@ -107,7 +107,7 @@ fn main() {
             get_container_path,
             new_child,
             update_container_properties,
-            update_container_script_associations,
+            update_container_analysis_associations,
             duplicate_container_tree,
             remove_container_tree,
             // asset

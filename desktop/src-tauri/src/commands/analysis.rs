@@ -107,7 +107,7 @@ pub fn add_excel_template(
     // mut template: ExcelTemplate,
 ) -> Result<PathBuf> {
     // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-    // See https://github.com/tauri-apps/tauri/issues/6078
+    // See https://github.com/tauri-apps/tauri/issues/5993
     let mut template: ExcelTemplate = serde_json::from_str(&template).unwrap();
 
     // copy script to analysis root
@@ -159,10 +159,11 @@ pub fn add_excel_template(
 #[tauri::command]
 pub fn update_excel_template(
     db: State<DbClient>,
-    template: String, /*ExcelTemplate*/
+    template: String,
+    // template: ExcelTemplate,
 ) -> Result {
     // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-    // See https://github.com/tauri-apps/tauri/issues/6078
+    // See https://github.com/tauri-apps/tauri/issues/5993
     let template: ExcelTemplate = serde_json::from_str(&template).unwrap();
     let res = db
         .send(AnalysisCommand::UpdateExcelTemplate(template).into())

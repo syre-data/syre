@@ -33,32 +33,25 @@ pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<Container> 
 pub fn update_container_properties(
     db: State<DbClient>,
     rid: ResourceId,
-    properties: String, // TODO Issue with deserializing `HashMap` of `metadata`. perform manually.
-                        // See: https://github.com/tauri-apps/tauri/issues/6078
+    properties: String, // TODO Issue with deserializing enum with Option. perform manually.
+                        // See: https://github.com/tauri-apps/tauri/issues/5993
                         // properties: ContainerProperties,
 ) -> DbResult {
-    let properties: ContainerProperties = serde_json::from_str(&properties)
-        .expect("could not deserialize into `ContainerProperties`");
-
+    let properties: ContainerProperties = serde_json::from_str(&properties).unwrap();
     let res = db
         .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
-        .expect("could not update `Container` properties");
+        .unwrap();
 
     serde_json::from_value(res).unwrap()
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s script associations and persists changes to disk.
 #[tauri::command]
-pub fn update_container_script_associations(
+pub fn update_container_analysis_associations(
     db: State<DbClient>,
     rid: ResourceId,
-    associations: String, // TODO Issue with deserializing `HashMap`. perform manually.
-                          // See: https://github.com/tauri-apps/tauri/issues/6078
-                          // associations: ScriptMap,
+    associations: AnalysisMap,
 ) -> Result {
-    // TODO Issue with deserializing `HashMap`. perform manually.
-    // See: https://github.com/tauri-apps/tauri/issues/6078
-    let associations: AnalysisMap = serde_json::from_str(&associations).unwrap();
     let res = db
         .send(
             ContainerCommand::UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs {

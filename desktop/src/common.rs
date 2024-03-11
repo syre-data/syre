@@ -13,7 +13,6 @@ where
     match swb::from_value(value) {
         Ok(value) => value,
         Err(err) => {
-            tracing::debug!(?err);
             panic!("{err:?}");
         }
     }
@@ -31,14 +30,12 @@ where
         .map(|val| match swb::from_value(val) {
             Ok(value) => value,
             Err(err) => {
-                tracing::debug!(?err);
                 panic!("{err:?}");
             }
         })
         .map_err(|err| match swb::from_value(err) {
             Ok(value) => value,
             Err(err) => {
-                tracing::debug!(?err);
                 panic!("{err:?}");
             }
         })

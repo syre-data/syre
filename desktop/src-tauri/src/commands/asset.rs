@@ -30,9 +30,8 @@ pub fn get_assets(
 pub fn update_asset_properties(
     db: State<DbClient>,
     rid: ResourceId,
-    properties: String,
+    properties: AssetProperties,
 ) -> DbResult {
-    let properties: AssetProperties = serde_json::from_str(&properties).unwrap();
     let res = db
         .send(
             AssetCommand::UpdateProperties {

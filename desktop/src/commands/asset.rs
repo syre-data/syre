@@ -12,9 +12,9 @@ use syre_local_database::Result as DbResult;
 pub async fn update_properties(asset: ResourceId, properties: AssetProperties) -> DbResult {
     invoke_result(
         "update_asset_properties",
-        &UpdatePropertiesStringArgs {
+        &UpdatePropertiesArgs {
             rid: asset,
-            properties: serde_json::to_string(&properties).unwrap(),
+            properties,
         },
     )
     .await
@@ -50,18 +50,5 @@ pub struct UpdatePropertiesArgs {
     pub rid: ResourceId,
 
     /// Updated values.
-    pub properties: AssetProperties, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
-                                     // See: https://github.com/tauri-apps/tauri/issues/6078
-}
-
-/// Arguments to update a resorce's [`StandardProperties`].
-#[derive(Clone, Serialize)]
-pub struct UpdatePropertiesStringArgs {
-    /// [`ResourceId`] of the resource to update.
-    pub rid: ResourceId,
-
-    /// Updated values.
-    pub properties: String, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
-                            // Unify with `UpdatePropertiesArgs` once resolved.
-                            // See: https://github.com/tauri-apps/tauri/issues/6078
+    pub properties: AssetProperties,
 }

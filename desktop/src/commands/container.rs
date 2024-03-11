@@ -21,12 +21,12 @@ pub async fn get_container_path(container: ResourceId) -> Option<PathBuf> {
 }
 
 pub async fn update_properties(rid: ResourceId, properties: ContainerProperties) -> DbResult {
-    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-    // See https://github.com/tauri-apps/tauri/issues/6078
-    let properties_str = serde_json::to_string(&properties).unwrap();
+    // TODO Issue with serializing enum with Option. perform manually.
+    // See https://github.com/tauri-apps/tauri/issues/5993
+    let properties = serde_json::to_string(&properties).unwrap();
     let update = UpdatePropertiesStringArgs {
         rid: rid.clone(),
-        properties: properties_str,
+        properties,
     };
 
     invoke_result("update_container_properties", update).await
@@ -50,15 +50,12 @@ pub async fn update_analysis_associations(
     container: ResourceId,
     associations: AnalysisMap,
 ) -> DbResult {
-    // TODO Issue with deserializing `HashMap` in Tauri, send as string.
-    // See https://github.com/tauri-apps/tauri/issues/6078
-    let associations_str = serde_json::to_string(&associations).unwrap();
-    let update = UpdateAnalysisAssociationsStringArgs {
+    let update = UpdateAnalysisAssociationsArgs {
         rid: container,
-        associations: associations_str,
+        associations,
     };
 
-    invoke_result("update_container_script_associations", update).await
+    invoke_result("update_container_analysis_associations", update).await
 }
 
 pub async fn bulk_update_analysis_associations(
@@ -115,14 +112,14 @@ pub struct ContainerArgs {
 }
 
 /// Arguments to update a resorce's [`StandardProperties`].
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct UpdatePropertiesArgs {
     /// [`ResourceId`] of the resource to update.
     pub rid: ResourceId,
 
     /// Updated values.
-    pub properties: ContainerProperties, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
-                                         // See: https://github.com/tauri-apps/tauri/issues/6078
+    pub properties: ContainerProperties, // TODO: Issue with serializing enum with Option. perform manually.
+                                         // See: https://github.com/tauri-apps/tauri/issues/5993
 }
 
 /// Arguments to update a resorce's [`StandardProperties`].
@@ -132,9 +129,8 @@ pub struct UpdatePropertiesStringArgs {
     pub rid: ResourceId,
 
     /// Updated values.
-    pub properties: String, // TODO: Issue with serializing `HashMap` of `metadata`. perform manually.
-                            // Unify with `UpdatePropertiesArgs` once resolved.
-                            // See: https://github.com/tauri-apps/tauri/issues/6078
+    pub properties: String, // TODO: Issue with serializing enum with Option. perform manually.
+                            // See: https://github.com/tauri-apps/tauri/issues/5993
 }
 
 /// Arguments to update a [`Container`](syre_core::project::Container)'s
@@ -144,26 +140,8 @@ pub struct UpdateAnalysisAssociationsArgs {
     /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
     pub rid: ResourceId,
 
-    // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
-    // See: https://github.com/tauri-apps/tauri/issues/6078
     /// Updated script associations.
     pub associations: AnalysisMap,
-}
-
-/// TEMPORARY
-///
-/// Intermediate value for [`UpdateAnalysisAssociationsArgs`] while dealing with
-/// (https://github.com/tauri-apps/tauri/issues/6078)
-#[derive(Clone, Serialize)]
-pub struct UpdateAnalysisAssociationsStringArgs {
-    /// [`ResourceId`] of the [`Container`](syre_core::project::Container).
-    pub rid: ResourceId,
-
-    // @todo: Issue with deserializing `HashMap` in Tauri, send as string.
-    // Unify with `UpdateAnalysisAssociationsArgs` once resolved.
-    // See: https://github.com/tauri-apps/tauri/issues/6078
-    /// Updated analysis associations.
-    pub associations: String,
 }
 
 /// Arguments for [`add_assets`](syre_desktop_tauri::commands::container::add_assets).

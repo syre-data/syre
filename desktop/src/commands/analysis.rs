@@ -39,9 +39,10 @@ pub async fn add_excel_template(
     project: ResourceId,
     template: ExcelTemplate,
 ) -> Result<PathBuf, String> {
-    // TODO Issue with serializing `HashMap` of `metadata`. perform manually.
-    // See https://github.com/tauri-apps/tauri/issues/6078
+    // TODO: Issue with serializing enum with Option. perform manually.
+    // See: https://github.com/tauri-apps/tauri/issues/5993
     let template = serde_json::to_string(&template).unwrap();
+
     invoke_result(
         "add_excel_template",
         AddExcelTemplateArgs { project, template },
@@ -50,6 +51,9 @@ pub async fn add_excel_template(
 }
 
 pub async fn update_excel_template(template: ExcelTemplate) -> Result<(), String> {
+    // TODO: Issue with serializing enum with Option. perform manually.
+    // See: https://github.com/tauri-apps/tauri/issues/5993
+
     let template = serde_json::to_string(&template).unwrap();
     invoke_result(
         "update_excel_template",
@@ -86,10 +90,13 @@ pub struct RemoveScriptArgs {
 struct AddExcelTemplateArgs {
     project: ResourceId,
     template: String,
-    // template: ExcelTemplate,
+    // template: ExcelTemplate, // TODO: Issue with serializing enum with Option. perform manually.
+    // See: https://github.com/tauri-apps/tauri/issues/5993
 }
 
 #[derive(Serialize)]
 struct UpdateExcelTemplateArgs {
-    template: String, /*ExcelTemplate*/
+    template: String,
+    // template: ExcelTemplate, // TODO: Issue with serializing enum with Option. perform manually.
+    // See: https://github.com/tauri-apps/tauri/issues/5993
 }

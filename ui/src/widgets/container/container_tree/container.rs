@@ -309,53 +309,53 @@ pub fn container(props: &ContainerProps) -> Html {
 
             <div class={"body"}>
                 <div class={"container-preview"}>
-                    { match props.preview {
-                        ContainerPreview::None => { html! { <></> } },
+                    <div class={classes!("preview-section", "preview-none", (props.preview == ContainerPreview::None).then_some("active"))}>
+                    </div>
 
-                        ContainerPreview::Type => { html! {
-                            if let Some(kind) = props.properties.kind.as_ref() {
-                                { &kind }
-                            } else {
-                                { "(no type)" }
-                            }
-                        }},
+                    <div class={classes!("preview-section", "preview-kind", (props.preview == ContainerPreview::Type).then_some("active"))}>
+                        if let Some(kind) = props.properties.kind.as_ref() {
+                            { &kind }
+                        } else {
+                            { "(no type)" }
+                        }
+                    </div>
 
-                        ContainerPreview::Description => { html! {
-                            if let Some(description) = props.properties.description.as_ref() {
-                                { &description }
-                            } else {
-                                { "(no description)" }
-                            }
-                        }},
+                    <div class={classes!("preview-section", "preview-description", (props.preview == ContainerPreview::Description).then_some("active"))}>
+                        if let Some(description) = props.properties.description.as_ref() {
+                            { &description }
+                        } else {
+                            { "(no description)" }
+                        }
+                    </div>
 
-                        ContainerPreview::Tags => { html! {
-                            <Tags value={props.properties.tags.clone()} />
-                        }},
+                    <div class={classes!("preview-section", "preview-tags", (props.preview == ContainerPreview::Tags).then_some("active"))}>
+                        <Tags value={props.properties.tags.clone()} />
+                    </div>
 
-                        ContainerPreview::Metadata => { html! {
-                            <MetadataPreview value={props.properties.metadata.clone()} />
-                        }},
+                    <div class={classes!("preview-section", "preview-metadata", (props.preview == ContainerPreview::Metadata).then_some("active"))}>
+                        <MetadataPreview value={props.properties.metadata.clone()} />
+                    </div>
 
-                        ContainerPreview::Assets => { html! {
-                            <AssetsPreview
-                                {assets}
-                                flags={props.flags.assets.clone()}
-                                active={props.active_assets.clone()}
-                                onclick_asset={&props.onclick_asset}
-                                ondblclick_asset={&props.ondblclick_asset}
-                                onclick_asset_remove={&props.onclick_asset_remove} />
-                        }},
+                    <div class={classes!("preview-section", "preview-assets", (props.preview == ContainerPreview::Assets).then_some("active"))}>
+                        <AssetsPreview
+                            {assets}
+                            flags={props.flags.assets.clone()}
+                            active={props.active_assets.clone()}
+                            onclick_asset={&props.onclick_asset}
+                            ondblclick_asset={&props.ondblclick_asset}
+                            onclick_asset_remove={&props.onclick_asset_remove} />
+                    </div>
 
-                        ContainerPreview::Analysis => { html! {
-                            <AnalysisAssociationsPreview
-                                analyses={props.analyses.clone()}
-                                names={props.analysis_names.clone()}
-                                onchange={&props.onchange_analysis_association}
-                                onremove={&props.onremove_analysis_association} />
-                        }},
-                    }}
+                    <div class={classes!("preview-section", "preview-analysis", (props.preview == ContainerPreview::Analysis).then_some("active"))}>
+                        <AnalysisAssociationsPreview
+                            analyses={props.analyses.clone()}
+                            names={props.analysis_names.clone()}
+                            onchange={&props.onchange_analysis_association}
+                            onremove={&props.onremove_analysis_association} />
+                    </div>
                 </div>
             </div>
+
             <div class={"add-child-container-control"}>
                 <button onclick={onadd_child}>{ "+" }</button>
             </div>

@@ -124,6 +124,10 @@ $control-button-size: 25px;
     height: t.$card-height;
     overflow: auto;
 
+	.preview-section:not(.active) {
+		display: none;
+	}
+
     .syre-ui-metadata-preview {
       text-align: left;
       list-style: none;

@@ -45,19 +45,19 @@ fn remove_script_should_work() {
     let assoc_child_1 = AnalysisAssociation::new(sid_1.clone());
 
     container
-        .add_script_association(assoc_root_0.clone())
+        .add_analysis_association(assoc_root_0.clone())
         .expect("could not add `ScriptAssociation`");
 
     container
-        .add_script_association(assoc_root_1.clone())
+        .add_analysis_association(assoc_root_1.clone())
         .expect("could not add `ScriptAssociation`");
 
     child_container
-        .add_script_association(assoc_child_0.clone())
+        .add_analysis_association(assoc_child_0.clone())
         .expect("could not add `ScriptAssociation`");
 
     child_container
-        .add_script_association(assoc_child_1.clone())
+        .add_analysis_association(assoc_child_1.clone())
         .expect("could not add `ScriptAssociation`");
 
     let mut graph = ResourceTree::new(container);

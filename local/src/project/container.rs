@@ -87,7 +87,7 @@ impl InitOptions<InitNew> {
         self.init.set_properties(properties);
     }
 
-    /// Clears proeprties to set from.
+    /// Clears properties.
     pub fn unset_properties(&mut self) {
         self.init.unset_properties();
     }

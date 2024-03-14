@@ -383,7 +383,7 @@ pub mod converter {
                     };
 
                     for script in scripts {
-                        container.set_script_association(AnalysisAssociation::new(script));
+                        container.set_analysis_association(AnalysisAssociation::new(script));
                     }
 
                     container.save()?;

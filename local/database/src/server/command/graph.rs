@@ -29,7 +29,6 @@ impl Database {
                     let res: Result<ResourceTree<CoreContainer>> = Ok(graph);
                     return serde_json::to_value(res).unwrap();
                 }
-
                 self.handle_load_project_graph(&project)
             }
 
@@ -170,7 +169,6 @@ impl Database {
         let graph = match ContainerTreeLoader::load(project.data_root_path()) {
             Ok(graph) => graph,
             Err(PartialLoad { errors, graph }) => {
-                tracing::debug!(?errors);
                 return Err(PartialLoad { errors, graph }.into());
             }
         };

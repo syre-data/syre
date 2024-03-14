@@ -50,7 +50,7 @@ impl ContainerProperties {
 pub struct StoredContainerProperties {
     pub rid: ResourceId,
     pub properties: CoreContainerProperties,
-    pub scripts: AnalysisMap,
+    pub analyses: AnalysisMap,
 }
 
 impl From<CoreContainer> for StoredContainerProperties {
@@ -58,7 +58,7 @@ impl From<CoreContainer> for StoredContainerProperties {
         Self {
             rid: container.rid,
             properties: container.properties,
-            scripts: container.analyses,
+            analyses: container.analyses,
         }
     }
 }
@@ -126,46 +126,46 @@ impl Container {
     }
 
     // ---------------
-    // --- scripts ---
+    // --- analysis ---
     // ---------------
 
-    /// Returns if the container is already associated with the script with the given id,
+    /// Returns if the container is already associated with the analysis with the given id,
     /// regardless of the associations priority or autorun status.
-    pub fn contains_script_association(&self, rid: &ResourceId) -> bool {
+    pub fn contains_analysis_association(&self, rid: &ResourceId) -> bool {
         self.analyses.get(rid).is_some()
     }
 
     /// Adds an association to the Container.
-    /// Errors if an association with the script already exists.
+    /// Errors if an association with the analysis already exists.
     ///
     /// # See also
-    /// + `set_script_association`
-    pub fn add_script_association(&mut self, assoc: AnalysisAssociation) -> Result {
-        if self.contains_script_association(&assoc.analysis) {
+    /// + `set_analysis_association`
+    pub fn add_analysis_association(&mut self, assoc: AnalysisAssociation) -> Result {
+        if self.contains_analysis_association(&assoc.analysis) {
             return Err(Error::Core(CoreError::Resource(
-                ResourceError::already_exists("Association with script already exists"),
+                ResourceError::already_exists("Association with analysis already exists"),
             )));
         }
 
-        let script = assoc.analysis.clone();
-        self.analyses.insert(script, assoc.into());
+        let analysis = assoc.analysis.clone();
+        self.analyses.insert(analysis, assoc.into());
         Ok(())
     }
 
-    /// Sets or adds a script association with the Container.
-    /// Returns whether or not the association with the script was added.
+    /// Sets or adds an analysis association with the Container.
+    /// Returns whether or not the association with the analysis was added.
     ///
     /// # See also
-    /// + [`add_script_association`]
-    pub fn set_script_association(&mut self, assoc: AnalysisAssociation) -> bool {
-        let script = assoc.analysis.clone();
-        let old = self.analyses.insert(script, assoc.into());
+    /// + [`add_analysis_association`]
+    pub fn set_analysis_association(&mut self, assoc: AnalysisAssociation) -> bool {
+        let analysis = assoc.analysis.clone();
+        let old = self.analyses.insert(analysis, assoc.into());
         old.is_none()
     }
 
-    /// Removes as association with the given script.
-    /// Returns if an association with the script existed.
-    pub fn remove_script_association(&mut self, rid: &ResourceId) -> bool {
+    /// Removes an association with the given analysis.
+    /// Returns if an association with the analysis existed.
+    pub fn remove_analysis_association(&mut self, rid: &ResourceId) -> bool {
         let old = self.analyses.remove(rid);
         old.is_some()
     }

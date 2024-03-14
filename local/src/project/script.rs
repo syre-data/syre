@@ -35,7 +35,7 @@ pub fn add_association(script: &ResourceId, container: &Path) -> Result {
 
     // add association
     let mut container = ContainerLoader::load(container)?;
-    container.add_script_association(AnalysisAssociation::new(script.rid.clone()))?;
+    container.add_analysis_association(AnalysisAssociation::new(script.rid.clone()))?;
     Ok(container.save()?)
 }
 

@@ -22,12 +22,12 @@ fn container_contains_script_association_should_work() {
 
     // test
     assert!(
-        container.contains_script_association(&sid),
+        container.contains_analysis_association(&sid),
         "container should have script association"
     );
     assert_eq!(
         false,
-        container.contains_script_association(&ResourceId::new()),
+        container.contains_analysis_association(&ResourceId::new()),
         "container should not have association with script"
     );
 }
@@ -42,10 +42,10 @@ fn container_add_script_association_should_work() {
 
     // test
     container
-        .add_script_association(assoc)
+        .add_analysis_association(assoc)
         .expect("add association should work");
     assert!(
-        container.contains_script_association(&sid),
+        container.contains_analysis_association(&sid),
         "container should contain association"
     );
 }
@@ -59,11 +59,11 @@ fn container_add_script_association_if_already_exists_should_error() {
     let sid = ResourceId::new();
     let assoc = AnalysisAssociation::new(sid.clone());
     container
-        .add_script_association(assoc.clone())
+        .add_analysis_association(assoc.clone())
         .expect("add association should work");
 
     // test
-    container.add_script_association(assoc).unwrap();
+    container.add_analysis_association(assoc).unwrap();
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn container_set_script_association_should_work() {
 
     // test
     // initial
-    let init = container.set_script_association(assoc.clone());
+    let init = container.set_analysis_association(assoc.clone());
     let found = container.analyses.get(&sid);
     assert!(found.is_some(), "association should be added");
 
@@ -89,7 +89,7 @@ fn container_set_script_association_should_work() {
 
     // second
     assoc.priority = 1;
-    let sec = container.set_script_association(assoc.clone());
+    let sec = container.set_analysis_association(assoc.clone());
     let found = container.analyses.get(&sid);
     assert!(found.is_some(), "association should still exist");
 
@@ -112,15 +112,15 @@ fn container_remove_script_association_should_work() {
 
     // test
     // first
-    let init = container.remove_script_association(&sid);
+    let init = container.remove_analysis_association(&sid);
     assert_eq!(
         false,
-        container.contains_script_association(&sid),
+        container.contains_analysis_association(&sid),
         "association should no longer exist"
     );
     assert!(init, "remove should return true");
 
     // second
-    let sec = container.remove_script_association(&sid);
+    let sec = container.remove_analysis_association(&sid);
     assert_eq!(false, sec, "remove should return false");
 }

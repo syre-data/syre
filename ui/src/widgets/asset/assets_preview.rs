@@ -34,7 +34,6 @@ pub struct AssetsPreviewProps {
 }
 
 #[function_component(AssetsPreview)]
-#[tracing::instrument(level = "debug")]
 pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
     // NOTE: Check double click was for same asset,
     // otherwise removing an asset may trigger double click.
@@ -122,7 +121,6 @@ pub fn assets_preview(props: &AssetsPreviewProps) -> Html {
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter, and sets
 /// the asset click state.
-#[tracing::instrument]
 fn onclick_asset(
     rid: ResourceId,
     cb: Option<Callback<(ResourceId, MouseEvent)>>,
@@ -143,7 +141,6 @@ fn onclick_asset(
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
 /// Reads the asset click state to ensure the same asset is being clicked.
-#[tracing::instrument]
 fn ondblclick_asset(
     rid: ResourceId,
     cb: Option<Callback<(ResourceId, MouseEvent)>>,
@@ -168,7 +165,6 @@ fn ondblclick_asset(
 }
 
 /// Creates a [`Callback`] that passes the [`ResourceId`] through as the only parameter.
-#[tracing::instrument]
 fn onclick_asset_remove(
     rid: ResourceId,
     cb: Option<Callback<ResourceId>>,

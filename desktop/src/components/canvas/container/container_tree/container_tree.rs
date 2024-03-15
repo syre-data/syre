@@ -26,7 +26,6 @@ struct NewChildNameProps {
 }
 
 /// Component to get name for a new child.
-#[tracing::instrument(level = "debug", skip(props))]
 #[function_component(NewChildName)]
 fn new_child_name(props: &NewChildNameProps) -> Html {
     let input_ref = use_node_ref();
@@ -87,14 +86,11 @@ pub struct ContainerTreeProps {
 }
 
 /// Container tree component.
-#[tracing::instrument]
 #[function_component(ContainerTree)]
 pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-    let canvas_state =
-        use_context::<CanvasStateReducer>().expect("`CanvasStateReducer` context not found");
-
-    let graph_state = use_context::<GraphStateReducer>().expect("`GraphReducer` context not found");
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let canvas_state = use_context::<CanvasStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
 
     let show_add_child_form = use_state(|| false);
     let new_child_parent = use_state(|| None);
@@ -154,28 +150,27 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
     // ----------
 
     // add connectors
-    {
-        let canvas_state = canvas_state.clone();
+    use_effect_with((canvas_state.clone(), graph_state.graph.clone()), {
         let root_ref = root_ref.clone();
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
-
-        use_effect(move || {
+        move |(canvas_state, _)| {
             create_connectors(
                 root_ref.clone(),
                 children_ref.clone(),
                 connectors_ref.clone(),
                 canvas_state.clone(),
             );
-        });
-    }
-    {
+        }
+    });
+
+    use_effect_with((), {
         let canvas_state = canvas_state.clone();
         let root_ref = root_ref.clone();
         let children_ref = children_ref.clone();
         let connectors_ref = connectors_ref.clone();
 
-        use_effect_with((), move |_| {
+        move |_| {
             let window = web_sys::window().expect("could not get window");
             let create_connectors_cb = Closure::<dyn Fn()>::new(move || {
                 create_connectors(
@@ -194,8 +189,8 @@ pub fn container_tree(props: &ContainerTreeProps) -> HtmlResult {
                 .expect("could not add `resize` listener to `window`");
 
             create_connectors_cb.forget();
-        });
-    }
+        }
+    });
 
     let container_fallback = html! { <Loading text={"Loading container"} /> };
     Ok(html! {

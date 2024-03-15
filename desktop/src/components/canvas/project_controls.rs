@@ -3,10 +3,10 @@ use super::{CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateR
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::graph::{get_or_load_project_graph, load_project_graph};
 use crate::commands::project::analyze;
+use crate::common::DisplayName;
 use crate::components::canvas::canvas_state::ResourceType;
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::use_project;
-use crate::lib::DisplayName;
 use syre_core::error::Runner as RunnerError;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::Analysis as AnalysisError;

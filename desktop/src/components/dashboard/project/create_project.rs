@@ -23,7 +23,6 @@ use yew_router::prelude::*;
 ///     May select an existing folder, or create a new one.
 /// 2. Assign properties with optional advanced properties.
 /// 3. Build the project tree.
-#[tracing::instrument]
 #[function_component(CreateProject)]
 pub fn create_project() -> Html {
     let navigator = use_navigator().unwrap();

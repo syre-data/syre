@@ -10,7 +10,6 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-#[tracing::instrument]
 #[function_component(Index)]
 pub fn index() -> Html {
     let auth_state = use_context::<AuthStateReducer>().unwrap();

@@ -1,5 +1,5 @@
 use super::common::{EmptyArgs, ResourceIdArgs};
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use syre_core::system::User;
 use syre_core::types::ResourceId;
 use syre_local::Result;

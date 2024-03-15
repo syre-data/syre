@@ -4268,7 +4268,6 @@ dependencies = [
  "serde_json",
  "syre-core",
  "tauri-sys",
- "tracing",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",

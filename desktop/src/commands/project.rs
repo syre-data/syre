@@ -1,6 +1,6 @@
 //! Resources for [`project commands`](syre_desktop_tauri::commands::project).
 use super::common::{PathBufArgs, ResourceIdArgs};
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::project::Project;

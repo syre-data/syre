@@ -12,7 +12,6 @@ impl<S> Loader<S>
 where
     S: Serialize + DeserializeOwned + HasUser + Clone,
 {
-    #[tracing::instrument]
     pub fn load_or_create_with<T>(user: &ResourceId) -> Result<UserLoader<S>>
     where
         T: UserSettings<S> + UserSettingsFile,

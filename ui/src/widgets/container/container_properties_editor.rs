@@ -110,7 +110,6 @@ pub struct ContainerPropertiesEditorProps {
 }
 
 /// [`ContainerProperties`] editor.
-#[tracing::instrument(skip(props))]
 #[function_component(ContainerPropertiesEditor)]
 pub fn container_properties_editor(props: &ContainerPropertiesEditorProps) -> Html {
     let properties_state =

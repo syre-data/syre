@@ -14,7 +14,6 @@ pub struct MetadatumEditorProps {
     pub onchange: Callback<JsValue>,
 }
 
-#[tracing::instrument]
 #[function_component(MetadatumEditor)]
 pub fn metadatum_editor(props: &MetadatumEditorProps) -> Html {
     let error = use_state(|| None);

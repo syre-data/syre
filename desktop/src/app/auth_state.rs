@@ -31,8 +31,6 @@ impl AuthState {
 
 impl Reducible for AuthState {
     type Action = AuthStateAction;
-
-    #[tracing::instrument(level = "debug", skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
 

@@ -93,7 +93,6 @@ pub fn init_project_graph(
 ///
 /// # Argments
 /// 1. `Project` id.
-#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn load_project_graph(
     db: State<DbClient>,
@@ -107,7 +106,6 @@ pub fn load_project_graph(
 ///
 /// # Argments
 /// 1. `Project` id.
-#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn get_or_load_project_graph(
     db: State<DbClient>,
@@ -122,7 +120,6 @@ pub fn get_or_load_project_graph(
 /// # Arguments
 /// 1. `name`: Name of the child.
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
-#[tracing::instrument(level = "debug", skip(db))]
 #[tauri::command]
 pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result {
     let path = db.send(ContainerCommand::Path(parent).into()).unwrap();
@@ -143,7 +140,6 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 ///
 /// # Arguments
 /// 1. Id of the root of the `Container` tree to duplicate.
-#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> DbResult<ContainerTree> {
     let dup = db

@@ -4,6 +4,7 @@ use crate::commands::container::{
     BulkUpdatePropertiesArgs as BulkUpdateContainerPropertiesArgs, UpdateAnalysisAssociationsArgs,
     UpdatePropertiesArgs as UpdateContainerPropertiesArgs,
 };
+use crate::types::RcEq;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -102,9 +103,9 @@ pub enum GraphStateAction {
     BulkUpdateContainerScriptAssociations(BulkUpdateAnalysisAssociationsArgs),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub struct GraphState {
-    pub graph: ContainerTree,
+    pub graph: RcEq<ContainerTree>,
 
     /// Map from an [`Asset`](Asset)'s id to its [`Container`](Container)'s.
     pub asset_map: AssetContainerMap,
@@ -119,20 +120,20 @@ impl GraphState {
             }
         }
 
-        Self { graph, asset_map }
+        Self {
+            graph: RcEq::new(graph),
+            asset_map,
+        }
     }
 
     /// Update a `Container`'s properties.
-    #[tracing::instrument(skip(self))]
     fn update_container_properties_from_update(
         &mut self,
         rid: &ResourceId,
         update: &ContainerPropertiesUpdate,
     ) {
-        let container = self
-            .graph
-            .get_mut(&rid)
-            .expect("could not find `Container`");
+        let graph = Rc::get_mut(&mut self.graph).unwrap();
+        let container = graph.get_mut(&rid).expect("could not find `Container`");
 
         // basic properties
         if let Some(name) = update.name.as_ref() {
@@ -172,15 +173,14 @@ impl GraphState {
     }
 
     /// Update an `Assets`'s properties.
-    #[tracing::instrument(skip(self))]
     fn update_asset_properties_from_update(
         &mut self,
         rid: &ResourceId,
         update: &AssetPropertiesUpdate,
     ) {
+        let graph = Rc::get_mut(&mut self.graph).unwrap();
         let container = self.asset_map.get(rid).expect("`Asset` map not found");
-        let container = self
-            .graph
+        let container = graph
             .get_mut(container)
             .expect("could not find `Container`");
 
@@ -235,10 +235,8 @@ impl GraphState {
         rid: &ResourceId,
         update: &AnalysisAssociationBulkUpdate,
     ) {
-        let container = self
-            .graph
-            .get_mut(&rid)
-            .expect("could not find `Container`");
+        let graph = Rc::get_mut(&mut self.graph).unwrap();
+        let container = graph.get_mut(&rid).expect("could not find `Container`");
 
         for assoc in update.add.iter() {
             container.analyses.insert(
@@ -273,7 +271,7 @@ impl GraphState {
 impl Reducible for GraphState {
     type Action = GraphStateAction;
 
-    // @note: Actions that change a `Container` must first `clone`
+    // NB: Actions that change a `Container` must first `clone`
     // the `Container` then re-`insert` it into the state's `Container` store
     // so equality can be evaluated.
     // A `Container`'s value must never be changed in place.
@@ -289,11 +287,14 @@ impl Reducible for GraphState {
                     }
                 }
 
-                current.graph = graph;
+                current.graph = RcEq::new(graph);
             }
 
             GraphStateAction::RemoveSubtree(root) => {
-                if let Ok(graph) = current.graph.remove(&root) {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                if let Ok(graph) = graph.remove(&root) {
                     for container in graph.nodes().values() {
                         for asset in container.assets.keys() {
                             current.asset_map.remove(asset);
@@ -303,64 +304,76 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::MoveSubtree { parent, root, name } => {
-                current.graph.mv(&root, &parent).unwrap();
-                let root = current.graph.get_mut(&root).unwrap();
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                graph.mv(&root, &parent).unwrap();
+                let root = graph.get_mut(&root).unwrap();
                 root.properties.name = name;
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
-                let container = current
-                    .graph
-                    .get_mut(&update.rid)
-                    .expect("`Container` not found");
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                let container = graph.get_mut(&update.rid).expect("`Container` not found");
 
                 container.properties = update.properties;
             }
 
             GraphStateAction::UpdateContainerAnalysisAssociations(update) => {
-                let container = current
-                    .graph
-                    .get_mut(&update.rid)
-                    .expect("`Container` not found");
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                let container = graph.get_mut(&update.rid).expect("`Container` not found");
 
                 container.analyses = update.associations;
             }
 
             GraphStateAction::RemoveContainerAnalysisAssociations(rid) => {
-                for cid in current.graph.nodes().clone().into_keys() {
-                    let container = current
-                        .graph
-                        .get_mut(&cid)
-                        .expect("`Container` not found in graph");
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                for cid in graph.nodes().clone().into_keys() {
+                    let container = graph.get_mut(&cid).expect("`Container` not found in graph");
+
                     container.analyses.remove(&rid);
                 }
             }
 
             GraphStateAction::InsertChildContainer(parent, child) => {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
                 // map assets
                 for rid in child.assets.keys() {
                     current.asset_map.insert(rid.clone(), child.rid.clone());
                 }
 
                 // insert child into store
-                current
-                    .graph
+                graph
                     .insert(parent, child)
                     .expect("could not insert child node");
             }
 
             GraphStateAction::InsertSubtree { parent, graph } => {
+                current.graph = RcEq::new((**current.graph).clone());
+                let root_graph = Rc::get_mut(&mut current.graph).unwrap();
+
                 for container in graph.nodes().values() {
                     for aid in container.assets.keys() {
                         current.asset_map.insert(aid.clone(), container.rid.clone());
                     }
                 }
 
-                current.graph.insert_tree(&parent, graph).unwrap();
+                root_graph.insert_tree(&parent, graph).unwrap();
             }
 
             GraphStateAction::SetContainerAssets(container_rid, assets) => {
-                let Some(container) = current.graph.get_mut(&container_rid) else {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                let Some(container) = graph.get_mut(&container_rid) else {
                     panic!("`Container` not found")
                 };
 
@@ -374,10 +387,10 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::InsertContainerAssets(container, assets) => {
-                let container = current
-                    .graph
-                    .get_mut(&container)
-                    .expect("`Container` not found");
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                let container = graph.get_mut(&container).expect("`Container` not found");
 
                 for asset in assets {
                     current
@@ -390,9 +403,13 @@ impl Reducible for GraphState {
 
             GraphStateAction::RemoveAsset(asset) => match current.asset_map.get(&asset) {
                 Some(container) => {
-                    if let Some(container) = current.graph.get_mut(container) {
+                    current.graph = RcEq::new((**current.graph).clone());
+                    let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                    if let Some(container) = graph.get_mut(container) {
                         container.assets.remove(&asset);
                     }
+
                     current.asset_map.remove(&asset);
                 }
 
@@ -406,7 +423,10 @@ impl Reducible for GraphState {
                             }
                         })
                     {
-                        let container = current.graph.get_mut(&container).unwrap();
+                        current.graph = RcEq::new((**current.graph).clone());
+                        let graph = Rc::get_mut(&mut current.graph).unwrap();
+
+                        let container = graph.get_mut(&container).unwrap();
                         container.assets.remove(&asset);
                     }
 
@@ -415,23 +435,26 @@ impl Reducible for GraphState {
             },
 
             GraphStateAction::UpdateAsset(asset) => {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
                 let container = current
                     .asset_map
                     .get(&asset.rid)
                     .expect("`Asset` `Container` not found");
 
-                let container = current
-                    .graph
-                    .get_mut(&container)
-                    .expect("`Container` not found");
+                let container = graph.get_mut(&container).expect("`Container` not found");
 
                 // TODO Ensure `Asset` exists in `Container` before update.
                 container.assets.insert(asset.rid.clone(), asset.clone());
             }
 
             GraphStateAction::UpdateAssetPath { asset, path } => {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
                 let container = current.asset_map.get(&asset).unwrap();
-                let container = current.graph.get_mut(container).unwrap();
+                let container = graph.get_mut(container).unwrap();
                 let asset = container.assets.get_mut(&asset).unwrap();
                 asset.path = path;
             }
@@ -441,13 +464,16 @@ impl Reducible for GraphState {
                 container,
                 path,
             } => {
+                current.graph = RcEq::new((**current.graph).clone());
+                let graph = Rc::get_mut(&mut current.graph).unwrap();
+
                 let container_old = current.asset_map.get(&asset).unwrap();
-                let container_old = current.graph.get_mut(container_old).unwrap();
+                let container_old = graph.get_mut(container_old).unwrap();
                 let mut asset = container_old.assets.remove(&asset).unwrap();
                 asset.path = path;
                 current.asset_map.remove(&asset.rid);
 
-                let container = current.graph.get_mut(&container).unwrap();
+                let container = graph.get_mut(&container).unwrap();
                 let aid = asset.rid.clone();
                 container.insert_asset(asset);
                 current.asset_map.insert(aid, container.rid.clone());

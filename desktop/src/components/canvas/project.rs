@@ -10,7 +10,6 @@ pub struct ProjectProps {
     pub rid: ResourceId,
 }
 
-#[tracing::instrument]
 #[function_component(Project)]
 pub fn project(props: &ProjectProps) -> Html {
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();

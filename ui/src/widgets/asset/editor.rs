@@ -15,7 +15,6 @@ pub struct AssetEditorProps {
 }
 
 /// [`Asset`](syre_core::project::Asset)s editor.
-#[tracing::instrument(skip(props))]
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let class = classes!("syre-ui-asset-editor", props.class.clone());

@@ -13,7 +13,6 @@ pub struct MetadatumBulkEditorProps {
     pub onchange: Callback<JsValue>,
 }
 
-#[tracing::instrument]
 #[function_component(MetadatumBulkEditor)]
 pub fn metadatum_bulk_editor(props: &MetadatumBulkEditorProps) -> Html {
     let error = use_state(|| None);

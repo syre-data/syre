@@ -3,7 +3,6 @@ use yew::prelude::*;
 
 use crate::components::canvas::GraphStateReducer;
 
-#[tracing::instrument(level = "debug")]
 #[hook]
 pub fn use_asset(rid: &ResourceId) -> UseStateHandle<Asset> {
     let graph_state =

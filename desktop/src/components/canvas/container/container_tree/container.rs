@@ -46,7 +46,6 @@ pub struct ContainerProps {
     pub onadd_child: Option<Callback<ResourceId>>,
 }
 
-#[tracing::instrument(skip(props), fields(?props.rid))]
 #[function_component(Container)]
 pub fn container(props: &ContainerProps) -> HtmlResult {
     // -------------
@@ -138,11 +137,12 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- menu events ---
     // -------------------
 
-    let on_menu_event = use_callback((props.rid.clone(), graph_state.clone()), {
+    let on_menu_event = use_callback((props.rid.clone(), graph_state.graph.clone()), {
         let app_state = app_state.dispatcher();
+        let graph_state = graph_state.dispatcher();
         let show_create_assets = show_create_assets.setter();
 
-        move |event, (rid, graph_state)| {
+        move |event, (rid, graph)| {
             let rid = rid.clone();
             match event {
                 ContainerMenuEvent::AddAssets => show_create_assets.set(true),
@@ -173,6 +173,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 ContainerMenuEvent::DuplicateTree => {
                     let app_state = app_state.clone();
                     let graph_state = graph_state.clone();
+                    let graph = graph.clone();
 
                     spawn_local(async move {
                         let dup = match duplicate_container_tree(rid.clone()).await {
@@ -185,7 +186,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                             }
                         };
 
-                        let mut graph = graph_state.graph.clone();
+                        let mut graph = (**graph).clone();
                         let parent = graph
                             .parent(&rid)
                             .expect("parent `Container` not found")
@@ -208,7 +209,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         match remove_container_tree(rid.clone()).await {
                             Ok(_) => {}
                             Err(err) => {
-                                tracing::debug!(err);
                                 panic!("{err}");
                             }
                         }
@@ -452,9 +452,9 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
     // --- on drop events ---
     // ----------------------
 
-    let ondrop = use_callback(
-        (props.rid.clone(), graph_state.clone()),
-        move |e: DragEvent, (container_id, graph_state)| {
+    let ondrop = use_callback((props.rid.clone(), graph_state.graph.clone()), {
+        let graph_state = graph_state.dispatcher();
+        move |e: DragEvent, (container_id, graph)| {
             let drop_data = e.data_transfer().unwrap();
             let action = drop_data.get_data("application/json").unwrap();
 
@@ -462,7 +462,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
             if let Some(action) = action {
                 match action {
                     ContainerAction::AddScriptAssociation(script) => 'add_script: {
-                        let container = graph_state.graph.get(&container_id).unwrap();
+                        let container = graph.get(&container_id).unwrap();
                         if container.analyses.contains_key(&script) {
                             break 'add_script;
                         }
@@ -471,7 +471,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         associations.insert(script, RunParameters::new());
 
                         let app_state = app_state.dispatcher();
-                        let graph_state = graph_state.dispatcher();
+                        let graph_state = graph_state.clone();
                         let container_id = container_id.clone();
                         spawn_local(async move {
                             match update_analysis_associations(
@@ -494,6 +494,7 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                                 Err(err) => {
                                     let mut msg =
                                         Message::error("Could not add Script association.");
+
                                     msg.set_details(format!("{err}"));
                                     app_state.dispatch(AppStateAction::AddMessage(msg));
                                 }
@@ -528,7 +529,6 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                         match add_asset_from_contents(container_id.clone(), name, contents).await {
                             Ok(_) => {}
                             Err(err) => {
-                                tracing::debug!(err);
                                 panic!("{err}");
                             }
                         }
@@ -538,8 +538,8 @@ pub fn container(props: &ContainerProps) -> HtmlResult {
                 file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
                 onload.forget();
             }
-        },
-    );
+        }
+    });
 
     // ----------
     // --- ui ---

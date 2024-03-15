@@ -1,6 +1,6 @@
 //! Command functionality for settings.
 use super::common::ResourceIdArgs;
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use serde::Serialize;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::settings::{UserAppState, UserSettings};

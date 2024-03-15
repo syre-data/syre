@@ -11,7 +11,6 @@ use yew::suspense::{Suspension, SuspensionResult};
 type ContainerTree = ResourceTree<Container>;
 
 /// Gets a `Project`'s graph.
-#[tracing::instrument]
 #[hook]
 pub fn use_load_project_graph(
     project: &ResourceId,

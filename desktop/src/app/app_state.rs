@@ -74,8 +74,6 @@ pub struct AppState {
 
 impl Reducible for AppState {
     type Action = AppStateAction;
-
-    #[tracing::instrument(skip(self))]
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
         match action {

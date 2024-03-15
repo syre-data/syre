@@ -9,7 +9,6 @@ use syre_local::error::IoSerde;
 use tauri::State;
 
 /// Loads a user's [`UserSettings`](DesktopUserSettings) from file and stores them.
-#[tracing::instrument(skip(app_state))]
 #[tauri::command]
 pub fn load_user_settings(
     app_state: State<AppState>,

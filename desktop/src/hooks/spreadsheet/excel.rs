@@ -1,6 +1,6 @@
 //! Load a spreadsheet.
 use crate::commands::common::PathBufArgs;
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use std::path::PathBuf;
 use syre_desktop_lib::excel_template;
 use yew::prelude::*;

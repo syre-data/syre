@@ -25,7 +25,6 @@ pub struct MetadatumBuilderProps {
     pub oncancel: Callback<()>,
 }
 
-#[tracing::instrument]
 #[function_component(MetadatumBuilder)]
 pub fn metadatum_builder(props: &MetadatumBuilderProps) -> Html {
     // NOTE `kind` and `value` are set to default values if they can not be

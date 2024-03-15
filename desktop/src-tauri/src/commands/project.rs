@@ -190,7 +190,6 @@ pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
 // **********************
 
 /// Updates a project.
-#[tracing::instrument(skip(db))]
 #[tauri::command]
 pub fn update_project(db: State<DbClient>, project: Project) -> DbResult {
     let res = db

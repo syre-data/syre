@@ -11,7 +11,6 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-#[tracing::instrument]
 #[function_component(SignIn)]
 pub fn sign_in() -> Html {
     let auth_state =

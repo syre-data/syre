@@ -4,7 +4,7 @@ use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::container::{
     bulk_update_analysis_associations, bulk_update_properties, BulkUpdatePropertiesArgs,
 };
-use crate::lib::DisplayName;
+use crate::common::DisplayName;
 use std::collections::HashSet;
 use syre_core::project::AnalysisAssociation;
 use syre_core::types::{ResourceId, ResourceMap};

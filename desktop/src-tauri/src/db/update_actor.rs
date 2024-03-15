@@ -29,14 +29,13 @@ impl UpdateActor {
     }
 
     /// Listen for database updates and send them to main window.
-    #[tracing::instrument(skip(self))]
     fn listen_for_events(&self) {
         tracing::debug!("listening for file system events");
         loop {
             let messages = match self.zmq_socket.recv_multipart(0) {
                 Ok(msg) => msg,
                 Err(err) => {
-                    tracing::debug!(?err);
+                    tracing::error!(?err);
                     continue;
                 }
             };

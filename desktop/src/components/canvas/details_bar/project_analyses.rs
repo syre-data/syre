@@ -7,11 +7,11 @@ use crate::app::{
 use crate::commands::analysis::{copy_contents_to_analyses, update_excel_template};
 use crate::commands::common::open_file;
 use crate::commands::project::get_project_path;
+use crate::common::DisplayName;
 use crate::components::excel_template::{
     CreateExcelTemplate, ExcelTemplateBuilder, ExcelTemplateEditor,
 };
 use crate::hooks::use_canvas_project;
-use crate::lib::DisplayName;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use syre_core::project::ExcelTemplate;

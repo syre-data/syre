@@ -22,7 +22,6 @@ pub struct MetadataBulkEditorProps {
     pub onchange: Option<Callback<Metadatum>>,
 }
 
-#[tracing::instrument(skip(props))]
 #[function_component(MetadataBulkEditor)]
 pub fn metadata_bulk_editor(props: &MetadataBulkEditorProps) -> Html {
     let add_metadatum_visible = use_state(|| false);

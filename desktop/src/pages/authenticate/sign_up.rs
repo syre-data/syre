@@ -8,7 +8,6 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-#[tracing::instrument]
 #[function_component(SignUp)]
 pub fn sign_up() -> Html {
     let auth_state = use_context::<AuthStateReducer>().unwrap();
@@ -56,7 +55,6 @@ pub fn sign_up() -> Html {
                 let user = match create_user(email, name).await {
                     Ok(user) => user,
                     Err(err) => {
-                        tracing::debug!(?err);
                         let mut msg = Message::error("Could not create user.");
                         msg.set_details(err);
                         app_state.dispatch(AppStateAction::AddMessage(msg));

@@ -16,7 +16,6 @@ use yew::prelude::NodeRef;
 ///
 /// # Errors
 /// + If the value can not be parsed as a number.
-#[tracing::instrument]
 pub fn str_to_number(input: &str) -> StdResult<JsValue, ()> {
     fn parse_as_int(input: &str) -> Option<JsValue> {
         if let Ok(val) = input.parse::<u64>() {
@@ -63,7 +62,6 @@ pub fn str_to_number(input: &str) -> StdResult<JsValue, ()> {
 /// # Returns
 /// The input value converted to a [`serde_json::Value`].
 /// `Null` is used to indicate an error occurred.
-#[tracing::instrument(skip(value_ref))]
 pub fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<JsValue> {
     let value = match kind {
         MetadatumType::String => {
@@ -127,7 +125,6 @@ pub fn value_from_input(value_ref: NodeRef, kind: &MetadatumType) -> JsResult<Js
 
 /// Converts between [`serde_json::Value`] types.
 /// If a reasonable conversion can not be made, the default value for that type is returned.
-#[tracing::instrument]
 pub fn convert_value(value: JsValue, target: &MetadatumType) -> JsValue {
     match (value.clone(), target.clone()) {
         (JsValue::String(_), MetadatumType::String)

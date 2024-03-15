@@ -1,6 +1,6 @@
 //! Script commands.
 use super::common::ResourceIdArgs;
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::project::{ExcelTemplate, Script};

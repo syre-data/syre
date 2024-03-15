@@ -1,5 +1,5 @@
 //! Resources for [`authenticate commands`](syre_desktop_tauri::commands::authenticate).
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use serde::Serialize;
 use syre_core::system::User;
 

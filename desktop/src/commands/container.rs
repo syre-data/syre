@@ -1,6 +1,6 @@
 //! Resources for [`container commands`](syre_desktop_tauri::commands::container).
 use super::common::ResourceIdArgs;
-use crate::common::{invoke, invoke_result};
+use crate::invoke::{invoke, invoke_result};
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::project::container::AnalysisMap;

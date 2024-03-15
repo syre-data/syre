@@ -116,7 +116,6 @@ pub struct AssetPropertiesEditorProps {
 }
 
 /// [`AssetProperties`] editor.
-#[tracing::instrument(skip(props))]
 #[function_component(AssetPropertiesEditor)]
 pub fn asset_properties_editor(props: &AssetPropertiesEditorProps) -> Html {
     let properties_state =

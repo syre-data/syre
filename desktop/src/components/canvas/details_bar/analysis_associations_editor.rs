@@ -1,8 +1,8 @@
 //! Edit a [`Container`]'s [`AnalysisAssociation`]s.
 use crate::app::ProjectsStateReducer;
 use crate::commands::container::{update_analysis_associations, UpdateAnalysisAssociationsArgs};
+use crate::common::DisplayName;
 use crate::components::canvas::{CanvasStateReducer, GraphStateAction, GraphStateReducer};
-use crate::lib::DisplayName;
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::RunParameters;
 use syre_core::types::ResourceId;
@@ -22,7 +22,6 @@ pub struct AnalysisAssociationsEditorProps {
     pub onsave: Option<Callback<()>>,
 }
 
-#[tracing::instrument]
 #[function_component(AnalysisAssociationsEditor)]
 pub fn analysis_associations_editor(props: &AnalysisAssociationsEditorProps) -> HtmlResult {
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();

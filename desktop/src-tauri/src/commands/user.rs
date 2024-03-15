@@ -18,7 +18,6 @@ pub fn get_active_user() -> syre_local::Result<Option<User>> {
 /// Sets the active user on the [system settings](users::set_active_user).
 /// Sets the active user on the [`AppState`].
 /// Loads the user's [`UserAppState`] and [`UserSettings`].
-#[tracing::instrument(skip(app_state))]
 #[tauri::command]
 pub fn set_active_user(app_state: State<AppState>, rid: ResourceId) -> Result {
     // settings user

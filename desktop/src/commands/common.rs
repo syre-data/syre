@@ -1,6 +1,6 @@
 //! Resources for common commands.
 use super::types::ResourcePropertiesUpdate;
-use crate::common::invoke_result;
+use crate::invoke::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;

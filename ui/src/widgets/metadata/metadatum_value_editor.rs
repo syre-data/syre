@@ -16,7 +16,6 @@ pub struct MetadatumValueEditorProps {
     pub onerror: Callback<String>,
 }
 
-#[tracing::instrument]
 #[function_component(MetadatumValueEditor)]
 pub fn metadatum_value_editor(props: &MetadatumValueEditorProps) -> Html {
     // NOTE `value` are set to default values if they can not be

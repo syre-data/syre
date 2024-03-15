@@ -130,7 +130,6 @@ impl CanvasState {
         self.resource_types.remove(rid);
     }
 
-    #[tracing::instrument(skip(self))]
     fn details_bar_widget_from_selected(&self) -> Option<DetailsBarWidget> {
         match self.selected.len() {
             0 => None,

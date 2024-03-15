@@ -18,7 +18,6 @@ pub struct ContainerEditorProps {
     pub onsave: Callback<()>,
 }
 
-#[tracing::instrument(skip(props), fields(?props.rid))]
 #[function_component(ContainerEditor)]
 pub fn container_editor(props: &ContainerEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().unwrap();

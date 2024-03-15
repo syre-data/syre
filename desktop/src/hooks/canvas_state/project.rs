@@ -3,7 +3,6 @@ use crate::components::canvas::CanvasStateReducer;
 use syre_core::types::ResourceId;
 use yew::prelude::*;
 
-#[tracing::instrument]
 #[hook]
 pub fn use_canvas_project() -> UseStateHandle<ResourceId> {
     let canvas_state =

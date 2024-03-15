@@ -15,7 +15,6 @@ use yew_router::prelude::*;
 // **********************
 
 /// Home page for authenticated users.
-#[tracing::instrument]
 #[function_component(HomeComponent)]
 pub fn home_component() -> HtmlResult {
     let app_state = use_context::<AppStateReducer>().unwrap();

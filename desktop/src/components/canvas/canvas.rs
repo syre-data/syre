@@ -38,7 +38,6 @@ pub struct ProjectCanvasProps {
     pub class: Classes,
 }
 
-#[tracing::instrument]
 #[function_component(ProjectCanvas)]
 pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
     let navigator = use_navigator().unwrap();
@@ -57,7 +56,7 @@ pub fn project_canvas(props: &ProjectCanvasProps) -> Html {
         }
 
         None => {
-            tracing::debug!("could not load project");
+            tracing::error!("could not load project");
             navigator.push(&Route::Dashboard);
             html! {
                 <h1 class={"align-center"}>{ "Could not load project" }</h1>
@@ -74,6 +73,7 @@ struct CanvasViewProps {
     pub class: Classes,
 }
 
+#[tracing::instrument(skip(props))]
 #[function_component(CanvasView)]
 fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
     let event_listener_id = use_mut_ref(|| 0);
@@ -184,7 +184,6 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                         break;
                     }
 
-                    tracing::debug!(?event.payload);
                     let Update::Project { project, update } = event.payload;
                     assert!(project == pid);
                     handle_file_system_event(
@@ -370,7 +369,7 @@ fn handle_file_system_event(
                     let asset = container.assets.get(&resource).unwrap();
                     asset_ui::asset_display_name(asset)
                 } else {
-                    tracing::debug!("could not find resource `{resource:?}`");
+                    tracing::error!("could not find resource `{resource:?}`");
                     let mut msg = Message::error("Could not find resource");
                     msg.set_details("Could not find `{resource:?}` when flagging");
                     app_state.dispatch(AppStateAction::AddMessage(msg));

@@ -5,7 +5,6 @@ use syre_core::types::ResourceId;
 use yew::prelude::*;
 
 /// Get the [`Project`] with the given id.
-#[tracing::instrument(level = "debug")]
 #[hook]
 pub fn use_project(rid: &ResourceId) -> UseStateHandle<Option<Project>> {
     let projects_state =

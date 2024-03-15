@@ -15,7 +15,6 @@ pub struct AssetEditorProps {
     pub rid: ResourceId,
 }
 
-#[tracing::instrument(skip(props))]
 #[function_component(AssetEditor)]
 pub fn asset_editor(props: &AssetEditorProps) -> Html {
     let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");

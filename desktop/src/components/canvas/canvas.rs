@@ -130,13 +130,14 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
             });
         }
         Err(LoadProjectGraph::InsertAssets { errors, graph }) => {
-            tracing::debug!(?errors);
+            tracing::error!(?errors);
             (graph, Some(errors))
         }
     };
 
     let graph_state = use_reducer(|| GraphState::new(graph));
     use_effect_with((), {
+        let app_state = app_state.dispatcher();
         let canvas_state = canvas_state.dispatcher();
         move |_| {
             let Some(asset_errors) = asset_errors else {
@@ -154,6 +155,9 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                     message,
                 });
             }
+
+            let msg = Message::error("Asset files are missing.");
+            app_state.dispatch(AppStateAction::AddMessage(msg));
         }
     });
 

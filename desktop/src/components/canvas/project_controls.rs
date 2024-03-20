@@ -7,10 +7,12 @@ use crate::common::DisplayName;
 use crate::components::canvas::canvas_state::ResourceType;
 use crate::constants::MESSAGE_TIMEOUT;
 use crate::hooks::use_project;
+use std::io;
 use syre_core::error::Runner as RunnerError;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::Analysis as AnalysisError;
 use syre_local::types::AnalysisKind;
+use syre_local_database::error::server::LoadProjectGraph;
 use syre_ui::types::ContainerPreview;
 use syre_ui::types::Message;
 use syre_ui::widgets::container::container_tree::ContainerPreviewSelect;
@@ -242,11 +244,13 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
     });
 
     let reload_project_graph = use_callback((props.project.clone(), app_state.clone()), {
+        let canvas_state = canvas_state.dispatcher();
         let graph_state = graph_state.dispatcher();
         let reloading_project_graph_state = reloading_project_graph_state.setter();
 
         move |_: MouseEvent, (project, app_state)| {
             let app_state = app_state.clone();
+            let canvas_state = canvas_state.clone();
             let graph_state = graph_state.clone();
             let project = project.clone();
             let reloading_project_graph_state = reloading_project_graph_state.clone();
@@ -255,6 +259,31 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
                 reloading_project_graph_state.set(true);
                 match load_project_graph(project).await {
                     Ok(graph) => {
+                        graph_state.dispatch(GraphStateAction::SetGraph(graph));
+                        app_state.dispatch(AppStateAction::AddMessageWithTimeout(
+                            Message::success("Graph reloaded."),
+                            MESSAGE_TIMEOUT,
+                            app_state.clone(),
+                        ));
+                    }
+
+                    Err(LoadProjectGraph::InsertAssets { errors, graph }) => {
+                        tracing::error!(?errors);
+                        for (asset, err) in errors {
+                            let message = match err {
+                                io::ErrorKind::NotFound => "File not found".to_string(),
+                                _ => format!("{err:?}"),
+                            };
+
+                            canvas_state.dispatch(CanvasStateAction::AddFlag {
+                                resource: asset,
+                                message,
+                            });
+                        }
+
+                        let msg = Message::error("Asset files are missing.");
+                        app_state.dispatch(AppStateAction::AddMessage(msg));
+
                         graph_state.dispatch(GraphStateAction::SetGraph(graph));
                         app_state.dispatch(AppStateAction::AddMessageWithTimeout(
                             Message::success("Graph reloaded."),

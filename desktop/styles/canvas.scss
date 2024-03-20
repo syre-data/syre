@@ -197,7 +197,16 @@
           span:not(:last-child) {
             padding-right: t.$padding-m;
           }
+
         }
+
+		.controls-group .descendant-alert {
+			visibility: hidden;
+		}
+
+		&:has(.layer-asset .alert-icon) > .layer-title .controls-group .descendant-alert {
+			visibility: visible;
+		}
 
         span {
           line-height: 100%;
@@ -240,6 +249,7 @@
         display: flex;
         align-items: center;
         height: 2rem;
+		padding-right: t.$padding-m;
         border: solid t.$border-width-s transparent;
 
         &:hover {
@@ -253,6 +263,14 @@
         .name {
           padding-left: t.$padding-s;
         }
+
+		.descendant-alert {
+			display: none;
+		}
+
+		&:has(.layer-asset .alert-icon) .descendant-alert {
+			display: inline;
+		}
       }
     }
   }

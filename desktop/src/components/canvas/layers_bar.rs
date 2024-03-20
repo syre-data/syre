@@ -21,16 +21,14 @@ fn asset(props: &AssetProps) -> Html {
 
     let selected = canvas_state.selected.contains(&props.asset.rid);
     let multiple_selected = canvas_state.selected.len() > 1;
-    let onclick = {
-        let canvas_state = canvas_state.clone();
-        let asset = props.asset.rid.clone();
-        let selected = selected.clone();
-        Callback::from(move |e: MouseEvent| {
+    let onclick = use_callback((props.asset.rid.clone(), selected.clone()), {
+        let canvas_state = canvas_state.dispatcher();
+        move |e: MouseEvent, (asset, selected)| {
             e.prevent_default();
             e.stop_propagation();
             let asset = asset.clone();
 
-            match selection_action(selected, multiple_selected, e) {
+            match selection_action(*selected, multiple_selected, e) {
                 SelectionAction::SelectOnly => {
                     canvas_state.dispatch(CanvasStateAction::SelectAssetOnly(asset));
                 }
@@ -43,8 +41,8 @@ fn asset(props: &AssetProps) -> Html {
                     canvas_state.dispatch(CanvasStateAction::Unselect(asset));
                 }
             }
-        })
-    };
+        }
+    });
 
     let name = asset_ui::asset_display_name(&props.asset);
     let mut class = classes!("layer-asset");
@@ -70,7 +68,7 @@ fn asset(props: &AssetProps) -> Html {
                     <span class={"alert-icon c-warning"}
                         title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
 
-                        <Icon icon_id={IconId::BootstrapExclamationTriangle}
+                        <Icon icon_id={IconId::FontAwesomeSolidCircle}
                             width={ICON_SIZE.to_string()}
                             height={ICON_SIZE.to_string()} />
                     </span>
@@ -94,13 +92,13 @@ struct AssetsProps {
 fn assets(props: &AssetsProps) -> Html {
     let expanded_state = use_state(|| props.expanded);
 
-    let toggle_expanded_state = {
-        let expanded_state = expanded_state.clone();
-        Callback::from(move |e: MouseEvent| {
+    let toggle_expanded_state = use_callback(
+        expanded_state.clone(),
+        move |e: MouseEvent, expanded_state| {
             e.stop_propagation();
-            expanded_state.set(!*expanded_state);
-        })
-    };
+            expanded_state.set(!**expanded_state);
+        },
+    );
 
     let mut assets = props.assets.clone();
     assets.sort_by(|a, b| {
@@ -116,27 +114,39 @@ fn assets(props: &AssetsProps) -> Html {
 
     html! {
         <div {class}>
-            <div class={"layer-title"}>
-                <span class={"layer-expand"}
-                    onclick={toggle_expanded_state}>
-                    if *expanded_state {
-                        <Icon icon_id={IconId::FontAwesomeSolidCaretDown}
+            <div class={"layer-title flex"}>
+                <div>
+                    <span class={"layer-expand"}
+                        onclick={toggle_expanded_state}>
+                        if *expanded_state {
+                            <Icon icon_id={IconId::FontAwesomeSolidCaretDown}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
+                        } else {
+                            <Icon icon_id={IconId::FontAwesomeSolidCaretRight}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
+                        }
+                    </span>
+
+                    <span class={"resource-icon"}>
+                        <Icon icon_id={IconId::BootstrapFiles}
                             width={ICON_SIZE.to_string()}
                             height={ICON_SIZE.to_string()} />
-                    } else {
-                        <Icon icon_id={IconId::FontAwesomeSolidCaretRight}
+                    </span>
+                </div>
+
+                <div class={"grow"}>
+                    <span class={"name"}>{ "Assets" }</span>
+                </div>
+
+                <div class={"controls-group"}>
+                    <span class={"descendant-alert alert-icon c-warning"}>
+                        <Icon icon_id={IconId::FontAwesomeRegularCircle}
                             width={ICON_SIZE.to_string()}
                             height={ICON_SIZE.to_string()} />
-                    }
-                </span>
-
-                <span class={"resource-icon"}>
-                    <Icon icon_id={IconId::BootstrapFiles}
-                        width={ICON_SIZE.to_string()}
-                        height={ICON_SIZE.to_string()} />
-                </span>
-
-                <span class={"name"}>{ "Assets" }</span>
+                    </span>
+                </div>
             </div>
 
             <div class={"layer-assets"}>
@@ -169,18 +179,16 @@ fn layer(props: &LayerProps) -> Html {
     let selected = canvas_state.selected.contains(&props.root);
     let multiple_selected = canvas_state.selected.len() > 1;
 
-    let toggle_expanded_state = {
-        let expanded_state = expanded_state.clone();
-        Callback::from(move |e: MouseEvent| {
+    let toggle_expanded_state = use_callback(expanded_state.clone(), {
+        move |e: MouseEvent, expanded_state| {
             e.stop_propagation();
-            expanded_state.set(!*expanded_state);
-        })
-    };
+            expanded_state.set(!**expanded_state);
+        }
+    });
 
-    let onclick = {
-        let canvas_state = canvas_state.clone();
-        let root = props.root.clone();
-        Callback::from(move |e: MouseEvent| {
+    let onclick = use_callback(props.root.clone(), {
+        let canvas_state = canvas_state.dispatcher();
+        move |e: MouseEvent, root| {
             e.prevent_default();
             e.stop_propagation();
             let root = root.clone();
@@ -199,13 +207,12 @@ fn layer(props: &LayerProps) -> Html {
                     canvas_state.dispatch(CanvasStateAction::Unselect(root));
                 }
             }
-        })
-    };
+        }
+    });
 
-    let ondblclick = {
-        let root = props.root.clone();
-        let project = canvas_state.project.clone();
-        Callback::from(move |e: MouseEvent| {
+    let ondblclick = use_callback(
+        (props.root.clone(), canvas_state.project.clone()),
+        move |e: MouseEvent, (root, project)| {
             e.stop_propagation();
 
             let window = web_sys::window().unwrap();
@@ -222,20 +229,20 @@ fn layer(props: &LayerProps) -> Html {
             scroll_opts.block(web_sys::ScrollLogicalPosition::Center);
             scroll_opts.inline(web_sys::ScrollLogicalPosition::Center);
             container.scroll_into_view_with_scroll_into_view_options(&scroll_opts);
-        })
-    };
+        },
+    );
 
-    let onclick_toggle_visibility = {
-        let root = root.rid.clone();
-        use_callback(canvas_state.clone(), move |e: MouseEvent, canvas_state| {
+    let onclick_toggle_visibility = use_callback(
+        (canvas_state.clone(), root.rid.clone()),
+        move |e: MouseEvent, (canvas_state, root)| {
             e.stop_propagation();
 
             canvas_state.dispatch(CanvasStateAction::SetVisibility(
                 root.clone(),
                 !canvas_state.is_visible(&root),
-            ))
-        })
-    };
+            ));
+        },
+    );
 
     let mut class = classes!("layer");
     if *expanded_state {
@@ -277,17 +284,9 @@ fn layer(props: &LayerProps) -> Html {
                     </span>
                 </div>
                 <div class={"controls-group"}>
-                    if let Some(flags) = canvas_state.flags.get(&props.root) {
-                        <span class={"alert-icon"}
-                            title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
-
-                            <Icon icon_id={IconId::BootstrapExclamationTriangle}
-                                width={ICON_SIZE.to_string()}
-                                height={ICON_SIZE.to_string()} />
-                        </span>
-                    }
                     <span class={"visibility-toggle"}
                         onclick={onclick_toggle_visibility}>
+
                         if canvas_state.is_visible(&root.rid) {
                             <Icon icon_id={IconId::FontAwesomeRegularEye}
                                 width={ICON_SIZE.to_string()}
@@ -298,6 +297,22 @@ fn layer(props: &LayerProps) -> Html {
                                 height={ICON_SIZE.to_string()} />
                         }
                     </span>
+
+                    if let Some(flags) = canvas_state.flags.get(&props.root) {
+                        <span class={"alert-icon c-warning"}
+                            title={flags.iter().map(|msg| format!("\u{2022} {msg}")).collect::<Vec<_>>().join("\n")}>
+
+                            <Icon icon_id={IconId::FontAwesomeSolidCircle}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
+                        </span>
+                    } else {
+                        <span class={"descendant-alert alert-icon c-warning"}>
+                            <Icon icon_id={IconId::FontAwesomeRegularCircle}
+                                width={ICON_SIZE.to_string()}
+                                height={ICON_SIZE.to_string()} />
+                        </span>
+                    }
                 </div>
             </div>
             <div class={"resources"}>

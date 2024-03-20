@@ -81,6 +81,8 @@ features = [
     "FontAwesomeRegularFolder",
     "FontAwesomeSolidCaretDown",
     "FontAwesomeSolidCaretRight",
+	"FontAwesomeSolidCircle",
+	"FontAwesomeRegularCircle",
 	"FontAwesomeSolidCode",
     "OcticonsSync24",
 ]

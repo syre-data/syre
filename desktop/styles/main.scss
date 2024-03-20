@@ -27,6 +27,7 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 #content {

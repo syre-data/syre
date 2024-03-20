@@ -105,6 +105,12 @@ class Database:
         self._socket.send_json({"Graph": {"Load": project["rid"]}})
         graph = self._socket.recv_json()
         if "Ok" not in graph:
+            if "Err" in graph:
+                err = graph["Err"]
+                if "InsertAssets" in err:
+                    errors = err["InsertAssets"]["errors"]
+                    raise RuntimeError(f"Could not load graph. {errors}")
+
             raise RuntimeError("Could not load graph")
 
         self._socket.send_json({"Container": {"ByPath": self._root_path}})

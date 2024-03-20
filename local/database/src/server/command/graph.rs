@@ -111,10 +111,12 @@ impl Database {
                     LoadProjectGraph::ProjectNotFound,
                 );
 
+                tracing::error!(?err);
                 serde_json::to_value(err).unwrap()
             }
 
             Err(error::LoadProjectGraph_Local::Project(err)) => {
+                tracing::error!(?err);
                 let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
                     LoadProjectGraph::Project(err),
                 );
@@ -123,6 +125,7 @@ impl Database {
             }
 
             Err(error::LoadProjectGraph_Local::Load(PartialLoad { errors, graph })) => {
+                tracing::error!(?errors);
                 let graph = graph.map(|graph| ContainerTreeTransformer::local_to_core(&graph));
                 let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
                     LoadProjectGraph::Load { errors, graph },
@@ -132,6 +135,7 @@ impl Database {
             }
 
             Err(error::LoadProjectGraph_Local::InsertContainers(errors)) => {
+                tracing::error!(?errors);
                 let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(
                     LoadProjectGraph::InsertContainers(errors.into()),
                 );
@@ -143,6 +147,7 @@ impl Database {
                 assets: errors,
                 graph: _,
             })) => {
+                tracing::error!(?errors);
                 let graph = self.store.get_project_graph(&project).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
                 let err = StdResult::<ResourceTree<CoreContainer>, LoadProjectGraph>::Err(

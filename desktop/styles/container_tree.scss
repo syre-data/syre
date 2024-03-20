@@ -201,7 +201,7 @@ $control-button-size: 25px;
             text-decoration: line-through;
           }
 
-          .analyiss-name {
+          .analysis-name {
             @include mixins.hide-text-overflow;
             flex-grow: 1;
           }

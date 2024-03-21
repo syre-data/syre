@@ -37,13 +37,33 @@ impl Database {
     fn handle_app_event(&mut self, event: &app::Event) -> Result {
         tracing::debug!(?event);
         match event.kind() {
-            app::EventKind::Project(event) => self.handle_app_event_project(event)?,
-            app::EventKind::Graph(event) => self.handle_app_event_graph(event)?,
-            app::EventKind::Container(event) => self.handle_app_event_container(event)?,
-            app::EventKind::Asset(event) => self.handle_app_event_asset(event)?,
-            app::EventKind::Script(event) => self.handle_app_event_script(event)?,
-            app::EventKind::Folder(event) => self.handle_app_event_folder(event)?,
-            app::EventKind::File(event) => self.handle_app_event_file(event)?,
+            app::EventKind::Project(event_kind) => {
+                self.handle_app_event_project(event_kind, event.event_id())?
+            }
+
+            app::EventKind::Graph(event_kind) => {
+                self.handle_app_event_graph(event_kind, event.event_id())?
+            }
+
+            app::EventKind::Container(event_kind) => {
+                self.handle_app_event_container(event_kind, event.event_id())?
+            }
+
+            app::EventKind::Asset(event_kind) => {
+                self.handle_app_event_asset(event_kind, event.event_id())?
+            }
+
+            app::EventKind::Script(event_kind) => {
+                self.handle_app_event_script(event_kind, event.event_id())?
+            }
+
+            app::EventKind::Folder(event_kind) => {
+                self.handle_app_event_folder(event_kind, event.event_id())?
+            }
+
+            app::EventKind::File(event_kind) => {
+                self.handle_app_event_file(event_kind, event.event_id())?
+            }
         }
 
         Ok(())
@@ -61,7 +81,7 @@ impl Database {
                 self.handle_file_created(&path)
                     .unwrap()
                     .into_iter()
-                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                     .collect()
             }
 
@@ -70,7 +90,7 @@ impl Database {
                 self.ensure_project_resources_loaded(&path).unwrap();
                 self.handle_file_removed(&path)
                     .into_iter()
-                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                     .collect()
             }
 
@@ -80,7 +100,7 @@ impl Database {
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_moved(&from, to)
                     .into_iter()
-                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                     .collect()
             }
 
@@ -90,7 +110,7 @@ impl Database {
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_renamed(&from, to)
                     .into_iter()
-                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                     .collect()
             }
 
@@ -104,7 +124,7 @@ impl Database {
                 self.handle_folder_created(&path)
                     .unwrap()
                     .into_iter()
-                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                     .collect()
             }
 
@@ -114,13 +134,13 @@ impl Database {
                     Ok(_) => self
                         .handle_folder_removed(&path)
                         .into_iter()
-                        .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                        .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                         .collect(),
 
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
                         self.handle_removed_path_not_in_project(path)
                             .into_iter()
-                            .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                            .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                             .collect()
                     }
 
@@ -133,13 +153,13 @@ impl Database {
             file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => self
                 .handle_file_system_folder_moved_event(from, to)
                 .into_iter()
-                .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                 .collect(),
 
             file_system::EventKind::Folder(file_system::Folder::Renamed { from, to }) => self
                 .handle_file_system_folder_renamed_event(from, to)
                 .into_iter()
-                .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                 .collect(),
 
             file_system::EventKind::Folder(file_system::Folder::Modified(_path)) => {
@@ -152,13 +172,13 @@ impl Database {
                     Ok(_) => self
                         .handle_any_removed(&path)
                         .into_iter()
-                        .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                        .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                         .collect(),
 
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
                         self.handle_removed_path_not_in_project(path)
                             .into_iter()
-                            .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                            .map(|kind| app::Event::with_id(event.event_id().clone(), kind))
                             .collect()
                     }
                     Err(err) => todo!("{err:?}"),

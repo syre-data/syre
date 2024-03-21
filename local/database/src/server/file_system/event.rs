@@ -7,7 +7,7 @@ pub mod file_system {
 
     #[derive(Debug)]
     pub struct Event {
-        pub event_id: Uuid,
+        event_id: Uuid,
         pub kind: EventKind,
         pub time: Instant,
     }

@@ -18,7 +18,7 @@ impl Database {
                     panic!("resource not found");
                 };
 
-                self.publish_update(&Update::project(
+                self.publish_update(&Update::new_project(
                     project,
                     AnalysisUpdate::Flag { resource, message }.into(),
                 ))

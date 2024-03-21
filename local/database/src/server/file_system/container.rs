@@ -5,9 +5,14 @@ use crate::server::Database;
 use crate::Result;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_container(&mut self, event: &ContainerEvent) -> Result {
+    pub fn handle_app_event_container(
+        &mut self,
+        event: &ContainerEvent,
+        event_id: &Uuid,
+    ) -> Result {
         match event {
             ContainerEvent::Renamed { container, name } => {
                 self.update_container_name(&container, name.clone())?;
@@ -31,6 +36,7 @@ impl Database {
                         properties,
                     }
                     .into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())

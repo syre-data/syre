@@ -9,9 +9,10 @@ use std::path::{Component, PathBuf};
 use syre_local::graph::ContainerTreeTransformer;
 use syre_local::loader::tree::Loader as ContainerTreeLoader;
 use syre_local::project::{asset, container, project};
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_folder(&mut self, event: &FolderEvent) -> Result {
+    pub fn handle_app_event_folder(&mut self, event: &FolderEvent, event_id: &Uuid) -> Result {
         match event {
             FolderEvent::Created(path) => {
                 // ignore analysis folder
@@ -81,6 +82,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())

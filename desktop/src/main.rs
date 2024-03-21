@@ -1,4 +1,3 @@
-#![feature(mutex_unlock)]
 //! User interface for Syre Desktop.
 mod actions;
 mod app;

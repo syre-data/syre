@@ -5,9 +5,10 @@ use crate::server::types::ProjectResources;
 use crate::server::Database;
 use crate::{Error, Result};
 use syre_local::system::collections::project_manifest::ProjectManifest;
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_project(&mut self, event: &ProjectEvent) -> Result {
+    pub fn handle_app_event_project(&mut self, event: &ProjectEvent, event_id: &Uuid) -> Result {
         match event {
             ProjectEvent::Moved { project, path } => {
                 match self.store.update_project_path(&project, path.clone()) {
@@ -31,6 +32,7 @@ impl Database {
                         self.publish_update(&Update::project(
                             project.clone(),
                             ProjectUpdate::Moved(path.clone()),
+                            event_id.clone(),
                         ))?;
 
                         return Ok(());
@@ -63,6 +65,7 @@ impl Database {
                     self.publish_update(&Update::project(
                         project.rid.clone(),
                         ProjectUpdate::Removed(Some(project.into())),
+                        event_id.clone(),
                     ))?;
                 }
 

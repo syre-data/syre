@@ -26,7 +26,15 @@ pub enum Update {
 }
 
 impl Update {
-    pub fn project(project: ResourceId, update: Project) -> Self {
+    pub fn project(project: ResourceId, update: Project, event_id: Uuid) -> Self {
+        Self::Project {
+            event_id,
+            project,
+            update,
+        }
+    }
+
+    pub fn new_project(project: ResourceId, update: Project) -> Self {
         Self::Project {
             event_id: Uuid::new_v4(),
             project,

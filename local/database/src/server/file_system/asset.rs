@@ -5,9 +5,10 @@ use crate::server::Database;
 use crate::Result;
 use std::fs;
 use syre_local::project::asset as local_asset;
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_asset(&mut self, event: &AssetEvent) -> Result {
+    pub fn handle_app_event_asset(&mut self, event: &AssetEvent, event_id: &Uuid) -> Result {
         match event {
             AssetEvent::Moved { asset, path } => {
                 let asset_container = self.store.get_asset_container_id(&asset).unwrap().clone();
@@ -23,6 +24,7 @@ impl Database {
                     self.publish_update(&Update::project(
                         asset_project,
                         AssetUpdate::Removed(asset.clone()).into(),
+                        event_id.clone(),
                     ))?;
 
                     return Ok(());
@@ -57,6 +59,7 @@ impl Database {
                             path: asset_path,
                         }
                         .into(),
+                        event_id.clone(),
                     ))?;
 
                     return Ok(());
@@ -77,11 +80,13 @@ impl Database {
                             path: asset_path,
                         }
                         .into(),
+                        event_id.clone(),
                     ))?;
                 } else {
                     self.publish_update(&Update::project(
                         asset_project,
                         AssetUpdate::Removed(asset.clone()).into(),
+                        event_id.clone(),
                     ))?;
 
                     let asset = self
@@ -100,6 +105,7 @@ impl Database {
                             asset,
                         }
                         .into(),
+                        event_id.clone(),
                     ))?;
                 }
 
@@ -113,6 +119,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     AssetUpdate::Removed(asset.clone()).into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -135,6 +142,7 @@ impl Database {
                         path,
                     }
                     .into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -156,6 +164,7 @@ impl Database {
                         asset: asset.clone(),
                     }
                     .into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())

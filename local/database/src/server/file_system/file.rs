@@ -9,9 +9,10 @@ use syre_local::graph::ContainerTreeTransformer;
 use syre_local::loader::tree::Loader as ContainerTreeLoader;
 use syre_local::project::container;
 use syre_local::project::resources::Asset;
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_file(&mut self, event: &FileEvent) -> Result {
+    pub fn handle_app_event_file(&mut self, event: &FileEvent, event_id: &Uuid) -> Result {
         match event {
             FileEvent::Created(path) => {
                 let container_path =
@@ -53,13 +54,13 @@ impl Database {
                 }
 
                 if as_asset {
-                    self.handle_file_as_asset(asset_path, path_container.rid.clone())?;
+                    self.handle_file_as_asset(asset_path, path_container.rid.clone(), event_id)?;
                 } else {
                     let root_path = path_container
                         .base_path()
                         .join(asset_path.components().next().unwrap());
 
-                    self.init_subgraph_file(root_path)?;
+                    self.init_subgraph_file(root_path, event_id)?;
                 }
 
                 Ok(())
@@ -68,7 +69,12 @@ impl Database {
     }
 
     #[tracing::instrument(skip(self))]
-    fn handle_file_as_asset(&mut self, asset_path: PathBuf, container: ResourceId) -> Result {
+    fn handle_file_as_asset(
+        &mut self,
+        asset_path: PathBuf,
+        container: ResourceId,
+        event_id: &Uuid,
+    ) -> Result {
         let asset = Asset::new(asset_path)?;
         let aid = asset.rid.clone();
         self.store.add_asset(asset, container.clone())?;
@@ -89,13 +95,14 @@ impl Database {
                 asset,
             }
             .into(),
+            event_id.clone(),
         ))?;
 
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    fn init_subgraph_file(&mut self, path: PathBuf) -> Result {
+    fn init_subgraph_file(&mut self, path: PathBuf, event_id: &Uuid) -> Result {
         let parent = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
@@ -120,6 +127,7 @@ impl Database {
         self.publish_update(&Update::project(
             project,
             GraphUpdate::Created { parent, graph }.into(),
+            event_id.clone(),
         ))?;
 
         Ok(())

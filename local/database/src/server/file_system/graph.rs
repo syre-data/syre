@@ -6,9 +6,10 @@ use crate::Result;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_graph(&mut self, event: &GraphEvent) -> Result {
+    pub fn handle_app_event_graph(&mut self, event: &GraphEvent, event_id: &Uuid) -> Result {
         match event {
             GraphEvent::Moved { root, path } => {
                 let project = self.store.get_container_project(&root).unwrap().clone();
@@ -37,6 +38,7 @@ impl Database {
                         name,
                     }
                     .into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -78,6 +80,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -115,6 +118,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -127,6 +131,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     GraphUpdate::Removed(graph).into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())

@@ -8,9 +8,10 @@ use syre_local::error::{Error as LocalError, Project as ProjectError};
 use syre_local::project::project;
 use syre_local::project::resources::Script as LocalScript;
 use syre_local::types::AnalysisKind;
+use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_script(&mut self, event: &ScriptEvent) -> Result {
+    pub fn handle_app_event_script(&mut self, event: &ScriptEvent, event_id: &Uuid) -> Result {
         match event {
             ScriptEvent::Created(path) => {
                 let Some(project_path) = project::project_root_path(&path) else {
@@ -36,7 +37,11 @@ impl Database {
                 let script = LocalScript::new(script_path)?;
                 self.store.insert_script(pid.clone(), script.clone())?;
 
-                self.publish_update(&Update::project(pid, ScriptUpdate::Created(script).into()))?;
+                self.publish_update(&Update::project(
+                    pid,
+                    ScriptUpdate::Created(script).into(),
+                    event_id.clone(),
+                ))?;
 
                 Ok(())
             }
@@ -48,6 +53,7 @@ impl Database {
                 self.publish_update(&Update::project(
                     project,
                     ScriptUpdate::Removed(script.clone()).into(),
+                    event_id.clone(),
                 ))?;
 
                 Ok(())
@@ -86,6 +92,7 @@ impl Database {
                             path: script_path,
                         }
                         .into(),
+                        event_id.clone(),
                     ))?;
                 } else {
                     let analysis = match self
@@ -100,6 +107,7 @@ impl Database {
                     self.publish_update(&Update::project(
                         from_project,
                         ScriptUpdate::Removed(analysis.rid.clone()).into(),
+                        event_id.clone(),
                     ))?;
 
                     self.store
@@ -109,6 +117,7 @@ impl Database {
                     self.publish_update(&Update::project(
                         to_project.clone(),
                         ScriptUpdate::Created(analysis).into(),
+                        event_id.clone(),
                     ))?;
                 }
 

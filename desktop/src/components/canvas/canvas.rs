@@ -189,7 +189,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                     }
 
                     let Update::Project {
-                        event_id,
+                        event_id: _,
                         project,
                         update,
                     } = event.payload;

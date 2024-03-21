@@ -1,5 +1,5 @@
 //! Spreadsheet types.
-use calamine::{CellErrorType, DataType, Reader};
+use calamine::{CellErrorType, Data, Reader};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 use std::ops::Deref;
@@ -8,7 +8,7 @@ use std::ops::Deref;
 pub struct Spreadsheet(Vec<Vec<String>>);
 impl Spreadsheet {
     pub fn from_ranges(
-        values_range: calamine::Range<DataType>,
+        values_range: calamine::Range<Data>,
         formulas_range: calamine::Range<String>,
     ) -> Self {
         let values_end = values_range.end().unwrap_or((0, 0));
@@ -20,7 +20,7 @@ impl Spreadsheet {
         for row in 0..n_rows {
             for col in 0..n_cols {
                 if let Some(value) = values_range.get_value((row as u32, col as u32)) {
-                    if value != &DataType::Empty {
+                    if value != &Data::Empty {
                         template[row][col] = data_type_to_string(value);
                         continue;
                     }
@@ -136,15 +136,14 @@ impl Deref for Workbook {
     }
 }
 
-pub fn data_type_to_string(value: &DataType) -> String {
+pub fn data_type_to_string(value: &Data) -> String {
     match value {
-        DataType::Bool(val) => val.to_string(),
-        DataType::DateTime(val) => val.to_string(),
-        DataType::DateTimeIso(val) => val.clone(),
-        DataType::Duration(val) => val.to_string(),
-        DataType::DurationIso(val) => val.clone(),
-        DataType::Empty => "".to_string(),
-        DataType::Error(err) => match err {
+        Data::Bool(val) => val.to_string(),
+        Data::DateTime(val) => val.to_string(),
+        Data::DateTimeIso(val) => val.clone(),
+        Data::DurationIso(val) => val.clone(),
+        Data::Empty => "".to_string(),
+        Data::Error(err) => match err {
             CellErrorType::Div0 => "#DIV0!",
             CellErrorType::NA => "NA",
             CellErrorType::Name => "#NAME!",
@@ -155,8 +154,8 @@ pub fn data_type_to_string(value: &DataType) -> String {
             CellErrorType::GettingData => "",
         }
         .to_string(),
-        DataType::Float(val) => val.to_string(),
-        DataType::Int(val) => val.to_string(),
-        DataType::String(val) => val.clone(),
+        Data::Float(val) => val.to_string(),
+        Data::Int(val) => val.to_string(),
+        Data::String(val) => val.clone(),
     }
 }

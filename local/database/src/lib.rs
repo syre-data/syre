@@ -1,4 +1,3 @@
-#![feature(mutex_unlock)]
 //! # Syre Local Database
 //! Implements a local database for Syre.
 pub mod command;

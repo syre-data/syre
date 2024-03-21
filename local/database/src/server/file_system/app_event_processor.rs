@@ -26,7 +26,7 @@ impl Database {
         let app_events = self.process_file_system_event_to_app_events(event);
         for app_event in app_events {
             if let Err(err) = self.handle_app_event(&app_event) {
-                tracing::debug!(?app_event, ?err);
+                tracing::error!(?app_event, ?err);
                 return Err(err);
             }
         }
@@ -36,14 +36,14 @@ impl Database {
 
     fn handle_app_event(&mut self, event: &app::Event) -> Result {
         tracing::debug!(?event);
-        match event {
-            app::Event::Project(event) => self.handle_app_event_project(event)?,
-            app::Event::Graph(event) => self.handle_app_event_graph(event)?,
-            app::Event::Container(event) => self.handle_app_event_container(event)?,
-            app::Event::Asset(event) => self.handle_app_event_asset(event)?,
-            app::Event::Script(event) => self.handle_app_event_script(event)?,
-            app::Event::Folder(event) => self.handle_app_event_folder(event)?,
-            app::Event::File(event) => self.handle_app_event_file(event)?,
+        match event.kind() {
+            app::EventKind::Project(event) => self.handle_app_event_project(event)?,
+            app::EventKind::Graph(event) => self.handle_app_event_graph(event)?,
+            app::EventKind::Container(event) => self.handle_app_event_container(event)?,
+            app::EventKind::Asset(event) => self.handle_app_event_asset(event)?,
+            app::EventKind::Script(event) => self.handle_app_event_script(event)?,
+            app::EventKind::Folder(event) => self.handle_app_event_folder(event)?,
+            app::EventKind::File(event) => self.handle_app_event_file(event)?,
         }
 
         Ok(())
@@ -58,13 +58,20 @@ impl Database {
             file_system::EventKind::File(file_system::File::Created(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
-                self.handle_file_created(&path).unwrap()
+                self.handle_file_created(&path)
+                    .unwrap()
+                    .into_iter()
+                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Removed(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
                 self.handle_file_removed(&path)
+                    .into_iter()
+                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Moved { from, to }) => {
@@ -72,6 +79,9 @@ impl Database {
                 self.ensure_project_resources_loaded(&from).unwrap();
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_moved(&from, to)
+                    .into_iter()
+                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Renamed { from, to }) => {
@@ -79,6 +89,9 @@ impl Database {
                 self.ensure_project_resources_loaded(&from).unwrap();
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_renamed(&from, to)
+                    .into_iter()
+                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Modified(_path)) => {
@@ -88,15 +101,27 @@ impl Database {
             file_system::EventKind::Folder(file_system::Folder::Created(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
-                self.handle_folder_created(&path).unwrap()
+                self.handle_folder_created(&path)
+                    .unwrap()
+                    .into_iter()
+                    .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                    .collect()
             }
 
             file_system::EventKind::Folder(file_system::Folder::Removed(path)) => {
                 let path = normalize_path_root(path);
                 match self.ensure_project_resources_loaded(&path) {
-                    Ok(_) => self.handle_folder_removed(&path),
+                    Ok(_) => self
+                        .handle_folder_removed(&path)
+                        .into_iter()
+                        .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                        .collect(),
+
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
                         self.handle_removed_path_not_in_project(path)
+                            .into_iter()
+                            .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                            .collect()
                     }
 
                     Err(err) => {
@@ -105,13 +130,17 @@ impl Database {
                 }
             }
 
-            file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => {
-                self.handle_file_system_folder_moved_event(from, to)
-            }
+            file_system::EventKind::Folder(file_system::Folder::Moved { from, to }) => self
+                .handle_file_system_folder_moved_event(from, to)
+                .into_iter()
+                .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                .collect(),
 
-            file_system::EventKind::Folder(file_system::Folder::Renamed { from, to }) => {
-                self.handle_file_system_folder_renamed_event(from, to)
-            }
+            file_system::EventKind::Folder(file_system::Folder::Renamed { from, to }) => self
+                .handle_file_system_folder_renamed_event(from, to)
+                .into_iter()
+                .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                .collect(),
 
             file_system::EventKind::Folder(file_system::Folder::Modified(_path)) => {
                 vec![]
@@ -120,9 +149,17 @@ impl Database {
             file_system::EventKind::Any(file_system::Any::Removed(path)) => {
                 let path = normalize_path_root(path);
                 match self.ensure_project_resources_loaded(&path) {
-                    Ok(_) => self.handle_any_removed(&path),
+                    Ok(_) => self
+                        .handle_any_removed(&path)
+                        .into_iter()
+                        .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                        .collect(),
+
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
                         self.handle_removed_path_not_in_project(path)
+                            .into_iter()
+                            .map(|kind| app::Event::with_id(event.event_id.clone(), kind))
+                            .collect()
                     }
                     Err(err) => todo!("{err:?}"),
                 }
@@ -130,7 +167,7 @@ impl Database {
         }
     }
 
-    fn handle_file_created(&self, path: &PathBuf) -> Result<Vec<app::Event>> {
+    fn handle_file_created(&self, path: &PathBuf) -> Result<Vec<app::EventKind>> {
         // ignore app folder
         if path
             .components()
@@ -171,7 +208,7 @@ impl Database {
         return Ok(vec![app::File::Created(path.into()).into()]);
     }
 
-    fn handle_file_removed(&self, path: &PathBuf) -> Vec<app::Event> {
+    fn handle_file_removed(&self, path: &PathBuf) -> Vec<app::EventKind> {
         let project = self.project_by_resource_path(path).unwrap();
 
         // script
@@ -194,7 +231,7 @@ impl Database {
 
     /// Handles a moved file
     /// A moved file has the same file name, but its base directory has changed.
-    fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Event> {
+    fn handle_file_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::EventKind> {
         #[derive(Debug)]
         enum Location {
             Data,
@@ -332,7 +369,7 @@ impl Database {
         }
     }
 
-    fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Event> {
+    fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::EventKind> {
         if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
             return vec![app::Asset::Moved {
                 asset,
@@ -378,7 +415,7 @@ impl Database {
         vec![]
     }
 
-    fn handle_folder_created(&self, path: &PathBuf) -> Result<Vec<app::Event>> {
+    fn handle_folder_created(&self, path: &PathBuf) -> Result<Vec<app::EventKind>> {
         // ignore app folder
         if path
             .components()
@@ -439,7 +476,7 @@ impl Database {
         }
     }
 
-    fn handle_folder_removed(&self, path: &PathBuf) -> Vec<app::Event> {
+    fn handle_folder_removed(&self, path: &PathBuf) -> Vec<app::EventKind> {
         let Some(container) = self.store.get_path_container(path).cloned() else {
             return vec![];
         };
@@ -480,7 +517,7 @@ impl Database {
         }]
     }
 
-    fn handle_any_removed(&self, path: &PathBuf) -> Vec<app::Event> {
+    fn handle_any_removed(&self, path: &PathBuf) -> Vec<app::EventKind> {
         if let Some(container) = self.store.get_path_container(&path).cloned() {
             return vec![app::Graph::Removed(container).into()];
         }
@@ -500,7 +537,7 @@ impl Database {
         vec![]
     }
 
-    fn handle_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::Event> {
+    fn handle_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::EventKind> {
         let path = path.as_ref();
         if let Some(project) = self.store.get_path_project(path) {
             return vec![app::Project::Removed(project.clone()).into()];
@@ -666,7 +703,7 @@ mod macos {
             &mut self,
             from: &PathBuf,
             to: &PathBuf,
-        ) -> Vec<app::Event> {
+        ) -> Vec<app::EventKind> {
             let from = normalize_path_root(from);
             let from_loaded = self.ensure_project_resources_loaded(&from);
             let to_loaded = self.ensure_project_resources_loaded(to);
@@ -697,7 +734,7 @@ mod macos {
             &mut self,
             from: &PathBuf,
             to: &PathBuf,
-        ) -> Vec<app::Event> {
+        ) -> Vec<app::EventKind> {
             let from = normalize_path_root(from);
             self.ensure_project_resources_loaded(&from).unwrap();
             self.ensure_project_resources_loaded(to).unwrap();

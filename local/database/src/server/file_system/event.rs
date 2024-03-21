@@ -117,6 +117,7 @@ pub mod app {
     use syre_core::graph::ResourceTree;
     use syre_core::types::ResourceId;
     use syre_local::project::resources::Container as LocalContainer;
+    use uuid::Uuid;
 
     #[derive(Debug)]
     pub struct Event {
@@ -124,14 +125,19 @@ pub mod app {
         kind: EventKind,
     }
 
-    // impl From<EventKind> for Event {
-    //     fn from(value: EventKind) -> Self {
-    //         Self {
-    //             event_id: Uuid::new_v4(),
-    //             kind: value,
-    //         }
-    //     }
-    // }
+    impl Event {
+        pub fn with_id(event_id: Uuid, kind: EventKind) -> Self {
+            Self { event_id, kind }
+        }
+
+        pub fn event_id(&self) -> &Uuid {
+            &self.event_id
+        }
+
+        pub fn kind(&self) -> &EventKind {
+            &self.kind
+        }
+    }
 
     #[derive(Debug)]
     pub enum EventKind {

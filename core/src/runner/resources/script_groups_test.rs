@@ -1,9 +1,7 @@
 use super::*;
-use crate::project::AnalysisAssociation;
 use crate::types::ResourceId;
 use dev_utils::fs::TempDir;
 use rand::Rng;
-use std::collections::HashSet;
 
 #[test]
 fn from_hashset_should_work() {

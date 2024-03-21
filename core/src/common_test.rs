@@ -1,5 +1,4 @@
 use super::*;
-use std::path::PathBuf;
 
 #[test]
 fn root_drive_with_metalevel_should_work() {

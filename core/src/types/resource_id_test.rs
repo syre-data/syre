@@ -1,5 +1,4 @@
 use super::*;
-use uuid::Uuid;
 
 #[test]
 fn resource_id_new_should_work() {

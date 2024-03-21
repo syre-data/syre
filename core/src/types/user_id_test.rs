@@ -2,7 +2,6 @@ use super::*;
 use fake::faker::internet::raw::FreeEmail;
 use fake::locales::EN;
 use fake::Fake;
-use std::str::FromStr;
 
 // **************
 // *** UserId ***

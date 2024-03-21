@@ -1,7 +1,7 @@
 //! Common error types.
 use crate::loader::error::container::Error as LoadContainer;
 pub use io_error_kind::IoErrorKind;
-use serde::{self, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::PathBuf;
 use std::result::Result as StdResult;

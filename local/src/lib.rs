@@ -1,5 +1,4 @@
 #![feature(io_error_more)]
-#![feature(mutex_unlock)]
 #![feature(path_file_prefix)]
 //! # Syre Local
 //! This package contains local functionality and types of the Syre software suite.

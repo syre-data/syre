@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::PathBuf;
-use syre_local;
 use syre_local::loader::tree::Loader as TreeLoader;
 use syre_local::project::container;
 

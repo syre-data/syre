@@ -1,5 +1,5 @@
 use crate::types::ResourceId;
-use std::cmp::{Eq, Ordering, PartialEq, PartialOrd};
+use std::cmp::{Eq, Ordering, PartialEq};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

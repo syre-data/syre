@@ -2,16 +2,12 @@
 //! There are concurrency errors that cause tests to fail.
 //! To ensure a test is failing run it singularly.
 use super::*;
-use crate::system::collections::user_manifest::UserManifest;
-use crate::Error;
 use dev_utils::{create_lock, lock::get_lock};
 use fake::faker::internet::raw::FreeEmail;
 use fake::faker::name::raw::Name;
 use fake::locales::EN;
 use fake::Fake;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::system::User;
-// use settings_manager_change_path::settings_path;
 
 // *************
 // *** tests ***

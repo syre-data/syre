@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::system::User;
 use syre_core::types::ResourceId;
-use validator;
 
 // *************
 // *** Users ***

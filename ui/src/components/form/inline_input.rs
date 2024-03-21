@@ -2,7 +2,6 @@
 use std::fmt::Display;
 use yew::html::IntoPropValue;
 use yew::prelude::*;
-use yew::virtual_dom::AttrValue;
 
 #[derive(Properties, PartialEq)]
 pub struct InlineInputProps<'a, T>

@@ -1,6 +1,4 @@
 use super::*;
-use crate::runner::env::CONTAINER_ID_KEY;
-use std::env;
 
 #[test]
 fn dev_mode_should_work() {

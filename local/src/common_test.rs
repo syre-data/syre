@@ -3,8 +3,6 @@ use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::{FileName, FilePath};
 use fake::locales::EN;
 use fake::Fake;
-use std::fs;
-use std::path::PathBuf;
 
 #[test]
 fn unique_file_name_should_work() {

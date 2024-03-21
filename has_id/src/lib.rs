@@ -15,9 +15,6 @@ pub use has_id_mut::HasIdMut;
 pub use has_id_serde::HasIdSerde;
 
 #[cfg(feature = "derive")]
-use has_id_derive;
-
-#[cfg(feature = "derive")]
 pub use has_id_derive::HasId;
 
 #[cfg(all(feature = "derive", feature = "serde"))]

@@ -1,13 +1,12 @@
 //! Common error types.
 use crate::types::ResourceId;
 use std::collections::HashMap;
-use std::convert::From;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{self, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serde")]
 pub use serde_category::SerdeCategory;

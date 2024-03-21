@@ -1,12 +1,9 @@
 use super::*;
 use crate::common::{app_dir_of, project_file_of, project_settings_file_of};
-use crate::system::collections::ProjectManifest;
 use dev_utils::fs::TempDir;
 use fake::faker::filesystem::raw::DirPath;
 use fake::locales::EN;
 use fake::Fake;
-use serde_json;
-use std::fs;
 use syre_core::project::Project as CoreProject;
 
 // ******************

@@ -1,5 +1,4 @@
 use super::*;
-use crate::types::ResourceId;
 use has_id::HasId;
 use rand::Rng;
 

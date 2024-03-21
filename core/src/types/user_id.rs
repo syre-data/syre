@@ -1,5 +1,4 @@
 use super::resource_id::ResourceId;
-use std::cmp::PartialEq;
 use std::error;
 use std::fmt;
 use std::str::FromStr;

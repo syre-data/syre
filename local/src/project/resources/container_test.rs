@@ -1,7 +1,6 @@
 use super::*;
 use dev_utils::fs::TempDir;
-use syre_core::project::{AnalysisAssociation, RunParameters};
-use syre_core::types::ResourceId;
+use syre_core::project::RunParameters;
 
 // *****************
 // *** Container ***

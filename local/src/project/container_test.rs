@@ -4,7 +4,6 @@ use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Words;
 use fake::locales::EN;
 use fake::Fake;
-use std::fs;
 
 #[test]
 fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {

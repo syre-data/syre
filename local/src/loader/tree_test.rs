@@ -1,5 +1,4 @@
 use super::*;
-use crate::project::container;
 use dev_utils::fs::TempDir;
 
 #[test]

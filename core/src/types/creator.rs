@@ -1,6 +1,5 @@
 use super::resource_id::ResourceId;
 use super::user_id::UserId;
-use std::cmp::PartialEq;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

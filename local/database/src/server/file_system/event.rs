@@ -3,9 +3,11 @@
 pub mod file_system {
     use std::path::PathBuf;
     use std::time::Instant;
+    use uuid::Uuid;
 
     #[derive(Debug)]
     pub struct Event {
+        pub event_id: Uuid,
         pub kind: EventKind,
         pub time: Instant,
     }
@@ -13,9 +15,14 @@ pub mod file_system {
     impl Event {
         pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
             Self {
+                event_id: Uuid::new_v4(),
                 kind: kind.into(),
                 time,
             }
+        }
+
+        pub fn event_id(&self) -> &Uuid {
+            &self.event_id
         }
 
         pub fn kind(&self) -> &EventKind {
@@ -112,7 +119,22 @@ pub mod app {
     use syre_local::project::resources::Container as LocalContainer;
 
     #[derive(Debug)]
-    pub enum Event {
+    pub struct Event {
+        event_id: Uuid,
+        kind: EventKind,
+    }
+
+    // impl From<EventKind> for Event {
+    //     fn from(value: EventKind) -> Self {
+    //         Self {
+    //             event_id: Uuid::new_v4(),
+    //             kind: value,
+    //         }
+    //     }
+    // }
+
+    #[derive(Debug)]
+    pub enum EventKind {
         Project(Project),
         Graph(Graph),
         Container(Container),
@@ -122,43 +144,43 @@ pub mod app {
         Folder(Folder),
     }
 
-    impl From<Project> for Event {
+    impl From<Project> for EventKind {
         fn from(event: Project) -> Self {
             Self::Project(event)
         }
     }
 
-    impl From<Graph> for Event {
+    impl From<Graph> for EventKind {
         fn from(event: Graph) -> Self {
             Self::Graph(event)
         }
     }
 
-    impl From<Container> for Event {
+    impl From<Container> for EventKind {
         fn from(event: Container) -> Self {
             Self::Container(event)
         }
     }
 
-    impl From<Asset> for Event {
+    impl From<Asset> for EventKind {
         fn from(event: Asset) -> Self {
             Self::Asset(event)
         }
     }
 
-    impl From<Script> for Event {
+    impl From<Script> for EventKind {
         fn from(event: Script) -> Self {
             Self::Script(event)
         }
     }
 
-    impl From<File> for Event {
+    impl From<File> for EventKind {
         fn from(event: File) -> Self {
             Self::File(event)
         }
     }
 
-    impl From<Folder> for Event {
+    impl From<Folder> for EventKind {
         fn from(event: Folder) -> Self {
             Self::Folder(event)
         }

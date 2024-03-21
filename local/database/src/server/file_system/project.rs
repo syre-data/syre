@@ -37,7 +37,7 @@ impl Database {
                     }
 
                     Err(err) => {
-                        tracing::debug!(?err);
+                        tracing::error!(?err);
                         panic!("{err:?}");
                     }
                 }

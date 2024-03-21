@@ -314,7 +314,7 @@ where
 
         let (nodes, edges) = self.remove_components(root)?;
         let p_edges = self.edges.get_mut(&parent).unwrap();
-        p_edges.remove(root);
+        p_edges.shift_remove(root);
 
         let mut parents = ResourceMap::new();
         for (parent, children) in edges.clone() {
@@ -346,7 +346,7 @@ where
             return Err(ResourceError::does_not_exist("`Node` edges do not exist").into());
         };
 
-        op_edges.remove(root);
+        op_edges.shift_remove(root);
 
         // add to new parent
         let Some(np_edges) = self.edges.get_mut(parent) else {

@@ -24,6 +24,21 @@ impl FileSystemEventProcessor {
         converted
     }
 
+    /// Filters out uninteresting events.
+    fn filter_events(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+        events
+            .into_iter()
+            .filter(|event| match event.kind {
+                EventKind::Create(_)
+                | EventKind::Remove(_)
+                | EventKind::Modify(ModifyKind::Name(_))
+                | EventKind::Modify(ModifyKind::Any) => true,
+
+                _ => false,
+            })
+            .collect()
+    }
+
     fn filter_hidden(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
         events
             .into_iter()
@@ -38,21 +53,6 @@ impl FileSystemEventProcessor {
                 }
 
                 _ => true,
-            })
-            .collect()
-    }
-
-    /// Filters out uninteresting events.
-    fn filter_events(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
-        events
-            .into_iter()
-            .filter(|event| match event.kind {
-                EventKind::Create(_)
-                | EventKind::Remove(_)
-                | EventKind::Modify(ModifyKind::Name(_))
-                | EventKind::Modify(ModifyKind::Any) => true,
-
-                _ => false,
             })
             .collect()
     }

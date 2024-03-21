@@ -105,9 +105,9 @@ impl Database {
         let mut topic = constants::PUB_SUB_TOPIC.to_string();
         match update {
             Update::Project {
-                event_id: _event_id,
+                event_id: _,
                 project,
-                update: _update,
+                update: _,
             } => {
                 topic.push_str(&format!("/project/{project}"));
             }
@@ -188,8 +188,8 @@ mod macos {
             let mut events = FileSystemEventProcessor::process(events);
             events.sort_by(|a, b| a.time.cmp(&b.time));
             for event in events {
-                if let Err(_err) = self.process_file_system_event(&event) {
-                    tracing::debug!(?event);
+                if let Err(err) = self.process_file_system_event(&event) {
+                    tracing::error!(?event, ?err);
                 };
             }
 

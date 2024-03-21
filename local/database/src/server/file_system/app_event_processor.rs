@@ -58,20 +58,13 @@ impl Database {
             file_system::EventKind::File(file_system::File::Created(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
-                self.handle_file_created(&path)
-                    .unwrap()
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
+                self.handle_file_created(&path).unwrap()
             }
 
             file_system::EventKind::File(file_system::File::Removed(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
                 self.handle_file_removed(&path)
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Moved { from, to }) => {
@@ -79,9 +72,6 @@ impl Database {
                 self.ensure_project_resources_loaded(&from).unwrap();
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_moved(&from, to)
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Renamed { from, to }) => {
@@ -89,9 +79,6 @@ impl Database {
                 self.ensure_project_resources_loaded(&from).unwrap();
                 self.ensure_project_resources_loaded(&to).unwrap();
                 self.handle_file_renamed(&from, to)
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
             }
 
             file_system::EventKind::File(file_system::File::Modified(_path)) => {
@@ -101,22 +88,13 @@ impl Database {
             file_system::EventKind::Folder(file_system::Folder::Created(path)) => {
                 let path = normalize_path_root(path);
                 self.ensure_project_resources_loaded(&path).unwrap();
-                self.handle_folder_created(&path)
-                    .unwrap()
-                    .into_iter()
-                    .map(|event| event.into())
-                    .collect()
+                self.handle_folder_created(&path).unwrap()
             }
 
             file_system::EventKind::Folder(file_system::Folder::Removed(path)) => {
                 let path = normalize_path_root(path);
                 match self.ensure_project_resources_loaded(&path) {
-                    Ok(_) => self
-                        .handle_folder_removed(&path)
-                        .into_iter()
-                        .map(|event| event.into())
-                        .collect(),
-
+                    Ok(_) => self.handle_folder_removed(&path),
                     Err(Error::Local(LocalError::Project(ProjectError::PathNotInProject(_)))) => {
                         self.handle_removed_path_not_in_project(path)
                     }

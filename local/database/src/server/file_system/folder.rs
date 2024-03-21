@@ -78,10 +78,10 @@ impl Database {
                 let graph = self.store.get_graph_of_container(&container).unwrap();
                 let mut graph = ContainerTreeTransformer::local_to_core(graph);
                 let graph = graph.remove(&container).unwrap(); // get container's subgraph
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: GraphUpdate::Created { parent, graph }.into(),
-                })?;
+                    GraphUpdate::Created { parent, graph }.into(),
+                ))?;
 
                 Ok(())
             }

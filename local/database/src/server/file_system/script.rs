@@ -36,10 +36,7 @@ impl Database {
                 let script = LocalScript::new(script_path)?;
                 self.store.insert_script(pid.clone(), script.clone())?;
 
-                self.publish_update(&Update::Project {
-                    project: pid,
-                    update: ScriptUpdate::Created(script).into(),
-                })?;
+                self.publish_update(&Update::project(pid, ScriptUpdate::Created(script).into()))?;
 
                 Ok(())
             }
@@ -48,10 +45,10 @@ impl Database {
                 let project = self.store.get_script_project(&script).unwrap().clone();
                 self.store.remove_project_script(&project, &script)?;
 
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: ScriptUpdate::Removed(script.clone()).into(),
-                })?;
+                    ScriptUpdate::Removed(script.clone()).into(),
+                ))?;
 
                 Ok(())
             }
@@ -82,14 +79,14 @@ impl Database {
                     script.path = script_path.clone();
                     analyses.save()?;
 
-                    self.publish_update(&Update::Project {
-                        project: from_project,
-                        update: ScriptUpdate::Moved {
+                    self.publish_update(&Update::project(
+                        from_project,
+                        ScriptUpdate::Moved {
                             script: sid,
                             path: script_path,
                         }
                         .into(),
-                    })?;
+                    ))?;
                 } else {
                     let analysis = match self
                         .store
@@ -100,19 +97,19 @@ impl Database {
                         AnalysisKind::ExcelTemplate(template) => todo!("handle template"),
                     };
 
-                    self.publish_update(&Update::Project {
-                        project: from_project,
-                        update: ScriptUpdate::Removed(analysis.rid.clone()).into(),
-                    })?;
+                    self.publish_update(&Update::project(
+                        from_project,
+                        ScriptUpdate::Removed(analysis.rid.clone()).into(),
+                    ))?;
 
                     self.store
                         .insert_script(to_project.clone(), analysis.clone())
                         .unwrap();
 
-                    self.publish_update(&Update::Project {
-                        project: to_project.clone(),
-                        update: ScriptUpdate::Created(analysis).into(),
-                    })?;
+                    self.publish_update(&Update::project(
+                        to_project.clone(),
+                        ScriptUpdate::Created(analysis).into(),
+                    ))?;
                 }
 
                 Ok(())

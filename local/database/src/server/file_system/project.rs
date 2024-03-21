@@ -28,10 +28,10 @@ impl Database {
                         self.unwatch_path(from);
                         self.watch_path(path);
 
-                        self.publish_update(&Update::Project {
-                            project: project.clone(),
-                            update: ProjectUpdate::Moved(path.clone()),
-                        })?;
+                        self.publish_update(&Update::project(
+                            project.clone(),
+                            ProjectUpdate::Moved(path.clone()),
+                        ))?;
 
                         return Ok(());
                     }
@@ -60,10 +60,10 @@ impl Database {
                     project_manifest.save()?;
                     self.unwatch_path(project.base_path());
 
-                    self.publish_update(&Update::Project {
-                        project: project.rid.clone(),
-                        update: ProjectUpdate::Removed(Some(project.into())),
-                    })?;
+                    self.publish_update(&Update::project(
+                        project.rid.clone(),
+                        ProjectUpdate::Removed(Some(project.into())),
+                    ))?;
                 }
 
                 Ok(())

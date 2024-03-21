@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::graph::ResourceTree;
 use syre_core::project::{
-    Container as CoreContainer, ContainerProperties, ExcelTemplate, Project as CoreProject,
-    Script as CoreScript,
+    Container as CoreContainer, ContainerProperties, Project as CoreProject, Script as CoreScript,
 };
 use syre_core::types::ResourceId;
+use uuid::Uuid;
 
 // **************
 // *** Update ***
@@ -19,9 +19,20 @@ use syre_core::types::ResourceId;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Update {
     Project {
+        event_id: Uuid,
         project: ResourceId,
         update: Project,
     },
+}
+
+impl Update {
+    pub fn project(project: ResourceId, update: Project) -> Self {
+        Self::Project {
+            event_id: Uuid::new_v4(),
+            project,
+            update,
+        }
+    }
 }
 
 // ***************

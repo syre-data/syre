@@ -188,7 +188,11 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                         break;
                     }
 
-                    let Update::Project { project, update } = event.payload;
+                    let Update::Project {
+                        event_id,
+                        project,
+                        update,
+                    } = event.payload;
                     assert!(project == pid);
                     handle_file_system_event(
                         update,

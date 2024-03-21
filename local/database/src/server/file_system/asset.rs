@@ -20,10 +20,10 @@ impl Database {
                 let Ok(path_container) = local_asset::container_from_path_ancestor(&path) else {
                     // asset file moved out of any container
                     self.store.remove_asset(&asset)?;
-                    self.publish_update(&Update::Project {
-                        project: asset_project,
-                        update: AssetUpdate::Removed(asset.clone()).into(),
-                    })?;
+                    self.publish_update(&Update::project(
+                        asset_project,
+                        AssetUpdate::Removed(asset.clone()).into(),
+                    ))?;
 
                     return Ok(());
                 };
@@ -50,14 +50,14 @@ impl Database {
 
                     let container = self.store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
-                    self.publish_update(&Update::Project {
-                        project: asset_project,
-                        update: AssetUpdate::PathChanged {
+                    self.publish_update(&Update::project(
+                        asset_project,
+                        AssetUpdate::PathChanged {
                             asset: asset.clone(),
                             path: asset_path,
                         }
                         .into(),
-                    })?;
+                    ))?;
 
                     return Ok(());
                 }
@@ -69,20 +69,20 @@ impl Database {
                 if asset_project == path_project {
                     let container = self.store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
-                    self.publish_update(&Update::Project {
-                        project: asset_project,
-                        update: AssetUpdate::Moved {
+                    self.publish_update(&Update::project(
+                        asset_project,
+                        AssetUpdate::Moved {
                             asset: asset.clone(),
                             container: path_container.clone(),
                             path: asset_path,
                         }
                         .into(),
-                    })?;
+                    ))?;
                 } else {
-                    self.publish_update(&Update::Project {
-                        project: asset_project,
-                        update: AssetUpdate::Removed(asset.clone()).into(),
-                    })?;
+                    self.publish_update(&Update::project(
+                        asset_project,
+                        AssetUpdate::Removed(asset.clone()).into(),
+                    ))?;
 
                     let asset = self
                         .store
@@ -93,14 +93,14 @@ impl Database {
                         .unwrap()
                         .clone();
 
-                    self.publish_update(&Update::Project {
-                        project: path_project,
-                        update: AssetUpdate::Created {
+                    self.publish_update(&Update::project(
+                        path_project,
+                        AssetUpdate::Created {
                             container: path_container.clone(),
                             asset,
                         }
                         .into(),
-                    })?;
+                    ))?;
                 }
 
                 Ok(())
@@ -110,10 +110,10 @@ impl Database {
                 let container = self.store.get_asset_container_id(&asset).unwrap();
                 let project = self.store.get_container_project(container).unwrap().clone();
                 self.store.remove_asset(&asset)?;
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: AssetUpdate::Removed(asset.clone()).into(),
-                })?;
+                    AssetUpdate::Removed(asset.clone()).into(),
+                ))?;
 
                 Ok(())
             }
@@ -128,14 +128,14 @@ impl Database {
                 let project = self.store.get_container_project(&cid).unwrap().clone();
                 let container = self.store.get_asset_container(&asset).unwrap();
                 let path = container.assets.get(&asset).unwrap().path.clone();
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: AssetUpdate::PathChanged {
+                    AssetUpdate::PathChanged {
                         asset: asset.clone(),
                         path,
                     }
                     .into(),
-                })?;
+                ))?;
 
                 Ok(())
             }
@@ -149,14 +149,14 @@ impl Database {
                     .unwrap()
                     .clone();
 
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: AssetUpdate::Created {
+                    AssetUpdate::Created {
                         container: container.rid.clone(),
                         asset: asset.clone(),
                     }
                     .into(),
-                })?;
+                ))?;
 
                 Ok(())
             }

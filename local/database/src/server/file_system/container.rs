@@ -24,14 +24,14 @@ impl Database {
                     .properties
                     .clone();
 
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: ContainerUpdate::Properties {
+                    ContainerUpdate::Properties {
                         container: container.clone(),
                         properties,
                     }
                     .into(),
-                })?;
+                ))?;
 
                 Ok(())
             }

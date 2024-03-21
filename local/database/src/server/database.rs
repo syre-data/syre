@@ -105,6 +105,7 @@ impl Database {
         let mut topic = constants::PUB_SUB_TOPIC.to_string();
         match update {
             Update::Project {
+                event_id: _event_id,
                 project,
                 update: _update,
             } => {

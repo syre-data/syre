@@ -14,14 +14,14 @@ impl Database {
                 } else if let Some(container) = self.store.get_asset_container_id(&resource) {
                     self.store.get_container_project(container).unwrap().clone()
                 } else {
-                    tracing::debug!("resource `{resource:?}` not found");
+                    tracing::error!("resource `{resource:?}` not found");
                     panic!("resource not found");
                 };
 
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: AnalysisUpdate::Flag { resource, message }.into(),
-                })
+                    AnalysisUpdate::Flag { resource, message }.into(),
+                ))
                 .unwrap();
 
                 serde_json::to_value(JsValue::Null).unwrap()

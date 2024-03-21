@@ -29,15 +29,15 @@ impl Database {
                     .name
                     .clone();
 
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: GraphUpdate::Moved {
+                    GraphUpdate::Moved {
                         root: root.clone(),
                         parent,
                         name,
                     }
                     .into(),
-                })?;
+                ))?;
 
                 Ok(())
             }
@@ -75,10 +75,10 @@ impl Database {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: GraphUpdate::Created { parent, graph }.into(),
-                })?;
+                    GraphUpdate::Created { parent, graph }.into(),
+                ))?;
 
                 Ok(())
             }
@@ -112,10 +112,10 @@ impl Database {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: GraphUpdate::Created { parent, graph }.into(),
-                })?;
+                    GraphUpdate::Created { parent, graph }.into(),
+                ))?;
 
                 Ok(())
             }
@@ -124,10 +124,10 @@ impl Database {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.remove_subgraph(&root)?;
                 let graph = ContainerTreeTransformer::local_to_core(&graph);
-                self.publish_update(&Update::Project {
+                self.publish_update(&Update::project(
                     project,
-                    update: GraphUpdate::Removed(graph).into(),
-                })?;
+                    GraphUpdate::Removed(graph).into(),
+                ))?;
 
                 Ok(())
             }

@@ -4226,6 +4226,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "trash",
+ "uuid",
  "zmq",
 ]
 

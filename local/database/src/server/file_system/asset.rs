@@ -8,7 +8,11 @@ use syre_local::project::asset as local_asset;
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_asset(&mut self, event: &AssetEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_asset(
+        &mut self,
+        event: &AssetEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             AssetEvent::Moved { asset, path } => {
                 let asset_container = self.store.get_asset_container_id(&asset).unwrap().clone();
@@ -21,13 +25,11 @@ impl Database {
                 let Ok(path_container) = local_asset::container_from_path_ancestor(&path) else {
                     // asset file moved out of any container
                     self.store.remove_asset(&asset)?;
-                    self.publish_update(&Update::project(
+                    return Ok(vec![Update::project(
                         asset_project,
                         AssetUpdate::Removed(asset.clone()).into(),
                         event_id.clone(),
-                    ))?;
-
-                    return Ok(());
+                    )]);
                 };
 
                 let path_container = self
@@ -52,7 +54,7 @@ impl Database {
 
                     let container = self.store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
-                    self.publish_update(&Update::project(
+                    return Ok(vec![Update::project(
                         asset_project,
                         AssetUpdate::PathChanged {
                             asset: asset.clone(),
@@ -60,9 +62,7 @@ impl Database {
                         }
                         .into(),
                         event_id.clone(),
-                    ))?;
-
-                    return Ok(());
+                    )]);
                 }
 
                 // asset moved containers
@@ -72,7 +72,7 @@ impl Database {
                 if asset_project == path_project {
                     let container = self.store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
-                    self.publish_update(&Update::project(
+                    return Ok(vec![Update::project(
                         asset_project,
                         AssetUpdate::Moved {
                             asset: asset.clone(),
@@ -81,48 +81,48 @@ impl Database {
                         }
                         .into(),
                         event_id.clone(),
-                    ))?;
+                    )]);
                 } else {
-                    self.publish_update(&Update::project(
+                    let mut updates = vec![Update::project(
                         asset_project,
                         AssetUpdate::Removed(asset.clone()).into(),
                         event_id.clone(),
-                    ))?;
+                    )];
 
-                    let asset = self
-                        .store
-                        .get_container(&path_container)
-                        .unwrap()
-                        .assets
-                        .get(&asset)
-                        .unwrap()
-                        .clone();
+                    let Some(container) = self.store.get_container(&path_container) else {
+                        tracing::error!("Could not get container");
+                        return Ok(updates);
+                    };
 
-                    self.publish_update(&Update::project(
+                    let Some(asset) = container.assets.get(&asset) else {
+                        tracing::error!("Could not get asset");
+
+                        return Ok(updates);
+                    };
+
+                    updates.push(Update::project(
                         path_project,
                         AssetUpdate::Created {
                             container: path_container.clone(),
-                            asset,
+                            asset: asset.clone(),
                         }
                         .into(),
                         event_id.clone(),
-                    ))?;
-                }
+                    ));
 
-                Ok(())
+                    return Ok(updates);
+                }
             }
 
             AssetEvent::Removed(asset) => {
                 let container = self.store.get_asset_container_id(&asset).unwrap();
                 let project = self.store.get_container_project(container).unwrap().clone();
                 self.store.remove_asset(&asset)?;
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     AssetUpdate::Removed(asset.clone()).into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             AssetEvent::Renamed { asset, name } => {
@@ -135,7 +135,7 @@ impl Database {
                 let project = self.store.get_container_project(&cid).unwrap().clone();
                 let container = self.store.get_asset_container(&asset).unwrap();
                 let path = container.assets.get(&asset).unwrap().path.clone();
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     AssetUpdate::PathChanged {
                         asset: asset.clone(),
@@ -143,9 +143,7 @@ impl Database {
                     }
                     .into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             AssetEvent::FileCreated(asset) => {
@@ -157,7 +155,7 @@ impl Database {
                     .unwrap()
                     .clone();
 
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     AssetUpdate::Created {
                         container: container.rid.clone(),
@@ -165,9 +163,7 @@ impl Database {
                     }
                     .into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
         }
     }

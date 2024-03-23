@@ -9,7 +9,11 @@ use syre_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_graph(&mut self, event: &GraphEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_graph(
+        &mut self,
+        event: &GraphEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             GraphEvent::Moved { root, path } => {
                 let project = self.store.get_container_project(&root).unwrap().clone();
@@ -30,7 +34,7 @@ impl Database {
                     .name
                     .clone();
 
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     GraphUpdate::Moved {
                         root: root.clone(),
@@ -39,9 +43,7 @@ impl Database {
                     }
                     .into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             GraphEvent::Inserted(graph) => {
@@ -77,13 +79,11 @@ impl Database {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             GraphEvent::Copied(graph) => {
@@ -115,26 +115,22 @@ impl Database {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             GraphEvent::Removed(root) => {
                 let project = self.store.get_container_project(&root).unwrap().clone();
                 let graph = self.store.remove_subgraph(&root)?;
                 let graph = ContainerTreeTransformer::local_to_core(&graph);
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     GraphUpdate::Removed(graph).into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
         }
     }

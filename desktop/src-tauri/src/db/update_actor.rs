@@ -31,7 +31,7 @@ impl UpdateActor {
     /// Listen for database updates and send them to main window.
     fn listen_for_events(&self) {
         tracing::debug!("listening for file system events");
-        loop {
+        'main: loop {
             let messages = match self.zmq_socket.recv_multipart(0) {
                 Ok(msg) => msg,
                 Err(err) => {
@@ -45,21 +45,40 @@ impl UpdateActor {
                 .map(|msg| zmq::Message::try_from(msg).unwrap())
                 .collect::<Vec<_>>();
 
-            let topic = messages
-                .get(0)
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .replace("local-database", "database/update");
+            let Some(topic) = messages.get(0) else {
+                tracing::error!("could not get topic from message {messages:?}");
+                continue;
+            };
+
+            let Some(topic) = topic.as_str() else {
+                tracing::error!("could not convert topic to str");
+                continue;
+            };
+
+            let topic = topic.replace("local-database", "database/update");
 
             let mut message = String::new();
             for msg in messages.iter().skip(1) {
-                message.push_str(msg.as_str().unwrap());
+                let Some(msg) = msg.as_str() else {
+                    tracing::error!("could not convert message to str");
+                    continue 'main;
+                };
+
+                message.push_str(msg);
             }
 
-            let event: Update = serde_json::from_str(&message).unwrap();
-            tracing::debug!(?event);
-            self.window.emit(&topic, event).unwrap();
+            let events: Vec<Update> = match serde_json::from_str(&message) {
+                Ok(events) => events,
+                Err(err) => {
+                    tracing::error!(?err);
+                    continue;
+                }
+            };
+
+            tracing::debug!(?events);
+            if let Err(err) = self.window.emit(&topic, events) {
+                tracing::error!(?err);
+            }
         }
     }
 }

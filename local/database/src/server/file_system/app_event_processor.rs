@@ -1,6 +1,7 @@
 //! Processes file system events.
 use super::event::{app, file_system};
 use crate::error::{Error, Result};
+use crate::event::Update;
 use crate::server::store::ContainerTree;
 use crate::server::Database;
 use std::path::{Path, PathBuf};
@@ -22,51 +23,55 @@ use syre_local::project::resources::{Analyses as ProjectScripts, Project as Loca
 
 impl Database {
     #[tracing::instrument(skip(self))]
-    pub fn process_file_system_event(&mut self, event: &file_system::Event) -> Result {
-        let app_events = self.process_file_system_event_to_app_events(event);
-        for app_event in app_events {
-            if let Err(err) = self.handle_app_event(&app_event) {
-                tracing::error!(?app_event, ?err);
-                return Err(err);
-            }
-        }
+    pub fn process_file_system_events(&mut self, events: Vec<file_system::Event>) -> Vec<Update> {
+        let app_events = events
+            .into_iter()
+            .flat_map(|fs_event| self.process_file_system_event_to_app_events(&fs_event))
+            .collect::<Vec<_>>();
 
-        Ok(())
+        app_events
+            .into_iter()
+            .flat_map(|app_event| match self.handle_app_event(&app_event) {
+                Ok(updates) => updates,
+                Err(err) => {
+                    tracing::error!(?app_event, ?err);
+                    return vec![];
+                }
+            })
+            .collect::<Vec<_>>()
     }
 
-    fn handle_app_event(&mut self, event: &app::Event) -> Result {
+    fn handle_app_event(&mut self, event: &app::Event) -> Result<Vec<Update>> {
         tracing::debug!(?event);
         match event.kind() {
             app::EventKind::Project(event_kind) => {
-                self.handle_app_event_project(event_kind, event.event_id())?
+                Ok(self.handle_app_event_project(event_kind, event.event_id())?)
             }
 
             app::EventKind::Graph(event_kind) => {
-                self.handle_app_event_graph(event_kind, event.event_id())?
+                Ok(self.handle_app_event_graph(event_kind, event.event_id())?)
             }
 
             app::EventKind::Container(event_kind) => {
-                self.handle_app_event_container(event_kind, event.event_id())?
+                Ok(self.handle_app_event_container(event_kind, event.event_id())?)
             }
 
             app::EventKind::Asset(event_kind) => {
-                self.handle_app_event_asset(event_kind, event.event_id())?
+                Ok(self.handle_app_event_asset(event_kind, event.event_id())?)
             }
 
             app::EventKind::Script(event_kind) => {
-                self.handle_app_event_script(event_kind, event.event_id())?
+                Ok(self.handle_app_event_script(event_kind, event.event_id())?)
             }
 
             app::EventKind::Folder(event_kind) => {
-                self.handle_app_event_folder(event_kind, event.event_id())?
+                Ok(self.handle_app_event_folder(event_kind, event.event_id())?)
             }
 
             app::EventKind::File(event_kind) => {
-                self.handle_app_event_file(event_kind, event.event_id())?
+                Ok(self.handle_app_event_file(event_kind, event.event_id())?)
             }
         }
-
-        Ok(())
     }
 
     fn process_file_system_event_to_app_events(

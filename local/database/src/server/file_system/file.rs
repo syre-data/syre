@@ -12,7 +12,11 @@ use syre_local::project::resources::Asset;
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_file(&mut self, event: &FileEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_file(
+        &mut self,
+        event: &FileEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             FileEvent::Created(path) => {
                 let container_path =
@@ -32,7 +36,7 @@ impl Database {
                     .unwrap()
                     .is_some()
                 {
-                    return Ok(());
+                    return Ok(vec![]);
                 }
 
                 // NOTE When transferring large amounts of data
@@ -54,16 +58,18 @@ impl Database {
                 }
 
                 if as_asset {
-                    self.handle_file_as_asset(asset_path, path_container.rid.clone(), event_id)?;
+                    return self.handle_file_as_asset(
+                        asset_path,
+                        path_container.rid.clone(),
+                        event_id,
+                    );
                 } else {
                     let root_path = path_container
                         .base_path()
                         .join(asset_path.components().next().unwrap());
 
-                    self.init_subgraph_file(root_path, event_id)?;
+                    return self.init_subgraph_file(root_path, event_id);
                 }
-
-                Ok(())
             }
         }
     }
@@ -74,7 +80,7 @@ impl Database {
         asset_path: PathBuf,
         container: ResourceId,
         event_id: &Uuid,
-    ) -> Result {
+    ) -> Result<Vec<Update>> {
         let asset = Asset::new(asset_path)?;
         let aid = asset.rid.clone();
         self.store.add_asset(asset, container.clone())?;
@@ -88,7 +94,7 @@ impl Database {
         let container = self.store.get_container(&container).unwrap();
         let asset = container.assets.get(&aid).unwrap().clone();
 
-        self.publish_update(&Update::project(
+        Ok(vec![Update::project(
             project,
             AssetUpdate::Created {
                 container: container.rid.clone(),
@@ -96,13 +102,11 @@ impl Database {
             }
             .into(),
             event_id.clone(),
-        ))?;
-
-        Ok(())
+        )])
     }
 
     #[tracing::instrument(skip(self))]
-    fn init_subgraph_file(&mut self, path: PathBuf, event_id: &Uuid) -> Result {
+    fn init_subgraph_file(&mut self, path: PathBuf, event_id: &Uuid) -> Result<Vec<Update>> {
         let parent = self
             .store
             .get_path_container_canonical(path.parent().unwrap())
@@ -124,12 +128,10 @@ impl Database {
         let project = self.store.get_container_project(&root).unwrap().clone();
         let graph = self.store.get_graph_of_container(&root).unwrap();
         let graph = ContainerTreeTransformer::local_to_core(graph);
-        self.publish_update(&Update::project(
+        Ok(vec![Update::project(
             project,
             GraphUpdate::Created { parent, graph }.into(),
             event_id.clone(),
-        ))?;
-
-        Ok(())
+        )])
     }
 }

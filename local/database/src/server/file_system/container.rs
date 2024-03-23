@@ -12,7 +12,7 @@ impl Database {
         &mut self,
         event: &ContainerEvent,
         event_id: &Uuid,
-    ) -> Result {
+    ) -> Result<Vec<Update>> {
         match event {
             ContainerEvent::Renamed { container, name } => {
                 self.update_container_name(&container, name.clone())?;
@@ -29,7 +29,7 @@ impl Database {
                     .properties
                     .clone();
 
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     ContainerUpdate::Properties {
                         container: container.clone(),
@@ -37,9 +37,7 @@ impl Database {
                     }
                     .into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
         }
     }

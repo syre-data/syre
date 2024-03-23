@@ -175,9 +175,9 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
             let listener_id = event_listener_id.borrow().clone();
             let event_listener_id = event_listener_id.clone();
             spawn_local(async move {
-                let mut events = tauri_sys::event::listen::<syre_local_database::Update>(&format!(
-                    "syre://database/update/project/{pid}"
-                ))
+                let mut events = tauri_sys::event::listen::<Vec<syre_local_database::Update>>(
+                    &format!("syre://database/update/project/{pid}"),
+                )
                 .await
                 .expect(&format!(
                     "could not create `syre://database/update/project/{pid}` listener"
@@ -188,20 +188,22 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                         break;
                     }
 
-                    let Update::Project {
+                    for Update::Project {
                         event_id: _,
                         project,
                         update,
-                    } = event.payload;
-                    assert!(project == pid);
-                    handle_file_system_event(
-                        update,
-                        project,
-                        &app_state,
-                        &projects_state,
-                        &canvas_state,
-                        &graph_state,
-                    );
+                    } in event.payload
+                    {
+                        assert!(project == pid);
+                        handle_file_system_event(
+                            update,
+                            project,
+                            &app_state,
+                            &projects_state,
+                            &canvas_state,
+                            &graph_state,
+                        );
+                    }
                 }
             });
         }

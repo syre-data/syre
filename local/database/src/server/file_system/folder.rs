@@ -12,7 +12,11 @@ use syre_local::project::{asset, container, project};
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_folder(&mut self, event: &FolderEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_folder(
+        &mut self,
+        event: &FolderEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             FolderEvent::Created(path) => {
                 // ignore analysis folder
@@ -32,7 +36,7 @@ impl Database {
                 .unwrap();
 
                 if path.strip_prefix(analysis_path).is_ok() {
-                    return Ok(());
+                    return Ok(vec![]);
                 }
 
                 // ignore if bucket
@@ -54,7 +58,7 @@ impl Database {
                     .iter()
                     .any(|bucket| bucket.starts_with(&bucket_path_root))
                 {
-                    return Ok(());
+                    return Ok(vec![]);
                 }
 
                 // init subgraph
@@ -79,13 +83,11 @@ impl Database {
                 let graph = self.store.get_graph_of_container(&container).unwrap();
                 let mut graph = ContainerTreeTransformer::local_to_core(graph);
                 let graph = graph.remove(&container).unwrap(); // get container's subgraph
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
         }
     }

@@ -14,7 +14,7 @@ impl FileSystemEventProcessor {
     /// Process [`notify_debouncer_full::DebouncedEvent`]s into [`file_system::Event`](FileSystemEvent)s.
     ///
     /// # Notes
-    /// Events are assumed to have already been preprocessed with paths rectified.
+    /// + Events are assumed to have already been preprocessed with paths rectified.
     pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
         let events = Self::filter_events(events);
         let events = Self::filter_hidden(events);

@@ -15,6 +15,7 @@ use crate::event::Update;
 use crate::{common, constants, Result};
 use notify_debouncer_full::DebounceEventResult;
 use serde_json::Value as JsValue;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
 use std::sync::mpsc;
@@ -99,23 +100,36 @@ impl Database {
         rx.recv().unwrap()
     }
 
-    /// Publish an update to subscribers.
+    /// Publish a updates to subscribers.
     /// Triggered by file system events.
-    fn publish_update(&self, update: &Update) -> zmq::Result<()> {
-        let mut topic = constants::PUB_SUB_TOPIC.to_string();
-        match update {
-            Update::Project {
-                event_id: _,
-                project,
-                update: _,
-            } => {
-                topic.push_str(&format!("/project/{project}"));
-            }
-        };
+    fn publish_updates(&self, updates: &Vec<Update>) -> zmq::Result<()> {
+        let mut project_updates = HashMap::with_capacity(updates.len());
+        for update in updates.iter() {
+            match update {
+                Update::Project {
+                    event_id: _,
+                    project,
+                    update: _,
+                } => {
+                    let project = project_updates.entry(project).or_insert(vec![]);
+                    project.push(update);
+                }
+            };
+        }
 
-        self.update_tx.send(&topic, zmq::SNDMORE)?;
-        self.update_tx
-            .send(&serde_json::to_string(update).unwrap(), 0)
+        let topic = constants::PUB_SUB_TOPIC.to_string();
+        for (project, updates) in project_updates {
+            let project_topic = format!("{topic}/project/{project}");
+            self.update_tx.send(&project_topic, zmq::SNDMORE)?;
+            if let Err(err) = self
+                .update_tx
+                .send(&serde_json::to_string(&updates).unwrap(), 0)
+            {
+                tracing::error!(?err);
+            }
+        }
+
+        Ok(())
     }
 
     // TODO Handle errors.
@@ -155,10 +169,9 @@ mod windows {
             let events = self.rectify_event_paths(events);
             let mut events = FileSystemEventProcessor::process(events);
             events.sort_by(|a, b| a.time.cmp(&b.time));
-            for event in events {
-                if let Err(_err) = self.process_file_system_event(&event) {
-                    tracing::debug!(?event);
-                };
+            let updates = self.process_file_system_events(events);
+            if let Err(err) = self.publish_updates(&updates) {
+                tracing::error!(?err);
             }
 
             Ok(())
@@ -187,10 +200,9 @@ mod macos {
 
             let mut events = FileSystemEventProcessor::process(events);
             events.sort_by(|a, b| a.time.cmp(&b.time));
-            for event in events {
-                if let Err(err) = self.process_file_system_event(&event) {
-                    tracing::error!(?event, ?err);
-                };
+            let updates = self.process_file_system_events(events);
+            if let Err(err) = self.publish_updates(&updates) {
+                tracing::error!(?err);
             }
 
             Ok(())

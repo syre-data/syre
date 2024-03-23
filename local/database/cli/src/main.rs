@@ -95,11 +95,12 @@ fn sub() -> zmq::Result<()> {
             message.push_str(msg.as_str().unwrap());
         }
 
-        match serde_json::from_str::<syre_local_database::event::Update>(&message) {
+        match serde_json::from_str::<Vec<syre_local_database::event::Update>>(&message) {
             Ok(message) => println!(
                 "{topic}\n{}\n",
                 serde_json::to_string_pretty(&message).unwrap()
             ),
+
             Err(err) => println!("[could not decode: {err:?}]\n{topic}\n{message:?}\n"),
         }
     }

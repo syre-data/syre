@@ -8,7 +8,11 @@ use syre_local::system::collections::project_manifest::ProjectManifest;
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_project(&mut self, event: &ProjectEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_project(
+        &mut self,
+        event: &ProjectEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             ProjectEvent::Moved { project, path } => {
                 match self.store.update_project_path(&project, path.clone()) {
@@ -29,13 +33,11 @@ impl Database {
                         self.unwatch_path(from);
                         self.watch_path(path);
 
-                        self.publish_update(&Update::project(
+                        Ok(vec![Update::project(
                             project.clone(),
                             ProjectUpdate::Moved(path.clone()),
                             event_id.clone(),
-                        ))?;
-
-                        return Ok(());
+                        )])
                     }
 
                     Err(err) => {
@@ -62,14 +64,14 @@ impl Database {
                     project_manifest.save()?;
                     self.unwatch_path(project.base_path());
 
-                    self.publish_update(&Update::project(
+                    Ok(vec![Update::project(
                         project.rid.clone(),
                         ProjectUpdate::Removed(Some(project.into())),
                         event_id.clone(),
-                    ))?;
+                    )])
+                } else {
+                    Ok(vec![])
                 }
-
-                Ok(())
             }
         }
     }

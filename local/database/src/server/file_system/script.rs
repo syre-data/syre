@@ -11,7 +11,11 @@ use syre_local::types::AnalysisKind;
 use uuid::Uuid;
 
 impl Database {
-    pub fn handle_app_event_script(&mut self, event: &ScriptEvent, event_id: &Uuid) -> Result {
+    pub fn handle_app_event_script(
+        &mut self,
+        event: &ScriptEvent,
+        event_id: &Uuid,
+    ) -> Result<Vec<Update>> {
         match event {
             ScriptEvent::Created(path) => {
                 let Some(project_path) = project::project_root_path(&path) else {
@@ -37,26 +41,22 @@ impl Database {
                 let script = LocalScript::new(script_path)?;
                 self.store.insert_script(pid.clone(), script.clone())?;
 
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     pid,
                     ScriptUpdate::Created(script).into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             ScriptEvent::Removed(script) => {
                 let project = self.store.get_script_project(&script).unwrap().clone();
                 self.store.remove_project_script(&project, &script)?;
 
-                self.publish_update(&Update::project(
+                Ok(vec![Update::project(
                     project,
                     ScriptUpdate::Removed(script.clone()).into(),
                     event_id.clone(),
-                ))?;
-
-                Ok(())
+                )])
             }
 
             ScriptEvent::Moved { script, path } => {
@@ -85,7 +85,7 @@ impl Database {
                     script.path = script_path.clone();
                     analyses.save()?;
 
-                    self.publish_update(&Update::project(
+                    return Ok(vec![Update::project(
                         from_project,
                         ScriptUpdate::Moved {
                             script: sid,
@@ -93,7 +93,7 @@ impl Database {
                         }
                         .into(),
                         event_id.clone(),
-                    ))?;
+                    )]);
                 } else {
                     let analysis = match self
                         .store
@@ -104,24 +104,28 @@ impl Database {
                         AnalysisKind::ExcelTemplate(template) => todo!("handle template"),
                     };
 
-                    self.publish_update(&Update::project(
+                    let mut updates = vec![Update::project(
                         from_project,
                         ScriptUpdate::Removed(analysis.rid.clone()).into(),
                         event_id.clone(),
-                    ))?;
+                    )];
 
-                    self.store
+                    if let Err(err) = self
+                        .store
                         .insert_script(to_project.clone(), analysis.clone())
-                        .unwrap();
+                    {
+                        tracing::error!("could not insert script: {err:?}");
+                        return Ok(updates);
+                    }
 
-                    self.publish_update(&Update::project(
+                    updates.push(Update::project(
                         to_project.clone(),
                         ScriptUpdate::Created(analysis).into(),
                         event_id.clone(),
-                    ))?;
-                }
+                    ));
 
-                Ok(())
+                    return Ok(updates);
+                }
             }
         }
     }

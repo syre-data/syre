@@ -676,7 +676,7 @@ mod windows {
             &mut self,
             from: &PathBuf,
             to: &PathBuf,
-        ) -> Vec<app::Event> {
+        ) -> Vec<app::EventKind> {
             let from = normalize_path_root(from);
             self.ensure_project_resources_loaded(&from).unwrap();
             self.ensure_project_resources_loaded(&to).unwrap();
@@ -690,7 +690,7 @@ mod windows {
             &mut self,
             from: &PathBuf,
             to: &PathBuf,
-        ) -> Vec<app::Event> {
+        ) -> Vec<app::EventKind> {
             let from = normalize_path_root(from);
             let from_loaded = self.ensure_project_resources_loaded(&from);
             let to_loaded = self.ensure_project_resources_loaded(to);

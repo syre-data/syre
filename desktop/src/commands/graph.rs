@@ -50,7 +50,7 @@ pub async fn new_child(name: String, parent: ResourceId) -> Result<(), String> {
 
 /// Arguments for [`init_project_graph`](syre_desktop_tauri::commands::graph::init_project_graph).
 #[derive(Serialize)]
-pub struct InitProjectGraphArgs {
+struct InitProjectGraphArgs {
     /// Path to use as data root.
     pub path: PathBuf,
 
@@ -60,7 +60,7 @@ pub struct InitProjectGraphArgs {
 
 /// Arguments for [`new_child`](syre_desktop_tauri::commands::container::new_child).
 #[derive(Serialize)]
-pub struct NewChildArgs {
+struct NewChildArgs {
     /// Name of the child.
     pub name: String,
 

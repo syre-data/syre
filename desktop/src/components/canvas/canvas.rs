@@ -1,7 +1,7 @@
 //! Project canvas.
-use super::details_bar::DetailsBar;
-use super::layers_bar::LayersBar;
 use super::project::Project as ProjectUi;
+use super::properties_bar::PropertiesBar;
+use super::resources_bar::{ResourcesBar, ResourcesBarWidget};
 use super::{
     canvas_state::CanvasState, graph_state::GraphState, CanvasStateAction, CanvasStateDispatcher,
     CanvasStateReducer, GraphStateAction, GraphStateReducer, ProjectControls,
@@ -26,6 +26,7 @@ use syre_ui::components::{Drawer, ResizeHandle};
 use syre_ui::types::Message;
 use syre_ui::widgets::common::asset as asset_ui;
 use syre_ui::widgets::suspense::Loading;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -81,6 +82,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
     let projects_state = use_context::<ProjectsStateReducer>().unwrap();
     let canvas_state = use_reducer(|| CanvasState::new(props.project.rid.clone()));
     let navigator = use_navigator().unwrap();
+    let resources_bar_ref = use_node_ref();
 
     if !*use_load_project_analyses(&props.project.rid)? {
         projects_state.dispatch(ProjectsStateAction::RemoveOpenProject {
@@ -211,14 +213,9 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
 
     let onkeydown = use_callback((), {
         let canvas_state = canvas_state.dispatcher();
+        let resources_bar_ref = resources_bar_ref.clone();
         move |e: KeyboardEvent, _| {
-            if !e.ctrl_key() {
-                return;
-            }
-
-            if e.key() == "\\" {
-                canvas_state.dispatch(CanvasStateAction::ToggleDrawers)
-            }
+            handle_key_down_event(e, canvas_state.clone(), resources_bar_ref.clone());
         }
     });
 
@@ -233,11 +230,12 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
 
             <ProjectControls project={props.project.rid.clone()} />
             <div class={"canvas"}>
-                <Drawer class={"layers-bar-drawer"}
+                <Drawer root_ref={resources_bar_ref}
+                    class={"resources-bar-drawer"}
                     resize={ResizeHandle::Right}
                     open={canvas_state.drawers_visible}>
 
-                    <LayersBar />
+                    <ResourcesBar />
                 </Drawer>
 
                 <div class={classes!("project-canvas-content")} >
@@ -250,7 +248,7 @@ fn canvas_view(props: &CanvasViewProps) -> HtmlResult {
                     resize={ResizeHandle::Left}
                     open={canvas_state.drawers_visible}>
 
-                    <DetailsBar />
+                    <PropertiesBar />
                 </Drawer>
             </div>
         </div>
@@ -396,5 +394,37 @@ fn handle_file_system_event(
                 app_state.dispatch(AppStateAction::AddMessage(msg));
             }
         },
+    }
+}
+
+fn handle_key_down_event(
+    e: KeyboardEvent,
+    canvas_state: CanvasStateDispatcher,
+    resources_bar_ref: NodeRef,
+) {
+    match (e.ctrl_key(), e.key().as_str()) {
+        (true, "\\") => canvas_state.dispatch(CanvasStateAction::ToggleDrawers),
+
+        (true, "l") => {
+            let Some(resources_bar) = resources_bar_ref.cast::<web_sys::HtmlElement>() else {
+                tracing::error!("could not cast ref to element");
+                return;
+            };
+
+            let Ok(event) = web_sys::Event::new("syre://desktop/event/expand-layers") else {
+                tracing::error!("could not create event");
+                return;
+            };
+
+            if let Err(err) = resources_bar.dispatch_event(&event) {
+                tracing::error!("could not dispatch event: {err:?}");
+            }
+        }
+
+        (true, "f") => canvas_state.dispatch(CanvasStateAction::SetResourcesBarWidget(
+            ResourcesBarWidget::Search,
+        )),
+
+        _ => {}
     }
 }

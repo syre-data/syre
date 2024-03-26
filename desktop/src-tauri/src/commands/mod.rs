@@ -7,6 +7,7 @@ pub mod container;
 pub mod excel_template;
 pub mod graph;
 pub mod project;
+pub mod search;
 pub mod settings;
 pub mod user;
 
@@ -19,5 +20,6 @@ pub use container::*;
 pub use excel_template::*;
 pub use graph::*;
 pub use project::*;
+pub use search::*;
 pub use settings::*;
 pub use user::*;

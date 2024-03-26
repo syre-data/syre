@@ -302,6 +302,10 @@ impl Datastore {
     // *** graph ***
     // *************
 
+    pub fn graphs(&self) -> &ProjectGraphMap {
+        &self.graphs
+    }
+
     /// Gets a [`Project`]'s [`ContainerTree`].
     ///
     /// # Arguments

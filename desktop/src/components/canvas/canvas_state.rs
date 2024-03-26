@@ -1,5 +1,6 @@
 //! State for th eproject workspace;
-use super::details_bar::DetailsBarWidget;
+use super::properties_bar::PropertiesBarWidget;
+use super::resources_bar::ResourcesBarWidget;
 use std::collections::HashSet;
 use std::rc::Rc;
 use syre_core::types::{ResourceId, ResourceMap};
@@ -17,11 +18,11 @@ pub enum CanvasStateAction {
     /// Set the preview state.
     SetPreview(ContainerPreview),
 
-    /// Set the active widget in the details bar.
-    SetDetailsBarWidget(DetailsBarWidget),
+    /// Set the active widget in the resources bar.
+    SetResourcesBarWidget(ResourcesBarWidget),
 
-    /// Clear the details bar.
-    ClearDetailsBar,
+    /// Set the active widget in the properties bar.
+    SetPropertiesBarWidget(PropertiesBarWidget),
 
     /// Mark a `Container` as selected.
     SelectContainer(ResourceId),
@@ -33,11 +34,11 @@ pub enum CanvasStateAction {
     SelectAssetOnly(ResourceId),
 
     /// Mark a resource as unselected.
-    /// Updates the details bar as needed.
+    /// Updates the properties bar as needed.
     Unselect(ResourceId),
 
     /// Mark multilpe resources unselected.
-    /// Updates the details bar as needed.
+    /// Updates the properties bar as needed.
     UnselectMany(Vec<ResourceId>),
 
     /// Clear selection state.
@@ -75,9 +76,12 @@ pub enum CanvasStateAction {
 pub struct CanvasState {
     /// Id of the `Project` the canvas is for.
     pub project: ResourceId,
+    ///
+    /// Active properties bar widget.
+    pub properties_bar_widget: PropertiesBarWidget,
 
-    /// Active details bar widget.
-    pub details_bar_widget: Option<DetailsBarWidget>,
+    /// Active properties bar widget.
+    pub resources_bar_widget: ResourcesBarWidget,
 
     /// Selected resources.
     pub selected: HashSet<ResourceId>,
@@ -104,7 +108,8 @@ impl CanvasState {
         Self {
             preview: ContainerPreview::Assets,
             project,
-            details_bar_widget: None,
+            properties_bar_widget: PropertiesBarWidget::default(),
+            resources_bar_widget: ResourcesBarWidget::default(),
             selected: HashSet::default(),
             drawers_visible: true,
             visible: ResourceMap::default(),
@@ -130,9 +135,9 @@ impl CanvasState {
         self.resource_types.remove(rid);
     }
 
-    fn details_bar_widget_from_selected(&self) -> Option<DetailsBarWidget> {
+    fn properties_bar_widget_from_selected(&self) -> PropertiesBarWidget {
         match self.selected.len() {
-            0 => None,
+            0 => PropertiesBarWidget::default(),
             1 => {
                 let rid = self.selected.iter().next().expect("resource not available");
                 let kind = self
@@ -141,8 +146,8 @@ impl CanvasState {
                     .expect("could not find resource type");
 
                 match kind {
-                    ResourceType::Container => Some(DetailsBarWidget::ContainerEditor(rid.clone())),
-                    ResourceType::Asset => Some(DetailsBarWidget::AssetEditor(rid.clone())),
+                    ResourceType::Container => PropertiesBarWidget::ContainerEditor(rid.clone()),
+                    ResourceType::Asset => PropertiesBarWidget::AssetEditor(rid.clone()),
                 }
             }
             _ => {
@@ -153,12 +158,12 @@ impl CanvasState {
                 });
 
                 // must clone iterator, iterators can only be used once
-                if kinds.clone().all(|k| k == &ResourceType::Container) {
-                    Some(DetailsBarWidget::ContainerBulkEditor(self.selected.clone()))
+                if kinds.all(|k| k == &ResourceType::Container) {
+                    PropertiesBarWidget::ContainerBulkEditor(self.selected.clone())
                 } else if kinds.all(|k| k == &ResourceType::Asset) {
-                    Some(DetailsBarWidget::AssetBulkEditor(self.selected.clone()))
+                    PropertiesBarWidget::AssetBulkEditor(self.selected.clone())
                 } else {
-                    Some(DetailsBarWidget::MixedBulkEditor(self.selected.clone()))
+                    PropertiesBarWidget::MixedBulkEditor(self.selected.clone())
                 }
             }
         }
@@ -169,56 +174,56 @@ impl Reducible for CanvasState {
     type Action = CanvasStateAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        tracing::debug!(?action);
         let mut current = (*self).clone();
         match action {
             CanvasStateAction::SetPreview(preview) => {
                 current.preview = preview;
             }
 
-            CanvasStateAction::SetDetailsBarWidget(widget) => {
-                current.details_bar_widget = Some(widget);
+            CanvasStateAction::SetResourcesBarWidget(widget) => {
+                current.resources_bar_widget = widget;
                 current.drawers_visible = true;
             }
 
-            CanvasStateAction::ClearDetailsBar => {
-                current.details_bar_widget = None;
+            CanvasStateAction::SetPropertiesBarWidget(widget) => {
+                current.properties_bar_widget = widget;
+                current.drawers_visible = true;
             }
 
             CanvasStateAction::SelectContainer(rid) => {
                 current.selected.insert(rid.clone());
                 current.resource_types.insert(rid, ResourceType::Container);
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::SelectAsset(rid) => {
                 current.selected.insert(rid.clone());
                 current.resource_types.insert(rid, ResourceType::Asset);
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::SelectAssetOnly(rid) => {
                 current.selected.clear();
                 current.selected.insert(rid.clone());
                 current.resource_types.insert(rid, ResourceType::Asset);
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::Unselect(rid) => {
                 current.selected.remove(&rid);
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::UnselectMany(rids) => {
                 for rid in rids {
                     current.selected.remove(&rid);
                 }
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::ClearSelected => {
                 current.selected.clear();
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::SetVisibility(rid, visible) => {
@@ -227,14 +232,14 @@ impl Reducible for CanvasState {
 
             CanvasStateAction::Remove(rid) => {
                 current.remove(&rid);
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::RemoveMany(rids) => {
                 for rid in rids {
                     current.remove(&rid);
                 }
-                current.details_bar_widget = current.details_bar_widget_from_selected();
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
             }
 
             CanvasStateAction::ToggleDrawers => {

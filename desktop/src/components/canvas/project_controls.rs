@@ -1,4 +1,4 @@
-use super::details_bar::DetailsBarWidget;
+use super::properties_bar::PropertiesBarWidget;
 use super::{CanvasStateAction, CanvasStateReducer, GraphStateAction, GraphStateReducer};
 use crate::app::{AppStateAction, AppStateReducer, ProjectsStateReducer};
 use crate::commands::graph::{get_or_load_project_graph, load_project_graph};
@@ -60,8 +60,8 @@ pub fn project_controls(props: &ProjectControlsProps) -> Html {
         let canvas_state = canvas_state.dispatcher();
         move |e: MouseEvent, _| {
             e.stop_propagation();
-            canvas_state.dispatch(CanvasStateAction::SetDetailsBarWidget(
-                DetailsBarWidget::ProjectActions,
+            canvas_state.dispatch(CanvasStateAction::SetPropertiesBarWidget(
+                PropertiesBarWidget::ProjectActions,
             ))
         }
     });

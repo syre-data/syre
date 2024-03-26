@@ -67,21 +67,21 @@ pub async fn remove_analysis(project: ResourceId, script: ResourceId) -> Result<
 }
 
 #[derive(Serialize)]
-pub struct AddScriptArgs {
+struct AddScriptArgs {
     pub project: ResourceId,
     pub path: PathBuf,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CopyContentsToAnalysesArgs {
+struct CopyContentsToAnalysesArgs {
     pub project: ResourceId,
     pub file_name: PathBuf,
     pub contents: Vec<u8>,
 }
 
 #[derive(Serialize)]
-pub struct RemoveScriptArgs {
+struct RemoveScriptArgs {
     pub project: ResourceId,
     pub script: ResourceId,
 }

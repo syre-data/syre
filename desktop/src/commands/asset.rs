@@ -39,13 +39,13 @@ pub async fn remove_asset(asset: ResourceId) -> Result<Option<(Asset, PathBuf)>,
 }
 
 #[derive(Serialize)]
-pub struct AssetArgs {
+struct AssetArgs {
     pub asset: Asset,
 }
 
 /// Arguments to update a resorce's [`StandardProperties`].
 #[derive(Clone, Serialize)]
-pub struct UpdatePropertiesArgs {
+struct UpdatePropertiesArgs {
     /// [`ResourceId`] of the resource to update.
     pub rid: ResourceId,
 

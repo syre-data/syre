@@ -2,7 +2,7 @@
 use super::{
     analysis::AnalysisCommand, asset::AssetCommand, container::ContainerCommand,
     database::DatabaseCommand, graph::GraphCommand, project::ProjectCommand, runner::RunnerCommand,
-    user::UserCommand,
+    search::SearchCommand, user::UserCommand,
 };
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,7 @@ pub enum Command {
     Analysis(AnalysisCommand),
     User(UserCommand),
     Runner(RunnerCommand),
+    Search(SearchCommand),
 }
 
 impl From<AssetCommand> for Command {
@@ -64,5 +65,11 @@ impl From<UserCommand> for Command {
 impl From<RunnerCommand> for Command {
     fn from(cmd: RunnerCommand) -> Self {
         Self::Runner(cmd)
+    }
+}
+
+impl From<SearchCommand> for Command {
+    fn from(cmd: SearchCommand) -> Self {
+        Self::Search(cmd)
     }
 }

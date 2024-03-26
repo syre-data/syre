@@ -4,6 +4,7 @@ use crate::components::canvas::{CanvasStateAction, CanvasStateReducer, GraphStat
 use syre_core::project::Asset as CoreAsset;
 use syre_core::types::ResourceId;
 use syre_ui::widgets::common::asset as asset_ui;
+use yew::platform::spawn_local;
 use yew::prelude::*;
 use yew_icons::{Icon, IconId};
 
@@ -163,7 +164,7 @@ fn assets(props: &AssetsProps) -> Html {
 struct LayerProps {
     pub root: ResourceId,
 
-    /// Initial expansion state.
+    /// Expansion state.
     #[prop_or(false)]
     pub expanded: bool,
 }
@@ -172,7 +173,7 @@ struct LayerProps {
 fn layer(props: &LayerProps) -> Html {
     let canvas_state = use_context::<CanvasStateReducer>().unwrap();
     let graph_state = use_context::<GraphStateReducer>().unwrap();
-    let expanded_state = use_state(|| props.expanded);
+    let expanded_state = use_state_eq(|| props.expanded);
 
     let root = graph_state.graph.get(&props.root).unwrap();
     let children = graph_state.graph.children(&props.root).unwrap();
@@ -183,6 +184,13 @@ fn layer(props: &LayerProps) -> Html {
         move |e: MouseEvent, expanded_state| {
             e.stop_propagation();
             expanded_state.set(!**expanded_state);
+        }
+    });
+
+    use_effect_with(props.expanded.clone(), {
+        let expanded_state = expanded_state.setter();
+        move |expanded| {
+            expanded_state.set(expanded.clone());
         }
     });
 
@@ -336,6 +344,19 @@ fn layer(props: &LayerProps) -> Html {
 #[function_component(LayersBar)]
 pub fn layers_bar() -> Html {
     let graph_state = use_context::<GraphStateReducer>().unwrap();
+
+    // TODO
+    // use_effect_with((), move |_| {
+    //     spawn_local(async move {
+    //         let mut events =
+    //             tauri_sys::event::listen::<web_sys::Event>(&format!("syre://desktop/event"))
+    //                 .await
+    //                 .expect(&format!("could not create `syre://desktop/event"));
+
+    //         while let Some(event) = events.next().await {}
+    //     })
+    // });
+
     let root = graph_state.graph.root();
     html! {
         <div class={"layers-bar"}>

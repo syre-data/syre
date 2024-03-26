@@ -75,6 +75,7 @@ workspace = true
 features = [
     "BootstrapExclamationTriangle",
     "BootstrapFiles",
+	"BootstrapSearch",
     "FontAwesomeRegularEye",
     "FontAwesomeRegularEyeSlash",
 	"FontAwesomeRegularFileExcel",
@@ -84,5 +85,6 @@ features = [
 	"FontAwesomeSolidCircle",
 	"FontAwesomeRegularCircle",
 	"FontAwesomeSolidCode",
+    "FontAwesomeSolidXmark",
     "OcticonsSync24",
 ]

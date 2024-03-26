@@ -7,6 +7,7 @@ pub mod database;
 pub mod graph;
 pub mod project;
 pub mod runner;
+pub mod search;
 pub mod types;
 pub mod user;
 
@@ -19,4 +20,5 @@ pub use database::DatabaseCommand;
 pub use graph::GraphCommand;
 pub use project::ProjectCommand;
 pub use runner::RunnerCommand;
+pub use search::SearchCommand;
 pub use user::UserCommand;

@@ -8,6 +8,7 @@ mod file_system;
 use self::command::CommandActor;
 use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
 use self::file_system::file_system_event_processor::FileSystemEventProcessor;
+use super::search::Indices;
 use super::store::Datastore;
 use super::Event;
 use crate::command::Command;
@@ -24,6 +25,7 @@ use std::thread;
 /// Database.
 pub struct Database {
     store: Datastore,
+    search: Indices,
     event_rx: mpsc::Receiver<Event>,
     file_system_tx: mpsc::Sender<FileSystemActorCommand>,
 
@@ -49,6 +51,7 @@ impl Database {
 
         Database {
             store: Datastore::new(),
+            search: Indices::new(),
             event_rx,
             file_system_tx,
             update_tx,
@@ -145,6 +148,7 @@ impl Database {
             Command::Analysis(cmd) => self.handle_command_analysis(cmd),
             Command::User(cmd) => self.handle_command_user(cmd),
             Command::Runner(cmd) => self.handle_command_runner(cmd),
+            Command::Search(cmd) => self.handle_command_search(cmd),
         }
     }
 }

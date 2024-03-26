@@ -16,12 +16,12 @@ pub async fn load_user_settings(user: ResourceId) -> Result<UserSettings, IoSerd
 
 /// Argument for commands requiring only a [`UserAppState`] named `state`.
 #[derive(Serialize, Debug)]
-pub struct UserAppStateArgs {
+struct UserAppStateArgs {
     pub state: UserAppState,
 }
 
 /// Argument for commands requiring only a [`UserSettings`] named `settings`.
 #[derive(Serialize, Debug)]
-pub struct UserSettingsArgs {
+struct UserSettingsArgs {
     pub settings: UserSettings,
 }

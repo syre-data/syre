@@ -12,4 +12,4 @@ pub mod resources;
 pub mod script;
 
 /// Current project format version.
-pub static PROJECT_FORMAT_VERSION: &str = "0.10.0";
+pub static PROJECT_FORMAT_VERSION: &str = "0.10.2";

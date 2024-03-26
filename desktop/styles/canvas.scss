@@ -162,12 +162,13 @@
     }
   }
 
-  .layers-bar-drawer {
+  .resources-bar-drawer {
     justify-content: left;
 
     .drawer-contents {
       width: 100%;
     }
+  }
 
     .layers-bar {
       user-select: none;
@@ -273,7 +274,6 @@
 		}
       }
     }
-  }
 
   .project-canvas-content {
     flex: 1;

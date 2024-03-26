@@ -13,13 +13,13 @@ pub async fn create_user(email: String, name: Option<String>) -> Result<User, St
 
 /// User credentials for authentication.
 #[derive(Serialize)]
-pub struct UserCredentials {
+struct UserCredentials {
     pub email: String,
 }
 
 /// User info for creating account.
 #[derive(Serialize)]
-pub struct CreateUserArgs {
+struct CreateUserArgs {
     pub name: Option<String>,
     pub email: String,
 }

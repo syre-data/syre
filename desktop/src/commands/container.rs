@@ -99,14 +99,14 @@ pub async fn add_asset_from_contents(
 /// Arguments for
 /// [`load_container_tree`](syre_desktop_tauri::commands::container::load_container_tree).
 #[derive(Serialize)]
-pub struct LoadContainerTreeArgs {
+struct LoadContainerTreeArgs {
     /// Root of the container tree.
     pub root: PathBuf,
 }
 
 /// Arguments for commands requiring a [`Container`](Container) named `container` only.
 #[derive(Serialize)]
-pub struct ContainerArgs {
+struct ContainerArgs {
     /// [`Container`](Container) to update.
     pub container: Container,
 }
@@ -124,7 +124,7 @@ pub struct UpdatePropertiesArgs {
 
 /// Arguments to update a resorce's [`StandardProperties`].
 #[derive(Clone, Serialize)]
-pub struct UpdatePropertiesStringArgs {
+struct UpdatePropertiesStringArgs {
     /// [`ResourceId`] of the resource to update.
     pub rid: ResourceId,
 
@@ -146,7 +146,7 @@ pub struct UpdateAnalysisAssociationsArgs {
 
 /// Arguments for [`add_assets`](syre_desktop_tauri::commands::container::add_assets).
 #[derive(Serialize, Debug)]
-pub struct AddAssetsInfoArgs {
+struct AddAssetsInfoArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 
@@ -156,7 +156,7 @@ pub struct AddAssetsInfoArgs {
 
 /// Arguments for [`add_asset_windows`](syre_desktop_tauri::commands::container::add_asset_windows).
 #[derive(Serialize)]
-pub struct AddAssetContentsArgs {
+struct AddAssetContentsArgs {
     /// [`ResourceId`] of the [`Container`](Container).
     pub container: ResourceId,
 

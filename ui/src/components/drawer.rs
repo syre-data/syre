@@ -21,6 +21,9 @@ impl Default for ResizeHandle {
 #[derive(Properties, PartialEq)]
 pub struct DrawerProps {
     #[prop_or_default]
+    pub root_ref: NodeRef,
+
+    #[prop_or_default]
     pub class: Classes,
 
     #[prop_or_default]
@@ -36,7 +39,7 @@ pub struct DrawerProps {
 
 #[function_component(Drawer)]
 pub fn drawer(props: &DrawerProps) -> Html {
-    let root_ref = use_node_ref();
+    let root_ref = props.root_ref.clone();
     let resizer_ref = use_node_ref();
 
     use_effect_with(props.resize.clone(), {

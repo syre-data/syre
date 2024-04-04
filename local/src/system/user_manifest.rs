@@ -34,7 +34,7 @@ pub fn user_by_email(email: &str) -> Result<Option<User>> {
 /// Adds a user to the system settings.
 pub fn add_user(user: User) -> Result {
     // validate email
-    if !validator::validate_email(&user.email) {
+    if !validator::ValidateEmail::validate_email(&user.email) {
         return Err(UsersError::InvalidEmail(user.email).into());
     }
 
@@ -85,7 +85,7 @@ pub fn delete_user_by_email(email: &str) -> Result {
 /// + [`UsersError::InvalidEmail`]: The updated email is invalid.
 pub fn update_user(user: User) -> Result {
     // validate email
-    if !validator::validate_email(&user.email) {
+    if !validator::ValidateEmail::validate_email(&user.email) {
         return Err(UsersError::InvalidEmail(user.email).into());
     }
 

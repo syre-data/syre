@@ -28,7 +28,8 @@ tracing = { workspace = true }
 tracing-subscriber = { version = "0.3.16", features = ["time"] }
 tracing-web = "0.1.2"
 uuid = { workspace = true, features = ["js", "serde", "v4"] }
-wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
+# wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
+wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 yew = { workspace = true, features = ["csr"] }
 yew-router = { workspace = true }

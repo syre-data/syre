@@ -15,16 +15,20 @@ impl Database {
     ) -> Result<Vec<Update>> {
         match event {
             AssetEvent::Moved { asset, path } => {
-                let asset_container = self.store.get_asset_container_id(&asset).unwrap().clone();
+                let asset_container = self
+                    .object_store
+                    .get_asset_container_id(&asset)
+                    .unwrap()
+                    .clone();
                 let asset_project = self
-                    .store
+                    .object_store
                     .get_container_project(&asset_container)
                     .unwrap()
                     .clone();
 
                 let Ok(path_container) = local_asset::container_from_path_ancestor(&path) else {
                     // asset file moved out of any container
-                    self.store.remove_asset(&asset)?;
+                    self.object_store.remove_asset(&asset)?;
                     return Ok(vec![Update::project(
                         asset_project,
                         AssetUpdate::Removed(asset.clone()).into(),
@@ -33,26 +37,28 @@ impl Database {
                 };
 
                 let path_container = self
-                    .store
+                    .object_store
                     .get_path_container(&path_container)
                     .unwrap()
                     .clone();
 
                 let path_project = self
-                    .store
+                    .object_store
                     .get_container_project(&path_container)
                     .unwrap()
                     .clone();
 
-                let container = self.store.get_container(&path_container).unwrap();
+                let container = self.object_store.get_container(&path_container).unwrap();
                 let container_path = fs::canonicalize(container.base_path()).unwrap();
                 let asset_path = path.strip_prefix(container_path).unwrap();
 
                 if asset_container == path_container {
                     // path updated
-                    self.store.update_asset_path(&asset, asset_path).unwrap();
+                    self.object_store
+                        .update_asset_path(&asset, asset_path)
+                        .unwrap();
 
-                    let container = self.store.get_asset_container(&asset).unwrap();
+                    let container = self.object_store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
                     return Ok(vec![Update::project(
                         asset_project,
@@ -66,11 +72,11 @@ impl Database {
                 }
 
                 // asset moved containers
-                self.store.move_asset(&asset, &path_container)?;
-                self.store.update_asset_path(&asset, asset_path)?;
+                self.object_store.move_asset(&asset, &path_container)?;
+                self.object_store.update_asset_path(&asset, asset_path)?;
 
                 if asset_project == path_project {
-                    let container = self.store.get_asset_container(&asset).unwrap();
+                    let container = self.object_store.get_asset_container(&asset).unwrap();
                     let asset_path = container.assets.get(&asset).unwrap().path.clone();
                     return Ok(vec![Update::project(
                         asset_project,
@@ -89,7 +95,7 @@ impl Database {
                         event_id.clone(),
                     )];
 
-                    let Some(container) = self.store.get_container(&path_container) else {
+                    let Some(container) = self.object_store.get_container(&path_container) else {
                         tracing::error!("Could not get container");
                         return Ok(updates);
                     };
@@ -115,9 +121,13 @@ impl Database {
             }
 
             AssetEvent::Removed(asset) => {
-                let container = self.store.get_asset_container_id(&asset).unwrap();
-                let project = self.store.get_container_project(container).unwrap().clone();
-                self.store.remove_asset(&asset)?;
+                let container = self.object_store.get_asset_container_id(&asset).unwrap();
+                let project = self
+                    .object_store
+                    .get_container_project(container)
+                    .unwrap()
+                    .clone();
+                self.object_store.remove_asset(&asset)?;
                 Ok(vec![Update::project(
                     project,
                     AssetUpdate::Removed(asset.clone()).into(),
@@ -126,14 +136,18 @@ impl Database {
             }
 
             AssetEvent::Renamed { asset, name } => {
-                let container = self.store.get_asset_container(&asset).unwrap();
+                let container = self.object_store.get_asset_container(&asset).unwrap();
                 let cid = container.rid.clone();
                 let container_path = fs::canonicalize(container.base_path()).unwrap().clone();
                 let name = name.strip_prefix(container_path).unwrap();
-                self.store.update_asset_path(&asset, name)?;
+                self.object_store.update_asset_path(&asset, name)?;
 
-                let project = self.store.get_container_project(&cid).unwrap().clone();
-                let container = self.store.get_asset_container(&asset).unwrap();
+                let project = self
+                    .object_store
+                    .get_container_project(&cid)
+                    .unwrap()
+                    .clone();
+                let container = self.object_store.get_asset_container(&asset).unwrap();
                 let path = container.assets.get(&asset).unwrap().path.clone();
                 Ok(vec![Update::project(
                     project,
@@ -147,10 +161,10 @@ impl Database {
             }
 
             AssetEvent::FileCreated(asset) => {
-                let container = self.store.get_asset_container(&asset).unwrap();
+                let container = self.object_store.get_asset_container(&asset).unwrap();
                 let asset = container.assets.get(&asset).unwrap();
                 let project = self
-                    .store
+                    .object_store
                     .get_container_project(&container.rid)
                     .unwrap()
                     .clone();

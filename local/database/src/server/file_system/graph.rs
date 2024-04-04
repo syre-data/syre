@@ -1,9 +1,12 @@
 //! Handle [`syre::Graph`](GraphEvent) events.
 use super::event::app::Graph as GraphEvent;
+use crate::error::server::{Rename as RenameError, UpdateContainer as UpdateContainerError};
 use crate::event::{Graph as GraphUpdate, Update};
 use crate::server::Database;
 use crate::Result;
+use std::io;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use syre_core::types::ResourceId;
 use syre_local::graph::{ContainerTreeDuplicator, ContainerTreeTransformer};
 use uuid::Uuid;
@@ -16,18 +19,22 @@ impl Database {
     ) -> Result<Vec<Update>> {
         match event {
             GraphEvent::Moved { root, path } => {
-                let project = self.store.get_container_project(&root).unwrap().clone();
+                let project = self
+                    .object_store
+                    .get_container_project(&root)
+                    .unwrap()
+                    .clone();
                 let parent = self
-                    .store
+                    .object_store
                     .get_path_container(&path.parent().unwrap())
                     .unwrap()
                     .clone();
 
                 self.update_subgraph_path(&root, path.clone())?;
-                self.store.move_subgraph(&root, &parent)?;
+                self.object_store.move_subgraph(&root, &parent)?;
 
                 let name = self
-                    .store
+                    .object_store
                     .get_container(&root)
                     .unwrap()
                     .properties
@@ -52,7 +59,7 @@ impl Database {
                 let root = graph.root().clone();
                 let path = graph.get(&root).unwrap().base_path().to_owned();
                 let parent = self
-                    .store
+                    .object_store
                     .get_path_container_canonical(path.parent().unwrap())
                     .unwrap()
                     .cloned()
@@ -64,8 +71,12 @@ impl Database {
                 container.save()?;
 
                 // remove scripts if not in project
-                let project = self.store.get_container_project(&parent).unwrap().clone();
-                let analyses = self.store.get_project_scripts(&project).unwrap();
+                let project = self
+                    .object_store
+                    .get_container_project(&parent)
+                    .unwrap()
+                    .clone();
+                let analyses = self.object_store.get_project_scripts(&project).unwrap();
                 for (_, container) in graph.iter_nodes_mut() {
                     container
                         .analyses
@@ -75,9 +86,13 @@ impl Database {
                 }
 
                 // insert graph
-                self.store.insert_subgraph(&parent, graph)?;
-                let project = self.store.get_container_project(&root).unwrap().clone();
-                let graph = self.store.get_graph_of_container(&root).unwrap();
+                self.object_store.insert_subgraph(&parent, graph)?;
+                let project = self
+                    .object_store
+                    .get_container_project(&root)
+                    .unwrap()
+                    .clone();
+                let graph = self.object_store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
                 Ok(vec![Update::project(
                     project,
@@ -104,16 +119,20 @@ impl Database {
 
                 let path = graph.get(&root).unwrap().base_path();
                 let parent = self
-                    .store
+                    .object_store
                     .get_path_container_canonical(path.parent().unwrap())
                     .unwrap()
                     .cloned()
                     .unwrap();
 
-                self.store.insert_subgraph(&parent, graph)?;
+                self.object_store.insert_subgraph(&parent, graph)?;
 
-                let project = self.store.get_container_project(&root).unwrap().clone();
-                let graph = self.store.get_graph_of_container(&root).unwrap();
+                let project = self
+                    .object_store
+                    .get_container_project(&root)
+                    .unwrap()
+                    .clone();
+                let graph = self.object_store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
                 Ok(vec![Update::project(
                     project,
@@ -123,8 +142,12 @@ impl Database {
             }
 
             GraphEvent::Removed(root) => {
-                let project = self.store.get_container_project(&root).unwrap().clone();
-                let graph = self.store.remove_subgraph(&root)?;
+                let project = self
+                    .object_store
+                    .get_container_project(&root)
+                    .unwrap()
+                    .clone();
+                let graph = self.object_store.remove_subgraph(&root)?;
                 let graph = ContainerTreeTransformer::local_to_core(&graph);
                 Ok(vec![Update::project(
                     project,
@@ -141,14 +164,28 @@ impl Database {
     /// # Returns
     /// `ResouceId` of the affected `Container`.
     #[tracing::instrument(skip(self))]
-    fn update_subgraph_path(&mut self, root: &ResourceId, path: PathBuf) -> Result {
+    fn update_subgraph_path(
+        &mut self,
+        root: &ResourceId,
+        path: PathBuf,
+    ) -> StdResult<(), UpdateContainerError> {
         let rid = root.clone();
-        let root = self.store.get_container_mut(&root).unwrap();
-        root.properties.name = path.file_name().unwrap().to_str().unwrap().to_string();
-        self.store.update_subgraph_path(&rid, path)?; // must update graph paths before saving container
+        let Some(root) = self.object_store.get_container_mut(&root) else {
+            return Err(RenameError::ResourceNotFound.into());
+        };
 
-        let root = self.store.get_container(&rid).unwrap();
-        root.save()?;
+        let Some(name) = path.file_name() else {
+            return Err(RenameError::Rename(io::ErrorKind::InvalidFilename).into());
+        };
+
+        root.properties.name = name.to_str().unwrap().to_string();
+        self.object_store.update_subgraph_path(&rid, path)?; // must update graph paths before saving container
+
+        let root = self.object_store.get_container(&rid).unwrap();
+        if let Err(err) = root.save() {
+            return Err(UpdateContainerError::Save(err));
+        }
+
         Ok(())
     }
 }

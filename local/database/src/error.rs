@@ -74,6 +74,18 @@ pub enum Error {
         errors: HashMap<ResourceId, Vec<AssetFile>>,
         graph: ContainerTree,
     },
+
+    #[cfg(feature = "server")]
+    #[error("{0}")]
+    Update(server::Update),
+
+    #[cfg(feature = "server")]
+    #[error("{0}")]
+    UpdateContainer(server::UpdateContainer),
+
+    #[cfg(feature = "server")]
+    #[error("{0}")]
+    LoadProjectGraph(server::LoadProjectGraph),
 }
 
 #[cfg(any(feature = "server", feature = "client"))]
@@ -128,6 +140,29 @@ impl From<trash::Error> for Error {
     }
 }
 
+#[cfg(feature = "server")]
+impl From<server::Update> for Error {
+    fn from(value: server::Update) -> Self {
+        Self::Update(value)
+    }
+}
+
+#[cfg(feature = "server")]
+impl From<server::UpdateContainer> for Error {
+    fn from(value: server::UpdateContainer) -> Self {
+        Self::UpdateContainer(value)
+    }
+}
+
+#[cfg(feature = "server")]
+impl From<server::LoadProjectGraph> for Error {
+    fn from(value: server::LoadProjectGraph) -> Self {
+        Self::LoadProjectGraph(value)
+    }
+}
+
+pub type Result<T = ()> = StdResult<T, Error>;
+
 pub mod server {
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
@@ -136,6 +171,7 @@ pub mod server {
     use syre_core::error::Project as ProjectError;
     use syre_core::project::Project;
     use syre_core::types::ResourceId;
+    use syre_local::error::IoErrorKind;
     use syre_local::error::IoSerde;
     use syre_local::types::ProjectSettings;
     use thiserror::Error;
@@ -182,6 +218,76 @@ pub mod server {
             graph: CoreContainerTree,
         },
     }
-}
 
-pub type Result<T = ()> = StdResult<T, Error>;
+    #[derive(Serialize, Deserialize, Error, Debug)]
+    pub enum Update {
+        #[error("resource not found")]
+        ResourceNotFound,
+
+        #[error("{0}")]
+        Save(IoSerde),
+    }
+
+    impl From<IoSerde> for Update {
+        fn from(value: IoSerde) -> Self {
+            Self::Save(value)
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Error, Debug)]
+    pub enum Rename {
+        #[error("resource not found")]
+        ResourceNotFound,
+
+        #[error("name conflict")]
+        NameConflict,
+
+        #[error("{0}")]
+        Rename(#[serde(with = "IoErrorKind")] io::ErrorKind),
+
+        #[error("{0}")]
+        UpdateSubgraphPath(UpdateSubgraphPath),
+    }
+
+    impl From<UpdateSubgraphPath> for Rename {
+        fn from(value: UpdateSubgraphPath) -> Self {
+            Self::UpdateSubgraphPath(value)
+        }
+    }
+
+    #[derive(Error, Debug, Serialize, Deserialize)]
+    pub enum UpdateSubgraphPath {
+        #[error("subgraph root not found")]
+        RootNotFound,
+
+        #[error("could not canonicalize resource {resource} with path {path}: {kind}")]
+        Canonicalization {
+            resource: ResourceId,
+            path: PathBuf,
+
+            #[serde(with = "IoErrorKind")]
+            kind: io::ErrorKind,
+        },
+    }
+
+    #[derive(Serialize, Deserialize, Error, Debug)]
+    pub enum UpdateContainer {
+        #[error("resource not found")]
+        ResourceNotFound,
+
+        #[error("{0}")]
+        Rename(Rename),
+
+        #[error("{0}")]
+        Save(IoSerde),
+    }
+
+    impl<T> From<T> for UpdateContainer
+    where
+        T: Into<Rename>,
+    {
+        fn from(value: T) -> Self {
+            Self::Rename(value.into())
+        }
+    }
+}

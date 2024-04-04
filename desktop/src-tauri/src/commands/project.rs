@@ -1,5 +1,5 @@
 //! Commands related to projects.
-use crate::error::{DesktopSettings as DesktopSettingsError, Result};
+use crate::error::{DesktopSettings as DesktopSettingsError, Error, Result};
 use crate::state::AppState;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
@@ -19,14 +19,12 @@ use syre_local::system::project_manifest as sys_projects;
 use syre_local::types::ProjectSettings;
 use syre_local_database::client::Client as DbClient;
 use syre_local_database::command::{GraphCommand, ProjectCommand};
-use syre_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
+use syre_local_database::error::server::{
+    LoadUserProjects as LoadUserProjectsError, Update as UpdateError,
+};
 use syre_local_database::Result as DbResult;
 use syre_local_runner::Runner;
 use tauri::State;
-
-// **************************
-// *** load user projects ***
-// **************************
 
 /// Loads all the active user's projects.
 #[tauri::command]
@@ -34,30 +32,17 @@ pub fn load_user_projects(
     db: State<DbClient>,
     user: ResourceId,
 ) -> StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> {
-    let projects = db.send(ProjectCommand::LoadUser(user).into()).unwrap();
-    let projects: StdResult<Vec<(Project, ProjectSettings)>, LoadUserProjectsError> =
-        serde_json::from_value(projects).unwrap();
-
-    Ok(projects?)
+    db.project().load_user(user).unwrap()
 }
-
-// ********************
-// *** load project ***
-// ********************
 
 /// Loads a [`Project`].
 #[tauri::command]
-pub fn load_project(db: State<DbClient>, path: PathBuf) -> DbResult<(Project, ProjectSettings)> {
-    let project = db
-        .send(ProjectCommand::LoadWithSettings(path).into())
-        .expect("could not load `Project`");
-
-    serde_json::from_value::<DbResult<(Project, ProjectSettings)>>(project).unwrap()
+pub fn load_project(
+    db: State<DbClient>,
+    path: PathBuf,
+) -> StdResult<(Project, ProjectSettings), IoSerdeError> {
+    db.project().load_with_settings(path).unwrap()
 }
-
-// *******************
-// *** add project ***
-// *******************
 
 /// Imports an existing [`Project`].
 /// Adds the active user to it.
@@ -68,7 +53,6 @@ pub fn import_project(
     path: PathBuf,
 ) -> Result<(Project, ProjectSettings)> {
     let path = fs::canonicalize(path)?;
-
     let user = app_state.user.lock().unwrap();
     let Some(user) = user.as_ref() else {
         return Err(DesktopSettingsError::NoUser.into());
@@ -92,46 +76,34 @@ pub fn import_project(
     );
 
     project.save()?;
-
     let mut project_manifest = ProjectManifest::load_or_default()?;
     project_manifest.push(path.clone());
     project_manifest.save()?;
 
-    let project = db
-        .send(ProjectCommand::LoadWithSettings(project.base_path().to_path_buf()).into())
-        .unwrap();
-
-    let project: DbResult<(Project, ProjectSettings)> = serde_json::from_value(project).unwrap();
-    Ok(project?)
+    Ok(db
+        .project()
+        .load_with_settings(project.base_path().to_path_buf())
+        .unwrap()?)
 }
-
-// *******************
-// *** get project ***
-// *******************
 
 /// Gets a [`Project`].
 #[tauri::command]
-pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Result<Option<Project>> {
-    let project = db.send(ProjectCommand::Get(rid).into()).unwrap();
-    let project: Option<Project> = serde_json::from_value(project).unwrap();
-    Ok(project)
+pub fn get_project(db: State<DbClient>, rid: ResourceId) -> Option<Project> {
+    db.project().get(rid).unwrap()
 }
-
-// **********************
-// *** delete project ***
-// **********************
 
 #[tauri::command]
 pub fn delete_project(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveResourceError> {
-    let path = match db.send(ProjectCommand::GetPath(rid).into()) {
-        Ok(path) => path,
-        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
-    };
+    let path = match db.project().path(rid) {
+        Ok(Some(path)) => path,
 
-    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
-        return Err(RemoveResourceError::Database(
-            "Could not get Project's path".to_string(),
-        ));
+        Ok(None) => {
+            return Err(RemoveResourceError::Database(
+                "Could not get Project's path".to_string(),
+            ))
+        }
+
+        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
     };
 
     match trash::delete(path) {
@@ -139,10 +111,6 @@ pub fn delete_project(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Rem
         Err(err) => todo!("{err:?}"),
     }
 }
-
-// ********************
-// *** init project ***
-// ********************
 
 /// Initializes a new project.
 #[tauri::command]
@@ -153,7 +121,7 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
     let analysis_root = "analysis";
     let mut analysis = path.to_path_buf();
     analysis.push(analysis_root);
-    fs::create_dir(&analysis).expect("could not create analysis directory");
+    fs::create_dir(&analysis).unwrap();
 
     let mut project = LocalProject::load_from(path)?;
     project.analysis_root = Some(PathBuf::from(analysis_root));
@@ -168,10 +136,6 @@ pub fn init_project_from(path: &Path) -> syre_local::Result<ResourceId> {
     converter.convert(path)
 }
 
-// ************************
-// *** get project path ***
-// ************************
-
 #[tauri::command]
 pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
     let Some(path) = sys_projects::get_path(&rid)? else {
@@ -185,23 +149,11 @@ pub fn get_project_path(rid: ResourceId) -> Result<PathBuf> {
     Ok(path)
 }
 
-// **********************
-// *** update project ***
-// **********************
-
 /// Updates a project.
 #[tauri::command]
-pub fn update_project(db: State<DbClient>, project: Project) -> DbResult {
-    let res = db
-        .send(ProjectCommand::Update(project).into())
-        .expect("could not update `Project`");
-
-    serde_json::from_value(res).unwrap()
+pub fn update_project(db: State<DbClient>, project: Project) -> StdResult<(), UpdateError> {
+    db.project().update(project).unwrap()
 }
-
-// ***************
-// *** analyze ***
-// ***************
 
 #[tauri::command]
 pub fn analyze(
@@ -209,14 +161,13 @@ pub fn analyze(
     root: ResourceId,
     max_tasks: Option<usize>,
 ) -> StdResult<(), AnalysisError> {
-    let graph = match db.send(GraphCommand::Get(root.clone()).into()) {
+    let graph = match db.graph().get(root.clone()) {
         Ok(graph) => graph,
         Err(err) => {
             return Err(AnalysisError::ZMQ(format!("{err:?}")));
         }
     };
 
-    let graph: Option<ResourceTree<Container>> = serde_json::from_value(graph).unwrap();
     let Some(mut graph) = graph else {
         return Err(AnalysisError::GraphNotFound);
     };

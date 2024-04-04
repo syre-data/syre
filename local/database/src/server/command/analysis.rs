@@ -16,7 +16,7 @@ impl Database {
     pub fn handle_command_analysis(&mut self, cmd: AnalysisCommand) -> JsValue {
         match cmd {
             AnalysisCommand::Get(script) => {
-                let script = self.store.get_analysis(&script);
+                let script = self.object_store.get_analysis(&script);
                 serde_json::to_value(&script).unwrap()
             }
 
@@ -26,7 +26,7 @@ impl Database {
             }
 
             AnalysisCommand::AddExcelTemplate { project, template } => {
-                let res = self.store.insert_excel_template(project, template);
+                let res = self.object_store.insert_excel_template(project, template);
                 serde_json::to_value(res).unwrap()
             }
 
@@ -68,12 +68,12 @@ impl Database {
     /// # Arguments
     /// 1. `Project`'s id.
     fn load_project_scripts(&mut self, rid: ResourceId) -> Result<AnalysisStore> {
-        if let Some(scripts) = self.store.get_project_scripts(&rid) {
+        if let Some(scripts) = self.object_store.get_project_scripts(&rid) {
             // project scripts already loaded
             return Ok((**scripts).clone());
         }
 
-        let Some(project) = self.store.get_project(&rid) else {
+        let Some(project) = self.object_store.get_project(&rid) else {
             return Err(CoreError::Resource(ResourceError::DoesNotExist(
                 "project is not loaded".to_string(),
             ))
@@ -82,21 +82,21 @@ impl Database {
 
         let scripts = ProjectScripts::load_from(project.base_path())?;
         let script_vals = (*scripts).clone();
-        self.store.insert_project_scripts(rid, scripts);
+        self.object_store.insert_project_scripts(rid, scripts);
         Ok(script_vals)
     }
 
     /// Adds a `Script` to a `Project`.
     fn add_script(&mut self, project: ResourceId, script: PathBuf) -> Result<CoreScript> {
         let script = LocalScript::new(script)?;
-        self.store.insert_script(project, script.clone())?;
+        self.object_store.insert_script(project, script.clone())?;
 
         Ok(script)
     }
 
     /// Remove an analysis from `Project`.
     fn remove_analysis(&mut self, pid: &ResourceId, analysis: &ResourceId) -> Result {
-        let analysis = self.store.remove_project_script(pid, analysis)?;
+        let analysis = self.object_store.remove_project_script(pid, analysis)?;
 
         if let Some(analysis) = analysis {
             let analysis_path = match analysis {
@@ -107,7 +107,7 @@ impl Database {
             let path = if analysis_path.is_absolute() {
                 analysis_path.clone()
             } else if analysis_path.is_relative() {
-                let Some(project) = self.store.get_project(&pid) else {
+                let Some(project) = self.object_store.get_project(&pid) else {
                     return Err(Error::Database(String::from(
                         "could not get `Project` path",
                     )));
@@ -136,26 +136,26 @@ impl Database {
 
     /// Update a `Script`.
     fn update_script(&mut self, script: CoreScript) -> Result {
-        let Some(project) = self.store.get_script_project(&script.rid) else {
+        let Some(project) = self.object_store.get_script_project(&script.rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))
             .into());
         };
 
-        self.store.insert_script(project.clone(), script)?;
+        self.object_store.insert_script(project.clone(), script)?;
         Ok(())
     }
 
     fn update_excel_template(&mut self, template: ExcelTemplate) -> Result {
-        let Some(project) = self.store.get_script_project(&template.rid) else {
+        let Some(project) = self.object_store.get_script_project(&template.rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`ExcelTemplate` does not exist",
             ))
             .into());
         };
 
-        self.store
+        self.object_store
             .insert_excel_template(project.clone(), template)?;
 
         Ok(())
@@ -163,11 +163,11 @@ impl Database {
 
     /// Get the `Project` of a `Script`.
     fn get_script_project(&self, script: &ResourceId) -> Option<&LocalProject> {
-        let Some(project) = self.store.get_script_project(script) else {
+        let Some(project) = self.object_store.get_script_project(script) else {
             return None;
         };
 
-        self.store.get_project(project)
+        self.object_store.get_project(project)
     }
 }
 

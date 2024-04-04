@@ -18,7 +18,7 @@ fn insert_project_should_work() {
     let project = LocalProject::load_from(dir.path()).expect("load `Project` should work");
     let pid = project.rid.clone();
 
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
 
     // test
     db.insert_project(project)
@@ -75,7 +75,7 @@ fn update_project_path_should_work() {
     let mut graph = ResourceTree::new(root);
     graph.insert(graph.root().clone(), child).unwrap();
 
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
     db.insert_project(project).unwrap();
     db.insert_project_graph(pid.clone(), graph).unwrap();
 
@@ -133,7 +133,7 @@ fn insert_project_graph_should_work() {
     drop(child);
 
     let graph = ContainerTreeLoader::load(dir.path()).unwrap();
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
 
     // test
     db.insert_project_graph_canonical(pid.clone(), graph)
@@ -168,7 +168,7 @@ fn insert_project_graph_should_work() {
 fn get_container_should_work() {
     // setup
     let dir = TempDir::new().unwrap();
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
     let container = LocalContainer::new(dir.path());
     let rid = container.rid.clone();
     let graph = ResourceTree::new(container);
@@ -189,7 +189,7 @@ fn get_container_should_work() {
 fn get_asset_container_should_work() {
     // setup
     let dir = TempDir::new().unwrap();
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
     let mut container = LocalContainer::new(dir.path());
     let cid = container.rid.clone();
 
@@ -238,7 +238,7 @@ fn find_containers_should_work() {
     root.properties.kind = find_kind.clone();
     child_1.properties.kind = find_kind.clone();
 
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
 
     let mut graph = ResourceTree::new(root);
     graph.insert(root_rid.clone(), child_1).unwrap();
@@ -332,7 +332,7 @@ fn find_assets_should_work() {
     root.save().expect("could not save root `Container`");
     child.save().expect("could not save child `Container`");
 
-    let mut db = Datastore::new();
+    let mut db = Objectstore::new();
     let mut graph = ResourceTree::new(root);
     graph.insert(root_rid.clone(), child).unwrap();
     db.insert_project_graph_canonical(ResourceId::new(), graph)
@@ -414,7 +414,7 @@ fn remove_project_script_should_work() {
         .insert_script_unique_path(other_script)
         .expect("could not insert other `Script`");
 
-    let mut store = Datastore::new();
+    let mut store = Objectstore::new();
 
     store.insert_project_scripts(pid.clone(), scripts);
 

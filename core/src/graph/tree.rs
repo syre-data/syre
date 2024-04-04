@@ -8,6 +8,7 @@ use indexmap::IndexSet;
 use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashSet;
 use std::fmt;
+use std::result::Result as StdResult;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -197,9 +198,9 @@ where
     ///
     /// # Errors
     /// + If the child does not exist.
-    pub fn parent(&self, child: &ResourceId) -> Result<Option<&ResourceId>> {
+    pub fn parent(&self, child: &ResourceId) -> StdResult<Option<&ResourceId>, ResourceError> {
         let Some(parent) = self.parents.get(&child) else {
-            return Err(ResourceError::does_not_exist("`Node` not found").into());
+            return Err(ResourceError::does_not_exist("`Node` not found"));
         };
 
         Ok(parent.as_ref())

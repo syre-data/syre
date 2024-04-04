@@ -3,6 +3,7 @@ use super::super::Database;
 use crate::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
 use crate::command::AssetCommand;
 use crate::error::Result;
+use crate::server::store::data_store::asset::Record as AssetRecord;
 use serde_json::Value as JsValue;
 use std::path::PathBuf;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
@@ -13,130 +14,168 @@ impl Database {
     #[tracing::instrument(skip(self))]
     pub fn handle_command_asset(&mut self, cmd: AssetCommand) -> JsValue {
         match cmd {
-            AssetCommand::Get(rid) => {
-                let asset: Option<Asset> = {
-                    if let Some(container) = self.store.get_asset_container(&rid) {
-                        container.assets.get(&rid).cloned().into()
-                    } else {
-                        None
-                    }
-                };
+            AssetCommand::Get(asset) => serde_json::to_value(self.handle_asset_get(asset)).unwrap(),
 
-                serde_json::to_value(asset).unwrap()
-            }
-
-            AssetCommand::GetMany(rids) => {
-                let assets = rids
-                    .iter()
-                    .filter_map(|rid| {
-                        let Some(container) = self.store.get_asset_container(&rid) else {
-                            return None;
-                        };
-
-                        let Some(asset) = container.assets.get(&rid) else {
-                            return None;
-                        };
-
-                        Some(asset.clone())
-                    })
-                    .collect::<Vec<Asset>>();
-
-                serde_json::to_value(assets).expect("could not convert `Vec<Asset>` to JSON")
+            AssetCommand::GetMany(assets) => {
+                serde_json::to_value(self.handle_asset_get_many(assets)).unwrap()
             }
 
             AssetCommand::Path(asset) => {
-                let Some(container) = self.store.get_asset_container(&asset) else {
-                    let res: Option<PathBuf> = None;
-                    return serde_json::to_value(res).unwrap();
-                };
-
-                let asset = container.assets.get(&asset).unwrap();
-                let path = container.base_path().join(asset.path.as_path());
-                serde_json::to_value(Some(path)).unwrap()
+                serde_json::to_value(self.handle_asset_path(asset)).unwrap()
             }
 
             AssetCommand::Parent(asset) => {
-                // TODO Convert to result for homogeneity with `ContainerCommand::Parent`.
-                let container: Option<CoreContainer> = self
-                    .store
-                    .get_asset_container(&asset)
-                    .map(|container| (*container).clone().into());
-
-                serde_json::to_value(container).unwrap()
+                serde_json::to_value(self.handle_asset_parent(asset)).unwrap()
             }
 
             AssetCommand::Add { asset, container } => {
-                let res = self.store.add_asset(asset, container);
-                serde_json::to_value(res).unwrap()
+                serde_json::to_value(self.handle_asset_add(asset, container)).unwrap()
             }
 
             AssetCommand::Remove(asset) => {
-                let res = self.store.remove_asset(&asset);
-                serde_json::to_value(res).unwrap()
+                serde_json::to_value(self.handle_asset_remove(asset)).unwrap()
             }
 
             AssetCommand::UpdateProperties { asset, properties } => {
-                let res = self.update_asset_properties(&asset, properties);
+                let res = self.handle_asset_update_properties(&asset, properties);
                 serde_json::to_value(res).unwrap()
             }
 
             AssetCommand::Find { root, filter } => {
-                let assets = self.store.find_assets(&root, filter);
+                let assets = self.object_store.find_assets(&root, filter);
                 serde_json::to_value(assets).unwrap()
             }
 
             AssetCommand::FindWithMetadata { root, filter } => {
-                let assets = self.store.find_assets_with_metadata(&root, filter);
+                let assets = self.object_store.find_assets_with_metadata(&root, filter);
                 serde_json::to_value(assets).unwrap()
             }
 
             AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
-                let res = self.bulk_update_asset_properties(&rids, &update);
+                let res = self.handle_asset_bulk_update_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
         }
     }
 
-    fn update_asset_properties(&mut self, rid: &ResourceId, properties: AssetProperties) -> Result {
-        let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
+    /// Get a single Asset by id.
+    fn handle_asset_get(&self, asset: ResourceId) -> Option<Asset> {
+        if let Some(container) = self.object_store.get_asset_container(&asset) {
+            container.assets.get(&asset).cloned().into()
+        } else {
+            None
+        }
+    }
+
+    /// Gets many Assets by id.
+    /// If an Asset is not found it is filtered out.
+    fn handle_asset_get_many(&self, assets: Vec<ResourceId>) -> Vec<Asset> {
+        assets
+            .iter()
+            .filter_map(|aid| {
+                let Some(container) = self.object_store.get_asset_container(&aid) else {
+                    return None;
+                };
+
+                let Some(asset) = container.assets.get(&aid) else {
+                    return None;
+                };
+
+                Some(asset.clone())
+            })
+            .collect()
+    }
+
+    /// # Returns
+    /// The absolute path to the Asset.
+    /// + `None` if the Asset is not found.
+    fn handle_asset_path(&self, asset: ResourceId) -> Option<PathBuf> {
+        let Some(container) = self.object_store.get_asset_container(&asset) else {
+            return None;
+        };
+
+        let Some(asset) = container.assets.get(&asset) else {
+            // TODO: Update object store.
+            tracing::error!("asset found in object store but not container");
+            return None;
+        };
+
+        Some(container.base_path().join(asset.path.as_path()))
+    }
+
+    /// # Returns
+    /// The Asset's Container.
+    /// + `None` if the Asset is not found.
+    fn handle_asset_parent(&self, asset: ResourceId) -> Option<CoreContainer> {
+        self.object_store
+            .get_asset_container(&asset)
+            .map(|container| (*container).clone().into())
+    }
+
+    /// Adds an Asset to a Container.
+    fn handle_asset_add(&mut self, asset: Asset, container: ResourceId) -> Result {
+        self.object_store
+            .add_asset(asset.clone(), container.clone())?;
+
+        if let Err(err) = self
+            .data_store
+            .asset()
+            .create(asset.rid.clone(), asset.into(), container)
+        {
+            tracing::error!(?err);
+        }
+
+        Ok(())
+    }
+
+    fn handle_asset_update_properties(
+        &mut self,
+        asset: &ResourceId,
+        properties: AssetProperties,
+    ) -> Result {
+        let Some(container) = self.object_store.get_asset_container_id(asset).cloned() else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
-        let Some(container) = self.store.get_container_mut(&container) else {
+        let Some(container) = self.object_store.get_container_mut(&container) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
             .into());
         };
 
-        let Some(asset) = container.assets.get_mut(&rid) else {
+        let Some(asset) = container.assets.get_mut(asset) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
+        let aid = asset.rid.clone();
+        let update = AssetRecord::new(properties.clone(), asset.path.clone());
+
         asset.properties = properties;
         container.save()?;
+
+        if let Err(err) = self.data_store.asset().update(aid, update) {
+            tracing::error!(?err);
+        }
+
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    fn remove_asset(&mut self, rid: &ResourceId) -> Result {
-        let Some((_asset, path)) = self.store.remove_asset(rid)? else {
-            return Ok(());
-        };
-
-        trash::delete(&path)?;
-        Ok(())
+    fn handle_asset_remove(&mut self, asset: ResourceId) -> Result<Option<(Asset, PathBuf)>> {
+        let _ = self.data_store.asset().remove(asset.clone());
+        let asset_info = self.object_store.remove_asset(&asset)?;
+        Ok(asset_info)
     }
 
     /// Bulk update `Asset` properties.
     #[tracing::instrument(skip(self))]
-    fn bulk_update_asset_properties(
+    fn handle_asset_bulk_update_properties(
         &mut self,
         assets: &Vec<ResourceId>,
         update: &PropertiesUpdate,
@@ -155,14 +194,14 @@ impl Database {
         rid: &ResourceId,
         update: &PropertiesUpdate,
     ) -> Result {
-        let Some(container) = self.store.get_asset_container_id(&rid).cloned() else {
+        let Some(container) = self.object_store.get_asset_container_id(&rid).cloned() else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Asset` does not exist",
             ))
             .into());
         };
 
-        let Some(container) = self.store.get_container_mut(&container) else {
+        let Some(container) = self.object_store.get_container_mut(&container) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
@@ -212,7 +251,17 @@ impl Database {
             asset.properties.metadata.remove(key);
         }
 
+        let update = asset.clone();
         container.save()?;
+
+        if let Err(err) = self
+            .data_store
+            .asset()
+            .update(update.rid.clone(), update.into())
+        {
+            tracing::error!(?err);
+        }
+
         Ok(())
     }
 }

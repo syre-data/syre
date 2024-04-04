@@ -2,6 +2,7 @@
 use crate::error::Result;
 use std::fs;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::{Container, ContainerProperties};
 use syre_core::types::ResourceId;
@@ -9,23 +10,17 @@ use syre_desktop_lib::types::AddAssetInfo;
 use syre_local::common::unique_file_name;
 use syre_local::types::AssetFileAction;
 use syre_local_database::client::Client as DbClient;
-use syre_local_database::command::container::{
-    AnalysisAssociationBulkUpdate, BulkUpdateAnalysisAssociationsArgs, BulkUpdatePropertiesArgs,
-    PropertiesUpdate, UpdateAnalysisAssociationsArgs, UpdatePropertiesArgs,
+use syre_local_database::command::container::{AnalysisAssociationBulkUpdate, PropertiesUpdate};
+use syre_local_database::error::server::{
+    Update as UpdateError, UpdateContainer as UpdateContainerError,
 };
-use syre_local_database::command::ContainerCommand;
 use syre_local_database::Result as DbResult;
 use tauri::State;
 
 /// Retrieves a [`Container`](Container), or `None` if it is not loaded.
 #[tauri::command]
 pub fn get_container(db: State<DbClient>, rid: ResourceId) -> Option<Container> {
-    let container = db
-        .send(ContainerCommand::Get(rid).into())
-        .expect("could not retrieve `Container`");
-
-    serde_json::from_value(container)
-        .expect("could not convert `GetContainer` result to `Container`")
+    db.container().get(rid).unwrap()
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s properties and persists changes to disk.
@@ -36,13 +31,9 @@ pub fn update_container_properties(
     properties: String, // TODO Issue with deserializing enum with Option. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/5993
                         // properties: ContainerProperties,
-) -> DbResult {
+) -> StdResult<(), UpdateContainerError> {
     let properties: ContainerProperties = serde_json::from_str(&properties).unwrap();
-    let res = db
-        .send(ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }).into())
-        .unwrap();
-
-    serde_json::from_value(res).unwrap()
+    db.container().update_properties(rid, properties).unwrap()
 }
 
 /// Updates an existing [`Container`](LocalContainer)'s script associations and persists changes to disk.
@@ -51,27 +42,16 @@ pub fn update_container_analysis_associations(
     db: State<DbClient>,
     rid: ResourceId,
     associations: AnalysisMap,
-) -> Result {
-    let res = db
-        .send(
-            ContainerCommand::UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs {
-                rid,
-                associations,
-            })
-            .into(),
-        )
-        .unwrap();
-
-    let res: DbResult = serde_json::from_value(res).unwrap();
-    Ok(res?)
+) -> StdResult<(), UpdateError> {
+    db.container()
+        .update_analysis_associations(rid, associations)
+        .unwrap()
 }
 
 /// Gets the current location of a [`Container`](LocalContainer).
 #[tauri::command]
 pub fn get_container_path(db: State<DbClient>, rid: ResourceId) -> Option<PathBuf> {
-    let path = db.send(ContainerCommand::Path(rid).into()).unwrap();
-
-    serde_json::from_value::<Option<PathBuf>>(path).unwrap()
+    db.container().path(rid).unwrap()
 }
 
 /// Adds [`Asset`](syre_core::project::Asset)s to a [`Container`].
@@ -81,10 +61,8 @@ pub fn add_assets_from_info(
     container: ResourceId,
     assets: Vec<AddAssetInfo>,
 ) -> Result {
-    let container_path = db.send(ContainerCommand::Path(container).into()).unwrap();
-    let Some(container_path) = serde_json::from_value::<Option<PathBuf>>(container_path).unwrap()
-    else {
-        panic!("could not get container path");
+    let Some(container_path) = db.container().path(container).unwrap() else {
+        panic!("could not find container path");
     };
 
     for AddAssetInfo {
@@ -121,17 +99,13 @@ pub fn add_asset_from_contents(
     contents: Vec<u8>,
 ) -> Result {
     // create file
-    let path = db
-        .send(ContainerCommand::Path(container.clone()).into())
-        .expect("could not get `Container` path");
+    let Some(mut path) = db.container().path(container).unwrap() else {
+        panic!("could not get container path");
+    };
 
-    let path: Option<PathBuf> =
-        serde_json::from_value(path).expect("could not convert result of `GetPath` to `PathBuf`");
-
-    let mut path = path.expect("could not get `Container` path");
     path.push(name);
-    let path = unique_file_name(path).expect("could not create a unique file name");
-    fs::write(&path, contents).expect("could not write to file");
+    let path = unique_file_name(path).unwrap();
+    fs::write(&path, contents).unwrap();
     Ok(())
 }
 
@@ -141,23 +115,16 @@ pub fn bulk_update_container_properties(
     rids: Vec<ResourceId>,
     update: PropertiesUpdate,
 ) -> DbResult {
-    let update = ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update });
-    let res = db.send(update.into()).unwrap();
-    serde_json::from_value(res).unwrap()
+    db.container().bulk_update_properties(rids, update).unwrap()
 }
 
 #[tauri::command]
-pub fn bulk_update_container_script_associations(
+pub fn bulk_update_container_analysis_associations(
     db: State<DbClient>,
     containers: Vec<ResourceId>,
     update: AnalysisAssociationBulkUpdate,
 ) -> DbResult {
-    let update =
-        ContainerCommand::BulkUpdateAnalysisAssociations(BulkUpdateAnalysisAssociationsArgs {
-            containers,
-            update,
-        });
-
-    let res = db.send(update.into()).unwrap();
-    serde_json::from_value(res).unwrap()
+    db.container()
+        .bulk_update_analysis_associations(containers, update)
+        .unwrap()
 }

@@ -30,6 +30,9 @@ pub enum DesktopSettings {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("{0}")]
+    ZMQ(String),
+
+    #[error("{0}")]
     CoreError(CoreError),
 
     #[error("{0}")]

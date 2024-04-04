@@ -23,15 +23,15 @@ impl Database {
                     syre_local::project::asset::container_from_path_ancestor(&path)?;
 
                 let path_container = self
-                    .store
+                    .object_store
                     .get_path_container_canonical(&container_path)
                     .unwrap()
                     .cloned()
                     .unwrap();
 
-                let path_container = self.store.get_container(&path_container).unwrap();
+                let path_container = self.object_store.get_container(&path_container).unwrap();
                 if self
-                    .store
+                    .object_store
                     .get_path_asset_id_canonical(&path)
                     .unwrap()
                     .is_some()
@@ -83,15 +83,15 @@ impl Database {
     ) -> Result<Vec<Update>> {
         let asset = Asset::new(asset_path)?;
         let aid = asset.rid.clone();
-        self.store.add_asset(asset, container.clone())?;
+        self.object_store.add_asset(asset, container.clone())?;
 
         let project = self
-            .store
+            .object_store
             .get_container_project(&container)
             .unwrap()
             .clone();
 
-        let container = self.store.get_container(&container).unwrap();
+        let container = self.object_store.get_container(&container).unwrap();
         let asset = container.assets.get(&aid).unwrap().clone();
 
         Ok(vec![Update::project(
@@ -108,7 +108,7 @@ impl Database {
     #[tracing::instrument(skip(self))]
     fn init_subgraph_file(&mut self, path: PathBuf, event_id: &Uuid) -> Result<Vec<Update>> {
         let parent = self
-            .store
+            .object_store
             .get_path_container_canonical(path.parent().unwrap())
             .unwrap()
             .cloned()
@@ -123,10 +123,14 @@ impl Database {
         // insert into graph
         let graph = ContainerTreeLoader::load(path).unwrap();
         let root = graph.root().clone();
-        self.store.insert_subgraph(&parent, graph)?;
+        self.object_store.insert_subgraph(&parent, graph)?;
 
-        let project = self.store.get_container_project(&root).unwrap().clone();
-        let graph = self.store.get_graph_of_container(&root).unwrap();
+        let project = self
+            .object_store
+            .get_container_project(&root)
+            .unwrap()
+            .clone();
+        let graph = self.object_store.get_graph_of_container(&root).unwrap();
         let graph = ContainerTreeTransformer::local_to_core(graph);
         Ok(vec![Update::project(
             project,

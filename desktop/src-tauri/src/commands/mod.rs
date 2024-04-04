@@ -10,6 +10,7 @@ pub mod project;
 pub mod search;
 pub mod settings;
 pub mod user;
+pub mod utils;
 
 // Re-exports
 pub use analysis::*;

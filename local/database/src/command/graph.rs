@@ -7,12 +7,21 @@ use syre_core::types::ResourceId;
 pub enum GraphCommand {
     /// Loads a `Project`'s graph.
     /// Reloads it if is already loaded.
+    ///
+    /// # Fields
+    /// 0. Id of the project.
     Load(ResourceId),
 
     /// Gets a `Project`'s graph, loading it if needed.
+    ///
+    /// # Fields
+    /// 0. Id of the project.
     GetOrLoad(ResourceId),
 
     /// Gets a subtree.
+    ///
+    /// # Fields
+    /// 0. Id of the root of the desired subtree.
     Get(ResourceId),
 
     /// Duplicate a graph from its root.

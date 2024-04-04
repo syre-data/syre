@@ -11,7 +11,6 @@ use std::io;
 use syre_core::error::Runner as RunnerError;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::Analysis as AnalysisError;
-use syre_local::types::AnalysisKind;
 use syre_local_database::error::server::LoadProjectGraph;
 use syre_ui::types::ContainerPreview;
 use syre_ui::types::Message;

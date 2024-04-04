@@ -9,10 +9,16 @@ impl Database {
     pub fn handle_command_runner(&mut self, cmd: RunnerCommand) -> JsValue {
         match cmd {
             RunnerCommand::Flag { resource, message } => {
-                let project = if let Some(project) = self.store.get_container_project(&resource) {
+                let project = if let Some(project) =
+                    self.object_store.get_container_project(&resource)
+                {
                     project.clone()
-                } else if let Some(container) = self.store.get_asset_container_id(&resource) {
-                    self.store.get_container_project(container).unwrap().clone()
+                } else if let Some(container) = self.object_store.get_asset_container_id(&resource)
+                {
+                    self.object_store
+                        .get_container_project(container)
+                        .unwrap()
+                        .clone()
                 } else {
                     tracing::error!("resource `{resource:?}` not found");
                     panic!("resource not found");
@@ -24,7 +30,7 @@ impl Database {
                 )])
                 .unwrap();
 
-                serde_json::to_value(JsValue::Null).unwrap()
+                JsValue::Null
             }
         }
     }

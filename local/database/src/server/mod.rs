@@ -3,10 +3,8 @@
 //! the database acts as the single source of truth.
 pub(self) mod database;
 mod event;
-pub(self) mod search;
 pub(self) mod store;
 mod types;
 
-// Re-exports
 pub use database::Database;
 pub(self) use event::Event;

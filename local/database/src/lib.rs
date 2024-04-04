@@ -1,3 +1,4 @@
+#![feature(io_error_more)]
 //! # Syre Local Database
 //! Implements a local database for Syre.
 pub mod command;

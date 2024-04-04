@@ -76,6 +76,14 @@ pub struct Builder {
 }
 
 impl Builder {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            properties: PropertiesBuilder::new(name),
+            assets: AssetMap::new(),
+            analyses: AnalysisMap::new(),
+        }
+    }
+
     pub fn set_created(&mut self, value: DateTime<Utc>) -> &mut Self {
         self.properties.set_created(value);
         self
@@ -91,12 +99,12 @@ impl Builder {
         self
     }
 
-    pub fn set_name(&mut self, value: String) -> &mut Self {
+    pub fn set_name(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_name(value);
         self
     }
 
-    pub fn set_kind(&mut self, value: String) -> &mut Self {
+    pub fn set_kind(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_kind(value);
         self
     }
@@ -106,7 +114,7 @@ impl Builder {
         self
     }
 
-    pub fn set_description(&mut self, value: String) -> &mut Self {
+    pub fn set_description(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_description(value);
         self
     }
@@ -116,7 +124,7 @@ impl Builder {
         self
     }
 
-    pub fn set_tags(&mut self, value: Vec<String>) -> &mut Self {
+    pub fn set_tags(&mut self, value: Vec<impl Into<String>>) -> &mut Self {
         self.properties.set_tags(value);
         self
     }
@@ -151,7 +159,7 @@ impl Builder {
         key: impl Into<String>,
         value: impl Into<JsValue>,
     ) -> &mut Self {
-        self.properties.set_metadatum(key.into(), value.into());
+        self.properties.set_metadatum(key, value);
         self
     }
 
@@ -178,6 +186,10 @@ impl Builder {
     pub fn remove_script(&mut self, rid: &ResourceId) -> &mut Self {
         self.analyses.remove(rid);
         self
+    }
+
+    pub fn build(self) -> Container {
+        self.into()
     }
 }
 

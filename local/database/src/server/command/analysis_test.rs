@@ -64,40 +64,25 @@ fn remove_script_should_work() {
     graph.insert(cid.clone(), child_container).unwrap();
 
     // database setup
-    let mut db = Database::new();
-    db.store
-        .insert_project(project)
-        .expect("could not insert `Project`");
-
-    db.store
+    let mut db = Database::new().unwrap();
+    db.object_store.insert_project(project).unwrap();
+    db.object_store
         .insert_project_graph_canonical(pid.clone(), graph)
-        .expect("could not insert `Container`");
+        .unwrap();
 
-    db.store.insert_project_scripts(pid.clone(), scripts);
+    db.object_store.insert_project_scripts(pid.clone(), scripts);
 
     // test
 
-    db.remove_analysis(&pid, &sid_0)
-        .expect("could not remove `Script`");
-
-    let scripts = db
-        .store
-        .get_project_scripts(&pid)
-        .expect("could not get `Project`");
+    db.remove_analysis(&pid, &sid_0).unwrap();
+    let scripts = db.object_store.get_project_scripts(&pid).unwrap();
 
     // scripts are properly removed from project
     assert!(!scripts.contains_key(&sid_0));
     assert!(scripts.contains_key(&sid_1));
 
-    let container = db
-        .store
-        .get_container(&cid)
-        .expect("could not get `Container`");
-
-    let child_container = db
-        .store
-        .get_container(&child_cid)
-        .expect("could not get `Container`");
+    let container = db.object_store.get_container(&cid).unwrap();
+    let child_container = db.object_store.get_container(&child_cid).unwrap();
 
     // scripts are properly removed from container
     assert!(

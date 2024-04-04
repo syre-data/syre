@@ -15,7 +15,10 @@ impl Database {
     ) -> Result<Vec<Update>> {
         match event {
             ProjectEvent::Moved { project, path } => {
-                match self.store.update_project_path(&project, path.clone()) {
+                match self
+                    .object_store
+                    .update_project_path(&project, path.clone())
+                {
                     Ok(from) => {
                         let mut project_manifest = match ProjectManifest::load() {
                             Ok(project_manifest) => project_manifest,
@@ -48,7 +51,8 @@ impl Database {
             }
 
             ProjectEvent::Removed(project) => {
-                let ProjectResources { project, graph: _ } = self.store.remove_project(&project);
+                let ProjectResources { project, graph: _ } =
+                    self.object_store.remove_project(&project);
                 if let Some(project) = project {
                     let mut project_manifest = match ProjectManifest::load() {
                         Ok(project_manifest) => project_manifest,

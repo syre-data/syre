@@ -4,6 +4,7 @@ use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
@@ -69,11 +70,18 @@ impl Project {
     }
 
     /// Save all data.
-    pub fn save(&self) -> Result {
+    pub fn save(&self) -> StdResult<(), IoSerdeError> {
         let project_path = <Project as LocalResource<CoreProject>>::path(self);
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
+        let Some(parent) = project_path.parent() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "project path does nto have a parent",
+            )
+            .into());
+        };
 
-        fs::create_dir_all(project_path.parent().expect("invalid path"))?;
+        fs::create_dir_all(parent)?;
         fs::write(project_path, serde_json::to_string_pretty(&self.inner)?)?;
         fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
         Ok(())

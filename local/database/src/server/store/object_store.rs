@@ -1,5 +1,6 @@
 //! Database for storing resources.
-use super::types::ProjectResources;
+use super::super::types::ProjectResources;
+use crate::error::server::UpdateSubgraphPath as UpdateSubgraphPathError;
 use crate::Result;
 use has_id::HasId;
 use std::collections::{HashMap, HashSet};
@@ -114,7 +115,7 @@ pub type ProjectGraphMap = HashMap<ResourceId, ContainerTree>;
 /// a `Datastore` operates as a single repository for all processes requiring access
 /// to these resources.
 /// This means that the `Datastore` should control all resources it stores.
-pub struct Datastore {
+pub struct Objectstore {
     /// [`Project`] store.
     projects: ProjectMap,
 
@@ -143,9 +144,9 @@ pub struct Datastore {
     analyses: AnalysesMap,
 }
 
-impl Datastore {
+impl Objectstore {
     pub fn new() -> Self {
-        Datastore {
+        Objectstore {
             projects: ProjectMap::new(),
             project_paths: PathMap::new(),
             graphs: ProjectGraphMap::new(),
@@ -569,13 +570,14 @@ impl Datastore {
     /// # Notes
     /// + This does not affect the graph in any way.
     /// + This does not affect the file system.
-    pub fn update_subgraph_path(&mut self, root: &ResourceId, path: impl Into<PathBuf>) -> Result {
+    pub fn update_subgraph_path(
+        &mut self,
+        root: &ResourceId,
+        path: impl Into<PathBuf>,
+    ) -> StdResult<(), UpdateSubgraphPathError> {
         let path = path.into();
         let Some(graph) = self.get_graph_of_container(root) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Container` graph not found",
-            ))
-            .into());
+            return Err(UpdateSubgraphPathError::RootNotFound);
         };
 
         let descendants = graph.descendants(root).unwrap();
@@ -611,8 +613,16 @@ impl Datastore {
                 }
             };
 
-            self.container_paths
-                .insert_canonical(new_path, descendant_id)?;
+            if let Err(err) = self
+                .container_paths
+                .insert_canonical(new_path.clone(), descendant_id.clone())
+            {
+                return Err(UpdateSubgraphPathError::Canonicalization {
+                    resource: descendant_id,
+                    path: new_path,
+                    kind: err.kind(),
+                });
+            };
 
             for (aid, asset_path) in assets {
                 self.asset_paths.remove(&old_path.join(&asset_path));
@@ -1376,11 +1386,13 @@ impl Datastore {
 }
 
 pub mod error {
+    use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::io;
     use std::path::PathBuf;
     use syre_core::graph::ResourceTree;
     use syre_core::types::ResourceId;
+    use syre_local::error::IoErrorKind;
     use syre_local::project::resources::Container;
     use thiserror::Error;
 
@@ -1416,5 +1428,5 @@ pub mod error {
 }
 
 #[cfg(test)]
-#[path = "./store_test.rs"]
-mod store_test;
+#[path = "./object_store_test.rs"]
+mod object_store_test;

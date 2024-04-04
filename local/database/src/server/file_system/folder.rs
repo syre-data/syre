@@ -22,12 +22,12 @@ impl Database {
                 // ignore analysis folder
                 let path_project = project::project_root_path(&path).unwrap();
                 let path_project = self
-                    .store
+                    .object_store
                     .get_path_project_canonical(&path_project)
                     .unwrap()
                     .unwrap();
 
-                let path_project = self.store.get_project(path_project).unwrap();
+                let path_project = self.object_store.get_project(path_project).unwrap();
                 let analysis_path = fs::canonicalize(
                     path_project
                         .base_path()
@@ -41,8 +41,11 @@ impl Database {
 
                 // ignore if bucket
                 let path_container = asset::container_from_path_ancestor(&path)?;
-                let path_container = self.store.get_path_container(&path_container).unwrap();
-                let path_container = self.store.get_container(path_container).unwrap();
+                let path_container = self
+                    .object_store
+                    .get_path_container(&path_container)
+                    .unwrap();
+                let path_container = self.object_store.get_container(path_container).unwrap();
                 let bucket_path = path
                     .strip_prefix(path_container.base_path())
                     .unwrap()
@@ -75,12 +78,15 @@ impl Database {
                 } = self.init_subgraph(root_path)?;
 
                 let project = self
-                    .store
+                    .object_store
                     .get_container_project(&container)
                     .unwrap()
                     .clone();
 
-                let graph = self.store.get_graph_of_container(&container).unwrap();
+                let graph = self
+                    .object_store
+                    .get_graph_of_container(&container)
+                    .unwrap();
                 let mut graph = ContainerTreeTransformer::local_to_core(graph);
                 let graph = graph.remove(&container).unwrap(); // get container's subgraph
                 Ok(vec![Update::project(
@@ -99,7 +105,7 @@ impl Database {
     #[tracing::instrument(skip(self))]
     fn init_subgraph(&mut self, path: PathBuf) -> Result<ParentChild> {
         let parent = self
-            .store
+            .object_store
             .get_path_container_canonical(path.parent().unwrap())
             .unwrap()
             .cloned()
@@ -113,7 +119,7 @@ impl Database {
 
         // insert into graph
         let graph = ContainerTreeLoader::load(path).unwrap();
-        self.store.insert_subgraph(&parent, graph)?;
+        self.object_store.insert_subgraph(&parent, graph)?;
 
         Ok(ParentChild { parent, child })
     }

@@ -29,7 +29,7 @@ regex = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
-validator = "0.16"
+validator = "0.17"
 
 has_id = { path  = "../has_id", features = ["derive", "serde"] }
 syre-core = { path = "../core", features = ["serde"] }

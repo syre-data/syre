@@ -12,7 +12,7 @@ pub enum Trash {
 
     /// The process has insufficient permissions to remove the file.
     /// This is often caused if the file is being used by another process.
-    #[error("")]
+    #[error("permission denied")]
     PermissionDenied,
 
     #[error("{0}")]

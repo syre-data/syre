@@ -8,8 +8,7 @@ mod file_system;
 use self::command::CommandActor;
 use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
 use self::file_system::file_system_event_processor::FileSystemEventProcessor;
-use super::search::Indices;
-use super::store::Datastore;
+use super::store::{data_store, Objectstore};
 use super::Event;
 use crate::command::Command;
 use crate::event::Update;
@@ -24,8 +23,8 @@ use std::thread;
 
 /// Database.
 pub struct Database {
-    store: Datastore,
-    search: Indices,
+    object_store: Objectstore,
+    data_store: data_store::Client,
     event_rx: mpsc::Receiver<Event>,
     file_system_tx: mpsc::Sender<FileSystemActorCommand>,
 
@@ -36,26 +35,40 @@ pub struct Database {
 impl Database {
     /// Creates a new Database.
     /// The database immediately begins listening for ZMQ and file system events.
-    pub fn new() -> Self {
+    pub fn new() -> StdResult<Self, zmq::Error> {
         let zmq_context = zmq::Context::new();
-        let update_tx = zmq_context.socket(zmq::PUB).unwrap();
-        update_tx.bind(&common::zmq_url(zmq::PUB).unwrap()).unwrap();
+        let update_tx = zmq_context.socket(zmq::PUB)?;
+        update_tx.bind(&common::zmq_url(zmq::PUB).unwrap())?;
 
         let (event_tx, event_rx) = mpsc::channel();
         let (file_system_tx, file_system_rx) = mpsc::channel();
         let command_actor = CommandActor::new(event_tx.clone());
         let mut file_system_actor = FileSystemActor::new(event_tx, file_system_rx);
 
-        thread::spawn(move || command_actor.run());
-        thread::spawn(move || file_system_actor.run());
+        let (store_tx, store_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut datastore = data_store::Datastore::new(store_rx);
+        let data_store = data_store::Client::new(store_tx);
 
-        Database {
-            store: Datastore::new(),
-            search: Indices::new(),
+        thread::spawn(move || file_system_actor.run());
+        thread::spawn(move || {
+            if let Err(err) = command_actor.run() {
+                tracing::error!(?err);
+            }
+        });
+
+        thread::spawn(move || {
+            if let Err(err) = datastore.run() {
+                tracing::error!(?err);
+            }
+        });
+
+        Ok(Database {
+            object_store: Objectstore::new(),
+            data_store,
             event_rx,
             file_system_tx,
             update_tx,
-        }
+        })
     }
 
     /// Begin responding to events.
@@ -67,7 +80,13 @@ impl Database {
     fn listen_for_events(&mut self) {
         loop {
             match self.event_rx.recv().unwrap() {
-                Event::Command { cmd, tx } => tx.send(self.handle_command(cmd)).unwrap(),
+                Event::Command { cmd, tx } => {
+                    let response = self.handle_command(cmd);
+                    if let Err(err) = tx.send(response) {
+                        tracing::error!(?err);
+                    }
+                }
+
                 Event::FileSystem(events) => self.handle_file_system_events(events).unwrap(),
             }
         }

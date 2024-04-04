@@ -5,121 +5,119 @@ use crate::command::container::{
     PropertiesUpdate, UpdateAnalysisAssociationsArgs, UpdatePropertiesArgs,
 };
 use crate::command::ContainerCommand;
+use crate::error::server::{
+    Rename as RenameError, Update as UpdateError, UpdateContainer as UpdateContainerError,
+};
 use crate::Result;
 use serde_json::Value as JsValue;
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 use syre_core::db::StandardSearchFilter;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::project::container::AnalysisMap;
 use syre_core::project::{Container as CoreContainer, ContainerProperties, RunParameters};
 use syre_core::types::ResourceId;
 use syre_local::common;
-use syre_local::error::ContainerError;
-use syre_local::error::Error as LocalError;
-use syre_local::project::resources::Container;
 
 impl Database {
     #[tracing::instrument(skip(self))]
     pub fn handle_command_container(&mut self, cmd: ContainerCommand) -> JsValue {
         match cmd {
-            ContainerCommand::Get(rid) => {
-                let container: Option<CoreContainer> = {
-                    if let Some(container) = self.store.get_container(&rid) {
-                        Some((*container).clone().into())
-                    } else {
-                        None
-                    }
-                };
-
-                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+            ContainerCommand::Get(container) => {
+                serde_json::to_value(self.handle_container_get(&container)).unwrap()
             }
 
             ContainerCommand::GetWithMetadata(rid) => {
-                let container = self.store.get_container_with_metadata(&rid);
-                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+                let container = self.object_store.get_container_with_metadata(&rid);
+                serde_json::to_value(container).unwrap()
             }
 
             ContainerCommand::ByPath(path) => {
-                let Some(rid) = self.store.get_path_container_canonical(&path).unwrap() else {
-                    let value: Option<CoreContainer> = None;
-                    return serde_json::to_value(value).expect("could not convert `None` to JSON");
-                };
-
-                let container: Option<CoreContainer> = {
-                    if let Some(container) = self.store.get_container(&rid) {
-                        Some((*container).clone().into())
-                    } else {
-                        None
-                    }
-                };
-
-                serde_json::to_value(container).expect("could not convert `Container` to JSON")
+                serde_json::to_value(self.handle_container_by_path(&path)).unwrap()
             }
 
             ContainerCommand::Find(root, filter) => {
-                let containers = self.find_containers(&root, filter);
-                serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
+                let containers = self.handle_container_find(&root, filter);
+                serde_json::to_value(containers).unwrap()
             }
 
             ContainerCommand::FindWithMetadata(root, filter) => {
-                let containers = self.find_containers_with_metadata(&root, filter);
-                serde_json::to_value(containers).expect("could not convert `Container`s to JSON")
+                let containers = self.handle_container_find_with_metadata(&root, filter);
+                serde_json::to_value(containers).unwrap()
             }
 
             ContainerCommand::UpdateProperties(UpdatePropertiesArgs { rid, properties }) => {
-                let res = self.update_container_properties(rid, properties);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                let res = self.handle_container_update_properties(rid, properties);
+                serde_json::to_value(res).unwrap()
             }
 
             ContainerCommand::UpdateAnalysisAssociations(UpdateAnalysisAssociationsArgs {
                 rid,
                 associations,
             }) => {
-                let res = self.update_container_script_associations(rid, associations);
-                serde_json::to_value(res).expect("could not convert result to JSON")
+                let res = self.handle_container_update_analysis_associations(&rid, associations);
+                serde_json::to_value(res).unwrap()
             }
 
-            // TODO Handle errors.
             ContainerCommand::Path(rid) => {
-                let path = self.get_container_path(&rid);
-                serde_json::to_value(path).expect("could not convert path to JsValue")
+                let path = self.handle_container_path(&rid);
+                serde_json::to_value(path).unwrap()
             }
 
             ContainerCommand::Parent(rid) => {
-                let parent: Result<Option<CoreContainer>> =
-                    self.get_container_parent(&rid).map(|opt| match opt {
-                        Some(container) => Some((*container).clone()),
-                        None => None,
-                    });
-
-                serde_json::to_value(parent).expect("could not convert `Container` to JsValue")
+                serde_json::to_value(self.handle_container_parent(&rid)).unwrap()
             }
 
             ContainerCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }) => {
-                let res = self.bulk_update_container_properties(&rids, &update);
+                let res = self.handle_container_bulk_update_properties(&rids, &update);
                 serde_json::to_value(res).unwrap()
             }
 
             ContainerCommand::BulkUpdateAnalysisAssociations(
                 BulkUpdateAnalysisAssociationsArgs { containers, update },
             ) => {
-                let res = self.bulk_update_container_script_associations(&containers, &update);
+                let res =
+                    self.handle_container_bulk_update_analysis_associations(&containers, &update);
                 serde_json::to_value(res).unwrap()
             }
+        }
+    }
+
+    fn handle_container_get(&self, container: &ResourceId) -> Option<CoreContainer> {
+        if let Some(container) = self.object_store.get_container(container) {
+            Some((*container).clone().into())
+        } else {
+            None
+        }
+    }
+
+    fn handle_container_by_path(&self, path: &PathBuf) -> Option<CoreContainer> {
+        let Some(container) = self
+            .object_store
+            .get_path_container_canonical(path)
+            .unwrap()
+        else {
+            return None;
+        };
+
+        if let Some(container) = self.object_store.get_container(&container) {
+            Some((*container).clone().into())
+        } else {
+            None
         }
     }
 
     /// # Arguments
     /// 1. Root `Container`.
     /// 2. Search filter.
-    fn find_containers(
+    fn handle_container_find(
         &self,
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        self.store
+        self.object_store
             .find_containers(&root, filter)
             .into_iter()
             .map(|container| (*container).clone())
@@ -129,39 +127,46 @@ impl Database {
     /// # Arguments
     /// 1. Root `Container`.
     /// 2. Search filter.
-    fn find_containers_with_metadata(
+    fn handle_container_find_with_metadata(
         &self,
         root: &ResourceId,
         filter: StandardSearchFilter,
     ) -> HashSet<CoreContainer> {
-        self.store.find_containers_with_metadata(&root, filter)
+        self.object_store
+            .find_containers_with_metadata(&root, filter)
     }
 
     #[tracing::instrument(skip(self))]
-    fn update_container_properties(
+    fn handle_container_update_properties(
         &mut self,
         rid: ResourceId,
         properties: ContainerProperties,
-    ) -> Result {
-        let Some(container) = self.store.get_container(&rid) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Container` does not exist",
-            ))
-            .into());
+    ) -> StdResult<(), UpdateContainerError> {
+        let Some(container) = self.object_store.get_container(&rid) else {
+            return Err(UpdateContainerError::ResourceNotFound);
         };
 
-        let graph = self.store.get_graph_of_container(&rid).unwrap();
+        let graph = self.object_store.get_graph_of_container(&rid).unwrap();
         if properties.name != container.properties.name && &container.rid != graph.root() {
-            self.rename_container_folder(&rid, &properties.name)?;
+            if let Err(err) = self.rename_container_folder(&rid, &properties.name) {
+                return Err(UpdateContainerError::Rename(err));
+            }
         }
 
-        let container = self
-            .store
-            .get_container_mut(&rid)
-            .expect("Container no longer exists");
-
+        let container = self.object_store.get_container_mut(&rid).unwrap();
         container.properties = properties;
-        container.save()?;
+        if let Err(err) = container.save() {
+            return Err(UpdateContainerError::Save(err));
+        }
+
+        if let Err(err) = self
+            .data_store
+            .container()
+            .update(container.rid.clone(), container.properties.clone().into())
+        {
+            tracing::error!(?err);
+        }
+
         Ok(())
     }
 
@@ -178,16 +183,17 @@ impl Database {
         &mut self,
         container: &ResourceId,
         name: impl Into<String>,
-    ) -> Result {
+    ) -> StdResult<(), RenameError> {
         let container_path = {
             let name: String = name.into();
-            let Some(container) = self.store.get_container(container) else {
-                return Err(CoreError::Resource(ResourceError::does_not_exist(
-                    "`Container` does not exist",
-                ))
-                .into());
+            let Some(container) = self.object_store.get_container(container) else {
+                return Err(RenameError::ResourceNotFound);
             };
-            let graph = self.store.get_graph_of_container(&container.rid).unwrap();
+
+            let graph = self
+                .object_store
+                .get_graph_of_container(&container.rid)
+                .unwrap();
 
             // get siblings to check for name clash
             let siblings = graph.siblings(&container.rid).unwrap();
@@ -200,17 +206,11 @@ impl Database {
                 .collect();
 
             if sibling_names.contains(&name) {
-                return Err(
-                    LocalError::ContainerError(ContainerError::ContainerNameConflict).into(),
-                );
+                return Err(RenameError::NameConflict);
             }
 
             // create unique sanitized path
-            let mut container_path = container
-                .base_path()
-                .parent()
-                .expect("invalid path")
-                .to_path_buf();
+            let mut container_path = container.base_path().parent().unwrap().to_path_buf();
 
             container_path.push(common::sanitize_file_path(name));
             let container_path = common::unique_file_name(PathBuf::from(container_path)).unwrap();
@@ -220,8 +220,8 @@ impl Database {
                 Ok(_) => {}
                 Err(err) => {
                     let from = container.base_path();
-                    tracing::debug!(?err, ?from, ?container_path);
-                    return Err(LocalError::from(err).into());
+                    tracing::error!(?err, ?from, ?container_path);
+                    return Err(RenameError::Rename(err.kind()));
                 }
             };
 
@@ -229,20 +229,19 @@ impl Database {
         };
 
         // update descendant's path
-        self.store.update_subgraph_path(container, container_path)?;
+        self.object_store
+            .update_subgraph_path(container, container_path)?;
+
         Ok(())
     }
 
-    fn update_container_script_associations(
+    fn handle_container_update_analysis_associations(
         &mut self,
-        rid: ResourceId,
+        container: &ResourceId,
         associations: AnalysisMap,
-    ) -> Result {
-        let Some(container) = self.store.get_container_mut(&rid) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Script` does not exist",
-            ))
-            .into());
+    ) -> StdResult<(), UpdateError> {
+        let Some(container) = self.object_store.get_container_mut(container) else {
+            return Err(UpdateError::ResourceNotFound);
         };
 
         container.analyses = associations;
@@ -250,20 +249,20 @@ impl Database {
         Ok(())
     }
 
-    fn get_container_path(&self, container: &ResourceId) -> Option<PathBuf> {
-        let Some(container) = self.store.get_container(&container) else {
+    fn handle_container_path(&self, container: &ResourceId) -> Option<PathBuf> {
+        let Some(container) = self.object_store.get_container(&container) else {
             return None;
         };
 
         Some(container.base_path().into())
     }
 
-    fn get_container_parent(&self, rid: &ResourceId) -> Result<Option<&Container>> {
-        let Some(graph) = self.store.get_graph_of_container(rid) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Container` does not exist",
-            ))
-            .into());
+    fn handle_container_parent(
+        &self,
+        rid: &ResourceId,
+    ) -> StdResult<Option<CoreContainer>, ResourceError> {
+        let Some(graph) = self.object_store.get_graph_of_container(rid) else {
+            return Err(ResourceError::does_not_exist("Container does not exist"));
         };
 
         let parent = graph.parent(rid)?;
@@ -271,13 +270,12 @@ impl Database {
             return Ok(None);
         };
 
-        let parent = graph.get(parent).expect("could not get parent `Container`");
-        Ok(Some(parent))
+        let parent = graph.get(parent).unwrap();
+        Ok(Some((*parent).clone()))
     }
 
     /// Bulk update `Container` properties.
-    #[tracing::instrument(skip(self))]
-    fn bulk_update_container_properties(
+    fn handle_container_bulk_update_properties(
         &mut self,
         containers: &Vec<ResourceId>,
         update: &PropertiesUpdate,
@@ -296,7 +294,7 @@ impl Database {
         rid: &ResourceId,
         update: &PropertiesUpdate,
     ) -> Result {
-        let Some(container) = self.store.get_container_mut(&rid) else {
+        let Some(container) = self.object_store.get_container_mut(&rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))
@@ -340,35 +338,43 @@ impl Database {
         }
 
         container.save()?;
+        if let Err(err) = self
+            .data_store
+            .container()
+            .update(container.rid.clone(), container.properties.clone().into())
+        {
+            tracing::error!(?err);
+        }
+
         Ok(())
     }
 
-    fn bulk_update_container_script_associations(
+    fn handle_container_bulk_update_analysis_associations(
         &mut self,
         containers: &Vec<ResourceId>,
         update: &AnalysisAssociationBulkUpdate,
     ) -> Result {
         // TODO Collect errors
         for rid in containers {
-            self.update_container_script_associations_from_update(rid, update)?;
+            self.update_container_analysis_associations_from_update(rid, update)?;
         }
 
         Ok(())
     }
 
-    /// Update a `Container`'s `ScriptAssociations`.
+    /// Update a `Container`'s analysis associations.
     ///
     /// # Note
     /// Updates are processed in the following order:
     /// 1. New associations are added.
     /// 2. Present associations are updated.
     /// 3. Associations are removed.
-    fn update_container_script_associations_from_update(
+    fn update_container_analysis_associations_from_update(
         &mut self,
         rid: &ResourceId,
         update: &AnalysisAssociationBulkUpdate,
     ) -> Result {
-        let Some(container) = self.store.get_container_mut(&rid) else {
+        let Some(container) = self.object_store.get_container_mut(&rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Container` does not exist",
             ))

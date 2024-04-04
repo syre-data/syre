@@ -76,8 +76,8 @@ impl Builder {
         self
     }
 
-    pub fn set_name(&mut self, value: String) -> &mut Self {
-        self.name = Some(value);
+    pub fn set_name(&mut self, value: impl Into<String>) -> &mut Self {
+        self.name = Some(value.into());
         self
     }
 
@@ -86,8 +86,8 @@ impl Builder {
         self
     }
 
-    pub fn set_kind(&mut self, value: String) -> &mut Self {
-        self.kind = Some(value);
+    pub fn set_kind(&mut self, value: impl Into<String>) -> &mut Self {
+        self.kind = Some(value.into());
         self
     }
 
@@ -96,8 +96,8 @@ impl Builder {
         self
     }
 
-    pub fn set_description(&mut self, value: String) -> &mut Self {
-        self.description = Some(value);
+    pub fn set_description(&mut self, value: impl Into<String>) -> &mut Self {
+        self.description = Some(value.into());
         self
     }
 
@@ -106,8 +106,8 @@ impl Builder {
         self
     }
 
-    pub fn set_tags(&mut self, value: Vec<String>) -> &mut Self {
-        self.tags = value;
+    pub fn set_tags(&mut self, value: Vec<impl Into<String>>) -> &mut Self {
+        self.tags = value.into_iter().map(|val| val.into()).collect();
         self
     }
 

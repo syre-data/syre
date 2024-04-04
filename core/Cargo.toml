@@ -16,7 +16,7 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 aquamarine = { workspace = true }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true }
 derivative = "2.2"
 directories = "5.0"
@@ -25,6 +25,7 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true, optional = true }
+surrealdb = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
@@ -53,3 +54,4 @@ serde = ["dep:serde", "serde/rc", "has_id/serde", "dep:serde_with"]
 clap = ["dep:clap"]
 js = ["uuid/js"]
 yew = ["dep:yew", "chrono/wasmbind", "chrono/clock"]
+surreal_db = ["dep:surrealdb"]

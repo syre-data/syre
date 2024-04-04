@@ -24,16 +24,12 @@ fn update_project_should_work() {
     let mut update = (*project).clone();
     update.name = name.clone();
 
-    let mut db = Database::new();
-    db.store
-        .insert_project(project)
-        .expect("could not insert `Project`");
+    let mut db = Database::new().unwrap();
+    db.object_store.insert_project(project).unwrap();
 
     // test
-    db.update_project(update)
-        .expect("update `Project` should work");
-
-    let project = db.store.get_project(&pid).expect("could not get `Project`");
+    db.handle_project_update(update).unwrap();
+    let project = db.object_store.get_project(&pid).unwrap();
     assert_eq!(name, project.name, "update not applied");
 }
 
@@ -41,6 +37,6 @@ fn update_project_should_work() {
 #[should_panic(expected = "DoesNotExist")]
 fn update_project_when_project_does_not_exist_should_error() {
     let project = CoreProject::new("test");
-    let mut db = Database::new();
-    db.update_project(project).unwrap();
+    let mut db = Database::new().unwrap();
+    db.handle_project_update(project).unwrap();
 }

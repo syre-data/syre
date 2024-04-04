@@ -205,7 +205,7 @@ impl Database {
         let project = self.project_by_resource_path(&path)?;
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             if let Ok(script_path) = path.strip_prefix(analysis_root) {
-                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
                 if scripts.scripts_contain_path(&script_path) {
                     return Ok(vec![]);
                 }
@@ -225,7 +225,11 @@ impl Database {
         }
 
         // ignore if asset
-        if let Some(asset) = self.store.get_path_asset_id_canonical(&path).unwrap() {
+        if let Some(asset) = self
+            .object_store
+            .get_path_asset_id_canonical(&path)
+            .unwrap()
+        {
             return Ok(vec![app::Asset::FileCreated(asset.clone()).into()]);
         }
 
@@ -237,7 +241,7 @@ impl Database {
         let project = self.project_by_resource_path(path).unwrap();
 
         // script
-        let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+        let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
         let script_path = path
             .strip_prefix(project.analysis_root_path().unwrap())
             .unwrap();
@@ -247,7 +251,7 @@ impl Database {
         }
 
         // analysis
-        if let Some(asset) = self.store.get_path_asset_id(path).cloned() {
+        if let Some(asset) = self.object_store.get_path_asset_id(path).cloned() {
             return vec![app::Asset::Removed(asset).into()];
         };
 
@@ -280,7 +284,7 @@ impl Database {
 
         match (from_type, to_type) {
             (Location::Data, Location::Data) => {
-                if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
+                if let Some(asset) = self.object_store.get_path_asset_id(&from).cloned() {
                     return vec![app::Asset::Moved {
                         asset,
                         path: to.clone(),
@@ -306,7 +310,7 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.script_by_path(&from_script_path) {
                     return vec![app::Script::Moved {
                         script: script.rid.clone(),
@@ -324,9 +328,9 @@ impl Database {
 
             (Location::Data, Location::None) => {
                 let asset = self
-                    .store
+                    .object_store
                     .get_path_asset_id_canonical(from)
-                    .unwrap_or_else(|_| self.store.get_path_asset_id(from));
+                    .unwrap_or_else(|_| self.object_store.get_path_asset_id(from));
 
                 if let Some(asset) = asset {
                     return vec![app::Asset::Removed(asset.clone()).into()];
@@ -344,7 +348,7 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.script_by_path(&from_script_path) {
                     return vec![app::Script::Removed(script.rid.clone()).into()];
                 }
@@ -355,9 +359,9 @@ impl Database {
             (Location::Data, Location::Analysis) => {
                 let mut events = vec![];
                 let asset = self
-                    .store
+                    .object_store
                     .get_path_asset_id_canonical(from)
-                    .unwrap_or_else(|_| self.store.get_path_asset_id(from));
+                    .unwrap_or_else(|_| self.object_store.get_path_asset_id(from));
 
                 if let Some(asset) = asset {
                     events.push(app::Asset::Removed(asset.clone()).into());
@@ -382,7 +386,7 @@ impl Database {
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
-                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
                 if let Some(script) = scripts.script_by_path(&from_script_path) {
                     events.push(app::Script::Removed(script.rid.clone()).into());
                 }
@@ -395,7 +399,7 @@ impl Database {
     }
 
     fn handle_file_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::EventKind> {
-        if let Some(asset) = self.store.get_path_asset_id(&from).cloned() {
+        if let Some(asset) = self.object_store.get_path_asset_id(&from).cloned() {
             return vec![app::Asset::Moved {
                 asset,
                 path: to.clone(),
@@ -406,7 +410,7 @@ impl Database {
         let project = self.project_by_resource_path(&from).unwrap();
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             let script_path = from.strip_prefix(analysis_root).unwrap();
-            let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+            let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
             for script in scripts.scripts() {
                 if script.path.as_path() == script_path {
                     return vec![app::Script::Moved {
@@ -418,7 +422,7 @@ impl Database {
             }
 
             if let Ok(script_path) = to.strip_prefix(analysis_root) {
-                let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+                let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
                 if scripts.scripts_contain_path(&script_path) {
                     return vec![];
                 }
@@ -458,7 +462,7 @@ impl Database {
 
         // ignore if registered container
         if self
-            .store
+            .object_store
             .get_path_container_canonical(&path)
             .unwrap()
             .is_some()
@@ -469,7 +473,7 @@ impl Database {
         // handle if unregistered container
         match ContainerTreeIncrementalLoader::load(&path) {
             Ok(graph) => {
-                let Some(loaded_container) = self.store.get_container(graph.root()) else {
+                let Some(loaded_container) = self.object_store.get_container(graph.root()) else {
                     return Ok(vec![app::Graph::Inserted(graph).into()]);
                 };
 
@@ -502,7 +506,7 @@ impl Database {
     }
 
     fn handle_folder_removed(&self, path: &PathBuf) -> Vec<app::EventKind> {
-        let Some(container) = self.store.get_path_container(path).cloned() else {
+        let Some(container) = self.object_store.get_path_container(path).cloned() else {
             return vec![];
         };
 
@@ -510,7 +514,7 @@ impl Database {
     }
 
     fn handle_folder_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Graph> {
-        let Some(root) = self.store.get_path_container(from).cloned() else {
+        let Some(root) = self.object_store.get_path_container(from).cloned() else {
             return vec![];
         };
 
@@ -521,7 +525,7 @@ impl Database {
     }
 
     fn handle_folder_renamed(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Graph> {
-        let Some(container) = self.store.get_path_container(from).cloned() else {
+        let Some(container) = self.object_store.get_path_container(from).cloned() else {
             return vec![];
         };
 
@@ -532,7 +536,7 @@ impl Database {
     }
 
     fn handle_project_folder_moved(&self, from: &PathBuf, to: &PathBuf) -> Vec<app::Project> {
-        let Some(project) = self.store.get_path_project(from).cloned() else {
+        let Some(project) = self.object_store.get_path_project(from).cloned() else {
             return vec![];
         };
 
@@ -543,16 +547,16 @@ impl Database {
     }
 
     fn handle_any_removed(&self, path: &PathBuf) -> Vec<app::EventKind> {
-        if let Some(container) = self.store.get_path_container(&path).cloned() {
+        if let Some(container) = self.object_store.get_path_container(&path).cloned() {
             return vec![app::Graph::Removed(container).into()];
         }
 
-        if let Some(asset) = self.store.get_path_asset_id(&path).cloned() {
+        if let Some(asset) = self.object_store.get_path_asset_id(&path).cloned() {
             return vec![app::Asset::Removed(asset).into()];
         }
 
         let project = self.project_by_resource_path(&path).unwrap();
-        let scripts = self.store.get_project_scripts(&project.rid).unwrap();
+        let scripts = self.object_store.get_project_scripts(&project.rid).unwrap();
         if let Ok(script_path) = path.strip_prefix(project.analysis_root_path().unwrap()) {
             if let Some(script) = scripts.script_by_path(&script_path) {
                 return vec![app::Script::Removed(script.rid.clone()).into()];
@@ -564,14 +568,14 @@ impl Database {
 
     fn handle_removed_path_not_in_project(&self, path: impl AsRef<Path>) -> Vec<app::EventKind> {
         let path = path.as_ref();
-        if let Some(project) = self.store.get_path_project(path) {
+        if let Some(project) = self.object_store.get_path_project(path) {
             return vec![app::Project::Removed(project.clone()).into()];
         }
 
         if let Some(file_name) = path.file_name() {
             if file_name == syre_local::common::app_dir() {
                 if let Some(project_path) = path.parent() {
-                    if let Some(project) = self.store.get_path_project(project_path) {
+                    if let Some(project) = self.object_store.get_path_project(project_path) {
                         return vec![app::Project::Removed(project.clone()).into()];
                     }
                 }
@@ -591,7 +595,7 @@ impl Database {
         };
 
         let Some(project) = self
-            .store
+            .object_store
             .get_path_project_canonical(&project_path)
             .unwrap()
         else {
@@ -600,7 +604,7 @@ impl Database {
             );
         };
 
-        let Some(project) = self.store.get_project(project) else {
+        let Some(project) = self.object_store.get_project(project) else {
             return Err(Error::Database("Project not loaded".into()));
         };
 
@@ -620,7 +624,7 @@ impl Database {
         };
 
         let Some(project) = self
-            .store
+            .object_store
             .get_path_project_canonical(project.as_ref())
             .unwrap()
             .cloned()
@@ -637,13 +641,13 @@ impl Database {
 
     /// Ensures a `Project` resource's graph is loaded.
     fn ensure_project_graph_loaded(&mut self, project: &ResourceId) -> Result {
-        let project = self.store.get_project(project).unwrap();
-        if self.store.is_project_graph_loaded(&project.rid) {
+        let project = self.object_store.get_project(project).unwrap();
+        if self.object_store.is_project_graph_loaded(&project.rid) {
             return Ok(());
         }
 
         let graph: ContainerTree = ContainerTreeLoader::load(project.data_root_path())?;
-        self.store
+        self.object_store
             .insert_project_graph_canonical(project.rid.clone(), graph)?;
 
         Ok(())
@@ -654,13 +658,13 @@ impl Database {
     /// # Arguments
     /// 1. `Project`'s id.
     fn ensure_project_scripts_loaded(&mut self, project: &ResourceId) -> Result {
-        if self.store.are_project_scripts_loaded(project) {
+        if self.object_store.are_project_scripts_loaded(project) {
             return Ok(());
         }
 
-        let project = self.store.get_project(project).unwrap();
+        let project = self.object_store.get_project(project).unwrap();
         let scripts = ProjectScripts::load_from(project.base_path())?;
-        self.store
+        self.object_store
             .insert_project_scripts(project.rid.clone(), scripts);
 
         Ok(())

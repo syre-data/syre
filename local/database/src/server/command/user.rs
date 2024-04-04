@@ -9,7 +9,7 @@ impl Database {
         match cmd {
             UserCommand::GetActive => {
                 let user = get_active_user();
-                serde_json::to_value(user).expect("could not convert `User` to JsValue")
+                serde_json::to_value(user).unwrap()
             }
         }
     }

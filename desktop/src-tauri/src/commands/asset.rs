@@ -1,28 +1,20 @@
 //! `Asset` functionality.
+use super::utils;
 use crate::error::Result;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 use syre_core::project::{Asset, AssetProperties};
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::{RemoveResource as RemoveResourceError, Trash as TrashError};
 use syre_local_database::client::Client as DbClient;
-use syre_local_database::command::asset::{BulkUpdatePropertiesArgs, PropertiesUpdate};
-use syre_local_database::command::AssetCommand;
-use syre_local_database::Result as DbResult;
+use syre_local_database::command::asset::PropertiesUpdate;
+use syre_local_database::error::server::Update as UpdateError;
 use tauri::State;
 
 /// Gets `Asset`s.
 #[tauri::command]
-pub fn get_assets(
-    db: State<DbClient>,
-    assets: Vec<ResourceId>,
-) -> HashMap<ResourceId, Option<PathBuf>> {
-    let assets = db
-        .send(AssetCommand::GetMany(assets).into())
-        .expect("could not retrieve `Asset`s");
-
-    serde_json::from_value(assets).expect("could not convert result of `GetAssets` to `Vec<Asset>`")
+pub fn get_assets(db: State<DbClient>, assets: Vec<ResourceId>) -> Vec<Asset> {
+    db.asset().get_many(assets).unwrap()
 }
 
 /// Update an `Asset`'s properties.
@@ -31,30 +23,15 @@ pub fn update_asset_properties(
     db: State<DbClient>,
     rid: ResourceId,
     properties: AssetProperties,
-) -> DbResult {
-    let res = db
-        .send(
-            AssetCommand::UpdateProperties {
-                asset: rid,
-                properties,
-            }
-            .into(),
-        )
-        .unwrap();
-
-    serde_json::from_value(res).unwrap()
+) -> StdResult<(), UpdateError> {
+    db.asset().update_properties(rid, properties).unwrap()
 }
 
 /// Remove an `Asset`.
 #[tauri::command]
 pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), RemoveResourceError> {
-    let remove_asset_from_db = |rid: ResourceId| -> StdResult<PathBuf, RemoveResourceError> {
-        let res = match db.send(AssetCommand::Remove(rid).into()) {
-            Ok(res) => res,
-            Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
-        };
-
-        match serde_json::from_value::<DbResult<Option<(Asset, PathBuf)>>>(res).unwrap() {
+    let remove_asset_from_db = |asset: ResourceId| -> StdResult<PathBuf, RemoveResourceError> {
+        match db.asset().remove(asset).unwrap() {
             Ok(Some((_asset, path))) => Ok(path),
             Ok(None) => {
                 return Err(RemoveResourceError::Database(
@@ -65,18 +42,11 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
         }
     };
 
-    let path = match db.send(AssetCommand::Path(rid.clone()).into()) {
-        Ok(res) => match serde_json::from_value::<Option<PathBuf>>(res).unwrap() {
-            Some(path) => path,
-            None => {
-                tracing::debug!("asset {rid:?} path not found");
-                return Err(RemoveResourceError::Database(
-                    "Could not get Asset's path".into(),
-                ));
-            }
-        },
-
-        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
+    let Some(path) = db.asset().path(rid.clone()).unwrap() else {
+        tracing::debug!("asset {rid:?} path not found");
+        return Err(RemoveResourceError::Database(
+            "Could not get Asset's path".into(),
+        ));
     };
 
     match trash::delete(path) {
@@ -111,15 +81,7 @@ pub fn remove_asset(db: State<DbClient>, rid: ResourceId) -> StdResult<(), Remov
         }
 
         Err(trash::Error::Os { code, description }) => {
-            let err = if cfg!(target_os = "windows") {
-                handle_trash_error_os_windows(code, description)
-            } else if cfg!(target_os = "macos") {
-                handle_trash_error_os_macos(code, description)
-            } else {
-                TrashError::Other(description).into()
-            };
-
-            match err {
+            match utils::trash::convert_os_error(code, description) {
                 TrashError::NotFound => {
                     remove_asset_from_db(rid)?;
                     Err(TrashError::NotFound.into())
@@ -142,38 +104,5 @@ pub fn bulk_update_asset_properties(
     rids: Vec<ResourceId>,
     update: PropertiesUpdate,
 ) -> Result {
-    let res = db
-        .send(AssetCommand::BulkUpdateProperties(BulkUpdatePropertiesArgs { rids, update }).into());
-
-    // TODO Handle errors.
-    res.expect("could not update `Asset`s");
-    Ok(())
-}
-
-fn handle_trash_error_os_windows(code: i32, description: String) -> TrashError {
-    match code {
-        2 | 3 => TrashError::NotFound,
-        5 => TrashError::PermissionDenied,
-        _ => TrashError::Other(description),
-    }
-}
-
-fn handle_trash_error_os_macos(code: i32, description: String) -> TrashError {
-    tracing::debug!(?code, ?description);
-    match code {
-        -10010 => TrashError::NotFound,
-        _ => {
-            let code_pattern = regex::Regex::new(r"\((-?\d+)\)\s*$").unwrap();
-            let Some(matches) = code_pattern.captures(&description) else {
-                return TrashError::Other(description);
-            };
-
-            let extracted_code = matches.get(1).unwrap();
-            let extracted_code = extracted_code.as_str().parse::<i32>().unwrap();
-            match extracted_code {
-                -10010 => TrashError::NotFound,
-                _ => TrashError::Other(description),
-            }
-        }
-    }
+    Ok(db.asset().bulk_update_properties(rids, update).unwrap()?)
 }

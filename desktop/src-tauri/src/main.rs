@@ -99,7 +99,7 @@ fn main() {
             add_assets_from_info,
             add_asset_from_contents,
             bulk_update_container_properties,
-            bulk_update_container_script_associations,
+            bulk_update_container_analysis_associations,
             get_container,
             get_container_path,
             new_child,

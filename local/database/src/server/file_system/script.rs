@@ -26,20 +26,21 @@ impl Database {
 
                 let project_path = fs::canonicalize(project_path)?;
                 let project = self
-                    .store
+                    .object_store
                     .get_path_project_canonical(&project_path)
                     .unwrap()
                     .unwrap()
                     .clone();
 
-                let project = self.store.get_project(&project).unwrap();
+                let project = self.object_store.get_project(&project).unwrap();
                 let pid = project.rid.clone();
                 let script_path = path
                     .strip_prefix(project.analysis_root_path().unwrap())
                     .unwrap();
 
                 let script = LocalScript::new(script_path)?;
-                self.store.insert_script(pid.clone(), script.clone())?;
+                self.object_store
+                    .insert_script(pid.clone(), script.clone())?;
 
                 Ok(vec![Update::project(
                     pid,
@@ -49,8 +50,12 @@ impl Database {
             }
 
             ScriptEvent::Removed(script) => {
-                let project = self.store.get_script_project(&script).unwrap().clone();
-                self.store.remove_project_script(&project, &script)?;
+                let project = self
+                    .object_store
+                    .get_script_project(&script)
+                    .unwrap()
+                    .clone();
+                self.object_store.remove_project_script(&project, &script)?;
 
                 Ok(vec![Update::project(
                     project,
@@ -60,23 +65,30 @@ impl Database {
             }
 
             ScriptEvent::Moved { script, path } => {
-                let from_project = self.store.get_script_project(&script).unwrap().clone();
+                let from_project = self
+                    .object_store
+                    .get_script_project(&script)
+                    .unwrap()
+                    .clone();
                 let to_project = project::project_root_path(&path).unwrap();
                 let to_project = self
-                    .store
+                    .object_store
                     .get_path_project_canonical(&to_project)
                     .unwrap()
                     .unwrap()
                     .clone();
 
                 if to_project == from_project {
-                    let project = self.store.get_project(&to_project).unwrap();
+                    let project = self.object_store.get_project(&to_project).unwrap();
                     let script_path = path
                         .strip_prefix(project.analysis_root_path().unwrap())
                         .unwrap()
                         .to_owned();
 
-                    let analyses = self.store.get_project_scripts_mut(&from_project).unwrap();
+                    let analyses = self
+                        .object_store
+                        .get_project_scripts_mut(&from_project)
+                        .unwrap();
                     let AnalysisKind::Script(script) = analyses.get_mut(&script).unwrap() else {
                         todo!("handle other analysis kinds");
                     };
@@ -96,7 +108,7 @@ impl Database {
                     )]);
                 } else {
                     let analysis = match self
-                        .store
+                        .object_store
                         .remove_project_script(&from_project, &script)?
                         .unwrap()
                     {
@@ -111,7 +123,7 @@ impl Database {
                     )];
 
                     if let Err(err) = self
-                        .store
+                        .object_store
                         .insert_script(to_project.clone(), analysis.clone())
                     {
                         tracing::error!("could not insert script: {err:?}");

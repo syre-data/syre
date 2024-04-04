@@ -1,12 +1,11 @@
 use super::*;
-use crate::command::{ContainerCommand, GraphCommand, ProjectCommand};
-use crate::error::Result;
+use crate::command::{GraphCommand, ProjectCommand};
 use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
 use std::path::Path;
-use syre_core::project::{Container as CoreContainer, ContainerProperties};
+use syre_core::project::Container as CoreContainer;
 use syre_local::loader::container::Loader as ContainerLoader;
 use syre_local::project::resources::Project as LocalProject;
 use syre_local::project::{container, project};
@@ -22,12 +21,11 @@ fn database_command_update_container_properties_without_name_should_work() {
         .build(&data_dir)
         .expect("could not init `Container`");
 
-    let mut db = Database::new();
+    let mut db = Database::new().unwrap();
     let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
     let container = db.handle_command_graph(GraphCommand::Load(pid));
 
-    let container: Result<CoreContainer> =
-        serde_json::from_value(container).expect("could not contvert JsValue to `Container`");
+    let container: Result<CoreContainer> = serde_json::from_value(container).unwrap();
 
     let container = container.expect("`LoadContainer` should work");
     let mut properties = container.properties.clone();
@@ -42,10 +40,7 @@ fn database_command_update_container_properties_without_name_should_work() {
 
     {
         // ensure stored container updated
-        let stored = db
-            .store
-            .get_container(&container.rid)
-            .expect("`Container` not stored");
+        let stored = db.object_store.get_container(&container.rid).unwrap();
 
         assert_eq!(
             properties.name, stored.properties.name,
@@ -74,20 +69,13 @@ fn database_command_update_container_name_should_work() {
 
     let pid = project.rid.clone();
     let builder = container::InitOptions::new();
-    let rid = builder
-        .build(&data_dir)
-        .expect("could not init `Container`");
-    let cid = builder
-        .build(&child_dir)
-        .expect("could not init `Container`");
-    let _sid = builder
-        .build(&sibling_dir)
-        .expect("could not init `Container`");
+    let rid = builder.build(&data_dir).unwrap();
+    let cid = builder.build(&child_dir).unwrap();
+    let _sid = builder.build(&sibling_dir).unwrap();
 
-    let mut db = Database::new();
+    let mut db = Database::new().unwrap();
     let _project = db.handle_command_project(ProjectCommand::Load(dir.path().into()));
     let _graph = db.handle_command_graph(GraphCommand::Load(pid));
-
     let properties = ContainerProperties::new(Word(EN).fake::<String>());
 
     // test
@@ -97,18 +85,13 @@ fn database_command_update_container_name_should_work() {
         properties: properties.clone(),
     }));
 
-    let stored = db
-        .store
-        .get_container(&rid)
-        .expect("`Container` not stored");
-
+    let stored = db.object_store.get_container(&rid).unwrap();
     assert_eq!(
         properties.name, stored.properties.name,
         "incorrect name stored"
     );
 
     assert_eq!(&data_dir, stored.base_path(), "root path should not change");
-
     let saved = ContainerLoader::load(&data_dir).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
@@ -121,10 +104,7 @@ fn database_command_update_container_name_should_work() {
         properties: properties.clone(),
     }));
 
-    let stored = db
-        .store
-        .get_container(&cid)
-        .expect("`Container` not stored");
+    let stored = db.object_store.get_container(&cid).unwrap();
 
     assert_eq!(
         properties.name, stored.properties.name,

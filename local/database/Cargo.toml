@@ -15,20 +15,23 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-file-id = "0.2.1"
-futures = "0.3.28"
+chrono = { workspace = true, features = ["serde"] }
+file-id = "0.2"
+futures = "0.3"
 indexmap = { workspace = true, features = ["serde"] }
-notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true}
-notify-debouncer-full = { version = "0.3", default-features = false, optional = true}
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true }
+notify-debouncer-full = { version = "0.3", default-features = false, optional = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
+surrealdb = { workspace = true, features = ["kv-mem"], optional = true }
 thiserror = { workspace = true }
+tokio = { version = "1.36", features = ["sync", "macros", "rt-multi-thread"], optional = true }
 tracing = { workspace = true }
 tracing-appender = "0.2.2"
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
-trash = { version = "3.0", optional = true }
+trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 zmq = { workspace = true, optional = true }
 
@@ -47,6 +50,16 @@ dev_utils = { path = "../../dev_utils", features = ["syre_core"] }
 
 [features]
 default = ["error"]
-server = ["dep:zmq", "syre-local/fs", "dep:has_id", "dep:trash", "dep:notify", "dep:notify-debouncer-full"]
+server = [
+	"dep:zmq",
+	"syre-local/fs",
+	"syre-core/surreal_db",
+	"dep:has_id",
+	"dep:trash",
+	"dep:notify",
+	"dep:notify-debouncer-full",
+	"dep:tokio",
+	"dep:surrealdb"
+]
 client = ["dep:zmq"]
 error = []

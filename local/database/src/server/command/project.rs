@@ -1,8 +1,9 @@
 //! Handle `Project` related functionality.
 use super::super::Database;
 use crate::command::ProjectCommand;
-use crate::error::server::LoadUserProjects as LoadUserProjectsError;
+use crate::error::server::{LoadUserProjects as LoadUserProjectsError, Update as UpdateError};
 use crate::error::Result;
+use crate::server::store::data_store::data_store::project::Record;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -21,71 +22,30 @@ impl Database {
     pub fn handle_command_project(&mut self, cmd: ProjectCommand) -> JsValue {
         match cmd {
             ProjectCommand::Load(path) => {
-                // check if project is already loaded
-                let project = match self.get_path_project(&path) {
-                    Some(project) => project,
-                    None => {
-                        let project = match self.load_project(&path) {
-                            Ok(project) => project,
-                            Err(err) => {
-                                let err: Result<CoreProject> = Err(err.into());
-                                return serde_json::to_value(err).unwrap();
-                            }
-                        };
-
-                        project
-                    }
-                };
-
-                let project: Result<CoreProject> = Ok((**project).clone());
-                serde_json::to_value(project).unwrap()
+                serde_json::to_value(self.handle_project_load(path.as_path())).unwrap()
             }
 
             ProjectCommand::LoadWithSettings(path) => {
-                // check if project is already loaded
-                let project = match self.get_path_project(&path) {
-                    Some(project) => project,
-                    None => {
-                        let project = match self.load_project(&path) {
-                            Ok(project) => project,
-                            Err(err) => {
-                                let err: Result<CoreProject> = Err(err.into());
-                                return serde_json::to_value(err).unwrap();
-                            }
-                        };
-
-                        project
-                    }
-                };
-
-                let project: Result<(CoreProject, ProjectSettings)> =
-                    Ok(((**project).clone(), project.settings().clone()));
-
-                serde_json::to_value(project).unwrap()
+                serde_json::to_value(self.handle_project_load_with_settings(path.as_path()))
+                    .unwrap()
             }
 
             ProjectCommand::LoadUser(user) => {
-                let projects = self.load_user_projects(&user);
+                let projects = self.handle_project_load_user(&user);
                 serde_json::to_value(projects).unwrap()
             }
 
-            ProjectCommand::Get(rid) => {
-                let Some(project) = self.store.get_project(&rid) else {
-                    let value: Option<CoreProject> = None;
-                    return serde_json::to_value(value).unwrap();
-                };
-
-                let project = Some((**project).clone());
-                serde_json::to_value(project).unwrap()
+            ProjectCommand::Get(project) => {
+                serde_json::to_value(self.handle_project_get(&project)).unwrap()
             }
 
             ProjectCommand::Update(update) => {
-                let res = self.update_project(update);
+                let res = self.handle_project_update(update);
                 serde_json::to_value(res).unwrap()
             }
 
             ProjectCommand::GetPath(rid) => {
-                let path = self.get_project_path(&rid);
+                let path = self.handle_project_path(&rid);
                 serde_json::to_value(path).unwrap()
             }
 
@@ -100,6 +60,34 @@ impl Database {
     // *** functions ***
     // *****************
 
+    fn handle_project_get(&self, project: &ResourceId) -> Option<CoreProject> {
+        match self.object_store.get_project(project) {
+            None => None,
+            Some(project) => Some((**project).clone()),
+        }
+    }
+
+    fn handle_project_load(&mut self, path: &Path) -> StdResult<CoreProject, IoSerdeError> {
+        let project = match self.get_path_project(path) {
+            Some(project) => project,
+            None => self.load_project(path)?,
+        };
+
+        Ok((*project).clone())
+    }
+
+    fn handle_project_load_with_settings(
+        &mut self,
+        path: &Path,
+    ) -> StdResult<(CoreProject, ProjectSettings), IoSerdeError> {
+        let project = match self.get_path_project(&path) {
+            Some(project) => project,
+            None => self.load_project(&path)?,
+        };
+
+        Ok(((*project).clone(), project.settings().clone()))
+    }
+
     /// Loads a single [`Project`](LocalProject) from settings.
     ///
     /// # Returns
@@ -109,29 +97,41 @@ impl Database {
     /// + Watches the project folder.
     pub fn load_project(&mut self, path: &Path) -> StdResult<&LocalProject, IoSerdeError> {
         let project = LocalProject::load_from(path)?;
-        self.store.insert_project(project)?;
+        self.object_store.insert_project(project)?;
         self.watch_path(path);
+
         let project = self.get_path_project(&path).unwrap();
-        return Ok(project);
+        if let Err(err) = self.data_store.project().create(
+            project.rid.clone(),
+            Record::new(
+                project.name.clone(),
+                project.description.clone(),
+                project.base_path().to_path_buf(),
+            ),
+        ) {
+            tracing::error!(?err);
+        }
+
+        Ok(project)
     }
 
     fn get_path_project(&self, path: &Path) -> Option<&LocalProject> {
-        let Ok(Some(project)) = self.store.get_path_project_canonical(&path) else {
+        let Ok(Some(project)) = self.object_store.get_path_project_canonical(&path) else {
             return None;
         };
 
-        self.store.get_project(project)
+        self.object_store.get_project(project)
     }
 
-    fn get_project_path(&self, rid: &ResourceId) -> Option<&Path> {
-        let Some(project) = self.store.get_project(rid) else {
+    fn handle_project_path(&self, rid: &ResourceId) -> Option<&Path> {
+        let Some(project) = self.object_store.get_project(rid) else {
             return None;
         };
 
         Some(project.base_path())
     }
 
-    fn load_user_projects(
+    fn handle_project_load_user(
         &mut self,
         user: &ResourceId,
     ) -> StdResult<Vec<(CoreProject, ProjectSettings)>, LoadUserProjectsError> {
@@ -144,9 +144,9 @@ impl Database {
         let mut projects = Vec::new();
         let mut errors = HashMap::new();
         for path in project_manifest.iter() {
-            match self.store.get_path_project(path) {
+            match self.object_store.get_path_project(path) {
                 Some(project) => {
-                    let project = self.store.get_project(project).unwrap();
+                    let project = self.object_store.get_project(project).unwrap();
                     if user_has_project(user, project) {
                         projects.push((project.inner().clone(), project.settings().clone()));
                     }
@@ -172,21 +172,30 @@ impl Database {
         }
     }
 
-    fn update_project(&mut self, update: CoreProject) -> Result {
-        let Some(project) = self.store.get_project_mut(&update.rid) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Script` does not exist",
-            ))
-            .into());
+    fn handle_project_update(&mut self, update: CoreProject) -> StdResult<(), UpdateError> {
+        let Some(project) = self.object_store.get_project_mut(&update.rid) else {
+            return Err(UpdateError::ResourceNotFound);
         };
 
         **project = update;
         project.save()?;
+
+        if let Err(err) = self.data_store.project().update(
+            project.rid.clone(),
+            Record::new(
+                project.name.clone(),
+                project.description.clone(),
+                project.base_path().to_path_buf(),
+            ),
+        ) {
+            tracing::error!(?err);
+        }
+
         Ok(())
     }
 
     fn update_project_settings(&mut self, rid: &ResourceId, settings: ProjectSettings) -> Result {
-        let Some(project) = self.store.get_project_mut(rid) else {
+        let Some(project) = self.object_store.get_project_mut(rid) else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
                 "`Script` does not exist",
             ))

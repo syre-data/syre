@@ -26,7 +26,6 @@ use syre_ui::components::{Drawer, ResizeHandle};
 use syre_ui::types::Message;
 use syre_ui::widgets::common::asset as asset_ui;
 use syre_ui::widgets::suspense::Loading;
-use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;

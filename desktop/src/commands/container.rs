@@ -63,7 +63,7 @@ pub async fn bulk_update_analysis_associations(
     update: AnalysisAssociationBulkUpdate,
 ) -> DbResult {
     invoke_result(
-        "bulk_update_container_script_associations",
+        "bulk_update_container_analysis_associations",
         BulkUpdateAnalysisAssociationsArgs { containers, update },
     )
     .await

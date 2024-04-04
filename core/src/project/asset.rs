@@ -86,7 +86,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_name(&mut self, value: String) -> &mut Self {
+    pub fn set_name(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_name(value);
         self
     }
@@ -96,7 +96,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_kind(&mut self, value: String) -> &mut Self {
+    pub fn set_kind(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_kind(value);
         self
     }
@@ -106,7 +106,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_description(&mut self, value: String) -> &mut Self {
+    pub fn set_description(&mut self, value: impl Into<String>) -> &mut Self {
         self.properties.set_description(value);
         self
     }
@@ -116,7 +116,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_tags(&mut self, value: Vec<String>) -> &mut Self {
+    pub fn set_tags(&mut self, value: Vec<impl Into<String>>) -> &mut Self {
         self.properties.set_tags(value);
         self
     }
@@ -151,7 +151,7 @@ impl<P> Builder<P> {
         key: impl Into<String>,
         value: impl Into<JsValue>,
     ) -> &mut Self {
-        self.properties.set_metadatum(key.into(), value.into());
+        self.properties.set_metadatum(key, value);
         self
     }
 
@@ -175,11 +175,22 @@ impl Builder<NoPath> {
 }
 
 impl Builder<Path> {
+    pub fn with_path(path: impl Into<PathBuf>) -> Self {
+        Self {
+            properties: PropertiesBuilder::default(),
+            path: Path(path.into()),
+        }
+    }
+
     pub fn clear_path(self) -> Builder<NoPath> {
         Builder {
             properties: self.properties,
             path: NoPath,
         }
+    }
+
+    pub fn build(self) -> Asset {
+        self.into()
     }
 }
 

@@ -7,7 +7,9 @@ use syre_core::project::Project;
 use syre_core::types::ResourceId;
 use syre_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
 use syre_local::types::ProjectSettings;
-use syre_local_database::error::server::LoadUserProjects as LoadUserProjectsError;
+use syre_local_database::error::server::{
+    LoadUserProjects as LoadUserProjectsError, Update as UpdateError,
+};
 use syre_local_database::Result as DbResult;
 
 pub async fn init_project(path: PathBuf) -> Result<ResourceId, String> {
@@ -34,7 +36,7 @@ pub async fn import_project(path: PathBuf) -> Result<(Project, ProjectSettings),
     invoke_result("import_project", PathBufArgs { path }).await
 }
 
-pub async fn update_project(project: Project) -> DbResult {
+pub async fn update_project(project: Project) -> Result<(), UpdateError> {
     invoke_result("update_project", UpdateProjectArgs { project }).await
 }
 

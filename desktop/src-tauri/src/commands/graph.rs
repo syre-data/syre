@@ -1,35 +1,32 @@
 //! Graph commands.
-use crate::error::{DesktopSettings as DesktopSettingsError, Result};
+use super::utils;
+use crate::error::{DesktopSettings as DesktopSettingsError, Error, Result};
 use crate::state::AppState;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::graph::ResourceTree;
-use syre_core::project::{Container as CoreContainer, Project};
+use syre_core::project::Container as CoreContainer;
 use syre_core::types::{Creator, ResourceId, UserId};
-use syre_desktop_lib::error::RemoveResource as RemoveResourceError;
+use syre_desktop_lib::error::{RemoveResource as RemoveResourceError, Trash as TrashError};
 use syre_local::error::{ContainerError, Error as LocalError};
 use syre_local::project::resources::Container as LocalContainer;
 use syre_local_database::client::Client as DbClient;
-use syre_local_database::command::{ContainerCommand, GraphCommand, ProjectCommand};
-use syre_local_database::Result as DbResult;
+use syre_local_database::error::server::LoadProjectGraph as LoadProjectGraphError;
 use tauri::State;
 
 type ContainerTree = ResourceTree<CoreContainer>;
 
 /// Initializes a directory as a [`Container`](LocalContainer).
+/// Sets the Project's `data_root` to the path.
 ///
-/// # Argument
-/// 1. `path`: Path to the desired child directory.
-/// 2. `container`: [`Container`](Container) to initialize with.
-///     The [`ResourceId`] is ignored.
+/// # Arguments
+/// 1. `project`: Id of the project to initialize the graph for.
+/// 2. `path`: [`Container`](Container) to initialize and set as data_root.
 ///
 /// # Returns
-/// [`ResourceId`] of the initialized [`Container`](Container).
-///
-/// # See also
-/// + [`syre_local::project::container::init`] for details.
+/// Initial container tree.
 #[tauri::command]
 pub fn init_project_graph(
     db: State<DbClient>,
@@ -37,7 +34,6 @@ pub fn init_project_graph(
     project: ResourceId,
     path: PathBuf,
 ) -> Result<ContainerTree> {
-    // create container
     let user = app_state
         .user
         .lock()
@@ -54,14 +50,7 @@ pub fn init_project_graph(
     container.save()?;
 
     // set project data root
-    let project = db
-        .send(ProjectCommand::Get(project).into())
-        .expect("could not get `Project`");
-
-    let project: Option<Project> =
-        serde_json::from_value(project).expect("could not convert `Get` result to `Project`");
-
-    let Some(mut project) = project else {
+    let Some(mut project) = db.project().get(project).unwrap() else {
         return Err(
             CoreError::Resource(ResourceError::does_not_exist("`Project` not loaded")).into(),
         );
@@ -69,24 +58,14 @@ pub fn init_project_graph(
 
     project.data_root = path.clone();
     let pid = project.rid.clone();
-    let res = db
-        .send(ProjectCommand::Update(project).into())
-        .expect("could not update `Project`");
+    if let Err(err) = db.project().update(project).unwrap() {
+        return Err(Error::LocalDatabaseError(err.into()));
+    }
 
-    let res: DbResult =
-        serde_json::from_value(res).expect("could not convert `Update` result to `Result");
-
-    res?;
-
-    // load and store container
-    let graph = db
-        .send(GraphCommand::GetOrLoad(pid).into())
-        .expect("could not load graph");
-
-    let graph: DbResult<ContainerTree> =
-        serde_json::from_value(graph).expect("could not convert `Load` result to `Container` tree");
-
-    Ok(graph?)
+    db.graph()
+        .get_or_load(pid)
+        .unwrap()
+        .map_err(|err| Error::LocalDatabaseError(err.into()))
 }
 
 /// Loads a Container graph from path.
@@ -97,9 +76,8 @@ pub fn init_project_graph(
 pub fn load_project_graph(
     db: State<DbClient>,
     rid: ResourceId,
-) -> StdResult<ContainerTree, syre_local_database::error::server::LoadProjectGraph> {
-    let res = db.send(GraphCommand::Load(rid).into()).unwrap();
-    serde_json::from_value(res).unwrap()
+) -> StdResult<ContainerTree, LoadProjectGraphError> {
+    db.graph().load(rid).unwrap()
 }
 
 /// Gets a Container graph from path, loading it if needed.
@@ -110,9 +88,8 @@ pub fn load_project_graph(
 pub fn get_or_load_project_graph(
     db: State<DbClient>,
     rid: ResourceId,
-) -> StdResult<ContainerTree, syre_local_database::error::server::LoadProjectGraph> {
-    let res = db.send(GraphCommand::GetOrLoad(rid).into()).unwrap();
-    serde_json::from_value(res).unwrap()
+) -> StdResult<ContainerTree, LoadProjectGraphError> {
+    db.graph().get_or_load(rid).unwrap()
 }
 
 /// Creates a new child [`Container`](LocalContainer).
@@ -122,8 +99,7 @@ pub fn get_or_load_project_graph(
 /// 2. `parent`: [`ResourceId`] of the parent [`Container`](LocalContainer).
 #[tauri::command]
 pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Result {
-    let path = db.send(ContainerCommand::Path(parent).into()).unwrap();
-    let Some(mut path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+    let Some(mut path) = db.container().path(parent).unwrap() else {
         panic!("could not get container path");
     };
 
@@ -141,29 +117,34 @@ pub fn new_child(db: State<DbClient>, name: String, parent: ResourceId) -> Resul
 /// # Arguments
 /// 1. Id of the root of the `Container` tree to duplicate.
 #[tauri::command]
-pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> DbResult<ContainerTree> {
-    let dup = db
-        .send(GraphCommand::Duplicate(rid).into())
-        .expect("could not duplicate graph");
-
-    serde_json::from_value(dup).unwrap()
+pub fn duplicate_container_tree(db: State<DbClient>, rid: ResourceId) -> Result<ContainerTree> {
+    Ok(db.graph().duplicate(rid).unwrap()?)
 }
 
 /// Removes a [`Container`](LocalContainer) tree.
 ///
 /// # Arguments
-/// 1. Id of the root of the `Container` tree to remove.
+/// 1. `rid`: Id of the root of the `Container` tree to remove.
 #[tauri::command]
 pub fn remove_container_tree(
     db: State<DbClient>,
     rid: ResourceId,
 ) -> StdResult<(), RemoveResourceError> {
-    let path = match db.send(ContainerCommand::Path(rid).into()) {
-        Ok(path) => path,
-        Err(err) => return Err(RemoveResourceError::ZMQ(format!("{err:?}"))),
-    };
+    let remove_container_from_db =
+        |container: ResourceId| -> StdResult<PathBuf, RemoveResourceError> {
+            todo!();
+            // match db.graph().remove(container).unwrap() {
+            //     Ok(Some((_asset, path))) => Ok(path),
+            //     Ok(None) => {
+            //         return Err(RemoveResourceError::Database(
+            //             "container does not exist".to_string(),
+            //         ))
+            //     }
+            //     Err(err) => return Err(RemoveResourceError::Database(format!("{err:?}"))),
+            // }
+        };
 
-    let Some(path) = serde_json::from_value::<Option<PathBuf>>(path).unwrap() else {
+    let Some(path) = db.container().path(rid.clone()).unwrap() else {
         return Err(RemoveResourceError::Database(
             "Could not get Container's path".to_string(),
         ));
@@ -171,6 +152,50 @@ pub fn remove_container_tree(
 
     match trash::delete(path) {
         Ok(_) => Ok(()),
-        Err(_err) => todo!(), // See asset.rs
+
+        Err(trash::Error::CanonicalizePath { original: _ }) => {
+            match remove_container_from_db(rid) {
+                Ok(_) => Err(TrashError::NotFound.into()),
+                Err(err) => Err(err),
+            }
+        }
+
+        Err(trash::Error::CouldNotAccess { target }) => {
+            if Path::new(&target).exists() {
+                Err(TrashError::PermissionDenied.into())
+            } else {
+                match remove_container_from_db(rid) {
+                    Ok(_) => Err(TrashError::NotFound.into()),
+                    Err(err) => Err(err),
+                }
+            }
+        }
+
+        #[cfg(all(
+            unix,
+            not(target_os = "macos"),
+            not(target_os = "ios"),
+            not(target_os = "android")
+        ))]
+        Err(trash::Error::FileSystem { path, source })
+            if source.kind() == io::ErrorKind::NotFound =>
+        {
+            Err(TrashError::NotFound.into())
+        }
+
+        Err(trash::Error::Os { code, description }) => {
+            match utils::trash::convert_os_error(code, description) {
+                TrashError::NotFound => {
+                    remove_container_from_db(rid)?;
+                    Err(TrashError::NotFound.into())
+                }
+
+                err => Err(err.into()),
+            }
+        }
+
+        Err(trash::Error::Unknown { description }) => Err(TrashError::Other(description).into()),
+
+        Err(err) => Err(TrashError::Other(format!("{err:?}")).into()),
     }
 }

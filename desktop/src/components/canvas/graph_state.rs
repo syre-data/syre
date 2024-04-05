@@ -482,6 +482,10 @@ impl Reducible for GraphState {
             GraphStateAction::BulkUpdateContainerProperties(
                 BulkUpdateContainerPropertiesArgs { rids, update },
             ) => {
+                if Rc::strong_count(&current.graph) > 1 {
+                    current.graph = RcEq::new((**current.graph).clone());
+                }
+
                 for rid in rids {
                     current.update_container_properties_from_update(&rid, &update);
                 }
@@ -491,6 +495,10 @@ impl Reducible for GraphState {
                 rids,
                 update,
             }) => {
+                if Rc::strong_count(&current.graph) > 1 {
+                    current.graph = RcEq::new((**current.graph).clone());
+                }
+
                 for rid in rids {
                     current.update_asset_properties_from_update(&rid, &update);
                 }
@@ -500,6 +508,10 @@ impl Reducible for GraphState {
                 rids,
                 update,
             }) => {
+                if Rc::strong_count(&current.graph) > 1 {
+                    current.graph = RcEq::new((**current.graph).clone());
+                }
+
                 for rid in rids {
                     if self.asset_map.contains_key(&rid) {
                         current.update_asset_properties_from_update(&rid, &update.clone().into());

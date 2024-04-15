@@ -24,6 +24,7 @@ impl Database {
                     .get_container_project(&root)
                     .unwrap()
                     .clone();
+
                 let parent = self
                     .object_store
                     .get_path_container(&path.parent().unwrap())
@@ -76,6 +77,7 @@ impl Database {
                     .get_container_project(&parent)
                     .unwrap()
                     .clone();
+
                 let analyses = self.object_store.get_project_scripts(&project).unwrap();
                 for (_, container) in graph.iter_nodes_mut() {
                     container
@@ -92,8 +94,18 @@ impl Database {
                     .get_container_project(&root)
                     .unwrap()
                     .clone();
+
                 let graph = self.object_store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
+
+                if let Err(err) = self
+                    .data_store
+                    .graph()
+                    .create_subgraph(graph.clone(), parent.clone())
+                {
+                    tracing::error!(?err);
+                }
+
                 Ok(vec![Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
@@ -132,8 +144,18 @@ impl Database {
                     .get_container_project(&root)
                     .unwrap()
                     .clone();
+
                 let graph = self.object_store.get_graph_of_container(&root).unwrap();
                 let graph = ContainerTreeTransformer::local_to_core(graph);
+
+                if let Err(err) = self
+                    .data_store
+                    .graph()
+                    .create_subgraph(graph.clone(), parent.clone())
+                {
+                    tracing::error!(?err);
+                }
+
                 Ok(vec![Update::project(
                     project,
                     GraphUpdate::Created { parent, graph }.into(),
@@ -147,8 +169,14 @@ impl Database {
                     .get_container_project(&root)
                     .unwrap()
                     .clone();
+
                 let graph = self.object_store.remove_subgraph(&root)?;
                 let graph = ContainerTreeTransformer::local_to_core(&graph);
+
+                if let Err(err) = self.data_store.graph().remove(graph.root().clone()) {
+                    tracing::error!(?err);
+                }
+
                 Ok(vec![Update::project(
                     project,
                     GraphUpdate::Removed(graph).into(),

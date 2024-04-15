@@ -74,7 +74,6 @@ impl Database {
         }
     }
 
-    #[tracing::instrument(skip(self))]
     fn handle_file_as_asset(
         &mut self,
         asset_path: PathBuf,
@@ -94,6 +93,14 @@ impl Database {
         let container = self.object_store.get_container(&container).unwrap();
         let asset = container.assets.get(&aid).unwrap().clone();
 
+        if let Err(err) = self.data_store.asset().create(
+            asset.rid.clone(),
+            asset.clone().into(),
+            container.rid.clone(),
+        ) {
+            tracing::error!(?err);
+        }
+
         Ok(vec![Update::project(
             project,
             AssetUpdate::Created {
@@ -105,7 +112,6 @@ impl Database {
         )])
     }
 
-    #[tracing::instrument(skip(self))]
     fn init_subgraph_file(&mut self, path: PathBuf, event_id: &Uuid) -> Result<Vec<Update>> {
         let parent = self
             .object_store
@@ -132,6 +138,15 @@ impl Database {
             .clone();
         let graph = self.object_store.get_graph_of_container(&root).unwrap();
         let graph = ContainerTreeTransformer::local_to_core(graph);
+
+        if let Err(err) = self
+            .data_store
+            .graph()
+            .create_subgraph(graph.clone(), parent.clone())
+        {
+            tracing::error!(?err);
+        }
+
         Ok(vec![Update::project(
             project,
             GraphUpdate::Created { parent, graph }.into(),

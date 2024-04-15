@@ -2,6 +2,7 @@ use super::Command;
 use crate::command::search::ResourceKind;
 use std::str::FromStr;
 use surrealdb::engine::local::{Db, Mem};
+use surrealdb::sql::Thing;
 use surrealdb::{error, Error, Surreal};
 use syre_core::types::ResourceId;
 use tokio::sync::{mpsc, oneshot};
@@ -12,6 +13,12 @@ type Rx = mpsc::UnboundedReceiver<Command>;
 
 pub const NAMESPACE: &str = "syre";
 pub const DATABASE: &str = "datastore";
+
+#[allow(dead_code)]
+#[derive(Debug, serde::Deserialize)]
+struct IdRecord {
+    id: Thing,
+}
 
 const DEFINE_TABLE_PROJECT: &str = "
 DEFINE TABLE project SCHEMAFULL;
@@ -45,8 +52,8 @@ DEFINE FIELD path ON TABLE asset TYPE string;
 
 const DEFINE_SEARCH_INDICES: &str = "
 DEFINE ANALYZER properties_analyzer 
-    TOKENIZERS blank,class,punct 
-    FILTERS lowercase,ascii,snowball(english);
+    TOKENIZERS blank, class, punct 
+    FILTERS lowercase, ascii, snowball(english), edgengram(2, 10);
 
 DEFINE INDEX container_name ON container COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX container_kind ON container COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
@@ -230,7 +237,7 @@ impl Store {
     async fn project_from_resource_id(
         &self,
         kind: ResourceKind,
-        id: &ResourceId,
+        id: ResourceId,
     ) -> Result<Option<ResourceId>> {
         let table = match kind {
             ResourceKind::Container => "container",
@@ -239,20 +246,21 @@ impl Store {
 
         let mut result = self
             .db
-            .query("SELECT in FROM has_resource WHERE out = type::thing($table, $id)")
-            .bind(("table", table))
-            .bind(("id", id))
+            // .query("SELECT in FROM has_resource WHERE out = type::thing($table, $id)")
+            // .bind(("table", table))
+            // .bind(("id", id))
+            .query("SELECT in AS id FROM has_resource WHERE out = $id")
+            .bind(("id", Thing::from((table, id.into_surreal_id()))))
             .await?;
 
-        let Some(id) = result.take::<Option<String>>(0)? else {
+        let result = result.take::<Vec<IdRecord>>(0)?;
+        if result.is_empty() {
             return Ok(None);
         };
 
-        let Some((_, rid)) = id.split_once(':') else {
-            return Err(Error::Db(error::Db::IdInvalid { value: id }));
-        };
-
-        let Ok(rid) = ResourceId::from_str(rid) else {
+        assert_eq!(result.len(), 1);
+        let rid = result[0].id.id.to_raw();
+        let Ok(rid) = ResourceId::from_str(rid.as_str()) else {
             return Err(Error::Db(error::Db::IdInvalid {
                 value: rid.to_string(),
             }));
@@ -351,8 +359,10 @@ pub mod graph {
     use super::super::command::graph::{Command, ContainerTree};
     use super::asset::Record as AssetRecord;
     use super::container::Record as ContainerRecord;
-    use super::{Result, Store};
+    use super::{error, Error, Result, Store};
+    use futures::future::{BoxFuture, FutureExt};
     use std::collections::HashMap;
+    use std::str::FromStr;
     use surrealdb::sql::Thing;
     use syre_core::graph::ResourceNode;
     use syre_core::project::{Asset, Container};
@@ -365,6 +375,16 @@ pub mod graph {
             match cmd {
                 Command::Create { tx, graph, project } => {
                     let resp = self.graph_create(graph, project).await;
+                    Self::send_response(tx, resp);
+                }
+
+                Command::CreateSubgraph { tx, graph, parent } => {
+                    let resp = self.graph_create_subgraph(graph, parent).await;
+                    Self::send_response(tx, resp);
+                }
+
+                Command::Remove { tx, root } => {
+                    let resp = self.graph_remove(root).await;
                     Self::send_response(tx, resp);
                 }
             }
@@ -437,6 +457,87 @@ pub mod graph {
             }
 
             Ok(())
+        }
+
+        async fn graph_create_subgraph(&self, graph: ContainerTree, parent: ResourceId) -> Result {
+            let Some(project) = self
+                .project_from_resource_id(super::ResourceKind::Container, parent.clone())
+                .await?
+            else {
+                return Err(Error::Db(error::Db::NoRecordFound));
+            };
+
+            let root = graph.root().clone();
+            self.graph_create(graph, project).await?;
+
+            self.db
+                .query("RELATE $parent -> has_child -> $child")
+                .bind((
+                    "parent",
+                    Thing::from(("container", parent.clone().into_surreal_id())),
+                ))
+                .bind(("child", Thing::from(("container", root.into_surreal_id()))))
+                .await?;
+
+            Ok(())
+        }
+
+        async fn graph_remove(&self, root: ResourceId) -> Result {
+            let containers = self.descendants(root).await?;
+            for container in containers {
+                self.db
+                    .query("DELETE asset WHERE <-(has_asset WHERE in == $container)")
+                    .bind((
+                        "container",
+                        Thing::from(("container", container.clone().into_surreal_id())),
+                    ))
+                    .await?;
+
+                self.db
+                    .delete::<Option<super::container::Record>>(("container", container))
+                    .await?;
+            }
+
+            Ok(())
+        }
+
+        async fn children(&self, parent: ResourceId) -> Result<Vec<ResourceId>> {
+            #[derive(serde::Deserialize, Debug)]
+            struct Record {
+                out: Thing,
+            }
+
+            let mut results = self
+                .db
+                .query("SELECT out FROM has_child WHERE in == $parent")
+                .bind((
+                    "parent",
+                    Thing::from(("container", parent.into_surreal_id())),
+                ))
+                .await?;
+
+            let results = results.take::<Vec<Record>>(0)?;
+            let ids = results
+                .into_iter()
+                .map(|record| ResourceId::from_str(record.out.id.to_raw().as_str()).unwrap())
+                .collect();
+
+            Ok(ids)
+        }
+
+        // See https://rust-lang.github.io/async-book/07_workarounds/04_recursion.html
+        /// Get all descendant Containers.
+        /// Include root.
+        fn descendants(&self, root: ResourceId) -> BoxFuture<'_, Result<Vec<ResourceId>>> {
+            let mut descendants = vec![root.clone()];
+            async move {
+                for child in self.children(root).await? {
+                    descendants.extend(self.descendants(child).await?);
+                }
+
+                Ok(descendants)
+            }
+            .boxed()
         }
     }
 
@@ -531,7 +632,7 @@ pub mod container {
             parent: ResourceId,
         ) -> Result {
             let Some(project) = self
-                .project_from_resource_id(ResourceKind::Container, &parent)
+                .project_from_resource_id(ResourceKind::Container, parent.clone())
                 .await?
             else {
                 return Err(Error::Db(error::Db::NoRecordFound));
@@ -651,7 +752,7 @@ pub mod asset {
             container: ResourceId,
         ) -> Result {
             let Some(project) = self
-                .project_from_resource_id(ResourceKind::Container, &container)
+                .project_from_resource_id(ResourceKind::Container, container.clone())
                 .await?
             else {
                 return Err(Error::Db(error::Db::NoRecordFound));

@@ -124,6 +124,21 @@ mod graph {
             super::Client::send(&self.tx, Command::Create { tx, graph, project }.into())?;
             Ok(rx.blocking_recv()??)
         }
+
+        pub fn create_subgraph(&self, graph: ContainerTree, parent: ResourceId) -> Result {
+            let (tx, rx) = oneshot::channel();
+            super::Client::send(
+                &self.tx,
+                Command::CreateSubgraph { tx, graph, parent }.into(),
+            )?;
+            Ok(rx.blocking_recv()??)
+        }
+
+        pub fn remove(&self, root: ResourceId) -> Result {
+            let (tx, rx) = oneshot::channel();
+            super::Client::send(&self.tx, Command::Remove { tx, root }.into())?;
+            Ok(rx.blocking_recv()??)
+        }
     }
 }
 

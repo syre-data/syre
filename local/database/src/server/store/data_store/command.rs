@@ -90,6 +90,17 @@ pub mod graph {
             graph: ContainerTree,
             project: ResourceId,
         },
+
+        CreateSubgraph {
+            tx: Tx<Result>,
+            graph: ContainerTree,
+            parent: ResourceId,
+        },
+
+        Remove {
+            tx: Tx<Result>,
+            root: ResourceId,
+        },
     }
 }
 

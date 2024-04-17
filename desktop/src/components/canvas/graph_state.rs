@@ -237,7 +237,6 @@ impl GraphState {
     ) {
         let graph = Rc::get_mut(&mut self.graph).unwrap();
         let container = graph.get_mut(&rid).expect("could not find `Container`");
-
         for assoc in update.add.iter() {
             container.analyses.insert(
                 assoc.analysis.clone(),
@@ -295,7 +294,6 @@ impl Reducible for GraphState {
 
             GraphStateAction::RemoveSubtree(root) => {
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 if let Ok(graph) = graph.remove(&root) {
                     for container in graph.nodes().values() {
                         for asset in container.assets.keys() {
@@ -306,45 +304,33 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::MoveSubtree { parent, root, name } => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 graph.mv(&root, &parent).unwrap();
                 let root = graph.get_mut(&root).unwrap();
                 root.properties.name = name;
             }
 
             GraphStateAction::UpdateContainerProperties(update) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container = graph.get_mut(&update.rid).expect("`Container` not found");
-
                 container.properties = update.properties;
             }
 
             GraphStateAction::UpdateContainerAnalysisAssociations(update) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container = graph.get_mut(&update.rid).expect("`Container` not found");
-
                 container.analyses = update.associations;
             }
 
             GraphStateAction::RemoveContainerAnalysisAssociations(rid) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 for cid in graph.nodes().clone().into_keys() {
                     let container = graph.get_mut(&cid).expect("`Container` not found in graph");
-
                     container.analyses.remove(&rid);
                 }
             }
 
             GraphStateAction::InsertChildContainer(parent, child) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
 
                 // map assets
@@ -359,9 +345,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::InsertSubtree { parent, graph } => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let root_graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 for container in graph.nodes().values() {
                     for aid in container.assets.keys() {
                         current.asset_map.insert(aid.clone(), container.rid.clone());
@@ -372,9 +356,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::SetContainerAssets(container_rid, assets) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let Some(container) = graph.get_mut(&container_rid) else {
                     panic!("`Container` not found")
                 };
@@ -389,9 +371,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::InsertContainerAssets(container, assets) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container = graph.get_mut(&container).expect("`Container` not found");
 
                 for asset in assets {
@@ -405,9 +385,7 @@ impl Reducible for GraphState {
 
             GraphStateAction::RemoveAsset(asset) => match current.asset_map.get(&asset) {
                 Some(container) => {
-                    current.graph = RcEq::new((**current.graph).clone());
                     let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                     if let Some(container) = graph.get_mut(container) {
                         container.assets.remove(&asset);
                     }
@@ -425,9 +403,7 @@ impl Reducible for GraphState {
                             }
                         })
                     {
-                        current.graph = RcEq::new((**current.graph).clone());
                         let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                         let container = graph.get_mut(&container).unwrap();
                         container.assets.remove(&asset);
                     }
@@ -437,9 +413,7 @@ impl Reducible for GraphState {
             },
 
             GraphStateAction::UpdateAsset(asset) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container = current
                     .asset_map
                     .get(&asset.rid)
@@ -452,9 +426,7 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::UpdateAssetPath { asset, path } => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container = current.asset_map.get(&asset).unwrap();
                 let container = graph.get_mut(container).unwrap();
                 let asset = container.assets.get_mut(&asset).unwrap();
@@ -466,9 +438,7 @@ impl Reducible for GraphState {
                 container,
                 path,
             } => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
-
                 let container_old = current.asset_map.get(&asset).unwrap();
                 let container_old = graph.get_mut(container_old).unwrap();
                 let mut asset = container_old.assets.remove(&asset).unwrap();

@@ -10,9 +10,9 @@ pub enum SelectionAction {
 /// Determines the selection action from the current action and state.
 ///
 /// # Arguments
-/// 1. If the clicked resource is currently selected.
-/// 2. If at least one other resource is currently selected.
-/// 3. The [`MouseEvent`].
+/// 1. `selected`: If the clicked resource is currently selected.
+/// 2. `multiple`: If at least one other resource is currently selected.
+/// 3. `e`: The [`MouseEvent`].
 pub fn selection_action(selected: bool, multiple: bool, e: MouseEvent) -> SelectionAction {
     if e.shift_key() {
         if selected {

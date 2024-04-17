@@ -6255,6 +6255,7 @@ dependencies = [
 [[package]]
 name = "tauri-sys"
 version = "0.1.0"
+source = "git+https://github.com/bicarlsen/tauri-sys?branch=fix/wasm_bindgen_serde#dca9e751c53931d276ed83448ee52cf7a85b5181"
 dependencies = [
  "futures",
  "js-sys",

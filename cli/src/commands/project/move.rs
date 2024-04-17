@@ -2,10 +2,8 @@ use crate::Result;
 use clap::Args;
 use std::path::PathBuf;
 use std::{env, fs};
-use syre_core::error::{Error as CoreError, Project as CoreProjectError};
 use syre_local::error::{Error as LocalError, Project as ProjectError};
 use syre_local::project::project;
-use syre_local::system::project_manifest;
 
 #[derive(Debug, Args)]
 pub struct MoveArgs {

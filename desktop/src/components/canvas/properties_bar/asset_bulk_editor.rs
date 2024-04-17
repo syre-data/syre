@@ -18,26 +18,17 @@ pub struct AssetBulkEditorProps {
 
 #[function_component(AssetBulkEditor)]
 pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
-    let app_state = use_context::<AppStateReducer>().expect("`AppStateReducer` context not found");
-
-    let graph_state =
-        use_context::<GraphStateReducer>().expect("`GraphStateReducer` context not found");
-
+    let app_state = use_context::<AppStateReducer>().unwrap();
+    let graph_state = use_context::<GraphStateReducer>().unwrap();
     let assets = props
         .assets
         .iter()
         .map(|rid| {
-            let container = graph_state
-                .asset_map
-                .get(rid)
-                .expect("`Asset`'s `Container` not found");
+            let container = graph_state.asset_map.get(rid).unwrap();
 
-            let container = graph_state
-                .graph
-                .get(container)
-                .expect("`Container` not found");
+            let container = graph_state.graph.get(container).unwrap();
 
-            container.assets.get(rid).expect("`Asset` not found")
+            container.assets.get(rid).unwrap()
         })
         .collect::<Vec<_>>();
 
@@ -51,12 +42,12 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
     // *** event handlers ***
     // **********************
 
-    let onchange_name = {
+    let onchange_name = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |name| {
+        move |name| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -67,15 +58,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onchange_kind = {
+    let onchange_kind = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |kind| {
+        move |kind| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -86,15 +77,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onchange_description = {
+    let onchange_description = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |description| {
+        move |description| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -105,15 +96,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onadd_tag = {
+    let onadd_tag = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |tags| {
+        move |tags| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -126,15 +117,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onremove_tag = {
+    let onremove_tag = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |tag| {
+        move |tag| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -147,15 +138,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onadd_metadata = {
+    let onadd_metadata = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |(key, value)| {
+        move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -168,15 +159,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onremove_metadata = {
+    let onremove_metadata = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |key| {
+        move |key| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -189,15 +180,15 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
-    let onchange_metadata = {
+    let onchange_metadata = Callback::from({
         let app_state = app_state.clone();
         let graph_state = graph_state.clone();
         let assets = rids.clone();
 
-        Callback::from(move |(key, value)| {
+        move |(key, value)| {
             let app_state = app_state.clone();
             let graph_state = graph_state.clone();
             let assets = assets.clone();
@@ -210,8 +201,8 @@ pub fn container_bulk_editor(props: &AssetBulkEditorProps) -> Html {
             spawn_local(async move {
                 update_properties(assets, update, app_state, graph_state).await;
             });
-        })
-    };
+        }
+    });
 
     html! {
         <div class={"syre-ui-editor px-xl"}>

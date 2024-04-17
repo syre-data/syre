@@ -1,6 +1,7 @@
 //! State for th eproject workspace;
-use super::properties_bar::PropertiesBarWidget;
 use super::resources_bar::ResourcesBarWidget;
+use super::selection_action::SelectionAction;
+use super::{properties_bar::PropertiesBarWidget, selection_action};
 use std::collections::HashSet;
 use std::rc::Rc;
 use syre_core::types::{ResourceId, ResourceMap};
@@ -23,6 +24,16 @@ pub enum CanvasStateAction {
 
     /// Set the active widget in the properties bar.
     SetPropertiesBarWidget(PropertiesBarWidget),
+
+    /// Toggle the selection state of a resource.
+    ToggleSelected {
+        resource: ResourceId,
+        kind: ResourceType,
+
+        /// Whether the action shoudl take into account multiselection or not.
+        /// e.g. The shift key was held down.
+        multiselect: bool,
+    },
 
     /// Mark a `Container` as selected.
     SelectContainer(ResourceId),
@@ -190,6 +201,35 @@ impl Reducible for CanvasState {
                 current.drawers_visible = true;
             }
 
+            CanvasStateAction::ToggleSelected {
+                resource,
+                kind,
+                multiselect,
+            } => {
+                match selection_action(
+                    current.selected.contains(&resource),
+                    multiselect,
+                    current.selected.len() > 1,
+                ) {
+                    SelectionAction::Select => {
+                        current.selected.insert(resource.clone());
+                        current.resource_types.insert(resource, kind);
+                    }
+
+                    SelectionAction::SelectOnly => {
+                        current.selected.clear();
+                        current.selected.insert(resource.clone());
+                        current.resource_types.insert(resource, kind);
+                    }
+
+                    SelectionAction::Unselect => {
+                        current.selected.remove(&resource);
+                    }
+                }
+
+                current.properties_bar_widget = current.properties_bar_widget_from_selected();
+            }
+
             CanvasStateAction::SelectContainer(rid) => {
                 current.selected.insert(rid.clone());
                 current.resource_types.insert(rid, ResourceType::Container);
@@ -270,5 +310,30 @@ impl Reducible for CanvasState {
     }
 }
 
+/// Determines the selection action from the current action and state.
+///
+/// # Arguments
+/// 1. `selected`: If the resource is currently selected.
+/// 2. `multiselect`: If the action should account for multiselect.
+/// 3. `multiple`: If at least one other resource is currently selected.
+pub fn selection_action(selected: bool, multiselect: bool, multiple: bool) -> SelectionAction {
+    if multiselect {
+        if selected {
+            return SelectionAction::Unselect;
+        } else {
+            return SelectionAction::Select;
+        }
+    } else {
+        if selected {
+            if multiple {
+                return SelectionAction::SelectOnly;
+            }
+
+            return SelectionAction::Unselect;
+        } else {
+            SelectionAction::SelectOnly
+        }
+    }
+}
 pub type CanvasStateReducer = UseReducerHandle<CanvasState>;
 pub type CanvasStateDispatcher = UseReducerDispatcher<CanvasState>;

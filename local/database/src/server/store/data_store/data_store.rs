@@ -53,7 +53,7 @@ DEFINE FIELD path ON TABLE asset TYPE string;
 const DEFINE_SEARCH_INDICES: &str = "
 DEFINE ANALYZER properties_analyzer 
     TOKENIZERS blank, class, punct 
-    FILTERS lowercase, ascii, snowball(english), edgengram(2, 10);
+    FILTERS lowercase, ascii, snowball(english), ngram(1, 10);
 
 DEFINE INDEX container_name ON container COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX container_kind ON container COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
@@ -137,6 +137,7 @@ impl Store {
             score: f64,
         }
 
+        let query = escape_string(query);
         let container_query = format!(
             "SELECT
                 id,
@@ -863,6 +864,16 @@ pub mod asset {
             }
         }
     }
+}
+
+/// Escapes a string.
+///
+/// # Characters
+/// + `'`
+fn escape_string(input: impl AsRef<str>) -> String {
+    let input = input.as_ref();
+    let input = input.replace("'", "\\'");
+    input
 }
 
 #[cfg(test)]

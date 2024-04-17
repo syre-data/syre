@@ -277,6 +277,9 @@ impl Reducible for GraphState {
     // A `Container`'s value must never be changed in place.
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         let mut current = (*self).clone();
+        if Rc::strong_count(&current.graph) > 1 {
+            current.graph = RcEq::new((**current.graph).clone());
+        }
 
         match action {
             GraphStateAction::SetGraph(graph) => {
@@ -291,7 +294,6 @@ impl Reducible for GraphState {
             }
 
             GraphStateAction::RemoveSubtree(root) => {
-                current.graph = RcEq::new((**current.graph).clone());
                 let graph = Rc::get_mut(&mut current.graph).unwrap();
 
                 if let Ok(graph) = graph.remove(&root) {

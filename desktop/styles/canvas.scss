@@ -275,6 +275,50 @@
       }
     }
 
+	.search-bar {
+		padding-left: t.$padding-m;
+		padding-right: t.$padding-m;
+
+		.search-form {
+			border-bottom: t.$background-contrast-color t.$border-width-s solid;
+
+			label {
+				padding-right: t.$padding-m;
+			}
+
+			input {
+				background-color: transparent;
+				padding: 0;
+				width: 0;
+			}
+		}
+
+		.widget-controls {
+			button {
+				background-color: transparent;
+				padding: 0;
+			}
+		}
+
+		ul.search-results {
+			list-style: none;
+			padding: 0;
+
+			li {
+				padding-top: t.$padding-s;
+				padding-bottom: t.$padding-s;
+
+				&.selected {
+					background-color: t.$background-accent-color;
+				}
+
+				.icon {
+					padding-right: t.$padding-m;
+				}
+			}
+		}
+	}
+
   .project-canvas-content {
     flex: 1;
     overflow: auto;

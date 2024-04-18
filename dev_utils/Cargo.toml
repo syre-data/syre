@@ -13,7 +13,7 @@ license = 'GPL-3.0'
 fake = "2.5.0"
 lazy_static = "1.4.0"
 tempfile = "3.3"
-syre-core = { path = "../core" , optional = true}
+syre-core = { workspace = true, optional = true}
 
 [features]
 syre_core = ["dep:syre-core"]

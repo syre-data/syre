@@ -14,7 +14,7 @@ pub struct MoveArgs {
 }
 
 /// Move a Syre project to a new location.
-pub fn main(args: MoveArgs, verbose: bool) -> Result {
+pub fn main(args: MoveArgs) -> Result {
     // parse to and from args
     let from = match args.from {
         Some(path) => fs::canonicalize(path)?,

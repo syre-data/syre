@@ -31,8 +31,8 @@ tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 validator = "0.17"
 
-has_id = { path  = "../has_id", features = ["derive", "serde"] }
-syre-core = { path = "../core", features = ["serde"] }
+has_id = { workspace = true, features = ["derive", "serde"] }
+syre-core = { workspace = true, features = ["serde"] }
 erased-serde = "0.4.2"
 
 [dev-dependencies]

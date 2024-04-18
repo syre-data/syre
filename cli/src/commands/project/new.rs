@@ -13,7 +13,7 @@ pub struct NewArgs {
 }
 
 /// Creates a new Syre project.
-pub fn main(args: NewArgs, verbose: bool) -> Result {
+pub fn main(args: NewArgs) -> Result {
     // get root path
     let root = match args.root {
         Some(p) => p,

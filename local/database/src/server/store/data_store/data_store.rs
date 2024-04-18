@@ -53,7 +53,7 @@ DEFINE FIELD path ON TABLE asset TYPE string;
 const DEFINE_SEARCH_INDICES: &str = "
 DEFINE ANALYZER properties_analyzer 
     TOKENIZERS blank, class, punct 
-    FILTERS lowercase, ascii, snowball(english), ngram(1, 10);
+    FILTERS lowercase, ascii, snowball(english), ngram(1, 15);
 
 DEFINE INDEX container_name ON container COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX container_kind ON container COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);

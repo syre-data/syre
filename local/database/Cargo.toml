@@ -35,10 +35,10 @@ trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 zmq = { workspace = true, optional = true }
 
-has_id = { path = "../../has_id", optional = true }
-file_path_from_id = { path = "../../file_path_from_id" }
-syre-core = { path = "../../core" }
-syre-local = { path = "..", default-features = false }
+has_id = { workspace = true, optional = true }
+file_path_from_id = { workspace = true }
+syre-core = { workspace = true }
+syre-local = { workspace = true, default-features = false }
 
 [dev-dependencies]
 rand = "0.8"

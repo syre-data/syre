@@ -6,8 +6,6 @@ pub(super) mod command;
 mod file_system;
 
 use self::command::CommandActor;
-use self::file_system::actor::{FileSystemActor, FileSystemActorCommand};
-use self::file_system::file_system_event_processor::FileSystemEventProcessor;
 use super::store::{data_store, Objectstore};
 use super::Event;
 use crate::command::Command;
@@ -20,6 +18,8 @@ use std::path::PathBuf;
 use std::result::Result as StdResult;
 use std::sync::mpsc;
 use std::thread;
+use syre_file_watcher::actor::{FileSystemActor, FileSystemActorCommand};
+use syre_file_watcher::file_system_event_processor::FileSystemEventProcessor;
 
 /// Database.
 pub struct Database {

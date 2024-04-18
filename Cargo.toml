@@ -14,6 +14,7 @@ members = [
     "local",
     "local/database",
     "local/database/cli",
+	"local/file_watcher",
     "local/runner",
     "ui",
 ]
@@ -23,6 +24,7 @@ syre-core = { path = "./core" }
 syre-local = { path = "./local" }
 syre-ui = { path = "./ui" }
 syre-local-database = { path = "./local/database" }
+syre-file_watcher = { path = "./local/file_watcher" }
 has_id = { path  = "./has_id" }
 file_path_from_id = { path = "./file_path_from_id" }
 

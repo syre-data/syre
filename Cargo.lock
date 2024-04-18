@@ -5830,6 +5830,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "syre-file_watcher"
+version = "0.0.1"
+dependencies = [
+ "notify",
+ "notify-debouncer-full",
+ "syre-core",
+]
+
+[[package]]
 name = "syre-local"
 version = "0.10.2"
 dependencies = [
@@ -5880,6 +5889,7 @@ dependencies = [
  "serde_with",
  "surrealdb",
  "syre-core",
+ "syre-file_watcher",
  "syre-local",
  "tempfile",
  "thiserror",

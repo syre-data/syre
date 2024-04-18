@@ -7,27 +7,20 @@ use syre_local::system::collections::UserManifest;
 use syre_local::system::user_manifest;
 
 /// List all users.
-///
-/// If verbose, output is of the form `name <email> (id)` with each user on a new line.
-/// If not verbose, output is of the form `name <email>` with each user on a new line.
-pub fn list(verbose: bool) -> Result {
+pub fn list() -> Result {
     let users = match UserManifest::load() {
         Ok(sets) => sets,
         Err(err) => panic!("Something went wrong: {:?}", err),
     };
 
-    let user_str = match verbose {
-        true => |user: &User| match &user.name {
+    let users = users
+        .values()
+        .map(|user: &User| match &user.name {
             None => format!("{} ({})", user.email, user.rid),
             Some(name) => format!("{} <{}> ({})", user.email, name, user.rid),
-        },
-        false => |user: &User| match &user.name {
-            None => format!("{}", user.email),
-            Some(name) => format!("{} <{}>", user.email, name),
-        },
-    };
+        })
+        .collect::<Vec<_>>();
 
-    let users = users.values().map(user_str).collect::<Vec<_>>();
     if users.len() == 0 {
         println!("No users");
         return Ok(());

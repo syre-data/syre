@@ -5,7 +5,7 @@ mod commands;
 
 pub fn main(args: UserArgs) -> Result {
     match args.command {
-        Command::List => commands::list(verbose),
+        Command::List => commands::list(),
         Command::Add(user) => commands::add(user),
         Command::Delete(user) => commands::delete(user),
         Command::Edit(e_args) => {

@@ -33,9 +33,6 @@ pub fn main(args: MoveArgs) -> Result {
     };
 
     project::mv(&from, args.to.as_path())?;
-    if verbose {
-        println!("Project moved from `{from:?}` to `{:?}`", args.to);
-    }
-
+    tracing::info!("Project moved from `{from:?}` to `{:?}`", args.to);
     Ok(())
 }

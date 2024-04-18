@@ -29,10 +29,6 @@ pub fn main(args: NewArgs) -> Result {
 
     // set project properties
     // project and root container: creator, name, permissions, lid
-
-    if verbose {
-        println!("New project created at {:?}", &root);
-    }
-
+    tracing::info!("New project created at {:?}", &root);
     Ok(())
 }

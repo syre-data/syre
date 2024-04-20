@@ -1,9 +1,9 @@
 //! Processes file system events.
 use super::event::{app, file_system};
-use crate::error::{Error, Result};
 use crate::event::Update;
 use crate::server::store::ContainerTree;
 use crate::server::Database;
+use crate::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};

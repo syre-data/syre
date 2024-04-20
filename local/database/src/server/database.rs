@@ -62,7 +62,7 @@ impl Database {
             }
         });
 
-        Ok(Database {
+        Ok(Self {
             object_store: Objectstore::new(),
             data_store,
             event_rx,

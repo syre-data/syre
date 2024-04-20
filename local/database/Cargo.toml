@@ -19,8 +19,6 @@ chrono = { workspace = true, features = ["serde"] }
 file-id = "0.2"
 futures = "0.3"
 indexmap = { workspace = true, features = ["serde"] }
-notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true }
-notify-debouncer-full = { version = "0.3", default-features = false, optional = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -29,7 +27,7 @@ surrealdb = { workspace = true, features = ["kv-mem"], optional = true }
 thiserror = { workspace = true }
 tokio = { version = "1.36", features = ["sync", "macros", "rt-multi-thread"], optional = true }
 tracing = { workspace = true }
-tracing-appender = "0.2.2"
+tracing-appender = { workspace = true }
 tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
 trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
@@ -39,7 +37,7 @@ has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
 syre-local = { workspace = true, default-features = false }
-syre-file_watcher = { workspace = true }
+syre-fs_watcher = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -57,8 +55,6 @@ server = [
 	"syre-core/surreal_db",
 	"dep:has_id",
 	"dep:trash",
-	"dep:notify",
-	"dep:notify-debouncer-full",
 	"dep:tokio",
 	"dep:surrealdb"
 ]

@@ -1,33 +1,22 @@
-use std::time::Duration;
-
-const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
+//! File system watcher.
+const DEBOUNCE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(100);
 
 #[cfg(target_os = "windows")]
-pub use windows::{FileSystemActor, FileSystemActorCommand};
+pub use windows::FileSystemActor;
 
 #[cfg(target_os = "macos")]
-pub use macos::{FileSystemActor, FileSystemActorCommand};
+pub use macos::FileSystemActor;
 
 #[cfg(target_os = "windows")]
 mod windows {
     use super::DEBOUNCE_TIMEOUT;
-    use crate::server::Event;
+    use crate::command::WatcherCommand as Command;
     use notify::{self, RecursiveMode, Watcher};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::{Path, PathBuf};
     use std::sync::mpsc;
+
     type FileSystemWatcher = notify::RecommendedWatcher;
-
-    pub enum FileSystemActorCommand {
-        Watch(PathBuf),
-        Unwatch(PathBuf),
-
-        /// Gets the final path of the given path if it is being tracked.
-        FinalPath {
-            path: PathBuf,
-            tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
-        },
-    }
 
     pub struct FileSystemActor {
         command_rx: mpsc::Receiver<FileSystemActorCommand>,
@@ -45,7 +34,7 @@ mod windows {
                 DEBOUNCE_TIMEOUT,
                 None,
                 move |event: DebounceEventResult| {
-                    event_tx.send(Event::FileSystem(event)).unwrap();
+                    event_tx.send(event).unwrap();
                 },
             )
             .unwrap();
@@ -59,9 +48,8 @@ mod windows {
         pub fn run(&mut self) {
             loop {
                 match self.command_rx.recv().unwrap() {
-                    FileSystemActorCommand::Watch(path) => self.watch(path),
-                    FileSystemActorCommand::Unwatch(path) => self.unwatch(path),
-                    FileSystemActorCommand::FinalPath { path, tx } => self.final_path(path, tx),
+                    Command::Watch(path) => self.watch(path),
+                    Command::Unwatch(path) => self.unwatch(path),
                 }
             }
         }
@@ -122,35 +110,17 @@ mod windows {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::DEBOUNCE_TIMEOUT;
-    use crate::server::Event;
-    use notify::{self, RecursiveMode, Watcher};
+    use crate::command::WatcherCommand as Command;
+    use notify::{RecursiveMode, Watcher};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
-    use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
     use std::sync::mpsc;
 
     type FileSystemWatcher = notify::PollWatcher;
 
-    pub enum FileSystemActorCommand {
-        Watch(PathBuf),
-        Unwatch(PathBuf),
-
-        /// Gets the final path of the given path if it is being tracked.
-        FinalPath {
-            path: PathBuf,
-            tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
-        },
-    }
-
     pub struct FileSystemActor {
-        command_rx: mpsc::Receiver<FileSystemActorCommand>,
+        command_rx: mpsc::Receiver<Command>,
         watcher: Debouncer<FileSystemWatcher, FileIdMap>,
-
-        /// Cache of root file ids needed for tracking moves and removes.
-        /// [`notify_debounce_full::FileIdMap`] removes a watched root from its cache
-        /// when it is moved or removed, so the file id info is lost.
-        /// Keeping our own cache allows us to track the file after one of these events.
-        file_ids: HashMap<PathBuf, file_id::FileId>,
     }
 
     impl FileSystemActor {
@@ -160,8 +130,8 @@ mod macos {
         /// # Notes
         /// + On macOS, PollWatcher is used for more informative events.
         pub fn new(
-            event_tx: mpsc::Sender<Event>,
-            command_rx: mpsc::Receiver<FileSystemActorCommand>,
+            event_tx: tokio::sync::mpsc::UnboundedSender<DebounceEventResult>,
+            command_rx: mpsc::Receiver<Command>,
         ) -> Self {
             let watcher: Debouncer<FileSystemWatcher, _> = {
                 let event_tx = event_tx.clone();
@@ -173,7 +143,7 @@ mod macos {
                     DEBOUNCE_TIMEOUT,
                     None,
                     move |event: DebounceEventResult| {
-                        event_tx.send(Event::FileSystem(event)).unwrap();
+                        event_tx.send(event).unwrap();
                     },
                     notify_debouncer_full::FileIdMap::new(),
                     config,
@@ -184,16 +154,17 @@ mod macos {
             Self {
                 command_rx,
                 watcher,
-                file_ids: HashMap::new(),
             }
         }
 
         pub fn run(&mut self) {
             loop {
                 match self.command_rx.recv().unwrap() {
-                    FileSystemActorCommand::Watch(path) => self.watch(path),
-                    FileSystemActorCommand::Unwatch(path) => self.unwatch(path),
-                    FileSystemActorCommand::FinalPath { path, tx } => self.final_path(path, tx),
+                    Command::Watch(path) => self.watch(path),
+                    Command::Unwatch(path) => self.unwatch(path),
+                    Command::FileId { path, tx } => {
+                        tx.send(self.watcher.cache().cached_file_id(&path).cloned());
+                    }
                 }
             }
         }
@@ -208,50 +179,12 @@ mod macos {
             self.watcher
                 .cache()
                 .add_root(path, RecursiveMode::Recursive);
-
-            self.file_ids.insert(
-                path.to_path_buf(),
-                self.watcher.cache().cached_file_id(path).unwrap().clone(),
-            );
         }
 
         fn unwatch(&mut self, path: impl AsRef<Path>) {
             let path = path.as_ref();
             self.watcher.watcher().unwatch(path).unwrap();
             self.watcher.cache().remove_root(path);
-            self.file_ids.remove(path);
-        }
-
-        /// Gets the final path of a file.
-        ///
-        /// # Returns
-        /// + `None` if the path is not in the watcher's cache.
-        ///
-        /// # Errors
-        /// + If the final path could not be obtained.
-        fn final_path(
-            &self,
-            path: impl AsRef<Path>,
-            tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
-        ) {
-            let path = path.as_ref();
-            let Some(id) = self.file_ids.get(path) else {
-                match tx.send(Ok(None)) {
-                    Ok(_) => {}
-                    Err(err) => tracing::debug!(?err),
-                };
-                return;
-            };
-
-            let path_res = match file_path_from_id::path_from_id(id) {
-                Ok(path) => Ok(Some(path)),
-                Err(err) => Err(err),
-            };
-
-            match tx.send(path_res) {
-                Ok(_) => {}
-                Err(err) => tracing::debug!(?err),
-            }
         }
     }
 }

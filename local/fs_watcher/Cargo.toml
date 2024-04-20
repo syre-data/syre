@@ -1,0 +1,31 @@
+[package]
+name = "syre-fs_watcher"
+version = "0.0.1"
+edition = "2021"
+
+authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+description = "Local file system watcher for Syre resources."
+license = "MIT OR Apache-2.0"
+
+homepage = "https://syre.ai"
+repository = "https://github.com/syre-data/syre"
+keywords = [ "syre", "syre-data" ]
+categories = []
+
+
+[dependencies]
+file_path_from_id = { workspace = true }
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
+notify-debouncer-full = { version = "0.3", default-features = false }
+syre-core = { workspace = true }
+syre-local = {workspace = true }
+uuid = { workspace = true, features = ["v7"] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["time", "json"] }
+tokio = { version = "1.37.0", features = ["full"] }
+file-id = "0.2.1"
+tokio-stream = { version = "0.1.15", features = ["full"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

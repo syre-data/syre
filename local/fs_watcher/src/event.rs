@@ -1,36 +1,36 @@
 //! File system events.
 
-pub mod file_system {
+pub(crate) mod file_system {
+    //! File system events.
     use std::path::PathBuf;
     use std::time::Instant;
     use uuid::Uuid;
 
     #[derive(Debug)]
     pub struct Event {
+        /// Id used to track the event across boundaries.
         event_id: Uuid,
+
         pub kind: EventKind,
+
+        /// The instant the event was created.
         pub time: Instant,
     }
 
     impl Event {
         pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
             Self {
-                event_id: Uuid::new_v4(),
+                event_id: Uuid::now_v7(),
                 kind: kind.into(),
                 time,
             }
         }
 
+        /// # Returns
+        /// The unique id (uuid v7) assigned to the event.
+        /// This is used to track the event across boundaries.
         pub fn event_id(&self) -> &Uuid {
             &self.event_id
-        }
-
-        pub fn kind(&self) -> &EventKind {
-            &self.kind
-        }
-
-        pub fn time(&self) -> &Instant {
-            &self.time
         }
     }
 
@@ -41,6 +41,12 @@ pub mod file_system {
 
         /// Could not determine if the event affect a file, folder, or other resource.
         Any(Any),
+
+        /// Indicates the provided events may not be in sync with the file system any longer.
+        /// Programs relying on an in-memory representation of the file system should sync directly
+        /// with the file system.
+        /// See [`notify::event::Flag::Rescan] for more info.
+        OutOfSync,
     }
 
     impl From<File> for EventKind {
@@ -113,6 +119,7 @@ pub mod file_system {
 }
 
 pub mod app {
+    //! Syre events.
     use std::path::PathBuf;
     use syre_core::graph::ResourceTree;
     use syre_core::types::ResourceId;

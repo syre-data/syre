@@ -5272,6 +5272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "signal-hook-registry"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "signature"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5830,12 +5839,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "syre-file_watcher"
+name = "syre-fs_watcher"
 version = "0.0.1"
 dependencies = [
+ "file-id",
+ "file_path_from_id",
  "notify",
  "notify-debouncer-full",
  "syre-core",
+ "syre-local",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -5880,8 +5899,6 @@ dependencies = [
  "has_id",
  "indexmap 2.2.6",
  "lazy_static",
- "notify",
- "notify-debouncer-full",
  "rand 0.8.5",
  "regex",
  "serde",
@@ -5889,7 +5906,7 @@ dependencies = [
  "serde_with",
  "surrealdb",
  "syre-core",
- "syre-file_watcher",
+ "syre-fs_watcher",
  "syre-local",
  "tempfile",
  "thiserror",
@@ -6428,16 +6445,18 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.36.0"
+version = "1.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61285f6515fa018fb2d1e46eb21223fff441ee8db5d0f1435e8ab4f5cdb80931"
+checksum = "1adbebffeca75fcfd058afa480fb6c0b81e165a0323f9c9d39c9697e37c46787"
 dependencies = [
  "backtrace",
  "bytes",
  "libc",
  "mio",
  "num_cpus",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.48.0",
@@ -6483,6 +6502,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

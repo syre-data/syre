@@ -1,24 +1,29 @@
 //! Process [`notify_debouncer_full::DebouncedEvent`]s into [`file_system::Event`](FileSystemEvent)s.
-use super::event::file_system::{
-    Any as AnyEvent, Event as FileSystemEvent, File as FileEvent, Folder as FolderEvent,
+use crate::{
+    command::WatcherCommand,
+    event::file_system::{
+        Any as AnyEvent, Event as FileSystemEvent, File as FileEvent, Folder as FolderEvent,
+    },
+    FsWatcher,
 };
 use notify::event::{CreateKind, EventKind, ModifyKind, RemoveKind, RenameMode};
-use notify_debouncer_full::DebouncedEvent;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::{fs, io};
+use notify_debouncer_full::{DebouncedEvent, FileIdCache};
+use std::{collections::HashMap, fs, io};
 use syre_local::common;
+use tokio::sync::oneshot;
 
-pub struct FileSystemEventProcessor;
-impl FileSystemEventProcessor {
+impl FsWatcher {
     /// Process [`notify_debouncer_full::DebouncedEvent`]s into [`file_system::Event`](FileSystemEvent)s.
     ///
     /// # Notes
     /// + Events are assumed to have already been preprocessed with paths rectified.
-    pub fn process(events: Vec<DebouncedEvent>) -> Vec<FileSystemEvent> {
+    /// # Returns
+    /// Tuple of (events, errors).
+    async fn process_events_notify_to_fs(
+        &mut self,
+        events: Vec<DebouncedEvent>,
+    ) -> (Vec<Event>, Vec<Error>) {
         let events = Self::filter_events(events);
-        let events = Self::filter_hidden(events);
-        let events = Self::filter_subfolder_events(events);
         let (mut converted, remaining) = Self::group_events(events);
         converted.append(&mut Self::convert_ungrouped_events(remaining));
         converted
@@ -31,6 +36,7 @@ impl FileSystemEventProcessor {
             .filter(|event| match event.kind {
                 EventKind::Create(_)
                 | EventKind::Remove(_)
+                | EventKind::Modify(ModifyKind::Data(_))
                 | EventKind::Modify(ModifyKind::Name(_))
                 | EventKind::Modify(ModifyKind::Any) => true,
 
@@ -39,125 +45,56 @@ impl FileSystemEventProcessor {
             .collect()
     }
 
-    fn filter_hidden(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
-        events
-            .into_iter()
-            .filter(|event| match event.kind {
-                EventKind::Create(_) => {
-                    let Some(file_name) = event.paths[0].file_name() else {
-                        return true;
-                    };
-
-                    let file_name = file_name.to_str().unwrap();
-                    !file_name.starts_with(".")
-                }
-
-                _ => true,
-            })
-            .collect()
-    }
-
-    /// Filters out subevents of a folder.
-    /// These include
-    /// + Created files and folders contained in another created folder.
-    /// + Removed files and folders contained within another removed folder.
-    fn filter_subfolder_events(events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
-        fn get_root_paths<'a>(paths: &'a Vec<(usize, &PathBuf)>) -> Vec<(usize, &'a PathBuf)> {
-            let mut root_paths = Vec::<(usize, &PathBuf)>::with_capacity(paths.len());
-            for (event_index, path) in paths.into_iter() {
-                let mut new_root = Some(root_paths.len());
-                for (root_index, (_, root_path)) in root_paths.iter().enumerate() {
-                    if path.starts_with(root_path) {
-                        new_root.take();
-                        break;
-                    }
-
-                    if root_path.starts_with(path) {
-                        let _ = new_root.insert(root_index);
-                        break;
-                    }
-                }
-
-                match new_root {
-                    Some(root_index) if root_index == root_paths.len() => {
-                        root_paths.push((event_index.clone(), path));
-                    }
-
-                    Some(index) => root_paths[index] = (event_index.clone(), path),
-
-                    None => {}
-                }
-            }
-
-            root_paths
-        }
-
-        let create_events = events
-            .iter()
-            .enumerate()
-            .filter_map(|(index, event)| match event.kind {
-                EventKind::Create(_) => Some((index, &event.paths[0])),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        let remove_events = events
-            .iter()
-            .enumerate()
-            .filter_map(|(index, event)| match event.kind {
-                EventKind::Remove(_) => Some((index, &event.paths[0])),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        let create_root_paths = get_root_paths(&create_events);
-        let remove_root_paths = get_root_paths(&remove_events);
-
-        let create_root_indices = create_root_paths
-            .into_iter()
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-
-        let create_indices = create_events
-            .into_iter()
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-
-        let remove_root_indices = remove_root_paths
-            .into_iter()
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-
-        let remove_indices = remove_events
-            .into_iter()
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-
-        events
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, event)| {
-                if (create_indices.contains(&index) && !create_root_indices.contains(&index))
-                    || (remove_indices.contains(&index) && !remove_root_indices.contains(&index))
-                {
-                    None
-                } else {
-                    Some(event)
-                }
-            })
-            .collect()
-    }
-
     /// Tries to convert all events into a single one.
     ///
     /// # Returns
     /// Tuple of (<converted events>, <unconverted events>).
-    fn group_events(events: Vec<DebouncedEvent>) -> (Vec<FileSystemEvent>, Vec<DebouncedEvent>) {
-        let (mut renamed, remaining) = Self::group_renamed(events);
-        let (mut moved, remaining) = Self::group_moved(remaining);
+    fn group_events(
+        &mut self,
+        events: Vec<DebouncedEvent>,
+    ) -> (Vec<FileSystemEvent>, Vec<DebouncedEvent>) {
+        // let (mut renamed, remaining) = Self::group_renamed(events);
+        // let (mut moved, remaining) = Self::group_moved(remaining);
 
-        renamed.append(&mut moved);
-        (renamed, remaining)
+        // renamed.append(&mut moved);
+        // (renamed, remaining)
+        let remaining = Vec::with_capacity(events.len());
+        let grouped = HashMap::with_capacity(events.len());
+        for event in events {
+            match event.kind {
+                EventKind::Modify(ModifyKind::Name(RenameMode::From)) | EventKind::Remove(_) => {
+                    let Some(id) = self.file_ids.cached_file_id(&event.paths[0]) else {
+                        remaining.push(event);
+                        continue;
+                    };
+
+                    let entry = file_ids.entry(id).or_insert(vec![]);
+                    entry.push(event);
+                }
+
+                EventKind::Modify(ModifyKind::Name(RenameMode::To)) | EventKind::Create(_) => {
+                    let (tx, rx) = oneshot::channel();
+
+                    let Some(id) = self
+                        .command_tx
+                        .send(WatcherCommand::FileId { path, tx })
+                        .await
+                    else {
+                        remaining.push(event);
+                        continue;
+                    };
+
+                    let entry = file_ids.entry(id).or_insert(vec![]);
+                    entry.push(event);
+                }
+
+                _ => {
+                    remaining.push(event);
+                }
+            }
+        }
+
+        (grouped, remaining)
     }
 
     /// Converts groups of events that represent a renaming.
@@ -577,3 +514,7 @@ impl FileSystemEventProcessor {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./file_system_event_processor_test.rs"]
+mod file_system_event_processor_test;

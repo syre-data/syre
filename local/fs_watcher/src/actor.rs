@@ -111,15 +111,15 @@ mod windows {
 mod macos {
     use super::DEBOUNCE_TIMEOUT;
     use crate::command::WatcherCommand as Command;
+    use crossbeam::channel::{Receiver, Sender};
     use notify::{RecursiveMode, Watcher};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::Path;
-    use std::sync::mpsc;
 
     type FileSystemWatcher = notify::PollWatcher;
 
     pub struct FileSystemActor {
-        command_rx: mpsc::Receiver<Command>,
+        command_rx: Receiver<Command>,
         watcher: Debouncer<FileSystemWatcher, FileIdMap>,
     }
 
@@ -129,10 +129,7 @@ mod macos {
         ///
         /// # Notes
         /// + On macOS, PollWatcher is used for more informative events.
-        pub fn new(
-            event_tx: tokio::sync::mpsc::UnboundedSender<DebounceEventResult>,
-            command_rx: mpsc::Receiver<Command>,
-        ) -> Self {
+        pub fn new(event_tx: Sender<DebounceEventResult>, command_rx: Receiver<Command>) -> Self {
             let watcher: Debouncer<FileSystemWatcher, _> = {
                 let event_tx = event_tx.clone();
                 let config = notify::Config::default()
@@ -159,11 +156,20 @@ mod macos {
 
         pub fn run(&mut self) {
             loop {
-                match self.command_rx.recv().unwrap() {
+                let Ok(cmd) = self.command_rx.recv() else {
+                    tracing::debug!("command channel closed, shutting down");
+                    break;
+                };
+
+                match cmd {
                     Command::Watch(path) => self.watch(path),
                     Command::Unwatch(path) => self.unwatch(path),
                     Command::FileId { path, tx } => {
-                        tx.send(self.watcher.cache().cached_file_id(&path).cloned());
+                        if let Err(err) =
+                            tx.send(self.watcher.cache().cached_file_id(&path).cloned())
+                        {
+                            tracing::error!(?err);
+                        };
                     }
                 }
             }

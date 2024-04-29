@@ -37,7 +37,7 @@ has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
 syre-local = { workspace = true, default-features = false }
-syre-fs_watcher = { workspace = true }
+syre-fs-watcher = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -45,7 +45,7 @@ fake = "2.4"
 lazy_static = "1.4"
 tempfile = "3.9.0"
 
-dev_utils = { path = "../../dev_utils", features = ["syre_core"] }
+dev_utils = { workspace = true, features = ["syre_core"] }
 
 [features]
 default = ["error"]

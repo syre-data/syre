@@ -20,6 +20,7 @@ calamine = { workspace = true }
 csv = { workspace = true }
 derivative = "2.2"
 directories = { workspace = true, optional = true }
+erased-serde = "0.4.2"
 glob = { version = "0.3.1", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -33,7 +34,6 @@ validator = "0.17"
 
 has_id = { workspace = true, features = ["derive", "serde"] }
 syre-core = { workspace = true, features = ["serde"] }
-erased-serde = "0.4.2"
 
 [dev-dependencies]
 fake = { workspace = true }
@@ -41,7 +41,7 @@ lazy_static = "1.4.0"
 rand = { workspace = true }
 tempfile = { workspace = true }
 
-dev_utils = { path = "../dev_utils", features = ["syre_core"] }
+dev_utils = { workspace = true, features = ["syre_core"] }
 
 [features]
 default = ["fs"]

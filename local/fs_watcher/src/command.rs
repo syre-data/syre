@@ -1,6 +1,6 @@
+use crossbeam::channel::Sender;
 use file_id::FileId;
-use std::{path::PathBuf, sync::mpsc};
-use tokio::sync::oneshot;
+use std::path::PathBuf;
 
 pub enum Command {
     Watch(PathBuf),
@@ -9,8 +9,11 @@ pub enum Command {
     /// Gets the final path of the given path if it is being tracked.
     FinalPath {
         path: PathBuf,
-        tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
+        tx: Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
     },
+
+    /// Shutdown the watcher.
+    Shutdown,
 }
 
 pub(crate) enum WatcherCommand {
@@ -18,6 +21,6 @@ pub(crate) enum WatcherCommand {
     Unwatch(PathBuf),
     FileId {
         path: PathBuf,
-        tx: oneshot::Sender<Option<FileId>>,
+        tx: Sender<Option<FileId>>,
     },
 }

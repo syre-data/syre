@@ -10,6 +10,6 @@ pub(crate) mod watcher;
 mod preprocess_file_system_events_windows;
 
 pub use command::Command;
-pub use error::{Error, Result};
-pub use event::app::Event;
+pub use error::{Error, ErrorKind, Result};
+pub use event::app::{Event, EventKind};
 pub use watcher::FsWatcher;

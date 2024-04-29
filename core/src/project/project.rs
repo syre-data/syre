@@ -42,4 +42,12 @@ impl Project {
             meta_level: 0,
         }
     }
+
+    pub fn set_analysis_root(&mut self, analysis_root: impl Into<PathBuf>) {
+        let _ = self.analysis_root.insert(analysis_root.into());
+    }
+
+    pub fn clear_analysis_root(&mut self) {
+        let _ = self.analysis_root.take();
+    }
 }

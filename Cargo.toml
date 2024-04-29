@@ -24,7 +24,8 @@ syre-core = { path = "./core" }
 syre-local = { path = "./local" }
 syre-ui = { path = "./ui" }
 syre-local-database = { path = "./local/database" }
-syre-fs_watcher = { path = "./local/fs_watcher" }
+syre-fs-watcher = { path = "./local/fs_watcher" }
+dev_utils = { path = "./dev_utils" }
 has_id = { path  = "./has_id" }
 file_path_from_id = { path = "./file_path_from_id" }
 

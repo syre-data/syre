@@ -178,12 +178,12 @@ impl Builder {
         self
     }
 
-    pub fn add_script(&mut self, script: AnalysisAssociation) -> &mut Self {
+    pub fn add_analysis(&mut self, script: AnalysisAssociation) -> &mut Self {
         self.analyses.insert(script.analysis.clone(), script.into());
         self
     }
 
-    pub fn remove_script(&mut self, rid: &ResourceId) -> &mut Self {
+    pub fn remove_analysis(&mut self, rid: &ResourceId) -> &mut Self {
         self.analyses.remove(rid);
         self
     }

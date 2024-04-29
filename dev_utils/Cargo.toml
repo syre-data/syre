@@ -14,6 +14,8 @@ fake = "2.5.0"
 lazy_static = "1.4.0"
 tempfile = "3.3"
 syre-core = { workspace = true, optional = true}
+syre-local = { workspace = true, optional = true}
 
 [features]
 syre_core = ["dep:syre-core"]
+fs = ["syre_core", "dep:syre-local"]

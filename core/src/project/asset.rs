@@ -28,11 +28,11 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn new(path: PathBuf) -> Asset {
+    pub fn new(path: impl Into<PathBuf>) -> Asset {
         Asset {
             rid: ResourceId::new(),
             properties: AssetProperties::new(),
-            path,
+            path: path.into(),
         }
     }
 

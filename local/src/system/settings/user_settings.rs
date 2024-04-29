@@ -2,9 +2,12 @@ use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
 use crate::Result;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::BufReader;
-use std::path::PathBuf;
+use std::{
+    fs,
+    io::{self, BufReader},
+    path::PathBuf,
+    result::Result as StdResult,
+};
 use syre_core::types::ResourceId;
 
 /// User settings.
@@ -16,13 +19,13 @@ pub struct UserSettings {
 
 impl UserSettings {
     pub fn load() -> Result<Self> {
-        let file = fs::File::open(Self::path())?;
+        let file = fs::File::open(Self::path()?)?;
         let reader = BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
     }
 
     pub fn load_or_default() -> Result<Self> {
-        match fs::File::open(Self::path()) {
+        match fs::File::open(Self::path()?) {
             Ok(file) => {
                 let reader = BufReader::new(file);
                 Ok(serde_json::from_reader(reader)?)
@@ -33,18 +36,14 @@ impl UserSettings {
     }
 
     pub fn save(&self) -> Result {
-        fs::write(Self::path(), serde_json::to_string_pretty(&self)?)?;
+        fs::write(Self::path()?, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 }
 
 impl SystemResource<UserSettings> for UserSettings {
     /// Returns the path to the system settings file.
-    fn path() -> PathBuf {
-        let settings_dir = config_dir_path()
-            .expect("could not get config dir")
-            .to_path_buf();
-
-        settings_dir.join("settings.json")
+    fn path() -> StdResult<PathBuf, io::Error> {
+        Ok(config_dir_path()?.join("settings.json"))
     }
 }

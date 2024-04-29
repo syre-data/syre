@@ -1,5 +1,8 @@
 //! Indicate a resource is backed by a file.
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 // **********************
 // *** Local Resource ***
@@ -46,5 +49,5 @@ pub trait UserResource<T> {
 /// System resources have only one file for the entire system that resides at a fixed path.
 pub trait SystemResource<T> {
     /// Returns the path to the settings file.
-    fn path() -> PathBuf;
+    fn path() -> Result<PathBuf, io::Error>;
 }

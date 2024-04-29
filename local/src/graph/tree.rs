@@ -2,19 +2,21 @@
 use crate::common;
 use crate::error::Result;
 use crate::project::resources::Container;
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::graph::tree::{EdgeMap, NodeMap};
 use syre_core::graph::{ResourceNode, ResourceTree};
 use syre_core::project::{Asset, Container as CoreContainer};
 use syre_core::types::ResourceId;
 
+type CoreContainerTree = ResourceTree<CoreContainer>;
 type ContainerTree = ResourceTree<Container>;
 
 pub struct ContainerTreeTransformer;
 impl ContainerTreeTransformer {
     /// Convert a Container tree to a Core Container tree.
-    pub fn local_to_core(tree: &ContainerTree) -> ResourceTree<CoreContainer> {
+    pub fn local_to_core(tree: &ContainerTree) -> CoreContainerTree {
         let core_nodes = tree
             .nodes()
             .iter()
@@ -54,6 +56,40 @@ impl ContainerTreeTransformer {
             ResourceTree::from_components(core_nodes, edges).expect("could not reconstuct graph");
 
         Some(graph)
+    }
+
+    pub fn core_to_local(tree: CoreContainerTree, base_path: impl Into<PathBuf>) -> ContainerTree {
+        let base_path = base_path.into();
+        let rel_paths = tree
+            .nodes()
+            .values()
+            .map(|node| {
+                let mut path = tree
+                    .ancestors(&node.rid)
+                    .into_iter()
+                    .map(|rid| &tree.get(&rid).unwrap().properties.name)
+                    .collect::<Vec<_>>();
+
+                path.reverse();
+                let path = path
+                    .into_iter()
+                    .fold(base_path.clone(), |path, segment| path.join(segment));
+
+                (node.rid.clone(), path)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let (nodes, edges) = tree.into_components();
+        let nodes = nodes
+            .into_values()
+            .map(|node| {
+                let mut container = Container::new(rel_paths.get(&node.rid).unwrap());
+                container.container = node.into_data();
+                (container.rid.clone(), ResourceNode::new(container))
+            })
+            .collect::<HashMap<ResourceId, ResourceNode<Container>>>();
+
+        ResourceTree::from_components(nodes, edges).unwrap()
     }
 }
 

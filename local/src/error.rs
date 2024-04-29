@@ -116,7 +116,7 @@ pub enum Users {
 // *** IoSerde ***
 // ***************
 
-#[derive(Serialize, Deserialize, Error, Debug)]
+#[derive(Serialize, Deserialize, Error, PartialEq, Debug)]
 pub enum IoSerde {
     #[error("{0:?}")]
     Io(#[serde(with = "IoErrorKind")] io::ErrorKind),
@@ -267,7 +267,7 @@ pub mod io_error_kind {
 
     /// Copy of [`io::ErrorKind`] for `serde` de/serialization.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, PartialEq)]
     #[serde(remote = "io::ErrorKind")]
     pub enum IoErrorKind {
         NotFound,

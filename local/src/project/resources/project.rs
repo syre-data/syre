@@ -4,7 +4,6 @@ use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use crate::Result;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
@@ -46,6 +45,15 @@ impl Project {
             inner: CoreProject::new(name),
             settings: ProjectSettings::default(),
         })
+    }
+
+    /// Create a new local project from the provided project.
+    pub fn from(path: impl Into<PathBuf>, project: CoreProject) -> Self {
+        Self {
+            base_path: path.into(),
+            inner: project,
+            settings: ProjectSettings::default(),
+        }
     }
 
     pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerdeError> {

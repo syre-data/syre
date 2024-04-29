@@ -66,6 +66,10 @@ where
         }
     }
 
+    /// Create a tree from nodes and edges.
+    ///
+    /// # Errors
+    /// + If the nodes and edges do not create a valid tree.
     pub fn from_components(nodes: NodeMap<D>, edges: EdgeMap) -> Result<Self> {
         let mut parents = ResourceMap::new();
         let mut root = nodes

@@ -4,7 +4,7 @@ use crate::{
     command::WatcherCommand,
     error,
     event::{app, file_system as fs_event},
-    Command, Error, ErrorKind, Event, EventKind, Result,
+    Command, Error, Event, EventKind, Result,
 };
 use crossbeam::channel::{Receiver, Sender};
 use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
@@ -74,7 +74,7 @@ impl FsWatcher {
     }
 
     /// Begins responsiveness allowing events to be sent.
-    pub fn run(&mut self) -> StdResult<(), crossbeam::channel::RecvError> {
+    pub fn run(&self) -> StdResult<(), crossbeam::channel::RecvError> {
         loop {
             let shutdown = self.shutdown.lock().unwrap();
             if *shutdown {
@@ -303,20 +303,10 @@ impl FsWatcher {
 
                 NotifyEventKind::Modify(ModifyKind::Name(RenameMode::To))
                 | NotifyEventKind::Create(_) => {
-                    let (tx, rx) = crossbeam::channel::bounded(1);
-                    if let Err(err) = self.command_tx.send(WatcherCommand::FileId {
-                        path: event.paths[0].clone(),
-                        tx,
-                    }) {
-                        tracing::error!(?err);
-                        remaining.push(event);
-                        continue;
-                    }
-
-                    let id = match rx.recv() {
+                    let id = match self.file_id_from_watcher(event.paths[0].clone()) {
                         Ok(id) => id,
-                        Err(err) => {
-                            tracing::error!(?err);
+                        Err(_err) => {
+                            tracing::error!("could not retrieve id from watcher");
                             remaining.push(event);
                             continue;
                         }
@@ -331,6 +321,40 @@ impl FsWatcher {
                     entry.push(event);
                 }
 
+                NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Any)) => {
+                    let [path] = &event.paths[..] else {
+                        panic!("invalid paths");
+                    };
+
+                    if path.exists() {
+                        let id = match self.file_id_from_watcher(event.paths[0].clone()) {
+                            Ok(id) => id,
+                            Err(_err) => {
+                                tracing::error!("could not retrieve id from watcher");
+                                remaining.push(event);
+                                continue;
+                            }
+                        };
+
+                        let Some(id) = id else {
+                            remaining.push(event);
+                            continue;
+                        };
+
+                        let entry = grouped.entry(id).or_insert(vec![]);
+                        entry.push(event);
+                    } else {
+                        let file_ids = self.file_ids.lock().unwrap();
+                        let Some(id) = file_ids.cached_file_id(&event.paths[0]).cloned() else {
+                            remaining.push(event);
+                            continue;
+                        };
+
+                        let entry = grouped.entry(id).or_insert(vec![]);
+                        entry.push(event);
+                    }
+                }
+
                 _ => {
                     remaining.push(event);
                 }
@@ -341,16 +365,17 @@ impl FsWatcher {
         for mut events in grouped.into_values() {
             events.sort_unstable_by_key(|event| event.time);
             match &events[..] {
-                [e] => remaining.push(e.clone()),
+                [e] => remaining.push(e),
 
-                [e1, e2] => {
-                    if matches!(
-                        [e1.kind, e2.kind],
-                        [
-                            NotifyEventKind::Modify(ModifyKind::Name(RenameMode::From)),
-                            NotifyEventKind::Modify(ModifyKind::Name(RenameMode::To))
-                        ]
-                    ) {
+                [e1, e2] => match (e1.kind, e2.kind) {
+                    (
+                        NotifyEventKind::Modify(ModifyKind::Name(RenameMode::From)),
+                        NotifyEventKind::Modify(ModifyKind::Name(RenameMode::To)),
+                    )
+                    | (
+                        NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Any)),
+                        NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Any)),
+                    ) => {
                         let path_from = normalize_path_root(e1.paths[0].clone());
                         let path_to = normalize_path_root(e2.paths[0].clone());
                         if path_from.parent() == path_to.parent() {
@@ -371,8 +396,8 @@ impl FsWatcher {
                                     e2.time,
                                 ))
                             } else {
-                                remaining.push(e1.clone());
-                                remaining.push(e2.clone());
+                                remaining.push(e1);
+                                remaining.push(e2);
                             }
                         } else {
                             if path_to.is_file() {
@@ -392,17 +417,15 @@ impl FsWatcher {
                                     e2.time,
                                 ))
                             } else {
-                                remaining.push(e1.clone());
-                                remaining.push(e2.clone());
+                                remaining.push(e1);
+                                remaining.push(e2);
                             }
                         }
-                    } else if matches!(
-                        [e1.kind, e2.kind],
-                        [
-                            NotifyEventKind::Remove(RemoveKind::File),
-                            NotifyEventKind::Create(CreateKind::File)
-                        ]
-                    ) {
+                    }
+                    (
+                        NotifyEventKind::Remove(RemoveKind::File),
+                        NotifyEventKind::Create(CreateKind::File),
+                    ) => {
                         let path_from = normalize_path_root(e1.paths[0].clone());
                         let path_to = normalize_path_root(e2.paths[0].clone());
                         if path_from.parent() == path_to.parent() {
@@ -422,13 +445,11 @@ impl FsWatcher {
                                 e2.time,
                             ));
                         }
-                    } else if matches!(
-                        [e1.kind, e2.kind],
-                        [
-                            NotifyEventKind::Remove(RemoveKind::Folder),
-                            NotifyEventKind::Create(CreateKind::Folder)
-                        ]
-                    ) {
+                    }
+                    (
+                        NotifyEventKind::Remove(RemoveKind::Folder),
+                        NotifyEventKind::Create(CreateKind::Folder),
+                    ) => {
                         let path_from = normalize_path_root(e1.paths[0].clone());
                         let path_to = normalize_path_root(e2.paths[0].clone());
                         if path_from.parent() == path_to.parent() {
@@ -449,7 +470,11 @@ impl FsWatcher {
                             ));
                         }
                     }
-                }
+
+                    _ => {
+                        remaining.extend(events);
+                    }
+                },
 
                 _ => {
                     remaining.extend(events);
@@ -718,6 +743,22 @@ impl FsWatcher {
             }
         }
     }
+
+    fn file_id_from_watcher(&self, path: PathBuf) -> StdResult<Option<file_id::FileId>, ()> {
+        let (tx, rx) = crossbeam::channel::bounded(1);
+        if let Err(_err) = self.command_tx.send(WatcherCommand::FileId { path, tx }) {
+            return Err(());
+        }
+
+        let id = match rx.recv() {
+            Ok(id) => id,
+            Err(_err) => {
+                return Err(());
+            }
+        };
+
+        Ok(id)
+    }
 }
 
 impl FsWatcher {
@@ -729,8 +770,9 @@ impl FsWatcher {
         let (converted, errors): (Vec<_>, Vec<_>) = events
             .into_iter()
             .map(|fs_event| {
-                self.process_event_fs_to_apps(&fs_event)
-                    .map_err(|err| Error { event: fs_event })
+                self.process_event_fs_to_apps(&fs_event).map_err(|_err| {
+                    Error::with_parent(crate::ErrorKind::Conversion, fs_event.id().clone())
+                })
             })
             .partition(|event| event.is_ok());
 
@@ -753,8 +795,11 @@ impl FsWatcher {
         (converted, errors)
     }
 
-    fn process_event_fs_to_apps(&self, event: &fs_event::Event) -> Result<Vec<Event>> {
-        match &event.kind {
+    fn process_event_fs_to_apps(
+        &self,
+        event: &fs_event::Event,
+    ) -> error::processing::Result<Vec<Event>> {
+        let events = match &event.kind {
             fs_event::EventKind::File(fs_event::File::Created(path)) => {
                 let event = match Self::handle_file_created(&path) {
                     Ok(kind) => {
@@ -808,7 +853,7 @@ impl FsWatcher {
                     to.clone(),
                     event.id().clone(),
                     event.time.clone(),
-                )
+                )?
             }
 
             fs_event::EventKind::File(fs_event::File::DataModified(path)) => {
@@ -830,9 +875,7 @@ impl FsWatcher {
                 vec![event]
             }
 
-            fs_event::EventKind::File(fs_event::File::Other(_path)) => {
-                vec![]
-            }
+            fs_event::EventKind::File(fs_event::File::Other(_path)) => vec![],
 
             fs_event::EventKind::Folder(fs_event::Folder::Created(path)) => {
                 let event = match Self::handle_folder_created(&path) {
@@ -887,12 +930,10 @@ impl FsWatcher {
                     to.clone(),
                     event.id().clone(),
                     event.time.clone(),
-                )
+                )?
             }
 
-            fs_event::EventKind::Folder(fs_event::Folder::Other(_path)) => {
-                vec![]
-            }
+            fs_event::EventKind::Folder(fs_event::Folder::Other(_path)) => vec![],
 
             fs_event::EventKind::Any(fs_event::Any::Removed(path)) => {
                 // TODO Could check file ids to get if path is file or dir.
@@ -903,10 +944,12 @@ impl FsWatcher {
                 )
                 .add_path(path.clone())]
             }
-        }
+        };
+
+        Ok(events)
     }
 
-    fn handle_file_created(path: &PathBuf) -> Result<EventKind> {
+    fn handle_file_created(path: &PathBuf) -> error::event::Result<EventKind> {
         let kind = match resources::resource_kind(path)? {
             Some(kind) => Self::convert_resource_to_event_kind_created(kind),
             None => EventKind::File(app::ResourceEvent::Created),
@@ -915,7 +958,7 @@ impl FsWatcher {
         Ok(kind)
     }
 
-    fn handle_file_removed(path: &PathBuf) -> Result<EventKind> {
+    fn handle_file_removed(path: &PathBuf) -> error::event::Result<EventKind> {
         let kind = match resources::resource_kind(path)? {
             Some(kind) => Self::convert_resource_to_event_kind_removed(kind),
             None => EventKind::File(app::ResourceEvent::Created),
@@ -999,7 +1042,7 @@ impl FsWatcher {
         let to_kind = resources::resource_kind(&to);
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
-                if to_err != from_err {
+                if to_err.kind() != from_err.kind() {
                     return Err(error::processing::Error {
                         kind: error::processing::ErrorKind::State,
                         description: format!(
@@ -1067,7 +1110,7 @@ impl FsWatcher {
         Ok(kind)
     }
 
-    fn handle_folder_created(path: &PathBuf) -> Result<EventKind> {
+    fn handle_folder_created(path: &PathBuf) -> error::event::Result<EventKind> {
         let kind = match resources::dir_kind(path)? {
             Some(kind) => Self::convert_dir_to_event_kind_created(&kind),
             None => app::EventKind::Folder(app::ResourceEvent::Created),
@@ -1076,7 +1119,7 @@ impl FsWatcher {
         Ok(kind)
     }
 
-    fn handle_folder_removed(path: &PathBuf) -> Result<EventKind> {
+    fn handle_folder_removed(path: &PathBuf) -> error::event::Result<EventKind> {
         let kind = match resources::dir_kind(path)? {
             Some(kind) => Self::convert_dir_to_event_kind_removed(&kind),
             None => app::EventKind::Folder(app::ResourceEvent::Created),
@@ -1140,7 +1183,7 @@ impl FsWatcher {
                 if matches!(
                     (from_err.kind(), to_kind),
                     (
-                        error::event::ErrorKind::Resource(error::Resource::PathNotInProject),
+                        error::event::ErrorKind::Resource(error::event::Resource::PathNotInProject),
                         Some(resources::DirKind::Project {
                             kind: resources::ProjectDir::Project,
                             ..
@@ -1200,7 +1243,7 @@ impl FsWatcher {
         let to_kind = resources::dir_kind(&to);
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
-                if to_err != from_err {
+                if to_err.kind() != from_err.kind() {
                     return Err(error::processing::Error {
                         kind: error::processing::ErrorKind::State,
                         description: format!(
@@ -1311,7 +1354,7 @@ impl FsWatcher {
                         .add_path(from)
                         .add_path(to)]),
                         _ => {
-                            let kind = Self::convert_dir_to_event_kind_renamed_from(&from_kind);
+                            let kind = Self::convert_dir_to_event_kind_renamed_from(&from_kind)?;
                             Ok(vec![Event::with_parent_and_time(kind, parent, time)
                                 .add_path(from)
                                 .add_path(to)])
@@ -1857,6 +1900,7 @@ impl FsWatcher {
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Created)
             }
+            resources::DirKind::None { .. } => EventKind::Folder(app::ResourceEvent::Created),
         }
     }
 
@@ -1881,6 +1925,7 @@ impl FsWatcher {
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Removed)
             }
+            resources::DirKind::None { .. } => EventKind::Folder(app::ResourceEvent::Created),
         }
     }
 
@@ -1903,6 +1948,7 @@ impl FsWatcher {
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Removed)
             }
+            resources::DirKind::None { .. } => EventKind::Folder(app::ResourceEvent::Removed),
         }
     }
 
@@ -1933,6 +1979,7 @@ impl FsWatcher {
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Modified(app::ModifiedKind::Other))
             }
+            resources::DirKind::None { .. } => EventKind::Folder(app::ResourceEvent::Moved),
         }
     }
 
@@ -2012,7 +2059,7 @@ impl FsWatcher {
     fn convert_dir_to_event_kind_renamed_from(
         kind: &resources::DirKind,
     ) -> error::processing::Result<EventKind> {
-        match kind {
+        let kind = match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
                 resources::ProjectDir::Project => unreachable!("should be handled elsewhere"),
@@ -2027,12 +2074,18 @@ impl FsWatcher {
                 }
             },
             resources::DirKind::Container { .. } => {
-                return Err("renaming container should result in container")
+                return Err(error::processing::Error::new(
+                    error::processing::ErrorKind::Project,
+                    "renaming container should result in container",
+                ));
             }
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Removed)
             }
-        }
+            resources::DirKind::None { .. } => unreachable!("should be handled else where"),
+        };
+
+        Ok(kind)
     }
 
     fn convert_dir_to_event_kind_renamed_to(kind: &resources::DirKind) -> EventKind {
@@ -2044,24 +2097,22 @@ impl FsWatcher {
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
                 .into(),
-
                 resources::ProjectDir::Analysis => app::Project::AnalysisDir(
                     app::ResourceEvent::Modified(app::ModifiedKind::Other),
                 )
                 .into(),
-
                 resources::ProjectDir::Data => {
                     app::Project::DataDir(app::ResourceEvent::Modified(app::ModifiedKind::Other))
                         .into()
                 }
             },
-
             resources::DirKind::Container { .. } => {
                 panic!("renaming should not result in container");
             }
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Modified(app::ModifiedKind::Other))
             }
+            resources::DirKind::None { .. } => unreachable!("should be handled else where"),
         }
     }
 
@@ -2083,14 +2134,19 @@ impl FsWatcher {
                 },
             ) => {
                 if from_project != to_project {
-                    panic!("renaming container should not change project.");
+                    return Err(error::processing::Error::new(
+                        error::processing::ErrorKind::State,
+                        "renaming container should not change project.",
+                    ));
                 }
 
-                vec![
-                    app::Event::with_parent_and_time(app::Container::Renamed.into(), parent, time)
-                        .add_path(from)
-                        .add_path(to),
-                ]
+                Ok(vec![app::Event::with_parent_and_time(
+                    app::Container::Renamed.into(),
+                    parent,
+                    time,
+                )
+                .add_path(from)
+                .add_path(to)])
             }
 
             (
@@ -2102,14 +2158,14 @@ impl FsWatcher {
                     kind: resources::ProjectDir::Project,
                     ..
                 },
-            ) => vec![
+            ) => Ok(vec![
                 app::Event::with_parent_and_time(
                     app::Project::Moved.into(),
                     parent.clone(),
                     time.clone(),
                 ),
                 app::Event::with_parent_and_time(app::Project::Modified.into(), parent, time),
-            ],
+            ]),
 
             (
                 resources::DirKind::Project {
@@ -2117,7 +2173,12 @@ impl FsWatcher {
                     ..
                 },
                 resources::DirKind::Project { kind: to_kind, .. },
-            ) => panic!("renaming project resulted in {to_kind:?}. {from:?} -> {to:?}"),
+            ) => {
+                return Err(error::processing::Error::new(
+                    error::processing::ErrorKind::State,
+                    format!("renaming project resulted in {to_kind:?}. {from:?} -> {to:?}"),
+                ))
+            }
             (
                 resources::DirKind::Project {
                     kind: from_kind, ..
@@ -2127,24 +2188,20 @@ impl FsWatcher {
                     ..
                 },
             ) => {
-                panic!("renaming {from_kind:?} resulted in project. {from:?} -> {to:?}");
+                return Err(error::processing::Error::new(
+                    error::processing::ErrorKind::State,
+                    format!("renaming {from_kind:?} resulted in project. {from:?} -> {to:?}"),
+                ));
             }
 
             (from_kind, to_kind) => {
-                vec![
-                    app::Event::with_parent_and_time(
-                        Self::convert_dir_to_event_kind_renamed_from(&from_kind),
-                        parent.clone(),
-                        time.clone(),
-                    )
-                    .add_path(from),
-                    app::Event::with_parent_and_time(
-                        Self::convert_dir_to_event_kind_renamed_to(&to_kind),
-                        parent,
-                        time,
-                    )
-                    .add_path(to),
-                ]
+                let from_kind = Self::convert_dir_to_event_kind_renamed_from(&from_kind)?;
+                let to_kind = Self::convert_dir_to_event_kind_renamed_to(&to_kind);
+                Ok(vec![
+                    app::Event::with_parent_and_time(from_kind, parent.clone(), time.clone())
+                        .add_path(from),
+                    app::Event::with_parent_and_time(to_kind, parent, time).add_path(to),
+                ])
             }
         }
     }
@@ -2228,6 +2285,10 @@ mod resources {
         },
 
         ContainerConfig {
+            project: ResourceId,
+        },
+
+        None {
             project: ResourceId,
         },
     }

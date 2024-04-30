@@ -210,12 +210,6 @@ pub mod app {
         /// + A file was moved to the resource's path.
         /// + The content of the resource's file was modified.
         Modified(ModifiedKind),
-
-        /// The event caused the resource to change its type.
-        ///
-        /// # Examples
-        /// + Renaming a config (.syre) folder causes it to be a normal folder.
-        KindChanged,
     }
 
     /// A resource that is distinguished by its inode (macOS, *nix) or file id (Windows).

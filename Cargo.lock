@@ -5751,7 +5751,6 @@ dependencies = [
  "chrono",
  "clap",
  "derivative",
- "dev_utils",
  "directories",
  "fake",
  "has_id",

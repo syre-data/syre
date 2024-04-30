@@ -122,10 +122,7 @@ fn watcher_convert_fs_events_should_work() {
 
 mod convert_fs {
     use super::*;
-    use syre_local::{
-        file_resource::{LocalResource, SystemResource},
-        system::collections,
-    };
+    use syre_local::{file_resource::SystemResource, system::collections};
 
     pub fn test_config(watcher: &FsWatcher) {
         // -- created
@@ -344,9 +341,16 @@ mod convert_fs {
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Created))
         );
 
+        // ---- removed
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = fs::canonicalize(dir.path()).unwrap();
+        let mut temp_project = LocalProject::new(dir_path).unwrap();
+        temp_project.set_analysis_root("analysis");
+        temp_project.save().unwrap();
+
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Removed(analysis_path.clone()),
+                fs_event::Folder::Removed(temp_project.analysis_root_path().unwrap()),
                 Instant::now(),
             ))
             .unwrap();
@@ -356,6 +360,7 @@ mod convert_fs {
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Removed))
         );
+        // ---- removed end
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -442,9 +447,15 @@ mod convert_fs {
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Created))
         );
 
+        // ---- removed
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = fs::canonicalize(dir.path()).unwrap();
+        let temp_project = LocalProject::new(dir_path).unwrap();
+        temp_project.save().unwrap();
+
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Removed(data_path.clone()),
+                fs_event::Folder::Removed(temp_project.data_root_path()),
                 Instant::now(),
             ))
             .unwrap();
@@ -454,6 +465,7 @@ mod convert_fs {
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Removed))
         );
+        // ---- removed end
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -957,6 +969,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Created));
 
+        // -- removed
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
                 fs_event::Folder::Removed(data_path.join("child")),
@@ -969,11 +982,14 @@ mod convert_fs {
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Removed)
         );
+        // -- removed end
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
                 fs_event::Folder::Moved {
-                    from: data_path.join("child"),
+                    from: data_path
+                        .join("child")
+                        .join(recipe_1_path.file_name().unwrap()),
                     to: recipe_1_path.clone(),
                 },
                 Instant::now(),
@@ -1003,6 +1019,7 @@ mod convert_fs {
         let recipe_1 = project.graph.get(&children[0]).unwrap();
         let root_path = root.base_path();
         let container_path = recipe_1.base_path().to_path_buf();
+        let empty_container = tempfile::tempdir_in(&container_path).unwrap();
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -1022,7 +1039,7 @@ mod convert_fs {
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Removed(local_common::app_dir_of(container_path.clone())),
+                fs_event::Folder::Removed(local_common::app_dir_of(empty_container.path())),
                 Instant::now(),
             ))
             .unwrap();
@@ -1036,19 +1053,21 @@ mod convert_fs {
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
                 fs_event::Folder::Renamed {
-                    from: local_common::app_dir_of(container_path.clone()),
-                    to: container_path.join("test"),
+                    from: local_common::app_dir_of(empty_container.path()),
+                    to: empty_container.path().join("test"),
                 },
                 Instant::now(),
             ))
             .unwrap();
 
-        assert_eq!(events.len(), 1);
+        assert_eq!(events.len(), 2);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Container(app::Container::ConfigDir(
-                app::StaticResourceEvent::KindChanged
-            ))
+            EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Removed))
+        );
+        assert_matches!(
+            *events[1].kind(),
+            EventKind::Folder(app::ResourceEvent::Created)
         );
 
         let events = watcher
@@ -1061,9 +1080,13 @@ mod convert_fs {
             ))
             .unwrap();
 
-        assert_eq!(events.len(), 1);
+        assert_eq!(events.len(), 2);
         assert_matches!(
             *events[0].kind(),
+            EventKind::Folder(app::ResourceEvent::Removed)
+        );
+        assert_matches!(
+            *events[1].kind(),
             EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Created))
         );
 
@@ -1661,10 +1684,13 @@ mod convert_fs {
         watcher: &FsWatcher,
         project: &Project<LocalProject, ContainerTree>,
     ) {
+        let data_path = project.project.data_root_path();
         let project_root = project.project.base_path();
+        let empty_container = tempfile::tempdir_in(data_path).unwrap();
+
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Created(project_root.join("test")),
+                fs_event::Folder::Created(empty_container.path().to_path_buf()),
                 Instant::now(),
             ))
             .unwrap();
@@ -1690,6 +1716,38 @@ mod convert_fs {
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
+                fs_event::Folder::Moved {
+                    from: project_root.join("test"),
+                    to: empty_container.path().to_path_buf(),
+                },
+                Instant::now(),
+            ))
+            .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Folder(app::ResourceEvent::Moved)
+        );
+
+        let events = watcher
+            .process_event_fs_to_apps(&fs_event::Event::new(
+                fs_event::Folder::Moved {
+                    from: tempfile::tempdir().unwrap().into_path(),
+                    to: empty_container.path().to_path_buf(),
+                },
+                Instant::now(),
+            ))
+            .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Folder(app::ResourceEvent::Created)
+        );
+
+        let events = watcher
+            .process_event_fs_to_apps(&fs_event::Event::new(
                 fs_event::Folder::Renamed {
                     from: project_root.join("test-from"),
                     to: project_root.join("test-to"),
@@ -1698,7 +1756,11 @@ mod convert_fs {
             ))
             .unwrap();
 
-        assert_eq!(events.len(), 0);
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Folder(app::ResourceEvent::Renamed)
+        );
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -1710,6 +1772,10 @@ mod convert_fs {
             ))
             .unwrap();
 
-        assert_eq!(events.len(), 0);
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Folder(app::ResourceEvent::Moved)
+        );
     }
 }

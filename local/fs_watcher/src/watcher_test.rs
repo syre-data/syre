@@ -85,7 +85,6 @@ fn watcher_group_notify_events_should_work() {
 
     let events: Vec<DebouncedEvent> = events.into_iter().map(|e| e.into()).collect();
     let (converted, remaining) = watcher.group_events(events.iter().collect());
-
     assert_eq!(converted.len(), 4);
     assert_eq!(remaining.len(), 2);
 }

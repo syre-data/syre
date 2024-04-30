@@ -1,122 +1,59 @@
-use std::path::PathBuf;
-use uuid::Uuid;
+use notify_debouncer_full::DebouncedEvent;
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
-/// Errors representing a logical issue with processing or an unknown state has been entered.
-#[derive(Debug)]
-pub struct Error {
-    /// Id of parent. Used for tracking errors across boundaries.
-    parent: Option<Uuid>,
-    pub kind: ErrorKind,
-    pub paths: Vec<PathBuf>,
-}
-
-impl Error {
-    pub fn new(kind: ErrorKind) -> Self {
-        Self {
-            parent: None,
-            kind,
-            paths: Vec::new(),
-        }
-    }
-
-    pub fn with_parent(kind: ErrorKind, parent: Uuid) -> Self {
-        Self {
-            parent: Some(parent),
-            kind,
-            paths: Vec::new(),
-        }
-    }
-
-    pub fn parent(&self) -> &Option<Uuid> {
-        &self.parent
-    }
-
-    pub fn add_path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.paths.push(path.into());
-        self
-    }
-}
-
 #[derive(Debug, derive_more::From)]
-pub enum ErrorKind {
-    /// An event could not be fully processed.
-    Conversion,
-
+pub enum Error {
     /// An error occurred with the underlying watcher.
-    Notify(notify::Error),
+    Watch(notify::Error),
+
+    /// A file system event could not be processed into an app event.
+    ///
+    /// # Fields
+    /// + `events`: The events that led to the error.
+    /// Events may be grouped during processing.
+    /// e.g. A `Create` and `Remove` event may be grouped into a `Move` event.
+    /// + `kind`: The error that ocurred.
+    Processing {
+        events: Vec<DebouncedEvent>,
+        kind: Process,
+    },
+}
+
+#[derive(Debug)]
+pub enum Process {
+    /// Could not distinguish if resource was a file or folder.
+    UnknownFileType,
+
+    /// No resource is associated to the event's path.
+    NotFound,
+
+    /// Could not canonicalize the path.
+    Canonicalize,
+
+    /// The event ocurred in a project that could not be loaded.
+    LoadProject,
+
+    /// The event created a state that could not be handled.
+    InvalidState,
+}
+
+impl From<processing::Error> for Process {
+    fn from(value: processing::Error) -> Self {
+        match value {
+            processing::Error::InvalidState(_) => Self::InvalidState,
+            processing::Error::LoadProject => Self::LoadProject,
+        }
+    }
 }
 
 pub(crate) mod processing {
-    pub type Result<T = ()> = std::result::Result<T, Error>;
-
     #[derive(Debug)]
-    pub struct Error {
-        pub kind: ErrorKind,
-        pub description: String,
-    }
+    pub enum Error {
+        /// The event ocurred in a project that could not be loaded.
+        LoadProject,
 
-    impl Error {
-        pub fn new(kind: ErrorKind, description: impl Into<String>) -> Self {
-            Self {
-                kind,
-                description: description.into(),
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    pub enum ErrorKind {
-        /// A state was entered that should not be possible.
-        State,
-
-        /// An event caused something to happen that shouldn't have.
-        Project,
-    }
-}
-
-pub(crate) mod event {
-    //! Event errors meant to be reported with events that caused them.
-    use std::path::PathBuf;
-    use syre_local::error::IoSerde;
-
-    pub type Result<T = ()> = std::result::Result<T, Error>;
-
-    #[derive(Debug)]
-    pub struct Error {
-        path: PathBuf,
-        kind: ErrorKind,
-    }
-
-    impl Error {
-        pub fn new(path: PathBuf, kind: ErrorKind) -> Self {
-            Self { path, kind }
-        }
-
-        pub fn path(&self) -> &PathBuf {
-            &self.path
-        }
-
-        pub fn kind(&self) -> &ErrorKind {
-            &self.kind
-        }
-    }
-
-    #[derive(Debug, PartialEq, derive_more::From)]
-    pub enum ErrorKind {
-        Resource(Resource),
-        Project(Project),
-    }
-
-    #[derive(Debug, PartialEq)]
-    pub enum Resource {
-        PathNotInProject,
-    }
-
-    #[derive(Debug, PartialEq, derive_more::From)]
-    pub enum Project {
-        /// Project could no be properly loaded.
-        Load(IoSerde),
+        /// A state ocurred that could not be handled.
+        InvalidState(String),
     }
 }

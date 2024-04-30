@@ -1,12 +1,12 @@
 pub(crate) mod file_system {
     //! File system events.
+    use notify_debouncer_full::DebouncedEvent;
     use std::{path::PathBuf, time::Instant};
-    use uuid::Uuid;
 
     #[derive(Debug)]
-    pub struct Event {
-        /// Id used to track the event across boundaries.
-        id: Uuid,
+    pub struct Event<'a> {
+        /// Tracker ids that led to this event.
+        parents: Vec<&'a DebouncedEvent>,
 
         /// The instant the event was created.
         pub time: Instant,
@@ -14,20 +14,24 @@ pub(crate) mod file_system {
         pub kind: EventKind,
     }
 
-    impl Event {
+    impl Event<'_> {
         pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
             Self {
-                id: Uuid::now_v7(),
+                parents: Vec::new(),
                 time,
                 kind: kind.into(),
             }
         }
+    }
 
-        /// # Returns
-        /// The unique id (uuid v7) assigned to the event.
-        /// This is used to track the event across boundaries.
-        pub fn id(&self) -> &Uuid {
-            &self.id
+    impl<'a> Event<'a> {
+        pub fn add_parent<'b: 'a>(mut self, parent: &'b DebouncedEvent) -> Self {
+            self.parents.push(parent);
+            self
+        }
+
+        pub fn parents(&self) -> Vec<&'a DebouncedEvent> {
+            self.parents.clone()
         }
     }
 
@@ -97,59 +101,33 @@ pub(crate) mod file_system {
 
 pub mod app {
     //! Syre application events.
-    use crate::error::event::Error;
     use std::{path::PathBuf, time::Instant};
-    use uuid::Uuid;
 
     #[derive(Debug)]
     pub struct Event {
-        /// Unique id used to track events across boundaries.
-        id: Uuid,
-
-        /// Id of parent event.
-        parent: Option<Uuid>,
-
         /// Instant the underlying event was created.
         time: Instant,
 
         kind: EventKind,
 
         paths: Vec<PathBuf>,
-
-        /// Any errors that occurred during processing,
-        /// so processing was not completed.
-        errors: Vec<Error>,
     }
 
     impl Event {
         pub fn new(kind: EventKind) -> Self {
             Self {
-                id: Uuid::now_v7(),
-                parent: None,
                 time: Instant::now(),
                 kind,
                 paths: Vec::new(),
-                errors: Vec::new(),
             }
         }
 
-        pub fn with_parent_and_time(kind: EventKind, parent: Uuid, time: Instant) -> Self {
+        pub fn with_time(kind: EventKind, time: Instant) -> Self {
             Self {
-                id: Uuid::now_v7(),
-                parent: Some(parent),
                 time,
                 kind,
                 paths: Vec::new(),
-                errors: Vec::new(),
             }
-        }
-
-        pub fn id(&self) -> &Uuid {
-            &self.id
-        }
-
-        pub fn parent(&self) -> &Option<Uuid> {
-            &self.parent
         }
 
         pub fn time(&self) -> &Instant {
@@ -164,22 +142,9 @@ pub mod app {
             &self.paths
         }
 
-        pub fn errors(&self) -> &Vec<Error> {
-            &self.errors
-        }
-
-        pub fn has_errors(&self) -> bool {
-            !self.errors.is_empty()
-        }
-
         /// Sets `paths` to a single path.
         pub fn add_path(mut self, path: PathBuf) -> Self {
             self.paths.push(path);
-            self
-        }
-
-        pub fn add_error(mut self, error: Error) -> Self {
-            self.errors.push(error);
             self
         }
     }

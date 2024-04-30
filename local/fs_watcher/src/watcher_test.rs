@@ -1,10 +1,12 @@
+// NB: Writes to manifests.
 use super::*;
 use dev_utils::project::{Build, Fireworks, Options, Project};
-use std::assert_matches::assert_matches;
+use std::{assert_matches::assert_matches, fs};
 use syre_core::graph::ResourceTree;
 use syre_local::{
     common as local_common,
     project::resources::{Container, Project as LocalProject},
+    system::collections::ProjectManifest,
 };
 
 type ContainerTree = ResourceTree<Container>;
@@ -99,7 +101,7 @@ fn watcher_convert_fs_events_should_work() {
         .with_analysis_files();
 
     let dir = tempfile::tempdir().unwrap();
-    let dir_path = std::fs::canonicalize(dir.path()).unwrap();
+    let dir_path = fs::canonicalize(dir.path()).unwrap();
     let project: Project<LocalProject, ContainerTree> =
         Fireworks::build_fs(&options, dir_path.clone()).unwrap();
 
@@ -120,7 +122,10 @@ fn watcher_convert_fs_events_should_work() {
 
 mod convert_fs {
     use super::*;
-    use syre_local::{file_resource::SystemResource, system::collections};
+    use syre_local::{
+        file_resource::{LocalResource, SystemResource},
+        system::collections,
+    };
 
     pub fn test_config(watcher: &FsWatcher) {
         // -- created
@@ -221,15 +226,30 @@ mod convert_fs {
         project: &Project<LocalProject, ContainerTree>,
     ) {
         // -- project folder
+        // ---- remove
+        let mut path = project.project.base_path().to_path_buf();
+        path.set_file_name(format!(
+            "{}-removed",
+            path.file_name().unwrap().to_string_lossy()
+        ));
+
+        let mut manifest = ProjectManifest::load().unwrap();
+        manifest.push(path.clone());
+        manifest.save().unwrap();
+
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Removed(project.project.base_path().to_path_buf()),
+                fs_event::Folder::Removed(path.clone()),
                 Instant::now(),
             ))
             .unwrap();
 
+        manifest.remove(path);
+        manifest.save().unwrap();
+
         assert_eq!(events.len(), 1);
         assert_matches!(*events[0].kind(), EventKind::Project(app::Project::Removed));
+        // ---- remove end
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -259,18 +279,33 @@ mod convert_fs {
             EventKind::Project(app::Project::ConfigDir(app::StaticResourceEvent::Created))
         );
 
+        // ---- remove
+        let dir = tempfile::tempdir().unwrap();
+        let temp_project = LocalProject::new(dir.path()).unwrap();
+        temp_project.save().unwrap();
+        let app_dir_path = local_common::app_dir_of(temp_project.base_path());
+        fs::remove_dir_all(&app_dir_path).unwrap();
+
+        let mut manifest = ProjectManifest::load().unwrap();
+        manifest.push(temp_project.base_path().to_path_buf());
+        manifest.save().unwrap();
+
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::Folder::Removed(local_common::app_dir_of(project.project.base_path())),
+                fs_event::Folder::Removed(app_dir_path),
                 Instant::now(),
             ))
             .unwrap();
+
+        manifest.remove(temp_project.base_path());
+        manifest.save().unwrap();
 
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::ConfigDir(app::StaticResourceEvent::Removed))
         );
+        // ---- remove end
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(

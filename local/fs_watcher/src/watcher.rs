@@ -24,7 +24,7 @@ use std::{
     thread,
     time::Instant,
 };
-use syre_local::common as local_common;
+use syre_local::{common as local_common, system::collections::ProjectManifest};
 
 /// Listens for events on the file system.
 pub struct FsWatcher {
@@ -871,7 +871,6 @@ impl FsWatcher {
             fs_event::EventKind::File(fs_event::File::Removed(path)) => {
                 let event = match Self::handle_file_removed(&path) {
                     Ok(kind) => Event::with_time(kind, event.time.clone()).add_path(path.clone()),
-
                     Err(err) => Event::with_time(
                         EventKind::File(app::ResourceEvent::Removed),
                         event.time.clone(),
@@ -893,7 +892,6 @@ impl FsWatcher {
             fs_event::EventKind::File(fs_event::File::DataModified(path)) => {
                 let event = match Self::handle_file_data_modified(&path) {
                     Ok(kind) => Event::with_time(kind, event.time.clone()).add_path(path.clone()),
-
                     Err(err) => Event::with_time(
                         EventKind::File(app::ResourceEvent::Removed),
                         event.time.clone(),
@@ -909,12 +907,14 @@ impl FsWatcher {
             fs_event::EventKind::Folder(fs_event::Folder::Created(path)) => {
                 let event = match self.handle_folder_created(&path) {
                     Ok(kind) => Event::with_time(kind, event.time.clone()).add_path(path.clone()),
-
-                    Err(err) => Event::with_time(
-                        EventKind::File(app::ResourceEvent::Created),
-                        event.time.clone(),
-                    )
-                    .add_path(path.clone()),
+                    Err(err) => {
+                        tracing::error!(?err);
+                        Event::with_time(
+                            EventKind::Folder(app::ResourceEvent::Created),
+                            event.time.clone(),
+                        )
+                        .add_path(path.clone())
+                    }
                 };
 
                 vec![event]
@@ -923,12 +923,43 @@ impl FsWatcher {
             fs_event::EventKind::Folder(fs_event::Folder::Removed(path)) => {
                 let event = match self.handle_folder_removed(&path) {
                     Ok(kind) => Event::with_time(kind, event.time.clone()).add_path(path.clone()),
+                    Err(err) => {
+                        if matches!(err.kind(), resources::ErrorKind::NotInProject) {
+                            if let Ok(manifest) = ProjectManifest::load() {
+                                if manifest.contains(&path) {
+                                    return Ok(vec![Event::with_time(
+                                        app::Project::Removed.into(),
+                                        event.time.clone(),
+                                    )
+                                    .add_path(path.clone())]);
+                                }
 
-                    Err(err) => Event::with_time(
-                        EventKind::File(app::ResourceEvent::Created),
-                        event.time.clone(),
-                    )
-                    .add_path(path.clone()),
+                                if let Some(parent) = path.parent() {
+                                    let parent = parent.to_path_buf();
+                                    if manifest.contains(&parent) {
+                                        if let Some(file_name) = path.file_name() {
+                                            if file_name == local_common::app_dir() {
+                                                return Ok(vec![Event::with_time(
+                                                    app::Project::ConfigDir(
+                                                        app::StaticResourceEvent::Removed,
+                                                    )
+                                                    .into(),
+                                                    event.time.clone(),
+                                                )
+                                                .add_path(path.clone())]);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        tracing::error!(?err);
+                        Event::with_time(
+                            app::EventKind::Folder(app::ResourceEvent::Removed),
+                            event.time.clone(),
+                        )
+                    }
                 };
 
                 vec![event]
@@ -1119,7 +1150,7 @@ impl FsWatcher {
     fn handle_folder_removed(&self, path: &PathBuf) -> StdResult<EventKind, resources::Error> {
         assert!(!path.exists());
         let kind = match resources::dir_kind(path)? {
-            resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Created),
+            resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Removed),
             kind => Self::convert_dir_to_event_kind_removed(&kind),
         };
 
@@ -1153,7 +1184,7 @@ impl FsWatcher {
                         ..
                     }
                 ) {
-                    tracing::debug!("UNUSUAL SITUATION: project moved and replaced");
+                    tracing::warn!("UNUSUAL SITUATION: project moved and replaced");
                     vec![
                         Event::with_time(app::Project::Moved.into(), time.clone())
                             .add_path(from.clone())
@@ -2055,7 +2086,7 @@ impl FsWatcher {
                     "project exists in two locations: {from:?} -> {to:?}"
                 );
 
-                tracing::debug!("UNUSUAL SITUATION: Project moved and replaced");
+                tracing::warn!("UNUSUAL SITUATION: Project moved and replaced");
                 vec![app::Event::with_time(app::Project::Moved.into(), time)
                     .add_path(from.clone())
                     .add_path(to)]
@@ -2321,10 +2352,45 @@ mod resources {
 
     #[derive(Debug)]
     pub(crate) enum ProjectDir {
+        /// A project's base folder.
         Project,
+
+        /// A project's config (.syre) folder.
         Config,
+
+        /// A project's data root folder.
         Data,
+
+        /// A project's analysis root folder.
         Analysis,
+    }
+
+    /// Represents potential of a path to be a config resource based on its location.
+    pub(crate) enum ConfigLocationKind {
+        /// Not a config resource.
+        /// Path either does not contain any app folders (.syre) in it,
+        /// or is nested in an app folder such that it could not be a resource.
+        ///
+        /// e.g. `/my/project/path/data`, `/my/project/path/.syre/nested/folder`
+        Not,
+
+        /// A potential config directory.
+        /// Path was not nested in any app folders (.syre), and the final
+        /// path component is an app folder.
+        ///
+        /// e.g. `/my/project/path/data/child/.syre`
+        Dir,
+
+        /// A potential config resource.
+        /// Path is a child of a potential config directory.
+        ///
+        /// e.g. `/my/project/path/.syre/file.json`
+        Child,
+
+        /// Path is a descnedant of an app folder (.syre) but is not a child.
+        ///
+        /// e.g. `/my/project/path/.syre/nested/file.json`
+        Nested,
     }
 
     /// Gets the kind of resource the path represents.
@@ -2420,6 +2486,54 @@ mod resources {
         })
     }
 
+    /// Returns the potential type of config directory the path represents.
+    ///
+    /// # Errors
+    /// + If a path segment was required to determine the resource kind,
+    /// but it could not be obtained.
+    pub(crate) fn config_resource_location(
+        path: impl AsRef<Path>,
+    ) -> Result<ConfigLocationKind, ()> {
+        let app_dir = common::app_dir().as_os_str();
+        let path = path.as_ref();
+        let kind = match path
+            .components()
+            .filter(
+                |component| matches!(component, Component::Normal(segment) if *segment == app_dir),
+            )
+            .count()
+        {
+            0 => ConfigLocationKind::Not,
+            1 => {
+                let Some(file_name) = path.file_name() else {
+                    return Err(());
+                };
+
+                if file_name == app_dir {
+                    ConfigLocationKind::Dir
+                } else {
+                    let Some(parent) = path.parent() else {
+                        return Err(());
+                    };
+
+                    let Some(parent) = parent.file_name() else {
+                        return Err(());
+                    };
+
+                    if parent == app_dir {
+                        ConfigLocationKind::Child
+                    } else {
+                        ConfigLocationKind::Nested
+                    }
+                }
+            }
+
+            _ => ConfigLocationKind::Nested,
+        };
+
+        Ok(kind)
+    }
+
     /// Get a `Project` by a path within it.
     ///
     /// # Errors
@@ -2462,21 +2576,26 @@ mod resources {
     }
 
     fn handle_file_data(path: &PathBuf, project: &LocalProject) -> Option<ResourceEvent> {
-        let app_dir = common::app_dir().as_os_str();
-        match path
-            .strip_prefix(project.base_path())
-            .unwrap()
-            .components()
-            .filter(
-                |component| matches!(component, Component::Normal(segment) if *segment == app_dir),
-            )
-            .count()
-        {
-            0 => Some(ResourceEvent::Asset {
+        let Ok(rel_path) = path.strip_prefix(project.base_path()) else {
+            return None;
+        };
+
+        let Ok(config_location) = config_resource_location(rel_path) else {
+            return None;
+        };
+
+        match config_location {
+            ConfigLocationKind::Not => Some(ResourceEvent::Asset {
                 project: project.rid.clone(),
             }),
 
-            1 => {
+            ConfigLocationKind::Dir => {
+                unreachable!("resource should not be a possible config folder")
+            }
+
+            ConfigLocationKind::Nested => None,
+
+            ConfigLocationKind::Child => {
                 if path.ends_with(common::container_file()) {
                     Some(ResourceEvent::Container {
                         project: project.rid.clone(),
@@ -2491,50 +2610,42 @@ mod resources {
                     None
                 }
             }
-
-            _ => None,
         }
     }
 
+    /// Obtain the type of resource a folder is that is within a project's data folder.
     fn handle_folder_data(path: &PathBuf, project: &LocalProject) -> DirKind {
         assert!(
             path.starts_with(project.data_root_path()),
             "data folders must begin with data root path"
         );
 
-        let app_dir = common::app_dir().as_os_str();
-        match path
-            .strip_prefix(project.base_path())
-            .unwrap()
-            .components()
-            .filter(
-                |component| matches!(component, Component::Normal(segment) if *segment == app_dir),
-            )
-            .count()
-        {
-            0 => DirKind::ContainerLike {
+        let Ok(rel_path) = path.strip_prefix(project.base_path()) else {
+            return DirKind::None {
+                project: project.rid.clone(),
+            };
+        };
+
+        let Ok(config_location) = config_resource_location(rel_path) else {
+            return DirKind::None {
+                project: project.rid.clone(),
+            };
+        };
+
+        match config_location {
+            ConfigLocationKind::Not => DirKind::ContainerLike {
                 project: project.rid.clone(),
             },
 
-            1 => {
-                if let Some(file_name) = path.file_name() {
-                    if file_name == common::app_dir() {
-                        DirKind::ContainerConfig {
-                            project: project.rid.clone(),
-                        }
-                    } else {
-                        DirKind::None {
-                            project: project.rid.clone(),
-                        }
-                    }
-                } else {
-                    DirKind::None {
-                        project: project.rid.clone(),
-                    }
-                }
-            }
+            ConfigLocationKind::Dir => DirKind::ContainerConfig {
+                project: project.rid.clone(),
+            },
 
-            _ => DirKind::None {
+            ConfigLocationKind::Child => DirKind::None {
+                project: project.rid.clone(),
+            },
+
+            ConfigLocationKind::Nested => DirKind::None {
                 project: project.rid.clone(),
             },
         }

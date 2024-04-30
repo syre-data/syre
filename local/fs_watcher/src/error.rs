@@ -31,7 +31,8 @@ pub enum Process {
     /// Could not canonicalize the path.
     Canonicalize,
 
-    /// The event ocurred in a project that could not be loaded.
+    /// The event required a project to be loaded to determine the type of resource it is,
+    /// but the associated project could not be loaded.
     LoadProject,
 
     /// The event created a state that could not be handled.

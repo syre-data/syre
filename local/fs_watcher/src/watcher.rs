@@ -1100,10 +1100,10 @@ impl FsWatcher {
     }
 
     fn handle_folder_created(&self, path: &PathBuf) -> StdResult<EventKind, resources::Error> {
+        assert!(path.exists());
         let kind = match resources::dir_kind(path)? {
             resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Created),
             resources::DirKind::ContainerLike { .. } => {
-                assert!(path.exists());
                 if local_common::container_file_of(path).exists() {
                     app::Graph::Created.into()
                 } else {
@@ -1117,16 +1117,9 @@ impl FsWatcher {
     }
 
     fn handle_folder_removed(&self, path: &PathBuf) -> StdResult<EventKind, resources::Error> {
+        assert!(!path.exists());
         let kind = match resources::dir_kind(path)? {
             resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Created),
-            resources::DirKind::ContainerLike { .. } => {
-                assert!(path.exists());
-                if local_common::container_file_of(path).exists() {
-                    app::Graph::Created.into()
-                } else {
-                    app::EventKind::Folder(app::ResourceEvent::Created)
-                }
-            }
             kind => Self::convert_dir_to_event_kind_removed(&kind),
         };
 
@@ -1890,7 +1883,9 @@ impl FsWatcher {
                     app::Project::DataDir(app::ResourceEvent::Removed).into()
                 }
             },
-            resources::DirKind::ContainerLike { .. } => unreachable!("should be handled elsewhere"),
+            resources::DirKind::ContainerLike { .. } => {
+                EventKind::Folder(app::ResourceEvent::Removed)
+            }
             resources::DirKind::Container { .. } => EventKind::Graph(app::Graph::Removed),
             resources::DirKind::ContainerConfig { .. } => {
                 EventKind::Folder(app::ResourceEvent::Removed)

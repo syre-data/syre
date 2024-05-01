@@ -20,8 +20,8 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-syre-core = { workspace = true, features=["clap"] }
-syre-local = { workspace = true}
+syre-core = { workspace = true, features = ["clap"] }
+syre-local = { workspace = true, features = ["fs"] }
 
 [dev-dependencies]
 rand = "0.8"

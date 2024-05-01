@@ -36,7 +36,7 @@ zmq = { workspace = true, optional = true }
 has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
-syre-local = { workspace = true, default-features = false }
+syre-local = { workspace = true }
 syre-fs-watcher = { workspace = true }
 
 [dev-dependencies]

@@ -34,8 +34,8 @@ yew = { workspace = true, features = ["csr"] }
 yew-router = { workspace = true }
 
 syre-core = { workspace = true, features = ["yew", "serde"] }
-syre-local = { workspace = true, default-features = false }
-syre-ui = {workspace = true}
+syre-local = { workspace = true }
+syre-ui = { workspace = true }
 syre-desktop-lib = { path = "src-lib" }
 syre-local-database = { workspace = true }
 

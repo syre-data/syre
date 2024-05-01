@@ -18,7 +18,7 @@ file_path_from_id = { workspace = true }
 notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
 notify-debouncer-full = { version = "0.3", default-features = false }
 syre-core = { workspace = true }
-syre-local = {workspace = true }
+syre-local = { workspace = true, features = ["fs"] }
 uuid = { workspace = true, features = ["v7"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }

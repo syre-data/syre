@@ -44,5 +44,4 @@ tempfile = { workspace = true }
 dev_utils = { workspace = true, features = ["syre_core"] }
 
 [features]
-default = ["fs"]
 fs = ["dep:directories", "dep:glob"]

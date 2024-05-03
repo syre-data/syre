@@ -26,10 +26,12 @@ use std::{
 };
 use syre_local::{common as local_common, system::collections::ProjectManifest};
 
+pub type EventResult = StdResult<Vec<Event>, Vec<Error>>;
+
 /// Listens for events on the file system.
 pub struct FsWatcher {
     /// Sends events to the client.
-    event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
+    event_tx: Sender<EventResult>,
 
     // Recieve commands from the client.
     command_rx: Receiver<Command>,
@@ -48,6 +50,8 @@ pub struct FsWatcher {
     /// Cache to hold file ids.
     file_ids: Arc<Mutex<FileIdMap>>,
 
+    app_config: config::AppConfig,
+
     /// Flag to indicate the watcher should be set down.
     shutdown: Mutex<bool>,
 }
@@ -63,6 +67,7 @@ impl FsWatcher {
     pub fn new(
         command_rx: Receiver<Command>,
         event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
+        app_config: config::AppConfig,
     ) -> Self {
         let (fs_tx, fs_rx) = crossbeam::channel::unbounded();
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
@@ -75,6 +80,7 @@ impl FsWatcher {
             command_tx: fs_command_tx,
             event_rx: fs_rx,
             file_ids: Arc::new(Mutex::new(FileIdMap::new())),
+            app_config,
             shutdown: Mutex::new(false),
         }
     }
@@ -856,7 +862,7 @@ impl FsWatcher {
     ) -> StdResult<Vec<Event>, error::processing::Error> {
         let events = match &event.kind {
             fs_event::EventKind::File(fs_event::File::Created(path)) => {
-                let event = match Self::handle_file_created(&path) {
+                let event = match Self::handle_file_created(&path, &self.app_config) {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         Event::with_time(EventKind::File(app::ResourceEvent::Created), event.time)
@@ -868,7 +874,7 @@ impl FsWatcher {
             }
 
             fs_event::EventKind::File(fs_event::File::Removed(path)) => {
-                let event = match Self::handle_file_removed(&path) {
+                let event = match Self::handle_file_removed(&path, &self.app_config) {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         Event::with_time(EventKind::File(app::ResourceEvent::Removed), event.time)
@@ -880,15 +886,15 @@ impl FsWatcher {
             }
 
             fs_event::EventKind::File(fs_event::File::Moved { from, to }) => {
-                Self::handle_file_moved(from.clone(), to.clone(), event.time)
+                Self::handle_file_moved(from.clone(), to.clone(), event.time, &self.app_config)
             }
 
             fs_event::EventKind::File(fs_event::File::Renamed { from, to }) => {
-                Self::handle_file_renamed(from.clone(), to.clone(), event.time)?
+                Self::handle_file_renamed(from.clone(), to.clone(), event.time, &self.app_config)?
             }
 
             fs_event::EventKind::File(fs_event::File::DataModified(path)) => {
-                let event = match Self::handle_file_data_modified(&path) {
+                let event = match Self::handle_file_data_modified(&path, &self.app_config) {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         Event::with_time(EventKind::File(app::ResourceEvent::Removed), event.time)
@@ -899,9 +905,11 @@ impl FsWatcher {
                 vec![event]
             }
 
-            fs_event::EventKind::File(fs_event::File::Other(path)) => vec![
-                Event::with_time(EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Other)), event.time).add_path(path.clone())
-            ],
+            fs_event::EventKind::File(fs_event::File::Other(path)) => vec![Event::with_time(
+                EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Other)),
+                event.time,
+            )
+            .add_path(path.clone())],
 
             fs_event::EventKind::Folder(fs_event::Folder::Created(path)) => {
                 let event = match self.handle_folder_created(&path) {
@@ -921,7 +929,7 @@ impl FsWatcher {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         if matches!(err.kind(), resources::ErrorKind::NotInProject) {
-                            if let Ok(manifest) = ProjectManifest::load() {
+                            if let Ok(manifest) = self.app_config.load_project_manifest() {
                                 if manifest.contains(&path) {
                                     return Ok(vec![Event::with_time(
                                         app::Project::Removed.into(),
@@ -974,9 +982,11 @@ impl FsWatcher {
                 self.handle_folder_renamed(from.clone(), to.clone(), event.time)?
             }
 
-            fs_event::EventKind::Folder(fs_event::Folder::Other(path)) => vec![
-                Event::with_time(app::EventKind::Folder(app::ResourceEvent::Modified(app::ModifiedKind::Other)), event.time).add_path(path.clone())
-            ],
+            fs_event::EventKind::Folder(fs_event::Folder::Other(path)) => vec![Event::with_time(
+                app::EventKind::Folder(app::ResourceEvent::Modified(app::ModifiedKind::Other)),
+                event.time,
+            )
+            .add_path(path.clone())],
 
             fs_event::EventKind::Any(fs_event::Any::Removed(path)) => {
                 // TODO Could check file ids to get if path is file or dir.
@@ -987,8 +997,11 @@ impl FsWatcher {
         Ok(events)
     }
 
-    fn handle_file_created(path: &PathBuf) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path)? {
+    fn handle_file_created(
+        path: &PathBuf,
+        app_config: &config::AppConfig,
+    ) -> StdResult<EventKind, resources::Error> {
+        let kind = match resources::resource_kind(path, app_config)? {
             Some(kind) => Self::convert_resource_to_event_kind_created(kind),
             None => EventKind::File(app::ResourceEvent::Created),
         };
@@ -996,8 +1009,11 @@ impl FsWatcher {
         Ok(kind)
     }
 
-    fn handle_file_removed(path: &PathBuf) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path)? {
+    fn handle_file_removed(
+        path: &PathBuf,
+        app_config: &config::AppConfig,
+    ) -> StdResult<EventKind, resources::Error> {
+        let kind = match resources::resource_kind(path, app_config)? {
             Some(kind) => Self::convert_resource_to_event_kind_removed(kind),
             None => EventKind::File(app::ResourceEvent::Removed),
         };
@@ -1005,9 +1021,14 @@ impl FsWatcher {
         Ok(kind)
     }
 
-    fn handle_file_moved(from: PathBuf, to: PathBuf, time: Instant) -> Vec<Event> {
-        let from_kind = resources::resource_kind(&from);
-        let to_kind = resources::resource_kind(&to);
+    fn handle_file_moved(
+        from: PathBuf,
+        to: PathBuf,
+        time: Instant,
+        app_config: &config::AppConfig,
+    ) -> Vec<Event> {
+        let from_kind = resources::resource_kind(&from, app_config);
+        let to_kind = resources::resource_kind(&to, app_config);
 
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
@@ -1074,9 +1095,10 @@ impl FsWatcher {
         from: PathBuf,
         to: PathBuf,
         time: Instant,
+        app_config: &config::AppConfig,
     ) -> StdResult<Vec<Event>, error::processing::Error> {
-        let from_kind = resources::resource_kind(&from);
-        let to_kind = resources::resource_kind(&to);
+        let from_kind = resources::resource_kind(&from, app_config);
+        let to_kind = resources::resource_kind(&to, app_config);
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
                 if to_err.kind() != from_err.kind() {
@@ -1105,13 +1127,12 @@ impl FsWatcher {
             }
 
             (Ok(from_kind), Ok(to_kind)) => match (from_kind, to_kind) {
-                (None, None) => Ok(
-                    vec![
-                    Event::with_time(EventKind::File(app::ResourceEvent::Renamed), time)
-                    .add_path(from.clone())
-                    .add_path(to.clone()),
-                    ]
-                ),
+                (None, None) => Ok(vec![Event::with_time(
+                    EventKind::File(app::ResourceEvent::Renamed),
+                    time,
+                )
+                .add_path(from.clone())
+                .add_path(to.clone())]),
 
                 (Some(from_kind), None) => {
                     let kind = Self::convert_resource_to_event_kind_renamed_from(from_kind);
@@ -1134,8 +1155,11 @@ impl FsWatcher {
         }
     }
 
-    fn handle_file_data_modified(path: &PathBuf) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path)? {
+    fn handle_file_data_modified(
+        path: &PathBuf,
+        app_config: &config::AppConfig,
+    ) -> StdResult<EventKind, resources::Error> {
+        let kind = match resources::resource_kind(path, app_config)? {
             Some(kind) => Self::convert_resource_to_event_kind_data_modified(kind),
             None => app::EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Data)),
         };
@@ -1243,11 +1267,11 @@ impl FsWatcher {
                 assert!(!matches!(from_kind, resources::DirKind::Container { .. }));
                 match (from_kind, to_kind) {
                     (resources::DirKind::None { .. }, resources::DirKind::None { .. }) => {
-                    vec![
-                    Event::with_time(EventKind::Folder(app::ResourceEvent::Moved), time)
-                    .add_path(from.clone())
-                    .add_path(to.clone()),
-                    ]
+                        vec![
+                            Event::with_time(EventKind::Folder(app::ResourceEvent::Moved), time)
+                                .add_path(from.clone())
+                                .add_path(to.clone()),
+                        ]
                     }
 
                     (from_kind, resources::DirKind::None { .. }) => {
@@ -1255,25 +1279,42 @@ impl FsWatcher {
                         vec![Event::with_time(kind, time).add_path(from).add_path(to)]
                     }
 
-                    (resources::DirKind::None { project: from_project }, to_kind) => {
-                        match to_kind {
-                            resources::DirKind::ContainerLike { project: to_project } => {
-                                if from_project == to_project {
-                                    vec![
-                                        Event::with_time(EventKind::Folder(app::ResourceEvent::Moved), time).add_path(from.clone()).add_path(to.clone())
-                                    ]
-                                } else {
-                                    vec![
-                                        Event::with_time(EventKind::Folder(app::ResourceEvent::Removed), time).add_path(from.clone()),
-                                        Event::with_time(EventKind::Folder(app::ResourceEvent::Created), time).add_path(to.clone()),
-                                    ]
-                                }
+                    (
+                        resources::DirKind::None {
+                            project: from_project,
+                        },
+                        to_kind,
+                    ) => match to_kind {
+                        resources::DirKind::ContainerLike {
+                            project: to_project,
+                        } => {
+                            if from_project == to_project {
+                                vec![Event::with_time(
+                                    EventKind::Folder(app::ResourceEvent::Moved),
+                                    time,
+                                )
+                                .add_path(from.clone())
+                                .add_path(to.clone())]
+                            } else {
+                                vec![
+                                    Event::with_time(
+                                        EventKind::Folder(app::ResourceEvent::Removed),
+                                        time,
+                                    )
+                                    .add_path(from.clone()),
+                                    Event::with_time(
+                                        EventKind::Folder(app::ResourceEvent::Created),
+                                        time,
+                                    )
+                                    .add_path(to.clone()),
+                                ]
                             }
-                            _ => {
-                        let kind = Self::convert_dir_to_event_kind_moved_to(&to_kind);
-                        vec![Event::with_time(kind, time).add_path(from).add_path(to)]
-                        }}
-                    }
+                        }
+                        _ => {
+                            let kind = Self::convert_dir_to_event_kind_moved_to(&to_kind);
+                            vec![Event::with_time(kind, time).add_path(from).add_path(to)]
+                        }
+                    },
 
                     (from_kind, to_kind) => {
                         Self::convert_dir_to_event_kind_moved(from_kind, to_kind, from, to, time)
@@ -1359,11 +1400,12 @@ impl FsWatcher {
                 assert!(!matches!(from_kind, resources::DirKind::Container { .. }));
                 match (from_kind, to_kind) {
                     (resources::DirKind::None { .. }, resources::DirKind::None { .. }) => {
-                        Ok(vec![
-                            Event::with_time(EventKind::Folder(app::ResourceEvent::Renamed), time)
-                            .add_path(from.clone())
-                            .add_path(to.clone()),
-                        ])
+                        Ok(vec![Event::with_time(
+                            EventKind::Folder(app::ResourceEvent::Renamed),
+                            time,
+                        )
+                        .add_path(from.clone())
+                        .add_path(to.clone())])
                     }
 
                     (from_kind, resources::DirKind::None { .. }) => {
@@ -1378,7 +1420,7 @@ impl FsWatcher {
                             "renaming project should result in destination being a project"
                         );
                         assert!(
-                            !matches!(from_kind, resources::DirKind::ContainerLike {  .. }), 
+                            !matches!(from_kind, resources::DirKind::ContainerLike {  .. }),
                             "renaming a container like should not result in it not beign a resource");
 
                         match from_kind {
@@ -2163,7 +2205,6 @@ impl FsWatcher {
                 }
             }
 
-
             (
                 resources::DirKind::Project {
                     kind: resources::ProjectDir::Project,
@@ -2307,7 +2348,7 @@ impl FsWatcher {
             }
 
             (
-                resources::DirKind::ContainerLike{
+                resources::DirKind::ContainerLike {
                     project: from_project,
                 },
                 resources::DirKind::ContainerConfig {
@@ -2332,7 +2373,6 @@ impl FsWatcher {
                     .add_path(to),
                 ])
             }
-
 
             (
                 resources::DirKind::ContainerConfig {
@@ -2445,7 +2485,56 @@ fn normalize_path_root(path: impl Into<PathBuf>) -> PathBuf {
     }
 }
 
+pub mod config {
+    use std::{io, path::PathBuf};
+    use syre_local::{
+        error::IoSerde,
+        file_resource::SystemResource,
+        system::collections::{ProjectManifest, UserManifest},
+    };
+
+    #[derive(Clone)]
+    pub struct AppConfig {
+        user_manifest: PathBuf,
+        project_manifest: PathBuf,
+    }
+
+    impl AppConfig {
+        pub fn new(user_manifest: PathBuf, project_manifest: PathBuf) -> Self {
+            Self {
+                user_manifest,
+                project_manifest,
+            }
+        }
+
+        /// Creates an app config using the paths obtained from the system.
+        pub fn try_default() -> Result<Self, io::Error> {
+            Ok(Self {
+                user_manifest: UserManifest::path()?,
+                project_manifest: ProjectManifest::path()?,
+            })
+        }
+
+        pub fn user_manifest(&self) -> &PathBuf {
+            &self.user_manifest
+        }
+
+        pub fn project_manifest(&self) -> &PathBuf {
+            &self.project_manifest
+        }
+
+        pub fn load_user_manifest(&self) -> Result<UserManifest, IoSerde> {
+            UserManifest::load_from(self.user_manifest.clone())
+        }
+
+        pub fn load_project_manifest(&self) -> Result<ProjectManifest, IoSerde> {
+            ProjectManifest::load_from(self.project_manifest.clone())
+        }
+    }
+}
+
 mod resources {
+    use super::config;
     pub use error::{Error, ErrorKind};
     use std::path::{Component, Path, PathBuf};
     use syre_core::{project::ScriptLang, types::ResourceId};
@@ -2577,17 +2666,16 @@ mod resources {
     /// # Errors
     /// + If the path does not belong to a valid app location (config or project).
     /// + If the path is in a project that is corrupt.
-    pub(crate) fn resource_kind(path: &PathBuf) -> Result<Option<ResourceEvent>, Error> {
-        if let Ok(manifest_path) = collections::ProjectManifest::path() {
-            if *path == manifest_path {
-                return Ok(Some(Config::ProjectManifest.into()));
-            }
+    pub(crate) fn resource_kind(
+        path: &PathBuf,
+        app_config: &config::AppConfig,
+    ) -> Result<Option<ResourceEvent>, Error> {
+        if path == app_config.project_manifest() {
+            return Ok(Some(Config::ProjectManifest.into()));
         }
 
-        if let Ok(manifest_path) = collections::UserManifest::path() {
-            if *path == manifest_path {
-                return Ok(Some(Config::UserManifest.into()));
-            }
+        if path == app_config.user_manifest() {
+            return Ok(Some(Config::UserManifest.into()));
         }
 
         let project = project_by_resource_path(&path)?;

@@ -44,7 +44,11 @@ fn watcher_group_notify_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = FsWatcher::new(command_rx, event_tx);
+    let watcher = FsWatcher::new(
+        command_rx,
+        event_tx,
+        config::AppConfig::try_default().unwrap(),
+    );
     watcher.handle_command(Command::Watch(dir.path().to_path_buf()));
 
     let mut f_to_path = f_from.path().to_path_buf();
@@ -107,7 +111,11 @@ fn watcher_convert_fs_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = FsWatcher::new(command_rx, event_tx);
+    let watcher = FsWatcher::new(
+        command_rx,
+        event_tx,
+        config::AppConfig::try_default().unwrap(),
+    );
     watcher.handle_command(Command::Watch(dir_path.clone()));
 
     convert_fs::test_config(&watcher);

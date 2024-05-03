@@ -7,29 +7,29 @@ pub use windows::FileSystemActor;
 #[cfg(target_os = "macos")]
 pub use macos::FileSystemActor;
 
+#[cfg(target_os = "linux")]
+pub use linux::FileSystemActor;
+
 #[cfg(target_os = "windows")]
 mod windows {
     use super::DEBOUNCE_TIMEOUT;
     use crate::command::WatcherCommand as Command;
+    use crossbeam::channel::{Receiver, Sender};
     use notify::{self, RecursiveMode, Watcher};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::{Path, PathBuf};
-    use std::sync::mpsc;
 
     type FileSystemWatcher = notify::RecommendedWatcher;
 
     pub struct FileSystemActor {
-        command_rx: mpsc::Receiver<FileSystemActorCommand>,
+        command_rx: Receiver<Command>,
         watcher: Debouncer<FileSystemWatcher, FileIdMap>,
     }
 
     impl FileSystemActor {
         /// Create a new actor to watch the file system.
         /// Begins watching upon creation.
-        pub fn new(
-            event_tx: mpsc::Sender<Event>,
-            command_rx: mpsc::Receiver<FileSystemActorCommand>,
-        ) -> Self {
+        pub fn new(event_tx: Sender<DebounceEventResult>, command_rx: Receiver<Command>) -> Self {
             let watcher = notify_debouncer_full::new_debouncer(
                 DEBOUNCE_TIMEOUT,
                 None,
@@ -191,6 +191,110 @@ mod macos {
             let path = path.as_ref();
             self.watcher.watcher().unwatch(path).unwrap();
             self.watcher.cache().remove_root(path);
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod linux {
+    use super::DEBOUNCE_TIMEOUT;
+    use crate::command::WatcherCommand as Command;
+    use crossbeam::channel::{Receiver, Sender};
+    use notify::{self, RecursiveMode, Watcher};
+    use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
+    use std::path::{Path, PathBuf};
+
+    type FileSystemWatcher = notify::RecommendedWatcher;
+
+    pub struct FileSystemActor {
+        command_rx: Receiver<Command>,
+        watcher: Debouncer<FileSystemWatcher, FileIdMap>,
+    }
+
+    impl FileSystemActor {
+        /// Create a new actor to watch the file system.
+        /// Begins watching upon creation.
+        pub fn new(event_tx: Sender<DebounceEventResult>, command_rx: Receiver<Command>) -> Self {
+            let watcher = notify_debouncer_full::new_debouncer(
+                DEBOUNCE_TIMEOUT,
+                None,
+                move |event: DebounceEventResult| {
+                    event_tx.send(event).unwrap();
+                },
+            )
+            .unwrap();
+
+            Self {
+                command_rx,
+                watcher,
+            }
+        }
+
+        pub fn run(&mut self) {
+            loop {
+                match self.command_rx.recv().unwrap() {
+                    Command::Watch(path) => self.watch(path),
+                    Command::Unwatch(path) => self.unwatch(path),
+                    Command::FileId { path, tx } => {
+                        if let Err(err) =
+                            tx.send(self.watcher.cache().cached_file_id(&path).cloned())
+                        {
+                            tracing::error!(?err);
+                        };
+                    }
+                }
+            }
+        }
+
+        fn watch(&mut self, path: impl AsRef<Path>) {
+            let path = path.as_ref();
+            self.watcher
+                .watcher()
+                .watch(path, RecursiveMode::Recursive)
+                .unwrap();
+
+            self.watcher
+                .cache()
+                .add_root(path, RecursiveMode::Recursive);
+        }
+
+        fn unwatch(&mut self, path: impl AsRef<Path>) {
+            let path = path.as_ref();
+            self.watcher.watcher().unwatch(path).unwrap();
+            self.watcher.cache().remove_root(path);
+        }
+
+        /// Gets the final path of a file.
+        ///
+        /// # Returns
+        /// + `None` if the path is not in the watcher's cache.
+        ///
+        /// # Errors
+        /// + If the final path could not be obtained.
+        fn final_path(
+            &mut self,
+            path: impl AsRef<Path>,
+            tx: Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
+        ) {
+            let path = path.as_ref();
+            let cache = self.watcher.cache();
+            let Some(id) = cache.cached_file_id(path) else {
+                match tx.send(Ok(None)) {
+                    Ok(_) => {}
+                    Err(err) => tracing::debug!(?err),
+                };
+                return;
+            };
+
+            let path_res = match file_path_from_id::path_from_id(id) {
+                Ok(path) => Ok(Some(path)),
+                Err(err) => Err(err),
+            };
+
+            match tx.send(path_res) {
+                Ok(_) => {}
+                Err(err) => tracing::debug!(?err),
+            }
         }
     }
 }

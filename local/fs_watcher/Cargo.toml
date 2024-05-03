@@ -23,15 +23,13 @@ uuid = { workspace = true, features = ["v7"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["time", "json"] }
-tokio = { version = "1.37.0", features = ["full"] }
 file-id = "0.2.1"
-tokio-stream = { version = "0.1.15", features = ["full"] }
-crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
-derive_more = "0.99.17"
+crossbeam = { workspace = true, features = ["crossbeam-channel"] }
+derive_more = { workspace = true }
+has_id = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 dev_utils = { workspace = true, features = ["fs"] }
 test-log = { version = "0.2.15", features = ["trace"] }
-rand.workspace = true
-rand_chacha = "0.3.1"
+syre-fs-watcher-simulator = { path = "simulator" }

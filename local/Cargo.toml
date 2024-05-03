@@ -31,7 +31,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 validator = "0.17"
-
 has_id = { workspace = true, features = ["derive", "serde"] }
 syre-core = { workspace = true, features = ["serde"] }
 

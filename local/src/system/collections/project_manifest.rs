@@ -71,9 +71,7 @@ impl ProjectManifest {
     }
 }
 
-#[cfg(test)]
 impl ProjectManifest {
-    /// > Only available in `test` mode.
     /// Load the manifest from the given path.
     pub fn load_from(path: impl Into<PathBuf>) -> Result<Self, IoSerde> {
         let path = path.into();
@@ -85,7 +83,6 @@ impl ProjectManifest {
         })
     }
 
-    /// > Only available in `test` mode.
     /// Load the manifest from the given path or create the default if the file does not exist.
     pub fn load_from_or_default(path: impl Into<PathBuf>) -> Result<Self, IoSerde> {
         let path = path.into();
@@ -103,7 +100,6 @@ impl ProjectManifest {
         }
     }
 
-    /// > Only available in `test` mode.
     /// Saves the manifest to the path is was loaded from.
     pub fn save_to(&self) -> Result<(), IoSerde> {
         fs::write(&self.path, serde_json::to_string_pretty(&self)?)?;

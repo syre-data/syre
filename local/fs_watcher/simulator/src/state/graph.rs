@@ -7,6 +7,7 @@ use std::{
 pub type Node<T> = Rc<RefCell<T>>;
 pub type NodeRef<T> = Weak<RefCell<T>>;
 
+#[derive(Debug)]
 pub struct Tree<D> {
     root: NodeRef<D>,
     nodes: Vec<Node<D>>,
@@ -221,6 +222,114 @@ impl<D> Tree<D> {
 
     pub fn contains(&self, node: &Node<D>) -> bool {
         self.nodes.iter().find(|n| Rc::ptr_eq(&node, n)).is_some()
+    }
+}
+
+impl<D> Tree<D>
+where
+    D: Clone,
+{
+    /// Duplicates the tree.
+    pub fn duplicate(&self) -> Self {
+        let mut node_map = vec![];
+        let nodes = self
+            .nodes
+            .iter()
+            .map(|node| {
+                let node_clone = Rc::new(RefCell::new(node.borrow().clone()));
+                node_map.push((node.clone(), node_clone.clone()));
+                node_clone
+            })
+            .collect();
+
+        let root = node_map
+            .iter()
+            .find_map(|(from, to)| {
+                if Rc::ptr_eq(from, &self.root.upgrade().unwrap()) {
+                    return Some(Rc::downgrade(to));
+                }
+
+                None
+            })
+            .unwrap();
+
+        let children = self
+            .children
+            .iter()
+            .map(|(parent, children)| {
+                let parent = parent.upgrade().unwrap();
+                let children = children
+                    .iter()
+                    .map(|child| {
+                        let child = child.upgrade().unwrap();
+
+                        node_map
+                            .iter()
+                            .find_map(|(from, to)| {
+                                if Rc::ptr_eq(from, &child) {
+                                    return Some(Rc::downgrade(to));
+                                }
+
+                                None
+                            })
+                            .unwrap()
+                    })
+                    .collect();
+
+                let parent = node_map
+                    .iter()
+                    .find_map(|(from, to)| {
+                        if Rc::ptr_eq(from, &parent) {
+                            return Some(Rc::downgrade(to));
+                        }
+
+                        None
+                    })
+                    .unwrap();
+
+                (parent, children)
+            })
+            .collect();
+
+        let parents = self
+            .parents
+            .iter()
+            .map(|(child, parent)| {
+                let child = child.upgrade().unwrap();
+                let parent = parent.upgrade().unwrap();
+
+                let child = node_map
+                    .iter()
+                    .find_map(|(from, to)| {
+                        if Rc::ptr_eq(from, &child) {
+                            return Some(Rc::downgrade(to));
+                        }
+
+                        None
+                    })
+                    .unwrap();
+
+                let parent = node_map
+                    .iter()
+                    .find_map(|(from, to)| {
+                        if Rc::ptr_eq(from, &parent) {
+                            return Some(Rc::downgrade(to));
+                        }
+
+                        None
+                    })
+                    .unwrap();
+
+                (child, parent)
+            })
+            .collect();
+
+        Self {
+            nodes,
+            root,
+            children,
+            parents,
+        }
     }
 }
 

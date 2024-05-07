@@ -1,4 +1,4 @@
-pub(crate) mod resources;
+pub(crate) mod actions;
 pub(crate) mod simulator;
 pub(crate) mod state;
 

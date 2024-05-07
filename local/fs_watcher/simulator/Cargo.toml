@@ -9,8 +9,14 @@ rand.workspace = true
 rand_chacha = "0.3.1"
 derive_more = { workspace = true }
 crossbeam = { workspace = true, features = ["crossbeam-channel"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 syre-local = { workspace = true }
 syre-fs-watcher = { workspace = true }
 has_id = { workspace = true, features = ["derive"] }
 syre-core.workspace = true
+walkdir = "2.5.0"
+
+[dev-dependencies]
+tempfile.workspace = true

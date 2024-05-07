@@ -50,7 +50,38 @@ fn graph_should_work() {
     assert!(!graph.contains(&parent));
 }
 
-#[derive(Debug, HasId)]
+#[test]
+fn graph_duplicate_shoud_work() {
+    let root = Data::new(0);
+    let mut graph = Tree::new(root);
+
+    let child = Data::new(1);
+    let id_1 = child.id().clone();
+    graph.insert(child, &graph.root()).unwrap();
+
+    let child = Data::new(2);
+    let id_2 = child.id().clone();
+    graph.insert(child, &graph.root()).unwrap();
+
+    let parent = graph.find(&id_1).unwrap().clone();
+    let child = Data::new(11);
+    let id_11 = child.id().clone();
+    graph.insert(child, &parent).unwrap();
+
+    let child = Data::new(12);
+    let id_12 = child.id().clone();
+    graph.insert(child, &parent).unwrap();
+
+    let dup = graph.duplicate();
+    assert_eq!(dup.nodes().len(), graph.nodes().len());
+    assert_eq!(dup.root().borrow().id(), graph.root().borrow().id());
+    assert_eq!(
+        dup.children(&dup.root()).unwrap().len(),
+        graph.children(&graph.root()).unwrap().len(),
+    )
+}
+
+#[derive(Debug, HasId, Clone)]
 struct Data {
     #[id]
     id: usize,

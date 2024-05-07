@@ -6023,6 +6023,9 @@ dependencies = [
  "syre-fs-watcher",
  "syre-local",
  "tempfile",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
 ]
 
 [[package]]

@@ -6,14 +6,14 @@ use std::{ops::Deref, path::PathBuf};
 use syre_core::types::ResourceId;
 
 #[derive(Clone, Default, Debug)]
-pub struct App {
+pub struct State {
     pub user_manifest: Resource,
     pub project_manifest: Resource,
     pub watched: Vec<PathBuf>,
     pub projects: Vec<Project>,
 }
 
-impl App {
+impl State {
     pub fn find_project(&self, rid: &ResourceId) -> Option<&Project> {
         self.projects.iter().find_map(|project| {
             if &project.rid == rid {
@@ -44,7 +44,7 @@ impl App {
     }
 }
 
-impl App {
+impl State {
     pub fn transition(&mut self, action: &actions::Action) -> Result<(), error::Transition> {
         match action {
             actions::Action::App(actions::AppResource::UserManifest(action)) => {

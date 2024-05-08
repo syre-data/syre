@@ -1,15 +1,11 @@
-use crate::state::{self, actions};
-use crossbeam::{
-    channel::{Receiver, Sender},
-    utils,
-};
+use crate::state;
+use crossbeam::channel::{Receiver, Sender};
 use options::Options;
 use rand::{
     distributions::{self, DistString},
     prelude::*,
 };
 use rand_chacha::ChaCha8Rng;
-use syre_core::project::excel_template::utils;
 use std::{
     fs, io,
     ops::Deref,
@@ -55,12 +51,8 @@ impl Simulator {
     pub fn run(&mut self) {
         while self.state.current_tick < self.options.max_ticks() {
             let action_count = self.rng.gen_range(self.options.action_count_range());
-            let (actions, expected_state) = Self::choose_actions(
-                action_count,
-                self.state.app.clone(),
-                &self.options,
-                &mut self.rng,
-            );
+            let (actions, expected_state) =
+                Self::choose_actions(action_count, self.state.fs.clone(), &mut self.rng);
 
             tracing::debug!(?actions);
             self.perform_actions(actions);
@@ -70,7 +62,102 @@ impl Simulator {
             .send(watcher::Command::Watch(self.options.base_path().clone()))
             .unwrap();
     }
+}
 
+// impl Simulator {
+//     fn choose_actions<R>(
+//         num: u8,
+//         mut fs_state: state::fs::State,
+//         rng: &mut R,
+//     ) -> (Vec<state::fs::Action>, state::fs::State)
+//     where
+//         R: rand::Rng,
+//     {
+//         let num = num as usize;
+//         let mut actions = Vec::with_capacity(num);
+//         while actions.len() < num {
+//             let action = Self::choose_action(&fs_state, rng);
+//             fs_state.transition(action.clone()).unwrap();
+//             actions.push(action);
+//         }
+
+//         (actions, fs_state)
+//     }
+
+//     fn choose_action<R>(state: &state::fs::State, rng: &mut R) -> state::fs::Action
+//     where
+//         R: rand::Rng,
+//     {
+//         let mut valid_actions = Self::valid_actions(&state, rng);
+//         let index = rng.gen_range(0..valid_actions.len());
+//         valid_actions.swap_remove(index)
+//     }
+
+//     /// Returns a list of all valid actions given a state.
+//     fn valid_actions<R>(state: &state::fs::State, rng: &mut R) -> Vec<state::fs::Action>
+//     where
+//         R: rand::Rng,
+//     {
+//         let mut actions = vec![];
+//         for folder in state.folders() {
+//             actions.extend(
+//                 vec![
+//                     state::fs::FolderAction::Remove(folder.clone()),
+//                     state::fs::FolderAction::Rename {
+//                         folder: folder.clone(),
+//                         name: utils::random_file_name(rng),
+//                     },
+//                     // TODO
+//                     state::fs::FolderAction::Move {
+//                         folder: folder.clone(),
+//                         parent: None,
+//                     },
+//                 ]
+//                 .into_iter()
+//                 .map(|action| action.into()),
+//             );
+//         }
+
+//         actions
+//     }
+// }
+
+// impl Simulator {
+//     fn perform_actions(&mut self, actions: Vec<state::fs::Action>) {
+//         for action in actions {
+//             match action {
+//                 Folder(action) => self.perform_actions_folder(action),
+//                 File(action) => self.perform_actions_file(action),
+//             }
+//         }
+//     }
+
+//     fn perform_actions_folder(&mut self, action: state::fs::Action) {
+//         match action {
+//             state::fs::FolderAction::Insert { folder, parent } => {
+//                 todo!();
+//             }
+
+//             state::fs::FolderAction::Remove(folder) => {
+//                 todo!();
+//             }
+
+//             state::fs::FolderAction::Rename { folder, name } => {
+//                 todo!();
+//             }
+
+//             state::fs::FolderAction::Move { folder, parent } => {
+//                 todo!();
+//             }
+//         }
+//     }
+
+//     fn perform_actions_file(&mut self, action: state::fs::FileAction) {
+//         todo!();
+//     }
+// }
+
+impl Simulator {
     /// Choose actions to perform.
     ///
     /// # Arguments
@@ -79,13 +166,13 @@ impl Simulator {
     ///
     /// # Returns
     /// Tuple of (actions, final state),
-    /// where the final state is the state of the app after applying all actions.
+    /// where the final state should be the state of the app after applying all actions.
     fn choose_actions<R>(
         num: u8,
-        mut state: state::App,
+        mut state: state::app::State,
         options: &Options,
         rng: &mut R,
-    ) -> (Vec<state::Action>, state::App)
+    ) -> (Vec<state::Action>, state::app::State)
     where
         R: rand::Rng,
     {
@@ -100,7 +187,7 @@ impl Simulator {
         (actions, state)
     }
 
-    fn choose_action<R>(state: &state::App, options: &Options, rng: &mut R) -> state::Action
+    fn choose_action<R>(state: &state::app::State, options: &Options, rng: &mut R) -> state::Action
     where
         R: rand::Rng,
     {
@@ -110,7 +197,11 @@ impl Simulator {
     }
 
     /// Returns a list of all valid actions given a state.
-    fn valid_actions<R>(state: &state::App, options: &Options, rng: &mut R) -> Vec<state::Action>
+    fn valid_actions<R>(
+        state: &state::app::State,
+        options: &Options,
+        rng: &mut R,
+    ) -> Vec<state::Action>
     where
         R: rand::Rng,
     {
@@ -137,10 +228,10 @@ impl Simulator {
     }
 
     fn app_actions<R>(
-        state: &state::App,
+        state: &state::app::State,
         options: &Options,
         rng: &mut R,
-    ) -> Vec<actions::AppResource>
+    ) -> Vec<state::actions::AppResource>
     where
         R: rand::Rng,
     {
@@ -153,33 +244,41 @@ impl Simulator {
 
         let mut actions = vec![];
         match state.user_manifest {
-            state::Resource::NotPresent => actions.push(actions::AppResource::UserManifest(
-                actions::Manifest::Create,
+            state::Resource::NotPresent => actions.push(state::actions::AppResource::UserManifest(
+                state::actions::Manifest::Create,
             )),
 
             state::Resource::Invalid => {
                 actions.extend(vec![
-                    actions::AppResource::UserManifest(actions::Manifest::Remove),
-                    actions::AppResource::UserManifest(actions::Manifest::Rename(rename_path)),
-                    actions::AppResource::UserManifest(actions::Manifest::Move(move_path)),
-                    actions::AppResource::UserManifest(actions::Manifest::Repair),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Remove),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Rename(
+                        rename_path,
+                    )),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Move(
+                        move_path,
+                    )),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Repair),
                 ]);
             }
 
             state::Resource::Valid => {
                 actions.extend(vec![
-                    actions::AppResource::UserManifest(actions::Manifest::Remove),
-                    actions::AppResource::UserManifest(actions::Manifest::Rename(rename_path)),
-                    actions::AppResource::UserManifest(actions::Manifest::Move(move_path)),
-                    actions::AppResource::UserManifest(actions::Manifest::Corrupt),
-                    actions::AppResource::UserManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Add,
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Remove),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Rename(
+                        rename_path,
                     )),
-                    actions::AppResource::UserManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Remove,
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Move(
+                        move_path,
                     )),
-                    actions::AppResource::UserManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Alter,
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Corrupt),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Add,
+                    )),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Remove,
+                    )),
+                    state::actions::AppResource::UserManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Alter,
                     )),
                 ]);
             }
@@ -193,33 +292,41 @@ impl Simulator {
         );
 
         match state.project_manifest {
-            state::Resource::NotPresent => actions.push(actions::AppResource::ProjectManifest(
-                actions::Manifest::Create,
-            )),
+            state::Resource::NotPresent => actions.push(
+                state::actions::AppResource::ProjectManifest(state::actions::Manifest::Create),
+            ),
 
             state::Resource::Invalid => {
                 actions.extend(vec![
-                    actions::AppResource::ProjectManifest(actions::Manifest::Remove),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Rename(rename_path)),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Move(move_path)),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Repair),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Remove),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Rename(
+                        rename_path,
+                    )),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Move(
+                        move_path,
+                    )),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Repair),
                 ]);
             }
 
             state::Resource::Valid => {
                 actions.extend(vec![
-                    actions::AppResource::ProjectManifest(actions::Manifest::Remove),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Rename(rename_path)),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Move(move_path)),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Corrupt),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Add,
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Remove),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Rename(
+                        rename_path,
                     )),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Remove,
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Move(
+                        move_path,
                     )),
-                    actions::AppResource::ProjectManifest(actions::Manifest::Modify(
-                        actions::ModifyManifest::Alter,
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Corrupt),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Add,
+                    )),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Remove,
+                    )),
+                    state::actions::AppResource::ProjectManifest(state::actions::Manifest::Modify(
+                        state::actions::ModifyManifest::Alter,
                     )),
                 ]);
             }
@@ -232,29 +339,32 @@ impl Simulator {
         state: &state::Project,
         options: &Options,
         rng: &mut R,
-    ) -> Vec<actions::ProjectResource>
+    ) -> Vec<state::actions::ProjectResource>
     where
         R: rand::Rng,
     {
         let mut actions = Self::project_resource_actions(state)
             .into_iter()
             .map(|action| action.into())
-            .collect::<Vec<actions::ProjectResource>>();
+            .collect::<Vec<state::actions::ProjectResource>>();
 
         match &state.graph {
             state::Reference::NotPresent => {
                 let path = state.path.join(utils::random_file_name(rng));
-                actions.push(actions::Project::DataDir(actions::Dir::Create(path)).into())
+                actions.push(
+                    state::actions::Project::DataDir(state::actions::Dir::Create(path)).into(),
+                )
             }
             state::Reference::Present(graph) => {
                 let rename_path = utils::random_file_name(rng);
                 let copy_path = utils::random_file_name(rng);
                 let move_path = utils::random_move_path(&graph.root_path, &state.path, rng);
                 actions.extend(vec![
-                    actions::Project::DataDir(actions::Dir::Remove).into(),
-                    actions::Project::DataDir(actions::Dir::Rename(rename_path)).into(),
-                    actions::Project::DataDir(actions::Dir::Move(move_path)).into(),
-                    actions::Project::DataDir(actions::Dir::Copy(copy_path)).into(),
+                    state::actions::Project::DataDir(state::actions::Dir::Remove).into(),
+                    state::actions::Project::DataDir(state::actions::Dir::Rename(rename_path))
+                        .into(),
+                    state::actions::Project::DataDir(state::actions::Dir::Move(move_path)).into(),
+                    state::actions::Project::DataDir(state::actions::Dir::Copy(copy_path)).into(),
                 ]);
 
                 actions.extend(Self::project_graph_actions(&graph));
@@ -264,14 +374,19 @@ impl Simulator {
         actions
     }
 
-    fn project_resource_actions<R>(state: &state::Project, rng: &mut R) -> Vec<actions::Project>
+    fn project_resource_actions<R>(
+        state: &state::Project,
+        rng: &mut R,
+    ) -> Vec<state::actions::Project>
     where
         R: rand::Rng,
     {
         let mut actions = vec![];
         match &state.config {
             state::Reference::NotPresent => {
-                actions.push(actions::Project::ConfigDir(actions::StaticDir::Create));
+                actions.push(state::actions::Project::ConfigDir(
+                    state::actions::StaticDir::Create,
+                ));
             }
 
             state::Reference::Present(config) => {
@@ -284,10 +399,12 @@ impl Simulator {
                 );
 
                 actions.extend(vec![
-                    actions::Project::ConfigDir(actions::StaticDir::Remove),
-                    actions::Project::ConfigDir(actions::StaticDir::Rename(rename_path)),
-                    actions::Project::ConfigDir(actions::StaticDir::Move(move_path)),
-                    actions::Project::ConfigDir(actions::StaticDir::Copy(copy_path)),
+                    state::actions::Project::ConfigDir(state::actions::StaticDir::Remove),
+                    state::actions::Project::ConfigDir(state::actions::StaticDir::Rename(
+                        rename_path,
+                    )),
+                    state::actions::Project::ConfigDir(state::actions::StaticDir::Move(move_path)),
+                    state::actions::Project::ConfigDir(state::actions::StaticDir::Copy(copy_path)),
                 ]);
 
                 actions.extend(Self::project_config_actions(&config));
@@ -298,9 +415,9 @@ impl Simulator {
             None => {}
             Some(state::Reference::NotPresent) => {
                 let filename = utils::random_file_name(rng);
-                actions.push(actions::Project::AnalysisDir(actions::Dir::Create(
-                    filename,
-                )))
+                actions.push(state::actions::Project::AnalysisDir(
+                    state::actions::Dir::Create(filename),
+                ))
             }
 
             Some(state::Reference::Present(_)) => {
@@ -313,10 +430,10 @@ impl Simulator {
                 );
 
                 actions.extend(vec![
-                    actions::Project::AnalysisDir(actions::Dir::Remove),
-                    actions::Project::AnalysisDir(actions::Dir::Rename(rename_path)),
-                    actions::Project::AnalysisDir(actions::Dir::Move(move_path)),
-                    actions::Project::AnalysisDir(actions::Dir::Copy(copy_path)),
+                    state::actions::Project::AnalysisDir(state::actions::Dir::Remove),
+                    state::actions::Project::AnalysisDir(state::actions::Dir::Rename(rename_path)),
+                    state::actions::Project::AnalysisDir(state::actions::Dir::Move(move_path)),
+                    state::actions::Project::AnalysisDir(state::actions::Dir::Copy(copy_path)),
                 ]);
             }
         }
@@ -324,7 +441,7 @@ impl Simulator {
         actions
     }
 
-    fn project_graph_actions(state: &state::Graph) -> Vec<actions::ProjectResource> {
+    fn project_graph_actions(state: &state::Graph) -> Vec<state::actions::ProjectResource> {
         let mut actions = vec![];
         for node in state.nodes() {
             actions.extend(Self::container_actions(node.borrow().deref()));
@@ -333,18 +450,21 @@ impl Simulator {
         actions
     }
 
-    fn container_actions(state: &state::Container, graph_root) -> Vec<actions::ProjectResource> {
+    fn container_actions(state: &state::Container) -> Vec<state::actions::ProjectResource> {
         let mut actions = vec![];
         match &state.config {
-            state::Reference::NotPresent => actions.push(actions::ProjectResource::Container {
-                container: state.rid().clone(),
-                action: actions::Container::ConfigDir(actions::StaticDir::Create).into(),
-            }),
+            state::Reference::NotPresent => {
+                actions.push(state::actions::ProjectResource::Container {
+                    container: state.rid().clone(),
+                    action: state::actions::Container::ConfigDir(state::actions::StaticDir::Create)
+                        .into(),
+                })
+            }
 
             state::Reference::Present(config) => actions.extend(
                 Self::container_config_actions(&config)
                     .into_iter()
-                    .map(|action| actions::ProjectResource::Container {
+                    .map(|action| state::actions::ProjectResource::Container {
                         container: state.rid().clone(),
                         action,
                     }),
@@ -353,7 +473,7 @@ impl Simulator {
 
         for asset in state.assets.iter() {
             actions.extend(Self::asset_actions(asset).into_iter().map(|action| {
-                actions::ProjectResource::AssetFile {
+                state::actions::ProjectResource::AssetFile {
                     container: state.rid().clone(),
                     asset: asset.rid().clone(),
                     action,
@@ -364,103 +484,105 @@ impl Simulator {
         actions
     }
 
-    fn asset_actions<R>(state: &state::Asset, rng: &mut R) -> Vec<actions::AssetFile>
+    fn asset_actions<R>(state: &state::Asset, rng: &mut R) -> Vec<state::actions::AssetFile>
     where
         R: rand::Rng,
     {
         match state.file {
             state::Reference::NotPresent => {
                 let path = utils::random_file_name(rng);
-                vec![actions::AssetFile::Create(path)]
+                vec![state::actions::AssetFile::Create(path)]
             }
 
             state::Reference::Present(_) => {
                 let rename_path = utils::random_file_name(rng);
-                let move_path = utils::random_move_path(base_path, root_path, rng)
+                // let move_path = utils::random_move_path(base_path, root_path, rng);
                 vec![
-                    actions::AssetFile::Remove,
-                    actions::AssetFile::Rename(rename_path),
-                    actions::AssetFile::Move,
-                    actions::AssetFile::Copy,
-                    actions::AssetFile::Modify,
+                    state::actions::AssetFile::Remove,
+                    state::actions::AssetFile::Rename(rename_path),
+                    state::actions::AssetFile::Move,
+                    state::actions::AssetFile::Copy,
+                    state::actions::AssetFile::Modify,
                 ]
             }
         }
     }
 
-    fn container_config_actions(state: &state::ContainerConfig) -> Vec<actions::Container> {
+    fn container_config_actions(state: &state::ContainerConfig) -> Vec<state::actions::Container> {
         let mut actions = vec![];
         match &state.properties {
-            state::Resource::NotPresent => {
-                actions.push(actions::Container::Properties(actions::StaticFile::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Container::Properties(
+                state::actions::StaticFile::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Container::Properties(actions::StaticFile::Remove),
-                actions::Container::Properties(actions::StaticFile::Rename),
-                actions::Container::Properties(actions::StaticFile::Move),
-                actions::Container::Properties(actions::StaticFile::Copy),
-                actions::Container::Properties(actions::StaticFile::Repair),
+                state::actions::Container::Properties(state::actions::StaticFile::Remove),
+                state::actions::Container::Properties(state::actions::StaticFile::Rename),
+                state::actions::Container::Properties(state::actions::StaticFile::Move),
+                state::actions::Container::Properties(state::actions::StaticFile::Copy),
+                state::actions::Container::Properties(state::actions::StaticFile::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Container::Properties(actions::StaticFile::Remove),
-                actions::Container::Properties(actions::StaticFile::Rename),
-                actions::Container::Properties(actions::StaticFile::Move),
-                actions::Container::Properties(actions::StaticFile::Copy),
-                actions::Container::Properties(actions::StaticFile::Modify),
-                actions::Container::Properties(actions::StaticFile::Corrupt),
+                state::actions::Container::Properties(state::actions::StaticFile::Remove),
+                state::actions::Container::Properties(state::actions::StaticFile::Rename),
+                state::actions::Container::Properties(state::actions::StaticFile::Move),
+                state::actions::Container::Properties(state::actions::StaticFile::Copy),
+                state::actions::Container::Properties(state::actions::StaticFile::Modify),
+                state::actions::Container::Properties(state::actions::StaticFile::Corrupt),
             ]),
         }
 
         match &state.settings {
-            state::Resource::NotPresent => {
-                actions.push(actions::Container::Settings(actions::StaticFile::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Container::Settings(
+                state::actions::StaticFile::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Container::Settings(actions::StaticFile::Remove),
-                actions::Container::Settings(actions::StaticFile::Rename),
-                actions::Container::Settings(actions::StaticFile::Move),
-                actions::Container::Settings(actions::StaticFile::Copy),
-                actions::Container::Settings(actions::StaticFile::Repair),
+                state::actions::Container::Settings(state::actions::StaticFile::Remove),
+                state::actions::Container::Settings(state::actions::StaticFile::Rename),
+                state::actions::Container::Settings(state::actions::StaticFile::Move),
+                state::actions::Container::Settings(state::actions::StaticFile::Copy),
+                state::actions::Container::Settings(state::actions::StaticFile::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Container::Settings(actions::StaticFile::Remove),
-                actions::Container::Settings(actions::StaticFile::Rename),
-                actions::Container::Settings(actions::StaticFile::Move),
-                actions::Container::Settings(actions::StaticFile::Copy),
-                actions::Container::Settings(actions::StaticFile::Modify),
-                actions::Container::Settings(actions::StaticFile::Corrupt),
+                state::actions::Container::Settings(state::actions::StaticFile::Remove),
+                state::actions::Container::Settings(state::actions::StaticFile::Rename),
+                state::actions::Container::Settings(state::actions::StaticFile::Move),
+                state::actions::Container::Settings(state::actions::StaticFile::Copy),
+                state::actions::Container::Settings(state::actions::StaticFile::Modify),
+                state::actions::Container::Settings(state::actions::StaticFile::Corrupt),
             ]),
         }
 
         match &state.assets {
-            state::Resource::NotPresent => {
-                actions.push(actions::Container::Assets(actions::Manifest::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Container::Assets(
+                state::actions::Manifest::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Container::Assets(actions::Manifest::Remove),
-                actions::Container::Assets(actions::Manifest::Rename),
-                actions::Container::Assets(actions::Manifest::Move),
-                actions::Container::Assets(actions::Manifest::Copy),
-                actions::Container::Assets(actions::Manifest::Repair),
+                state::actions::Container::Assets(state::actions::Manifest::Remove),
+                state::actions::Container::Assets(state::actions::Manifest::Rename),
+                state::actions::Container::Assets(state::actions::Manifest::Move),
+                state::actions::Container::Assets(state::actions::Manifest::Copy),
+                state::actions::Container::Assets(state::actions::Manifest::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Container::Assets(actions::Manifest::Remove),
-                actions::Container::Assets(actions::Manifest::Rename),
-                actions::Container::Assets(actions::Manifest::Move),
-                actions::Container::Assets(actions::Manifest::Copy),
-                actions::Container::Assets(actions::Manifest::Corrupt),
-                actions::Container::Assets(actions::Manifest::Modify(actions::ModifyManifest::Add)),
-                actions::Container::Assets(actions::Manifest::Modify(
-                    actions::ModifyManifest::Remove,
+                state::actions::Container::Assets(state::actions::Manifest::Remove),
+                state::actions::Container::Assets(state::actions::Manifest::Rename),
+                state::actions::Container::Assets(state::actions::Manifest::Move),
+                state::actions::Container::Assets(state::actions::Manifest::Copy),
+                state::actions::Container::Assets(state::actions::Manifest::Corrupt),
+                state::actions::Container::Assets(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Add,
                 )),
-                actions::Container::Assets(actions::Manifest::Modify(
-                    actions::ModifyManifest::Alter,
+                state::actions::Container::Assets(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Remove,
+                )),
+                state::actions::Container::Assets(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Alter,
                 )),
             ]),
         }
@@ -468,88 +590,92 @@ impl Simulator {
         actions
     }
 
-    fn project_config_actions(state: &state::ProjectConfig) -> Vec<actions::Project> {
+    fn project_config_actions(state: &state::ProjectConfig) -> Vec<state::actions::Project> {
         let mut actions = vec![];
         match state.properties {
-            state::Resource::NotPresent => {
-                actions.push(actions::Project::Properties(actions::StaticFile::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Project::Properties(
+                state::actions::StaticFile::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Project::Properties(actions::StaticFile::Remove),
-                actions::Project::Properties(actions::StaticFile::Rename),
-                actions::Project::Properties(actions::StaticFile::Move),
-                actions::Project::Properties(actions::StaticFile::Copy),
-                actions::Project::Properties(actions::StaticFile::Modify),
-                actions::Project::Properties(actions::StaticFile::Repair),
+                state::actions::Project::Properties(state::actions::StaticFile::Remove),
+                state::actions::Project::Properties(state::actions::StaticFile::Rename),
+                state::actions::Project::Properties(state::actions::StaticFile::Move),
+                state::actions::Project::Properties(state::actions::StaticFile::Copy),
+                state::actions::Project::Properties(state::actions::StaticFile::Modify),
+                state::actions::Project::Properties(state::actions::StaticFile::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Project::Properties(actions::StaticFile::Remove),
-                actions::Project::Properties(actions::StaticFile::Rename),
-                actions::Project::Properties(actions::StaticFile::Move),
-                actions::Project::Properties(actions::StaticFile::Copy),
-                actions::Project::Properties(actions::StaticFile::Modify),
-                actions::Project::Properties(actions::StaticFile::Corrupt),
+                state::actions::Project::Properties(state::actions::StaticFile::Remove),
+                state::actions::Project::Properties(state::actions::StaticFile::Rename),
+                state::actions::Project::Properties(state::actions::StaticFile::Move),
+                state::actions::Project::Properties(state::actions::StaticFile::Copy),
+                state::actions::Project::Properties(state::actions::StaticFile::Modify),
+                state::actions::Project::Properties(state::actions::StaticFile::Corrupt),
             ]),
         }
 
         match state.settings {
-            state::Resource::NotPresent => {
-                actions.push(actions::Project::Settings(actions::StaticFile::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Project::Settings(
+                state::actions::StaticFile::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Project::Settings(actions::StaticFile::Remove),
-                actions::Project::Settings(actions::StaticFile::Rename),
-                actions::Project::Settings(actions::StaticFile::Move),
-                actions::Project::Settings(actions::StaticFile::Copy),
-                actions::Project::Settings(actions::StaticFile::Modify),
-                actions::Project::Settings(actions::StaticFile::Repair),
+                state::actions::Project::Settings(state::actions::StaticFile::Remove),
+                state::actions::Project::Settings(state::actions::StaticFile::Rename),
+                state::actions::Project::Settings(state::actions::StaticFile::Move),
+                state::actions::Project::Settings(state::actions::StaticFile::Copy),
+                state::actions::Project::Settings(state::actions::StaticFile::Modify),
+                state::actions::Project::Settings(state::actions::StaticFile::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Project::Settings(actions::StaticFile::Remove),
-                actions::Project::Settings(actions::StaticFile::Rename),
-                actions::Project::Settings(actions::StaticFile::Move),
-                actions::Project::Settings(actions::StaticFile::Copy),
-                actions::Project::Settings(actions::StaticFile::Modify),
-                actions::Project::Settings(actions::StaticFile::Corrupt),
+                state::actions::Project::Settings(state::actions::StaticFile::Remove),
+                state::actions::Project::Settings(state::actions::StaticFile::Rename),
+                state::actions::Project::Settings(state::actions::StaticFile::Move),
+                state::actions::Project::Settings(state::actions::StaticFile::Copy),
+                state::actions::Project::Settings(state::actions::StaticFile::Modify),
+                state::actions::Project::Settings(state::actions::StaticFile::Corrupt),
             ]),
         }
 
         match state.analyses {
-            state::Resource::NotPresent => {
-                actions.push(actions::Project::Analyses(actions::Manifest::Create))
-            }
+            state::Resource::NotPresent => actions.push(state::actions::Project::Analyses(
+                state::actions::Manifest::Create,
+            )),
 
             state::Resource::Invalid => actions.extend(vec![
-                actions::Project::Analyses(actions::Manifest::Remove),
-                actions::Project::Analyses(actions::Manifest::Rename),
-                actions::Project::Analyses(actions::Manifest::Move),
-                actions::Project::Analyses(actions::Manifest::Copy),
-                actions::Project::Analyses(actions::Manifest::Repair),
+                state::actions::Project::Analyses(state::actions::Manifest::Remove),
+                state::actions::Project::Analyses(state::actions::Manifest::Rename),
+                state::actions::Project::Analyses(state::actions::Manifest::Move),
+                state::actions::Project::Analyses(state::actions::Manifest::Copy),
+                state::actions::Project::Analyses(state::actions::Manifest::Repair),
             ]),
 
             state::Resource::Valid => actions.extend(vec![
-                actions::Project::Analyses(actions::Manifest::Remove),
-                actions::Project::Analyses(actions::Manifest::Rename),
-                actions::Project::Analyses(actions::Manifest::Move),
-                actions::Project::Analyses(actions::Manifest::Copy),
-                actions::Project::Analyses(actions::Manifest::Corrupt),
-                actions::Project::Analyses(actions::Manifest::Modify(actions::ModifyManifest::Add)),
-                actions::Project::Analyses(actions::Manifest::Modify(
-                    actions::ModifyManifest::Remove,
+                state::actions::Project::Analyses(state::actions::Manifest::Remove),
+                state::actions::Project::Analyses(state::actions::Manifest::Rename),
+                state::actions::Project::Analyses(state::actions::Manifest::Move),
+                state::actions::Project::Analyses(state::actions::Manifest::Copy),
+                state::actions::Project::Analyses(state::actions::Manifest::Corrupt),
+                state::actions::Project::Analyses(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Add,
                 )),
-                actions::Project::Analyses(actions::Manifest::Modify(
-                    actions::ModifyManifest::Alter,
+                state::actions::Project::Analyses(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Remove,
+                )),
+                state::actions::Project::Analyses(state::actions::Manifest::Modify(
+                    state::actions::ModifyManifest::Alter,
                 )),
             ]),
         }
 
         actions
     }
+}
 
+impl Simulator {
     fn perform_actions(&self, actions: Vec<state::Action>) -> Result<(), io::Error> {
         Ok(())
     }
@@ -558,7 +684,8 @@ impl Simulator {
 #[derive(Default)]
 pub struct State {
     current_tick: usize,
-    pub app: state::App,
+    pub app: state::app::State,
+    pub fs: state::fs::State,
 }
 
 impl State {

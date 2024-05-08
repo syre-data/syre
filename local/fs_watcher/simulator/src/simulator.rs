@@ -51,8 +51,12 @@ impl Simulator {
     pub fn run(&mut self) {
         while self.state.current_tick < self.options.max_ticks() {
             let action_count = self.rng.gen_range(self.options.action_count_range());
-            let (actions, expected_state) =
-                Self::choose_actions(action_count, self.state.fs.clone(), &mut self.rng);
+            let (actions, app_state_expected, fs_state_expected) = Self::choose_actions(
+                action_count,
+                self.state.app.clone(),
+                self.state.fs.clone(),
+                &mut self.rng,
+            );
 
             tracing::debug!(?actions);
             self.perform_actions(actions);
@@ -169,25 +173,30 @@ impl Simulator {
     /// where the final state should be the state of the app after applying all actions.
     fn choose_actions<R>(
         num: u8,
-        mut state: state::app::State,
-        options: &Options,
+        mut app_state: state::app::State,
+        mut fs_state: state::fs::State,
         rng: &mut R,
-    ) -> (Vec<state::Action>, state::app::State)
+    ) -> (Vec<state::Action>, state::app::State, state::fs::State)
     where
         R: rand::Rng,
     {
         let num = num as usize;
         let mut actions = Vec::with_capacity(num);
         while actions.len() < num {
-            let action = Self::choose_action(&state, options, rng);
-            state.transition(&action).unwrap();
+            let action = Self::choose_action(&app_state, &fs_state, rng);
+            app_state.transition(&action).unwrap();
+            fs_state.transition(&action).unwrap();
             actions.push(action);
         }
 
-        (actions, state)
+        (actions, app_state, fs_state)
     }
 
-    fn choose_action<R>(state: &state::app::State, options: &Options, rng: &mut R) -> state::Action
+    fn choose_action<R>(
+        app_state: &state::app::State,
+        fs_state: &state::fs::State,
+        rng: &mut R,
+    ) -> state::Action
     where
         R: rand::Rng,
     {
@@ -198,8 +207,8 @@ impl Simulator {
 
     /// Returns a list of all valid actions given a state.
     fn valid_actions<R>(
-        state: &state::app::State,
-        options: &Options,
+        app_state: &state::app::State,
+        fs_state: &state::fs::State,
         rng: &mut R,
     ) -> Vec<state::Action>
     where

@@ -231,7 +231,7 @@ impl State {
                     actions::Project::Project(action) => match action {
                         actions::Dir::Create(path) => {
                             self.projects
-                                .push((Project::with_id(pid.clone()), path.clone()));
+                                .push(Project::with_id(path.clone(), pid.clone()));
 
                             Ok(())
                         }
@@ -421,30 +421,28 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            path: path.into(),
+            config: Reference::default(),
+            analyses: None,
+            graph: Reference::<Graph>::default(),
+        }
     }
 
-    pub fn with_id(rid: ResourceId) -> Self {
+    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
-            ..Default::default()
+            path: path.into(),
+            config: Reference::default(),
+            analyses: None,
+            graph: Reference::<Graph>::default(),
         }
     }
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
-    }
-}
-
-impl Default for Project {
-    fn default() -> Self {
-        Self {
-            rid: ResourceId::new(),
-            config: Reference::default(),
-            analyses: None,
-            graph: Reference::<Graph>::default(),
-        }
     }
 }
 
@@ -486,10 +484,20 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn new(rid: ResourceId, config: Reference<ContainerConfig>) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            path: path.into(),
+            config: Reference::NotPresent,
+            assets: vec![],
+        }
+    }
+
+    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
-            config,
+            path: path.into(),
+            config: Reference::NotPresent,
             assets: vec![],
         }
     }

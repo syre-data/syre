@@ -72,7 +72,10 @@ impl FsWatcher {
         let (fs_tx, fs_rx) = crossbeam::channel::unbounded();
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
         let mut file_system_actor = FileSystemActor::new(fs_tx, fs_command_rx);
-        thread::spawn(move || file_system_actor.run());
+        thread::Builder::new()
+            .name("syre file system watcher actor".to_string())
+            .spawn(move || file_system_actor.run())
+            .unwrap();
 
         Self {
             event_tx,
@@ -98,7 +101,7 @@ impl FsWatcher {
                 recv(self.command_rx) -> cmd => match cmd {
                     Ok(cmd) => self.handle_command(cmd),
                     Err(err) => {
-                        tracing::error!(?err);
+                        tracing::error!("command rx channel closed, shutting down");
                         return Err(err);
                     }
                 },
@@ -106,15 +109,10 @@ impl FsWatcher {
                 recv(self.event_rx) -> events => match events {
                     Ok(events) => self.handle_events(events),
                     Err(err) => {
-                        tracing::error!(?err);
-                        break;
+                        tracing::error!("event rx channel closed, shutting down");
+                        return Err(err);
                     }
                 },
-
-                default => {
-                    tracing::error!("channels closed, shutting down");
-                    break;
-                }
             }
         }
 
@@ -122,21 +120,58 @@ impl FsWatcher {
     }
 
     fn handle_command(&self, command: Command) {
+        tracing::debug!(?command);
         match command {
             Command::Watch(path) => {
-                let mut file_ids = self.file_ids.lock().unwrap();
-                file_ids.add_root(path.clone(), notify::RecursiveMode::Recursive);
-                if let Err(err) = self.command_tx.send(WatcherCommand::Watch(path)) {
+                let (tx, rx) = crossbeam::channel::bounded(1);
+                if let Err(err) = self.command_tx.send(WatcherCommand::Watch {
+                    path: path.clone(),
+                    tx,
+                }) {
                     tracing::error!(?err);
                 };
+
+                let res = match rx.recv() {
+                    Ok(res) => res,
+                    Err(err) => {
+                        tracing::error!(?err);
+                        return;
+                    }
+                };
+
+                if let Err(err) = res {
+                    tracing::error!(?err);
+                    return;
+                }
+
+                let mut file_ids = self.file_ids.lock().unwrap();
+                file_ids.add_root(path, notify::RecursiveMode::Recursive);
             }
 
             Command::Unwatch(path) => {
-                let mut file_ids = self.file_ids.lock().unwrap();
-                file_ids.remove_root(&path);
-                if let Err(err) = self.command_tx.send(WatcherCommand::Unwatch(path)) {
+                let (tx, rx) = crossbeam::channel::bounded(1);
+                if let Err(err) = self.command_tx.send(WatcherCommand::Unwatch {
+                    path: path.clone(),
+                    tx,
+                }) {
                     tracing::error!(?err);
                 };
+
+                let res = match rx.recv() {
+                    Ok(res) => res,
+                    Err(err) => {
+                        tracing::error!(?err);
+                        return;
+                    }
+                };
+
+                if let Err(err) = res {
+                    tracing::error!(?err);
+                    return;
+                }
+
+                let mut file_ids = self.file_ids.lock().unwrap();
+                file_ids.remove_root(&path);
             }
 
             Command::FinalPath { path, tx } => {

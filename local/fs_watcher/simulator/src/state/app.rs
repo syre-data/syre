@@ -2,6 +2,7 @@ use super::{
     actions,
     graph::{self, Tree},
 };
+use has_id::HasId;
 use std::{ops::Deref, path::PathBuf};
 use syre_core::types::ResourceId;
 
@@ -9,7 +10,6 @@ use syre_core::types::ResourceId;
 pub struct State {
     pub user_manifest: Resource,
     pub project_manifest: Resource,
-    pub watched: Vec<PathBuf>,
     pub projects: Vec<Project>,
 }
 
@@ -46,47 +46,40 @@ impl State {
 
 impl State {
     pub fn transition(&mut self, action: &actions::Action) -> Result<(), error::Transition> {
+        use actions::Action;
         match action {
-            actions::Action::App(actions::AppResource::UserManifest(action)) => {
-                self.handle_user_manifest_action(action)
+            Action::App(actions::AppResource::UserManifest(action)) => {
+                self.handle_action_user_manifest(action)
             }
 
-            actions::Action::App(actions::AppResource::ProjectManifest(action)) => {
-                self.handle_project_manifest_action(action)
+            Action::App(actions::AppResource::ProjectManifest(action)) => {
+                self.handle_action_project_manifest(action)
             }
 
-            actions::Action::Project { project, action } => {
-                self.handle_project_resource_action(&project, &action)
-            }
+            Action::CreateProject { id, path } => {
+                self.projects
+                    .push(Project::with_id(path.clone(), id.clone()));
 
-            actions::Action::Watch(path) => {
-                if self.watched.iter().any(|p| p == path) {
-                    return Err(error::Transition::AlreadyInState);
-                }
-
-                self.watched.push(path.clone());
                 Ok(())
             }
 
-            actions::Action::Unwatch(path) => {
-                let Some(index) = self.watched.iter().position(|p| p == path) else {
-                    return Err(error::Transition::AlreadyInState);
-                };
-
-                self.watched.swap_remove(index);
-                Ok(())
+            Action::Project { project, action } => {
+                self.handle_action_project_resource(&project, &action)
             }
+
+            Action::Watch(_) => Ok(()),
+            Action::Unwatch(_) => Ok(()),
         }
     }
 
-    fn handle_user_manifest_action(
+    fn handle_action_user_manifest(
         &mut self,
         action: &actions::Manifest,
     ) -> Result<(), error::Transition> {
         match action {
             actions::Manifest::Create => match self.user_manifest {
                 Resource::NotPresent => {
-                    self.user_manifest = Resource::Valid;
+                    self.user_manifest = Resource::Valid(());
                     Ok(())
                 }
                 _ => Err(error::Transition::InvalidAction),
@@ -100,7 +93,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Rename(_) => match self.user_manifest {
+            actions::Manifest::Rename => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.user_manifest = Resource::NotPresent;
@@ -108,7 +101,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Move(_) => match self.user_manifest {
+            actions::Manifest::Move => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.user_manifest = Resource::NotPresent;
@@ -116,7 +109,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Copy(_) => match self.user_manifest {
+            actions::Manifest::Copy => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     return Ok(());
@@ -126,7 +119,7 @@ impl State {
             actions::Manifest::Corrupt => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => Err(error::Transition::AlreadyInState),
-                Resource::Valid => {
+                Resource::Valid(_) => {
                     self.user_manifest = Resource::Invalid;
                     Ok(())
                 }
@@ -135,27 +128,27 @@ impl State {
             actions::Manifest::Repair => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => {
-                    self.user_manifest = Resource::Valid;
+                    self.user_manifest = Resource::Valid(());
                     Ok(())
                 }
-                Resource::Valid => Err(error::Transition::AlreadyInState),
+                Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            actions::Manifest::Modify(_) => match self.user_manifest {
+            actions::Manifest::Modify(kind) => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
         }
     }
 
-    fn handle_project_manifest_action(
+    fn handle_action_project_manifest(
         &mut self,
         action: &actions::Manifest,
     ) -> Result<(), error::Transition> {
         match action {
             actions::Manifest::Create => match self.project_manifest {
                 Resource::NotPresent => {
-                    self.project_manifest = Resource::Valid;
+                    self.project_manifest = Resource::Valid(());
                     Ok(())
                 }
                 _ => Err(error::Transition::InvalidAction),
@@ -169,7 +162,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Rename(_) => match self.project_manifest {
+            actions::Manifest::Rename => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.project_manifest = Resource::NotPresent;
@@ -177,7 +170,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Move(_) => match self.project_manifest {
+            actions::Manifest::Move => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.project_manifest = Resource::NotPresent;
@@ -185,7 +178,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Copy(_) => match self.project_manifest {
+            actions::Manifest::Copy => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     return Ok(());
@@ -195,7 +188,7 @@ impl State {
             actions::Manifest::Corrupt => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => Err(error::Transition::AlreadyInState),
-                Resource::Valid => {
+                Resource::Valid(_) => {
                     self.project_manifest = Resource::Invalid;
                     Ok(())
                 }
@@ -204,81 +197,68 @@ impl State {
             actions::Manifest::Repair => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => {
-                    self.project_manifest = Resource::Valid;
+                    self.project_manifest = Resource::Valid(());
                     Ok(())
                 }
-                Resource::Valid => Err(error::Transition::AlreadyInState),
+                Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            actions::Manifest::Modify(_) => match self.project_manifest {
+            actions::Manifest::Modify(kind) => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
         }
     }
 
-    fn handle_project_resource_action(
+    fn handle_action_project_resource(
         &mut self,
         pid: &ResourceId,
         action: &actions::ProjectResource,
     ) -> Result<(), error::Transition> {
+        use super::actions::{Project, ProjectResource, ResourceDir, StaticDir};
+
         let project = self.find_project_mut(pid);
         match action {
-            actions::ProjectResource::Project(action) => {
-                // when creating a new project, it will not yet be in the state,
-                // otherwise it should be.
-                match action {
-                    actions::Project::Project(action) => match action {
-                        actions::Dir::Create(path) => {
-                            self.projects
-                                .push(Project::with_id(path.clone(), pid.clone()));
-
-                            Ok(())
-                        }
-
-                        actions::Dir::Remove => {
-                            self.remove_project(pid).unwrap();
-                            Ok(())
-                        }
-
-                        actions::Dir::Rename(path) => {
-                            let Some(watched) = self.watched.iter_mut().find(|p| *p == path) else {
-                                return Err(error::Transition::InvalidAction);
-                            };
-
-                            *watched = path.to_path_buf();
-                            Ok(())
-                        }
-
-                        actions::Dir::Move(path) => {
-                            let Some(watched) = self.watched.iter_mut().find(|p| *p == path) else {
-                                return Err(error::Transition::InvalidAction);
-                            };
-
-                            *watched = path.to_path_buf();
-                            Ok(())
-                        }
-
-                        actions::Dir::Copy(_) => Ok(()),
-                    },
-
-                    actions::Project::ConfigDir(actions::StaticDir::Remove)
-                    | actions::Project::ConfigDir(actions::StaticDir::Rename(_))
-                    | actions::Project::ConfigDir(actions::StaticDir::Move(_)) => {
+            ProjectResource::Project(action) => match action {
+                Project::Project(action) => match action {
+                    ResourceDir::Remove => {
                         self.remove_project(pid).unwrap();
                         Ok(())
                     }
 
-                    _ => {
-                        let project = project.unwrap();
-                        Self::handle_project_action(project, action)
+                    ResourceDir::Rename { to } => {
+                        project.unwrap().path = to.clone();
+                        Ok(())
                     }
+
+                    ResourceDir::Move { to } => {
+                        project.unwrap().path = to.clone();
+                        Ok(())
+                    }
+
+                    ResourceDir::Copy { to } => Ok(()),
+                },
+
+                Project::ConfigDir(StaticDir::Remove)
+                | Project::ConfigDir(StaticDir::Rename)
+                | Project::ConfigDir(StaticDir::Move) => {
+                    project.unwrap().config = Reference::NotPresent;
+                    Ok(())
                 }
+
+                _ => {
+                    let project = project.unwrap();
+                    Self::handle_action_project(project, action)
+                }
+            },
+
+            ProjectResource::CreateContainer { parent, name } => {
+                todo!();
             }
 
-            actions::ProjectResource::Container { container, action } => {
+            ProjectResource::Container { container, action } => {
                 let project = project.unwrap();
-                match &project.graph {
+                match &project.data {
                     Reference::NotPresent => Err(error::Transition::InvalidAction),
                     Reference::Present(graph) => {
                         let container = graph
@@ -286,18 +266,20 @@ impl State {
                             .iter()
                             .find(|node| node.borrow().rid() == container);
 
-                        Self::handle_container_action(container, action)
+                        Self::handle_action_container(container, action)
                     }
                 }
             }
 
-            actions::ProjectResource::AssetFile {
+            ProjectResource::CreateAssetFile { container, name } => todo!(),
+
+            ProjectResource::AssetFile {
                 container,
                 asset,
                 action,
             } => {
                 let project = project.unwrap();
-                match &project.graph {
+                match &project.data {
                     Reference::NotPresent => Err(error::Transition::InvalidAction),
                     Reference::Present(graph) => {
                         let container = graph
@@ -306,22 +288,24 @@ impl State {
                             .find(|node| node.borrow().rid() == container)
                             .unwrap();
 
-                        Self::handle_asset_file_action(container, action)
+                        Self::handle_action_asset_file(container, action)
                     }
                 }
             }
         }
     }
 
-    fn handle_project_action(
+    fn handle_action_project(
         project: &mut Project,
         action: &actions::Project,
     ) -> Result<(), error::Transition> {
+        use actions::{Dir, Project, StaticDir};
+
         match action {
-            actions::Project::Project(_) => unreachable!("handled elsewhere"),
-            actions::Project::ConfigDir(action) => match project.config {
+            Project::Project(_) => unreachable!("handled elsewhere"),
+            Project::ConfigDir(action) => match project.config {
                 Reference::NotPresent => match action {
-                    actions::StaticDir::Create => {
+                    StaticDir::Create => {
                         project.config = Reference::Present(ProjectConfig::default());
                         Ok(())
                     }
@@ -330,45 +314,85 @@ impl State {
                 },
 
                 Reference::Present(_) => match action {
-                    actions::StaticDir::Create => Err(error::Transition::AlreadyInState),
-                    actions::StaticDir::Remove
-                    | actions::StaticDir::Rename(_)
-                    | actions::StaticDir::Move(_) => unreachable!("handled elsewhere"),
+                    StaticDir::Create => Err(error::Transition::AlreadyInState),
+                    StaticDir::Remove | StaticDir::Rename | StaticDir::Move => {
+                        unreachable!("handled elsewhere")
+                    }
 
-                    actions::StaticDir::Copy(_) => Ok(()),
+                    StaticDir::Copy => Ok(()),
                 },
             },
 
-            actions::Project::AnalysisDir(action) => match action {
+            Project::AnalysisDir(action) => match action {
+                Dir::Create { path } => {
+                    project.analyses = Some(Reference::Present(path.clone()));
+                    Ok(())
+                }
+
+                Dir::Remove => {
+                    assert!(project.analyses.is_some());
+                    project.analyses = None;
+                    Ok(())
+                }
+
+                Dir::Rename { to } => {
+                    assert!(project.analyses.is_some());
+                    project.analyses = Some(Reference::Present(to.clone()));
+                    Ok(())
+                }
+
+                Dir::Move { to } => {
+                    assert!(project.analyses.is_some());
+                    project.analyses = Some(Reference::Present(to.clone()));
+                    Ok(())
+                }
+
+                Dir::Copy { .. } => {
+                    assert!(project.analyses.is_some());
+                    Ok(())
+                }
+            },
+
+            Project::DataDir(action) => match action {
+                Dir::Create { path } => {
+                    project.data = Reference::Present(Data::new(path));
+                    Ok(())
+                }
+
+                Dir::Remove => {
+                    project.data = Reference::NotPresent;
+                    Ok(())
+                }
+
+                Dir::Rename { to } => Ok(()),
+
+                Dir::Move { to } => Ok(()),
+
+                Dir::Copy { .. } => Ok(()),
+            },
+
+            Project::Properties(action) => match action {
                 _ => todo!(),
             },
 
-            actions::Project::DataDir(action) => match action {
+            Project::Settings(action) => match action {
                 _ => todo!(),
             },
 
-            actions::Project::Properties(action) => match action {
-                _ => todo!(),
-            },
-
-            actions::Project::Settings(action) => match action {
-                _ => todo!(),
-            },
-
-            actions::Project::Analyses(action) => match action {
+            Project::Analyses(action) => match action {
                 _ => todo!(),
             },
         }
     }
 
-    fn handle_container_action(
+    fn handle_action_container(
         container: Option<&graph::Node<Container>>,
         action: &actions::Container,
     ) -> Result<(), error::Transition> {
         todo!()
     }
 
-    fn handle_asset_file_action(
+    fn handle_action_asset_file(
         container: &graph::Node<Container>,
         action: &actions::AssetFile,
     ) -> Result<(), error::Transition> {
@@ -378,9 +402,9 @@ impl State {
 
 /// State of a configuration resource.
 #[derive(Clone, Debug)]
-pub enum Resource {
+pub enum Resource<T = ()> {
     /// The resource is valid and presesnt.
-    Valid,
+    Valid(T),
 
     /// The resource is present, but invalid.
     Invalid,
@@ -411,13 +435,16 @@ impl<R> Default for Reference<R> {
 #[derive(Clone, Debug)]
 pub struct Project {
     rid: ResourceId,
+
+    /// Path to the project's base directory.
     pub path: PathBuf,
+
     pub config: Reference<ProjectConfig>,
 
     /// Analyses directory.
     /// `Option` variant matches that set by the project.
-    pub analyses: Option<Reference>,
-    pub graph: Reference<Graph>,
+    pub analyses: Option<Reference<PathBuf>>,
+    pub data: Reference<Data>,
 }
 
 impl Project {
@@ -427,7 +454,7 @@ impl Project {
             path: path.into(),
             config: Reference::default(),
             analyses: None,
-            graph: Reference::<Graph>::default(),
+            data: Reference::<Data>::default(),
         }
     }
 
@@ -437,7 +464,7 @@ impl Project {
             path: path.into(),
             config: Reference::default(),
             analyses: None,
-            graph: Reference::<Graph>::default(),
+            data: Reference::<Data>::default(),
         }
     }
 
@@ -453,34 +480,49 @@ pub struct ProjectConfig {
     pub analyses: Resource,
 }
 
-#[derive(Debug)]
-pub struct Graph {
-    pub root_path: PathBuf,
-    pub inner: Tree<Container>,
+#[derive(Clone, Default, Debug)]
+pub struct ProjectProperties {
+    state: Resource,
 }
 
-impl Clone for Graph {
+#[derive(Debug)]
+pub struct Data {
+    pub graph: Tree<Container>,
+}
+
+impl Data {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            graph: Tree::new(Container::new(path)),
+        }
+    }
+
+    pub fn root_path(&self) -> PathBuf {
+        self.root().borrow().path.clone()
+    }
+}
+
+impl Clone for Data {
     fn clone(&self) -> Self {
         Self {
-            root_path: self.root_path.clone(),
-            inner: self.inner.duplicate(),
+            graph: self.graph.duplicate(),
         }
     }
 }
 
-impl Deref for Graph {
+impl Deref for Data {
     type Target = Tree<Container>;
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.graph
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, HasId)]
 pub struct Container {
+    #[id]
     rid: ResourceId,
     pub path: PathBuf,
     pub config: Reference<ContainerConfig>,
-    pub assets: Vec<Asset>,
 }
 
 impl Container {
@@ -489,7 +531,6 @@ impl Container {
             rid: ResourceId::new(),
             path: path.into(),
             config: Reference::NotPresent,
-            assets: vec![],
         }
     }
 
@@ -498,33 +539,61 @@ impl Container {
             rid,
             path: path.into(),
             config: Reference::NotPresent,
-            assets: vec![],
         }
     }
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
     }
+
+    pub fn find_asset(&self, id: &ResourceId) -> Option<&Asset> {
+        let Reference::Present(config) = &self.config else {
+            return None;
+        };
+
+        let Resource::Valid(assets) = &config.assets else {
+            return None;
+        };
+
+        assets.iter().find(|asset| asset.rid() == id)
+    }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct ContainerConfig {
     pub properties: Resource,
     pub settings: Resource,
-    pub assets: Resource,
+    pub assets: Resource<Vec<Asset>>,
+}
+
+impl Default for ContainerConfig {
+    fn default() -> Self {
+        Self {
+            properties: Resource::NotPresent,
+            settings: Resource::NotPresent,
+            assets: Resource::NotPresent,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Asset {
     rid: ResourceId,
 
+    /// The
+    pub path: PathBuf,
+
     /// Whether the referenced file is present.
     pub file: Reference,
 }
 
 impl Asset {
-    pub fn new(rid: ResourceId, file: Reference) -> Self {
-        Self { rid, file }
+    pub fn new(rid: ResourceId, path: impl Into<PathBuf>) -> Self {
+        Self {
+            rid,
+            path: path.into(),
+            file: Reference::NotPresent,
+        }
     }
 
     pub fn rid(&self) -> &ResourceId {

@@ -232,9 +232,14 @@ mod linux {
 
         pub fn run(&mut self) {
             loop {
-                match self.command_rx.recv().unwrap() {
-                    Command::Watch(path) => self.watch(path),
-                    Command::Unwatch(path) => self.unwatch(path),
+                let cmd = match self.command_rx.recv() {
+                    Ok(cmd) => cmd,
+                    Err(err) => break,
+                };
+
+                match cmd {
+                    Command::Watch { path, tx } => self.watch(path, tx),
+                    Command::Unwatch { path, tx } => self.unwatch(path, tx),
                     Command::FileId { path, tx } => {
                         if let Err(err) =
                             tx.send(self.watcher.cache().cached_file_id(&path).cloned())
@@ -244,24 +249,43 @@ mod linux {
                     }
                 }
             }
+
+            tracing::debug!("command channel closed, shutting down");
         }
 
-        fn watch(&mut self, path: impl AsRef<Path>) {
+        fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher
-                .watcher()
-                .watch(path, RecursiveMode::Recursive)
-                .unwrap();
+            if let Err(err) = self.watcher.watcher().watch(path, RecursiveMode::Recursive) {
+                if let Err(err) = tx.send(Err(err)) {
+                    tracing::error!(?err);
+                }
+
+                return;
+            }
 
             self.watcher
                 .cache()
                 .add_root(path, RecursiveMode::Recursive);
+
+            if let Err(err) = tx.send(Ok(())) {
+                tracing::error!(?err);
+            }
         }
 
-        fn unwatch(&mut self, path: impl AsRef<Path>) {
+        fn unwatch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher.watcher().unwatch(path).unwrap();
+            if let Err(err) = self.watcher.watcher().unwatch(path) {
+                if let Err(err) = tx.send(Err(err)) {
+                    tracing::error!(?err);
+                }
+
+                return;
+            }
+
             self.watcher.cache().remove_root(path);
+            if let Err(err) = tx.send(Ok(())) {
+                tracing::error!(?err);
+            }
         }
 
         /// Gets the final path of a file.

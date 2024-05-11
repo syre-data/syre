@@ -2,6 +2,7 @@ use crossbeam::channel::Sender;
 use file_id::FileId;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub enum Command {
     Watch(PathBuf),
     Unwatch(PathBuf),
@@ -17,8 +18,16 @@ pub enum Command {
 }
 
 pub(crate) enum WatcherCommand {
-    Watch(PathBuf),
-    Unwatch(PathBuf),
+    Watch {
+        path: PathBuf,
+        tx: Sender<notify::Result<()>>,
+    },
+
+    Unwatch {
+        path: PathBuf,
+        tx: Sender<notify::Result<()>>,
+    },
+
     FileId {
         path: PathBuf,
         tx: Sender<Option<FileId>>,

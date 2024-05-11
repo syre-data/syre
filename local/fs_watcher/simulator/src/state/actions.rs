@@ -7,6 +7,9 @@ pub enum Action {
     #[from]
     App(AppResource),
 
+    /// Create a new project.
+    CreateProject { id: ResourceId, path: PathBuf },
+
     #[from]
     Project {
         project: ResourceId,
@@ -28,10 +31,20 @@ pub enum AppResource {
 
 #[derive(Debug, derive_more::From)]
 pub enum ProjectResource {
+    #[from]
     Project(Project),
+
+    /// Create a new Container.
+    CreateContainer { parent: ResourceId, name: PathBuf },
     Container {
         container: ResourceId,
         action: Container,
+    },
+
+    /// Create a new asset file.
+    CreateAssetFile {
+        container: ResourceId,
+        name: PathBuf,
     },
 
     AssetFile {
@@ -44,7 +57,7 @@ pub enum ProjectResource {
 #[derive(Debug)]
 pub enum Project {
     /// Project base directory.
-    Project(Dir),
+    Project(ResourceDir),
 
     /// Project's analysis directory.
     AnalysisDir(Dir),
@@ -52,7 +65,7 @@ pub enum Project {
     /// Project's data directory.
     DataDir(Dir),
 
-    /// prOject configuration directory (.syre).
+    /// Project configuration directory (.syre).
     ConfigDir(StaticDir),
 
     /// Project properties file.
@@ -68,7 +81,7 @@ pub enum Project {
 #[derive(Debug)]
 pub enum Container {
     /// Container base directory.
-    Container(Dir),
+    Container(ResourceDir),
     ConfigDir(StaticDir),
     Properties(StaticFile),
     Settings(StaticFile),
@@ -76,32 +89,38 @@ pub enum Container {
 }
 
 #[derive(Debug)]
-pub enum Dir {
-    Create(PathBuf),
+pub enum ResourceDir {
     Remove,
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename { to: PathBuf },
+    Move { to: PathBuf },
+    Copy { to: PathBuf },
+}
+
+#[derive(Debug)]
+pub enum Dir {
+    Create { path: PathBuf },
+    Remove,
+    Rename { to: PathBuf },
+    Move { to: PathBuf },
+    Copy { to: PathBuf },
 }
 
 #[derive(Debug)]
 pub enum StaticDir {
     Create,
     Remove,
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename,
+    Move,
+    Copy,
 }
 
 #[derive(Debug)]
 pub enum File {
-    Create(PathBuf),
+    Create,
     Remove,
-
-    /// Rename to the given file name.
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename,
+    Move,
+    Copy,
     Corrupt,
     Repair,
     Modify,
@@ -111,9 +130,9 @@ pub enum File {
 pub enum StaticFile {
     Create,
     Remove,
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename,
+    Move,
+    Copy,
     Corrupt,
     Repair,
     Modify,
@@ -123,11 +142,9 @@ pub enum StaticFile {
 pub enum Manifest {
     Create,
     Remove,
-
-    /// Rename to the given file name.
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename,
+    Move,
+    Copy,
     Corrupt,
     Repair,
     Modify(ModifyManifest),
@@ -169,12 +186,9 @@ impl Distribution<MoveKind> for distributions::Standard {
 
 #[derive(Debug)]
 pub enum AssetFile {
-    Create(PathBuf),
     Remove,
-
-    /// Rename to the given file name.
-    Rename(PathBuf),
-    Move(PathBuf),
-    Copy(PathBuf),
+    Rename,
+    Move,
+    Copy,
     Modify,
 }

@@ -27,17 +27,20 @@ impl EventValidator {
     pub fn run(&mut self) -> Result<(), ()> {
         loop {
             select! {
-                recv(self.watcher_rx) -> events => match events{
-                    Ok(events) =>
-                    self.handle_watcher_events(events)?,
-                    Err(err) =>
-                        return Err(()),
-
+                recv(self.watcher_rx) -> events => match events {
+                    Ok(events) => self.handle_watcher_events(events)?,
+                    Err(err) => {
+                        tracing::error!("watcher: {err:}");
+                        return Err(());
+                    }
                 },
 
                 recv(self.expected_rx) -> events => match events {
                     Ok(events) => self.handle_expected_events(events),
-                    Err(err) => return Err(()),
+                    Err(err) => {
+                        tracing::error!("simulator: {err:}");
+                        return Err(());
+                    }
                 },
 
                 default => self.validate_events()
@@ -67,9 +70,7 @@ impl EventValidator {
 }
 
 impl EventValidator {
-    fn validate_events(&self) {
-        //
-    }
+    fn validate_events(&self) {}
 }
 
 pub mod error {

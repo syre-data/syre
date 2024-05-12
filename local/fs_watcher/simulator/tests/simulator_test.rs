@@ -1,4 +1,3 @@
-use std::fs;
 use syre_fs_watcher_simulator as simulator;
 
 #[test_log::test]
@@ -14,6 +13,7 @@ fn test_simulator() {
             .unwrap();
 
     let mut options = simulator::options::Builder::new(base_dir.path().to_path_buf());
+    options.set_max_ticks(10);
     options.set_user_manifest(
         user_manifest
             .path()
@@ -30,9 +30,6 @@ fn test_simulator() {
             .to_path_buf(),
     );
 
-    options.set_max_ticks(10);
-
-    let options = options.build();
-    let mut sim = simulator::Simulator::new(options);
+    let mut sim = simulator::Simulator::new(options.build());
     sim.run();
 }

@@ -1,3 +1,5 @@
+use crate::state::action::ModifyManifest;
+
 use super::{
     action,
     graph::{self, Tree},
@@ -49,11 +51,11 @@ impl State {
         use action::Action;
         match action {
             Action::App(action::AppResource::UserManifest(action)) => {
-                self.handle_action_user_manifest(action)
+                self.transition_user_manifest(action)
             }
 
             Action::App(action::AppResource::ProjectManifest(action)) => {
-                self.handle_action_project_manifest(action)
+                self.transition_project_manifest(action)
             }
 
             Action::CreateProject { id, path } => {
@@ -64,7 +66,7 @@ impl State {
             }
 
             Action::Project { project, action } => {
-                self.handle_action_project_resource(&project, &action)
+                self.transition_project_resource(&project, &action)
             }
 
             Action::Watch(_) => Ok(()),
@@ -72,7 +74,7 @@ impl State {
         }
     }
 
-    fn handle_action_user_manifest(
+    fn transition_user_manifest(
         &mut self,
         action: &action::Manifest,
     ) -> Result<(), error::Transition> {
@@ -141,7 +143,7 @@ impl State {
         }
     }
 
-    fn handle_action_project_manifest(
+    fn transition_project_manifest(
         &mut self,
         action: &action::Manifest,
     ) -> Result<(), error::Transition> {
@@ -210,7 +212,7 @@ impl State {
         }
     }
 
-    fn handle_action_project_resource(
+    fn transition_project_resource(
         &mut self,
         pid: &ResourceId,
         action: &action::ProjectResource,
@@ -248,30 +250,106 @@ impl State {
 
                 _ => {
                     let project = project.unwrap();
-                    Self::handle_action_project(project, action)
+                    Self::transition_project(project, action)
                 }
             },
 
-            ProjectResource::CreateContainer { parent, name } => {
-                todo!();
+            ProjectResource::CreateDataDir { id, path } => {
+                let data = Data::with_id(path, id.clone());
+                let root = data.root();
+                root.borrow_mut().config = Reference::Present(ContainerConfig {
+                    properties: Resource::Valid(()),
+                    settings: Resource::Valid(()),
+                    assets: Resource::Valid(vec![]),
+                });
+
+                project.unwrap().data = Reference::Present(data);
+                Ok(())
+            }
+
+            ProjectResource::CreateContainer { parent, id, name } => {
+                let project = project.unwrap();
+                let Reference::Present(data) = &mut project.data else {
+                    unreachable!();
+                };
+
+                let parent = data.find(parent).unwrap().clone();
+                let mut container = Container::with_id(name, id.clone());
+                let config = ContainerConfig {
+                    properties: Resource::Valid(()),
+                    settings: Resource::Valid(()),
+                    assets: Resource::Valid(vec![]),
+                };
+
+                container.config = Reference::Present(config);
+                data.graph.insert(container, &parent).unwrap();
+                Ok(())
             }
 
             ProjectResource::Container { container, action } => {
                 let project = project.unwrap();
-                match &project.data {
+                match &mut project.data {
                     Reference::NotPresent => Err(error::Transition::InvalidAction),
-                    Reference::Present(graph) => {
-                        let container = graph
+                    Reference::Present(data) => {
+                        let container = data
                             .nodes()
                             .iter()
-                            .find(|node| node.borrow().rid() == container);
+                            .find(|node| node.borrow().rid() == container)
+                            .unwrap();
 
-                        Self::handle_action_container(container, action)
+                        if let action::Container::Container(action) = action {
+                            match action {
+                                ResourceDir::Remove => {
+                                    data.graph.remove(&container.clone());
+                                }
+
+                                ResourceDir::Rename { to } => {
+                                    let mut container = container.borrow_mut();
+                                    container.path = to.clone();
+                                }
+
+                                ResourceDir::Move { to } => {
+                                    todo!();
+                                }
+
+                                ResourceDir::Copy { to } => {
+                                    todo!();
+                                }
+                            }
+
+                            Ok(())
+                        } else {
+                            Self::transition_container(container, action)
+                        }
                     }
                 }
             }
 
-            ProjectResource::CreateAssetFile { container, name } => todo!(),
+            ProjectResource::CreateAssetFile {
+                container,
+                id,
+                name,
+            } => {
+                let project = project.unwrap();
+                let Reference::Present(data) = &mut project.data else {
+                    unreachable!();
+                };
+
+                let container = data.find(container).unwrap();
+                let mut container = container.borrow_mut();
+                if let Reference::Present(config) = &mut container.config {
+                    match &mut config.assets {
+                        Resource::Valid(assets) => {
+                            assets.push(Asset::with_id(name, id.clone()));
+                        }
+
+                        Resource::Invalid => {}
+                        Resource::NotPresent => {}
+                    }
+                };
+
+                Ok(())
+            }
 
             ProjectResource::AssetFile {
                 container,
@@ -288,18 +366,18 @@ impl State {
                             .find(|node| node.borrow().rid() == container)
                             .unwrap();
 
-                        Self::handle_action_asset_file(container, action)
+                        Self::transition_asset_file(container, action)
                     }
                 }
             }
         }
     }
 
-    fn handle_action_project(
+    fn transition_project(
         project: &mut Project,
         action: &action::Project,
     ) -> Result<(), error::Transition> {
-        use action::{Dir, Project, StaticDir};
+        use action::{Dir, Project, ResourceDir, StaticDir};
 
         match action {
             Project::Project(_) => unreachable!("handled elsewhere"),
@@ -354,21 +432,16 @@ impl State {
             },
 
             Project::DataDir(action) => match action {
-                Dir::Create { path } => {
-                    project.data = Reference::Present(Data::new(path));
-                    Ok(())
-                }
-
-                Dir::Remove => {
+                ResourceDir::Remove => {
                     project.data = Reference::NotPresent;
                     Ok(())
                 }
 
-                Dir::Rename { to } => Ok(()),
+                ResourceDir::Rename { to } => Ok(()),
 
-                Dir::Move { to } => Ok(()),
+                ResourceDir::Move { to } => Ok(()),
 
-                Dir::Copy { .. } => Ok(()),
+                ResourceDir::Copy { .. } => Ok(()),
             },
 
             Project::Properties(action) => match action {
@@ -385,14 +458,87 @@ impl State {
         }
     }
 
-    fn handle_action_container(
-        container: Option<&graph::Node<Container>>,
+    fn transition_container(
+        container: &graph::Node<Container>,
         action: &action::Container,
     ) -> Result<(), error::Transition> {
-        todo!()
+        use super::action::{Container, Manifest, ResourceDir, StaticDir, StaticFile};
+
+        let mut container = container.borrow_mut();
+        match action {
+            Container::Container(action) => unreachable!("handled elsewhere"),
+            Container::ConfigDir(action) => match action {
+                StaticDir::Create => {
+                    container.config = Reference::Present(ContainerConfig::default())
+                }
+
+                StaticDir::Remove | StaticDir::Rename | StaticDir::Move => {
+                    container.config = Reference::NotPresent
+                }
+
+                StaticDir::Copy => {}
+            },
+
+            Container::Properties(action) => {
+                let Reference::Present(config) = &mut container.config else {
+                    unreachable!("invalid state");
+                };
+
+                match action {
+                    StaticFile::Create => config.properties = Resource::Valid(()),
+                    StaticFile::Remove | StaticFile::Rename | StaticFile::Move => {
+                        config.properties = Resource::NotPresent
+                    }
+                    StaticFile::Copy => {}
+                    StaticFile::Corrupt => config.properties = Resource::Invalid,
+                    StaticFile::Repair => config.properties = Resource::Valid(()),
+                    StaticFile::Modify => {}
+                }
+            }
+
+            Container::Settings(action) => {
+                let Reference::Present(config) = &mut container.config else {
+                    unreachable!("invalid state");
+                };
+
+                match action {
+                    StaticFile::Create => config.settings = Resource::Valid(()),
+                    StaticFile::Remove | StaticFile::Rename | StaticFile::Move => {
+                        config.settings = Resource::NotPresent
+                    }
+                    StaticFile::Copy => {}
+                    StaticFile::Corrupt => config.settings = Resource::Invalid,
+                    StaticFile::Repair => config.settings = Resource::Valid(()),
+                    StaticFile::Modify => {}
+                }
+            }
+
+            Container::Assets(action) => {
+                let Reference::Present(config) = &mut container.config else {
+                    unreachable!("invalid state");
+                };
+
+                match action {
+                    Manifest::Create => config.assets = Resource::Valid(vec![]),
+                    Manifest::Remove | Manifest::Rename | Manifest::Move => {
+                        config.assets = Resource::NotPresent
+                    }
+                    Manifest::Copy => {}
+                    Manifest::Corrupt => config.assets = Resource::Invalid,
+                    Manifest::Repair => todo!(),
+                    Manifest::Modify(kind) => match kind {
+                        ModifyManifest::Add => {}
+                        ModifyManifest::Remove => {}
+                        ModifyManifest::Alter => {}
+                    },
+                }
+            }
+        }
+
+        Ok(())
     }
 
-    fn handle_action_asset_file(
+    fn transition_asset_file(
         container: &graph::Node<Container>,
         action: &action::AssetFile,
     ) -> Result<(), error::Transition> {
@@ -497,6 +643,12 @@ impl Data {
         }
     }
 
+    pub fn with_id(path: impl Into<PathBuf>, id: ResourceId) -> Self {
+        Self {
+            graph: Tree::new(Container::with_id(path, id)),
+        }
+    }
+
     pub fn root_path(&self) -> PathBuf {
         self.root().borrow().path.clone()
     }
@@ -588,7 +740,15 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn new(rid: ResourceId, path: impl Into<PathBuf>) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            path: path.into(),
+            file: Reference::NotPresent,
+        }
+    }
+
+    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
             path: path.into(),

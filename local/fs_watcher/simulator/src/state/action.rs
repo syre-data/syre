@@ -2,7 +2,7 @@ use rand::{distributions, prelude::*};
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, Clone, derive_more::From)]
 pub enum Action {
     #[from]
     App(AppResource),
@@ -23,19 +23,27 @@ pub enum Action {
     Unwatch(PathBuf),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AppResource {
     UserManifest(Manifest),
     ProjectManifest(Manifest),
 }
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, Clone, derive_more::From)]
 pub enum ProjectResource {
     #[from]
     Project(Project),
 
+    /// Create the root container.
+    CreateDataDir { id: ResourceId, path: PathBuf },
+
     /// Create a new Container.
-    CreateContainer { parent: ResourceId, name: PathBuf },
+    CreateContainer {
+        parent: ResourceId,
+        id: ResourceId,
+        name: PathBuf,
+    },
+
     Container {
         container: ResourceId,
         action: Container,
@@ -44,6 +52,7 @@ pub enum ProjectResource {
     /// Create a new asset file.
     CreateAssetFile {
         container: ResourceId,
+        id: ResourceId,
         name: PathBuf,
     },
 
@@ -54,7 +63,7 @@ pub enum ProjectResource {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Project {
     /// Project base directory.
     Project(ResourceDir),
@@ -63,7 +72,7 @@ pub enum Project {
     AnalysisDir(Dir),
 
     /// Project's data directory.
-    DataDir(Dir),
+    DataDir(ResourceDir),
 
     /// Project configuration directory (.syre).
     ConfigDir(StaticDir),
@@ -78,7 +87,7 @@ pub enum Project {
     Analyses(Manifest),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Container {
     /// Container base directory.
     Container(ResourceDir),
@@ -88,7 +97,8 @@ pub enum Container {
     Assets(Manifest),
 }
 
-#[derive(Debug)]
+/// Directory that represents a resource.
+#[derive(Debug, Clone)]
 pub enum ResourceDir {
     Remove,
     Rename { to: PathBuf },
@@ -96,7 +106,8 @@ pub enum ResourceDir {
     Copy { to: PathBuf },
 }
 
-#[derive(Debug)]
+/// Generic directory.
+#[derive(Debug, Clone)]
 pub enum Dir {
     Create { path: PathBuf },
     Remove,
@@ -105,7 +116,7 @@ pub enum Dir {
     Copy { to: PathBuf },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StaticDir {
     Create,
     Remove,
@@ -114,7 +125,7 @@ pub enum StaticDir {
     Copy,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum File {
     Create,
     Remove,
@@ -126,7 +137,7 @@ pub enum File {
     Modify,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StaticFile {
     Create,
     Remove,
@@ -138,7 +149,7 @@ pub enum StaticFile {
     Modify,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Manifest {
     Create,
     Remove,
@@ -150,7 +161,7 @@ pub enum Manifest {
     Modify(ModifyManifest),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ModifyManifest {
     /// Add an entry to the manifest.
     Add,
@@ -162,7 +173,7 @@ pub enum ModifyManifest {
     Alter,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MoveKind {
     Ancestor,
     Descendant,
@@ -184,7 +195,7 @@ impl Distribution<MoveKind> for distributions::Standard {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AssetFile {
     Remove,
     Rename,

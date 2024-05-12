@@ -8,3 +8,7 @@ pub use app::{
 };
 
 pub use action::Action;
+
+pub trait HasPath {
+    fn path(&self) -> &std::path::PathBuf;
+}

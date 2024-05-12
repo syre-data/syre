@@ -1,6 +1,8 @@
+use super::HasPath;
 use has_id::HasId;
 use std::{
     cell::RefCell,
+    path::PathBuf,
     rc::{Rc, Weak},
 };
 
@@ -341,6 +343,61 @@ where
         self.nodes
             .iter()
             .find(|node| <D as HasId>::id(&node.borrow()) == id)
+    }
+}
+
+impl<D> Tree<D>
+where
+    D: HasPath,
+{
+    /// Get the path from the root of the graph to the given node.
+    pub fn path(&self, node: &Node<D>) -> Option<PathBuf> {
+        let mut ancestors = self.ancestors(node);
+        if ancestors.is_empty() {
+            return None;
+        }
+
+        ancestors.reverse();
+        Some(
+            ancestors
+                .iter()
+                .fold(PathBuf::new(), |path, node| path.join(node.borrow().path())),
+        )
+    }
+
+    pub fn paths(&self, root: &Node<D>) -> Option<Vec<PathBuf>> {
+        fn inner<D>(graph: &Tree<D>, root: &Node<D>) -> Vec<PathBuf>
+        where
+            D: HasPath,
+        {
+            let root_path = root.borrow().path().clone();
+            let mut paths = graph
+                .children(root)
+                .unwrap()
+                .iter()
+                .flat_map(|child| {
+                    inner(graph, child)
+                        .into_iter()
+                        .map(|path| root_path.join(path))
+                })
+                .collect::<Vec<_>>();
+
+            paths.push(root_path);
+            paths
+        }
+
+        let root_path = self.path(root)?;
+        let root_path = root_path.parent().unwrap();
+        Some(
+            inner(self, root)
+                .into_iter()
+                .map(|path| root_path.join(path))
+                .collect(),
+        )
+    }
+
+    pub fn all_paths(&self) -> Vec<PathBuf> {
+        self.paths(&self.root()).unwrap()
     }
 }
 

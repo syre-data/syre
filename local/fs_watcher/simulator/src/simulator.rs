@@ -1,7 +1,6 @@
 use crate::{
-    // action::{self, Action},
     event_validator::{self, error::Validation},
-    state::{self, action},
+    state::{self, action, HasPath},
 };
 use crossbeam::channel::{Receiver, Sender, TryRecvError};
 use options::Options;
@@ -332,10 +331,10 @@ impl Simulator {
                         to: utils::random_file_name(rng),
                     }),
                     Project::AnalysisDir(Dir::Move {
-                        to: utils::random_move_path(path, &state.path, rng),
+                        to: state.path.join(utils::random_file_name(rng)).join(path),
                     }),
                     Project::AnalysisDir(Dir::Copy {
-                        to: utils::random_move_path(path, &state.path, rng),
+                        to: state.path.join(utils::random_file_name(rng)),
                     }),
                 ]);
             }
@@ -368,7 +367,7 @@ impl Simulator {
         R: rand::Rng,
     {
         use crate::state::{
-            action::{Container, ProjectResource, StaticDir},
+            action::{Container, ProjectResource, ResourceDir, StaticDir},
             app::{Reference, Resource},
         };
 
@@ -382,6 +381,28 @@ impl Simulator {
                 container: state.rid().clone(),
                 id: ResourceId::new(),
                 name: utils::random_file_name(rng),
+            },
+            ProjectResource::Container {
+                container: state.rid().clone(),
+                action: Container::Container(ResourceDir::Remove),
+            },
+            ProjectResource::Container {
+                container: state.rid().clone(),
+                action: Container::Container(ResourceDir::Rename {
+                    to: utils::random_file_name(rng),
+                }),
+            },
+            ProjectResource::Container {
+                container: state.rid().clone(),
+                action: Container::Container(ResourceDir::Move {
+                    to: utils::random_move_path(state.path(), paths, rng),
+                }),
+            },
+            ProjectResource::Container {
+                container: state.rid().clone(),
+                action: Container::Container(ResourceDir::Copy {
+                    to: utils::random_move_path(base_path, paths, rng),
+                }),
             },
         ];
 
@@ -741,15 +762,7 @@ impl Simulator {
                 };
 
                 let parent = data.find(parent).unwrap();
-                let parent_path =
-                    data.graph
-                        .ancestors(parent)
-                        .iter()
-                        .fold(PathBuf::new(), |path, container| {
-                            let container = container.borrow();
-                            path.join(&container.path)
-                        });
-
+                let parent_path = data.path(parent).unwrap();
                 let path = self
                     .options
                     .base_path()
@@ -775,14 +788,7 @@ impl Simulator {
                 };
 
                 let container = data.find(container).unwrap();
-                let container_path = data.graph.ancestors(container).iter().fold(
-                    PathBuf::new(),
-                    |path, container| {
-                        let container = container.borrow();
-                        path.join(&container.path)
-                    },
-                );
-
+                let container_path = data.path(container).unwrap();
                 let path = self
                     .options
                     .base_path()
@@ -865,14 +871,14 @@ impl Simulator {
 
                     StaticDir::Move => {
                         assert_matches!(project.config, Reference::Present(_));
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path.join(utils::random_file_name(&mut self.rng));
                         self.create_folder(&to)?;
                         self.move_folder(path, to)?;
                     }
 
                     StaticDir::Copy => {
                         assert_matches!(project.config, Reference::Present(_));
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path.join(utils::random_file_name(&mut self.rng));
                         self.copy_folder(path, to)?;
                     }
                 }
@@ -993,10 +999,7 @@ impl Simulator {
                             })
                         );
 
-                        // TODO: May not want to move into other part of project.
-                        // e.g. data dir
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1060,10 +1063,7 @@ impl Simulator {
                             })
                         );
 
-                        // TODO: May not want to move into other part of project.
-                        // e.g. data dir
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1128,10 +1128,7 @@ impl Simulator {
                             })
                         );
 
-                        // TODO: May not want to move into other part of project.
-                        // e.g. data dir
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1177,8 +1174,9 @@ impl Simulator {
         };
 
         let container = data.graph.find(container).unwrap();
+        let path = data.path(container).unwrap();
+        let path = project.path.join(path);
         let container = container.borrow();
-        let path = project.path.join(data.root_path()).join(&container.path);
         match action {
             Container::Container(action) => match action {
                 ResourceDir::Remove => self.remove_folder(path)?,
@@ -1210,14 +1208,14 @@ impl Simulator {
 
                     StaticDir::Move => {
                         assert_matches!(container.config, Reference::Present(_));
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.create_folder(&to)?;
                         self.move_folder(path, to)?;
                     }
 
                     StaticDir::Copy => {
                         assert_matches!(container.config, Reference::Present(_));
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.copy_folder(path, to)?;
                     }
                 }
@@ -1261,8 +1259,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1275,7 +1272,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.create_folder(&to)?;
                         self.copy_file(path, to)?;
                     }
@@ -1324,8 +1321,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1338,8 +1334,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.copy_file(path, to)?;
                     }
 
@@ -1350,7 +1345,7 @@ impl Simulator {
             }
 
             Container::Assets(action) => {
-                let path = common::assets_file_of(&container.path);
+                let path = common::assets_file_of(path);
                 match action {
                     Manifest::Create => self.create_file(path)?,
                     Manifest::Remove => {
@@ -1387,8 +1382,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                        self.create_folder(&to)?;
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.move_file(path, to)?;
                     }
 
@@ -1401,7 +1395,7 @@ impl Simulator {
                             })
                         );
 
-                        let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                        let to = project.path().join(utils::random_file_name(&mut self.rng));
                         self.create_folder(&to)?;
                         self.copy_file(path, to)?;
                     }
@@ -1438,6 +1432,7 @@ impl Simulator {
             .join(data.root_path())
             .join(&container.path)
             .join(&asset.path);
+
         match action {
             AssetFile::Remove => self.remove_file(path)?,
             AssetFile::Rename => {
@@ -1446,13 +1441,13 @@ impl Simulator {
             }
 
             AssetFile::Move => {
-                let to = utils::random_move_path(&path, &project.path, &mut self.rng);
-                self.create_folder(&to)?;
+                let to = utils::random_move_path(&path, &data.all_paths(), &mut self.rng)
+                    .join(path.file_name().unwrap());
                 self.move_file(path, to)?;
             }
 
             AssetFile::Copy => {
-                let to = utils::random_move_path(&path, &project.path, &mut self.rng);
+                let to = utils::random_move_path(&path, &data.all_paths(), &mut self.rng);
                 self.create_folder(&to)?;
                 self.copy_file(path, to)?;
             }
@@ -1480,8 +1475,9 @@ impl Simulator {
 
     fn rename_file(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
         let from = self.options.base_path().join(from);
-        let to = from.parent().unwrap().join(to);
-        fs::rename(from, to)
+        let mut to_path = from.clone();
+        to_path.set_file_name(to.as_ref());
+        fs::rename(from, to_path)
     }
 
     fn move_file(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
@@ -1492,7 +1488,7 @@ impl Simulator {
 
     fn copy_file(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
         let from = self.options.base_path().join(from);
-        let to = from.parent().unwrap().join(to);
+        let to = self.options.base_path().join(to);
         fs::copy(from, to)?;
         Ok(())
     }
@@ -1509,8 +1505,9 @@ impl Simulator {
 
     fn rename_folder(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
         let from = self.options.base_path().join(from);
-        let to = from.parent().unwrap().join(to);
-        fs::rename(from, to)
+        let mut to_path = from.clone();
+        to_path.set_file_name(to.as_ref());
+        fs::rename(from, to_path)
     }
 
     fn move_folder(&self, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
@@ -1572,17 +1569,24 @@ mod utils {
     /// Gets a random path within the root path.
     /// Weights the likelihood to select a path based on the distance between
     /// each path and the base path.
-    pub fn random_move_path<R>(
-        base_path: impl AsRef<Path>,
-        root_path: impl AsRef<Path>,
-        rng: &mut R,
-    ) -> PathBuf
+    ///
+    /// # Arguments
+    /// + `base_path`: Path to calculate distances from.
+    /// + `paths`: Paths to choose from.
+    pub fn random_move_path<R>(base_path: &PathBuf, paths: &Vec<PathBuf>, rng: &mut R) -> PathBuf
     where
         R: rand::Rng,
     {
-        let (paths, distances): (Vec<_>, Vec<_>) = path_distances(base_path, root_path)
-            .into_iter()
-            .filter(|(_, distance)| *distance > 0)
+        let (paths, distances): (Vec<_>, Vec<_>) = paths
+            .iter()
+            .filter_map(|path| {
+                let distance = path_distance(base_path, path);
+                if distance == 0 {
+                    None
+                } else {
+                    Some((path, distance))
+                }
+            })
             .unzip();
 
         let distance_bound = distances.iter().max().unwrap() + 1;
@@ -1650,7 +1654,7 @@ mod utils {
     /// Calculate the nuber of steps to go from one path to another.
     ///
     /// # Notes
-    /// + Assumes the paths a relative to the same root.
+    /// + Assumes the paths are relative to the same root.
     pub fn path_distance(a: impl AsRef<Path>, b: impl AsRef<Path>) -> usize {
         let mut a = a.as_ref().components();
         let mut b = b.as_ref().components();

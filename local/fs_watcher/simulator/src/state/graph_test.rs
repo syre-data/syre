@@ -81,6 +81,42 @@ fn graph_duplicate_shoud_work() {
     )
 }
 
+#[test]
+fn graph_path_should_work() {
+    let root = Data::new(0);
+    let mut graph = Tree::new(root);
+
+    let child = Data::new(1);
+    let id_1 = child.id().clone();
+    graph.insert(child, &graph.root()).unwrap();
+
+    let child = Data::new(2);
+    let id_2 = child.id().clone();
+    graph.insert(child, &graph.root()).unwrap();
+
+    let parent = graph.find(&id_1).unwrap().clone();
+    let child = Data::new(11);
+    let id_11 = child.id().clone();
+    graph.insert(child, &parent).unwrap();
+
+    let child = Data::new(12);
+    let id_12 = child.id().clone();
+    graph.insert(child, &parent).unwrap();
+
+    let root = graph.find(&id_1).unwrap().clone();
+    let paths = graph.paths(&root).unwrap();
+    assert!(paths.contains(&PathBuf::from("0/1")));
+    assert!(paths.contains(&PathBuf::from("0/1/11")));
+    assert!(paths.contains(&PathBuf::from("0/1/12")));
+
+    let paths = graph.all_paths();
+    assert!(paths.contains(&PathBuf::from("0")));
+    assert!(paths.contains(&PathBuf::from("0/1")));
+    assert!(paths.contains(&PathBuf::from("0/1/11")));
+    assert!(paths.contains(&PathBuf::from("0/1/12")));
+    assert!(paths.contains(&PathBuf::from("0/2")));
+}
+
 #[derive(Debug, HasId, Clone)]
 struct Data {
     #[id]
@@ -88,6 +124,8 @@ struct Data {
 
     #[allow(dead_code)]
     inner: u32,
+
+    path: PathBuf,
 }
 
 impl Data {
@@ -95,6 +133,13 @@ impl Data {
         Self {
             id: rand::random(),
             inner: data,
+            path: PathBuf::from(data.to_string()),
         }
+    }
+}
+
+impl HasPath for Data {
+    fn path(&self) -> &std::path::PathBuf {
+        &self.path
     }
 }

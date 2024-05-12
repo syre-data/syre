@@ -1,8 +1,7 @@
-use crate::state::action::ModifyManifest;
-
 use super::{
     action,
     graph::{self, Tree},
+    HasPath,
 };
 use has_id::HasId;
 use std::{ops::Deref, path::PathBuf};
@@ -136,7 +135,7 @@ impl State {
                 Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            action::Manifest::Modify(kind) => match self.user_manifest {
+            action::Manifest::Modify(_kind) => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
@@ -205,7 +204,7 @@ impl State {
                 Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            action::Manifest::Modify(kind) => match self.project_manifest {
+            action::Manifest::Modify(_kind) => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
@@ -238,7 +237,7 @@ impl State {
                         Ok(())
                     }
 
-                    ResourceDir::Copy { to } => Ok(()),
+                    ResourceDir::Copy { to: _ } => Ok(()),
                 },
 
                 Project::ConfigDir(StaticDir::Remove)
@@ -437,9 +436,23 @@ impl State {
                     Ok(())
                 }
 
-                ResourceDir::Rename { to } => Ok(()),
+                ResourceDir::Rename { to } => {
+                    let Reference::Present(data) = &project.data else {
+                        unreachable!("invalid state");
+                    };
 
-                ResourceDir::Move { to } => Ok(()),
+                    data.root().borrow_mut().path = to.clone();
+                    Ok(())
+                }
+
+                ResourceDir::Move { to } => {
+                    let Reference::Present(data) = &project.data else {
+                        unreachable!("invalid state");
+                    };
+
+                    data.root().borrow_mut().path = to.clone();
+                    Ok(())
+                }
 
                 ResourceDir::Copy { .. } => Ok(()),
             },
@@ -462,11 +475,11 @@ impl State {
         container: &graph::Node<Container>,
         action: &action::Container,
     ) -> Result<(), error::Transition> {
-        use super::action::{Container, Manifest, ResourceDir, StaticDir, StaticFile};
+        use super::action::{Container, Manifest, ModifyManifest, StaticDir, StaticFile};
 
         let mut container = container.borrow_mut();
         match action {
-            Container::Container(action) => unreachable!("handled elsewhere"),
+            Container::Container(_action) => unreachable!("handled elsewhere"),
             Container::ConfigDir(action) => match action {
                 StaticDir::Create => {
                     container.config = Reference::Present(ContainerConfig::default())
@@ -594,16 +607,6 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            rid: ResourceId::new(),
-            path: path.into(),
-            config: Reference::default(),
-            analyses: None,
-            data: Reference::<Data>::default(),
-        }
-    }
-
     pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
@@ -616,6 +619,12 @@ impl Project {
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
+    }
+}
+
+impl HasPath for Project {
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 
@@ -637,12 +646,6 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            graph: Tree::new(Container::new(path)),
-        }
-    }
-
     pub fn with_id(path: impl Into<PathBuf>, id: ResourceId) -> Self {
         Self {
             graph: Tree::new(Container::with_id(path, id)),
@@ -678,14 +681,6 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            rid: ResourceId::new(),
-            path: path.into(),
-            config: Reference::NotPresent,
-        }
-    }
-
     pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
@@ -708,6 +703,12 @@ impl Container {
         };
 
         assets.iter().find(|asset| asset.rid() == id)
+    }
+}
+
+impl HasPath for Container {
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 
@@ -740,14 +741,6 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self {
-            rid: ResourceId::new(),
-            path: path.into(),
-            file: Reference::NotPresent,
-        }
-    }
-
     pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
         Self {
             rid,
@@ -758,6 +751,12 @@ impl Asset {
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
+    }
+}
+
+impl HasPath for Asset {
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 

@@ -1,5 +1,4 @@
 #![feature(assert_matches)]
-pub(crate) mod action;
 pub(crate) mod event_validator;
 pub(crate) mod simulator;
 pub(crate) mod state;

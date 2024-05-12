@@ -1,5 +1,5 @@
 use super::{
-    actions,
+    action,
     graph::{self, Tree},
 };
 use has_id::HasId;
@@ -45,14 +45,14 @@ impl State {
 }
 
 impl State {
-    pub fn transition(&mut self, action: &actions::Action) -> Result<(), error::Transition> {
-        use actions::Action;
+    pub fn transition(&mut self, action: &action::Action) -> Result<(), error::Transition> {
+        use action::Action;
         match action {
-            Action::App(actions::AppResource::UserManifest(action)) => {
+            Action::App(action::AppResource::UserManifest(action)) => {
                 self.handle_action_user_manifest(action)
             }
 
-            Action::App(actions::AppResource::ProjectManifest(action)) => {
+            Action::App(action::AppResource::ProjectManifest(action)) => {
                 self.handle_action_project_manifest(action)
             }
 
@@ -74,10 +74,10 @@ impl State {
 
     fn handle_action_user_manifest(
         &mut self,
-        action: &actions::Manifest,
+        action: &action::Manifest,
     ) -> Result<(), error::Transition> {
         match action {
-            actions::Manifest::Create => match self.user_manifest {
+            action::Manifest::Create => match self.user_manifest {
                 Resource::NotPresent => {
                     self.user_manifest = Resource::Valid(());
                     Ok(())
@@ -85,7 +85,7 @@ impl State {
                 _ => Err(error::Transition::InvalidAction),
             },
 
-            actions::Manifest::Remove => match self.user_manifest {
+            action::Manifest::Remove => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.user_manifest = Resource::NotPresent;
@@ -93,7 +93,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Rename => match self.user_manifest {
+            action::Manifest::Rename => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.user_manifest = Resource::NotPresent;
@@ -101,7 +101,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Move => match self.user_manifest {
+            action::Manifest::Move => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.user_manifest = Resource::NotPresent;
@@ -109,14 +109,14 @@ impl State {
                 }
             },
 
-            actions::Manifest::Copy => match self.user_manifest {
+            action::Manifest::Copy => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     return Ok(());
                 }
             },
 
-            actions::Manifest::Corrupt => match self.user_manifest {
+            action::Manifest::Corrupt => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => Err(error::Transition::AlreadyInState),
                 Resource::Valid(_) => {
@@ -125,7 +125,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Repair => match self.user_manifest {
+            action::Manifest::Repair => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => {
                     self.user_manifest = Resource::Valid(());
@@ -134,7 +134,7 @@ impl State {
                 Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            actions::Manifest::Modify(kind) => match self.user_manifest {
+            action::Manifest::Modify(kind) => match self.user_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
@@ -143,10 +143,10 @@ impl State {
 
     fn handle_action_project_manifest(
         &mut self,
-        action: &actions::Manifest,
+        action: &action::Manifest,
     ) -> Result<(), error::Transition> {
         match action {
-            actions::Manifest::Create => match self.project_manifest {
+            action::Manifest::Create => match self.project_manifest {
                 Resource::NotPresent => {
                     self.project_manifest = Resource::Valid(());
                     Ok(())
@@ -154,7 +154,7 @@ impl State {
                 _ => Err(error::Transition::InvalidAction),
             },
 
-            actions::Manifest::Remove => match self.project_manifest {
+            action::Manifest::Remove => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.project_manifest = Resource::NotPresent;
@@ -162,7 +162,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Rename => match self.project_manifest {
+            action::Manifest::Rename => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.project_manifest = Resource::NotPresent;
@@ -170,7 +170,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Move => match self.project_manifest {
+            action::Manifest::Move => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     self.project_manifest = Resource::NotPresent;
@@ -178,14 +178,14 @@ impl State {
                 }
             },
 
-            actions::Manifest::Copy => match self.project_manifest {
+            action::Manifest::Copy => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => {
                     return Ok(());
                 }
             },
 
-            actions::Manifest::Corrupt => match self.project_manifest {
+            action::Manifest::Corrupt => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => Err(error::Transition::AlreadyInState),
                 Resource::Valid(_) => {
@@ -194,7 +194,7 @@ impl State {
                 }
             },
 
-            actions::Manifest::Repair => match self.project_manifest {
+            action::Manifest::Repair => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 Resource::Invalid => {
                     self.project_manifest = Resource::Valid(());
@@ -203,7 +203,7 @@ impl State {
                 Resource::Valid(_) => Err(error::Transition::AlreadyInState),
             },
 
-            actions::Manifest::Modify(kind) => match self.project_manifest {
+            action::Manifest::Modify(kind) => match self.project_manifest {
                 Resource::NotPresent => Err(error::Transition::InvalidAction),
                 _ => Ok(()),
             },
@@ -213,9 +213,9 @@ impl State {
     fn handle_action_project_resource(
         &mut self,
         pid: &ResourceId,
-        action: &actions::ProjectResource,
+        action: &action::ProjectResource,
     ) -> Result<(), error::Transition> {
-        use super::actions::{Project, ProjectResource, ResourceDir, StaticDir};
+        use super::action::{Project, ProjectResource, ResourceDir, StaticDir};
 
         let project = self.find_project_mut(pid);
         match action {
@@ -297,9 +297,9 @@ impl State {
 
     fn handle_action_project(
         project: &mut Project,
-        action: &actions::Project,
+        action: &action::Project,
     ) -> Result<(), error::Transition> {
-        use actions::{Dir, Project, StaticDir};
+        use action::{Dir, Project, StaticDir};
 
         match action {
             Project::Project(_) => unreachable!("handled elsewhere"),
@@ -387,14 +387,14 @@ impl State {
 
     fn handle_action_container(
         container: Option<&graph::Node<Container>>,
-        action: &actions::Container,
+        action: &action::Container,
     ) -> Result<(), error::Transition> {
         todo!()
     }
 
     fn handle_action_asset_file(
         container: &graph::Node<Container>,
-        action: &actions::AssetFile,
+        action: &action::AssetFile,
     ) -> Result<(), error::Transition> {
         todo!()
     }

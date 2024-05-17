@@ -1,20 +1,17 @@
 use crate::{
     event_validator::{self, error::Validation},
-    state::{self, action, HasPath},
+    state::{self, Ptr, Reducible},
 };
 use crossbeam::channel::{Receiver, Sender, TryRecvError};
 use options::Options;
-use rand::prelude::*;
-use rand_chacha::ChaCha8Rng;
-use std::{
-    assert_matches::assert_matches,
-    fs, io,
-    ops::Deref,
-    path::{Path, PathBuf},
-    thread,
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    prelude::*,
 };
-use syre_core::types::ResourceId;
+use rand_chacha::ChaCha8Rng;
+use std::{ffi::OsString, fs, io, path::Path, thread};
 use syre_fs_watcher::{self as watcher};
+use watcher::config::AppConfig;
 
 type Result<T = ()> = std::result::Result<T, error::Error>;
 
@@ -54,9 +51,11 @@ impl Simulator {
             })
             .unwrap();
 
+        let base_path = options.base_path().clone();
+        let state = State::new(base_path, options.app_config());
         Self {
             options,
-            state: State::default(),
+            state,
             rng,
             command_tx,
             validation_rx,
@@ -97,6 +96,7 @@ impl Simulator {
     }
 }
 
+// TODO: Allow copy in same folder.
 impl Simulator {
     /// Choose actions to perform.
     ///
@@ -109,9 +109,9 @@ impl Simulator {
     /// where the final state should be the state of the app after applying all actions.
     fn choose_actions<R>(
         num: u8,
-        mut state: state::app::State,
+        mut state: state::State,
         rng: &mut R,
-    ) -> (Vec<state::Action>, state::app::State)
+    ) -> (Vec<state::Action>, state::State)
     where
         R: rand::Rng,
     {
@@ -119,14 +119,14 @@ impl Simulator {
         let mut actions = Vec::with_capacity(num);
         while actions.len() < num {
             let action = Self::choose_action(&state, rng);
-            state.transition(&action).unwrap();
+            state.reduce(&action).unwrap();
             actions.push(action);
         }
 
         (actions, state)
     }
 
-    fn choose_action<R>(state: &state::app::State, rng: &mut R) -> state::Action
+    fn choose_action<R>(state: &state::State, rng: &mut R) -> state::Action
     where
         R: rand::Rng,
     {
@@ -136,302 +136,209 @@ impl Simulator {
     }
 
     /// Returns a list of all valid actions given a state.
-    fn valid_actions<R>(state: &state::app::State, rng: &mut R) -> Vec<state::Action>
+    fn valid_actions<R>(state: &state::State, rng: &mut R) -> Vec<state::Action>
     where
         R: rand::Rng,
     {
-        let mut actions = Self::valid_actions_app(state)
-            .into_iter()
-            .map(|action| action.into())
-            .collect::<Vec<state::Action>>();
-
-        if matches!(state.project_manifest, state::Resource::Valid(_)) {
-            actions.push(state::Action::CreateProject {
-                id: ResourceId::new(),
-                path: utils::random_file_name(rng),
-            });
-        }
-
-        for project in state.projects.iter() {
-            actions.extend(
-                Self::valid_actions_project(project, rng)
-                    .into_iter()
-                    .map(|action| {
-                        state::Action::Project {
-                            project: project.rid().clone(),
-                            action,
-                        }
-                        .into()
-                    }),
-            );
+        let all_folders = state.fs().all_folders();
+        let mut actions = Self::valid_actions_app(state, &all_folders, rng);
+        for project in state.app().projects() {
+            actions.extend(Self::valid_actions_project(
+                project,
+                state.fs(),
+                &all_folders,
+                rng,
+            ));
         }
 
         actions
     }
 
-    fn valid_actions_app(state: &state::app::State) -> Vec<action::AppResource> {
-        use crate::state::action::{AppResource, Manifest, ModifyManifest};
-
-        let mut actions = vec![];
-        match state.user_manifest {
-            state::Resource::NotPresent => {
-                actions.push(AppResource::UserManifest(Manifest::Create))
-            }
-
-            state::Resource::Invalid => {
-                actions.extend(vec![
-                    AppResource::UserManifest(Manifest::Remove),
-                    AppResource::UserManifest(Manifest::Rename),
-                    AppResource::UserManifest(Manifest::Move),
-                    AppResource::UserManifest(Manifest::Repair),
-                ]);
-            }
-
-            state::Resource::Valid(_) => {
-                actions.extend(vec![
-                    AppResource::UserManifest(Manifest::Remove),
-                    AppResource::UserManifest(Manifest::Rename),
-                    AppResource::UserManifest(Manifest::Move),
-                    AppResource::UserManifest(Manifest::Corrupt),
-                    AppResource::UserManifest(Manifest::Modify(ModifyManifest::Add)),
-                    AppResource::UserManifest(Manifest::Modify(ModifyManifest::Remove)),
-                    AppResource::UserManifest(Manifest::Modify(ModifyManifest::Alter)),
-                ]);
-            }
-        }
-
-        match state.project_manifest {
-            state::Resource::NotPresent => {
-                actions.push(AppResource::ProjectManifest(Manifest::Create))
-            }
-
-            state::Resource::Invalid => {
-                actions.extend(vec![
-                    AppResource::ProjectManifest(Manifest::Remove),
-                    AppResource::ProjectManifest(Manifest::Rename),
-                    AppResource::ProjectManifest(Manifest::Move),
-                    AppResource::ProjectManifest(Manifest::Repair),
-                ]);
-            }
-
-            state::Resource::Valid(_) => {
-                actions.extend(vec![
-                    AppResource::ProjectManifest(Manifest::Remove),
-                    AppResource::ProjectManifest(Manifest::Rename),
-                    AppResource::ProjectManifest(Manifest::Move),
-                    AppResource::ProjectManifest(Manifest::Corrupt),
-                    AppResource::ProjectManifest(Manifest::Modify(ModifyManifest::Add)),
-                    AppResource::ProjectManifest(Manifest::Modify(ModifyManifest::Remove)),
-                    AppResource::ProjectManifest(Manifest::Modify(ModifyManifest::Alter)),
-                ]);
-            }
-        }
-
-        actions
-    }
-
-    fn valid_actions_project<R>(state: &state::Project, rng: &mut R) -> Vec<action::ProjectResource>
-    where
-        R: rand::Rng,
-    {
-        use crate::state::action::{Dir, Project, ProjectResource, ResourceDir};
-
-        let mut actions = vec![
-            Project::Project(ResourceDir::Remove).into(),
-            Project::Project(ResourceDir::Rename {
-                to: utils::random_file_name(rng),
-            })
-            .into(),
-            Project::Project(ResourceDir::Move {
-                to: utils::random_file_name(rng),
-            })
-            .into(),
-            Project::Project(ResourceDir::Copy {
-                to: utils::random_file_name(rng),
-            })
-            .into(),
-        ];
-
-        actions.extend(
-            Self::valid_actions_project_resource(state, rng)
-                .into_iter()
-                .map(|action| action.into())
-                .collect::<Vec<ProjectResource>>(),
-        );
-
-        match &state.data {
-            state::Reference::NotPresent => actions.push(ProjectResource::CreateDataDir {
-                id: ResourceId::new(),
-                path: utils::random_file_name(rng),
-            }),
-            state::Reference::Present(graph) => {
-                actions.extend(vec![
-                    Project::DataDir(ResourceDir::Remove).into(),
-                    Project::DataDir(ResourceDir::Rename {
-                        to: utils::random_file_name(rng),
-                    })
-                    .into(),
-                    Project::DataDir(ResourceDir::Move {
-                        to: utils::random_file_name(rng),
-                    })
-                    .into(),
-                    Project::DataDir(ResourceDir::Copy {
-                        to: utils::random_file_name(rng),
-                    })
-                    .into(),
-                ]);
-
-                actions.extend(Self::valid_actions_project_data(&graph, rng));
-            }
-        }
-
-        actions
-    }
-
-    fn valid_actions_project_resource<R>(
-        state: &state::Project,
+    fn valid_actions_app<R>(
+        state: &state::State,
+        folders: &Vec<Ptr<state::fs::Folder>>,
         rng: &mut R,
-    ) -> Vec<state::action::Project>
+    ) -> Vec<state::Action>
+    where
+        R: rand::Rng,
+    {
+        let mut actions = Vec::with_capacity(16);
+        let folder = &folders[rng.gen_range(0..folders.len())];
+        let user_manifest = state.app().app_state().user_manifest();
+        actions.extend(Self::valid_actions_app_manifest(
+            user_manifest,
+            state.fs(),
+            folder,
+            rng,
+        ));
+
+        let folder = &folders[rng.gen_range(0..folders.len())];
+        let project_manifest = state.app().app_state().project_manifest();
+        actions.extend(Self::valid_actions_app_manifest(
+            project_manifest,
+            state.fs(),
+            folder,
+            rng,
+        ));
+
+        actions
+    }
+
+    fn valid_actions_project<R>(
+        project: &Ptr<state::app::Project>,
+        fs_state: &state::fs::State,
+        folders: &Vec<Ptr<state::fs::Folder>>,
+        rng: &mut R,
+    ) -> Vec<state::Action>
     where
         R: rand::Rng,
     {
         use crate::state::{
-            action::{Dir, Project, StaticDir},
-            Reference,
+            action,
+            app::{FsResource, Resource},
+            Action,
         };
+        use syre_local::constants;
 
-        let mut actions = vec![];
-        match &state.config {
-            Reference::NotPresent => {
-                actions.push(Project::ConfigDir(StaticDir::Create));
-            }
-
-            Reference::Present(config) => {
-                actions.extend(vec![
-                    Project::ConfigDir(StaticDir::Remove),
-                    Project::ConfigDir(StaticDir::Rename),
-                    Project::ConfigDir(StaticDir::Move),
-                    Project::ConfigDir(StaticDir::Copy),
-                ]);
-
-                actions.extend(Self::valid_actions_project_config(&config));
-            }
-        }
-
-        match &state.analyses {
-            None => {}
-            Some(Reference::NotPresent) => actions.push(Project::AnalysisDir(Dir::Create {
-                path: utils::random_file_name(rng),
-            })),
-
-            Some(Reference::Present(path)) => {
-                actions.extend(vec![
-                    Project::AnalysisDir(Dir::Remove),
-                    Project::AnalysisDir(Dir::Rename {
-                        to: utils::random_file_name(rng),
-                    }),
-                    Project::AnalysisDir(Dir::Move {
-                        to: state.path.join(utils::random_file_name(rng)).join(path),
-                    }),
-                    Project::AnalysisDir(Dir::Copy {
-                        to: state.path.join(utils::random_file_name(rng)),
-                    }),
-                ]);
-            }
-        }
-
-        actions
-    }
-
-    fn valid_actions_project_data<R>(
-        state: &state::Data,
-        rng: &mut R,
-    ) -> Vec<state::action::ProjectResource>
-    where
-        R: rand::Rng,
-    {
-        let mut actions = vec![];
-
-        for node in state.nodes() {
-            actions.extend(Self::valid_actions_container(node.borrow().deref(), rng));
-        }
-
-        actions
-    }
-
-    fn valid_actions_container<R>(
-        state: &state::Container,
-        rng: &mut R,
-    ) -> Vec<state::action::ProjectResource>
-    where
-        R: rand::Rng,
-    {
-        use crate::state::{
-            action::{Container, ProjectResource, ResourceDir, StaticDir},
-            app::{Reference, Resource},
-        };
-
-        let mut actions = vec![
-            ProjectResource::CreateContainer {
-                parent: state.rid().clone(),
-                id: ResourceId::new(),
-                name: utils::random_file_name(rng),
-            },
-            ProjectResource::CreateAssetFile {
-                container: state.rid().clone(),
-                id: ResourceId::new(),
-                name: utils::random_file_name(rng),
-            },
-            ProjectResource::Container {
-                container: state.rid().clone(),
-                action: Container::Container(ResourceDir::Remove),
-            },
-            ProjectResource::Container {
-                container: state.rid().clone(),
-                action: Container::Container(ResourceDir::Rename {
-                    to: utils::random_file_name(rng),
-                }),
-            },
-            ProjectResource::Container {
-                container: state.rid().clone(),
-                action: Container::Container(ResourceDir::Move {
-                    to: utils::random_move_path(state.path(), paths, rng),
-                }),
-            },
-            ProjectResource::Container {
-                container: state.rid().clone(),
-                action: Container::Container(ResourceDir::Copy {
-                    to: utils::random_move_path(base_path, paths, rng),
-                }),
-            },
-        ];
-
-        match &state.config {
-            Reference::NotPresent => actions.push(ProjectResource::Container {
-                container: state.rid().clone(),
-                action: Container::ConfigDir(StaticDir::Create).into(),
+        let mut actions = Vec::with_capacity(50);
+        let project = project.borrow();
+        match project.fs_resource() {
+            FsResource::NotPresent => actions.push(Action::CreateFolderAt {
+                path: project.path().clone(),
+                with_parents: true,
             }),
+            FsResource::Present(folder) => {
+                let parent = &folders[rng.gen_range(0..folders.len())];
+                let project_ptr = folder.upgrade().unwrap();
+                let project_folder = action::FsResource::Folder(project_ptr.clone());
+                actions.extend([
+                    Action::Remove(project_folder.clone()),
+                    Action::Rename {
+                        resource: project_folder.clone(),
+                        to: utils::random_file_name(rng),
+                    },
+                ]);
 
-            Reference::Present(config) => actions.extend(
-                Self::valid_actions_container_config(&config)
-                    .into_iter()
-                    .map(|action| ProjectResource::Container {
-                        container: state.rid().clone(),
-                        action,
-                    }),
-            ),
-        }
-
-        if let Reference::Present(config) = &state.config {
-            if let Resource::Valid(assets) = &config.assets {
-                for asset in assets.iter() {
-                    actions.extend(Self::valid_actions_asset(asset, rng).into_iter().map(
-                        |action| ProjectResource::AssetFile {
-                            container: state.rid().clone(),
-                            asset: asset.rid().clone(),
-                            action,
+                if !Ptr::ptr_eq(&project_ptr, parent) {
+                    actions.extend([
+                        Action::Move {
+                            resource: project_folder.clone(),
+                            parent: parent.clone(),
                         },
-                    ));
+                        Action::Copy {
+                            resource: project_folder.clone(),
+                            parent: parent.clone(),
+                        },
+                    ]);
+                }
+
+                match project.config() {
+                    Resource::NotPresent => actions.push(Action::CreateFolder {
+                        parent: project_ptr.clone(),
+                        name: constants::APP_DIR.into(),
+                    }),
+                    Resource::Present(config_ptr) => {
+                        let config = config_ptr.borrow();
+                        let config_folder_ptr = config.fs_resource().upgrade().unwrap();
+
+                        let config_folder = action::FsResource::Folder(config_folder_ptr.clone());
+                        let folder = &folders[rng.gen_range(0..folders.len())];
+                        actions.extend([
+                            Action::Remove(config_folder.clone()),
+                            Action::Rename {
+                                resource: config_folder.clone(),
+                                to: utils::random_file_name(rng),
+                            },
+                        ]);
+
+                        if !Ptr::ptr_eq(&config_folder_ptr, folder) {
+                            actions.extend([
+                                Action::Move {
+                                    resource: config_folder.clone(),
+                                    parent: folder.clone(),
+                                },
+                                Action::Copy {
+                                    resource: config_folder.clone(),
+                                    parent: folder.clone(),
+                                },
+                            ]);
+                        }
+
+                        let folder = &folders[rng.gen_range(0..folders.len())];
+                        actions.extend(Self::valid_actions_project_config_resource(
+                            config.properties(),
+                            constants::PROJECT_FILE,
+                            &config_folder_ptr,
+                            &folder,
+                            rng,
+                        ));
+
+                        let folder = &folders[rng.gen_range(0..folders.len())];
+                        actions.extend(Self::valid_actions_project_config_resource(
+                            config.settings(),
+                            constants::PROJECT_FILE,
+                            &config_folder_ptr,
+                            &folder,
+                            rng,
+                        ));
+
+                        let folder = &folders[rng.gen_range(0..folders.len())];
+                        actions.extend(Self::valid_actions_project_resource_manifest(
+                            config.analyses(),
+                            constants::ANALYSES_FILE,
+                            &config_folder_ptr,
+                            &folder,
+                            rng,
+                        ));
+                    }
+                }
+
+                if let Some(analyses) = project.analyses() {
+                    match analyses.borrow().fs_resource() {
+                        FsResource::NotPresent => actions.push(Action::CreateFolderAt {
+                            path: analyses.borrow().path().clone(),
+                            with_parents: true,
+                        }),
+                        FsResource::Present(analyses_ptr) => {
+                            let analyses_ptr = analyses_ptr.upgrade().unwrap();
+                            let analyses_folder = action::FsResource::Folder(analyses_ptr.clone());
+                            let folder = &folders[rng.gen_range(0..folders.len())];
+                            actions.extend([
+                                Action::Remove(analyses_folder.clone()),
+                                Action::Rename {
+                                    resource: analyses_folder.clone(),
+                                    to: utils::random_file_name(rng),
+                                },
+                            ]);
+
+                            if !Ptr::ptr_eq(&analyses_ptr, folder) {
+                                actions.extend([
+                                    Action::Move {
+                                        resource: analyses_folder.clone(),
+                                        parent: folder.clone(),
+                                    },
+                                    Action::Copy {
+                                        resource: analyses_folder.clone(),
+                                        parent: folder.clone(),
+                                    },
+                                ]);
+                            }
+                        }
+                    }
+                }
+
+                match project.data().borrow().graph() {
+                    None => actions.push(Action::CreateFolderAt {
+                        path: project.data().borrow().path().clone(),
+                        with_parents: true,
+                    }),
+                    Some(graph) => {
+                        for container in graph.nodes() {
+                            actions.extend(Self::valid_actions_container(
+                                container, fs_state, &folders, rng,
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -439,178 +346,369 @@ impl Simulator {
         actions
     }
 
-    fn valid_actions_asset<R>(state: &state::Asset, rng: &mut R) -> Vec<state::action::AssetFile>
+    fn valid_actions_app_manifest<M, R>(
+        manifest: &Ptr<M>,
+        fs_state: &state::fs::State,
+        folder: &Ptr<state::fs::Folder>,
+        rng: &mut R,
+    ) -> Vec<state::Action>
     where
+        M: state::app::HasPath
+            + state::app::HasFsDataResource<Resource = state::fs::File>
+            + state::app::Manifest,
         R: rand::Rng,
     {
-        use crate::state::action::AssetFile;
-
-        match state.file {
-            state::Reference::NotPresent => {
-                todo!();
-            }
-
-            state::Reference::Present(_) => {
-                vec![
-                    AssetFile::Remove,
-                    AssetFile::Rename,
-                    AssetFile::Move,
-                    AssetFile::Copy,
-                    AssetFile::Modify,
-                ]
-            }
-        }
-    }
-
-    fn valid_actions_container_config(
-        state: &state::ContainerConfig,
-    ) -> Vec<state::action::Container> {
         use crate::state::{
-            action::{Container, Manifest, ModifyManifest, StaticFile},
-            Resource,
+            action::{FsResource, ModifyKind},
+            app::{DataResourceState, FsDataResource},
+            Action,
         };
 
-        let mut actions = vec![];
-        match &state.properties {
-            Resource::NotPresent => actions.push(Container::Properties(StaticFile::Create)),
+        let manifest = manifest.borrow();
+        let mut actions = Vec::with_capacity(10);
+        match manifest.fs_resource() {
+            FsDataResource::NotPresent => {
+                actions.push(Action::CreateFileAt {
+                    path: manifest.path().clone(),
+                    with_parents: true,
+                });
+            }
 
-            Resource::Invalid => actions.extend(vec![
-                Container::Properties(StaticFile::Remove),
-                Container::Properties(StaticFile::Rename),
-                Container::Properties(StaticFile::Move),
-                Container::Properties(StaticFile::Copy),
-                Container::Properties(StaticFile::Repair),
-            ]),
+            FsDataResource::Present {
+                resource,
+                state: resource_state,
+            } => {
+                let file_ptr = resource.upgrade().unwrap();
+                let file = FsResource::File(file_ptr.clone());
+                tracing::debug!(?file);
 
-            Resource::Valid(_) => actions.extend(vec![
-                Container::Properties(StaticFile::Remove),
-                Container::Properties(StaticFile::Rename),
-                Container::Properties(StaticFile::Move),
-                Container::Properties(StaticFile::Copy),
-                Container::Properties(StaticFile::Modify),
-                Container::Properties(StaticFile::Corrupt),
-            ]),
-        }
+                actions.extend([
+                    Action::Remove(file.clone()),
+                    Action::Rename {
+                        resource: file.clone(),
+                        to: utils::random_file_name(rng),
+                    },
+                    Action::Modify {
+                        file: file_ptr.clone(),
+                        kind: ModifyKind::Other,
+                    },
+                ]);
 
-        match &state.settings {
-            Resource::NotPresent => actions.push(Container::Settings(StaticFile::Create)),
+                let parent = fs_state.find_file_folder_by_ptr(&file_ptr).unwrap();
+                if Ptr::ptr_eq(parent, folder) {
+                    actions.extend([
+                        Action::Move {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                        Action::Copy {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                    ]);
+                }
 
-            Resource::Invalid => actions.extend(vec![
-                Container::Settings(StaticFile::Remove),
-                Container::Settings(StaticFile::Rename),
-                Container::Settings(StaticFile::Move),
-                Container::Settings(StaticFile::Copy),
-                Container::Settings(StaticFile::Repair),
-            ]),
+                match resource_state {
+                    DataResourceState::Invalid => actions.push(Action::Modify {
+                        file: file_ptr,
+                        kind: ModifyKind::Repair,
+                    }),
 
-            Resource::Valid(_) => actions.extend(vec![
-                Container::Settings(StaticFile::Remove),
-                Container::Settings(StaticFile::Rename),
-                Container::Settings(StaticFile::Move),
-                Container::Settings(StaticFile::Copy),
-                Container::Settings(StaticFile::Modify),
-                Container::Settings(StaticFile::Corrupt),
-            ]),
-        }
+                    DataResourceState::Valid => {
+                        actions.extend([
+                            Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::Corrupt,
+                            },
+                            Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::ManifestAdd(Alphanumeric.sample_string(rng, 16)),
+                            },
+                        ]);
 
-        match &state.assets {
-            Resource::NotPresent => actions.push(Container::Assets(Manifest::Create)),
-
-            Resource::Invalid => actions.extend(vec![
-                Container::Assets(Manifest::Remove),
-                Container::Assets(Manifest::Rename),
-                Container::Assets(Manifest::Move),
-                Container::Assets(Manifest::Copy),
-                Container::Assets(Manifest::Repair),
-            ]),
-
-            Resource::Valid(_) => actions.extend(vec![
-                Container::Assets(Manifest::Remove),
-                Container::Assets(Manifest::Rename),
-                Container::Assets(Manifest::Move),
-                Container::Assets(Manifest::Copy),
-                Container::Assets(Manifest::Corrupt),
-                Container::Assets(Manifest::Modify(ModifyManifest::Add)),
-                Container::Assets(Manifest::Modify(ModifyManifest::Remove)),
-                Container::Assets(Manifest::Modify(ModifyManifest::Alter)),
-            ]),
+                        let manifest_len = manifest.manifest().len();
+                        if manifest_len > 0 {
+                            let remove_index = rng.gen_range(0..manifest_len);
+                            actions.push(Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::ManifestRemove(remove_index),
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         actions
     }
 
-    fn valid_actions_project_config(state: &state::ProjectConfig) -> Vec<state::action::Project> {
+    /// # Arguments
+    /// #. `manifest`: Project resource for which to get valid actions.
+    /// #. `name`: File name for the resource.
+    /// #. `parent`: Associated config folder.
+    /// #. `folder`: Folder used for move and copy.
+    /// #. `rng`: Random number generator.
+    fn valid_actions_project_resource_manifest<M, R>(
+        manifest: &Ptr<M>,
+        name: impl Into<OsString>,
+        parent: &Ptr<state::fs::Folder>,
+        folder: &Ptr<state::fs::Folder>,
+        rng: &mut R,
+    ) -> Vec<state::Action>
+    where
+        M: state::app::HasFsDataResource<Resource = state::fs::File> + state::app::Manifest,
+        R: rand::Rng,
+    {
         use crate::state::{
-            action::{Manifest, ModifyManifest, Project, StaticFile},
-            Resource,
+            action::{FsResource, ModifyKind},
+            app::{DataResourceState, FsDataResource},
+            Action,
         };
 
-        let mut actions = vec![];
-        match state.properties {
-            Resource::NotPresent => actions.push(Project::Properties(StaticFile::Create)),
+        let manifest = manifest.borrow();
+        let mut actions = Vec::with_capacity(10);
+        match manifest.fs_resource() {
+            FsDataResource::NotPresent => {
+                actions.push(Action::CreateFile {
+                    parent: parent.clone(),
+                    name: name.into(),
+                });
+            }
 
-            Resource::Invalid => actions.extend(vec![
-                Project::Properties(StaticFile::Remove),
-                Project::Properties(StaticFile::Rename),
-                Project::Properties(StaticFile::Move),
-                Project::Properties(StaticFile::Copy),
-                Project::Properties(StaticFile::Modify),
-                Project::Properties(StaticFile::Repair),
-            ]),
+            FsDataResource::Present {
+                resource,
+                state: resource_state,
+            } => {
+                let file_ptr = resource.upgrade().unwrap();
+                let file = FsResource::File(file_ptr.clone());
+                tracing::debug!(?file);
 
-            Resource::Valid(_) => actions.extend(vec![
-                Project::Properties(StaticFile::Remove),
-                Project::Properties(StaticFile::Rename),
-                Project::Properties(StaticFile::Move),
-                Project::Properties(StaticFile::Copy),
-                Project::Properties(StaticFile::Modify),
-                Project::Properties(StaticFile::Corrupt),
-            ]),
+                actions.extend([
+                    Action::Remove(file.clone()),
+                    Action::Rename {
+                        resource: file.clone(),
+                        to: utils::random_file_name(rng),
+                    },
+                    Action::Modify {
+                        file: file_ptr.clone(),
+                        kind: ModifyKind::Other,
+                    },
+                ]);
+
+                if !Ptr::ptr_eq(parent, folder) {
+                    actions.extend([
+                        Action::Move {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                        Action::Copy {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                    ]);
+                }
+
+                match resource_state {
+                    DataResourceState::Invalid => actions.push(Action::Modify {
+                        file: file_ptr,
+                        kind: ModifyKind::Repair,
+                    }),
+
+                    DataResourceState::Valid => {
+                        actions.extend([
+                            Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::Corrupt,
+                            },
+                            Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::ManifestAdd(Alphanumeric.sample_string(rng, 16)),
+                            },
+                        ]);
+
+                        let manifest_len = manifest.manifest().len();
+                        if manifest_len > 0 {
+                            let remove_index = rng.gen_range(0..manifest_len);
+                            actions.push(Action::Modify {
+                                file: file_ptr.clone(),
+                                kind: ModifyKind::ManifestRemove(remove_index),
+                            });
+                        }
+                    }
+                }
+            }
         }
 
-        match state.settings {
-            Resource::NotPresent => actions.push(Project::Settings(StaticFile::Create)),
+        actions
+    }
 
-            Resource::Invalid => actions.extend(vec![
-                Project::Settings(StaticFile::Remove),
-                Project::Settings(StaticFile::Rename),
-                Project::Settings(StaticFile::Move),
-                Project::Settings(StaticFile::Copy),
-                Project::Settings(StaticFile::Modify),
-                Project::Settings(StaticFile::Repair),
-            ]),
+    /// # Arguments
+    /// #. `resource`: Project config resource for which to get valid actions.
+    /// #. `name`: File name for the resource.
+    /// #. `parent`: Associated config folder.
+    /// #. `folder`: Folder used for move and copy.
+    /// #. `rng`: Random number generator.
+    fn valid_actions_project_config_resource<M, R>(
+        resource: &Ptr<M>,
+        name: impl Into<OsString>,
+        parent: &Ptr<state::fs::Folder>,
+        folder: &Ptr<state::fs::Folder>,
+        rng: &mut R,
+    ) -> Vec<state::Action>
+    where
+        M: state::app::HasFsDataResource<Resource = state::fs::File>,
+        R: rand::Rng,
+    {
+        use crate::state::{
+            action::{FsResource, ModifyKind},
+            app::{DataResourceState, FsDataResource},
+            Action,
+        };
 
-            Resource::Valid(_) => actions.extend(vec![
-                Project::Settings(StaticFile::Remove),
-                Project::Settings(StaticFile::Rename),
-                Project::Settings(StaticFile::Move),
-                Project::Settings(StaticFile::Copy),
-                Project::Settings(StaticFile::Modify),
-                Project::Settings(StaticFile::Corrupt),
-            ]),
+        let mut actions = Vec::with_capacity(10);
+        match resource.borrow().fs_resource() {
+            FsDataResource::NotPresent => actions.push(Action::CreateFile {
+                parent: parent.clone(),
+                name: name.into(),
+            }),
+            FsDataResource::Present { resource, state } => {
+                let file_ptr = resource.upgrade().unwrap();
+                let file = FsResource::File(file_ptr.clone());
+                tracing::debug!(?file);
+                actions.extend([
+                    Action::Remove(file.clone()),
+                    Action::Rename {
+                        resource: file.clone(),
+                        to: utils::random_file_name(rng),
+                    },
+                    Action::Modify {
+                        file: file_ptr.clone(),
+                        kind: ModifyKind::Other,
+                    },
+                ]);
+
+                if !Ptr::ptr_eq(parent, folder) {
+                    actions.extend([
+                        Action::Move {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                        Action::Copy {
+                            resource: file.clone(),
+                            parent: folder.clone(),
+                        },
+                    ]);
+                }
+
+                match state {
+                    DataResourceState::Invalid => actions.push(Action::Modify {
+                        file: file_ptr.clone(),
+                        kind: ModifyKind::Repair,
+                    }),
+                    DataResourceState::Valid => actions.push(Action::Modify {
+                        file: file_ptr.clone(),
+                        kind: ModifyKind::Corrupt,
+                    }),
+                }
+            }
         }
 
-        match state.analyses {
-            Resource::NotPresent => actions.push(Project::Analyses(Manifest::Create)),
+        actions
+    }
 
-            Resource::Invalid => actions.extend(vec![
-                Project::Analyses(Manifest::Remove),
-                Project::Analyses(Manifest::Rename),
-                Project::Analyses(Manifest::Move),
-                Project::Analyses(Manifest::Copy),
-                Project::Analyses(Manifest::Repair),
-            ]),
+    /// # Arguments
+    /// #. `container`: Container for which to get valid actions.
+    /// #. `fs_state`: File system state.
+    /// #. `folders`: List of all folders in the file system.
+    /// #. `rng`: Random number generator.
+    fn valid_actions_container<R>(
+        container: &Ptr<state::app::Container>,
+        fs_state: &state::fs::State,
+        folders: &Vec<Ptr<state::fs::Folder>>,
+        rng: &mut R,
+    ) -> Vec<state::Action>
+    where
+        R: rand::Rng,
+    {
+        use crate::state::{
+            action,
+            app::{DataResource, DataResourceState, Resource},
+            Action,
+        };
+        use syre_local::constants;
 
-            Resource::Valid(_) => actions.extend(vec![
-                Project::Analyses(Manifest::Remove),
-                Project::Analyses(Manifest::Rename),
-                Project::Analyses(Manifest::Move),
-                Project::Analyses(Manifest::Copy),
-                Project::Analyses(Manifest::Corrupt),
-                Project::Analyses(Manifest::Modify(ModifyManifest::Add)),
-                Project::Analyses(Manifest::Modify(ModifyManifest::Remove)),
-                Project::Analyses(Manifest::Modify(ModifyManifest::Alter)),
-            ]),
+        let mut actions = Vec::with_capacity(10);
+        let container_ptr = container.borrow().fs_resource().upgrade().unwrap();
+        let container_folder = action::FsResource::Folder(container_ptr.clone());
+        let folder = &folders[rng.gen_range(0..folders.len())];
+
+        actions.extend([
+            Action::Remove(container_folder.clone()),
+            Action::Rename {
+                resource: container_folder.clone(),
+                to: utils::random_file_name(rng),
+            },
+            Action::Move {
+                resource: container_folder.clone(),
+                parent: folder.clone(),
+            },
+        ]);
+
+        match container.borrow().data() {
+            Resource::NotPresent => {
+                actions.push(Action::CreateFolder {
+                    parent: container_ptr.clone(),
+                    name: constants::APP_DIR.into(),
+                });
+            }
+
+            Resource::Present(data) => {
+                let data = data.borrow();
+                let config = data.config().borrow();
+                let config_folder_ptr = config.fs_resource().upgrade().unwrap().clone();
+                actions.extend([
+                    Action::CreateFolder {
+                        parent: config_folder_ptr.clone(),
+                        name: utils::random_file_name(rng).into(),
+                    },
+                    Action::CreateFile {
+                        parent: config_folder_ptr.clone(),
+                        name: utils::random_file_name(rng).into(),
+                    },
+                    Action::Remove(folder.clone().into()),
+                    Action::Rename {
+                        resource: config_folder_ptr.clone().into(),
+                        to: utils::random_file_name(rng),
+                    },
+                ]);
+
+                let folder = &folders[rng.gen_range(0..folders.len())];
+                actions.extend(Self::valid_actions_project_config_resource(
+                    config.properties(),
+                    constants::PROJECT_FILE,
+                    &config_folder_ptr,
+                    &folder,
+                    rng,
+                ));
+
+                let folder = &folders[rng.gen_range(0..folders.len())];
+                actions.extend(Self::valid_actions_project_config_resource(
+                    config.settings(),
+                    constants::PROJECT_FILE,
+                    &config_folder_ptr,
+                    &folder,
+                    rng,
+                ));
+
+                let folder = &folders[rng.gen_range(0..folders.len())];
+                actions.extend(Self::valid_actions_project_resource_manifest(
+                    config.assets(),
+                    constants::ANALYSES_FILE,
+                    &config_folder_ptr,
+                    &folder,
+                    rng,
+                ));
+            }
         }
 
         actions
@@ -618,842 +716,153 @@ impl Simulator {
 }
 
 impl Simulator {
-    fn perform_actions(&mut self, actions: Vec<action::Action>) -> Result {
+    fn perform_actions(&mut self, actions: Vec<state::Action>) -> Result {
         actions
             .iter()
             .map(|action| {
                 let res = self.perform_action(action);
-                self.state.app.transition(&action).unwrap();
+                self.state.app.reduce(action).unwrap();
                 res
             })
             .collect()
     }
 
     fn perform_action(&mut self, action: &state::Action) -> Result {
-        use crate::state::Action;
+        use crate::state::{action::FsResource, Action};
 
         tracing::debug!(?action);
+        let fs_state = self.state.app.fs();
         match action {
-            Action::App(action) => self.perform_action_app(action),
-            Action::CreateProject { id, path } => {
-                let path = self.options.base_path().join(path);
-                let mut project =
-                    syre_local::project::resources::Project::new(path.clone()).unwrap();
-                project.rid = id.clone();
-                project.save().unwrap();
+            Action::CreateFolder { parent, name } => {
+                assert!(!fs_state.name_exists(parent, name).unwrap());
+                let path = fs_state.graph().path(parent).unwrap();
+                let path = fs_state.base_path().join(path).join(name);
+                fs::create_dir(path).unwrap();
+            }
+            Action::CreateFolderAt { path, with_parents } => {
+                if *with_parents {
+                    let path = fs_state.base_path().join(path);
+                    fs::create_dir_all(path)?;
+                } else {
+                    let parent = fs_state
+                        .graph()
+                        .find_by_path(path.parent().unwrap())
+                        .unwrap();
 
-                self.watch(path)?;
-                Ok(())
+                    assert!(!fs_state
+                        .name_exists(&parent, path.file_name().unwrap())
+                        .unwrap());
+
+                    let path = fs_state.base_path().join(path);
+                    fs::create_dir(path)?;
+                }
+            }
+            Action::CreateFile { parent, name } => {
+                assert!(!fs_state.name_exists(parent, name).unwrap());
+                let path = fs_state.graph().path(parent).unwrap();
+                let path = fs_state.base_path().join(path).join(name);
+                fs::File::create(path).unwrap();
+            }
+            Action::CreateFileAt { path, with_parents } => {
+                let path = fs_state.base_path().join(path);
+                if *with_parents {
+                    fs::create_dir_all(path.parent().unwrap())?;
+                }
+
+                fs::File::create(path)?;
             }
 
-            Action::Project { project, action } => {
-                self.perform_action_project_resource(project, action)
+            Action::Remove(resource) => {
+                match resource {
+                    FsResource::File(file) => {
+                        let path = fs_state.file_path(file).unwrap();
+                        let path = fs_state.base_path().join(path);
+                        fs::remove_file(path)?;
+                    }
+                    FsResource::Folder(folder) => {
+                        let path = fs_state.graph().path(folder).unwrap();
+                        let path = fs_state.base_path().join(path);
+                        fs::remove_dir_all(path)?;
+                    }
+                };
             }
-
-            Action::Watch(path) => {
-                let path = self.options.base_path().join(path);
-                self.watch(path)?;
-                Ok(())
-            }
-
-            Action::Unwatch(path) => {
-                let path = self.options.base_path().join(path);
-                self.unwatch(path)?;
-                Ok(())
-            }
-        }
-    }
-
-    fn perform_action_app(&mut self, action: &state::action::AppResource) -> Result {
-        use state::action::{AppResource, Manifest};
-
-        match action {
-            AppResource::UserManifest(action) => match action {
-                Manifest::Create => {
-                    self.create_file(self.options.app_config().user_manifest())?;
-                    self.watch(self.options.app_config().user_manifest())?;
-                }
-
-                Manifest::Remove => self.remove_file(self.options.app_config().user_manifest())?,
-                Manifest::Rename => {
-                    let to = utils::random_file_name(&mut self.rng);
-                    self.rename_file(self.options.app_config().user_manifest(), to)?;
-                }
-
-                Manifest::Move => {
-                    let path = self.options.app_config().user_manifest();
-                    let new_dir = utils::random_file_name(&mut self.rng);
-                    self.create_folder(&new_dir)?;
-                    self.move_file(&path, new_dir.join(path.file_name().unwrap()))?;
-                }
-
-                Manifest::Copy => {
-                    let to = utils::random_file_name(&mut self.rng);
-                    self.create_folder(&to)?;
-                    self.copy_file(self.options.app_config().user_manifest(), to)?
-                }
-
-                Manifest::Corrupt => {}
-                Manifest::Repair => {}
-                Manifest::Modify(kind) => {}
-            },
-
-            AppResource::ProjectManifest(action) => match action {
-                Manifest::Create => {
-                    self.create_file(self.options.app_config().project_manifest())?;
-                    self.watch(self.options.app_config().project_manifest())?;
-                }
-
-                Manifest::Remove => {
-                    self.remove_file(self.options.app_config().project_manifest())?
-                }
-                Manifest::Rename => {
-                    let to = utils::random_file_name(&mut self.rng);
-                    self.rename_file(self.options.app_config().project_manifest(), to)?;
-                }
-
-                Manifest::Move => {
-                    let path = self.options.app_config().project_manifest();
-                    let new_dir = utils::random_file_name(&mut self.rng);
-                    self.create_folder(&new_dir)?;
-                    self.move_file(&path, new_dir.join(path.file_name().unwrap()))?;
-                }
-
-                Manifest::Copy => {
-                    let to = utils::random_file_name(&mut self.rng);
-                    self.create_folder(&to)?;
-                    self.copy_file(self.options.app_config().project_manifest(), to)?
-                }
-
-                Manifest::Corrupt => {}
-                Manifest::Repair => {}
-                Manifest::Modify(kind) => {}
-            },
-        }
-
-        Ok(())
-    }
-
-    fn perform_action_project_resource(
-        &mut self,
-        project: &ResourceId,
-        action: &state::action::ProjectResource,
-    ) -> Result {
-        use crate::state::{action::ProjectResource, Reference};
-        use syre_local::project::resources::Container;
-
-        match action {
-            ProjectResource::Project(action) => self.perform_action_project(project, action),
-            ProjectResource::CreateDataDir { id, path } => {
-                let project = self.state.app.find_project_mut(project).unwrap();
-                assert_matches!(project.data, Reference::NotPresent);
-
-                let path = self.options.base_path().join(&project.path).join(path);
-                let mut container = Container::new(path);
-                container.rid = id.clone();
-                container.save()?;
-                Ok(())
-            }
-
-            ProjectResource::CreateContainer { parent, id, name } => {
-                let project = self.state.app.find_project_mut(project).unwrap();
-                let Reference::Present(data) = &mut project.data else {
-                    unreachable!();
+            Action::Rename { resource, to } => {
+                let from = match resource {
+                    FsResource::File(file) => fs_state.file_path(file).unwrap(),
+                    FsResource::Folder(folder) => fs_state.graph().path(folder).unwrap(),
                 };
 
-                let parent = data.find(parent).unwrap();
-                let parent_path = data.path(parent).unwrap();
-                let path = self
-                    .options
-                    .base_path()
-                    .join(&project.path)
-                    .join(data.root_path())
-                    .join(parent_path)
-                    .join(name);
-
-                let mut container = Container::new(path);
-                container.rid = id.clone();
-                container.save()?;
-                Ok(())
+                let from = fs_state.base_path().join(from);
+                let mut to_path = from.clone();
+                to_path.set_file_name(to);
+                fs::rename(from, to_path)?;
             }
-
-            ProjectResource::CreateAssetFile {
-                container,
-                id,
-                name,
-            } => {
-                let project = self.state.app.find_project_mut(project).unwrap();
-                let Reference::Present(data) = &mut project.data else {
-                    unreachable!();
+            Action::Move { resource, parent } => {
+                let from = match resource {
+                    FsResource::File(file) => fs_state.file_path(file).unwrap(),
+                    FsResource::Folder(folder) => fs_state.graph().path(folder).unwrap(),
                 };
+                assert!(!fs_state
+                    .name_exists(parent, from.file_name().unwrap())
+                    .unwrap());
 
-                let container = data.find(container).unwrap();
-                let container_path = data.path(container).unwrap();
-                let path = self
-                    .options
-                    .base_path()
-                    .join(&project.path)
-                    .join(data.root_path())
-                    .join(container_path)
-                    .join(name);
+                let to = fs_state.graph().path(parent).unwrap();
+                let to = to.join(from.file_name().unwrap());
+                assert!(!fs_state
+                    .name_exists(parent, to.file_name().unwrap())
+                    .unwrap());
 
-                self.create_file(path)?;
-                Ok(())
+                let from = fs_state.base_path().join(from);
+                let to = fs_state.base_path().join(to);
+                fs::rename(from, to)?;
             }
+            Action::Copy { resource, parent } => {
+                let from = match resource {
+                    FsResource::File(file) => fs_state.file_path(file).unwrap(),
+                    FsResource::Folder(folder) => fs_state.graph().path(folder).unwrap(),
+                };
+                assert!(!fs_state
+                    .name_exists(parent, from.file_name().unwrap())
+                    .unwrap());
 
-            ProjectResource::Container { container, action } => {
-                self.perform_action_container(project, container, action)
-            }
+                let to = fs_state.graph().path(parent).unwrap();
+                let to = to.join(from.file_name().unwrap());
+                assert!(!fs_state
+                    .name_exists(parent, to.file_name().unwrap())
+                    .unwrap());
 
-            ProjectResource::AssetFile {
-                container,
-                asset,
-                action,
-            } => self.perform_action_asset_file(project, container, asset, action),
-        }
-    }
+                let from = fs_state.base_path().join(from);
+                let to = fs_state.base_path().join(to);
 
-    fn perform_action_project(
-        &mut self,
-        project: &ResourceId,
-        action: &state::action::Project,
-    ) -> Result {
-        use crate::state::{
-            action::{Dir, Manifest, Project, ResourceDir, StaticDir, StaticFile},
-            app::{ProjectConfig, Reference, Resource},
-        };
-        use syre_local::{common, project::resources::Container};
-
-        let project = self.state.app.find_project(&project).unwrap();
-        match action {
-            Project::Project(action) => match action {
-                ResourceDir::Remove => {
-                    self.remove_folder(&project.path)?;
-                    self.unwatch(project.path.clone())?;
-                }
-
-                ResourceDir::Rename { to } => {
-                    self.rename_folder(&project.path, &to)?;
-                    self.unwatch(project.path.clone())?;
-                    self.watch(to)?;
-                }
-
-                ResourceDir::Move { to } => {
-                    self.create_folder(&to)?;
-                    self.move_folder(&project.path, &to)?;
-                    self.unwatch(project.path.clone())?;
-                    self.watch(to)?;
-                }
-
-                ResourceDir::Copy { to } => {
-                    self.copy_folder(&project.path, to)?;
-                    // TODO: Not sure if should watch new project.
-                }
-            },
-
-            Project::ConfigDir(action) => {
-                let path = common::app_dir_of(&project.path);
-                match action {
-                    StaticDir::Create => {
-                        self.create_folder(path)?;
+                match resource {
+                    FsResource::File(_) => {
+                        fs::copy(from, to)?;
                     }
-
-                    StaticDir::Remove => {
-                        assert_matches!(project.config, Reference::Present(_));
-                        self.remove_folder(path)?;
-                    }
-
-                    StaticDir::Rename => {
-                        assert_matches!(project.config, Reference::Present(_));
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_folder(path, to)?;
-                    }
-
-                    StaticDir::Move => {
-                        assert_matches!(project.config, Reference::Present(_));
-                        let to = project.path.join(utils::random_file_name(&mut self.rng));
-                        self.create_folder(&to)?;
-                        self.move_folder(path, to)?;
-                    }
-
-                    StaticDir::Copy => {
-                        assert_matches!(project.config, Reference::Present(_));
-                        let to = project.path.join(utils::random_file_name(&mut self.rng));
-                        self.copy_folder(path, to)?;
+                    FsResource::Folder(_) => {
+                        utils::copy_dir(from, to)?;
                     }
                 }
             }
-
-            Project::AnalysisDir(action) => match action {
-                Dir::Create { path } => {
-                    self.create_folder(project.path.join(path))?;
-                }
-
-                Dir::Remove => {
-                    let Some(Reference::Present(path)) = project.analyses.as_ref() else {
-                        unreachable!();
-                    };
-
-                    self.remove_folder(project.path.join(path))?;
-                }
-
-                Dir::Rename { to } => {
-                    let Some(Reference::Present(path)) = project.analyses.as_ref() else {
-                        unreachable!();
-                    };
-
-                    self.rename_folder(project.path.join(path), to)?;
-                }
-
-                Dir::Move { to } => {
-                    let Some(Reference::Present(path)) = project.analyses.as_ref() else {
-                        unreachable!();
-                    };
-
-                    self.create_folder(&to)?;
-                    self.move_folder(project.path.join(path), to)?;
-                }
-
-                Dir::Copy { to } => {
-                    let Some(Reference::Present(path)) = project.analyses.as_ref() else {
-                        unreachable!();
-                    };
-
-                    self.copy_folder(project.path.join(path), to)?;
-                }
-            },
-
-            Project::DataDir(action) => match action {
-                ResourceDir::Remove => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!();
-                    };
-
-                    self.remove_folder(project.path.join(data.root_path()))?;
-                }
-
-                ResourceDir::Rename { to } => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!();
-                    };
-
-                    self.rename_folder(project.path.join(data.root_path()), to)?;
-                }
-
-                ResourceDir::Move { to } => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!();
-                    };
-
-                    self.create_folder(&to)?;
-                    self.move_folder(project.path.join(data.root_path()), to)?;
-                }
-
-                ResourceDir::Copy { to } => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!();
-                    };
-
-                    self.copy_folder(project.path.join(data.root_path()), to.clone())?;
-                }
-            },
-
-            Project::Properties(action) => {
-                let path = common::project_file_of(&project.path);
-                match action {
-                    StaticFile::Create => {
-                        self.create_file(path)?;
+            Action::Modify { file, kind } => {
+                let path = fs_state.file_path(file).unwrap();
+                let path = fs_state.base_path().join(path);
+                match kind {
+                    state::action::ModifyKind::ManifestAdd(item) => {
+                        fs::write(path, item)?;
                     }
-
-                    StaticFile::Remove => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
+                    state::action::ModifyKind::ManifestRemove(index) => {
+                        fs::write(path, format!("remove {index}"))?;
                     }
-
-                    StaticFile::Rename => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
+                    state::action::ModifyKind::Corrupt => {
+                        fs::write(path, "corrupt")?;
                     }
-
-                    StaticFile::Move => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
+                    state::action::ModifyKind::Repair => {
+                        fs::write(path, "repair")?;
                     }
-
-                    StaticFile::Copy => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.create_folder(&to)?;
-                        self.copy_file(path, to)?;
-                    }
-
-                    StaticFile::Corrupt => {}
-                    StaticFile::Repair => {}
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Project::Settings(action) => {
-                let path = common::project_settings_file_of(&project.path);
-                match action {
-                    StaticFile::Create => {
-                        self.create_file(path)?;
-                    }
-
-                    StaticFile::Remove => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
-                    }
-
-                    StaticFile::Rename => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
-                    }
-
-                    StaticFile::Move => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
-                    }
-
-                    StaticFile::Copy => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.create_folder(&to)?;
-                        self.copy_file(path, to)?;
-                    }
-
-                    StaticFile::Corrupt => {}
-                    StaticFile::Repair => {}
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Project::Analyses(action) => {
-                let path = common::analyses_file_of(&project.path);
-                match action {
-                    Manifest::Create => {
-                        self.create_file(path)?;
-                    }
-
-                    Manifest::Remove => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                analyses: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
-                    }
-
-                    Manifest::Rename => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                analyses: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
-                    }
-
-                    Manifest::Move => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                analyses: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
-                    }
-
-                    Manifest::Copy => {
-                        assert_matches!(
-                            project.config,
-                            Reference::Present(ProjectConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.create_folder(&to)?;
-                        self.copy_file(path, to)?;
-                    }
-
-                    Manifest::Corrupt => {}
-                    Manifest::Repair => {}
-                    Manifest::Modify(kind) => {}
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn perform_action_container(
-        &mut self,
-        project: &ResourceId,
-        container: &ResourceId,
-        action: &state::action::Container,
-    ) -> Result {
-        use crate::state::{
-            action::{Container, Manifest, ResourceDir, StaticDir, StaticFile},
-            app::{ContainerConfig, Reference, Resource},
-        };
-        use syre_local::common;
-
-        let project = self.state.app.find_project(project).unwrap();
-        let Reference::Present(data) = &project.data else {
-            unreachable!();
-        };
-
-        let container = data.graph.find(container).unwrap();
-        let path = data.path(container).unwrap();
-        let path = project.path.join(path);
-        let container = container.borrow();
-        match action {
-            Container::Container(action) => match action {
-                ResourceDir::Remove => self.remove_folder(path)?,
-                ResourceDir::Rename { to } => self.rename_folder(path, to)?,
-                ResourceDir::Move { to } => {
-                    self.create_folder(&to)?;
-                    self.move_folder(path, to)?;
-                }
-
-                ResourceDir::Copy { to } => {
-                    self.copy_folder(path, to)?;
-                }
-            },
-
-            Container::ConfigDir(action) => {
-                let path = common::app_dir_of(path);
-                match action {
-                    StaticDir::Create => self.create_folder(path)?,
-                    StaticDir::Remove => {
-                        assert_matches!(container.config, Reference::Present(_));
-                        self.remove_folder(path)?;
-                    }
-
-                    StaticDir::Rename => {
-                        assert_matches!(container.config, Reference::Present(_));
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_folder(path, to)?;
-                    }
-
-                    StaticDir::Move => {
-                        assert_matches!(container.config, Reference::Present(_));
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.create_folder(&to)?;
-                        self.move_folder(path, to)?;
-                    }
-
-                    StaticDir::Copy => {
-                        assert_matches!(container.config, Reference::Present(_));
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.copy_folder(path, to)?;
+                    state::action::ModifyKind::Other => {
+                        fs::write(path, "modified")?;
                     }
                 }
-            }
-
-            Container::Properties(action) => {
-                let path = common::container_file_of(path);
-                match action {
-                    StaticFile::Create => self.create_file(path)?,
-                    StaticFile::Remove => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
-                    }
-
-                    StaticFile::Rename => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
-                    }
-
-                    StaticFile::Move => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
-                    }
-
-                    StaticFile::Copy => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                properties: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.create_folder(&to)?;
-                        self.copy_file(path, to)?;
-                    }
-
-                    StaticFile::Corrupt => {}
-                    StaticFile::Repair => {}
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Container::Settings(action) => {
-                let path = common::container_settings_file_of(path);
-                match action {
-                    StaticFile::Create => self.create_file(path)?,
-                    StaticFile::Remove => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
-                    }
-
-                    StaticFile::Rename => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
-                    }
-
-                    StaticFile::Move => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
-                    }
-
-                    StaticFile::Copy => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                settings: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.copy_file(path, to)?;
-                    }
-
-                    StaticFile::Corrupt => {}
-                    StaticFile::Repair => {}
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Container::Assets(action) => {
-                let path = common::assets_file_of(path);
-                match action {
-                    Manifest::Create => self.create_file(path)?,
-                    Manifest::Remove => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                assets: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        self.remove_file(path)?;
-                    }
-
-                    Manifest::Rename => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                assets: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = utils::random_file_name(&mut self.rng);
-                        self.rename_file(path, to)?;
-                    }
-
-                    Manifest::Move => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                assets: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.move_file(path, to)?;
-                    }
-
-                    Manifest::Copy => {
-                        assert_matches!(
-                            container.config,
-                            Reference::Present(ContainerConfig {
-                                assets: Resource::Valid(_) | Resource::Invalid,
-                                ..
-                            })
-                        );
-
-                        let to = project.path().join(utils::random_file_name(&mut self.rng));
-                        self.create_folder(&to)?;
-                        self.copy_file(path, to)?;
-                    }
-
-                    Manifest::Corrupt => {}
-                    Manifest::Repair => {}
-                    Manifest::Modify(kind) => {}
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn perform_action_asset_file(
-        &mut self,
-        project: &ResourceId,
-        container: &ResourceId,
-        asset: &ResourceId,
-        action: &state::action::AssetFile,
-    ) -> Result {
-        use crate::state::{action::AssetFile, app::Reference};
-
-        let project = self.state.app.find_project(&project).unwrap();
-        let Reference::Present(data) = &project.data else {
-            unreachable!();
-        };
-
-        let container = data.graph.find(&container).unwrap();
-        let container = container.borrow();
-        let asset = container.find_asset(&asset).unwrap();
-        let path = project
-            .path
-            .join(data.root_path())
-            .join(&container.path)
-            .join(&asset.path);
-
-        match action {
-            AssetFile::Remove => self.remove_file(path)?,
-            AssetFile::Rename => {
-                let to = utils::random_file_name(&mut self.rng);
-                self.rename_file(path, to)?;
-            }
-
-            AssetFile::Move => {
-                let to = utils::random_move_path(&path, &data.all_paths(), &mut self.rng)
-                    .join(path.file_name().unwrap());
-                self.move_file(path, to)?;
-            }
-
-            AssetFile::Copy => {
-                let to = utils::random_move_path(&path, &data.all_paths(), &mut self.rng);
-                self.create_folder(&to)?;
-                self.copy_file(path, to)?;
-            }
-
-            AssetFile::Modify => {
-                todo!()
             }
         }
 
@@ -1539,15 +948,21 @@ impl Simulator {
     }
 }
 
-#[derive(Default)]
 pub struct State {
     current_tick: usize,
-    pub app: state::app::State,
+    pub app: state::State,
 }
 
 impl State {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(path: impl AsRef<Path>, app_config: &AppConfig) -> Self {
+        Self {
+            current_tick: 0,
+            app: state::State::new(
+                path,
+                app_config.user_manifest().clone(),
+                app_config.project_manifest().clone(),
+            ),
+        }
     }
 }
 
@@ -1571,8 +986,8 @@ mod utils {
     /// each path and the base path.
     ///
     /// # Arguments
-    /// + `base_path`: Path to calculate distances from.
-    /// + `paths`: Paths to choose from.
+    /// #. `base_path`: Path to calculate distances from.
+    /// #. `paths`: Paths to choose from.
     pub fn random_move_path<R>(base_path: &PathBuf, paths: &Vec<PathBuf>, rng: &mut R) -> PathBuf
     where
         R: rand::Rng,
@@ -1735,6 +1150,7 @@ pub mod options {
     }
 
     impl Builder {
+        /// Creates a new Option with seed `0`.
         pub fn new(base_path: PathBuf) -> Self {
             Self {
                 seed: 0,

@@ -1,772 +1,1271 @@
 use super::{
-    action,
-    graph::{self, Tree},
-    HasPath,
+    action, fs,
+    graph::{NodeMap, Tree},
+    HasName, Ptr, WPtr,
 };
 use has_id::HasId;
-use std::{ops::Deref, path::PathBuf};
+use std::{ffi::OsString, path::PathBuf};
 use syre_core::types::ResourceId;
+use syre_local::common;
 
-#[derive(Clone, Default, Debug)]
+pub type ProjectMap = Vec<((Ptr<Project>, Ptr<Project>), ContainerMap)>;
+pub type ContainerMap = NodeMap<Container>;
+
+#[derive(Debug)]
 pub struct State {
-    pub user_manifest: Resource,
-    pub project_manifest: Resource,
-    pub projects: Vec<Project>,
+    app: AppState,
+    projects: Vec<Ptr<Project>>,
 }
 
 impl State {
-    pub fn find_project(&self, rid: &ResourceId) -> Option<&Project> {
-        self.projects.iter().find_map(|project| {
-            if &project.rid == rid {
-                Some(project)
-            } else {
-                None
-            }
-        })
+    pub fn new(user_manifest: impl Into<PathBuf>, project_manifest: impl Into<PathBuf>) -> Self {
+        Self {
+            app: AppState::new(user_manifest, project_manifest),
+            projects: vec![],
+        }
     }
 
-    pub fn find_project_mut(&mut self, rid: &ResourceId) -> Option<&mut Project> {
-        self.projects.iter_mut().find_map(|project| {
-            if &project.rid == rid {
-                Some(project)
-            } else {
-                None
-            }
-        })
+    pub fn app_state(&self) -> &AppState {
+        &self.app
     }
 
-    pub fn remove_project(&mut self, rid: &ResourceId) -> Option<Project> {
-        let index = self
+    pub fn projects(&self) -> &Vec<Ptr<Project>> {
+        &self.projects
+    }
+
+    pub fn projects_mut(&mut self) -> &mut Vec<Ptr<Project>> {
+        &mut self.projects
+    }
+}
+
+impl State {
+    pub fn find_resource_project(&self, resource: AppResource) -> Option<&Ptr<Project>> {
+        match resource {
+            AppResource::File(resource) => match resource {
+                FileResource::UserManifest(manifest) => {
+                    return None;
+                }
+                FileResource::ProjectManifest(_) => {
+                    return None;
+                }
+                FileResource::ProjectProperties(properties) => {
+                    let Some(properties) = properties.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects
+                        .iter()
+                        .find(|project| match project.borrow().config() {
+                            Resource::NotPresent => false,
+                            Resource::Present(config) => {
+                                Ptr::ptr_eq(config.borrow().properties(), &properties)
+                            }
+                        })
+                }
+                FileResource::ProjectSettings(settings) => {
+                    let Some(settings) = settings.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects
+                        .iter()
+                        .find(|project| match project.borrow().config() {
+                            Resource::NotPresent => false,
+                            Resource::Present(config) => {
+                                Ptr::ptr_eq(config.borrow().settings(), &settings)
+                            }
+                        })
+                }
+                FileResource::AnalysisManifest(manifest) => {
+                    let Some(manifest) = manifest.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects
+                        .iter()
+                        .find(|project| match project.borrow().config() {
+                            Resource::NotPresent => false,
+                            Resource::Present(config) => {
+                                Ptr::ptr_eq(config.borrow().analyses(), &manifest)
+                            }
+                        })
+                }
+                FileResource::ContainerProperties(properties) => {
+                    let Some(properties) = properties.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| match node.borrow().data() {
+                                    Resource::NotPresent => false,
+                                    Resource::Present(resource) => Ptr::ptr_eq(
+                                        resource.borrow().config().borrow().properties(),
+                                        &properties,
+                                    ),
+                                })
+                                .is_some(),
+                        }
+                    })
+                }
+                FileResource::ContainerSettings(settings) => {
+                    let Some(settings) = settings.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| match node.borrow().data() {
+                                    Resource::NotPresent => false,
+                                    Resource::Present(resource) => Ptr::ptr_eq(
+                                        resource.borrow().config().borrow().settings(),
+                                        &settings,
+                                    ),
+                                })
+                                .is_some(),
+                        }
+                    })
+                }
+                FileResource::AssetManifest(manifest) => {
+                    let Some(manifest) = manifest.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| match node.borrow().data() {
+                                    Resource::NotPresent => false,
+                                    Resource::Present(resource) => Ptr::ptr_eq(
+                                        resource.borrow().config().borrow().assets(),
+                                        &manifest,
+                                    ),
+                                })
+                                .is_some(),
+                        }
+                    })
+                }
+                FileResource::Asset(asset) => {
+                    let Some(asset) = asset.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| match node.borrow().data() {
+                                    Resource::NotPresent => false,
+                                    Resource::Present(resource) => resource
+                                        .borrow()
+                                        .config()
+                                        .borrow()
+                                        .assets()
+                                        .borrow()
+                                        .manifest()
+                                        .iter()
+                                        .find(|a| Ptr::ptr_eq(a, &asset))
+                                        .is_some(),
+                                })
+                                .is_some(),
+                        }
+                    })
+                }
+            },
+
+            AppResource::Folder(resource) => match resource {
+                FolderResource::Project(project) => {
+                    let Some(project) = project.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects()
+                        .iter()
+                        .find(|prj| Ptr::ptr_eq(prj, &project))
+                }
+                FolderResource::ProjectConfig(config) => {
+                    let Some(config) = config.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects
+                        .iter()
+                        .find(|project| match project.borrow().config() {
+                            Resource::NotPresent => false,
+                            Resource::Present(c) => Ptr::ptr_eq(c, &config),
+                        })
+                }
+                FolderResource::Analyses(analyses) => {
+                    let Some(analyses) = analyses.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        if let Some(a) = project.borrow().analyses() {
+                            Ptr::ptr_eq(a, &analyses)
+                        } else {
+                            false
+                        }
+                    })
+                }
+                FolderResource::Data(data) => {
+                    let Some(data) = data.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects
+                        .iter()
+                        .find(|project| Ptr::ptr_eq(project.borrow().data(), &data))
+                }
+                FolderResource::Container(container) => {
+                    let Some(container) = container.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| Ptr::ptr_eq(node, &container))
+                                .is_some(),
+                        }
+                    })
+                }
+                FolderResource::ContainerConfig(config) => {
+                    let Some(config) = config.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        match project.borrow().data().borrow().graph() {
+                            None => false,
+                            Some(graph) => graph
+                                .nodes()
+                                .iter()
+                                .find(|node| match node.borrow().data() {
+                                    Resource::NotPresent => false,
+                                    Resource::Present(resource) => {
+                                        Ptr::ptr_eq(resource.borrow().config(), &config)
+                                    }
+                                })
+                                .is_some(),
+                        }
+                    })
+                }
+            },
+        }
+    }
+}
+
+impl State {
+    /// Duplicate the state.
+    /// All `fs` references point to the original resource.
+    pub fn duplicate_with_fs_references_and_map(&self) -> (Self, ProjectMap) {
+        let mut project_map = Vec::with_capacity(self.projects.len());
+        let projects = self
             .projects
             .iter()
-            .position(|project| project.rid() == rid)?;
+            .map(|project| {
+                let (dup, container_map) = project.borrow().duplicate_with_fs_references_and_map();
+                let dup = Ptr::new(dup);
+                project_map.push(((project.clone(), dup.clone()), container_map));
+                dup
+            })
+            .collect();
 
-        Some(self.projects.swap_remove(index))
+        (
+            Self {
+                app: self.app.clone(),
+                projects,
+            },
+            project_map,
+        )
     }
 }
 
-impl State {
-    pub fn transition(&mut self, action: &action::Action) -> Result<(), error::Transition> {
-        use action::Action;
-        match action {
-            Action::App(action::AppResource::UserManifest(action)) => {
-                self.transition_user_manifest(action)
-            }
+#[derive(Debug, Clone)]
+pub struct AppState {
+    user_manifest: Ptr<UserManifest>,
+    project_manifest: Ptr<ProjectManifest>,
+}
 
-            Action::App(action::AppResource::ProjectManifest(action)) => {
-                self.transition_project_manifest(action)
-            }
-
-            Action::CreateProject { id, path } => {
-                self.projects
-                    .push(Project::with_id(path.clone(), id.clone()));
-
-                Ok(())
-            }
-
-            Action::Project { project, action } => {
-                self.transition_project_resource(&project, &action)
-            }
-
-            Action::Watch(_) => Ok(()),
-            Action::Unwatch(_) => Ok(()),
+impl AppState {
+    pub fn new(user_manifest: impl Into<PathBuf>, project_manifest: impl Into<PathBuf>) -> Self {
+        Self {
+            user_manifest: Ptr::new(UserManifest::new(user_manifest)),
+            project_manifest: Ptr::new(ProjectManifest::new(project_manifest)),
         }
     }
 
-    fn transition_user_manifest(
-        &mut self,
-        action: &action::Manifest,
-    ) -> Result<(), error::Transition> {
-        match action {
-            action::Manifest::Create => match self.user_manifest {
-                Resource::NotPresent => {
-                    self.user_manifest = Resource::Valid(());
-                    Ok(())
-                }
-                _ => Err(error::Transition::InvalidAction),
-            },
-
-            action::Manifest::Remove => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.user_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Rename => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.user_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Move => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.user_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Copy => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    return Ok(());
-                }
-            },
-
-            action::Manifest::Corrupt => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                Resource::Invalid => Err(error::Transition::AlreadyInState),
-                Resource::Valid(_) => {
-                    self.user_manifest = Resource::Invalid;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Repair => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                Resource::Invalid => {
-                    self.user_manifest = Resource::Valid(());
-                    Ok(())
-                }
-                Resource::Valid(_) => Err(error::Transition::AlreadyInState),
-            },
-
-            action::Manifest::Modify(_kind) => match self.user_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => Ok(()),
-            },
-        }
+    pub fn user_manifest(&self) -> &Ptr<UserManifest> {
+        &self.user_manifest
     }
 
-    fn transition_project_manifest(
-        &mut self,
-        action: &action::Manifest,
-    ) -> Result<(), error::Transition> {
-        match action {
-            action::Manifest::Create => match self.project_manifest {
-                Resource::NotPresent => {
-                    self.project_manifest = Resource::Valid(());
-                    Ok(())
-                }
-                _ => Err(error::Transition::InvalidAction),
-            },
-
-            action::Manifest::Remove => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.project_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Rename => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.project_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Move => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    self.project_manifest = Resource::NotPresent;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Copy => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => {
-                    return Ok(());
-                }
-            },
-
-            action::Manifest::Corrupt => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                Resource::Invalid => Err(error::Transition::AlreadyInState),
-                Resource::Valid(_) => {
-                    self.project_manifest = Resource::Invalid;
-                    Ok(())
-                }
-            },
-
-            action::Manifest::Repair => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                Resource::Invalid => {
-                    self.project_manifest = Resource::Valid(());
-                    Ok(())
-                }
-                Resource::Valid(_) => Err(error::Transition::AlreadyInState),
-            },
-
-            action::Manifest::Modify(_kind) => match self.project_manifest {
-                Resource::NotPresent => Err(error::Transition::InvalidAction),
-                _ => Ok(()),
-            },
-        }
-    }
-
-    fn transition_project_resource(
-        &mut self,
-        pid: &ResourceId,
-        action: &action::ProjectResource,
-    ) -> Result<(), error::Transition> {
-        use super::action::{Project, ProjectResource, ResourceDir, StaticDir};
-
-        let project = self.find_project_mut(pid);
-        match action {
-            ProjectResource::Project(action) => match action {
-                Project::Project(action) => match action {
-                    ResourceDir::Remove => {
-                        self.remove_project(pid).unwrap();
-                        Ok(())
-                    }
-
-                    ResourceDir::Rename { to } => {
-                        project.unwrap().path = to.clone();
-                        Ok(())
-                    }
-
-                    ResourceDir::Move { to } => {
-                        project.unwrap().path = to.clone();
-                        Ok(())
-                    }
-
-                    ResourceDir::Copy { to: _ } => Ok(()),
-                },
-
-                Project::ConfigDir(StaticDir::Remove)
-                | Project::ConfigDir(StaticDir::Rename)
-                | Project::ConfigDir(StaticDir::Move) => {
-                    project.unwrap().config = Reference::NotPresent;
-                    Ok(())
-                }
-
-                _ => {
-                    let project = project.unwrap();
-                    Self::transition_project(project, action)
-                }
-            },
-
-            ProjectResource::CreateDataDir { id, path } => {
-                let data = Data::with_id(path, id.clone());
-                let root = data.root();
-                root.borrow_mut().config = Reference::Present(ContainerConfig {
-                    properties: Resource::Valid(()),
-                    settings: Resource::Valid(()),
-                    assets: Resource::Valid(vec![]),
-                });
-
-                project.unwrap().data = Reference::Present(data);
-                Ok(())
-            }
-
-            ProjectResource::CreateContainer { parent, id, name } => {
-                let project = project.unwrap();
-                let Reference::Present(data) = &mut project.data else {
-                    unreachable!();
-                };
-
-                let parent = data.find(parent).unwrap().clone();
-                let mut container = Container::with_id(name, id.clone());
-                let config = ContainerConfig {
-                    properties: Resource::Valid(()),
-                    settings: Resource::Valid(()),
-                    assets: Resource::Valid(vec![]),
-                };
-
-                container.config = Reference::Present(config);
-                data.graph.insert(container, &parent).unwrap();
-                Ok(())
-            }
-
-            ProjectResource::Container { container, action } => {
-                let project = project.unwrap();
-                match &mut project.data {
-                    Reference::NotPresent => Err(error::Transition::InvalidAction),
-                    Reference::Present(data) => {
-                        let container = data
-                            .nodes()
-                            .iter()
-                            .find(|node| node.borrow().rid() == container)
-                            .unwrap();
-
-                        if let action::Container::Container(action) = action {
-                            match action {
-                                ResourceDir::Remove => {
-                                    data.graph.remove(&container.clone());
-                                }
-
-                                ResourceDir::Rename { to } => {
-                                    let mut container = container.borrow_mut();
-                                    container.path = to.clone();
-                                }
-
-                                ResourceDir::Move { to } => {
-                                    todo!();
-                                }
-
-                                ResourceDir::Copy { to } => {
-                                    todo!();
-                                }
-                            }
-
-                            Ok(())
-                        } else {
-                            Self::transition_container(container, action)
-                        }
-                    }
-                }
-            }
-
-            ProjectResource::CreateAssetFile {
-                container,
-                id,
-                name,
-            } => {
-                let project = project.unwrap();
-                let Reference::Present(data) = &mut project.data else {
-                    unreachable!();
-                };
-
-                let container = data.find(container).unwrap();
-                let mut container = container.borrow_mut();
-                if let Reference::Present(config) = &mut container.config {
-                    match &mut config.assets {
-                        Resource::Valid(assets) => {
-                            assets.push(Asset::with_id(name, id.clone()));
-                        }
-
-                        Resource::Invalid => {}
-                        Resource::NotPresent => {}
-                    }
-                };
-
-                Ok(())
-            }
-
-            ProjectResource::AssetFile {
-                container,
-                asset,
-                action,
-            } => {
-                let project = project.unwrap();
-                match &project.data {
-                    Reference::NotPresent => Err(error::Transition::InvalidAction),
-                    Reference::Present(graph) => {
-                        let container = graph
-                            .nodes()
-                            .iter()
-                            .find(|node| node.borrow().rid() == container)
-                            .unwrap();
-
-                        Self::transition_asset_file(container, action)
-                    }
-                }
-            }
-        }
-    }
-
-    fn transition_project(
-        project: &mut Project,
-        action: &action::Project,
-    ) -> Result<(), error::Transition> {
-        use action::{Dir, Project, ResourceDir, StaticDir};
-
-        match action {
-            Project::Project(_) => unreachable!("handled elsewhere"),
-            Project::ConfigDir(action) => match project.config {
-                Reference::NotPresent => match action {
-                    StaticDir::Create => {
-                        project.config = Reference::Present(ProjectConfig::default());
-                        Ok(())
-                    }
-
-                    _ => Err(error::Transition::InvalidAction),
-                },
-
-                Reference::Present(_) => match action {
-                    StaticDir::Create => Err(error::Transition::AlreadyInState),
-                    StaticDir::Remove | StaticDir::Rename | StaticDir::Move => {
-                        unreachable!("handled elsewhere")
-                    }
-
-                    StaticDir::Copy => Ok(()),
-                },
-            },
-
-            Project::AnalysisDir(action) => match action {
-                Dir::Create { path } => {
-                    project.analyses = Some(Reference::Present(path.clone()));
-                    Ok(())
-                }
-
-                Dir::Remove => {
-                    assert!(project.analyses.is_some());
-                    project.analyses = None;
-                    Ok(())
-                }
-
-                Dir::Rename { to } => {
-                    assert!(project.analyses.is_some());
-                    project.analyses = Some(Reference::Present(to.clone()));
-                    Ok(())
-                }
-
-                Dir::Move { to } => {
-                    assert!(project.analyses.is_some());
-                    project.analyses = Some(Reference::Present(to.clone()));
-                    Ok(())
-                }
-
-                Dir::Copy { .. } => {
-                    assert!(project.analyses.is_some());
-                    Ok(())
-                }
-            },
-
-            Project::DataDir(action) => match action {
-                ResourceDir::Remove => {
-                    project.data = Reference::NotPresent;
-                    Ok(())
-                }
-
-                ResourceDir::Rename { to } => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!("invalid state");
-                    };
-
-                    data.root().borrow_mut().path = to.clone();
-                    Ok(())
-                }
-
-                ResourceDir::Move { to } => {
-                    let Reference::Present(data) = &project.data else {
-                        unreachable!("invalid state");
-                    };
-
-                    data.root().borrow_mut().path = to.clone();
-                    Ok(())
-                }
-
-                ResourceDir::Copy { .. } => Ok(()),
-            },
-
-            Project::Properties(action) => match action {
-                _ => todo!(),
-            },
-
-            Project::Settings(action) => match action {
-                _ => todo!(),
-            },
-
-            Project::Analyses(action) => match action {
-                _ => todo!(),
-            },
-        }
-    }
-
-    fn transition_container(
-        container: &graph::Node<Container>,
-        action: &action::Container,
-    ) -> Result<(), error::Transition> {
-        use super::action::{Container, Manifest, ModifyManifest, StaticDir, StaticFile};
-
-        let mut container = container.borrow_mut();
-        match action {
-            Container::Container(_action) => unreachable!("handled elsewhere"),
-            Container::ConfigDir(action) => match action {
-                StaticDir::Create => {
-                    container.config = Reference::Present(ContainerConfig::default())
-                }
-
-                StaticDir::Remove | StaticDir::Rename | StaticDir::Move => {
-                    container.config = Reference::NotPresent
-                }
-
-                StaticDir::Copy => {}
-            },
-
-            Container::Properties(action) => {
-                let Reference::Present(config) = &mut container.config else {
-                    unreachable!("invalid state");
-                };
-
-                match action {
-                    StaticFile::Create => config.properties = Resource::Valid(()),
-                    StaticFile::Remove | StaticFile::Rename | StaticFile::Move => {
-                        config.properties = Resource::NotPresent
-                    }
-                    StaticFile::Copy => {}
-                    StaticFile::Corrupt => config.properties = Resource::Invalid,
-                    StaticFile::Repair => config.properties = Resource::Valid(()),
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Container::Settings(action) => {
-                let Reference::Present(config) = &mut container.config else {
-                    unreachable!("invalid state");
-                };
-
-                match action {
-                    StaticFile::Create => config.settings = Resource::Valid(()),
-                    StaticFile::Remove | StaticFile::Rename | StaticFile::Move => {
-                        config.settings = Resource::NotPresent
-                    }
-                    StaticFile::Copy => {}
-                    StaticFile::Corrupt => config.settings = Resource::Invalid,
-                    StaticFile::Repair => config.settings = Resource::Valid(()),
-                    StaticFile::Modify => {}
-                }
-            }
-
-            Container::Assets(action) => {
-                let Reference::Present(config) = &mut container.config else {
-                    unreachable!("invalid state");
-                };
-
-                match action {
-                    Manifest::Create => config.assets = Resource::Valid(vec![]),
-                    Manifest::Remove | Manifest::Rename | Manifest::Move => {
-                        config.assets = Resource::NotPresent
-                    }
-                    Manifest::Copy => {}
-                    Manifest::Corrupt => config.assets = Resource::Invalid,
-                    Manifest::Repair => todo!(),
-                    Manifest::Modify(kind) => match kind {
-                        ModifyManifest::Add => {}
-                        ModifyManifest::Remove => {}
-                        ModifyManifest::Alter => {}
-                    },
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn transition_asset_file(
-        container: &graph::Node<Container>,
-        action: &action::AssetFile,
-    ) -> Result<(), error::Transition> {
-        todo!()
+    pub fn project_manifest(&self) -> &Ptr<ProjectManifest> {
+        &self.project_manifest
     }
 }
 
-/// State of a configuration resource.
-#[derive(Clone, Debug)]
-pub enum Resource<T = ()> {
-    /// The resource is valid and presesnt.
-    Valid(T),
-
-    /// The resource is present, but invalid.
-    Invalid,
-
-    /// The resource is not present.
-    NotPresent,
+#[derive(Debug, Clone)]
+pub struct UserManifest {
+    path: PathBuf,
+    fs_resource: FsDataResource<fs::File>,
+    manifest: Vec<String>,
 }
 
-impl Default for Resource {
-    fn default() -> Self {
-        Self::NotPresent
+impl UserManifest {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            fs_resource: FsDataResource::NotPresent,
+            manifest: vec![],
+        }
     }
 }
 
-/// The state of a referenced resource.
-#[derive(Clone, Debug)]
-pub enum Reference<R = ()> {
-    Present(R),
-    NotPresent,
-}
-
-impl<R> Default for Reference<R> {
-    fn default() -> Self {
-        Self::NotPresent
+impl HasPath for UserManifest {
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 
-#[derive(Clone, Debug)]
+impl HasFsDataResource for UserManifest {
+    type Resource = fs::File;
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<Self::Resource>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+impl Manifest for UserManifest {
+    type Item = String;
+    fn manifest(&self) -> &Vec<String> {
+        &self.manifest
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectManifest {
+    path: PathBuf,
+    fs_resource: FsDataResource<fs::File>,
+    manifest: Vec<PathBuf>,
+}
+
+impl ProjectManifest {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            fs_resource: FsDataResource::NotPresent,
+            manifest: vec![],
+        }
+    }
+}
+
+impl HasPath for ProjectManifest {
+    fn path(&self) -> &PathBuf {
+        &self.path
+    }
+}
+
+impl HasFsDataResource for ProjectManifest {
+    type Resource = fs::File;
+
+    fn fs_resource(&self) -> &FsDataResource<fs::File> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+impl Manifest for ProjectManifest {
+    type Item = PathBuf;
+    fn manifest(&self) -> &Vec<PathBuf> {
+        &self.manifest
+    }
+}
+
+#[derive(Debug, HasId)]
 pub struct Project {
+    #[id]
     rid: ResourceId,
 
-    /// Path to the project's base directory.
-    pub path: PathBuf,
+    /// Path to the project's base folder.
+    path: PathBuf,
+    fs_resource: FsResource<fs::Folder>,
 
-    pub config: Reference<ProjectConfig>,
+    config: Resource<ProjectConfig>,
 
-    /// Analyses directory.
-    /// `Option` variant matches that set by the project.
-    pub analyses: Option<Reference<PathBuf>>,
-    pub data: Reference<Data>,
+    /// Analyses folder.
+    analyses: Option<Ptr<Analyses>>,
+
+    /// Data folder.
+    data: Ptr<Data>,
 }
 
 impl Project {
-    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
+    pub fn new(path: impl Into<PathBuf>, data_path: impl Into<PathBuf>) -> Self {
         Self {
-            rid,
+            rid: ResourceId::new(),
             path: path.into(),
-            config: Reference::default(),
+            fs_resource: FsResource::NotPresent,
+            config: Resource::NotPresent,
+            data: Ptr::new(Data::new(data_path)),
             analyses: None,
-            data: Reference::<Data>::default(),
         }
     }
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
     }
-}
 
-impl HasPath for Project {
-    fn path(&self) -> &PathBuf {
+    pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub fn fs_resource(&self) -> &FsResource<fs::Folder> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, fs_resource: &Ptr<fs::Folder>) {
+        self.fs_resource = FsResource::Present(Ptr::downgrade(fs_resource));
+    }
+
+    pub fn config(&self) -> &Resource<ProjectConfig> {
+        &self.config
+    }
+
+    /// Sets the Project's config folder, creating new objects
+    /// for each of its resources.
+    /// Searches the folder for corresponding file resources,
+    /// setting them to valid, if found.
+    pub fn set_config_folder(&mut self, folder: &Ptr<fs::Folder>) {
+        let config = ProjectConfig::new(Ptr::downgrade(folder));
+        let folder = folder.borrow();
+        if let Some(properties) = folder.file(common::project_file()) {
+            *config.properties().borrow_mut() = ProjectProperties::valid(&properties);
+        }
+
+        if let Some(settings) = folder.file(common::project_settings_file()) {
+            *config.settings().borrow_mut() = ProjectSettings::valid(&settings);
+        }
+
+        if let Some(analyses) = folder.file(common::analyses_file()) {
+            *config.analyses().borrow_mut() = AnalysisManifest::valid(&analyses);
+        }
+
+        self.config = Resource::Present(Ptr::new(config));
+    }
+
+    pub fn remove_config(&mut self) {
+        self.config = Resource::NotPresent;
+    }
+
+    pub fn analyses(&self) -> Option<&Ptr<Analyses>> {
+        self.analyses.as_ref()
+    }
+
+    /// Sets the folder reference to the analyses folder.
+    ///
+    /// # Panics
+    /// + If `analyses` is `None`.
+    ///
+    /// # Note
+    /// + Must check `folder` is consistent with analyses path manually.
+    pub fn set_analyses_folder_reference(&mut self, folder: &Ptr<fs::Folder>) {
+        self.analyses
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .set_fs_resource(folder);
+    }
+
+    pub fn remove_analyses_folder_reference(&mut self) {
+        self.analyses
+            .as_ref()
+            .unwrap()
+            .borrow_mut()
+            .remove_fs_resource();
+    }
+
+    pub fn data(&self) -> &Ptr<Data> {
+        &self.data
+    }
+
+    pub fn set_data_root(&mut self, folder: &Ptr<fs::Folder>) {
+        self.data.borrow_mut().set_graph_root(folder);
+    }
+
+    pub fn remove_data_root(&mut self) {
+        self.data.borrow_mut().remove_graph();
     }
 }
 
-#[derive(Clone, Default, Debug)]
-pub struct ProjectConfig {
-    pub properties: Resource,
-    pub settings: Resource,
-    pub analyses: Resource,
-}
+impl Project {
+    /// Duplicates the project.
+    /// All `fs` references point to their original resource.
+    ///
+    /// # Returns
+    /// Tuple of (duplicate, [(orginal container, duplicate container)]).
+    pub fn duplicate_with_fs_references_and_map(&self) -> (Self, ContainerMap) {
+        let config = if let Resource::Present(config) = &self.config {
+            Resource::Present(Ptr::new(config.borrow().duplicate_with_fs_references()))
+        } else {
+            Resource::NotPresent
+        };
 
-#[derive(Clone, Default, Debug)]
-pub struct ProjectProperties {
-    state: Resource,
+        let (data, data_map) = self.data.borrow().duplicate_with_app_resource_and_map();
+        let analyses = self
+            .analyses
+            .clone()
+            .map(|analyses| Ptr::new(analyses.borrow().clone()));
+
+        (
+            Self {
+                rid: self.rid.clone(),
+                path: self.path.clone(),
+                fs_resource: self.fs_resource.clone(),
+                config,
+                analyses,
+                data: Ptr::new(data),
+            },
+            data_map,
+        )
+    }
 }
 
 #[derive(Debug)]
+pub struct ProjectConfig {
+    fs_resource: WPtr<fs::Folder>,
+
+    properties: Ptr<ProjectProperties>,
+    settings: Ptr<ProjectSettings>,
+    analyses: Ptr<AnalysisManifest>,
+}
+
+impl ProjectConfig {
+    pub fn new(fs_resource: WPtr<fs::Folder>) -> Self {
+        Self {
+            fs_resource,
+            properties: Ptr::new(ProjectProperties::not_present()),
+            settings: Ptr::new(ProjectSettings::not_present()),
+            analyses: Ptr::new(AnalysisManifest::not_present()),
+        }
+    }
+
+    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
+        self.fs_resource = Ptr::downgrade(folder);
+    }
+
+    pub fn properties(&self) -> &Ptr<ProjectProperties> {
+        &self.properties
+    }
+
+    pub fn settings(&self) -> &Ptr<ProjectSettings> {
+        &self.settings
+    }
+
+    pub fn analyses(&self) -> &Ptr<AnalysisManifest> {
+        &self.analyses
+    }
+}
+
+impl ProjectConfig {
+    pub fn duplicate_with_fs_references(&self) -> Self {
+        Self {
+            fs_resource: self.fs_resource.clone(),
+            properties: Ptr::new(self.properties.borrow().clone()),
+            settings: Ptr::new(self.settings.borrow().clone()),
+            analyses: Ptr::new(self.analyses.borrow().clone()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectProperties {
+    fs_resource: FsDataResource<fs::File>,
+}
+
+impl ProjectProperties {
+    pub fn valid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Valid,
+            },
+        }
+    }
+
+    pub fn invalid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Invalid,
+            },
+        }
+    }
+
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+        }
+    }
+}
+
+impl HasFsDataResource for ProjectProperties {
+    type Resource = fs::File;
+
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectSettings {
+    fs_resource: FsDataResource<fs::File>,
+}
+
+impl ProjectSettings {
+    pub fn valid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Valid,
+            },
+        }
+    }
+
+    pub fn invalid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Invalid,
+            },
+        }
+    }
+
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+        }
+    }
+}
+
+impl HasFsDataResource for ProjectSettings {
+    type Resource = fs::File;
+
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AnalysisManifest {
+    fs_resource: FsDataResource<fs::File>,
+    manifest: Vec<PathBuf>,
+}
+
+impl AnalysisManifest {
+    pub fn valid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Valid,
+            },
+            manifest: vec![],
+        }
+    }
+
+    pub fn valid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<PathBuf>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Valid,
+            },
+            manifest,
+        }
+    }
+
+    pub fn invalid(file: &Ptr<fs::File>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Invalid,
+            },
+            manifest: vec![],
+        }
+    }
+
+    pub fn invalid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<PathBuf>) -> Self {
+        Self {
+            fs_resource: FsDataResource::Present {
+                resource: Ptr::downgrade(file),
+                state: DataResourceState::Invalid,
+            },
+            manifest,
+        }
+    }
+
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+            manifest: vec![],
+        }
+    }
+}
+
+impl HasFsDataResource for AnalysisManifest {
+    type Resource = fs::File;
+
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+impl Manifest for AnalysisManifest {
+    type Item = PathBuf;
+    fn manifest(&self) -> &Vec<Self::Item> {
+        &self.manifest
+    }
+}
+
+/// Project analysis folder.
+#[derive(Debug, Clone)]
+pub struct Analyses {
+    /// Path to the analysis folder.
+    path: PathBuf,
+    fs_resource: FsResource<fs::Folder>,
+}
+
+impl Analyses {
+    pub fn not_present(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            fs_resource: FsResource::NotPresent,
+        }
+    }
+
+    /// # Notes
+    /// + Must check `path` and `folder` are consistent manually.
+    pub fn present(path: impl Into<PathBuf>, folder: &Ptr<fs::Folder>) -> Self {
+        Self {
+            path: path.into(),
+            fs_resource: FsResource::Present(Ptr::downgrade(folder)),
+        }
+    }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    pub fn fs_resource(&self) -> &FsResource<fs::Folder> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
+        self.fs_resource = FsResource::Present(Ptr::downgrade(folder));
+    }
+
+    pub fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsResource::NotPresent;
+    }
+}
+
+/// Project data folder.
+#[derive(Debug)]
 pub struct Data {
-    pub graph: Tree<Container>,
+    /// Path to the data root.
+    ///
+    /// # Notes
+    /// + Includes the data root's name,
+    /// so must aware when `join`ing paths
+    /// or it will be doubled.
+    path: PathBuf,
+
+    /// Data graph.
+    /// `None` if a folder is not at the root path.
+    graph: Option<Tree<Container>>,
 }
 
 impl Data {
-    pub fn with_id(path: impl Into<PathBuf>, id: ResourceId) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            graph: Tree::new(Container::with_id(path, id)),
+            path: path.into(),
+            graph: None,
         }
     }
 
-    pub fn root_path(&self) -> PathBuf {
-        self.root().borrow().path.clone()
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
-}
 
-impl Clone for Data {
-    fn clone(&self) -> Self {
-        Self {
-            graph: self.graph.duplicate(),
-        }
-    }
-}
-
-impl Deref for Data {
-    type Target = Tree<Container>;
-    fn deref(&self) -> &Self::Target {
+    pub fn graph(&self) -> &Option<Tree<Container>> {
         &self.graph
     }
+
+    /// Sets the graph's root.
+    /// Removes previous graph.
+    pub fn set_graph_root(&mut self, folder: &Ptr<fs::Folder>) {
+        let root = Container::without_data(folder);
+        let graph = Tree::new(root);
+        self.graph = Some(graph);
+    }
+
+    pub fn remove_graph(&mut self) {
+        self.graph = None;
+    }
 }
 
-#[derive(Clone, Debug, HasId)]
+impl Data {
+    /// Duplicates the the `Data` struct.
+    /// The `project` reference and all app references in the `graph`
+    /// point to the original resource.
+    ///
+    /// # Returns
+    /// Tuple of (duplicate, container map) where `container map` is `[(original, duplicate)]`.
+    /// `(None, [])` if `graph` is `None`.
+    pub fn duplicate_with_app_resource_and_map(&self) -> (Self, ContainerMap) {
+        let (graph, node_map) = if let Some(graph) = &self.graph {
+            let (graph, node_map) = graph.duplicate_with_map();
+            (Some(graph), node_map)
+        } else {
+            (None, vec![])
+        };
+
+        (
+            Self {
+                path: self.path.clone(),
+                graph,
+            },
+            node_map,
+        )
+    }
+}
+
+/// Any folder in a Project's data directory.
+/// It may or may not have Container data.
+/// This is represented in the `data` field.
+#[derive(Debug, Clone)]
 pub struct Container {
-    #[id]
-    rid: ResourceId,
-    pub path: PathBuf,
-    pub config: Reference<ContainerConfig>,
+    name: OsString,
+    fs_resource: WPtr<fs::Folder>,
+    data: Resource<ContainerData>,
 }
 
 impl Container {
-    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
+    pub fn without_data(folder: &Ptr<fs::Folder>) -> Self {
         Self {
-            rid,
-            path: path.into(),
-            config: Reference::NotPresent,
+            name: folder.borrow().name().to_os_string(),
+            fs_resource: Ptr::downgrade(folder),
+            data: Resource::NotPresent,
         }
     }
 
-    pub fn rid(&self) -> &ResourceId {
-        &self.rid
+    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
+        &self.fs_resource
     }
 
-    pub fn find_asset(&self, id: &ResourceId) -> Option<&Asset> {
-        let Reference::Present(config) = &self.config else {
-            return None;
-        };
-
-        let Resource::Valid(assets) = &config.assets else {
-            return None;
-        };
-
-        assets.iter().find(|asset| asset.rid() == id)
+    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
+        self.fs_resource = Ptr::downgrade(folder);
     }
-}
 
-impl HasPath for Container {
-    fn path(&self) -> &PathBuf {
-        &self.path
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ContainerConfig {
-    pub properties: Resource,
-    pub settings: Resource,
-    pub assets: Resource<Vec<Asset>>,
-}
-
-impl Default for ContainerConfig {
-    fn default() -> Self {
-        Self {
-            properties: Resource::NotPresent,
-            settings: Resource::NotPresent,
-            assets: Resource::NotPresent,
+    pub fn rid(&self) -> Option<ResourceId> {
+        if let Resource::Present(resource) = &self.data {
+            Some(resource.borrow().rid().clone())
+        } else {
+            None
         }
     }
+
+    pub fn data(&self) -> &Resource<ContainerData> {
+        &self.data
+    }
 }
 
-#[derive(Clone, Debug)]
-pub struct Asset {
+#[derive(Debug, HasId, Clone)]
+pub struct ContainerData {
+    #[id]
     rid: ResourceId,
-
-    /// The
-    pub path: PathBuf,
-
-    /// Whether the referenced file is present.
-    pub file: Reference,
+    config: Ptr<ContainerConfig>,
 }
 
-impl Asset {
-    pub fn with_id(path: impl Into<PathBuf>, rid: ResourceId) -> Self {
+impl ContainerData {
+    pub fn new(folder: &Ptr<fs::Folder>) -> Self {
         Self {
-            rid,
-            path: path.into(),
-            file: Reference::NotPresent,
+            rid: ResourceId::new(),
+            config: Ptr::new(ContainerConfig::new(folder)),
         }
     }
 
     pub fn rid(&self) -> &ResourceId {
         &self.rid
     }
-}
 
-impl HasPath for Asset {
-    fn path(&self) -> &PathBuf {
-        &self.path
+    pub fn config(&self) -> &Ptr<ContainerConfig> {
+        &self.config
     }
 }
 
-pub mod error {
-    #[derive(Debug)]
-    pub enum Transition {
-        /// The action is not valid given the current state.
-        InvalidAction,
+#[derive(Debug, Clone)]
+pub struct ContainerConfig {
+    fs_resource: WPtr<fs::Folder>,
 
-        /// Calling the action would not tranform the state.
-        AlreadyInState,
+    properties: Ptr<ContainerProperties>,
+    settings: Ptr<ContainerSettings>,
+    assets: Ptr<AssetManifest>,
+}
+
+impl ContainerConfig {
+    pub fn new(folder: &Ptr<fs::Folder>) -> Self {
+        Self {
+            fs_resource: Ptr::downgrade(folder),
+            properties: Ptr::new(ContainerProperties::not_present()),
+            settings: Ptr::new(ContainerSettings::not_present()),
+            assets: Ptr::new(AssetManifest::not_present()),
+        }
     }
+
+    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
+        self.fs_resource = Ptr::downgrade(folder);
+    }
+
+    pub fn properties(&self) -> &Ptr<ContainerProperties> {
+        &self.properties
+    }
+
+    pub fn settings(&self) -> &Ptr<ContainerSettings> {
+        &self.settings
+    }
+
+    pub fn assets(&self) -> &Ptr<AssetManifest> {
+        &self.assets
+    }
+}
+
+#[derive(Debug)]
+pub struct ContainerProperties {
+    fs_resource: FsDataResource<fs::File>,
+}
+
+impl ContainerProperties {
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+        }
+    }
+}
+
+impl HasFsDataResource for ContainerProperties {
+    type Resource = fs::File;
+    fn fs_resource(&self) -> &FsDataResource<fs::File> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        };
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+#[derive(Debug)]
+pub struct ContainerSettings {
+    fs_resource: FsDataResource<fs::File>,
+}
+
+impl ContainerSettings {
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+        }
+    }
+}
+
+impl HasFsDataResource for ContainerSettings {
+    type Resource = fs::File;
+    fn fs_resource(&self) -> &FsDataResource<fs::File> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        };
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+#[derive(Debug)]
+pub struct AssetManifest {
+    fs_resource: FsDataResource<fs::File>,
+    manifest: Vec<Ptr<Asset>>,
+}
+
+impl AssetManifest {
+    pub fn not_present() -> Self {
+        Self {
+            fs_resource: FsDataResource::NotPresent,
+            manifest: vec![],
+        }
+    }
+}
+
+impl HasFsDataResource for AssetManifest {
+    type Resource = fs::File;
+
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
+        &self.fs_resource
+    }
+
+    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
+        self.fs_resource = FsDataResource::Present {
+            resource: Ptr::downgrade(file),
+            state,
+        }
+    }
+
+    fn remove_fs_resource(&mut self) {
+        self.fs_resource = FsDataResource::NotPresent;
+    }
+}
+
+impl Manifest for AssetManifest {
+    type Item = Ptr<Asset>;
+    fn manifest(&self) -> &Vec<Self::Item> {
+        &self.manifest
+    }
+}
+
+#[derive(Debug, HasId)]
+pub struct Asset {
+    #[id]
+    rid: ResourceId,
+    name: OsString,
+    fs_resource: FsResource<fs::File>,
+}
+
+#[derive(Debug)]
+pub enum Resource<T> {
+    NotPresent,
+    Present(Ptr<T>),
+}
+
+#[derive(Debug)]
+pub enum DataResource<T> {
+    NotPresent,
+    Present {
+        resource: Ptr<T>,
+        state: DataResourceState,
+    },
+}
+
+#[derive(Debug)]
+pub enum FsResource<T> {
+    NotPresent,
+    Present(WPtr<T>),
+}
+
+#[derive(Debug)]
+pub enum FsDataResource<T> {
+    NotPresent,
+    Present {
+        resource: WPtr<T>,
+        state: DataResourceState,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum DataResourceState {
+    Valid,
+    Invalid,
+}
+
+#[derive(Clone, Debug)]
+pub enum FileResource {
+    UserManifest(WPtr<UserManifest>),
+    ProjectManifest(WPtr<ProjectManifest>),
+    ProjectProperties(WPtr<ProjectProperties>),
+    ProjectSettings(WPtr<ProjectSettings>),
+    AnalysisManifest(WPtr<AnalysisManifest>),
+    ContainerProperties(WPtr<ContainerProperties>),
+    ContainerSettings(WPtr<ContainerSettings>),
+    AssetManifest(WPtr<AssetManifest>),
+    Asset(WPtr<Asset>),
+}
+
+#[derive(Clone, Debug)]
+pub enum FolderResource {
+    Project(WPtr<Project>),
+    ProjectConfig(WPtr<ProjectConfig>),
+    Analyses(WPtr<Analyses>),
+    Data(WPtr<Data>),
+    Container(WPtr<Container>),
+    ContainerConfig(WPtr<ContainerConfig>),
+}
+
+#[derive(Clone, Debug, derive_more::From)]
+pub enum AppResource {
+    File(FileResource),
+    Folder(FolderResource),
+}
+
+impl HasName for Container {
+    fn name(&self) -> &std::ffi::OsStr {
+        &self.name
+    }
+
+    fn set_name(&mut self, name: impl Into<std::ffi::OsString>) {
+        self.name = name.into()
+    }
+}
+
+impl HasName for Asset {
+    fn name(&self) -> &std::ffi::OsStr {
+        &self.name
+    }
+
+    fn set_name(&mut self, name: impl Into<std::ffi::OsString>) {
+        self.name = name.into()
+    }
+}
+
+impl<T> Clone for Resource<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::NotPresent => Self::NotPresent,
+            Self::Present(ptr) => Self::Present(ptr.clone()),
+        }
+    }
+}
+
+impl<T> Clone for DataResource<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::NotPresent => Self::NotPresent,
+            Self::Present { resource, state } => Self::Present {
+                resource: resource.clone(),
+                state: state.clone(),
+            },
+        }
+    }
+}
+
+impl<T> Clone for FsResource<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::NotPresent => Self::NotPresent,
+            Self::Present(ptr) => Self::Present(ptr.clone()),
+        }
+    }
+}
+
+impl<T> Clone for FsDataResource<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::NotPresent => Self::NotPresent,
+            Self::Present { resource, state } => Self::Present {
+                resource: resource.clone(),
+                state: state.clone(),
+            },
+        }
+    }
+}
+
+pub trait HasPath {
+    fn path(&self) -> &PathBuf;
+}
+
+pub trait HasFsDataResource {
+    type Resource;
+    fn fs_resource(&self) -> &FsDataResource<Self::Resource>;
+    fn set_fs_resource(&mut self, resource: &Ptr<Self::Resource>, state: DataResourceState);
+    fn remove_fs_resource(&mut self);
+}
+
+pub trait Manifest {
+    type Item;
+    fn manifest(&self) -> &Vec<Self::Item>;
 }

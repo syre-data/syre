@@ -1,4 +1,5 @@
 use super::*;
+use std::ffi::OsString;
 
 #[test]
 fn graph_should_work() {
@@ -39,8 +40,8 @@ fn graph_should_work() {
 
     let ancestors = graph.ancestors(&parent);
     assert_eq!(ancestors.len(), 2);
-    assert!(Rc::ptr_eq(ancestors[0], &parent));
-    assert!(Rc::ptr_eq(ancestors[1], &graph.root()));
+    assert!(Node::ptr_eq(ancestors[0], &parent));
+    assert!(Node::ptr_eq(ancestors[1], &graph.root()));
 
     let descendants = graph.descendants(&parent);
     assert_eq!(descendants.len(), 3);
@@ -125,7 +126,7 @@ struct Data {
     #[allow(dead_code)]
     inner: u32,
 
-    path: PathBuf,
+    name: OsString,
 }
 
 impl Data {
@@ -133,13 +134,17 @@ impl Data {
         Self {
             id: rand::random(),
             inner: data,
-            path: PathBuf::from(data.to_string()),
+            name: data.to_string().into(),
         }
     }
 }
 
-impl HasPath for Data {
-    fn path(&self) -> &std::path::PathBuf {
-        &self.path
+impl HasName for Data {
+    fn name(&self) -> &std::ffi::OsStr {
+        &self.name
+    }
+
+    fn set_name(&mut self, name: impl Into<std::ffi::OsString>) {
+        self.name = name.into()
     }
 }

@@ -1,13 +1,12 @@
-use super::HasPath;
+use super::{HasName, Ptr, WPtr};
 use has_id::HasId;
-use std::{
-    cell::RefCell,
-    path::PathBuf,
-    rc::{Rc, Weak},
-};
+use std::path::{Path, PathBuf};
 
-pub type Node<T> = Rc<RefCell<T>>;
-pub type NodeRef<T> = Weak<RefCell<T>>;
+pub type Node<T> = Ptr<T>;
+pub type NodeRef<T> = WPtr<T>;
+
+/// Node map of (original, new).
+pub type NodeMap<T> = Vec<(Ptr<T>, Ptr<T>)>;
 
 #[derive(Debug)]
 pub struct Tree<D> {
@@ -19,11 +18,11 @@ pub struct Tree<D> {
 
 impl<D> Tree<D> {
     pub fn new(root: D) -> Self {
-        let root = Rc::new(RefCell::new(root));
-        let children = vec![(Rc::downgrade(&root), vec![])];
+        let root = Ptr::new(root);
+        let children = vec![(Node::downgrade(&root), vec![])];
 
         Self {
-            root: Rc::downgrade(&root),
+            root: Node::downgrade(&root),
             nodes: vec![root],
             children,
             parents: vec![],
@@ -38,11 +37,15 @@ impl<D> Tree<D> {
         &self.nodes
     }
 
-    pub fn insert(&mut self, node: D, parent: &Node<D>) -> Result<(), error::Insert<D>> {
+    pub fn contains(&self, node: &Node<D>) -> bool {
+        self.nodes.iter().find(|n| Node::ptr_eq(&node, n)).is_some()
+    }
+
+    pub fn insert(&mut self, node: D, parent: &Node<D>) -> Result<Node<D>, error::Insert<D>> {
         let parent = self
             .nodes
             .iter()
-            .find(|node| Rc::ptr_eq(&node, &parent))
+            .find(|node| Node::ptr_eq(&node, &parent))
             .ok_or(error::Insert::InvalidParent)?;
 
         let (_, children) = self
@@ -50,21 +53,21 @@ impl<D> Tree<D> {
             .iter_mut()
             .find(|(p, _)| {
                 if let Some(p) = p.upgrade() {
-                    Rc::ptr_eq(&p, parent)
+                    Node::ptr_eq(&p, parent)
                 } else {
                     false
                 }
             })
             .unwrap();
 
-        let node = Rc::new(RefCell::new(node));
-        children.push(Rc::downgrade(&node));
-        self.children.push((Rc::downgrade(&node), vec![]));
+        let node = Ptr::new(node);
+        children.push(Node::downgrade(&node));
+        self.children.push((Node::downgrade(&node), vec![]));
         self.parents
-            .push((Rc::downgrade(&node), Rc::downgrade(parent)));
+            .push((Node::downgrade(&node), Node::downgrade(parent)));
 
-        self.nodes.push(node);
-        Ok(())
+        self.nodes.push(node.clone());
+        Ok(node)
     }
 
     /// Inserts a tree at the given node.
@@ -74,8 +77,8 @@ impl<D> Tree<D> {
         }
 
         for node in tree.nodes() {
-            if self.nodes.iter().any(|n| Rc::ptr_eq(n, node)) {
-                return Err(error::Insert::AlreadyContains(Rc::downgrade(node)));
+            if self.nodes.iter().any(|n| Node::ptr_eq(n, node)) {
+                return Err(error::Insert::AlreadyContains(Node::downgrade(node)));
             }
         }
 
@@ -86,7 +89,7 @@ impl<D> Tree<D> {
             parents,
         } = tree;
 
-        let parent = Rc::downgrade(parent);
+        let parent = Node::downgrade(parent);
         self.nodes.extend(nodes);
         self.children.extend(children);
         self.parents.extend(parents);
@@ -106,7 +109,7 @@ impl<D> Tree<D> {
         let descendants = self
             .descendants(root)
             .into_iter()
-            .map(|descendant| Rc::downgrade(&descendant))
+            .map(|descendant| Node::downgrade(&descendant))
             .collect::<Vec<_>>();
 
         if descendants.is_empty() {
@@ -136,14 +139,14 @@ impl<D> Tree<D> {
             let index = self
                 .nodes
                 .iter()
-                .position(|n| descendant.ptr_eq(&Rc::downgrade(n)))
+                .position(|n| descendant.ptr_eq(&Node::downgrade(n)))
                 .unwrap();
 
             nodes.push(self.nodes.swap_remove(index));
         }
 
         // remove root's parent
-        let root = Rc::downgrade(root);
+        let root = Node::downgrade(root);
         let index = parents
             .iter()
             .position(|(child, _)| root.ptr_eq(child))
@@ -160,13 +163,13 @@ impl<D> Tree<D> {
     }
 
     pub fn parent(&self, child: &Node<D>) -> Option<Node<D>> {
-        let child = Rc::downgrade(child);
+        let child = Node::downgrade(child);
         let (_, parent) = self.parents.iter().find(|(c, _)| child.ptr_eq(c))?;
         Some(parent.upgrade().unwrap())
     }
 
     pub fn children(&self, parent: &Node<D>) -> Option<Vec<Node<D>>> {
-        let parent = Rc::downgrade(parent);
+        let parent = Node::downgrade(parent);
         let (_, children) = self.children.iter().find(|(p, _)| parent.ptr_eq(p))?;
         let children = children
             .into_iter()
@@ -204,26 +207,26 @@ impl<D> Tree<D> {
     /// + Ordered list of ancestors, beginning with the given node.
     /// + Empty if node does not exist in the graph.
     pub fn ancestors(&self, child: &Node<D>) -> Vec<&Node<D>> {
-        let mut child = Rc::downgrade(child);
+        let mut child = Node::downgrade(child);
         let this = child.upgrade().unwrap();
-        let Some(this) = self.nodes.iter().find(|n| Rc::ptr_eq(&this, n)) else {
+        let Some(this) = self.nodes.iter().find(|n| Node::ptr_eq(&this, n)) else {
             return vec![];
         };
 
         let mut ancestors = vec![];
         ancestors.push(this);
-        while let Some((c, parent)) = self.parents.iter().find(|(c, _)| child.ptr_eq(c)) {
+        while let Some((_, parent)) = self.parents.iter().find(|(c, _)| child.ptr_eq(c)) {
             child = parent.clone();
             let parent = parent.upgrade().unwrap();
-            let parent = self.nodes.iter().find(|n| Rc::ptr_eq(&parent, n)).unwrap();
+            let parent = self
+                .nodes
+                .iter()
+                .find(|n| Node::ptr_eq(&parent, n))
+                .unwrap();
             ancestors.push(parent);
         }
 
         ancestors
-    }
-
-    pub fn contains(&self, node: &Node<D>) -> bool {
-        self.nodes.iter().find(|n| Rc::ptr_eq(&node, n)).is_some()
     }
 }
 
@@ -231,14 +234,22 @@ impl<D> Tree<D>
 where
     D: Clone,
 {
-    /// Duplicates the tree.
     pub fn duplicate(&self) -> Self {
-        let mut node_map = vec![];
+        let (dup, _) = self.duplicate_with_map();
+        dup
+    }
+
+    /// Duplicates the tree.
+    ///
+    /// # Returns
+    /// Tuple of (duplicate, [(original node, duplicate node)])
+    pub fn duplicate_with_map(&self) -> (Self, NodeMap<D>) {
+        let mut node_map = Vec::with_capacity(self.nodes.len());
         let nodes = self
             .nodes
             .iter()
             .map(|node| {
-                let node_clone = Rc::new(RefCell::new(node.borrow().clone()));
+                let node_clone = Ptr::new(node.borrow().clone());
                 node_map.push((node.clone(), node_clone.clone()));
                 node_clone
             })
@@ -247,8 +258,8 @@ where
         let root = node_map
             .iter()
             .find_map(|(from, to)| {
-                if Rc::ptr_eq(from, &self.root.upgrade().unwrap()) {
-                    return Some(Rc::downgrade(to));
+                if Node::ptr_eq(from, &self.root.upgrade().unwrap()) {
+                    return Some(Node::downgrade(to));
                 }
 
                 None
@@ -268,8 +279,8 @@ where
                         node_map
                             .iter()
                             .find_map(|(from, to)| {
-                                if Rc::ptr_eq(from, &child) {
-                                    return Some(Rc::downgrade(to));
+                                if Node::ptr_eq(from, &child) {
+                                    return Some(Node::downgrade(to));
                                 }
 
                                 None
@@ -281,8 +292,8 @@ where
                 let parent = node_map
                     .iter()
                     .find_map(|(from, to)| {
-                        if Rc::ptr_eq(from, &parent) {
-                            return Some(Rc::downgrade(to));
+                        if Node::ptr_eq(from, &parent) {
+                            return Some(Node::downgrade(to));
                         }
 
                         None
@@ -303,8 +314,8 @@ where
                 let child = node_map
                     .iter()
                     .find_map(|(from, to)| {
-                        if Rc::ptr_eq(from, &child) {
-                            return Some(Rc::downgrade(to));
+                        if Node::ptr_eq(from, &child) {
+                            return Some(Node::downgrade(to));
                         }
 
                         None
@@ -314,8 +325,8 @@ where
                 let parent = node_map
                     .iter()
                     .find_map(|(from, to)| {
-                        if Rc::ptr_eq(from, &parent) {
-                            return Some(Rc::downgrade(to));
+                        if Node::ptr_eq(from, &parent) {
+                            return Some(Node::downgrade(to));
                         }
 
                         None
@@ -326,12 +337,88 @@ where
             })
             .collect();
 
-        Self {
+        (
+            Self {
+                nodes,
+                root,
+                children,
+                parents,
+            },
+            node_map,
+        )
+    }
+
+    pub fn duplicate_subtree(&self, root: &Node<D>) -> Result<Self, super::error::Error> {
+        let (graph, _) = self.duplicate_subtree_with_map(root)?;
+        Ok(graph)
+    }
+
+    pub fn duplicate_subtree_with_map(
+        &self,
+        root: &Node<D>,
+    ) -> Result<(Self, NodeMap<D>), super::error::Error> {
+        use super::find_mapped_to;
+
+        if !self.contains(root) {
+            return Err(super::error::Error::DoesNotExist);
+        }
+
+        let (nodes, node_map): (Vec<_>, Vec<_>) = self
+            .descendants(root)
+            .into_iter()
+            .map(|node| {
+                let dup = Node::new(node.borrow().clone());
+                (dup.clone(), (node, dup))
+            })
+            .unzip();
+
+        let root_dup = find_mapped_to(root, &node_map).unwrap();
+        let children = self
+            .children
+            .iter()
+            .filter_map(|(parent, children)| {
+                let parent = parent.upgrade().unwrap();
+                let parent = find_mapped_to(&parent, &node_map)?;
+                let parent = Ptr::downgrade(parent);
+
+                let children = children
+                    .iter()
+                    .map(|child| {
+                        let child = child.upgrade().unwrap();
+                        let child = find_mapped_to(&child, &node_map).unwrap();
+                        Ptr::downgrade(child)
+                    })
+                    .collect();
+
+                Some((parent, children))
+            })
+            .collect();
+
+        let parents = self
+            .parents
+            .iter()
+            .filter_map(|(child, parent)| {
+                let child = child.upgrade().unwrap();
+                let parent = parent.upgrade().unwrap();
+                if Ptr::ptr_eq(&child, root) {
+                    return None;
+                }
+
+                let child = find_mapped_to(&child, &node_map)?;
+                let parent = find_mapped_to(&parent, &node_map).unwrap();
+
+                Some((Ptr::downgrade(child), Ptr::downgrade(parent)))
+            })
+            .collect();
+
+        let graph = Self {
+            root: Ptr::downgrade(&root_dup),
             nodes,
-            root,
             children,
             parents,
-        }
+        };
+
+        Ok((graph, node_map))
     }
 }
 
@@ -348,7 +435,7 @@ where
 
 impl<D> Tree<D>
 where
-    D: HasPath,
+    D: HasName,
 {
     /// Get the path from the root of the graph to the given node.
     pub fn path(&self, node: &Node<D>) -> Option<PathBuf> {
@@ -361,16 +448,16 @@ where
         Some(
             ancestors
                 .iter()
-                .fold(PathBuf::new(), |path, node| path.join(node.borrow().path())),
+                .fold(PathBuf::new(), |path, node| path.join(node.borrow().name())),
         )
     }
 
     pub fn paths(&self, root: &Node<D>) -> Option<Vec<PathBuf>> {
         fn inner<D>(graph: &Tree<D>, root: &Node<D>) -> Vec<PathBuf>
         where
-            D: HasPath,
+            D: HasName,
         {
-            let root_path = root.borrow().path().clone();
+            let root_path = PathBuf::from(root.borrow().name());
             let mut paths = graph
                 .children(root)
                 .unwrap()
@@ -398,6 +485,39 @@ where
 
     pub fn all_paths(&self) -> Vec<PathBuf> {
         self.paths(&self.root()).unwrap()
+    }
+
+    pub fn find_by_path(&self, path: impl AsRef<Path>) -> Option<Ptr<D>> {
+        let mut node = self.root();
+        for component in path.as_ref().components() {
+            match component {
+                std::path::Component::Normal(name) => {
+                    node = self
+                        .children(&node)
+                        .unwrap()
+                        .iter()
+                        .find(|child| child.borrow().name() == name)?
+                        .clone();
+                }
+
+                std::path::Component::RootDir | std::path::Component::CurDir => {}
+                _ => panic!("invalid path component"),
+            }
+        }
+
+        Some(node)
+    }
+
+    pub fn insert_at(
+        &mut self,
+        node: D,
+        parent: impl AsRef<Path>,
+    ) -> Result<Node<D>, error::Insert<D>> {
+        let Some(parent) = self.find_by_path(parent) else {
+            return Err(error::Insert::InvalidParent);
+        };
+
+        self.insert(node, &parent)
     }
 }
 

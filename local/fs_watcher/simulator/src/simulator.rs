@@ -76,6 +76,7 @@ impl Simulator {
 
             tracing::debug!(?actions);
             self.perform_actions(actions).unwrap();
+
             match self.validation_rx.try_recv() {
                 Ok(Validation { expected, received }) => {
                     tracing::error!(
@@ -92,6 +93,10 @@ impl Simulator {
             }
 
             self.state.current_tick += 1;
+        }
+
+        if self.state.current_tick == self.options.max_ticks() {
+            tracing::debug!("simulation complete");
         }
     }
 }
@@ -380,8 +385,6 @@ impl Simulator {
             } => {
                 let file_ptr = resource.upgrade().unwrap();
                 let file = FsResource::File(file_ptr.clone());
-                tracing::debug!(?file);
-
                 actions.extend([
                     Action::Remove(file.clone()),
                     Action::Rename {
@@ -481,8 +484,6 @@ impl Simulator {
             } => {
                 let file_ptr = resource.upgrade().unwrap();
                 let file = FsResource::File(file_ptr.clone());
-                tracing::debug!(?file);
-
                 actions.extend([
                     Action::Remove(file.clone()),
                     Action::Rename {
@@ -574,7 +575,6 @@ impl Simulator {
             FsDataResource::Present { resource, state } => {
                 let file_ptr = resource.upgrade().unwrap();
                 let file = FsResource::File(file_ptr.clone());
-                tracing::debug!(?file);
                 actions.extend([
                     Action::Remove(file.clone()),
                     Action::Rename {

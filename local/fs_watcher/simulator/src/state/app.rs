@@ -364,8 +364,16 @@ impl HasFsDataResource for UserManifest {
 
 impl Manifest for UserManifest {
     type Item = String;
-    fn manifest(&self) -> &Vec<String> {
+    fn manifest(&self) -> &Vec<Self::Item> {
         &self.manifest
+    }
+
+    fn push(&mut self, value: Self::Item) {
+        self.manifest.push(value);
+    }
+
+    fn remove(&mut self, index: usize) -> Self::Item {
+        self.manifest.swap_remove(index)
     }
 }
 
@@ -413,8 +421,16 @@ impl HasFsDataResource for ProjectManifest {
 
 impl Manifest for ProjectManifest {
     type Item = PathBuf;
-    fn manifest(&self) -> &Vec<PathBuf> {
+    fn manifest(&self) -> &Vec<Self::Item> {
         &self.manifest
+    }
+
+    fn push(&mut self, value: Self::Item) {
+        self.manifest.push(value);
+    }
+
+    fn remove(&mut self, index: usize) -> Self::Item {
+        self.manifest.swap_remove(index)
     }
 }
 
@@ -797,6 +813,14 @@ impl Manifest for AnalysisManifest {
     fn manifest(&self) -> &Vec<Self::Item> {
         &self.manifest
     }
+
+    fn push(&mut self, value: Self::Item) {
+        self.manifest.push(value);
+    }
+
+    fn remove(&mut self, index: usize) -> Self::Item {
+        self.manifest.swap_remove(index)
+    }
 }
 
 /// Project analysis folder.
@@ -1117,6 +1141,14 @@ impl Manifest for AssetManifest {
     fn manifest(&self) -> &Vec<Self::Item> {
         &self.manifest
     }
+
+    fn push(&mut self, value: Self::Item) {
+        self.manifest.push(value);
+    }
+
+    fn remove(&mut self, index: usize) -> Self::Item {
+        self.manifest.swap_remove(index)
+    }
 }
 
 #[derive(Debug, HasId)]
@@ -1268,4 +1300,6 @@ pub trait HasFsDataResource {
 pub trait Manifest {
     type Item;
     fn manifest(&self) -> &Vec<Self::Item>;
+    fn push(&mut self, value: Self::Item);
+    fn remove(&mut self, index: usize) -> Self::Item;
 }

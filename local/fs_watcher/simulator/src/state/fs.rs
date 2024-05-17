@@ -1,5 +1,5 @@
 use super::{
-    action, app,
+    app::{self, Manifest},
     graph::{NodeMap, Tree},
     HasName, Ptr, Reducible,
 };
@@ -322,17 +322,7 @@ impl Reducible for State {
                 }
             }
 
-            Action::Modify { file, kind } => {
-                match kind {
-                    ModifyKind::ManifestAdd(item) => todo!(),
-                    ModifyKind::ManifestRemove(index) => todo!(),
-                    ModifyKind::Corrupt => {}
-                    ModifyKind::Repair => {}
-                    ModifyKind::Other => {}
-                }
-
-                Ok(FsResource::File(file.clone()))
-            }
+            Action::Modify { file, kind } => Ok(FsResource::File(file.clone())),
         }
     }
 }

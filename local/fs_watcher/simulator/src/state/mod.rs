@@ -13,7 +13,7 @@ pub mod fs;
 pub mod graph;
 
 pub use action::Action;
-use app::{HasFsDataResource, HasPath};
+use app::{HasFsDataResource, HasPath, Manifest};
 
 #[derive(Debug)]
 pub struct Ptr<T>(Rc<RefCell<T>>);
@@ -112,6 +112,8 @@ impl Reducible for State {
     type Output = ();
 
     fn reduce(&mut self, action: &Self::Action) -> Result<Self::Output> {
+        use action::ModifyKind;
+
         let fs_resource = self.fs.reduce(action)?;
         match action {
             Action::CreateFolder { parent, name } => {
@@ -387,8 +389,69 @@ impl Reducible for State {
             Action::Move { resource, parent } => todo!(),
             Action::Copy { resource, parent } => todo!(),
             Action::Modify { file, kind } => match kind {
-                action::ModifyKind::ManifestAdd(item) => todo!(),
-                action::ModifyKind::ManifestRemove(index) => todo!(),
+                ModifyKind::ManifestAdd(item) => {
+                    match file.borrow().app_resource().unwrap() {
+                        app::FileResource::UserManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.push(item.into());
+                        }
+                        app::FileResource::ProjectManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.push(item.into());
+                        }
+                        app::FileResource::AnalysisManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.push(item.into());
+                        }
+                        app::FileResource::AssetManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            todo!();
+                            // manifest.push(item.into());
+                        }
+                        app::FileResource::ProjectProperties(_)
+                        | app::FileResource::ProjectSettings(_)
+                        | app::FileResource::ContainerProperties(_)
+                        | app::FileResource::ContainerSettings(_)
+                        | app::FileResource::Asset(_) => unreachable!(),
+                    }
+
+                    Ok(())
+                }
+                ModifyKind::ManifestRemove(index) => {
+                    match file.borrow().app_resource().unwrap() {
+                        app::FileResource::UserManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.remove(*index);
+                        }
+                        app::FileResource::ProjectManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.remove(*index);
+                        }
+                        app::FileResource::AnalysisManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.remove(*index);
+                        }
+                        app::FileResource::AssetManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.remove(*index);
+                        }
+                        app::FileResource::ProjectProperties(_)
+                        | app::FileResource::ProjectSettings(_)
+                        | app::FileResource::ContainerProperties(_)
+                        | app::FileResource::ContainerSettings(_)
+                        | app::FileResource::Asset(_) => unreachable!(),
+                    }
+
+                    Ok(())
+                }
                 action::ModifyKind::Corrupt => {
                     match file.borrow().app_resource().unwrap() {
                         app::FileResource::UserManifest(manifest) => {
@@ -435,7 +498,53 @@ impl Reducible for State {
                     }
                     Ok(())
                 }
-                action::ModifyKind::Repair => todo!(),
+                action::ModifyKind::Repair => {
+                    match file.borrow().app_resource().unwrap() {
+                        app::FileResource::UserManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::ProjectManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::ProjectProperties(properties) => {
+                            let properties = properties.upgrade().unwrap();
+                            let mut properties = properties.borrow_mut();
+                            properties.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::ProjectSettings(settings) => {
+                            let settings = settings.upgrade().unwrap();
+                            let mut settings = settings.borrow_mut();
+                            settings.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::AnalysisManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::ContainerProperties(properties) => {
+                            let properties = properties.upgrade().unwrap();
+                            let mut properties = properties.borrow_mut();
+                            properties.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::ContainerSettings(settings) => {
+                            let settings = settings.upgrade().unwrap();
+                            let mut settings = settings.borrow_mut();
+                            settings.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::AssetManifest(manifest) => {
+                            let manifest = manifest.upgrade().unwrap();
+                            let mut manifest = manifest.borrow_mut();
+                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
+                        }
+                        app::FileResource::Asset(asset) => unreachable!(),
+                    }
+                    Ok(())
+                }
+
                 action::ModifyKind::Other => Ok(()),
             },
         }

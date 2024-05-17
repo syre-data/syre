@@ -13,7 +13,7 @@ fn test_simulator() {
             .unwrap();
 
     let mut options = simulator::options::Builder::new(base_dir.path().to_path_buf());
-    options.set_max_ticks(10);
+    options.set_max_ticks(100);
     options.set_user_manifest(
         user_manifest
             .path()

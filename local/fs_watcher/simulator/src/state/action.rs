@@ -6,47 +6,13 @@ use std::{ffi::OsString, path::PathBuf};
 
 #[derive(Debug)]
 pub enum Action {
-    CreateFolder {
-        parent: Ptr<Folder>,
-        name: OsString,
-    },
-
-    CreateFolderAt {
-        path: PathBuf,
-        with_parents: bool,
-    },
-
-    CreateFile {
-        parent: Ptr<Folder>,
-        name: OsString,
-    },
-
-    CreateFileAt {
-        path: PathBuf,
-        with_parents: bool,
-    },
-
-    Remove(FsResource),
-
-    Rename {
-        resource: FsResource,
-        to: PathBuf,
-    },
-
-    Move {
-        resource: FsResource,
-        parent: Ptr<Folder>,
-    },
-
-    Copy {
-        resource: FsResource,
-        parent: Ptr<Folder>,
-    },
-
-    Modify {
-        file: Ptr<File>,
-        kind: ModifyKind,
-    },
+    CreateFolder { path: PathBuf, with_parents: bool },
+    CreateFile { path: PathBuf, with_parents: bool },
+    Remove(PathBuf),
+    Rename { from: PathBuf, to: OsString },
+    Move { from: PathBuf, to: PathBuf },
+    Copy { from: PathBuf, to: PathBuf },
+    Modify { file: PathBuf, kind: ModifyKind },
 }
 
 #[derive(Debug, Clone, derive_more::From)]

@@ -1,6 +1,6 @@
 use super::{HasName, Ptr, WPtr};
 use has_id::HasId;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub type Node<T> = Ptr<T>;
 pub type NodeRef<T> = WPtr<T>;
@@ -8,7 +8,6 @@ pub type NodeRef<T> = WPtr<T>;
 /// Node map of (original, new).
 pub type NodeMap<T> = Vec<(Ptr<T>, Ptr<T>)>;
 
-#[derive(Debug)]
 pub struct Tree<D> {
     root: NodeRef<D>,
     nodes: Vec<Node<D>>,
@@ -275,7 +274,6 @@ where
                     .iter()
                     .map(|child| {
                         let child = child.upgrade().unwrap();
-
                         node_map
                             .iter()
                             .find_map(|(from, to)| {
@@ -518,6 +516,18 @@ where
         };
 
         self.insert(node, &parent)
+    }
+}
+
+impl<D> std::fmt::Debug for Tree<D>
+where
+    D: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("Tree")
+            .field("root", &self.root())
+            .field("nodes", &self.nodes)
+            .finish()
     }
 }
 

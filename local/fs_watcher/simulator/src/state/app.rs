@@ -1,5 +1,5 @@
 use super::{
-    action, fs,
+    fs,
     graph::{NodeMap, Tree},
     HasName, Ptr, WPtr,
 };
@@ -102,9 +102,9 @@ impl State {
                                 .nodes()
                                 .iter()
                                 .find(|node| match node.borrow().data() {
-                                    Resource::NotPresent => false,
-                                    Resource::Present(resource) => Ptr::ptr_eq(
-                                        resource.borrow().config().borrow().properties(),
+                                    None => false,
+                                    Some(data) => Ptr::ptr_eq(
+                                        data.config().borrow().properties(),
                                         &properties,
                                     ),
                                 })
@@ -124,11 +124,10 @@ impl State {
                                 .nodes()
                                 .iter()
                                 .find(|node| match node.borrow().data() {
-                                    Resource::NotPresent => false,
-                                    Resource::Present(resource) => Ptr::ptr_eq(
-                                        resource.borrow().config().borrow().settings(),
-                                        &settings,
-                                    ),
+                                    None => false,
+                                    Some(data) => {
+                                        Ptr::ptr_eq(data.config().borrow().settings(), &settings)
+                                    }
                                 })
                                 .is_some(),
                         }
@@ -146,11 +145,10 @@ impl State {
                                 .nodes()
                                 .iter()
                                 .find(|node| match node.borrow().data() {
-                                    Resource::NotPresent => false,
-                                    Resource::Present(resource) => Ptr::ptr_eq(
-                                        resource.borrow().config().borrow().assets(),
-                                        &manifest,
-                                    ),
+                                    None => false,
+                                    Some(data) => {
+                                        Ptr::ptr_eq(data.config().borrow().assets(), &manifest)
+                                    }
                                 })
                                 .is_some(),
                         }
@@ -168,9 +166,8 @@ impl State {
                                 .nodes()
                                 .iter()
                                 .find(|node| match node.borrow().data() {
-                                    Resource::NotPresent => false,
-                                    Resource::Present(resource) => resource
-                                        .borrow()
+                                    None => false,
+                                    Some(data) => data
                                         .config()
                                         .borrow()
                                         .assets()
@@ -221,15 +218,6 @@ impl State {
                         }
                     })
                 }
-                FolderResource::Data(data) => {
-                    let Some(data) = data.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects
-                        .iter()
-                        .find(|project| Ptr::ptr_eq(project.borrow().data(), &data))
-                }
                 FolderResource::Container(container) => {
                     let Some(container) = container.upgrade() else {
                         return None;
@@ -258,10 +246,8 @@ impl State {
                                 .nodes()
                                 .iter()
                                 .find(|node| match node.borrow().data() {
-                                    Resource::NotPresent => false,
-                                    Resource::Present(resource) => {
-                                        Ptr::ptr_eq(resource.borrow().config(), &config)
-                                    }
+                                    None => false,
+                                    Some(data) => Ptr::ptr_eq(data.config(), &config),
                                 })
                                 .is_some(),
                         }
@@ -298,7 +284,7 @@ impl State {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AppState {
     user_manifest: Ptr<UserManifest>,
     project_manifest: Ptr<ProjectManifest>,
@@ -318,6 +304,17 @@ impl AppState {
 
     pub fn project_manifest(&self) -> &Ptr<ProjectManifest> {
         &self.project_manifest
+    }
+}
+
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        let user_manifest = Ptr::new(self.user_manifest.borrow().clone());
+        let project_manifest = Ptr::new(self.project_manifest.borrow().clone());
+        Self {
+            user_manifest,
+            project_manifest,
+        }
     }
 }
 
@@ -943,7 +940,7 @@ impl Data {
 pub struct Container {
     name: OsString,
     fs_resource: WPtr<fs::Folder>,
-    data: Resource<ContainerData>,
+    data: Option<ContainerData>,
 }
 
 impl Container {
@@ -951,7 +948,7 @@ impl Container {
         Self {
             name: folder.borrow().name().to_os_string(),
             fs_resource: Ptr::downgrade(folder),
-            data: Resource::NotPresent,
+            data: None,
         }
     }
 
@@ -964,14 +961,14 @@ impl Container {
     }
 
     pub fn rid(&self) -> Option<ResourceId> {
-        if let Resource::Present(resource) = &self.data {
-            Some(resource.borrow().rid().clone())
+        if let Some(data) = &self.data {
+            Some(data.rid().clone())
         } else {
             None
         }
     }
 
-    pub fn data(&self) -> &Resource<ContainerData> {
+    pub fn data(&self) -> &Option<ContainerData> {
         &self.data
     }
 }
@@ -1195,7 +1192,7 @@ pub enum DataResourceState {
     Invalid,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum FileResource {
     UserManifest(WPtr<UserManifest>),
     ProjectManifest(WPtr<ProjectManifest>),
@@ -1208,14 +1205,67 @@ pub enum FileResource {
     Asset(WPtr<Asset>),
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Debug for FileResource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FileResource::UserManifest(ptr) => {
+                f.write_fmt(format_args!("UserManifest [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::ProjectManifest(ptr) => {
+                f.write_fmt(format_args!("ProjectManifest [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::ProjectProperties(ptr) => {
+                f.write_fmt(format_args!("ProjectProperties [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::ProjectSettings(ptr) => {
+                f.write_fmt(format_args!("ProjectSettings [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::AnalysisManifest(ptr) => {
+                f.write_fmt(format_args!("AnalysisManifest [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::ContainerProperties(ptr) => {
+                f.write_fmt(format_args!("ContainerProperties [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::ContainerSettings(ptr) => {
+                f.write_fmt(format_args!("ContainerSettings [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::AssetManifest(ptr) => {
+                f.write_fmt(format_args!("AssetManifest [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::Asset(ptr) => f.write_fmt(format_args!("Asset [{:?}]", ptr.as_ptr())),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum FolderResource {
     Project(WPtr<Project>),
     ProjectConfig(WPtr<ProjectConfig>),
     Analyses(WPtr<Analyses>),
-    Data(WPtr<Data>),
     Container(WPtr<Container>),
     ContainerConfig(WPtr<ContainerConfig>),
+}
+
+impl std::fmt::Debug for FolderResource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FolderResource::Project(ptr) => {
+                f.write_fmt(format_args!("Project [{:?}]", ptr.as_ptr()))
+            }
+            FolderResource::ProjectConfig(ptr) => {
+                f.write_fmt(format_args!("ProjectConfig [{:?}]", ptr.as_ptr()))
+            }
+            FolderResource::Analyses(ptr) => {
+                f.write_fmt(format_args!("Analyses [{:?}]", ptr.as_ptr()))
+            }
+            FolderResource::Container(ptr) => {
+                f.write_fmt(format_args!("Container [{:?}]", ptr.as_ptr()))
+            }
+            FolderResource::ContainerConfig(ptr) => {
+                f.write_fmt(format_args!("ContainerConfig [{:?}]", ptr.as_ptr()))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, derive_more::From)]

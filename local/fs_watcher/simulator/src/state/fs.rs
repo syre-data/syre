@@ -1,5 +1,5 @@
 use super::{
-    app::{self, Manifest},
+    app::{self},
     graph::{NodeMap, Tree},
     HasName, Ptr, Reducible,
 };
@@ -12,18 +12,17 @@ pub type FileMap = NodeMap<File>;
 
 #[derive(Debug)]
 pub struct State {
-    /// Path to root. Does not include the root name.
+    /// Path to root.
     path: PathBuf,
     graph: Tree<Folder>,
 }
 
 impl State {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        let path = path.as_ref();
-        let root = Folder::new(path.file_name().unwrap());
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        let root = Folder::new(Component::RootDir.as_os_str());
         let graph = Tree::new(root);
         Self {
-            path: path.parent().unwrap().to_path_buf(),
+            path: path.into(),
             graph,
         }
     }
@@ -42,6 +41,28 @@ impl State {
 }
 
 impl State {
+    /// Returns the base path preprended to the given path.
+    ///
+    /// # Panics
+    /// + If `path` is not absolute.
+    /// + If `path` contains  `parent` directory (e.g. `..`).
+    pub fn join_path(&self, path: impl AsRef<Path>) -> PathBuf {
+        let path = path.as_ref();
+        assert!(path.is_absolute());
+
+        let rel_path = path
+            .components()
+            .into_iter()
+            .filter(|component| match component {
+                Component::Prefix(_) | Component::RootDir | Component::CurDir => false,
+                Component::ParentDir => panic!("invalid path, contains parent directory"),
+                Component::Normal(_) => true,
+            })
+            .fold(PathBuf::new(), |p, c| p.join(c));
+
+        self.base_path().join(rel_path)
+    }
+
     pub fn all_folders(&self) -> Vec<Ptr<Folder>> {
         self.graph.nodes().iter().cloned().collect()
     }
@@ -165,34 +186,47 @@ impl Reducible for State {
         };
 
         match action {
-            Action::CreateFolder { parent, name } => {
-                match self.name_exists(parent, name) {
-                    None => return Err(Error::DoesNotExist),
-                    Some(exists) if exists == true => return Err(Error::NameCollision),
-                    Some(_) => {}
-                }
+            Action::CreateFolder { path, with_parents } => {
+                assert!(!self.exists(path));
+                let parent = if *with_parents {
+                    let mut current_path = PathBuf::new();
+                    let mut current_parent = self.graph().root();
+                    for component in path.parent().unwrap().components() {
+                        match component {
+                            Component::RootDir | Component::CurDir => {}
+                            Component::Normal(segment) => {
+                                current_path.push(segment);
+                                current_parent =
+                                    if let Some(parent) = self.find_folder(&current_path) {
+                                        parent
+                                    } else {
+                                        self.graph_mut()
+                                            .insert(Folder::new(segment), &current_parent)
+                                            .unwrap()
+                                    };
+                            }
+                            _ => panic!("invalid path {:?}", path),
+                        }
+                    }
 
-                let folder = match self.graph_mut().insert(Folder::new(name), parent) {
-                    Ok(folder) => folder,
-                    Err(graph::error::Insert::InvalidParent) => return Err(Error::DoesNotExist),
-                    Err(_) => unreachable!(),
+                    current_parent
+                } else {
+                    let Some(parent) = self.find_folder(path.parent().unwrap()) else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    parent
                 };
+
+                let folder = self
+                    .graph
+                    .insert(Folder::new(path.file_name().unwrap()), &parent)
+                    .unwrap();
 
                 Ok(FsResource::Folder(folder))
             }
 
-            Action::CreateFolderAt { path, with_parents } => todo!(),
-
-            Action::CreateFile { parent, name } => {
-                if !self.graph().contains(parent) {
-                    return Err(Error::DoesNotExist);
-                }
-
-                let file = parent.borrow_mut().insert(File::new(name))?;
-                Ok(FsResource::File(file))
-            }
-
-            Action::CreateFileAt { path, with_parents } => {
+            Action::CreateFile { path, with_parents } => {
                 assert!(!self.exists(path));
                 let parent = if *with_parents {
                     let mut current_path = PathBuf::new();
@@ -231,98 +265,116 @@ impl Reducible for State {
                 Ok(FsResource::File(file))
             }
 
-            Action::Remove(resource) => {
-                match resource {
-                    FsResource::File(file) => {
-                        let parent = self.find_file_folder_by_ptr(file).unwrap();
-                        assert!(parent.borrow_mut().remove(file));
-                    }
-
-                    FsResource::Folder(folder) => {
-                        assert!(self.graph.remove(folder).is_some());
-                    }
-                }
-
-                Ok(resource.clone())
-            }
-
-            Action::Rename { resource, to } => {
-                match resource {
-                    FsResource::File(file) => {
-                        let parent = self.find_file_folder_by_ptr(file).unwrap();
-                        if self.name_exists(parent, to).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        file.borrow_mut().set_name(to);
-                    }
-
-                    FsResource::Folder(folder) => {
-                        if self.name_exists(folder, to).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        folder.borrow_mut().set_name(to);
-                    }
-                }
-
-                Ok(resource.clone())
-            }
-
-            Action::Move { resource, parent } => {
-                assert!(self.graph.contains(parent));
-                match resource {
-                    FsResource::File(file) => {
-                        if self.name_exists(parent, file.borrow().name()).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        let parent_now = self.find_file_folder_by_ptr(file).unwrap();
-                        parent_now.borrow_mut().remove(file);
-                        parent.borrow_mut().insert_ptr(file.clone()).unwrap();
-                    }
-
-                    FsResource::Folder(folder) => {
-                        if self.name_exists(parent, folder.borrow().name()).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        let graph = self.graph.remove(folder).unwrap();
-                        self.graph.insert_tree(graph, parent).unwrap();
-                    }
-                }
-
-                Ok(resource.clone())
-            }
-
-            Action::Copy { resource, parent } => {
-                assert!(self.graph.contains(parent));
-                match resource {
-                    FsResource::File(file) => {
-                        assert!(self.find_file_folder_by_ptr(file).is_some());
-                        if self.name_exists(parent, file.borrow().name()).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        let file = file.borrow().clone();
-                        let file = parent.borrow_mut().insert(file)?;
-                        Ok(FsResource::File(file))
-                    }
-
-                    FsResource::Folder(folder) => {
-                        if self.name_exists(parent, folder.borrow().name()).unwrap() {
-                            return Err(super::error::Error::NameCollision);
-                        }
-
-                        let dup = self.graph.duplicate_subtree(folder).unwrap();
-                        let root = dup.root();
-                        self.graph.insert_tree(dup, parent).unwrap();
-                        Ok(FsResource::Folder(root))
-                    }
+            Action::Remove(path) => {
+                if let Some(file) = self.find_file(path) {
+                    let parent = self.find_file_folder_by_ptr(&file).unwrap();
+                    assert!(parent.borrow_mut().remove(&file));
+                    Ok(file.into())
+                } else if let Some(folder) = self.find_folder(path) {
+                    assert!(self.graph.remove(&folder).is_some());
+                    Ok(folder.clone().into())
+                } else {
+                    panic!("invalid path resource");
                 }
             }
 
-            Action::Modify { file, kind } => Ok(FsResource::File(file.clone())),
+            Action::Rename { from, to } => {
+                if let Some(file) = self.find_file(from) {
+                    let parent = self.find_file_folder_by_ptr(&file).unwrap();
+                    if self.name_exists(parent, to).unwrap() {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    file.borrow_mut().set_name(to);
+                    Ok(file.into())
+                } else if let Some(folder) = self.find_folder(from) {
+                    let parent = self.graph.parent(&folder).unwrap();
+                    if self.name_exists(&parent, to).unwrap() {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    folder.borrow_mut().set_name(to);
+                    Ok(folder.into())
+                } else {
+                    panic!("invalid path resource");
+                }
+            }
+
+            Action::Move { from, to } => {
+                let parent_new = self.find_folder(to.parent().unwrap()).unwrap();
+                if let Some(file) = self.find_file(from) {
+                    let parent_old = self.find_file_folder_by_ptr(&file).unwrap();
+                    let filename = to.file_name().unwrap();
+                    if self.name_exists(&parent_new, filename).unwrap() {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    file.borrow_mut().set_name(filename);
+                    parent_old.borrow_mut().remove(&file);
+                    parent_new.borrow_mut().insert_ptr(file.clone()).unwrap();
+                    Ok(file.into())
+                } else if let Some(folder) = self.find_folder(from) {
+                    let parent_old = self.graph.parent(&folder).unwrap();
+                    if self
+                        .name_exists(&parent_new, to.file_name().unwrap())
+                        .unwrap()
+                    {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    let graph = self.graph.remove(&folder).unwrap();
+                    self.graph.insert_tree(graph, &parent_new).unwrap();
+                    Ok(folder.into())
+                } else {
+                    panic!("invalid path resource");
+                }
+            }
+
+            Action::Copy { from, to } => {
+                let parent_new = self.find_folder(to.parent().unwrap()).unwrap();
+                if let Some(file) = self.find_file(from) {
+                    let parent_old = self.find_file_folder_by_ptr(&file).unwrap();
+                    if self
+                        .name_exists(&parent_new, to.file_name().unwrap())
+                        .unwrap()
+                    {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    let mut file = file.borrow().clone();
+                    file.remove_app_resource();
+                    file.set_name(to.file_name().unwrap());
+                    let file = parent_new.borrow_mut().insert(file)?;
+                    Ok(file.into())
+                } else if let Some(folder) = self.find_folder(from) {
+                    let parent_old = self.graph.parent(&folder).unwrap();
+                    if self
+                        .name_exists(&parent_new, to.file_name().unwrap())
+                        .unwrap()
+                    {
+                        return Err(super::error::Error::NameCollision);
+                    }
+
+                    let dup = self.graph.duplicate_subtree(&folder).unwrap();
+                    for mut folder in dup.nodes().iter().map(|folder| folder.borrow_mut()) {
+                        folder.remove_app_resource();
+                        for mut file in folder.files().iter().map(|file| file.borrow_mut()) {
+                            file.remove_app_resource();
+                        }
+                    }
+
+                    let root = dup.root();
+                    self.graph.insert_tree(dup, &parent_new).unwrap();
+                    Ok(root.into())
+                } else {
+                    panic!("invalid path resource");
+                }
+            }
+
+            Action::Modify { file, kind } => {
+                let file = self.find_file(file).unwrap();
+                Ok(file.into())
+            }
         }
     }
 }
@@ -406,6 +458,9 @@ impl Folder {
 }
 
 impl Folder {
+    /// Duplicates the folder.
+    /// New `File`s are created.
+    /// Referenced app resources are unchanged.
     pub fn duplicate_with_app_resources_and_map(&self) -> (Self, FileMap) {
         let mut file_map = Vec::with_capacity(self.files.len());
         let files = self

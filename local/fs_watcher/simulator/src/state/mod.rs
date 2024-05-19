@@ -1,6 +1,7 @@
 use std::{
     assert_matches::assert_matches,
     cell::RefCell,
+    ffi::OsString,
     ops::Deref,
     path::{Path, PathBuf},
     rc::{Rc, Weak},
@@ -15,7 +16,6 @@ pub mod graph;
 pub use action::Action;
 use app::{HasFsDataResource, HasPath, Manifest};
 
-#[derive(Debug)]
 pub struct Ptr<T>(Rc<RefCell<T>>);
 impl<T> Ptr<T> {
     pub fn new(value: T) -> Self {
@@ -31,7 +31,19 @@ impl<T> Ptr<T> {
     }
 }
 
-#[derive(Debug)]
+impl<T> std::fmt::Debug for Ptr<T>
+where
+    T: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{:?} [{:?}]",
+            self.0.as_ptr(),
+            self.0.borrow()
+        ))
+    }
+}
+
 pub struct WPtr<T>(Weak<RefCell<T>>);
 impl<T> WPtr<T> {
     pub fn upgrade(&self) -> Option<Ptr<T>> {
@@ -40,6 +52,15 @@ impl<T> WPtr<T> {
 
     pub fn ptr_eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(other)
+    }
+}
+
+impl<T> std::fmt::Debug for WPtr<T>
+where
+    T: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:?}", self.0.as_ptr()))
     }
 }
 
@@ -88,7 +109,7 @@ pub struct State {
 
 impl State {
     pub fn new(
-        path: impl AsRef<Path>,
+        path: impl Into<PathBuf>,
         user_manifest: impl Into<PathBuf>,
         project_manifest: impl Into<PathBuf>,
     ) -> Self {
@@ -112,441 +133,488 @@ impl Reducible for State {
     type Output = ();
 
     fn reduce(&mut self, action: &Self::Action) -> Result<Self::Output> {
-        use action::ModifyKind;
-
         let fs_resource = self.fs.reduce(action)?;
         match action {
-            Action::CreateFolder { parent, name } => {
+            Action::CreateFolder { path, with_parents } => {
                 let action::FsResource::Folder(fs_resource) = fs_resource else {
                     unreachable!();
                 };
 
-                let Some(app_resource) = parent.borrow().app_resource() else {
-                    return Ok(());
+                self.reduce_create_folder(&fs_resource, path, *with_parents)
+            }
+
+            Action::CreateFile { path, with_parents } => {
+                let action::FsResource::File(fs_resource) = fs_resource else {
+                    unreachable!();
                 };
 
-                match app_resource {
-                    app::FolderResource::Project(project) => {
-                        let project = project.upgrade().unwrap();
-                        let rel_path = self.fs.graph().path(&fs_resource).unwrap();
-                        let rel_path = rel_path.strip_prefix(project.borrow().path()).unwrap();
+                self.reduce_create_file(&fs_resource, path, *with_parents)
+            }
 
-                        if name == common::app_dir() {
-                            assert_matches!(
+            Action::Remove(path) => {
+                match fs_resource {
+                    action::FsResource::File(file) => self.reduce_remove_file(&file),
+                    action::FsResource::Folder(folder) => self.reduce_remove_folder(&folder),
+                }
+
+                Ok(())
+            }
+
+            Action::Rename { from, to } => {
+                match fs_resource {
+                    action::FsResource::File(file) => self.reduce_rename_file(&file, to.clone()),
+                    action::FsResource::Folder(folder) => {
+                        self.reduce_rename_folder(&folder, to.clone())
+                    }
+                }
+
+                Ok(())
+            }
+
+            Action::Move { from, to } => match fs_resource {
+                action::FsResource::File(file) => {
+                    self.reduce_remove_file(&file);
+                    self.reduce_create_file(&file, to, false)
+                }
+                action::FsResource::Folder(folder) => {
+                    self.reduce_remove_folder(&folder);
+                    self.reduce_create_folder(&folder, to, false)
+                }
+            },
+
+            Action::Copy { from, to } => match fs_resource {
+                action::FsResource::File(file) => self.reduce_create_file(&file, to, false),
+                action::FsResource::Folder(folder) => self.reduce_create_folder(&folder, to, false),
+            },
+
+            Action::Modify { file: path, kind } => {
+                let action::FsResource::File(file) = fs_resource else {
+                    unreachable!();
+                };
+
+                self.reduce_modify(&file, kind);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl State {
+    fn reduce_create_folder(
+        &mut self,
+        fs_resource: &Ptr<fs::Folder>,
+        path: &PathBuf,
+        with_parents: bool,
+    ) -> Result<<Self as Reducible>::Output> {
+        let parent = self.fs.find_folder(path.parent().unwrap()).unwrap();
+        let Some(app_resource) = parent.borrow().app_resource() else {
+            return Ok(());
+        };
+
+        let name = path.file_name().unwrap();
+        match app_resource {
+            app::FolderResource::Project(project) => {
+                let project = project.upgrade().unwrap();
+                let rel_path = self.fs.graph().path(&fs_resource).unwrap();
+                let rel_path = rel_path.strip_prefix(project.borrow().path()).unwrap();
+
+                if name == common::app_dir() {
+                    assert_matches!(
                                 project.borrow().config(),
                                 app::Resource::NotPresent,
                                 "should only be able to create new folder at path if a resource does not already exist there"
                             );
 
-                            project.borrow_mut().set_config_folder(&fs_resource);
-                        } else if let Some(analyses) = project.borrow().analyses() {
-                            if rel_path == analyses.borrow().path() {
-                                assert_matches!(
-                                    analyses.borrow().fs_resource(),
-                                    app::FsResource::NotPresent
-                                );
+                    project.borrow_mut().set_config_folder(&fs_resource);
+                } else if let Some(analyses) = project.borrow().analyses() {
+                    if rel_path == analyses.borrow().path() {
+                        assert_matches!(
+                            analyses.borrow().fs_resource(),
+                            app::FsResource::NotPresent
+                        );
 
-                                project
-                                    .borrow_mut()
-                                    .set_analyses_folder_reference(&fs_resource);
-                            }
-                        } else if rel_path == project.borrow().data().borrow().path() {
-                            assert_matches!(
+                        project
+                            .borrow_mut()
+                            .set_analyses_folder_reference(&fs_resource);
+                    }
+                } else if rel_path == project.borrow().data().borrow().path() {
+                    assert_matches!(
                                 project.borrow().data().borrow().graph(),
                                 None,
                                 "should only be able to create new folder at path if a resource does not already exist there"
                             );
 
-                            project.borrow_mut().set_data_root(&fs_resource);
-                        } else {
-                            todo!();
-                        }
-                    }
-
-                    _ => todo!(),
+                    project.borrow_mut().set_data_root(&fs_resource);
+                } else {
+                    todo!();
                 }
-                Ok(())
             }
 
-            Action::CreateFolderAt { path, with_parents } => todo!(),
+            _ => todo!(),
+        }
+        Ok(())
+    }
 
-            Action::CreateFile { parent, name } => {
-                let action::FsResource::File(fs_resource) = fs_resource else {
-                    unreachable!();
-                };
+    fn reduce_create_file(
+        &mut self,
+        fs_resource: &Ptr<fs::File>,
+        path: &PathBuf,
+        with_parents: bool,
+    ) -> Result<<Self as Reducible>::Output> {
+        let mut user_manifest = self.app.app_state().user_manifest().borrow_mut();
+        let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
+        if path == user_manifest.path() {
+            user_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
+            fs_resource
+                .borrow_mut()
+                .set_app_resource(app::FileResource::UserManifest(Ptr::downgrade(
+                    self.app.app_state().user_manifest(),
+                )));
 
-                todo!();
-                Ok(())
+            return Ok(());
+        } else if path == project_manifest.path() {
+            project_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
+            fs_resource
+                .borrow_mut()
+                .set_app_resource(app::FileResource::ProjectManifest(Ptr::downgrade(
+                    self.app.app_state().project_manifest(),
+                )));
+
+            return Ok(());
+        }
+
+        let parent = self.fs.find_file_folder_by_ptr(fs_resource).unwrap();
+        if let Some(app_resource) = parent.borrow().app_resource() {
+            match app_resource {
+                app::FolderResource::Project(_) => todo!(),
+                app::FolderResource::ProjectConfig(_) => todo!(),
+                app::FolderResource::Analyses(_) => todo!(),
+                app::FolderResource::Container(_) => todo!(),
+                app::FolderResource::ContainerConfig(_) => todo!(),
             }
+        }
 
-            Action::CreateFileAt { path, with_parents } => {
-                let action::FsResource::File(fs_resource) = fs_resource else {
-                    unreachable!();
-                };
+        Ok(())
+    }
 
-                let mut user_manifest = self.app.app_state().user_manifest().borrow_mut();
-                let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
-                if path == user_manifest.path() {
-                    user_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                    fs_resource
-                        .borrow_mut()
-                        .set_app_resource(app::FileResource::UserManifest(Ptr::downgrade(
-                            self.app.app_state().user_manifest(),
-                        )));
-
-                    return Ok(());
-                } else if path == project_manifest.path() {
-                    project_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                    fs_resource
-                        .borrow_mut()
-                        .set_app_resource(app::FileResource::ProjectManifest(Ptr::downgrade(
-                            self.app.app_state().project_manifest(),
-                        )));
-
-                    return Ok(());
+    fn reduce_remove_file(&mut self, file: &Ptr<fs::File>) {
+        if let Some(app_resource) = file.borrow().app_resource() {
+            match app_resource {
+                app::FileResource::UserManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove_fs_resource();
                 }
-
-                todo!();
-                Ok(())
+                app::FileResource::ProjectManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove_fs_resource();
+                }
+                app::FileResource::ProjectProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.remove_fs_resource();
+                }
+                app::FileResource::ProjectSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.remove_fs_resource();
+                }
+                app::FileResource::AnalysisManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove_fs_resource();
+                }
+                app::FileResource::ContainerProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.remove_fs_resource();
+                }
+                app::FileResource::ContainerSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.remove_fs_resource();
+                }
+                app::FileResource::AssetManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove_fs_resource();
+                }
+                app::FileResource::Asset(asset) => {
+                    todo!();
+                }
             }
+        }
+    }
 
-            Action::Remove(resource) => {
-                match resource {
-                    action::FsResource::File(file) => {
-                        if let Some(app_resource) = file.borrow().app_resource() {
-                            match app_resource {
-                                app::FileResource::UserManifest(manifest) => {
-                                    let manifest = manifest.upgrade().unwrap();
-                                    let mut manifest = manifest.borrow_mut();
-                                    manifest.remove_fs_resource();
-                                }
-                                app::FileResource::ProjectManifest(manifest) => {
-                                    let manifest = manifest.upgrade().unwrap();
-                                    let mut manifest = manifest.borrow_mut();
-                                    manifest.remove_fs_resource();
-                                }
-                                app::FileResource::ProjectProperties(properties) => {
-                                    let properties = properties.upgrade().unwrap();
-                                    let mut properties = properties.borrow_mut();
-                                    properties.remove_fs_resource();
-                                }
-                                app::FileResource::ProjectSettings(settings) => {
-                                    let settings = settings.upgrade().unwrap();
-                                    let mut settings = settings.borrow_mut();
-                                    settings.remove_fs_resource();
-                                }
-                                app::FileResource::AnalysisManifest(manifest) => {
-                                    let manifest = manifest.upgrade().unwrap();
-                                    let mut manifest = manifest.borrow_mut();
-                                    manifest.remove_fs_resource();
-                                }
-                                app::FileResource::ContainerProperties(properties) => {
-                                    let properties = properties.upgrade().unwrap();
-                                    let mut properties = properties.borrow_mut();
-                                    properties.remove_fs_resource();
-                                }
-                                app::FileResource::ContainerSettings(settings) => {
-                                    let settings = settings.upgrade().unwrap();
-                                    let mut settings = settings.borrow_mut();
-                                    settings.remove_fs_resource();
-                                }
-                                app::FileResource::AssetManifest(manifest) => {
-                                    let manifest = manifest.upgrade().unwrap();
-                                    let mut manifest = manifest.borrow_mut();
-                                    manifest.remove_fs_resource();
-                                }
-                                app::FileResource::Asset(asset) => {
-                                    todo!();
-                                }
-                            }
-                        }
-                    }
+    fn reduce_remove_folder(&mut self, folder: &Ptr<fs::Folder>) {
+        if let Some(app_resource) = folder.borrow().app_resource() {
+            match app_resource {
+                app::FolderResource::Project(project) => {
+                    let project = project.upgrade().unwrap();
+                    self.app
+                        .projects_mut()
+                        .retain(|prj| !Ptr::ptr_eq(&project, prj));
 
-                    action::FsResource::Folder(folder) => {
-                        if let Some(app_resource) = folder.borrow().app_resource() {
-                            match app_resource {
-                                app::FolderResource::Project(project) => {
-                                    let project = project.upgrade().unwrap();
-                                    self.app
-                                        .projects_mut()
-                                        .retain(|prj| !Ptr::ptr_eq(&project, prj));
-                                }
+                    let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
+                    let index = project_manifest
+                        .manifest()
+                        .iter()
+                        .position(|path| path == project.borrow().path())
+                        .unwrap();
 
-                                app::FolderResource::ProjectConfig(config) => {
-                                    let project = self
-                                        .app
-                                        .find_resource_project(
-                                            app::FolderResource::ProjectConfig(config).into(),
-                                        )
-                                        .unwrap();
-
-                                    project.borrow_mut().remove_config();
-                                }
-
-                                app::FolderResource::Analyses(analyses) => {
-                                    let project = self
-                                        .app
-                                        .find_resource_project(
-                                            app::FolderResource::Analyses(analyses).into(),
-                                        )
-                                        .unwrap();
-
-                                    project.borrow_mut().remove_analyses_folder_reference();
-                                }
-
-                                app::FolderResource::Data(data) => {
-                                    let project = self
-                                        .app
-                                        .find_resource_project(
-                                            app::FolderResource::Data(data).into(),
-                                        )
-                                        .unwrap();
-
-                                    project.borrow_mut().remove_data_root();
-                                }
-
-                                app::FolderResource::Container(_) => todo!(),
-                                app::FolderResource::ContainerConfig(_) => todo!(),
-                            }
-                        }
-                    }
+                    project_manifest.remove(index);
                 }
 
-                Ok(())
+                app::FolderResource::ProjectConfig(config) => {
+                    let project = self
+                        .app
+                        .find_resource_project(app::FolderResource::ProjectConfig(config).into())
+                        .unwrap();
+
+                    project.borrow_mut().remove_config();
+                }
+
+                app::FolderResource::Analyses(analyses) => {
+                    let project = self
+                        .app
+                        .find_resource_project(app::FolderResource::Analyses(analyses).into())
+                        .unwrap();
+
+                    project.borrow_mut().remove_analyses_folder_reference();
+                }
+
+                app::FolderResource::Container(_) => todo!(),
+                app::FolderResource::ContainerConfig(_) => todo!(),
             }
+        }
+    }
 
-            Action::Rename { resource, to } => match resource {
-                action::FsResource::File(file) => {
-                    let mut file = file.borrow_mut();
-                    if let Some(app_resource) = file.app_resource() {
-                        match app_resource {
-                            app::FileResource::Asset(asset) => {
-                                let asset = asset.upgrade().unwrap();
-                                asset.borrow_mut().set_name(to);
-                            }
-                            app::FileResource::UserManifest(manifest) => {
-                                let manifest = manifest.upgrade().unwrap();
-                                manifest.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::ProjectManifest(manifest) => {
-                                let manifest = manifest.upgrade().unwrap();
-                                manifest.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::ProjectProperties(properties) => {
-                                let properties = properties.upgrade().unwrap();
-                                properties.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::ProjectSettings(settings) => {
-                                let settings = settings.upgrade().unwrap();
-                                settings.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::AnalysisManifest(manifest) => {
-                                let manifest = manifest.upgrade().unwrap();
-                                manifest.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::ContainerProperties(properties) => {
-                                let properties = properties.upgrade().unwrap();
-                                properties.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::ContainerSettings(settings) => {
-                                let settings = settings.upgrade().unwrap();
-                                settings.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                            app::FileResource::AssetManifest(manifest) => {
-                                let manifest = manifest.upgrade().unwrap();
-                                manifest.borrow_mut().remove_fs_resource();
-                                file.remove_app_resource();
-                            }
-                        }
-                    }
-
-                    Ok(())
+    fn reduce_rename_file(&mut self, file: &Ptr<fs::File>, to: OsString) {
+        let mut file = file.borrow_mut();
+        if let Some(app_resource) = file.app_resource() {
+            match app_resource {
+                app::FileResource::Asset(asset) => {
+                    let asset = asset.upgrade().unwrap();
+                    asset.borrow_mut().set_name(to);
                 }
-
-                action::FsResource::Folder(folder) => {
-                    if let Some(app_resource) = folder.borrow().app_resource() {
-                        match app_resource {
-                            app::FolderResource::Project(_) => todo!(),
-                            app::FolderResource::ProjectConfig(_) => todo!(),
-                            app::FolderResource::Analyses(_) => todo!(),
-                            app::FolderResource::Data(_) => todo!(),
-                            app::FolderResource::Container(_) => todo!(),
-                            app::FolderResource::ContainerConfig(_) => todo!(),
-                        }
-                    }
-
-                    Ok(())
+                app::FileResource::UserManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    manifest.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
                 }
+                app::FileResource::ProjectManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    manifest.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::ProjectProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    properties.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::ProjectSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    settings.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::AnalysisManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    manifest.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::ContainerProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    properties.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::ContainerSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    settings.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+                app::FileResource::AssetManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    manifest.borrow_mut().remove_fs_resource();
+                    file.remove_app_resource();
+                }
+            }
+        }
+    }
+
+    fn reduce_rename_folder(&mut self, folder: &Ptr<fs::Folder>, to: OsString) {
+        if let Some(app_resource) = folder.borrow().app_resource() {
+            match app_resource {
+                app::FolderResource::Project(_) => todo!(),
+                app::FolderResource::ProjectConfig(_) => todo!(),
+                app::FolderResource::Analyses(_) => todo!(),
+                app::FolderResource::Container(_) => todo!(),
+                app::FolderResource::ContainerConfig(_) => todo!(),
+            }
+        }
+    }
+
+    fn reduce_modify(&mut self, file: &Ptr<fs::File>, kind: &action::ModifyKind) {
+        use action::ModifyKind;
+
+        match kind {
+            ModifyKind::ManifestAdd(item) => {
+                match file.borrow().app_resource().unwrap() {
+                    app::FileResource::UserManifest(manifest) => {
+                        let manifest = manifest.upgrade().unwrap();
+                        let mut manifest = manifest.borrow_mut();
+                        manifest.push(item.into());
+                    }
+                    app::FileResource::ProjectManifest(manifest) => {
+                        let manifest = manifest.upgrade().unwrap();
+                        let mut manifest = manifest.borrow_mut();
+                        let path: PathBuf = item.into();
+                        manifest.push(path.clone());
+                        let project = app::Project::new(path.clone(), "data");
+                        let project = Ptr::new(project);
+                        if let Some(folder) = self.fs.graph().find_by_path(&path) {
+                            project.borrow_mut().set_fs_resource(&folder);
+                            folder
+                                .borrow_mut()
+                                .set_app_resource(app::FolderResource::Project(Ptr::downgrade(
+                                    &project,
+                                )));
+                        }
+                        self.app.projects_mut().push(project);
+                    }
+                    app::FileResource::AnalysisManifest(manifest) => {
+                        let manifest = manifest.upgrade().unwrap();
+                        let mut manifest = manifest.borrow_mut();
+                        manifest.push(item.into());
+                    }
+                    app::FileResource::AssetManifest(manifest) => {
+                        let manifest = manifest.upgrade().unwrap();
+                        let mut manifest = manifest.borrow_mut();
+                        todo!();
+                        // manifest.push(item.into());
+                    }
+                    app::FileResource::ProjectProperties(_)
+                    | app::FileResource::ProjectSettings(_)
+                    | app::FileResource::ContainerProperties(_)
+                    | app::FileResource::ContainerSettings(_)
+                    | app::FileResource::Asset(_) => unreachable!(),
+                }
+            }
+            ModifyKind::ManifestRemove(index) => match file.borrow().app_resource().unwrap() {
+                app::FileResource::UserManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove(*index);
+                }
+                app::FileResource::ProjectManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove(*index);
+                }
+                app::FileResource::AnalysisManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove(*index);
+                }
+                app::FileResource::AssetManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.remove(*index);
+                }
+                app::FileResource::ProjectProperties(_)
+                | app::FileResource::ProjectSettings(_)
+                | app::FileResource::ContainerProperties(_)
+                | app::FileResource::ContainerSettings(_)
+                | app::FileResource::Asset(_) => unreachable!(),
+            },
+            action::ModifyKind::Corrupt => match file.borrow().app_resource().unwrap() {
+                app::FileResource::UserManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::ProjectManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::ProjectProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::ProjectSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::AnalysisManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::ContainerProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::ContainerSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::AssetManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Invalid)
+                }
+                app::FileResource::Asset(_asset) => unreachable!(),
+            },
+            action::ModifyKind::Repair => match file.borrow().app_resource().unwrap() {
+                app::FileResource::UserManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::ProjectManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::ProjectProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::ProjectSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::AnalysisManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::ContainerProperties(properties) => {
+                    let properties = properties.upgrade().unwrap();
+                    let mut properties = properties.borrow_mut();
+                    properties.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::ContainerSettings(settings) => {
+                    let settings = settings.upgrade().unwrap();
+                    let mut settings = settings.borrow_mut();
+                    settings.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::AssetManifest(manifest) => {
+                    let manifest = manifest.upgrade().unwrap();
+                    let mut manifest = manifest.borrow_mut();
+                    manifest.set_fs_resource(&file, app::DataResourceState::Valid)
+                }
+                app::FileResource::Asset(_asset) => unreachable!(),
             },
 
-            Action::Move { resource, parent } => todo!(),
-            Action::Copy { resource, parent } => todo!(),
-            Action::Modify { file, kind } => match kind {
-                ModifyKind::ManifestAdd(item) => {
-                    match file.borrow().app_resource().unwrap() {
-                        app::FileResource::UserManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.push(item.into());
-                        }
-                        app::FileResource::ProjectManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.push(item.into());
-                        }
-                        app::FileResource::AnalysisManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.push(item.into());
-                        }
-                        app::FileResource::AssetManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            todo!();
-                            // manifest.push(item.into());
-                        }
-                        app::FileResource::ProjectProperties(_)
-                        | app::FileResource::ProjectSettings(_)
-                        | app::FileResource::ContainerProperties(_)
-                        | app::FileResource::ContainerSettings(_)
-                        | app::FileResource::Asset(_) => unreachable!(),
-                    }
-
-                    Ok(())
-                }
-                ModifyKind::ManifestRemove(index) => {
-                    match file.borrow().app_resource().unwrap() {
-                        app::FileResource::UserManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.remove(*index);
-                        }
-                        app::FileResource::ProjectManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.remove(*index);
-                        }
-                        app::FileResource::AnalysisManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.remove(*index);
-                        }
-                        app::FileResource::AssetManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.remove(*index);
-                        }
-                        app::FileResource::ProjectProperties(_)
-                        | app::FileResource::ProjectSettings(_)
-                        | app::FileResource::ContainerProperties(_)
-                        | app::FileResource::ContainerSettings(_)
-                        | app::FileResource::Asset(_) => unreachable!(),
-                    }
-
-                    Ok(())
-                }
-                action::ModifyKind::Corrupt => {
-                    match file.borrow().app_resource().unwrap() {
-                        app::FileResource::UserManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::ProjectManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::ProjectProperties(properties) => {
-                            let properties = properties.upgrade().unwrap();
-                            let mut properties = properties.borrow_mut();
-                            properties.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::ProjectSettings(settings) => {
-                            let settings = settings.upgrade().unwrap();
-                            let mut settings = settings.borrow_mut();
-                            settings.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::AnalysisManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::ContainerProperties(properties) => {
-                            let properties = properties.upgrade().unwrap();
-                            let mut properties = properties.borrow_mut();
-                            properties.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::ContainerSettings(settings) => {
-                            let settings = settings.upgrade().unwrap();
-                            let mut settings = settings.borrow_mut();
-                            settings.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::AssetManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Invalid)
-                        }
-                        app::FileResource::Asset(asset) => unreachable!(),
-                    }
-                    Ok(())
-                }
-                action::ModifyKind::Repair => {
-                    match file.borrow().app_resource().unwrap() {
-                        app::FileResource::UserManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::ProjectManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::ProjectProperties(properties) => {
-                            let properties = properties.upgrade().unwrap();
-                            let mut properties = properties.borrow_mut();
-                            properties.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::ProjectSettings(settings) => {
-                            let settings = settings.upgrade().unwrap();
-                            let mut settings = settings.borrow_mut();
-                            settings.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::AnalysisManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::ContainerProperties(properties) => {
-                            let properties = properties.upgrade().unwrap();
-                            let mut properties = properties.borrow_mut();
-                            properties.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::ContainerSettings(settings) => {
-                            let settings = settings.upgrade().unwrap();
-                            let mut settings = settings.borrow_mut();
-                            settings.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::AssetManifest(manifest) => {
-                            let manifest = manifest.upgrade().unwrap();
-                            let mut manifest = manifest.borrow_mut();
-                            manifest.set_fs_resource(file, app::DataResourceState::Valid)
-                        }
-                        app::FileResource::Asset(asset) => unreachable!(),
-                    }
-                    Ok(())
-                }
-
-                action::ModifyKind::Other => Ok(()),
-            },
+            action::ModifyKind::Other => {}
         }
     }
 }
@@ -555,13 +623,9 @@ impl Clone for State {
     fn clone(&self) -> Self {
         let (fs_state, fs_node_map) = self.fs.duplicate_with_app_references_and_map();
         let (mut app_state, _app_resource_map) = self.app.duplicate_with_fs_references_and_map();
-
-        if let app::FsDataResource::Present { resource, state } = app_state
-            .app_state()
-            .user_manifest()
-            .borrow()
-            .fs_resource()
-            .clone()
+        let mut user_manifest = app_state.app_state().user_manifest().borrow_mut();
+        if let app::FsDataResource::Present { resource, state } =
+            user_manifest.fs_resource().clone()
         {
             let resource_ptr = resource.upgrade().unwrap();
             let from_folder = self.fs.find_file_folder_by_ptr(&resource_ptr).unwrap();
@@ -572,25 +636,18 @@ impl Clone for State {
                 .file(resource_ptr.borrow().name())
                 .unwrap();
 
-            app_state
-                .app_state()
-                .user_manifest()
-                .borrow_mut()
-                .set_fs_resource(&to_resource, state);
-
+            user_manifest.set_fs_resource(&to_resource, state);
             to_resource
                 .borrow_mut()
                 .set_app_resource(app::FileResource::UserManifest(Ptr::downgrade(
                     app_state.app_state().user_manifest(),
                 )));
         }
+        drop(user_manifest);
 
-        if let app::FsDataResource::Present { resource, state } = app_state
-            .app_state()
-            .project_manifest()
-            .borrow()
-            .fs_resource()
-            .clone()
+        let mut project_manifest = app_state.app_state().project_manifest().borrow_mut();
+        if let app::FsDataResource::Present { resource, state } =
+            project_manifest.fs_resource().clone()
         {
             let resource_ptr = resource.upgrade().unwrap();
             let from_folder = self.fs.find_file_folder_by_ptr(&resource_ptr).unwrap();
@@ -601,32 +658,28 @@ impl Clone for State {
                 .file(resource_ptr.borrow().name())
                 .unwrap();
 
-            app_state
-                .app_state()
-                .user_manifest()
-                .borrow_mut()
-                .set_fs_resource(&to_resource, state);
-
+            project_manifest.set_fs_resource(&to_resource, state);
             to_resource
                 .borrow_mut()
                 .set_app_resource(app::FileResource::ProjectManifest(Ptr::downgrade(
                     app_state.app_state().project_manifest(),
                 )));
         }
+        drop(project_manifest);
 
-        for project in app_state.projects_mut().iter_mut() {
-            if let app::FsResource::Present(resource) = project.borrow().fs_resource().clone() {
+        for project_ptr in app_state.projects_mut().iter_mut() {
+            let mut project = project_ptr.borrow_mut();
+            if let app::FsResource::Present(resource) = project.fs_resource().clone() {
                 let resource_ptr = resource.upgrade().unwrap();
                 let project_folder = find_mapped_to(&resource_ptr, &fs_node_map).unwrap();
 
-                project.borrow_mut().set_fs_resource(project_folder);
-
+                project.set_fs_resource(project_folder);
                 project_folder
                     .borrow_mut()
-                    .set_app_resource(app::FolderResource::Project(Ptr::downgrade(project)));
+                    .set_app_resource(app::FolderResource::Project(Ptr::downgrade(project_ptr)));
             }
 
-            if let app::Resource::Present(config) = project.borrow().config() {
+            if let app::Resource::Present(config) = project.config() {
                 let resource_ptr = config.borrow().fs_resource().upgrade().unwrap();
                 let config_folder = find_mapped_to(&resource_ptr, &fs_node_map).unwrap();
 
@@ -700,7 +753,7 @@ impl Clone for State {
                     .set_app_resource(app::FolderResource::ProjectConfig(Ptr::downgrade(config)));
             }
 
-            if let Some(analyses) = project.borrow_mut().analyses() {
+            if let Some(analyses) = project.analyses() {
                 if let app::FsResource::Present(resource) = analyses.borrow().fs_resource() {
                     let folder_ptr = resource.upgrade().unwrap();
                     let folder = find_mapped_to(&folder_ptr, &fs_node_map).unwrap();
@@ -708,13 +761,13 @@ impl Clone for State {
                 }
             }
 
-            if let Some(graph) = project.borrow().data().borrow().graph() {
+            let data = project.data().borrow();
+            if let Some(graph) = data.graph() {
                 for container in graph.nodes() {
                     let folder_ptr = container.borrow().fs_resource().upgrade().unwrap();
                     let container_folder = find_mapped_to(&folder_ptr, &fs_node_map).unwrap();
 
-                    if let app::Resource::Present(resource) = container.borrow().data() {
-                        let data = resource.borrow();
+                    if let Some(data) = container.borrow().data() {
                         let config = data.config();
                         let folder_ptr = config.borrow().fs_resource().upgrade().unwrap();
                         let config_folder = find_mapped_to(&folder_ptr, &fs_node_map).unwrap();

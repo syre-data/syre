@@ -79,7 +79,6 @@ impl Simulator {
 
             tracing::debug!(?actions);
             self.perform_actions(actions).unwrap();
-
             match self.validation_rx.try_recv() {
                 Ok(Validation { expected, received }) => {
                     tracing::error!(
@@ -163,10 +162,23 @@ impl Simulator {
             ));
         }
 
-        actions.extend([state::Action::CreateFolder {
-            path: utils::prepend_root(utils::random_file_name(rng)),
-            with_parents: true,
-        }]);
+        let folder = &all_folders[rng.gen_range(0..all_folders.len())];
+        let folder_path = state.fs().graph().path(&folder).unwrap();
+        let mut filename = PathBuf::from(utils::random_file_name(rng));
+        if rng.gen_bool(0.5) {
+            filename.set_extension(utils::random_file_extension(rng));
+        }
+
+        actions.extend([
+            state::Action::CreateFolder {
+                path: folder_path.join(utils::random_file_name(rng)),
+                with_parents: true,
+            },
+            state::Action::CreateFile {
+                path: folder_path.join(filename),
+                with_parents: false,
+            },
+        ]);
 
         actions
     }
@@ -235,12 +247,33 @@ impl Simulator {
             if project_folders.len() > 0 {
                 let folder = project_folders[rng.gen_range(0..project_folders.len())];
                 let path = state.fs().graph().path(folder).unwrap();
-                actions.push(state::Action::Modify {
-                    file: file_path.clone(),
-                    kind: state::action::ModifyKind::ManifestAdd(
-                        path.to_string_lossy().to_string(),
-                    ),
-                });
+                if !state
+                    .app()
+                    .app_state()
+                    .project_manifest()
+                    .borrow()
+                    .manifest()
+                    .contains(&path)
+                {
+                    actions.push(state::Action::Modify {
+                        file: file_path.clone(),
+                        kind: state::action::ModifyKind::ManifestAdd(
+                            path.to_string_lossy().to_string(),
+                        ),
+                    });
+                }
+            }
+
+            for project in state.app().projects() {
+                let path = project.borrow().path().clone();
+                if !project_manifest.borrow().manifest().contains(&path) {
+                    actions.push(state::Action::Modify {
+                        file: file_path.clone(),
+                        kind: state::action::ModifyKind::ManifestAdd(
+                            path.to_string_lossy().to_string(),
+                        ),
+                    });
+                }
             }
         }
 
@@ -284,7 +317,8 @@ impl Simulator {
 
                 if !Ptr::ptr_eq(&project_ptr, mv) {
                     let mv_path = mv_path.join(path.file_name().unwrap());
-                    if mv_path != path {
+                    if mv_path != path && !mv_path.starts_with(&path) && !fs_state.exists(&mv_path)
+                    {
                         actions.extend([
                             Action::Move {
                                 from: path.clone(),
@@ -320,16 +354,18 @@ impl Simulator {
 
                         if !Ptr::ptr_eq(&config_folder_ptr, mv) {
                             let mv_path = mv_path.join(path.file_name().unwrap());
-                            actions.extend([
-                                Action::Move {
-                                    from: path.clone(),
-                                    to: mv_path.clone(),
-                                },
-                                Action::Copy {
-                                    from: path.clone(),
-                                    to: mv_path.clone(),
-                                },
-                            ]);
+                            if !fs_state.exists(&mv_path) {
+                                actions.extend([
+                                    Action::Move {
+                                        from: path.clone(),
+                                        to: mv_path.clone(),
+                                    },
+                                    Action::Copy {
+                                        from: path.clone(),
+                                        to: mv_path.clone(),
+                                    },
+                                ]);
+                            }
                         }
 
                         let mv = &folders[rng.gen_range(0..folders.len())];
@@ -346,7 +382,7 @@ impl Simulator {
                         let mv_path = fs_state.graph().path(mv).unwrap();
                         actions.extend(Self::valid_actions_project_config_resource(
                             config.settings(),
-                            constants::PROJECT_FILE,
+                            constants::PROJECT_SETTINGS_FILE,
                             path.clone(),
                             mv_path,
                             rng,
@@ -365,14 +401,18 @@ impl Simulator {
                 }
 
                 if let Some(analyses) = project.analyses() {
-                    match analyses.borrow().fs_resource() {
-                        FsResource::NotPresent => actions.push(Action::CreateFolder {
-                            path: analyses.borrow().path().clone(),
-                            with_parents: true,
-                        }),
-                        FsResource::Present(analyses_ptr) => {
-                            let analyses_ptr = analyses_ptr.upgrade().unwrap();
-                            let path = fs_state.graph().path(&analyses_ptr).unwrap();
+                    let analyses = analyses.borrow();
+                    match analyses.fs_resource() {
+                        FsResource::NotPresent => {
+                            let path = path.join(analyses.path().clone());
+                            actions.push(Action::CreateFolder {
+                                path,
+                                with_parents: true,
+                            })
+                        }
+                        FsResource::Present(folder) => {
+                            let folder = folder.upgrade().unwrap();
+                            let path = fs_state.graph().path(&folder).unwrap();
                             let mv = &folders[rng.gen_range(0..folders.len())];
                             let mv_path = fs_state.graph().path(mv).unwrap();
                             actions.extend([
@@ -383,28 +423,51 @@ impl Simulator {
                                 },
                             ]);
 
-                            if !Ptr::ptr_eq(&analyses_ptr, mv) {
+                            if !Ptr::ptr_eq(&folder, mv) {
                                 let mv_path = mv_path.join(path.file_name().unwrap());
-                                actions.extend([
-                                    Action::Move {
-                                        from: path.clone(),
-                                        to: mv_path.clone(),
-                                    },
-                                    Action::Copy {
-                                        from: path.clone(),
-                                        to: mv_path.clone(),
-                                    },
-                                ]);
+                                if !fs_state.exists(&mv_path) {
+                                    actions.extend([
+                                        Action::Move {
+                                            from: path.clone(),
+                                            to: mv_path.clone(),
+                                        },
+                                        Action::Copy {
+                                            from: path.clone(),
+                                            to: mv_path.clone(),
+                                        },
+                                    ]);
+                                }
                             }
+
+                            let analysis_files = fs_state
+                                .graph()
+                                .descendants(&folder)
+                                .iter()
+                                .flat_map(|folder| folder.borrow().files().clone())
+                                .collect::<Vec<_>>();
+
+                            let analysis_file =
+                                &analysis_files[rng.gen_range(0..analysis_files.len())];
+                            let analysis_path = fs_state.file_path(&analysis_file).unwrap();
+                            let rel_path = analysis_path.strip_prefix(analyses.path()).unwrap();
+                            actions.push(Action::Modify {
+                                file: path.clone(),
+                                kind: state::action::ModifyKind::ManifestAdd(
+                                    rel_path.to_string_lossy().to_string(),
+                                ),
+                            });
                         }
                     }
                 }
 
                 match project.data().borrow().graph() {
-                    None => actions.push(Action::CreateFolder {
-                        path: project.data().borrow().path().clone(),
-                        with_parents: true,
-                    }),
+                    None => {
+                        let path = path.join(project.data().borrow().path().clone());
+                        actions.push(Action::CreateFolder {
+                            path,
+                            with_parents: true,
+                        })
+                    }
                     Some(graph) => {
                         for container in graph.nodes() {
                             actions.extend(Self::valid_actions_container(
@@ -470,16 +533,18 @@ impl Simulator {
                     let mut filename = path.file_name().unwrap().to_os_string();
                     filename.push(utils::random_file_name(rng));
                     let mv_path = fs_state.graph().path(folder).unwrap().join(filename);
-                    actions.extend([
-                        Action::Move {
-                            from: path.clone(),
-                            to: mv_path.clone(),
-                        },
-                        Action::Copy {
-                            from: path.clone(),
-                            to: mv_path.clone(),
-                        },
-                    ]);
+                    if !fs_state.exists(&mv_path) {
+                        actions.extend([
+                            Action::Move {
+                                from: path.clone(),
+                                to: mv_path.clone(),
+                            },
+                            Action::Copy {
+                                from: path.clone(),
+                                to: mv_path.clone(),
+                            },
+                        ]);
+                    }
                 }
 
                 match resource_state {
@@ -719,16 +784,19 @@ impl Simulator {
         ]);
 
         if mv_path != container_path {
-            actions.extend([
-                Action::Move {
-                    from: container_path.clone(),
-                    to: mv_path.join(container_path.file_name().unwrap()),
-                },
-                Action::Copy {
-                    from: container_path.clone(),
-                    to: mv_path.clone(),
-                },
-            ]);
+            let mv_path = mv_path.join(container_path.file_name().unwrap());
+            if !fs_state.exists(&mv_path) {
+                actions.extend([
+                    Action::Move {
+                        from: container_path.clone(),
+                        to: mv_path.clone(),
+                    },
+                    Action::Copy {
+                        from: container_path.clone(),
+                        to: mv_path.clone(),
+                    },
+                ])
+            };
         }
 
         let config_path = common::app_dir_of(&container_path);
@@ -763,7 +831,7 @@ impl Simulator {
                 let mv_path = fs_state.graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource(
                     config.properties(),
-                    constants::PROJECT_FILE,
+                    constants::CONTAINER_FILE,
                     config_path.clone(),
                     mv_path,
                     rng,
@@ -773,7 +841,7 @@ impl Simulator {
                 let mv_path = fs_state.graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource(
                     config.settings(),
-                    constants::PROJECT_FILE,
+                    constants::CONTAINER_SETTINGS_FILE,
                     config_path.clone(),
                     mv_path,
                     rng,
@@ -783,7 +851,7 @@ impl Simulator {
                 let mv_path = fs_state.graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_resource_manifest(
                     config.assets(),
-                    constants::ANALYSES_FILE,
+                    constants::ASSETS_FILE,
                     config_path.clone(),
                     mv_path,
                     rng,
@@ -1016,6 +1084,26 @@ mod utils {
         R: rand::Rng,
     {
         distributions::Alphanumeric.sample_string(rng, 16).into()
+    }
+
+    /// # Notes
+    /// + The extension may be
+    ///   - Random set of three characters
+    ///   - A supported analysis extension ([`syre_core::project::ScriptLang`]).
+    ///   - A "normal" extension (e.g. "txt", "jpg", etc.).
+    pub fn random_file_extension<R>(rng: &mut R) -> OsString
+    where
+        R: rand::Rng,
+    {
+        let mut exts = vec!["txt", "png", "jpg", "odf", "pdf", "csv"];
+        exts.extend(syre_core::project::ScriptLang::supported_extensions());
+        let mut exts = exts
+            .into_iter()
+            .map(|ext| OsString::from(ext))
+            .collect::<Vec<_>>();
+
+        exts.push(distributions::Alphanumeric.sample_string(rng, 3).into());
+        exts.swap_remove(rng.gen_range(0..exts.len()))
     }
 
     /// Gets a random path within the root path.

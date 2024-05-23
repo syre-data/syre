@@ -90,6 +90,25 @@ impl State {
                             }
                         })
                 }
+                FileResource::Analysis(analysis) => {
+                    let Some(analysis) = analysis.upgrade() else {
+                        return None;
+                    };
+
+                    self.projects.iter().find(|project| {
+                        let project = project.borrow();
+                        let Resource::Present(config) = project.config() else {
+                            return false;
+                        };
+
+                        let config = config.borrow();
+                        let analyses = config.analyses().borrow();
+                        analyses
+                            .manifest()
+                            .iter()
+                            .any(|a| Ptr::ptr_eq(&analysis, a))
+                    })
+                }
                 FileResource::ContainerProperties(properties) => {
                     let Some(properties) = properties.upgrade() else {
                         return None;
@@ -98,17 +117,15 @@ impl State {
                     self.projects.iter().find(|project| {
                         match project.borrow().data().borrow().graph() {
                             None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .find(|node| match node.borrow().data() {
+                            Some(graph) => {
+                                graph.nodes().iter().any(|node| match node.borrow().data() {
                                     None => false,
                                     Some(data) => Ptr::ptr_eq(
                                         data.config().borrow().properties(),
                                         &properties,
                                     ),
                                 })
-                                .is_some(),
+                            }
                         }
                     })
                 }
@@ -120,16 +137,14 @@ impl State {
                     self.projects.iter().find(|project| {
                         match project.borrow().data().borrow().graph() {
                             None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .find(|node| match node.borrow().data() {
+                            Some(graph) => {
+                                graph.nodes().iter().any(|node| match node.borrow().data() {
                                     None => false,
                                     Some(data) => {
                                         Ptr::ptr_eq(data.config().borrow().settings(), &settings)
                                     }
                                 })
-                                .is_some(),
+                            }
                         }
                     })
                 }
@@ -141,16 +156,14 @@ impl State {
                     self.projects.iter().find(|project| {
                         match project.borrow().data().borrow().graph() {
                             None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .find(|node| match node.borrow().data() {
+                            Some(graph) => {
+                                graph.nodes().iter().any(|node| match node.borrow().data() {
                                     None => false,
                                     Some(data) => {
                                         Ptr::ptr_eq(data.config().borrow().assets(), &manifest)
                                     }
                                 })
-                                .is_some(),
+                            }
                         }
                     })
                 }
@@ -162,10 +175,8 @@ impl State {
                     self.projects.iter().find(|project| {
                         match project.borrow().data().borrow().graph() {
                             None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .find(|node| match node.borrow().data() {
+                            Some(graph) => {
+                                graph.nodes().iter().any(|node| match node.borrow().data() {
                                     None => false,
                                     Some(data) => data
                                         .config()
@@ -174,10 +185,9 @@ impl State {
                                         .borrow()
                                         .manifest()
                                         .iter()
-                                        .find(|a| Ptr::ptr_eq(a, &asset))
-                                        .is_some(),
+                                        .any(|a| Ptr::ptr_eq(a, &asset)),
                                 })
-                                .is_some(),
+                            }
                         }
                     })
                 }
@@ -229,8 +239,7 @@ impl State {
                             Some(graph) => graph
                                 .nodes()
                                 .iter()
-                                .find(|node| Ptr::ptr_eq(node, &container))
-                                .is_some(),
+                                .any(|node| Ptr::ptr_eq(node, &container)),
                         }
                     })
                 }
@@ -242,14 +251,12 @@ impl State {
                     self.projects.iter().find(|project| {
                         match project.borrow().data().borrow().graph() {
                             None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .find(|node| match node.borrow().data() {
+                            Some(graph) => {
+                                graph.nodes().iter().any(|node| match node.borrow().data() {
                                     None => false,
                                     Some(data) => Ptr::ptr_eq(data.config(), &config),
                                 })
-                                .is_some(),
+                            }
                         }
                     })
                 }
@@ -354,8 +361,10 @@ impl HasFsDataResource for UserManifest {
         }
     }
 
+    /// Removes the file resource and clears the manifest.
     fn remove_fs_resource(&mut self) {
         self.fs_resource = FsDataResource::NotPresent;
+        self.manifest.clear();
     }
 }
 
@@ -411,8 +420,10 @@ impl HasFsDataResource for ProjectManifest {
         }
     }
 
+    /// Removes the file resource and clears the manifest.
     fn remove_fs_resource(&mut self) {
         self.fs_resource = FsDataResource::NotPresent;
+        self.manifest.clear();
     }
 }
 
@@ -467,6 +478,10 @@ impl Project {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+        self.path = path.into();
     }
 
     pub fn fs_resource(&self) -> &FsResource<fs::Folder> {
@@ -734,7 +749,7 @@ impl HasFsDataResource for ProjectSettings {
 #[derive(Debug, Clone)]
 pub struct AnalysisManifest {
     fs_resource: FsDataResource<fs::File>,
-    manifest: Vec<PathBuf>,
+    manifest: Vec<Ptr<Analysis>>,
 }
 
 impl AnalysisManifest {
@@ -748,7 +763,7 @@ impl AnalysisManifest {
         }
     }
 
-    pub fn valid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<PathBuf>) -> Self {
+    pub fn valid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<Ptr<Analysis>>) -> Self {
         Self {
             fs_resource: FsDataResource::Present {
                 resource: Ptr::downgrade(file),
@@ -768,7 +783,7 @@ impl AnalysisManifest {
         }
     }
 
-    pub fn invalid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<PathBuf>) -> Self {
+    pub fn invalid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<Ptr<Analysis>>) -> Self {
         Self {
             fs_resource: FsDataResource::Present {
                 resource: Ptr::downgrade(file),
@@ -806,7 +821,7 @@ impl HasFsDataResource for AnalysisManifest {
 }
 
 impl Manifest for AnalysisManifest {
-    type Item = PathBuf;
+    type Item = Ptr<Analysis>;
     fn manifest(&self) -> &Vec<Self::Item> {
         &self.manifest
     }
@@ -862,6 +877,32 @@ impl Analyses {
     }
 }
 
+#[derive(Debug, HasId)]
+pub struct Analysis {
+    #[id]
+    rid: ResourceId,
+    path: PathBuf,
+    fs_resource: FsResource<fs::File>,
+}
+
+impl Analysis {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            path: path.into(),
+            fs_resource: FsResource::NotPresent,
+        }
+    }
+
+    pub fn fs_resource(&self) -> &FsResource<fs::File> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, resource: &Ptr<fs::File>) {
+        self.fs_resource = FsResource::Present(Ptr::downgrade(resource));
+    }
+}
+
 /// Project data folder.
 #[derive(Debug)]
 pub struct Data {
@@ -890,6 +931,10 @@ impl Data {
         &self.path
     }
 
+    pub fn set_path(&mut self, path: impl Into<PathBuf>) {
+        self.path = path.into();
+    }
+
     pub fn graph(&self) -> &Option<Tree<Container>> {
         &self.graph
     }
@@ -904,6 +949,19 @@ impl Data {
 
     pub fn remove_graph(&mut self) {
         self.graph = None;
+    }
+
+    /// Remove a container from the graph.
+    ///
+    /// # Panics
+    /// + If `graph` is `None`.
+    pub fn remove_container(&mut self, container: &Ptr<Container>) {
+        let graph = self.graph.as_mut().unwrap();
+        if Ptr::ptr_eq(&graph.root(), &container) {
+            self.graph = None;
+        } else {
+            graph.remove(container).unwrap();
+        }
     }
 }
 
@@ -1156,6 +1214,24 @@ pub struct Asset {
     fs_resource: FsResource<fs::File>,
 }
 
+impl Asset {
+    pub fn new(name: impl Into<OsString>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            name: name.into(),
+            fs_resource: FsResource::NotPresent,
+        }
+    }
+
+    pub fn fs_resource(&self) -> &FsResource<fs::File> {
+        &self.fs_resource
+    }
+
+    pub fn set_fs_resource(&mut self, resource: &Ptr<fs::File>) {
+        self.fs_resource = FsResource::Present(Ptr::downgrade(resource));
+    }
+}
+
 #[derive(Debug)]
 pub enum Resource<T> {
     NotPresent,
@@ -1199,6 +1275,7 @@ pub enum FileResource {
     ProjectProperties(WPtr<ProjectProperties>),
     ProjectSettings(WPtr<ProjectSettings>),
     AnalysisManifest(WPtr<AnalysisManifest>),
+    Analysis(WPtr<Analysis>),
     ContainerProperties(WPtr<ContainerProperties>),
     ContainerSettings(WPtr<ContainerSettings>),
     AssetManifest(WPtr<AssetManifest>),
@@ -1222,6 +1299,9 @@ impl std::fmt::Debug for FileResource {
             }
             FileResource::AnalysisManifest(ptr) => {
                 f.write_fmt(format_args!("AnalysisManifest [{:?}]", ptr.as_ptr()))
+            }
+            FileResource::Analysis(ptr) => {
+                f.write_fmt(format_args!("Analysis [{:?}]", ptr.as_ptr()))
             }
             FileResource::ContainerProperties(ptr) => {
                 f.write_fmt(format_args!("ContainerProperties [{:?}]", ptr.as_ptr()))

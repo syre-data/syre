@@ -51,7 +51,7 @@ fn graph_should_work() {
     assert!(!graph.contains(&parent));
 }
 
-#[test]
+#[test_log::test]
 fn graph_duplicate_shoud_work() {
     let root = Data::new(0);
     let mut graph = Tree::new(root);
@@ -79,7 +79,7 @@ fn graph_duplicate_shoud_work() {
     assert_eq!(
         dup.children(&dup.root()).unwrap().len(),
         graph.children(&graph.root()).unwrap().len(),
-    )
+    );
 }
 
 #[test]

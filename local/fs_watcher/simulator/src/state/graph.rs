@@ -1,6 +1,6 @@
 use super::{HasName, Ptr, WPtr};
 use has_id::HasId;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 pub type Node<T> = Ptr<T>;
 pub type NodeRef<T> = WPtr<T>;
@@ -37,7 +37,7 @@ impl<D> Tree<D> {
     }
 
     pub fn contains(&self, node: &Node<D>) -> bool {
-        self.nodes.iter().find(|n| Node::ptr_eq(&node, n)).is_some()
+        self.nodes.iter().any(|n| Node::ptr_eq(&node, n))
     }
 
     pub fn insert(&mut self, node: D, parent: &Node<D>) -> Result<Node<D>, error::Insert<D>> {
@@ -60,10 +60,14 @@ impl<D> Tree<D> {
             .unwrap();
 
         let node = Ptr::new(node);
-        children.push(Node::downgrade(&node));
-        self.children.push((Node::downgrade(&node), vec![]));
+        let node_weak = Node::downgrade(&node);
+        if children.iter().any(|child| child.ptr_eq(&node_weak)) {
+            return Err(error::Insert::AlreadyContains(node_weak));
+        }
+        children.push(node_weak.clone());
+        self.children.push((node_weak.clone(), vec![]));
         self.parents
-            .push((Node::downgrade(&node), Node::downgrade(parent)));
+            .push((node_weak.clone(), Node::downgrade(parent)));
 
         self.nodes.push(node.clone());
         Ok(node)
@@ -92,19 +96,26 @@ impl<D> Tree<D> {
         self.nodes.extend(nodes);
         self.children.extend(children);
         self.parents.extend(parents);
-        self.parents.push((root, parent.clone()));
+        self.parents.push((root.clone(), parent.clone()));
         let (_, children) = self
             .children
             .iter_mut()
             .find(|(p, _)| parent.ptr_eq(p))
             .unwrap();
 
-        children.push(parent);
+        children.push(root);
         Ok(())
     }
 
     /// Removes a sub tree.
+    ///
+    /// # Panics
+    /// + If the graph's root node is being removed.
     pub fn remove(&mut self, root: &Node<D>) -> Option<Self> {
+        if Node::ptr_eq(root, &self.root()) {
+            panic!("can not remove root node");
+        }
+
         let descendants = self
             .descendants(root)
             .into_iter()
@@ -144,7 +155,37 @@ impl<D> Tree<D> {
             nodes.push(self.nodes.swap_remove(index));
         }
 
-        // remove root's parent
+        // remove root from parent's children in original graph
+        let root_parent = parents
+            .iter()
+            .find_map(|(child, parent)| {
+                if child.ptr_eq(&Node::downgrade(root)) {
+                    Some(parent)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        let parent_children = self
+            .children
+            .iter_mut()
+            .find_map(|(p, children)| {
+                if p.ptr_eq(&root_parent) {
+                    Some(children)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let index = parent_children
+            .iter()
+            .position(|child| child.ptr_eq(&Node::downgrade(root)))
+            .unwrap();
+
+        parent_children.swap_remove(index);
+
+        // remove root's parent in duplicated graph
         let root = Node::downgrade(root);
         let index = parents
             .iter()
@@ -231,7 +272,7 @@ impl<D> Tree<D> {
 
 impl<D> Tree<D>
 where
-    D: Clone,
+    D: Clone + std::fmt::Debug,
 {
     pub fn duplicate(&self) -> Self {
         let (dup, _) = self.duplicate_with_map();
@@ -243,6 +284,19 @@ where
     /// # Returns
     /// Tuple of (duplicate, [(original node, duplicate node)])
     pub fn duplicate_with_map(&self) -> (Self, NodeMap<D>) {
+        fn get_mapped<'a, D>(needle: &'a Node<D>, map: &'a NodeMap<D>) -> Option<&'a Node<D>>
+        where
+            D: Clone,
+        {
+            map.iter().find_map(|(from, to)| {
+                if Node::ptr_eq(from, &needle) {
+                    return Some(to);
+                }
+
+                None
+            })
+        }
+
         let mut node_map = Vec::with_capacity(self.nodes.len());
         let nodes = self
             .nodes
@@ -254,16 +308,9 @@ where
             })
             .collect();
 
-        let root = node_map
-            .iter()
-            .find_map(|(from, to)| {
-                if Node::ptr_eq(from, &self.root.upgrade().unwrap()) {
-                    return Some(Node::downgrade(to));
-                }
-
-                None
-            })
-            .unwrap();
+        let root = self.root.upgrade().unwrap();
+        let root = get_mapped(&root, &node_map).unwrap();
+        let root = Ptr::downgrade(root);
 
         let children = self
             .children
@@ -274,29 +321,13 @@ where
                     .iter()
                     .map(|child| {
                         let child = child.upgrade().unwrap();
-                        node_map
-                            .iter()
-                            .find_map(|(from, to)| {
-                                if Node::ptr_eq(from, &child) {
-                                    return Some(Node::downgrade(to));
-                                }
-
-                                None
-                            })
-                            .unwrap()
+                        let to = get_mapped(&child, &node_map).unwrap();
+                        Ptr::downgrade(to)
                     })
                     .collect();
 
-                let parent = node_map
-                    .iter()
-                    .find_map(|(from, to)| {
-                        if Node::ptr_eq(from, &parent) {
-                            return Some(Node::downgrade(to));
-                        }
-
-                        None
-                    })
-                    .unwrap();
+                let parent = get_mapped(&parent, &node_map).unwrap();
+                let parent = Ptr::downgrade(parent);
 
                 (parent, children)
             })
@@ -309,29 +340,9 @@ where
                 let child = child.upgrade().unwrap();
                 let parent = parent.upgrade().unwrap();
 
-                let child = node_map
-                    .iter()
-                    .find_map(|(from, to)| {
-                        if Node::ptr_eq(from, &child) {
-                            return Some(Node::downgrade(to));
-                        }
-
-                        None
-                    })
-                    .unwrap();
-
-                let parent = node_map
-                    .iter()
-                    .find_map(|(from, to)| {
-                        if Node::ptr_eq(from, &parent) {
-                            return Some(Node::downgrade(to));
-                        }
-
-                        None
-                    })
-                    .unwrap();
-
-                (child, parent)
+                let child = get_mapped(&child, &node_map).unwrap();
+                let parent = get_mapped(&parent, &node_map).unwrap();
+                (Ptr::downgrade(&child), Ptr::downgrade(&parent))
             })
             .collect();
 
@@ -527,6 +538,7 @@ where
         f.debug_struct("Tree")
             .field("root", &self.root())
             .field("nodes", &self.nodes)
+            .field("children", &self.children)
             .finish()
     }
 }

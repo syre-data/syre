@@ -4,7 +4,10 @@ use super::{
     HasName, Ptr, WPtr,
 };
 use has_id::HasId;
-use std::{ffi::OsString, path::PathBuf};
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
 use syre_core::types::ResourceId;
 use syre_local::common;
 
@@ -39,6 +42,13 @@ impl State {
 }
 
 impl State {
+    pub fn find_path_project(&self, path: impl AsRef<Path>) -> Option<&Ptr<Project>> {
+        let path = path.as_ref();
+        self.projects
+            .iter()
+            .find(|project| path.starts_with(project.borrow().path()))
+    }
+
     pub fn find_resource_project(&self, resource: AppResource) -> Option<&Ptr<Project>> {
         match resource {
             AppResource::File(resource) => match resource {
@@ -363,6 +373,7 @@ impl HasFsDataResource for UserManifest {
 
     /// Removes the file resource and clears the manifest.
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
         self.manifest.clear();
     }
@@ -422,6 +433,7 @@ impl HasFsDataResource for ProjectManifest {
 
     /// Removes the file resource and clears the manifest.
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
         self.manifest.clear();
     }
@@ -496,25 +508,9 @@ impl Project {
         &self.config
     }
 
-    /// Sets the Project's config folder, creating new objects
-    /// for each of its resources.
-    /// Searches the folder for corresponding file resources,
-    /// setting them to valid, if found.
     pub fn set_config_folder(&mut self, folder: &Ptr<fs::Folder>) {
+        assert!(!self.config.is_present());
         let config = ProjectConfig::new(Ptr::downgrade(folder));
-        let folder = folder.borrow();
-        if let Some(properties) = folder.file(common::project_file()) {
-            *config.properties().borrow_mut() = ProjectProperties::valid(&properties);
-        }
-
-        if let Some(settings) = folder.file(common::project_settings_file()) {
-            *config.settings().borrow_mut() = ProjectSettings::valid(&settings);
-        }
-
-        if let Some(analyses) = folder.file(common::analyses_file()) {
-            *config.analyses().borrow_mut() = AnalysisManifest::valid(&analyses);
-        }
-
         self.config = Resource::Present(Ptr::new(config));
     }
 
@@ -692,6 +688,7 @@ impl HasFsDataResource for ProjectProperties {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -742,6 +739,7 @@ impl HasFsDataResource for ProjectSettings {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -816,6 +814,7 @@ impl HasFsDataResource for AnalysisManifest {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -873,6 +872,7 @@ impl Analyses {
     }
 
     pub fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsResource::NotPresent;
     }
 }
@@ -937,6 +937,10 @@ impl Data {
 
     pub fn graph(&self) -> &Option<Tree<Container>> {
         &self.graph
+    }
+
+    pub fn graph_mut(&mut self) -> &mut Option<Tree<Container>> {
+        &mut self.graph
     }
 
     /// Sets the graph's root.
@@ -1028,6 +1032,16 @@ impl Container {
 
     pub fn data(&self) -> &Option<ContainerData> {
         &self.data
+    }
+
+    pub fn set_data(&mut self, data: ContainerData) {
+        assert!(self.data.is_none());
+        self.data.insert(data);
+    }
+
+    pub fn remove_data(&mut self) -> Option<ContainerData> {
+        assert!(self.data.is_some());
+        self.data.take()
     }
 }
 
@@ -1122,6 +1136,7 @@ impl HasFsDataResource for ContainerProperties {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -1153,6 +1168,7 @@ impl HasFsDataResource for ContainerSettings {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -1187,6 +1203,7 @@ impl HasFsDataResource for AssetManifest {
     }
 
     fn remove_fs_resource(&mut self) {
+        assert!(self.fs_resource.is_present());
         self.fs_resource = FsDataResource::NotPresent;
     }
 }
@@ -1238,6 +1255,15 @@ pub enum Resource<T> {
     Present(Ptr<T>),
 }
 
+impl<T> Resource<T> {
+    pub fn is_present(&self) -> bool {
+        match self {
+            Self::Present { .. } => true,
+            Self::NotPresent => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum DataResource<T> {
     NotPresent,
@@ -1247,10 +1273,28 @@ pub enum DataResource<T> {
     },
 }
 
+impl<T> DataResource<T> {
+    pub fn is_present(&self) -> bool {
+        match self {
+            Self::Present { .. } => true,
+            Self::NotPresent => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum FsResource<T> {
     NotPresent,
     Present(WPtr<T>),
+}
+
+impl<T> FsResource<T> {
+    pub fn is_present(&self) -> bool {
+        match self {
+            Self::Present { .. } => true,
+            Self::NotPresent => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1260,6 +1304,15 @@ pub enum FsDataResource<T> {
         resource: WPtr<T>,
         state: DataResourceState,
     },
+}
+
+impl<T> FsDataResource<T> {
+    pub fn is_present(&self) -> bool {
+        match self {
+            Self::Present { .. } => true,
+            Self::NotPresent => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -130,7 +130,9 @@ impl Simulator {
         let mut actions = Vec::with_capacity(num);
         while actions.len() < num {
             let action = Self::choose_action(&state, rng);
+            tracing::debug!(?action);
             state.reduce(&action).unwrap();
+            tracing::debug!(?state);
             actions.push(action);
         }
 

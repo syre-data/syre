@@ -1,5 +1,4 @@
 use std::{
-    assert_matches::assert_matches,
     cell::RefCell,
     ffi::OsString,
     ops::Deref,
@@ -136,6 +135,361 @@ impl State {
     }
 }
 
+impl State {
+    /// Inserts a file system resource into the app state.
+    /// If the file system resource corresponds to an app resource,
+    /// it is inserted, modifying the state by connecting the file system resource
+    /// for that app resource.
+    /// Both the file system resource for the app resource, and the app resource for the file
+    /// system resource are set.
+    pub fn insert_fs_resource(&self, fs_resource: action::FsResource) -> Option<app::AppResource> {
+        match fs_resource {
+            action::FsResource::File(file) => self
+                .insert_file_resource(&file)
+                .map(|resource| resource.into()),
+            action::FsResource::Folder(folder) => self
+                .insert_folder_resource(&folder)
+                .map(|resource| resource.into()),
+        }
+    }
+
+    pub fn insert_file_resource(&self, file: &Ptr<fs::File>) -> Option<app::FileResource> {
+        let file_path = self.fs.file_path(file).unwrap();
+        let user_manifest_ptr = self.app.app_state().user_manifest();
+        let mut user_manifest = user_manifest_ptr.borrow_mut();
+        if file_path == *user_manifest.path() {
+            assert!(!user_manifest.fs_resource().is_present());
+            user_manifest.set_fs_resource(file, app::DataResourceState::Valid);
+            file.borrow_mut()
+                .set_app_resource(app::FileResource::UserManifest(Ptr::downgrade(
+                    user_manifest_ptr,
+                )));
+
+            return Some(app::FileResource::UserManifest(Ptr::downgrade(
+                user_manifest_ptr,
+            )));
+        }
+
+        let project_manifest_ptr = self.app.app_state().project_manifest();
+        let mut project_manifest = project_manifest_ptr.borrow_mut();
+        if file_path == *project_manifest.path() {
+            assert!(!project_manifest.fs_resource().is_present());
+            project_manifest.set_fs_resource(file, app::DataResourceState::Valid);
+            file.borrow_mut()
+                .set_app_resource(app::FileResource::ProjectManifest(Ptr::downgrade(
+                    project_manifest_ptr,
+                )));
+
+            return Some(app::FileResource::ProjectManifest(Ptr::downgrade(
+                project_manifest_ptr,
+            )));
+        }
+
+        self.app
+            .projects()
+            .iter()
+            .find_map(|project| self.insert_file_project_resource(file, project))
+    }
+
+    pub fn insert_folder_resource(&self, folder: &Ptr<fs::Folder>) -> Option<app::FolderResource> {
+        self.app
+            .projects()
+            .iter()
+            .find_map(|project| self.insert_folder_project_resource(folder, project))
+    }
+
+    pub fn insert_file_project_resource(
+        &self,
+        file: &Ptr<fs::File>,
+        project: &Ptr<app::Project>,
+    ) -> Option<app::FileResource> {
+        let path = self.fs.file_path(file).unwrap();
+        let parent = self.fs.find_file_folder_by_ptr(file).unwrap();
+        if let Some(app_resource) = parent.borrow().app_resource() {
+            match app_resource {
+                app::FolderResource::Project(_) => return None,
+                app::FolderResource::ProjectConfig(config) => {
+                    let config = config.upgrade().unwrap();
+                    let config = config.borrow();
+                    let filename = path.file_name().unwrap();
+                    if filename == constants::PROJECT_FILE {
+                        let app_resource = app::FileResource::ProjectProperties(Ptr::downgrade(
+                            config.properties(),
+                        ));
+
+                        config
+                            .properties()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    } else if filename == constants::PROJECT_SETTINGS_FILE {
+                        let app_resource =
+                            app::FileResource::ProjectSettings(Ptr::downgrade(config.settings()));
+
+                        config
+                            .settings()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    } else if filename == constants::ANALYSES_FILE {
+                        let app_resource =
+                            app::FileResource::AnalysisManifest(Ptr::downgrade(config.analyses()));
+
+                        config
+                            .analyses()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    }
+
+                    return None;
+                }
+                app::FolderResource::Analyses(analyses) => {
+                    if let Some(ext) = path.extension() {
+                        let ext = ext.to_str().unwrap();
+                        if syre_core::project::ScriptLang::supported_extensions().contains(&ext) {
+                            let analyses = analyses.upgrade().unwrap();
+                            let base_path = project.borrow().path().join(analyses.borrow().path());
+                            let rel_path = path.strip_prefix(base_path).unwrap();
+
+                            let mut analysis = app::Analysis::new(rel_path);
+                            analysis.set_fs_resource(file);
+                            let analysis = Ptr::new(analysis);
+                            if let app::Resource::Present(config) = project.borrow().config() {
+                                let config = config.borrow();
+                                let manifest = config.analyses();
+                                manifest.borrow_mut().push(analysis.clone());
+                            }
+
+                            let app_resource =
+                                app::FileResource::Analysis(Ptr::downgrade(&analysis));
+
+                            file.borrow_mut().set_app_resource(app_resource.clone());
+                            return Some(app_resource);
+                        }
+                    }
+
+                    return None;
+                }
+                app::FolderResource::Container(container) => {
+                    let container = container.upgrade().unwrap();
+                    let mut asset = app::Asset::new(path.file_name().unwrap());
+                    asset.set_fs_resource(file);
+                    let asset = Ptr::new(asset);
+                    let app_resource = app::FileResource::Asset(Ptr::downgrade(&asset));
+                    file.borrow_mut().set_app_resource(app_resource.clone());
+
+                    if let Some(data) = container.borrow().data() {
+                        let config = data.config().borrow();
+                        config.assets().borrow_mut().push(asset.clone());
+                    }
+
+                    return Some(app_resource);
+                }
+                app::FolderResource::ContainerConfig(config) => {
+                    let config = config.upgrade().unwrap();
+                    let config = config.borrow();
+                    let filename = path.file_name().unwrap();
+                    if filename == constants::CONTAINER_FILE {
+                        let app_resource = app::FileResource::ContainerProperties(Ptr::downgrade(
+                            config.properties(),
+                        ));
+
+                        config
+                            .properties()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    } else if filename == constants::CONTAINER_SETTINGS_FILE {
+                        let app_resource =
+                            app::FileResource::ContainerSettings(Ptr::downgrade(config.settings()));
+
+                        config
+                            .settings()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    } else if filename == constants::ASSETS_FILE {
+                        let app_resource =
+                            app::FileResource::AssetManifest(Ptr::downgrade(config.assets()));
+
+                        config
+                            .assets()
+                            .borrow_mut()
+                            .set_fs_resource(file, app::DataResourceState::Valid);
+
+                        file.borrow_mut().set_app_resource(app_resource.clone());
+                        return Some(app_resource);
+                    }
+
+                    return None;
+                }
+            }
+        };
+
+        return None;
+    }
+
+    pub fn insert_folder_project_resource(
+        &self,
+        folder: &Ptr<fs::Folder>,
+        project: &Ptr<app::Project>,
+    ) -> Option<app::FolderResource> {
+        let path = self.fs.graph().path(folder).unwrap();
+        let project_ptr = project;
+        let mut project = project_ptr.borrow_mut();
+        if path == *project.path() {
+            assert!(!project.fs_resource().is_present());
+            project.set_fs_resource(folder);
+            let app_resource = app::FolderResource::Project(Ptr::downgrade(project_ptr));
+            folder.borrow_mut().set_app_resource(app_resource.clone());
+            for child in self.fs.graph().children(folder).unwrap() {
+                self.insert_folder_project_resource(&child, project_ptr);
+            }
+
+            return Some(app_resource);
+        }
+
+        let rel_path = path.strip_prefix(project.path()).unwrap();
+        if let Some(analyses_ptr) = project.analyses() {
+            let mut analyses = analyses_ptr.borrow_mut();
+            if rel_path == analyses.path() {
+                assert!(!analyses.fs_resource().is_present());
+                analyses.set_fs_resource(folder);
+                let app_resource = app::FolderResource::Analyses(Ptr::downgrade(analyses_ptr));
+
+                let mut folder = folder.borrow_mut();
+                folder.set_app_resource(app_resource.clone());
+                for file in folder.files() {
+                    self.insert_file_project_resource(&file, project_ptr);
+                }
+
+                return Some(app_resource);
+            }
+        }
+
+        let data = project.data().clone();
+        let data = data.borrow();
+        if rel_path == data.path() {
+            assert!(
+                project.data().borrow().graph().is_none(),
+                "should only be able to create new folder at path if a resource does not already exist there"
+            );
+
+            project.set_data_root(folder);
+            let data = project.data().borrow();
+            let graph = data.graph().as_ref().unwrap();
+            let container = graph.root();
+            container.borrow_mut().set_fs_resource(folder);
+
+            let app_resource = app::FolderResource::Container(Ptr::downgrade(&container));
+            let folder_ptr = folder;
+            let mut folder = folder_ptr.borrow_mut();
+            folder.set_app_resource(app_resource.clone());
+
+            for child in self.fs.graph().children(folder_ptr).unwrap() {
+                self.insert_folder_project_resource(&child, project_ptr);
+            }
+
+            for file in folder.files() {
+                self.insert_file_project_resource(file, project_ptr);
+            }
+
+            return Some(app_resource);
+        }
+
+        let parent = self.fs.graph().parent(folder).unwrap();
+        let parent = parent.borrow();
+        if let Some(parent_resource) = parent.app_resource() {
+            match parent_resource {
+                app::FolderResource::Project(parent) => {
+                    let parent = parent.upgrade().unwrap();
+                    assert!(Ptr::ptr_eq(&parent, project_ptr));
+
+                    if rel_path == common::app_dir() {
+                        assert!(!project.config().is_present());
+                        project.set_config_folder(folder);
+
+                        let app::Resource::Present(config_ptr) = project.config() else {
+                            unreachable!();
+                        };
+
+                        let mut folder = folder.borrow_mut();
+                        let app_resource =
+                            app::FolderResource::ProjectConfig(Ptr::downgrade(config_ptr));
+
+                        folder.set_app_resource(app_resource.clone());
+                        for file in folder.files().iter() {
+                            self.insert_file_resource(file);
+                        }
+
+                        return Some(app_resource);
+                    }
+                }
+
+                app::FolderResource::Container(parent_ptr) => {
+                    let parent_ptr = parent_ptr.upgrade().unwrap();
+                    let mut parent = parent_ptr.borrow_mut();
+                    let graph = data.graph().as_ref().unwrap();
+                    let parent_path = graph.path(&parent_ptr).unwrap();
+                    let rel_path = rel_path.strip_prefix(parent_path).unwrap();
+
+                    if rel_path == common::app_dir() {
+                        assert!(parent.data().is_none());
+                        let data = app::ContainerData::new(folder);
+                        let app_resource =
+                            app::FolderResource::ContainerConfig(Ptr::downgrade(data.config()));
+
+                        parent.set_data(data);
+                        let mut folder = folder.borrow_mut();
+                        folder.set_app_resource(app_resource.clone());
+                        for file in folder.files() {
+                            self.insert_file_project_resource(file, project_ptr);
+                        }
+
+                        return Some(app_resource);
+                    } else {
+                        let mut container = app::Container::without_data(folder);
+                        container.set_fs_resource(folder);
+                        let container_ptr = Ptr::new(container);
+                        let app_resource =
+                            app::FolderResource::Container(Ptr::downgrade(&container_ptr));
+
+                        let folder_ptr = folder;
+                        let mut folder = folder_ptr.borrow_mut();
+                        folder.set_app_resource(app_resource.clone());
+
+                        for child in self.fs.graph().children(folder_ptr).unwrap() {
+                            self.insert_folder_project_resource(folder_ptr, project_ptr);
+                        }
+
+                        for file in folder.files() {
+                            self.insert_file_project_resource(file, project_ptr);
+                        }
+
+                        return Some(app_resource);
+                    }
+                }
+                app::FolderResource::ProjectConfig(_)
+                | app::FolderResource::Analyses(_)
+                | app::FolderResource::ContainerConfig(_) => return None,
+            }
+        }
+
+        return None;
+    }
+}
+
 impl Reducible for State {
     type Action = Action;
     type Output = ();
@@ -180,38 +534,13 @@ impl Reducible for State {
             }
 
             Action::Move { from, to } => match fs_resource {
-                action::FsResource::File(file) => {
-                    self.reduce_remove_file(&file);
-                    self.reduce_create_file(&file, to, false)
-                }
-                action::FsResource::Folder(folder) => {
-                    if let Some(app_resource) = folder.borrow().app_resource() {
-                        if let app::FolderResource::Project(project) = app_resource {
-                            let project_manifest = self.app.app_state().project_manifest();
-                            let mut project_manifest = project_manifest.borrow_mut();
-                            if let Some(index) = project_manifest
-                                .manifest()
-                                .iter()
-                                .position(|path| path == from)
-                            {
-                                project_manifest.remove(index);
-                                project_manifest.push(to.clone());
-                            }
-
-                            let project = project.upgrade().unwrap();
-                            project.borrow_mut().set_path(to.clone());
-                            return Ok(());
-                        }
-                    }
-
-                    self.reduce_remove_folder(&folder);
-                    self.reduce_create_folder(&folder, to, false)
-                }
+                action::FsResource::File(file) => self.reduce_move_file(from, to, &file),
+                action::FsResource::Folder(folder) => self.reduce_move_folder(from, to, &folder),
             },
 
             Action::Copy { from, to } => match fs_resource {
-                action::FsResource::File(file) => self.reduce_create_file(&file, to, false),
-                action::FsResource::Folder(folder) => self.reduce_create_folder(&folder, to, false),
+                action::FsResource::File(file) => self.reduce_copy_file(&file, from, to),
+                action::FsResource::Folder(folder) => self.reduce_copy_folder(&folder, from, to),
             },
 
             Action::Modify { file: path, kind } => {
@@ -227,264 +556,36 @@ impl Reducible for State {
 }
 
 impl State {
+    /// Handle folder creation.
+    /// Assumes the folder is new.
+    ///
+    /// # Panics
+    /// + If the folder contains any children or files.
     fn reduce_create_folder(
         &mut self,
-        fs_resource: &Ptr<fs::Folder>,
+        folder: &Ptr<fs::Folder>,
         path: &PathBuf,
         with_parents: bool,
     ) -> Result<<Self as Reducible>::Output> {
-        let parent = self.fs.find_folder(path.parent().unwrap()).unwrap();
-        let parent = parent.borrow();
-        if let Some(app_resource) = parent.app_resource() {
-            let name = path.file_name().unwrap();
-            if let app::FolderResource::Project(project) = app_resource {
-                let project = project.upgrade().unwrap();
-                let mut project = project.borrow_mut();
-                if name == common::app_dir() {
-                    assert_matches!(
-                        project.config(),
-                        app::Resource::NotPresent,
-                        "should only be able to create new folder at path if a resource does not already exist there"
-                    );
+        assert!(folder.borrow().files().is_empty());
+        assert!(self
+            .fs
+            .graph()
+            .children(folder)
+            .expect("children not found")
+            .is_empty());
 
-                    project.set_config_folder(&fs_resource);
-                    let app::Resource::Present(config) = project.config() else {
-                        unreachable!();
-                    };
-
-                    fs_resource
-                        .borrow_mut()
-                        .set_app_resource(app::FolderResource::ProjectConfig(Ptr::downgrade(
-                            config,
-                        )));
-
-                    return Ok(());
-                }
-            }
-        }
-
-        if self
-            .app
-            .app_state()
-            .project_manifest()
-            .borrow()
-            .manifest()
-            .contains(path)
-        {
-            let project = self
-                .app
-                .projects()
-                .iter()
-                .find(|project| project.borrow().path() == path)
-                .unwrap();
-
-            project.borrow_mut().set_fs_resource(fs_resource);
-            fs_resource
-                .borrow_mut()
-                .set_app_resource(app::FolderResource::Project(Ptr::downgrade(project)));
-
-            return Ok(());
-        }
-
-        if let Some(project_ptr) = self
-            .app
-            .projects()
-            .iter()
-            .find(|project| path.starts_with(project.borrow().path()))
-        {
-            let mut project = project_ptr.borrow_mut();
-            if path == project.path() {
-                project.set_fs_resource(fs_resource);
-                fs_resource
-                    .borrow_mut()
-                    .set_app_resource(app::FolderResource::Project(Ptr::downgrade(project_ptr)));
-
-                return Ok(());
-            }
-
-            let rel_path = path.strip_prefix(project.path()).unwrap();
-            if let Some(analyses) = project.analyses() {
-                if rel_path == analyses.borrow().path() {
-                    assert_matches!(analyses.borrow().fs_resource(), app::FsResource::NotPresent);
-                    project.set_analyses_folder_reference(&fs_resource);
-                }
-            } else if rel_path == project.data().borrow().path() {
-                assert_matches!(
-                                project.data().borrow().graph(),
-                                None,
-                                "should only be able to create new folder at path if a resource does not already exist there"
-                            );
-
-                project.set_data_root(&fs_resource);
-                let data = project.data().borrow();
-                let graph = data.graph().as_ref().unwrap();
-                let container = graph.root();
-                fs_resource
-                    .borrow_mut()
-                    .set_app_resource(app::FolderResource::Container(Ptr::downgrade(&container)));
-                container.borrow_mut().set_fs_resource(fs_resource);
-            }
-        }
-
+        self.insert_folder_resource(folder);
         Ok(())
     }
 
     fn reduce_create_file(
         &mut self,
-        fs_resource: &Ptr<fs::File>,
+        file: &Ptr<fs::File>,
         path: &PathBuf,
         with_parents: bool,
     ) -> Result<<Self as Reducible>::Output> {
-        let mut user_manifest = self.app.app_state().user_manifest().borrow_mut();
-        let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
-        if path == user_manifest.path() {
-            user_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-            fs_resource
-                .borrow_mut()
-                .set_app_resource(app::FileResource::UserManifest(Ptr::downgrade(
-                    self.app.app_state().user_manifest(),
-                )));
-
-            return Ok(());
-        } else if path == project_manifest.path() {
-            project_manifest.set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-            fs_resource
-                .borrow_mut()
-                .set_app_resource(app::FileResource::ProjectManifest(Ptr::downgrade(
-                    self.app.app_state().project_manifest(),
-                )));
-
-            return Ok(());
-        }
-
-        let parent = self.fs.find_file_folder_by_ptr(fs_resource).unwrap();
-        if let Some(app_resource) = parent.borrow().app_resource() {
-            match app_resource {
-                app::FolderResource::Project(_) => {}
-                app::FolderResource::ProjectConfig(config) => {
-                    let filename = path.file_name().unwrap();
-                    if filename == constants::PROJECT_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .properties()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource.borrow_mut().set_app_resource(
-                            app::FileResource::ProjectProperties(Ptr::downgrade(
-                                config.properties(),
-                            )),
-                        )
-                    } else if filename == constants::PROJECT_SETTINGS_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .settings()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource.borrow_mut().set_app_resource(
-                            app::FileResource::ProjectSettings(Ptr::downgrade(config.settings())),
-                        )
-                    } else if filename == constants::ANALYSES_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .analyses()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource.borrow_mut().set_app_resource(
-                            app::FileResource::AnalysisManifest(Ptr::downgrade(config.analyses())),
-                        )
-                    }
-                }
-                app::FolderResource::Analyses(analyses) => {
-                    if let Some(ext) = path.extension() {
-                        let ext = ext.to_str().unwrap();
-                        if syre_core::project::ScriptLang::supported_extensions().contains(&ext) {
-                            let project = self
-                                .app
-                                .find_resource_project(
-                                    app::FolderResource::Analyses(analyses.clone()).into(),
-                                )
-                                .unwrap();
-
-                            if let app::Resource::Present(config) = project.borrow().config() {
-                                let config = config.borrow();
-                                let manifest = config.analyses();
-                                let mut manifest = manifest.borrow_mut();
-
-                                let analyses = analyses.upgrade().unwrap();
-                                let base_path =
-                                    project.borrow().path().join(analyses.borrow().path());
-                                let rel_path = path.strip_prefix(base_path).unwrap();
-                                let mut analysis = app::Analysis::new(rel_path);
-                                analysis.set_fs_resource(fs_resource);
-                                let analysis = Ptr::new(analysis);
-                                fs_resource.borrow_mut().set_app_resource(
-                                    app::FileResource::Analysis(Ptr::downgrade(&analysis)),
-                                );
-                                manifest.push(analysis);
-                            }
-                        }
-                    }
-                }
-                app::FolderResource::Container(container) => {
-                    let container = container.upgrade().unwrap();
-                    let container = container.borrow_mut();
-                    if let Some(data) = container.data() {
-                        let config = data.config().borrow();
-                        let mut assets = config.assets().borrow_mut();
-                        let mut asset = app::Asset::new(path.file_name().unwrap());
-                        asset.set_fs_resource(fs_resource);
-                        let asset = Ptr::new(asset);
-                        fs_resource
-                            .borrow_mut()
-                            .set_app_resource(app::FileResource::Asset(Ptr::downgrade(&asset)));
-
-                        assets.push(asset);
-                    }
-                }
-                app::FolderResource::ContainerConfig(config) => {
-                    let filename = path.file_name().unwrap();
-                    if filename == constants::CONTAINER_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .properties()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource.borrow_mut().set_app_resource(
-                            app::FileResource::ContainerProperties(Ptr::downgrade(
-                                config.properties(),
-                            )),
-                        )
-                    } else if filename == constants::CONTAINER_SETTINGS_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .settings()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource.borrow_mut().set_app_resource(
-                            app::FileResource::ContainerSettings(Ptr::downgrade(config.settings())),
-                        )
-                    } else if filename == constants::ASSETS_FILE {
-                        let config = config.upgrade().unwrap();
-                        let config = config.borrow_mut();
-                        config
-                            .assets()
-                            .borrow_mut()
-                            .set_fs_resource(&fs_resource, app::DataResourceState::Valid);
-                        fs_resource
-                            .borrow_mut()
-                            .set_app_resource(app::FileResource::AssetManifest(Ptr::downgrade(
-                                config.assets(),
-                            )))
-                    }
-                }
-            }
-        }
-
+        self.insert_file_resource(file);
         Ok(())
     }
 
@@ -801,6 +902,130 @@ impl State {
                 app::FolderResource::ContainerConfig(_) => todo!(),
             }
         }
+    }
+
+    // TODO: If file is moved with app resource.
+    fn reduce_move_file(
+        &mut self,
+        from: &PathBuf,
+        to: &PathBuf,
+        file: &Ptr<fs::File>,
+    ) -> Result<<Self as Reducible>::Output> {
+        self.reduce_remove_file(file);
+        self.reduce_create_file(file, to, false)
+    }
+
+    fn reduce_move_folder(
+        &mut self,
+        from: &PathBuf,
+        to: &PathBuf,
+        folder: &Ptr<fs::Folder>,
+    ) -> Result<<Self as Reducible>::Output> {
+        if let Some(app_resource) = folder.borrow().app_resource() {
+            if let app::FolderResource::Project(project) = app_resource {
+                let project_manifest = self.app.app_state().project_manifest();
+                let mut project_manifest = project_manifest.borrow_mut();
+                if let Some(index) = project_manifest
+                    .manifest()
+                    .iter()
+                    .position(|path| path == from)
+                {
+                    project_manifest.remove(index);
+                    project_manifest.push(to.clone());
+                }
+
+                let project = project.upgrade().unwrap();
+                project.borrow_mut().set_path(to.clone());
+                return Ok(());
+            }
+        }
+
+        // TODO: Move from container to contianer.
+        // if let Ok(rel_path) = rel_path.strip_prefix(data_path) {
+        //     let mut container = app::Container::without_data(fs_resource);
+        //     if let Some(config_folder) = self
+        //         .fs
+        //         .graph()
+        //         .children(fs_resource)
+        //         .unwrap()
+        //         .iter()
+        //         .find(|child| child.borrow().name() == constants::APP_DIR)
+        //     {
+        //         let data = app::ContainerData::new(config_folder);
+        //         let mut config_folder = config_folder.borrow_mut();
+
+        //         // TODO: If moved in from other location, how to carry over
+        //         //      validity state?
+        //         if let Some(file) = config_folder
+        //             .files()
+        //             .iter()
+        //             .find(|file| file.borrow().name() == constants::CONTAINER_FILE)
+        //         {
+        //             data.config()
+        //                 .borrow()
+        //                 .properties()
+        //                 .borrow_mut()
+        //                 .set_fs_resource(file, app::DataResourceState::Valid);
+        //         }
+
+        //         // TODO: If moved in from other location, how to carry over
+        //         //      validity state?
+        //         if let Some(file) = config_folder
+        //             .files()
+        //             .iter()
+        //             .find(|file| file.borrow().name() == constants::CONTAINER_SETTINGS_FILE)
+        //         {
+        //             data.config()
+        //                 .borrow()
+        //                 .settings()
+        //                 .borrow_mut()
+        //                 .set_fs_resource(file, app::DataResourceState::Valid);
+        //         }
+
+        //         // TODO: If moved in from other location, how to carry over
+        //         //      manifest state?
+        //         if let Some(file) = config_folder
+        //             .files()
+        //             .iter()
+        //             .find(|file| file.borrow().name() == constants::CONTAINER_FILE)
+        //         {
+        //             data.config()
+        //                 .borrow()
+        //                 .properties()
+        //                 .borrow_mut()
+        //                 .set_fs_resource(file, app::DataResourceState::Valid);
+        //         }
+
+        //         container.set_data(data);
+        //         config_folder.set_app_resource(app::FolderResource::ContainerConfig(config));
+        //     }
+
+        //     fs_resource
+        //         .borrow_mut()
+        //         .set_app_resource(app::FolderResource::Container(Ptr::downgrade(container)));
+        // }
+
+        self.reduce_remove_folder(&folder);
+        self.reduce_create_folder(&folder, to, false)
+    }
+
+    fn reduce_copy_file(
+        &mut self,
+        file: &Ptr<fs::File>,
+        from: &PathBuf,
+        to: &PathBuf,
+    ) -> Result<<Self as Reducible>::Output> {
+        todo!();
+    }
+
+    // TODO
+    fn reduce_copy_folder(
+        &mut self,
+        folder: &Ptr<fs::Folder>,
+        from: &PathBuf,
+        to: &PathBuf,
+    ) -> Result<<Self as Reducible>::Output> {
+        todo!();
     }
 
     fn reduce_modify(&mut self, file: &Ptr<fs::File>, kind: &action::ModifyKind) {

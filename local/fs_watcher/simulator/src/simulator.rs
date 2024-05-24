@@ -132,7 +132,7 @@ impl Simulator {
             let action = Self::choose_action(&state, rng);
             tracing::debug!(?action);
             state.reduce(&action).unwrap();
-            tracing::debug!(?state);
+            // tracing::debug!(?state);
             actions.push(action);
         }
 

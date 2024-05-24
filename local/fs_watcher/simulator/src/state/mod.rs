@@ -360,7 +360,10 @@ impl State {
             return Some(app_resource);
         }
 
-        let rel_path = path.strip_prefix(project.path()).unwrap();
+        let Ok(rel_path) = path.strip_prefix(project.path()) else {
+            return None;
+        };
+
         if let Some(analyses_ptr) = project.analyses() {
             let mut analyses = analyses_ptr.borrow_mut();
             if rel_path == analyses.path() {
@@ -379,15 +382,14 @@ impl State {
         }
 
         let data = project.data().clone();
-        let data = data.borrow();
+        let mut data = data.borrow_mut();
         if rel_path == data.path() {
             assert!(
-                project.data().borrow().graph().is_none(),
+                data.graph().is_none(),
                 "should only be able to create new folder at path if a resource does not already exist there"
             );
 
-            project.set_data_root(folder);
-            let data = project.data().borrow();
+            data.set_graph_root(folder);
             let graph = data.graph().as_ref().unwrap();
             let container = graph.root();
             container.borrow_mut().set_fs_resource(folder);
@@ -439,9 +441,9 @@ impl State {
 
                 app::FolderResource::Container(parent_ptr) => {
                     let parent_ptr = parent_ptr.upgrade().unwrap();
-                    let mut parent = parent_ptr.borrow_mut();
                     let graph = data.graph().as_ref().unwrap();
                     let parent_path = graph.path(&parent_ptr).unwrap();
+                    let mut parent = parent_ptr.borrow_mut();
                     let rel_path = rel_path.strip_prefix(parent_path).unwrap();
 
                     if rel_path == common::app_dir() {
@@ -904,15 +906,20 @@ impl State {
         }
     }
 
-    // TODO: If file is moved with app resource.
     fn reduce_move_file(
         &mut self,
         from: &PathBuf,
         to: &PathBuf,
         file: &Ptr<fs::File>,
     ) -> Result<<Self as Reducible>::Output> {
-        self.reduce_remove_file(file);
-        self.reduce_create_file(file, to, false)
+        assert_eq!(self.fs.file_path(file).unwrap(), *to);
+
+        let Some(app_resource) = self.insert_file_resource(file) else {
+            return Ok(());
+        };
+
+        // TODO: Read file to get validity.
+        Ok(())
     }
 
     fn reduce_move_folder(
@@ -940,73 +947,10 @@ impl State {
             }
         }
 
-        // TODO: Move from container to contianer.
-        // if let Ok(rel_path) = rel_path.strip_prefix(data_path) {
-        //     let mut container = app::Container::without_data(fs_resource);
-        //     if let Some(config_folder) = self
-        //         .fs
-        //         .graph()
-        //         .children(fs_resource)
-        //         .unwrap()
-        //         .iter()
-        //         .find(|child| child.borrow().name() == constants::APP_DIR)
-        //     {
-        //         let data = app::ContainerData::new(config_folder);
-        //         let mut config_folder = config_folder.borrow_mut();
-
-        //         // TODO: If moved in from other location, how to carry over
-        //         //      validity state?
-        //         if let Some(file) = config_folder
-        //             .files()
-        //             .iter()
-        //             .find(|file| file.borrow().name() == constants::CONTAINER_FILE)
-        //         {
-        //             data.config()
-        //                 .borrow()
-        //                 .properties()
-        //                 .borrow_mut()
-        //                 .set_fs_resource(file, app::DataResourceState::Valid);
-        //         }
-
-        //         // TODO: If moved in from other location, how to carry over
-        //         //      validity state?
-        //         if let Some(file) = config_folder
-        //             .files()
-        //             .iter()
-        //             .find(|file| file.borrow().name() == constants::CONTAINER_SETTINGS_FILE)
-        //         {
-        //             data.config()
-        //                 .borrow()
-        //                 .settings()
-        //                 .borrow_mut()
-        //                 .set_fs_resource(file, app::DataResourceState::Valid);
-        //         }
-
-        //         // TODO: If moved in from other location, how to carry over
-        //         //      manifest state?
-        //         if let Some(file) = config_folder
-        //             .files()
-        //             .iter()
-        //             .find(|file| file.borrow().name() == constants::CONTAINER_FILE)
-        //         {
-        //             data.config()
-        //                 .borrow()
-        //                 .properties()
-        //                 .borrow_mut()
-        //                 .set_fs_resource(file, app::DataResourceState::Valid);
-        //         }
-
-        //         container.set_data(data);
-        //         config_folder.set_app_resource(app::FolderResource::ContainerConfig(config));
-        //     }
-
-        //     fs_resource
-        //         .borrow_mut()
-        //         .set_app_resource(app::FolderResource::Container(Ptr::downgrade(container)));
-        // }
-
+        // TODO: Read file to get validity.
         self.reduce_remove_folder(&folder);
-        self.reduce_create_folder(&folder, to, false)
+        self.insert_folder_resource(folder);
+        Ok(())
     }
 
     fn reduce_copy_file(
@@ -1015,17 +959,26 @@ impl State {
         from: &PathBuf,
         to: &PathBuf,
     ) -> Result<<Self as Reducible>::Output> {
-        todo!();
+        let Some(app_resource) = self.insert_file_resource(file) else {
+            return Ok(());
+        };
+
+        // TODO: Read file to determine validity.
+        Ok(())
     }
 
-    // TODO
     fn reduce_copy_folder(
         &mut self,
         folder: &Ptr<fs::Folder>,
         from: &PathBuf,
         to: &PathBuf,
     ) -> Result<<Self as Reducible>::Output> {
-        todo!();
+        let Some(app_resource) = self.insert_folder_resource(folder) else {
+            return Ok(());
+        };
+
+        // TODO: Read contents to determine validity.
+        Ok(())
     }
 
     fn reduce_modify(&mut self, file: &Ptr<fs::File>, kind: &action::ModifyKind) {
@@ -1414,72 +1367,67 @@ impl State {
             let container_folder = find_mapped_to(&folder_ptr, &fs_node_map).unwrap();
 
             if let Some(data) = container.data() {
-                let config = data.config();
-                let folder_ptr = config.borrow().fs_resource().upgrade().unwrap();
+                let config_ptr = data.config();
+                let mut config = config_ptr.borrow_mut();
+                let folder_ptr = config.fs_resource().upgrade().unwrap();
                 let config_folder = find_mapped_to(&folder_ptr, &fs_node_map).unwrap();
                 assert_eq!(config_folder.borrow().name(), constants::APP_DIR);
 
                 if let app::FsDataResource::Present { resource, state } =
-                    config.borrow().properties().borrow().fs_resource().clone()
+                    config.properties().borrow().fs_resource().clone()
                 {
                     let file_ptr = resource.upgrade().clone().unwrap();
                     let file = folder_ptr.borrow().file(file_ptr.borrow().name()).unwrap();
                     assert_eq!(file.borrow().name(), constants::CONTAINER_FILE);
 
                     config
-                        .borrow()
                         .properties()
                         .borrow_mut()
                         .set_fs_resource(&file, state);
 
                     file.borrow_mut()
                         .set_app_resource(app::FileResource::ContainerProperties(Ptr::downgrade(
-                            config.borrow().properties(),
+                            config.properties(),
                         )));
                 }
 
                 if let app::FsDataResource::Present { resource, state } =
-                    config.borrow().settings().borrow().fs_resource().clone()
+                    config.settings().borrow().fs_resource().clone()
                 {
                     let file_ptr = resource.upgrade().clone().unwrap();
                     let file = folder_ptr.borrow().file(file_ptr.borrow().name()).unwrap();
                     assert_eq!(file.borrow().name(), constants::CONTAINER_SETTINGS_FILE);
 
-                    config
-                        .borrow()
-                        .settings()
-                        .borrow_mut()
-                        .set_fs_resource(&file, state);
+                    config.settings().borrow_mut().set_fs_resource(&file, state);
 
                     file.borrow_mut()
                         .set_app_resource(app::FileResource::ContainerSettings(Ptr::downgrade(
-                            config.borrow().settings(),
+                            config.settings(),
                         )));
                 }
 
+                let mut assets = config.assets().borrow_mut();
                 if let app::FsDataResource::Present { resource, state } =
-                    config.borrow().assets().borrow().fs_resource().clone()
+                    assets.fs_resource().clone()
                 {
                     let file_ptr = resource.upgrade().clone().unwrap();
                     let file = folder_ptr.borrow().file(file_ptr.borrow().name()).unwrap();
                     assert_eq!(file.borrow().name(), constants::ASSETS_FILE);
 
-                    config
-                        .borrow()
-                        .assets()
-                        .borrow_mut()
-                        .set_fs_resource(&file, state);
-
+                    assets.set_fs_resource(&file, state);
                     file.borrow_mut()
                         .set_app_resource(app::FileResource::AssetManifest(Ptr::downgrade(
-                            config.borrow().assets(),
+                            config.assets(),
                         )));
                 }
+                drop(assets);
 
-                config.borrow_mut().set_fs_resource(config_folder);
+                config.set_fs_resource(config_folder);
                 config_folder
                     .borrow_mut()
-                    .set_app_resource(app::FolderResource::ContainerConfig(Ptr::downgrade(config)));
+                    .set_app_resource(app::FolderResource::ContainerConfig(Ptr::downgrade(
+                        config_ptr,
+                    )));
             }
 
             container.set_fs_resource(container_folder);

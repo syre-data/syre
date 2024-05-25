@@ -153,7 +153,10 @@ impl State {
         }
     }
 
-    pub fn remove_fs_resource(&self, fs_resource: action::FsResource) -> Option<app::AppResource> {
+    pub fn remove_fs_resource(
+        &mut self,
+        fs_resource: action::FsResource,
+    ) -> Option<app::AppResource> {
         match fs_resource {
             action::FsResource::File(file) => self
                 .remove_file_resource(&file)
@@ -242,9 +245,9 @@ impl State {
     ) -> Option<app::FolderResource> {
         let path = self.fs.graph().path(folder).unwrap();
         let project_ptr = project;
-        let mut project = project_ptr.borrow_mut();
+        let project = project_ptr.borrow();
         if path == *project.path() {
-            let app_resource = app::FolderResource::Project(project_ptr);
+            let app_resource = app::FolderResource::Project(project_ptr.clone());
             for child in self.fs.graph().children(folder).unwrap() {
                 self.insert_folder_project_resource(&child, project_ptr);
             }
@@ -257,7 +260,7 @@ impl State {
         };
 
         if let Some(analyses_ptr) = project.analyses() {
-            let mut analyses = analyses_ptr.borrow_mut();
+            let analyses = analyses_ptr.borrow();
             if rel_path.starts_with(analyses.path()) {
                 for child in self.fs.graph().children(folder).unwrap() {
                     self.insert_folder_project_resource(&child, project_ptr);
@@ -397,14 +400,14 @@ impl State {
     ) -> Option<app::FolderResource> {
         let path = self.fs.graph().path(folder).unwrap();
         let project_ptr = project;
-        let mut project = project_ptr.borrow_mut();
+        let project = project_ptr.borrow();
         assert_ne!(path, *project.path());
         let Ok(rel_path) = path.strip_prefix(project.path()) else {
             return None;
         };
 
         if let Some(analyses_ptr) = project.analyses() {
-            let mut analyses = analyses_ptr.borrow_mut();
+            let analyses = analyses_ptr.borrow();
             if rel_path.starts_with(analyses.path()) {
                 for child in self.fs.graph().children(folder).unwrap() {
                     self.remove_folder_project_resource(&child, project_ptr);
@@ -538,318 +541,16 @@ impl State {
     }
 
     fn reduce_remove_file(&mut self, file: &Ptr<fs::File>) {
-        let mut file = file.borrow_mut();
-        if let Some(app_resource) = file.app_resource() {
-            match app_resource {
-                app::FileResource::UserManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    let mut manifest = manifest.borrow_mut();
-                    manifest.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    let mut manifest = manifest.borrow_mut();
-                    manifest.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectProperties(properties) => {
-                    let properties = properties.upgrade().unwrap();
-                    let mut properties = properties.borrow_mut();
-                    properties.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectSettings(settings) => {
-                    let settings = settings.upgrade().unwrap();
-                    let mut settings = settings.borrow_mut();
-                    settings.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::AnalysisManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    let mut manifest = manifest.borrow_mut();
-                    manifest.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::Analysis(analysis) => {
-                    let project = self
-                        .app
-                        .find_resource_project(app::FileResource::Analysis(analysis.clone()).into())
-                        .unwrap();
-
-                    let project = project.borrow();
-                    let app::Resource::Present(config) = project.config() else {
-                        unreachable!();
-                    };
-
-                    let config = config.borrow();
-                    let mut manifest = config.analyses().borrow_mut();
-                    let analysis = analysis.upgrade().unwrap();
-                    let index = manifest
-                        .manifest()
-                        .iter()
-                        .position(|a| Ptr::ptr_eq(&analysis, a))
-                        .unwrap();
-
-                    manifest.remove(index);
-                    file.remove_app_resource();
-                }
-                app::FileResource::ContainerProperties(properties) => {
-                    let properties = properties.upgrade().unwrap();
-                    let mut properties = properties.borrow_mut();
-                    properties.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ContainerSettings(settings) => {
-                    let settings = settings.upgrade().unwrap();
-                    let mut settings = settings.borrow_mut();
-                    settings.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::AssetManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    let mut manifest = manifest.borrow_mut();
-                    manifest.remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::Asset(asset) => {
-                    todo!();
-                }
-            }
-        }
+        self.remove_file_resource(file);
     }
 
-    fn reduce_remove_folder(&mut self, folder_ptr: &Ptr<fs::Folder>) {
-        let mut folder = folder_ptr.borrow_mut();
-        if let Some(app_resource) = folder.app_resource() {
-            match app_resource {
-                app::FolderResource::Project(project) => {
-                    let project = project.upgrade().unwrap();
-                    self.app
-                        .projects_mut()
-                        .retain(|prj| !Ptr::ptr_eq(&project, prj));
-
-                    // TODO: Not sure if we should also remove from manifest,
-                    // or let that be a seperate action.
-                    let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
-                    if let Some(index) = project_manifest
-                        .manifest()
-                        .iter()
-                        .position(|path| path == project.borrow().path())
-                    {
-                        project_manifest.remove(index);
-                    }
-                }
-
-                app::FolderResource::ProjectConfig(config) => {
-                    let project = self
-                        .app
-                        .find_resource_project(app::FolderResource::ProjectConfig(config).into())
-                        .unwrap();
-
-                    project.borrow_mut().remove_config();
-                    folder.remove_app_resource();
-                }
-
-                app::FolderResource::Analyses(analyses) => {
-                    let project = self
-                        .app
-                        .find_resource_project(app::FolderResource::Analyses(analyses).into())
-                        .unwrap();
-
-                    project.borrow_mut().remove_analyses_folder_reference();
-                    folder.remove_app_resource();
-                }
-
-                app::FolderResource::Container(container) => {
-                    let project = self
-                        .app
-                        .find_resource_project(
-                            app::FolderResource::Container(container.clone()).into(),
-                        )
-                        .unwrap();
-
-                    let project = project.borrow();
-                    let mut data = project.data().borrow_mut();
-                    let container = container.upgrade().unwrap();
-                    data.remove_container(&container);
-                    folder.remove_app_resource();
-                }
-
-                app::FolderResource::ContainerConfig(_) => todo!(),
-            }
-        }
+    fn reduce_remove_folder(&mut self, folder: &Ptr<fs::Folder>) {
+        self.remove_folder_resource(folder);
     }
 
-    fn reduce_rename_file(&mut self, file: &Ptr<fs::File>, to: OsString) {
-        let mut file = file.borrow_mut();
-        if let Some(app_resource) = file.app_resource() {
-            match app_resource {
-                app::FileResource::Asset(asset) => {
-                    let asset = asset.upgrade().unwrap();
-                    asset.borrow_mut().set_name(to);
-                }
-                app::FileResource::UserManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    manifest.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    manifest.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectProperties(properties) => {
-                    let properties = properties.upgrade().unwrap();
-                    properties.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ProjectSettings(settings) => {
-                    let settings = settings.upgrade().unwrap();
-                    settings.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::AnalysisManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    manifest.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::Analysis(analysis) => {
-                    fn remove_analysis(
-                        analysis: WPtr<app::Analysis>,
-                        mut file: std::cell::RefMut<fs::File>,
-                        state: &app::State,
-                    ) {
-                        let project = state
-                            .find_resource_project(
-                                app::FileResource::Analysis(analysis.clone()).into(),
-                            )
-                            .unwrap();
-                        let project = project.borrow();
-                        let app::Resource::Present(config) = project.config() else {
-                            unreachable!();
-                        };
+    fn reduce_rename_file(&mut self, file: &Ptr<fs::File>, to: OsString) {}
 
-                        let config = config.borrow();
-                        let mut analyses = config.analyses().borrow_mut();
-                        let analysis = analysis.upgrade().unwrap();
-                        let index = analyses
-                            .manifest()
-                            .iter()
-                            .position(|a| Ptr::ptr_eq(&analysis, a))
-                            .unwrap();
-
-                        analyses.remove(index);
-                        file.remove_app_resource();
-                    }
-
-                    if let Some(ext) = PathBuf::from(file.name()).extension() {
-                        if !syre_core::project::ScriptLang::supported_extensions()
-                            .contains(&ext.to_str().unwrap())
-                        {
-                            remove_analysis(analysis, file, &self.app);
-                        }
-                    } else {
-                        remove_analysis(analysis, file, &self.app);
-                    }
-                }
-                app::FileResource::ContainerProperties(properties) => {
-                    let properties = properties.upgrade().unwrap();
-                    properties.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::ContainerSettings(settings) => {
-                    let settings = settings.upgrade().unwrap();
-                    settings.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-                app::FileResource::AssetManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
-                    manifest.borrow_mut().remove_fs_resource();
-                    file.remove_app_resource();
-                }
-            }
-        }
-    }
-
-    fn reduce_rename_folder(&mut self, folder: &Ptr<fs::Folder>, to: OsString) {
-        let folder_path = self.fs.graph().path(folder).unwrap();
-        let mut folder_resource = folder.borrow_mut();
-        if let Some(app_resource) = folder_resource.app_resource() {
-            match app_resource {
-                app::FolderResource::Project(project) => {
-                    let project = project.upgrade().unwrap();
-                    let mut project_manifest = self.app.app_state().project_manifest().borrow_mut();
-                    if let Some(index) = project_manifest
-                        .manifest()
-                        .iter()
-                        .position(|path| path == project.borrow().path())
-                    {
-                        project_manifest.remove(index);
-                        project_manifest.push(folder_path.clone());
-                    }
-
-                    project.borrow_mut().set_path(folder_path);
-                }
-
-                app::FolderResource::ProjectConfig(config) => {
-                    let project = self
-                        .app
-                        .find_resource_project(
-                            app::FolderResource::ProjectConfig(config.clone()).into(),
-                        )
-                        .unwrap();
-
-                    let config = config.upgrade().unwrap();
-                    let config = config.borrow();
-                    if let app::FsDataResource::Present { resource, .. } =
-                        config.properties().borrow().fs_resource()
-                    {
-                        let resource = resource.upgrade().unwrap();
-                        resource.borrow_mut().remove_app_resource();
-                    };
-
-                    if let app::FsDataResource::Present { resource, .. } =
-                        config.settings().borrow().fs_resource()
-                    {
-                        let resource = resource.upgrade().unwrap();
-                        resource.borrow_mut().remove_app_resource();
-                    };
-
-                    if let app::FsDataResource::Present { resource, .. } =
-                        config.analyses().borrow().fs_resource()
-                    {
-                        let resource = resource.upgrade().unwrap();
-                        resource.borrow_mut().remove_app_resource();
-                    };
-
-                    folder_resource.remove_app_resource();
-                    project.borrow_mut().remove_config();
-                }
-                app::FolderResource::Analyses(analyses) => todo!(),
-                app::FolderResource::Container(container) => {
-                    let project = self
-                        .app
-                        .find_resource_project(
-                            app::FolderResource::Container(container.clone()).into(),
-                        )
-                        .unwrap();
-
-                    let project = project.borrow();
-                    let mut data = project.data().borrow_mut();
-                    let graph = data.graph().unwrap();
-                    if Ptr::ptr_eq(&container, &graph.root()) {
-                        let mut path = data.path().clone();
-                        path.set_file_name(to.clone());
-                        data.set_path(path);
-                    }
-
-                    container.borrow_mut().set_name(to);
-                }
-                app::FolderResource::ContainerConfig(_) => todo!(),
-            }
-        }
-    }
+    fn reduce_rename_folder(&mut self, folder: &Ptr<fs::Folder>, to: OsString) {}
 
     fn reduce_move_file(
         &mut self,
@@ -873,28 +574,6 @@ impl State {
         to: &PathBuf,
         folder: &Ptr<fs::Folder>,
     ) -> Result<<Self as Reducible>::Output> {
-        if let Some(app_resource) = folder.borrow().app_resource() {
-            if let app::FolderResource::Project(project) = app_resource {
-                let project_manifest = self.app.app_state().project_manifest();
-                let mut project_manifest = project_manifest.borrow_mut();
-                if let Some(index) = project_manifest
-                    .manifest()
-                    .iter()
-                    .position(|path| path == from)
-                {
-                    project_manifest.remove(index);
-                    project_manifest.push(to.clone());
-                }
-
-                let project = project.upgrade().unwrap();
-                project.borrow_mut().set_path(to.clone());
-                return Ok(());
-            }
-        }
-
-        // TODO: Read file to get validity.
-        self.reduce_remove_folder(&folder);
-        self.insert_folder_resource(folder);
         Ok(())
     }
 
@@ -932,12 +611,10 @@ impl State {
         match kind {
             ModifyKind::ManifestAdd(item) => match file.borrow().app_resource().unwrap() {
                 app::FileResource::UserManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
                     let mut manifest = manifest.borrow_mut();
                     manifest.push(item.into());
                 }
                 app::FileResource::ProjectManifest(manifest) => {
-                    let manifest = manifest.upgrade().unwrap();
                     let mut manifest = manifest.borrow_mut();
                     let path: PathBuf = item.into();
                     manifest.push(path.clone());
@@ -946,14 +623,6 @@ impl State {
                     if !projects.iter().any(|prj| prj.borrow().path() == &path) {
                         let project = app::Project::new(path.clone(), "data");
                         let project = Ptr::new(project);
-                        if let Some(folder) = self.fs.graph().find_by_path(&path) {
-                            project.borrow_mut().set_fs_resource(&folder);
-                            folder
-                                .borrow_mut()
-                                .set_app_resource(app::FolderResource::Project(Ptr::downgrade(
-                                    &project,
-                                )));
-                        }
                         projects.push(project);
                     }
                 }

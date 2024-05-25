@@ -42,6 +42,7 @@ impl State {
 }
 
 impl State {
+    /// Get the project associated to the path.
     pub fn find_path_project(&self, path: impl AsRef<Path>) -> Option<&Ptr<Project>> {
         let path = path.as_ref();
         self.projects
@@ -49,6 +50,7 @@ impl State {
             .find(|project| path.starts_with(project.borrow().path()))
     }
 
+    /// Get the project associated to the resource.
     pub fn find_resource_project(&self, resource: AppResource) -> Option<&Ptr<Project>> {
         match resource {
             AppResource::File(resource) => match resource {
@@ -183,6 +185,7 @@ impl State {
                         false
                     }
                 }),
+                FolderResource::ContainerTree(_) => None,
                 FolderResource::Container(container) => self.projects.iter().find(|project| {
                     match project.borrow().data().borrow().graph() {
                         None => false,
@@ -204,6 +207,48 @@ impl State {
                     }
                 }),
             },
+        }
+    }
+
+    pub fn resource(&self, path: impl AsRef<Path>) -> Option<AppResource> {
+        let path = path.as_ref();
+        let user_manifest = &self.app.user_manifest;
+        if path == user_manifest.borrow().path {
+            return Some(FileResource::UserManifest(user_manifest.clone()).into());
+        }
+
+        let project_manifest = &self.app.project_manifest;
+        if path == project_manifest.borrow().path {
+            return Some(FileResource::ProjectManifest(project_manifest.clone()).into());
+        }
+
+        self.projects.iter().find_map(|project| {
+            if path.starts_with(project.borrow().path()) {
+                self.resource_project(path, project)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn resource_project(
+        &self,
+        path: impl AsRef<Path>,
+        project_ptr: &Ptr<Project>,
+    ) -> Option<AppResource> {
+        let path = path.as_ref();
+        let project = project_ptr.borrow();
+
+        if path == project.path() {
+            return Some(FolderResource::Project(project_ptr.clone()).into());
+        }
+
+        let Ok(rel_path) = path.strip_prefix(project.path()) else {
+            return None;
+        };
+
+        if rel_path == common::app_dir() {
+            return Some(FolderResource::ProjectConfig(project.con)
         }
     }
 }

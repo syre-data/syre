@@ -209,48 +209,6 @@ impl State {
             },
         }
     }
-
-    pub fn resource(&self, path: impl AsRef<Path>) -> Option<AppResource> {
-        let path = path.as_ref();
-        let user_manifest = &self.app.user_manifest;
-        if path == user_manifest.borrow().path {
-            return Some(FileResource::UserManifest(user_manifest.clone()).into());
-        }
-
-        let project_manifest = &self.app.project_manifest;
-        if path == project_manifest.borrow().path {
-            return Some(FileResource::ProjectManifest(project_manifest.clone()).into());
-        }
-
-        self.projects.iter().find_map(|project| {
-            if path.starts_with(project.borrow().path()) {
-                self.resource_project(path, project)
-            } else {
-                None
-            }
-        })
-    }
-
-    fn resource_project(
-        &self,
-        path: impl AsRef<Path>,
-        project_ptr: &Ptr<Project>,
-    ) -> Option<AppResource> {
-        let path = path.as_ref();
-        let project = project_ptr.borrow();
-
-        if path == project.path() {
-            return Some(FolderResource::Project(project_ptr.clone()).into());
-        }
-
-        let Ok(rel_path) = path.strip_prefix(project.path()) else {
-            return None;
-        };
-
-        if rel_path == common::app_dir() {
-            return Some(FolderResource::ProjectConfig(project.con)
-        }
-    }
 }
 
 impl State {
@@ -1105,48 +1063,80 @@ pub enum DataResourceState {
 
 #[derive(Clone)]
 pub enum FileResource {
-    UserManifest(Ptr<UserManifest>),
-    ProjectManifest(Ptr<ProjectManifest>),
-    ProjectProperties(Ptr<ProjectProperties>),
-    ProjectSettings(Ptr<ProjectSettings>),
-    AnalysisManifest(Ptr<AnalysisManifest>),
+    UserManifest {
+        resource: Ptr<UserManifest>,
+        state: DataResourceState,
+    },
+    ProjectManifest {
+        resource: Ptr<ProjectManifest>,
+        state: DataResourceState,
+    },
+    ProjectProperties {
+        resource: Ptr<ProjectProperties>,
+        state: DataResourceState,
+    },
+    ProjectSettings {
+        resource: Ptr<ProjectSettings>,
+        state: DataResourceState,
+    },
+    AnalysisManifest {
+        resource: Ptr<AnalysisManifest>,
+        state: DataResourceState,
+    },
     Analysis(Ptr<Analysis>),
-    ContainerProperties(Ptr<ContainerProperties>),
-    ContainerSettings(Ptr<ContainerSettings>),
-    AssetManifest(Ptr<AssetManifest>),
+    ContainerProperties {
+        resource: Ptr<ContainerProperties>,
+        state: DataResourceState,
+    },
+    ContainerSettings {
+        resource: Ptr<ContainerSettings>,
+        state: DataResourceState,
+    },
+    AssetManifest {
+        resource: Ptr<AssetManifest>,
+        state: DataResourceState,
+    },
     Asset(Ptr<Asset>),
 }
 
 impl std::fmt::Debug for FileResource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileResource::UserManifest(ptr) => {
-                f.write_fmt(format_args!("UserManifest [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::ProjectManifest(ptr) => {
-                f.write_fmt(format_args!("ProjectManifest [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::ProjectProperties(ptr) => {
-                f.write_fmt(format_args!("ProjectProperties [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::ProjectSettings(ptr) => {
-                f.write_fmt(format_args!("ProjectSettings [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::AnalysisManifest(ptr) => {
-                f.write_fmt(format_args!("AnalysisManifest [{:?}]", ptr.as_ptr()))
-            }
+            FileResource::UserManifest { resource, state } => f.write_fmt(format_args!(
+                "UserManifest ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::ProjectManifest { resource, state } => f.write_fmt(format_args!(
+                "ProjectManifest ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::ProjectProperties { resource, state } => f.write_fmt(format_args!(
+                "ProjectProperties ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::ProjectSettings { resource, state } => f.write_fmt(format_args!(
+                "ProjectSettings ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::AnalysisManifest { resource, state } => f.write_fmt(format_args!(
+                "AnalysisManifest ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
             FileResource::Analysis(ptr) => {
                 f.write_fmt(format_args!("Analysis [{:?}]", ptr.as_ptr()))
             }
-            FileResource::ContainerProperties(ptr) => {
-                f.write_fmt(format_args!("ContainerProperties [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::ContainerSettings(ptr) => {
-                f.write_fmt(format_args!("ContainerSettings [{:?}]", ptr.as_ptr()))
-            }
-            FileResource::AssetManifest(ptr) => {
-                f.write_fmt(format_args!("AssetManifest [{:?}]", ptr.as_ptr()))
-            }
+            FileResource::ContainerProperties { resource, state } => f.write_fmt(format_args!(
+                "ContainerProperties ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::ContainerSettings { resource, state } => f.write_fmt(format_args!(
+                "ContainerSettings ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
+            FileResource::AssetManifest { resource, state } => f.write_fmt(format_args!(
+                "AssetManifest ({state:?}) [{:?}]",
+                resource.as_ptr()
+            )),
             FileResource::Asset(ptr) => f.write_fmt(format_args!("Asset [{:?}]", ptr.as_ptr())),
         }
     }

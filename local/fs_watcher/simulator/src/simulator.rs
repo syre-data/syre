@@ -217,10 +217,9 @@ impl Simulator {
         if let FsDataResource::Present {
             resource,
             state: DataResourceState::Valid,
-        } = project_manifest.borrow().fs_resource()
+        } = project_manifest.borrow().fs_resource(state.fs())
         {
-            let file_ptr = resource.upgrade().unwrap();
-            let file_path = state.fs().file_path(&file_ptr).unwrap();
+            let file_path = state.fs().file_path(&resource).unwrap();
             actions.push(state::Action::Modify {
                 file: file_path.clone(),
                 kind: state::action::ModifyKind::ManifestAdd(
@@ -292,21 +291,21 @@ impl Simulator {
         R: rand::Rng,
     {
         use crate::state::{
-            app::{FsResource, Resource},
+            app::{FsResource, HasFsResource, HasFsResourceRelative, Resource},
             Action,
         };
         use syre_local::constants;
 
         let mut actions = Vec::with_capacity(50);
-        let project = project.borrow();
-        match project.fs_resource() {
+        let project_ptr = project;
+        let project = project_ptr.borrow();
+        match project.fs_resource(fs_state) {
             FsResource::NotPresent => actions.push(Action::CreateFolder {
                 path: project.path().clone(),
                 with_parents: true,
             }),
             FsResource::Present(folder) => {
-                let project_ptr = folder.upgrade().unwrap();
-                let path = fs_state.graph().path(&project_ptr).unwrap();
+                let path = fs_state.graph().path(&folder).unwrap();
                 let mv = &folders[rng.gen_range(0..folders.len())];
                 let mv_path = fs_state.graph().path(mv).unwrap();
                 actions.extend([
@@ -317,7 +316,7 @@ impl Simulator {
                     },
                 ]);
 
-                if !Ptr::ptr_eq(&project_ptr, mv) {
+                if !Ptr::ptr_eq(&folder, mv) {
                     let mv_path = mv_path.join(path.file_name().unwrap());
                     if mv_path != path && !mv_path.starts_with(&path) && !fs_state.exists(&mv_path)
                     {
@@ -341,7 +340,12 @@ impl Simulator {
                     }),
                     Resource::Present(config_ptr) => {
                         let config = config_ptr.borrow();
-                        let config_folder_ptr = config.fs_resource().upgrade().unwrap();
+                        let FsResource::Present(config_folder_ptr) =
+                            config.fs_resource(project.path(), fs_state)
+                        else {
+                            unreachable!();
+                        };
+
                         let path = fs_state.graph().path(&config_folder_ptr).unwrap();
                         let mv = &folders[rng.gen_range(0..folders.len())];
                         let mv_path = fs_state.graph().path(mv).unwrap();
@@ -377,6 +381,7 @@ impl Simulator {
                             constants::PROJECT_FILE,
                             path.clone(),
                             mv_path,
+                            fs_state,
                             rng,
                         ));
 
@@ -387,6 +392,7 @@ impl Simulator {
                             constants::PROJECT_SETTINGS_FILE,
                             path.clone(),
                             mv_path,
+                            fs_state,
                             rng,
                         ));
 
@@ -397,6 +403,7 @@ impl Simulator {
                             constants::ANALYSES_FILE,
                             path.clone(),
                             mv_path,
+                            fs_state,
                             rng,
                         ));
                     }
@@ -404,7 +411,7 @@ impl Simulator {
 
                 if let Some(analyses) = project.analyses() {
                     let analyses = analyses.borrow();
-                    match analyses.fs_resource() {
+                    match analyses.fs_resource(project.path(), fs_state) {
                         FsResource::NotPresent => {
                             let path = path.join(analyses.path().clone());
                             actions.push(Action::CreateFolder {
@@ -413,7 +420,6 @@ impl Simulator {
                             })
                         }
                         FsResource::Present(folder) => {
-                            let folder = folder.upgrade().unwrap();
                             let path = fs_state.graph().path(&folder).unwrap();
                             let mv = &folders[rng.gen_range(0..folders.len())];
                             let mv_path = fs_state.graph().path(mv).unwrap();
@@ -504,7 +510,7 @@ impl Simulator {
 
         let manifest = manifest.borrow();
         let mut actions = Vec::with_capacity(10);
-        match manifest.fs_resource() {
+        match manifest.fs_resource(fs_state) {
             FsDataResource::NotPresent => {
                 actions.push(Action::CreateFile {
                     path: manifest.path().clone(),
@@ -516,8 +522,7 @@ impl Simulator {
                 resource,
                 state: resource_state,
             } => {
-                let file_ptr = resource.upgrade().unwrap();
-                let path = fs_state.file_path(&file_ptr).unwrap();
+                let path = fs_state.file_path(&resource).unwrap();
                 actions.extend([
                     Action::Remove(path.clone()),
                     Action::Rename {
@@ -530,7 +535,7 @@ impl Simulator {
                     },
                 ]);
 
-                let parent = fs_state.find_file_folder_by_ptr(&file_ptr).unwrap();
+                let parent = fs_state.find_file_folder_by_ptr(&resource).unwrap();
                 if !Ptr::ptr_eq(parent, folder) {
                     let mut filename = path.file_name().unwrap().to_os_string();
                     filename.push(utils::random_file_name(rng));
@@ -588,10 +593,11 @@ impl Simulator {
         name: impl AsRef<Path>,
         parent: PathBuf,
         folder: PathBuf,
+        fs_state: &state::fs::State,
         rng: &mut R,
     ) -> Vec<state::Action>
     where
-        M: state::app::HasFsDataResource<Resource = state::fs::File> + state::app::Manifest,
+        M: state::app::HasFsDataResourceRelative<Resource = state::fs::File> + state::app::Manifest,
         R: rand::Rng,
     {
         use crate::state::{
@@ -603,7 +609,7 @@ impl Simulator {
         let manifest = manifest.borrow();
         let mut actions = Vec::with_capacity(10);
         let path = parent.join(name.as_ref());
-        match manifest.fs_resource() {
+        match manifest.fs_resource(parent.join(name.as_ref()), fs_state) {
             FsDataResource::NotPresent => {
                 actions.push(Action::CreateFile {
                     path: path.clone(),
@@ -615,7 +621,6 @@ impl Simulator {
                 resource,
                 state: resource_state,
             } => {
-                assert!(resource.upgrade().is_some());
                 actions.extend([
                     Action::Remove(path.clone()),
                     Action::Rename {
@@ -687,10 +692,11 @@ impl Simulator {
         name: impl AsRef<Path>,
         parent: PathBuf,
         folder: PathBuf,
+        fs_state: &state::fs::State,
         rng: &mut R,
     ) -> Vec<state::Action>
     where
-        M: state::app::HasFsDataResource<Resource = state::fs::File>,
+        M: state::app::HasFsDataResourceRelative<Resource = state::fs::File>,
         R: rand::Rng,
     {
         use crate::state::{
@@ -701,13 +707,15 @@ impl Simulator {
 
         let mut actions = Vec::with_capacity(10);
         let path = parent.join(name.as_ref());
-        match resource.borrow().fs_resource() {
+        match resource
+            .borrow()
+            .fs_resource(parent.join(name.as_ref()), fs_state)
+        {
             FsDataResource::NotPresent => actions.push(Action::CreateFile {
                 path: path.clone(),
                 with_parents: false,
             }),
             FsDataResource::Present { resource, state } => {
-                assert!(resource.upgrade().is_some());
                 actions.extend([
                     Action::Remove(path.clone()),
                     Action::Rename {
@@ -766,13 +774,13 @@ impl Simulator {
     {
         use crate::state::{
             action,
-            app::{DataResource, DataResourceState, Resource},
+            app::{DataResource, DataResourceState, HasFsResourceRelative, Resource},
             Action,
         };
         use syre_local::{common, constants};
 
         let mut actions = Vec::with_capacity(10);
-        let container_ptr = container.borrow().fs_resource().upgrade().unwrap();
+        let container_ptr = container.borrow().fs_resource(fs_state);
         let container_path = fs_state.graph().path(&container_ptr).unwrap();
         let mv = &folders[rng.gen_range(0..folders.len())];
         let mv_path = fs_state.graph().path(&mv).unwrap();
@@ -856,6 +864,7 @@ impl Simulator {
                     constants::ASSETS_FILE,
                     config_path.clone(),
                     mv_path,
+                    fs_state,
                     rng,
                 ));
             }

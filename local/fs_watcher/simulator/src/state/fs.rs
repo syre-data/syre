@@ -1,4 +1,5 @@
 use super::{
+    app::{self},
     graph::{NodeMap, Tree},
     HasName, Ptr, Reducible,
 };
@@ -8,6 +9,29 @@ use std::{
 };
 
 pub type FileMap = NodeMap<File>;
+
+#[derive(Debug)]
+pub enum Action {
+    CreateFolder { path: PathBuf, with_parents: bool },
+    CreateFile { path: PathBuf, with_parents: bool },
+    Remove(PathBuf),
+    Rename { from: PathBuf, to: OsString },
+    Move { from: PathBuf, to: PathBuf },
+    Copy { from: PathBuf, to: PathBuf },
+    Modify { file: PathBuf, kind: ModifyKind },
+}
+
+#[derive(Debug)]
+pub enum ModifyKind {
+    /// Add an item to a manifest.
+    ManifestAdd(String),
+
+    /// Remove an item from a manifest.
+    ManifestRemove(usize),
+    Corrupt,
+    Repair,
+    Other,
+}
 
 #[derive(Debug)]
 pub struct State {
@@ -174,15 +198,11 @@ impl State {
 }
 
 impl Reducible for State {
-    type Action = super::Action;
-    type Output = super::action::FsResource;
+    type Action = Action;
+    type Output = Resource;
 
     fn reduce(&mut self, action: &Self::Action) -> super::Result<Self::Output> {
-        use super::{
-            action::{FsResource, ModifyKind},
-            error::Error,
-            graph, Action,
-        };
+        use super::{error::Error, graph};
 
         match action {
             Action::CreateFolder { path, with_parents } => {
@@ -222,7 +242,7 @@ impl Reducible for State {
                     .insert(Folder::new(path.file_name().unwrap()), &parent)
                     .unwrap();
 
-                Ok(FsResource::Folder(folder))
+                Ok(Resource::Folder(folder))
             }
 
             Action::CreateFile { path, with_parents } => {
@@ -261,7 +281,7 @@ impl Reducible for State {
                     .borrow_mut()
                     .insert(File::new(path.file_name().unwrap()))?;
 
-                Ok(FsResource::File(file))
+                Ok(Resource::File(file))
             }
 
             Action::Remove(path) => {
@@ -341,6 +361,7 @@ impl Reducible for State {
                     }
 
                     let mut file = file.borrow().clone();
+                    file.remove_app_resource();
                     file.set_name(to.file_name().unwrap());
                     let file = parent_new.borrow_mut().insert(file)?;
                     Ok(file.into())
@@ -354,6 +375,13 @@ impl Reducible for State {
                     }
 
                     let dup = self.graph.duplicate_subtree(&folder).unwrap();
+                    for mut folder in dup.nodes().iter().map(|folder| folder.borrow_mut()) {
+                        folder.remove_app_resource();
+                        for mut file in folder.files().iter().map(|file| file.borrow_mut()) {
+                            file.remove_app_resource();
+                        }
+                    }
+
                     let root = dup.root();
                     self.graph.insert_tree(dup, &parent_new).unwrap();
                     Ok(root.into())
@@ -370,9 +398,16 @@ impl Reducible for State {
     }
 }
 
+#[derive(Debug, Clone, derive_more::From)]
+pub enum Resource {
+    File(Ptr<File>),
+    Folder(Ptr<Folder>),
+}
+
 #[derive(Debug)]
 pub struct Folder {
     name: OsString,
+    app_resource: Option<app::FolderResource>,
     files: Vec<Ptr<File>>,
 }
 
@@ -380,8 +415,21 @@ impl Folder {
     pub fn new(name: impl Into<OsString>) -> Self {
         Self {
             name: name.into(),
+            app_resource: None,
             files: vec![],
         }
+    }
+
+    pub fn app_resource(&self) -> Option<app::FolderResource> {
+        self.app_resource.clone()
+    }
+
+    pub fn set_app_resource(&mut self, app_resource: app::FolderResource) {
+        self.app_resource = Some(app_resource);
+    }
+
+    pub fn remove_app_resource(&mut self) {
+        self.app_resource = None;
     }
 
     pub fn files(&self) -> &Vec<Ptr<File>> {
@@ -453,6 +501,7 @@ impl Folder {
         (
             Self {
                 name: self.name.clone(),
+                app_resource: self.app_resource.clone(),
                 files,
             },
             file_map,
@@ -470,11 +519,27 @@ impl Clone for Folder {
 #[derive(Debug, Clone)]
 pub struct File {
     name: OsString,
+    app_resource: Option<app::FileResource>,
 }
 
 impl File {
     pub fn new(name: impl Into<OsString>) -> Self {
-        Self { name: name.into() }
+        Self {
+            name: name.into(),
+            app_resource: None,
+        }
+    }
+
+    pub fn app_resource(&self) -> Option<app::FileResource> {
+        self.app_resource.clone()
+    }
+
+    pub fn set_app_resource(&mut self, app_resource: app::FileResource) {
+        self.app_resource = Some(app_resource);
+    }
+
+    pub fn remove_app_resource(&mut self) {
+        self.app_resource = None;
     }
 }
 

@@ -17,6 +17,8 @@ syre-fs-watcher = { workspace = true }
 has_id = { workspace = true, features = ["derive"] }
 syre-core.workspace = true
 walkdir = "2.5.0"
+serde_json.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

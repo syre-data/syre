@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use syre_core::types::ResourceId;
+use syre_local::common;
 
 pub type ProjectMap = Vec<((Ptr<Project>, Ptr<Project>), ContainerMap)>;
 pub type ContainerMap = NodeMap<Container>;
@@ -41,6 +42,178 @@ impl State {
 }
 
 impl State {
+    pub fn find_path_resource(&self, path: impl AsRef<Path>) -> Option<AppResource> {
+        let path = path.as_ref();
+        let user_manifest = self.app.user_manifest();
+        if path == user_manifest.borrow().path() {
+            return Some(FileResource::UserManifest(Ptr::downgrade(user_manifest)).into());
+        }
+
+        let project_manifest = self.app.project_manifest();
+        if path == project_manifest.borrow().path() {
+            return Some(FileResource::ProjectManifest(Ptr::downgrade(project_manifest)).into());
+        }
+
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            if project.path() == path {
+                return Some(FolderResource::Project(Ptr::downgrade(project_ptr)).into());
+            }
+
+            if let Ok(rel_path) = path.strip_prefix(project.path()) {
+                self.find_path_project_resource(rel_path, project_ptr)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// # Arguments
+    /// #. `path`: Path relative to project root.
+    pub fn find_path_project_resource(
+        &self,
+        path: impl AsRef<Path>,
+        project: &Ptr<Project>,
+    ) -> Option<AppResource> {
+        let path = path.as_ref();
+        let project = project.borrow();
+        assert!(path != project.path());
+        if path == common::app_dir() {
+            let Resource::Present(config) = project.config() else {
+                panic!();
+            };
+
+            return Some(FolderResource::ProjectConfig(Ptr::downgrade(config)).into());
+        }
+
+        if path == common::project_file() {
+            let Resource::Present(config) = project.config() else {
+                panic!();
+            };
+
+            let config = config.borrow();
+            return Some(
+                FileResource::ProjectProperties(Ptr::downgrade(config.properties())).into(),
+            );
+        }
+
+        if path == common::project_settings_file() {
+            let Resource::Present(config) = project.config() else {
+                panic!();
+            };
+
+            let config = config.borrow();
+            return Some(FileResource::ProjectSettings(Ptr::downgrade(config.settings())).into());
+        }
+
+        if path == common::analyses_file() {
+            let Resource::Present(config) = project.config() else {
+                panic!();
+            };
+
+            let config = config.borrow();
+            return Some(FileResource::AnalysisManifest(Ptr::downgrade(config.analyses())).into());
+        }
+
+        if let Some(analyses_ptr) = project.analyses() {
+            let analyses = analyses_ptr.borrow();
+            if path == analyses.path() {
+                return Some(FolderResource::Analyses(Ptr::downgrade(analyses_ptr)).into());
+            }
+
+            if let Ok(rel_path) = path.strip_prefix(analyses.path()) {
+                if let Resource::Present(config) = project.config() {
+                    let config = config.borrow();
+                    let analyses = config.analyses().borrow();
+                    return analyses.manifest().iter().find_map(|analysis_ptr| {
+                        let analysis = analysis_ptr.borrow();
+                        if analysis.path() == rel_path {
+                            Some(FileResource::Analysis(Ptr::downgrade(analysis_ptr)).into())
+                        } else {
+                            None
+                        }
+                    });
+                }
+            }
+        }
+
+        let data = project.data().borrow();
+        if let Ok(rel_path) = path.strip_prefix(data.path()) {
+            let Some(graph) = data.graph() else {
+                panic!();
+            };
+
+            if rel_path.file_name().unwrap() == common::app_dir() {
+                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                    panic!();
+                };
+
+                let container = container.borrow();
+                let data = container.data().as_ref().unwrap();
+                return Some(FolderResource::ContainerConfig(Ptr::downgrade(data.config())).into());
+            }
+
+            if rel_path.ends_with(common::container_file()) {
+                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                    panic!();
+                };
+
+                let container = container.borrow();
+                let data = container.data().as_ref().unwrap();
+                let config = data.config().borrow();
+                return Some(
+                    FileResource::ContainerProperties(Ptr::downgrade(config.properties())).into(),
+                );
+            }
+
+            if rel_path.ends_with(common::container_settings_file()) {
+                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                    panic!();
+                };
+
+                let container = container.borrow();
+                let data = container.data().as_ref().unwrap();
+                let config = data.config().borrow();
+                return Some(
+                    FileResource::ContainerSettings(Ptr::downgrade(config.settings())).into(),
+                );
+            }
+
+            if rel_path.ends_with(common::assets_file()) {
+                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                    panic!();
+                };
+
+                let container = container.borrow();
+                let data = container.data().as_ref().unwrap();
+                let config = data.config().borrow();
+                return Some(FileResource::AssetManifest(Ptr::downgrade(config.assets())).into());
+            }
+
+            if let Some(container) = graph.find_by_path(rel_path) {
+                return Some(FolderResource::Container(Ptr::downgrade(&container)).into());
+            }
+
+            let container = graph.find_by_path(rel_path.parent().unwrap()).unwrap();
+            let container = container.borrow();
+            if let Some(data) = container.data().as_ref() {
+                let config = data.config().borrow();
+                let assets = config.assets().borrow();
+                return assets.manifest().iter().find_map(|asset| {
+                    if asset.borrow().name() == rel_path.file_name().unwrap() {
+                        Some(FileResource::Asset(Ptr::downgrade(asset)).into())
+                    } else {
+                        None
+                    }
+                });
+            }
+        }
+
+        None
+    }
+}
+
+impl State {
     pub fn find_path_project(&self, path: impl AsRef<Path>) -> Option<&Ptr<Project>> {
         let path = path.as_ref();
         self.projects
@@ -51,226 +224,579 @@ impl State {
     pub fn find_resource_project(&self, resource: AppResource) -> Option<&Ptr<Project>> {
         match resource {
             AppResource::File(resource) => match resource {
-                FileResource::UserManifest(manifest) => {
+                FileResource::UserManifest(_) => {
                     return None;
                 }
                 FileResource::ProjectManifest(_) => {
                     return None;
                 }
-                FileResource::ProjectProperties(properties) => {
-                    let Some(properties) = properties.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects
-                        .iter()
-                        .find(|project| match project.borrow().config() {
-                            Resource::NotPresent => false,
-                            Resource::Present(config) => {
-                                Ptr::ptr_eq(config.borrow().properties(), &properties)
-                            }
-                        })
+                FileResource::ProjectProperties(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_project_properties_project(&resource)
                 }
-                FileResource::ProjectSettings(settings) => {
-                    let Some(settings) = settings.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects
-                        .iter()
-                        .find(|project| match project.borrow().config() {
-                            Resource::NotPresent => false,
-                            Resource::Present(config) => {
-                                Ptr::ptr_eq(config.borrow().settings(), &settings)
-                            }
-                        })
+                FileResource::ProjectSettings(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_project_settings_project(&resource)
                 }
-                FileResource::AnalysisManifest(manifest) => {
-                    let Some(manifest) = manifest.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects
-                        .iter()
-                        .find(|project| match project.borrow().config() {
-                            Resource::NotPresent => false,
-                            Resource::Present(config) => {
-                                Ptr::ptr_eq(config.borrow().analyses(), &manifest)
-                            }
-                        })
+                FileResource::AnalysisManifest(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_analysis_manifest_project(&resource)
                 }
-                FileResource::Analysis(analysis) => {
-                    let Some(analysis) = analysis.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        let project = project.borrow();
-                        let Resource::Present(config) = project.config() else {
-                            return false;
-                        };
-
-                        let config = config.borrow();
-                        let analyses = config.analyses().borrow();
-                        analyses
-                            .manifest()
-                            .iter()
-                            .any(|a| Ptr::ptr_eq(&analysis, a))
-                    })
+                FileResource::Analysis(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_analysis_project(&resource)
                 }
-                FileResource::ContainerProperties(properties) => {
-                    let Some(properties) = properties.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => {
-                                graph.nodes().iter().any(|node| match node.borrow().data() {
-                                    None => false,
-                                    Some(data) => Ptr::ptr_eq(
-                                        data.config().borrow().properties(),
-                                        &properties,
-                                    ),
-                                })
-                            }
-                        }
-                    })
+                FileResource::ContainerProperties(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_container_properties_project(&resource)
                 }
-                FileResource::ContainerSettings(settings) => {
-                    let Some(settings) = settings.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => {
-                                graph.nodes().iter().any(|node| match node.borrow().data() {
-                                    None => false,
-                                    Some(data) => {
-                                        Ptr::ptr_eq(data.config().borrow().settings(), &settings)
-                                    }
-                                })
-                            }
-                        }
-                    })
+                FileResource::ContainerSettings(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_container_settings_project(&resource)
                 }
-                FileResource::AssetManifest(manifest) => {
-                    let Some(manifest) = manifest.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => {
-                                graph.nodes().iter().any(|node| match node.borrow().data() {
-                                    None => false,
-                                    Some(data) => {
-                                        Ptr::ptr_eq(data.config().borrow().assets(), &manifest)
-                                    }
-                                })
-                            }
-                        }
-                    })
+                FileResource::AssetManifest(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_asset_manifest_project(&resource)
                 }
-                FileResource::Asset(asset) => {
-                    let Some(asset) = asset.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => {
-                                graph.nodes().iter().any(|node| match node.borrow().data() {
-                                    None => false,
-                                    Some(data) => data
-                                        .config()
-                                        .borrow()
-                                        .assets()
-                                        .borrow()
-                                        .manifest()
-                                        .iter()
-                                        .any(|a| Ptr::ptr_eq(a, &asset)),
-                                })
-                            }
-                        }
-                    })
+                FileResource::Asset(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_asset_project(&resource)
                 }
             },
 
             AppResource::Folder(resource) => match resource {
-                FolderResource::Project(project) => {
-                    let Some(project) = project.upgrade() else {
-                        return None;
-                    };
-
+                FolderResource::Project(resource) => {
+                    let resource = resource.upgrade()?;
                     self.projects()
                         .iter()
-                        .find(|prj| Ptr::ptr_eq(prj, &project))
+                        .find(|prj| Ptr::ptr_eq(prj, &resource))
                 }
-                FolderResource::ProjectConfig(config) => {
-                    let Some(config) = config.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects
-                        .iter()
-                        .find(|project| match project.borrow().config() {
-                            Resource::NotPresent => false,
-                            Resource::Present(c) => Ptr::ptr_eq(c, &config),
-                        })
+                FolderResource::ProjectConfig(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_project_config_project(&resource)
                 }
-                FolderResource::Analyses(analyses) => {
-                    let Some(analyses) = analyses.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        if let Some(a) = project.borrow().analyses() {
-                            Ptr::ptr_eq(a, &analyses)
-                        } else {
-                            false
-                        }
-                    })
+                FolderResource::Analyses(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_analyses_project(&resource)
                 }
-                FolderResource::Container(container) => {
-                    let Some(container) = container.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => graph
-                                .nodes()
-                                .iter()
-                                .any(|node| Ptr::ptr_eq(node, &container)),
-                        }
-                    })
+                FolderResource::Container(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_container_project(&resource)
                 }
-                FolderResource::ContainerConfig(config) => {
-                    let Some(config) = config.upgrade() else {
-                        return None;
-                    };
-
-                    self.projects.iter().find(|project| {
-                        match project.borrow().data().borrow().graph() {
-                            None => false,
-                            Some(graph) => {
-                                graph.nodes().iter().any(|node| match node.borrow().data() {
-                                    None => false,
-                                    Some(data) => Ptr::ptr_eq(data.config(), &config),
-                                })
-                            }
-                        }
-                    })
+                FolderResource::ContainerConfig(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_container_config_project(&resource)
                 }
             },
         }
+    }
+
+    pub fn find_project_properties_project(
+        &self,
+        resource: &Ptr<ProjectProperties>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().config() {
+                Resource::NotPresent => false,
+                Resource::Present(config) => Ptr::ptr_eq(config.borrow().properties(), &resource),
+            })
+    }
+
+    pub fn find_project_settings_project(
+        &self,
+        resource: &Ptr<ProjectSettings>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().config() {
+                Resource::NotPresent => false,
+                Resource::Present(config) => Ptr::ptr_eq(config.borrow().settings(), resource),
+            })
+    }
+
+    pub fn find_analysis_manifest_project(
+        &self,
+        resource: &Ptr<AnalysisManifest>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().config() {
+                Resource::NotPresent => false,
+                Resource::Present(config) => Ptr::ptr_eq(config.borrow().analyses(), resource),
+            })
+    }
+
+    pub fn find_analysis_project(&self, resource: &Ptr<Analysis>) -> Option<&Ptr<Project>> {
+        self.projects.iter().find(|project| {
+            let project = project.borrow();
+            let Resource::Present(config) = project.config() else {
+                return false;
+            };
+
+            let config = config.borrow();
+            let analyses = config.analyses().borrow();
+            analyses
+                .manifest()
+                .iter()
+                .any(|a| Ptr::ptr_eq(&resource, a))
+        })
+    }
+
+    pub fn find_container_properties_project(
+        &self,
+        resource: &Ptr<ContainerProperties>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph.nodes().iter().any(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().properties(), &resource),
+                }),
+            })
+    }
+
+    pub fn find_container_properties_project_and_container(
+        &self,
+        resource: &Ptr<ContainerProperties>,
+    ) -> Option<(Ptr<Project>, Ptr<Container>)> {
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            if let Some(container) = graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().properties(), &resource),
+                })
+            {
+                Some((project_ptr.clone(), container.clone()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_container_settings_project(
+        &self,
+        resource: &Ptr<ContainerSettings>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph.nodes().iter().any(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().settings(), &resource),
+                }),
+            })
+    }
+
+    pub fn find_container_settings_project_and_container(
+        &self,
+        resource: &Ptr<ContainerSettings>,
+    ) -> Option<(Ptr<Project>, Ptr<Container>)> {
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            if let Some(container) = graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().settings(), &resource),
+                })
+            {
+                Some((project_ptr.clone(), container.clone()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_asset_manifest_project(
+        &self,
+        resource: &Ptr<AssetManifest>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph.nodes().iter().any(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().assets(), &resource),
+                }),
+            })
+    }
+
+    pub fn find_asset_manifest_project_and_container(
+        &self,
+        resource: &Ptr<AssetManifest>,
+    ) -> Option<(Ptr<Project>, Ptr<Container>)> {
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            if let Some(container) = graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config().borrow().assets(), &resource),
+                })
+            {
+                Some((project_ptr.clone(), container.clone()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_asset_project(&self, resource: &Ptr<Asset>) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph.nodes().iter().any(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => data
+                        .config()
+                        .borrow()
+                        .assets()
+                        .borrow()
+                        .manifest()
+                        .iter()
+                        .any(|a| Ptr::ptr_eq(a, &resource)),
+                }),
+            })
+    }
+
+    pub fn find_asset_project_and_container(
+        &self,
+        resource: &Ptr<Asset>,
+    ) -> Option<(Ptr<Project>, Ptr<Container>)> {
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            if let Some(container) = graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => data
+                        .config()
+                        .borrow()
+                        .assets()
+                        .borrow()
+                        .manifest()
+                        .iter()
+                        .any(|a| Ptr::ptr_eq(a, &resource)),
+                })
+            {
+                Some((project_ptr.clone(), container.clone()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_project_config_project(
+        &self,
+        resource: &Ptr<ProjectConfig>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().config() {
+                Resource::NotPresent => false,
+                Resource::Present(c) => Ptr::ptr_eq(c, &resource),
+            })
+    }
+
+    pub fn find_analyses_project(&self, resource: &Ptr<Analyses>) -> Option<&Ptr<Project>> {
+        self.projects.iter().find(|project| {
+            if let Some(a) = project.borrow().analyses() {
+                Ptr::ptr_eq(a, &resource)
+            } else {
+                false
+            }
+        })
+    }
+
+    pub fn find_container_project(&self, resource: &Ptr<Container>) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph
+                    .nodes()
+                    .iter()
+                    .any(|node| Ptr::ptr_eq(node, &resource)),
+            })
+    }
+
+    pub fn find_container_config_project(
+        &self,
+        resource: &Ptr<ContainerConfig>,
+    ) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| match project.borrow().data().borrow().graph() {
+                None => false,
+                Some(graph) => graph.nodes().iter().any(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config(), &resource),
+                }),
+            })
+    }
+
+    pub fn find_container_config_container(
+        &self,
+        resource: &Ptr<ContainerConfig>,
+    ) -> Option<Ptr<Container>> {
+        let (_, container) = self.find_container_config_project_and_container(resource)?;
+        Some(container)
+    }
+
+    pub fn find_container_config_project_and_container(
+        &self,
+        resource: &Ptr<ContainerConfig>,
+    ) -> Option<(Ptr<Project>, Ptr<Container>)> {
+        self.projects.iter().find_map(|project_ptr| {
+            let project = project_ptr.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            if let Some(container) = graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => Ptr::ptr_eq(data.config(), &resource),
+                })
+            {
+                Some((project_ptr.clone(), container.clone()))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_asset_container(&self, resource: &Ptr<Asset>) -> Option<Ptr<Container>> {
+        self.projects.iter().find_map(|project| {
+            let project = project.borrow();
+            let data = project.data().borrow();
+            let Some(graph) = data.graph() else {
+                return None;
+            };
+
+            graph
+                .nodes()
+                .iter()
+                .find(|node| match node.borrow().data() {
+                    None => false,
+                    Some(data) => {
+                        let config = data.config().borrow();
+                        let asset_manifest = config.assets().borrow();
+                        asset_manifest
+                            .manifest()
+                            .iter()
+                            .any(|asset| Ptr::ptr_eq(asset, resource))
+                    }
+                })
+                .cloned()
+        })
+    }
+}
+
+impl State {
+    pub fn resource_path(&self, resource: AppResource) -> Option<PathBuf> {
+        match resource {
+            AppResource::File(resource) => self.file_resource_path(resource),
+            AppResource::Folder(resource) => self.folder_resource_path(resource),
+        }
+    }
+
+    pub fn file_resource_path(&self, resource: FileResource) -> Option<PathBuf> {
+        match resource {
+            FileResource::UserManifest(_) => Some(self.app.user_manifest.borrow().path.clone()),
+            FileResource::ProjectManifest(_) => {
+                Some(self.app.project_manifest.borrow().path.clone())
+            }
+            FileResource::ProjectProperties(resource) => {
+                let resource = resource.upgrade()?;
+                let project = self.find_project_properties_project(&resource)?;
+                Some(common::project_file_of(project.borrow().path()))
+            }
+            FileResource::ProjectSettings(resource) => {
+                let resource = resource.upgrade()?;
+                let project = self.find_project_settings_project(&resource)?;
+                Some(common::project_settings_file_of(project.borrow().path()))
+            }
+            FileResource::AnalysisManifest(resource) => {
+                let resource = resource.upgrade()?;
+                let project = self.find_analysis_manifest_project(&resource)?;
+                Some(common::analyses_file_of(project.borrow().path()))
+            }
+            FileResource::Analysis(resource) => {
+                let resource = resource.upgrade()?;
+                let project = self.find_analysis_project(&resource)?;
+                let project = project.borrow();
+                let analyses = project.analyses()?;
+                let analyses = analyses.borrow();
+                let resource = resource.borrow();
+
+                Some(project.path().join(analyses.path()).join(resource.path()))
+            }
+            FileResource::ContainerProperties(resource) => {
+                let resource = resource.upgrade()?;
+                self.container_properties_path(&resource)
+            }
+            FileResource::ContainerSettings(resource) => {
+                let resource = resource.upgrade()?;
+                self.container_settings_path(&resource)
+            }
+            FileResource::AssetManifest(resource) => {
+                let resource = resource.upgrade()?;
+                self.asset_manifest_path(&resource)
+            }
+            FileResource::Asset(resource) => {
+                let resource = resource.upgrade()?;
+                self.asset_path(&resource)
+            }
+        }
+    }
+
+    pub fn folder_resource_path(&self, resource: FolderResource) -> Option<PathBuf> {
+        match resource {
+            FolderResource::Project(resource) => {
+                let resource = resource.upgrade()?;
+                self.projects().iter().find_map(|prj| {
+                    if Ptr::ptr_eq(prj, &resource) {
+                        Some(prj.borrow().path().clone())
+                    } else {
+                        None
+                    }
+                })
+            }
+            FolderResource::ProjectConfig(resource) => {
+                let resource = resource.upgrade()?;
+                self.project_config_path(&resource)
+            }
+            FolderResource::Analyses(resource) => {
+                let resource = resource.upgrade()?;
+                let project = self.find_analyses_project(&resource)?;
+                let path = project.borrow().path().join(resource.borrow().path());
+                Some(path)
+            }
+            FolderResource::Container(resource) => {
+                let resource = resource.upgrade()?;
+                self.container_path(&resource)
+            }
+            FolderResource::ContainerConfig(resource) => {
+                let resource = resource.upgrade()?;
+                self.container_config_path(&resource)
+            }
+        }
+    }
+
+    /// # Returns
+    /// Full path to the container if it exists within the project.
+    fn container_path_with_project(
+        &self,
+        project: &Ptr<Project>,
+        container: &Ptr<Container>,
+    ) -> Option<PathBuf> {
+        let project = project.borrow();
+        let data = project.data().borrow();
+        let graph = data.graph().as_ref()?;
+        let container_path = graph.path(&container).unwrap();
+
+        Some(project.path().join(data.path()).join(container_path))
+    }
+
+    pub fn container_properties_path(
+        &self,
+        resource: &Ptr<ContainerProperties>,
+    ) -> Option<PathBuf> {
+        let (project, container) =
+            self.find_container_properties_project_and_container(resource)?;
+
+        let container_path = self
+            .container_path_with_project(&project, &container)
+            .unwrap();
+
+        Some(common::container_file_of(container_path))
+    }
+
+    pub fn container_settings_path(&self, resource: &Ptr<ContainerSettings>) -> Option<PathBuf> {
+        let (project, container) = self.find_container_settings_project_and_container(resource)?;
+        let container_path = self
+            .container_path_with_project(&project, &container)
+            .unwrap();
+
+        Some(common::container_file_of(container_path))
+    }
+
+    pub fn asset_manifest_path(&self, resource: &Ptr<AssetManifest>) -> Option<PathBuf> {
+        let (project, container) = self.find_asset_manifest_project_and_container(resource)?;
+        let container_path = self
+            .container_path_with_project(&project, &container)
+            .unwrap();
+
+        Some(common::assets_file_of(container_path))
+    }
+
+    pub fn asset_path(&self, resource: &Ptr<Asset>) -> Option<PathBuf> {
+        let (project, container) = self.find_asset_project_and_container(resource)?;
+        let container_path = self
+            .container_path_with_project(&project, &container)
+            .unwrap();
+
+        Some(common::assets_file_of(container_path))
+    }
+
+    pub fn project_config_path(&self, resource: &Ptr<ProjectConfig>) -> Option<PathBuf> {
+        let project = self.find_project_config_project(resource)?;
+        Some(common::app_dir_of(project.borrow().path()))
+    }
+
+    pub fn container_path(&self, resource: &Ptr<Container>) -> Option<PathBuf> {
+        let project = self.find_container_project(&resource)?;
+        let project = project.borrow();
+        let data = project.data().borrow();
+        let graph = data.graph().as_ref()?;
+        let container_path = graph.path(&resource).unwrap();
+
+        Some(project.path().join(data.path()).join(container_path))
+    }
+
+    pub fn container_config_path(&self, resource: &Ptr<ContainerConfig>) -> Option<PathBuf> {
+        let (project, container) = self.find_container_config_project_and_container(resource)?;
+        let container_path = self
+            .container_path_with_project(&project, &container)
+            .unwrap();
+
+        Some(common::app_dir_of(container_path))
     }
 }
 
@@ -337,7 +863,6 @@ impl Clone for AppState {
 #[derive(Debug, Clone)]
 pub struct UserManifest {
     path: PathBuf,
-    fs_resource: FsDataResource<fs::File>,
     manifest: Vec<String>,
 }
 
@@ -345,7 +870,6 @@ impl UserManifest {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
-            fs_resource: FsDataResource::NotPresent,
             manifest: vec![],
         }
     }
@@ -354,27 +878,6 @@ impl UserManifest {
 impl HasPath for UserManifest {
     fn path(&self) -> &PathBuf {
         &self.path
-    }
-}
-
-impl HasFsDataResource for UserManifest {
-    type Resource = fs::File;
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<Self::Resource>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    /// Removes the file resource and clears the manifest.
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-        self.manifest.clear();
     }
 }
 
@@ -396,7 +899,6 @@ impl Manifest for UserManifest {
 #[derive(Debug, Clone)]
 pub struct ProjectManifest {
     path: PathBuf,
-    fs_resource: FsDataResource<fs::File>,
     manifest: Vec<PathBuf>,
 }
 
@@ -404,7 +906,6 @@ impl ProjectManifest {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
-            fs_resource: FsDataResource::NotPresent,
             manifest: vec![],
         }
     }
@@ -413,28 +914,6 @@ impl ProjectManifest {
 impl HasPath for ProjectManifest {
     fn path(&self) -> &PathBuf {
         &self.path
-    }
-}
-
-impl HasFsDataResource for ProjectManifest {
-    type Resource = fs::File;
-
-    fn fs_resource(&self) -> &FsDataResource<fs::File> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    /// Removes the file resource and clears the manifest.
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-        self.manifest.clear();
     }
 }
 
@@ -460,7 +939,6 @@ pub struct Project {
 
     /// Path to the project's base folder.
     path: PathBuf,
-    fs_resource: FsResource<fs::Folder>,
 
     config: Resource<ProjectConfig>,
 
@@ -476,7 +954,6 @@ impl Project {
         Self {
             rid: ResourceId::new(),
             path: path.into(),
-            fs_resource: FsResource::NotPresent,
             config: Resource::NotPresent,
             data: Ptr::new(Data::new(data_path)),
             analyses: None,
@@ -493,14 +970,6 @@ impl Project {
 
     pub fn set_path(&mut self, path: impl Into<PathBuf>) {
         self.path = path.into();
-    }
-
-    pub fn fs_resource(&self) -> &FsResource<fs::Folder> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, fs_resource: &Ptr<fs::Folder>) {
-        self.fs_resource = FsResource::Present(Ptr::downgrade(fs_resource));
     }
 
     pub fn config(&self) -> &Resource<ProjectConfig> {
@@ -521,35 +990,12 @@ impl Project {
         self.analyses.as_ref()
     }
 
-    /// Sets the folder reference to the analyses folder.
-    ///
-    /// # Panics
-    /// + If `analyses` is `None`.
-    ///
-    /// # Note
-    /// + Must check `folder` is consistent with analyses path manually.
-    pub fn set_analyses_folder_reference(&mut self, folder: &Ptr<fs::Folder>) {
-        self.analyses
-            .as_ref()
-            .unwrap()
-            .borrow_mut()
-            .set_fs_resource(folder);
-    }
-
-    pub fn remove_analyses_folder_reference(&mut self) {
-        self.analyses
-            .as_ref()
-            .unwrap()
-            .borrow_mut()
-            .remove_fs_resource();
-    }
-
     pub fn data(&self) -> &Ptr<Data> {
         &self.data
     }
 
-    pub fn set_data_root(&mut self, folder: &Ptr<fs::Folder>) {
-        self.data.borrow_mut().set_graph_root(folder);
+    pub fn set_data_root(&mut self, name: impl Into<OsString>) {
+        self.data.borrow_mut().set_graph_root(name);
     }
 
     pub fn remove_data_root(&mut self) {
@@ -580,7 +1026,6 @@ impl Project {
             Self {
                 rid: self.rid.clone(),
                 path: self.path.clone(),
-                fs_resource: self.fs_resource.clone(),
                 config,
                 analyses,
                 data: Ptr::new(data),
@@ -592,29 +1037,18 @@ impl Project {
 
 #[derive(Debug)]
 pub struct ProjectConfig {
-    fs_resource: WPtr<fs::Folder>,
-
     properties: Ptr<ProjectProperties>,
     settings: Ptr<ProjectSettings>,
     analyses: Ptr<AnalysisManifest>,
 }
 
 impl ProjectConfig {
-    pub fn new(fs_resource: WPtr<fs::Folder>) -> Self {
+    pub fn new() -> Self {
         Self {
-            fs_resource,
-            properties: Ptr::new(ProjectProperties::not_present()),
-            settings: Ptr::new(ProjectSettings::not_present()),
-            analyses: Ptr::new(AnalysisManifest::not_present()),
+            properties: Ptr::new(ProjectProperties),
+            settings: Ptr::new(ProjectSettings),
+            analyses: Ptr::new(AnalysisManifest::new()),
         }
-    }
-
-    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
-        self.fs_resource = Ptr::downgrade(folder);
     }
 
     pub fn properties(&self) -> &Ptr<ProjectProperties> {
@@ -633,7 +1067,6 @@ impl ProjectConfig {
 impl ProjectConfig {
     pub fn duplicate_with_fs_references(&self) -> Self {
         Self {
-            fs_resource: self.fs_resource.clone(),
             properties: Ptr::new(self.properties.borrow().clone()),
             settings: Ptr::new(self.settings.borrow().clone()),
             analyses: Ptr::new(self.analyses.borrow().clone()),
@@ -642,179 +1075,19 @@ impl ProjectConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProjectProperties {
-    fs_resource: FsDataResource<fs::File>,
-}
-
-impl ProjectProperties {
-    pub fn valid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Valid,
-            },
-        }
-    }
-
-    pub fn invalid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Invalid,
-            },
-        }
-    }
-
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-        }
-    }
-}
-
-impl HasFsDataResource for ProjectProperties {
-    type Resource = fs::File;
-
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-    }
-}
+pub struct ProjectProperties;
 
 #[derive(Debug, Clone)]
-pub struct ProjectSettings {
-    fs_resource: FsDataResource<fs::File>,
-}
-
-impl ProjectSettings {
-    pub fn valid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Valid,
-            },
-        }
-    }
-
-    pub fn invalid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Invalid,
-            },
-        }
-    }
-
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-        }
-    }
-}
-
-impl HasFsDataResource for ProjectSettings {
-    type Resource = fs::File;
-
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-    }
-}
+pub struct ProjectSettings;
 
 #[derive(Debug, Clone)]
 pub struct AnalysisManifest {
-    fs_resource: FsDataResource<fs::File>,
     manifest: Vec<Ptr<Analysis>>,
 }
 
 impl AnalysisManifest {
-    pub fn valid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Valid,
-            },
-            manifest: vec![],
-        }
-    }
-
-    pub fn valid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<Ptr<Analysis>>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Valid,
-            },
-            manifest,
-        }
-    }
-
-    pub fn invalid(file: &Ptr<fs::File>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Invalid,
-            },
-            manifest: vec![],
-        }
-    }
-
-    pub fn invalid_with_manifest(file: &Ptr<fs::File>, manifest: Vec<Ptr<Analysis>>) -> Self {
-        Self {
-            fs_resource: FsDataResource::Present {
-                resource: Ptr::downgrade(file),
-                state: DataResourceState::Invalid,
-            },
-            manifest,
-        }
-    }
-
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-            manifest: vec![],
-        }
-    }
-}
-
-impl HasFsDataResource for AnalysisManifest {
-    type Resource = fs::File;
-
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
+    pub fn new() -> Self {
+        Self { manifest: vec![] }
     }
 }
 
@@ -838,41 +1111,15 @@ impl Manifest for AnalysisManifest {
 pub struct Analyses {
     /// Path to the analysis folder.
     path: PathBuf,
-    fs_resource: FsResource<fs::Folder>,
 }
 
 impl Analyses {
-    pub fn not_present(path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: path.into(),
-            fs_resource: FsResource::NotPresent,
-        }
-    }
-
-    /// # Notes
-    /// + Must check `path` and `folder` are consistent manually.
-    pub fn present(path: impl Into<PathBuf>, folder: &Ptr<fs::Folder>) -> Self {
-        Self {
-            path: path.into(),
-            fs_resource: FsResource::Present(Ptr::downgrade(folder)),
-        }
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
     }
 
     pub fn path(&self) -> &PathBuf {
         &self.path
-    }
-
-    pub fn fs_resource(&self) -> &FsResource<fs::Folder> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
-        self.fs_resource = FsResource::Present(Ptr::downgrade(folder));
-    }
-
-    pub fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsResource::NotPresent;
     }
 }
 
@@ -880,8 +1127,9 @@ impl Analyses {
 pub struct Analysis {
     #[id]
     rid: ResourceId,
+
+    /// Path relative to the analysis root.
     path: PathBuf,
-    fs_resource: FsResource<fs::File>,
 }
 
 impl Analysis {
@@ -889,16 +1137,11 @@ impl Analysis {
         Self {
             rid: ResourceId::new(),
             path: path.into(),
-            fs_resource: FsResource::NotPresent,
         }
     }
 
-    pub fn fs_resource(&self) -> &FsResource<fs::File> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, resource: &Ptr<fs::File>) {
-        self.fs_resource = FsResource::Present(Ptr::downgrade(resource));
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 }
 
@@ -944,8 +1187,8 @@ impl Data {
 
     /// Sets the graph's root.
     /// Removes previous graph.
-    pub fn set_graph_root(&mut self, folder: &Ptr<fs::Folder>) {
-        let root = Container::without_data(folder);
+    pub fn set_graph_root(&mut self, name: impl Into<OsString>) {
+        let root = Container::new(name);
         let graph = Tree::new(root);
         self.graph = Some(graph);
     }
@@ -1000,25 +1243,15 @@ impl Data {
 #[derive(Debug, Clone)]
 pub struct Container {
     name: OsString,
-    fs_resource: WPtr<fs::Folder>,
     data: Option<ContainerData>,
 }
 
 impl Container {
-    pub fn without_data(folder: &Ptr<fs::Folder>) -> Self {
+    pub fn new(name: impl Into<OsString>) -> Self {
         Self {
-            name: folder.borrow().name().to_os_string(),
-            fs_resource: Ptr::downgrade(folder),
+            name: name.into(),
             data: None,
         }
-    }
-
-    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
-        self.fs_resource = Ptr::downgrade(folder);
     }
 
     pub fn rid(&self) -> Option<ResourceId> {
@@ -1070,8 +1303,6 @@ impl ContainerData {
 
 #[derive(Debug, Clone)]
 pub struct ContainerConfig {
-    fs_resource: WPtr<fs::Folder>,
-
     properties: Ptr<ContainerProperties>,
     settings: Ptr<ContainerSettings>,
     assets: Ptr<AssetManifest>,
@@ -1080,19 +1311,10 @@ pub struct ContainerConfig {
 impl ContainerConfig {
     pub fn new(folder: &Ptr<fs::Folder>) -> Self {
         Self {
-            fs_resource: Ptr::downgrade(folder),
-            properties: Ptr::new(ContainerProperties::not_present()),
-            settings: Ptr::new(ContainerSettings::not_present()),
-            assets: Ptr::new(AssetManifest::not_present()),
+            properties: Ptr::new(ContainerProperties),
+            settings: Ptr::new(ContainerSettings),
+            assets: Ptr::new(AssetManifest::new()),
         }
-    }
-
-    pub fn fs_resource(&self) -> &WPtr<fs::Folder> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, folder: &Ptr<fs::Folder>) {
-        self.fs_resource = Ptr::downgrade(folder);
     }
 
     pub fn properties(&self) -> &Ptr<ContainerProperties> {
@@ -1109,101 +1331,19 @@ impl ContainerConfig {
 }
 
 #[derive(Debug)]
-pub struct ContainerProperties {
-    fs_resource: FsDataResource<fs::File>,
-}
-
-impl ContainerProperties {
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-        }
-    }
-}
-
-impl HasFsDataResource for ContainerProperties {
-    type Resource = fs::File;
-    fn fs_resource(&self) -> &FsDataResource<fs::File> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        };
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-    }
-}
+pub struct ContainerProperties;
 
 #[derive(Debug)]
-pub struct ContainerSettings {
-    fs_resource: FsDataResource<fs::File>,
-}
-
-impl ContainerSettings {
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-        }
-    }
-}
-
-impl HasFsDataResource for ContainerSettings {
-    type Resource = fs::File;
-    fn fs_resource(&self) -> &FsDataResource<fs::File> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        };
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
-    }
-}
+pub struct ContainerSettings;
 
 #[derive(Debug)]
 pub struct AssetManifest {
-    fs_resource: FsDataResource<fs::File>,
     manifest: Vec<Ptr<Asset>>,
 }
 
 impl AssetManifest {
-    pub fn not_present() -> Self {
-        Self {
-            fs_resource: FsDataResource::NotPresent,
-            manifest: vec![],
-        }
-    }
-}
-
-impl HasFsDataResource for AssetManifest {
-    type Resource = fs::File;
-
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource> {
-        &self.fs_resource
-    }
-
-    fn set_fs_resource(&mut self, file: &Ptr<fs::File>, state: DataResourceState) {
-        self.fs_resource = FsDataResource::Present {
-            resource: Ptr::downgrade(file),
-            state,
-        }
-    }
-
-    fn remove_fs_resource(&mut self) {
-        assert!(self.fs_resource.is_present());
-        self.fs_resource = FsDataResource::NotPresent;
+    pub fn new() -> Self {
+        Self { manifest: vec![] }
     }
 }
 
@@ -1227,7 +1367,6 @@ pub struct Asset {
     #[id]
     rid: ResourceId,
     name: OsString,
-    fs_resource: FsResource<fs::File>,
 }
 
 impl Asset {
@@ -1235,16 +1374,7 @@ impl Asset {
         Self {
             rid: ResourceId::new(),
             name: name.into(),
-            fs_resource: FsResource::NotPresent,
         }
-    }
-
-    pub fn fs_resource(&self) -> &FsResource<fs::File> {
-        &self.fs_resource
-    }
-
-    pub fn set_fs_resource(&mut self, resource: &Ptr<fs::File>) {
-        self.fs_resource = FsResource::Present(Ptr::downgrade(resource));
     }
 }
 
@@ -1470,13 +1600,6 @@ impl<T> Clone for FsDataResource<T> {
 
 pub trait HasPath {
     fn path(&self) -> &PathBuf;
-}
-
-pub trait HasFsDataResource {
-    type Resource;
-    fn fs_resource(&self) -> &FsDataResource<Self::Resource>;
-    fn set_fs_resource(&mut self, resource: &Ptr<Self::Resource>, state: DataResourceState);
-    fn remove_fs_resource(&mut self);
 }
 
 pub trait Manifest {

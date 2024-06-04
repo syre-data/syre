@@ -497,8 +497,13 @@ where
     }
 
     pub fn find_by_path(&self, path: impl AsRef<Path>) -> Option<Ptr<D>> {
+        let path = path.as_ref();
         let mut node = self.root();
-        for component in path.as_ref().components() {
+        if path.as_os_str() == node.borrow().name() {
+            return Some(node);
+        }
+
+        for component in path.components() {
             match component {
                 std::path::Component::Normal(name) => {
                     node = self

@@ -10,7 +10,8 @@ use rand::{
 };
 use rand_chacha::ChaCha8Rng;
 use std::{
-    fs, io,
+    fs,
+    io::{self, Read, Write},
     path::{Component, Path, PathBuf},
     thread,
 };
@@ -78,7 +79,7 @@ impl Simulator {
                 Self::choose_actions(action_count, self.state.app.clone(), &mut self.rng);
 
             tracing::debug!(?actions);
-            self.perform_actions(actions).unwrap();
+            self.perform_actions(actions);
             match self.validation_rx.try_recv() {
                 Ok(Validation { expected, received }) => {
                     tracing::error!(
@@ -131,8 +132,7 @@ impl Simulator {
         while actions.len() < num {
             let action = Self::choose_action(&state, rng);
             tracing::debug!(?action);
-            state.reduce(&action).unwrap();
-            // tracing::debug!(?state);
+            state.reduce(action.clone());
             actions.push(action);
         }
 
@@ -211,10 +211,21 @@ impl Simulator {
         let user_manifest = user_manifest.borrow();
         if let Some(file) = state.fs().find_file(user_manifest.path()) {
             match serde_json::from_str::<'_, Vec<String>>(file.borrow().content()) {
-                Err(_) => actions.push(Action::Modify {
-                    file: user_manifest.path().clone(),
-                    kind: ModifyKind::Repair,
-                }),
+                Err(err) => {
+                    if err.is_eof() {
+                        actions.push(Action::Modify {
+                            file: user_manifest.path().clone(),
+                            kind: ModifyKind::Initialize,
+                        })
+                    } else if err.is_syntax() {
+                        actions.push(Action::Modify {
+                            file: user_manifest.path().clone(),
+                            kind: ModifyKind::Repair,
+                        })
+                    } else {
+                        unreachable!()
+                    }
+                }
 
                 Ok(manifest) => {
                     actions.push(Action::Modify {
@@ -252,10 +263,21 @@ impl Simulator {
 
         if let Some(file) = state.fs().find_file(&file_path) {
             match serde_json::from_str::<'_, Vec<PathBuf>>(file.borrow().content()) {
-                Err(_) => actions.push(Action::Modify {
-                    file: user_manifest.path().clone(),
-                    kind: ModifyKind::Repair,
-                }),
+                Err(err) => {
+                    if err.is_eof() {
+                        actions.push(Action::Modify {
+                            file: file_path.clone(),
+                            kind: ModifyKind::Initialize,
+                        })
+                    } else if err.is_syntax() {
+                        actions.push(Action::Modify {
+                            file: file_path.clone(),
+                            kind: ModifyKind::Repair,
+                        })
+                    } else {
+                        unreachable!()
+                    }
+                }
 
                 Ok(manifest) => {
                     actions.extend([
@@ -268,7 +290,7 @@ impl Simulator {
                             ),
                         },
                         Action::Modify {
-                            file: user_manifest.path().clone(),
+                            file: file_path.clone(),
                             kind: ModifyKind::Corrupt,
                         },
                     ]);
@@ -345,10 +367,7 @@ impl Simulator {
     where
         R: rand::Rng,
     {
-        use crate::state::{
-            app::{FsResource, Resource},
-            fs::Action,
-        };
+        use crate::state::{app::Resource, fs::Action};
         use syre_local::constants;
 
         let mut actions = Vec::with_capacity(50);
@@ -464,17 +483,13 @@ impl Simulator {
 
                 if let Some(analyses) = project.analyses() {
                     let analyses = analyses.borrow();
-                    match analyses.fs_resource() {
-                        FsResource::NotPresent => {
-                            let path = project.path().join(analyses.path().clone());
-                            actions.push(Action::CreateFolder {
-                                path,
-                                with_parents: true,
-                            })
-                        }
-                        FsResource::Present(folder) => {
-                            let folder = folder.upgrade().unwrap();
-                            let path = state.fs().graph().path(&folder).unwrap();
+                    let path = project.path().join(analyses.path());
+                    match state.fs().exists(&path) {
+                        false => actions.push(Action::CreateFolder {
+                            path,
+                            with_parents: true,
+                        }),
+                        true => {
                             let mv = &folders[rng.gen_range(0..folders.len())];
                             let mv_path = state.fs().graph().path(mv).unwrap();
                             actions.extend([
@@ -623,7 +638,6 @@ impl Simulator {
     {
         use crate::state::fs::{Action, ModifyKind};
 
-        let manifest = manifest.borrow();
         let mut actions = Vec::with_capacity(10);
         let path = parent.join(name.as_ref());
         match state.fs().find_file(&path) {
@@ -662,10 +676,21 @@ impl Simulator {
                 }
 
                 match serde_json::from_str::<'_, Vec<String>>(file.borrow().content()) {
-                    Err(_) => actions.push(Action::Modify {
-                        file: path.clone(),
-                        kind: ModifyKind::Repair,
-                    }),
+                    Err(err) => {
+                        if err.is_eof() {
+                            actions.push(Action::Modify {
+                                file: path.clone(),
+                                kind: ModifyKind::Initialize,
+                            })
+                        } else if err.is_syntax() {
+                            actions.push(Action::Modify {
+                                file: path.clone(),
+                                kind: ModifyKind::Repair,
+                            })
+                        } else {
+                            unreachable!()
+                        }
+                    }
 
                     Ok(manifest) => {
                         actions.extend([
@@ -748,11 +773,23 @@ impl Simulator {
                 }
 
                 match serde_json::from_str::<'_, T>(file.borrow().content()) {
-                    Err(_) => actions.push(Action::Modify {
-                        file: path.clone(),
-                        kind: ModifyKind::Repair,
-                    }),
-                    Ok(manifest) => actions.push(Action::Modify {
+                    Err(err) => {
+                        if err.is_eof() {
+                            actions.push(Action::Modify {
+                                file: path.clone(),
+                                kind: ModifyKind::Initialize,
+                            })
+                        } else if err.is_syntax() {
+                            actions.push(Action::Modify {
+                                file: path.clone(),
+                                kind: ModifyKind::Repair,
+                            })
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
+                    Ok(_manifest) => actions.push(Action::Modify {
                         file: path.clone(),
                         kind: ModifyKind::Corrupt,
                     }),
@@ -781,8 +818,10 @@ impl Simulator {
         use syre_local::{common, constants};
 
         let mut actions = Vec::with_capacity(10);
-        let container_ptr = container.borrow().fs_resource().upgrade().unwrap();
-        let container_path = state.fs().graph().path(&container_ptr).unwrap();
+        let container_path = state
+            .app()
+            .resource_path(state::app::FolderResource::Container(Ptr::downgrade(container)).into())
+            .unwrap();
         let mv = &folders[rng.gen_range(0..folders.len())];
         let mv_path = state.fs().graph().path(&mv).unwrap();
 
@@ -791,6 +830,14 @@ impl Simulator {
             Action::Rename {
                 from: container_path.clone(),
                 to: utils::random_file_name(rng),
+            },
+            Action::CreateFolder {
+                path: container_path.join(utils::random_file_name(rng)),
+                with_parents: false,
+            },
+            Action::CreateFile {
+                path: container_path.join(utils::random_file_name(rng)),
+                with_parents: false,
             },
         ]);
 
@@ -821,7 +868,6 @@ impl Simulator {
 
             Some(data) => {
                 let config = data.config().borrow();
-                let config_folder_ptr = config.fs_resource().upgrade().unwrap().clone();
                 actions.extend([
                     Action::CreateFolder {
                         path: config_path.join(utils::random_file_name(rng)),
@@ -882,56 +928,43 @@ impl Simulator {
 }
 
 impl Simulator {
-    fn perform_actions(&mut self, actions: Vec<state::fs::Action>) -> Result {
-        actions
-            .iter()
-            .map(|action| {
-                let res = self.perform_action(action);
-                self.state.app.reduce(action).unwrap();
-                res
-            })
-            .collect()
+    fn perform_actions(&mut self, actions: Vec<state::fs::Action>) {
+        for action in actions {
+            self.state.app.reduce(action.clone());
+            self.perform_action(action);
+        }
     }
 
-    fn perform_action(&mut self, action: &state::fs::Action) -> Result {
+    fn perform_action(&mut self, action: state::fs::Action) {
         use crate::state::fs::Action;
 
         let fs_state = self.state.app.fs();
         match action {
             Action::CreateFolder { path, with_parents } => {
-                if *with_parents {
+                if with_parents {
                     let path = fs_state.join_path(path);
-                    fs::create_dir_all(path)?;
+                    fs::create_dir_all(path).unwrap();
                 } else {
-                    let parent = fs_state
-                        .graph()
-                        .find_by_path(path.parent().unwrap())
-                        .unwrap();
-
-                    assert!(!fs_state
-                        .name_exists(&parent, path.file_name().unwrap())
-                        .unwrap());
-
                     let path = fs_state.join_path(path);
-                    fs::create_dir(path)?;
+                    fs::create_dir(path).unwrap();
                 }
             }
             Action::CreateFile { path, with_parents } => {
                 let path = fs_state.join_path(path);
-                if *with_parents {
-                    fs::create_dir_all(path.parent().unwrap())?;
+                if with_parents {
+                    fs::create_dir_all(path.parent().unwrap()).unwrap();
                 }
 
-                fs::File::create(path)?;
+                fs::File::create(path).unwrap();
             }
 
             Action::Remove(path) => {
                 let path = fs_state.join_path(path);
                 assert!(path.exists());
                 if path.is_file() {
-                    fs::remove_file(path)?;
+                    fs::remove_file(path).unwrap();
                 } else if path.is_dir() {
-                    fs::remove_dir_all(path)?;
+                    fs::remove_dir_all(path).unwrap();
                 } else {
                     panic!("invalid path resource");
                 }
@@ -941,14 +974,14 @@ impl Simulator {
                 assert!(from.exists());
                 let mut to_path = from.clone();
                 to_path.set_file_name(to);
-                fs::rename(from, to_path)?;
+                fs::rename(from, to_path).unwrap();
             }
             Action::Move { from, to } => {
                 let from = fs_state.join_path(from);
                 let to = fs_state.join_path(to);
                 assert!(from.exists());
                 assert!(!to.exists());
-                fs::rename(from, to)?;
+                fs::rename(from, to).unwrap();
             }
             Action::Copy { from, to } => {
                 let from = fs_state.join_path(from);
@@ -957,38 +990,107 @@ impl Simulator {
                 assert!(!to.exists());
 
                 if from.is_file() {
-                    fs::copy(from, to)?;
+                    fs::copy(from, to).unwrap();
                 } else if from.is_dir() {
-                    utils::copy_dir(from, to)?;
+                    utils::copy_dir(from, to).unwrap();
                 } else {
                     panic!("invalid path resource");
                 }
             }
             Action::Modify { file, kind } => {
-                let path = fs_state.join_path(file);
+                let path = fs_state.join_path(&file);
                 assert!(path.exists());
                 assert!(path.is_file());
                 match kind {
                     state::fs::ModifyKind::ManifestAdd(item) => {
-                        fs::write(path, item)?;
+                        fs::write(path, item).unwrap();
                     }
                     state::fs::ModifyKind::ManifestRemove(index) => {
-                        fs::write(path, format!("remove {index}"))?;
+                        fs::write(path, format!("remove {index}")).unwrap();
                     }
                     state::fs::ModifyKind::Corrupt => {
-                        fs::write(path, "corrupt")?;
+                        let mut file = fs::OpenOptions::new()
+                            .read(true)
+                            .append(true)
+                            .open(&path)
+                            .unwrap();
+                        let mut content = Vec::new();
+                        file.read_to_end(&mut content).unwrap();
+                        assert!(!content.ends_with(state::fs::CORRUPTION_STR.as_bytes()));
+                        write!(file, "{}", state::fs::CORRUPTION_STR).unwrap();
                     }
                     state::fs::ModifyKind::Repair => {
-                        fs::write(path, "repair")?;
+                        let mut file = fs::OpenOptions::new()
+                            .read(true)
+                            .write(true)
+                            .open(&path)
+                            .unwrap();
+                        let mut content = Vec::new();
+                        file.read_to_end(&mut content).unwrap();
+                        assert!(content.ends_with(state::fs::CORRUPTION_STR.as_bytes()));
+                        content.truncate(content.len() - state::fs::CORRUPTION_STR.len());
+                        file.write_all(&content).unwrap();
                     }
-                    state::fs::ModifyKind::Other => {
-                        fs::write(path, "modified")?;
+                    state::fs::ModifyKind::Initialize => {
+                        self.perform_action_modify_initialize(file);
                     }
+                    state::fs::ModifyKind::Other => {}
                 }
             }
         }
+    }
 
-        Ok(())
+    fn perform_action_modify_initialize(&self, path: PathBuf) {
+        let state::app::AppResource::File(app_resource) =
+            self.state.app.app().find_path_resource(&path).unwrap()
+        else {
+            unreachable!();
+        };
+
+        let path = self.state.app.fs().join_path(path);
+        match app_resource {
+            state::app::FileResource::UserManifest(_) => {
+                fs::write(&path, "[]").unwrap();
+            }
+            state::app::FileResource::ProjectManifest(_) => {
+                fs::write(&path, "[]").unwrap();
+            }
+            state::app::FileResource::AnalysisManifest(_) => {
+                fs::write(&path, "[]").unwrap();
+            }
+            state::app::FileResource::AssetManifest(_) => {
+                fs::write(&path, "[]").unwrap();
+            }
+            state::app::FileResource::Analysis(_) => {
+                fs::write(&path, "data").unwrap();
+            }
+            state::app::FileResource::Asset(_) => {
+                fs::write(&path, "data").unwrap();
+            }
+            state::app::FileResource::ProjectProperties(_) => {
+                let project =
+                    syre_core::project::Project::new(path.file_name().unwrap().to_string_lossy());
+                let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+                serde_json::to_writer(file, &project).unwrap();
+            }
+            state::app::FileResource::ProjectSettings(_) => {
+                let settings = syre_local::types::ProjectSettings::default();
+                let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+                serde_json::to_writer(file, &settings).unwrap();
+            }
+            state::app::FileResource::ContainerProperties(_) => {
+                let container =
+                    syre_core::project::Container::new(path.file_name().unwrap().to_string_lossy());
+                let container: syre_local::project::resources::container::StoredContainerProperties = container.into();
+                let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+                serde_json::to_writer(file, &container).unwrap();
+            }
+            state::app::FileResource::ContainerSettings(_) => {
+                let settings = syre_local::types::ContainerSettings::default();
+                let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+                serde_json::to_writer(file, &settings).unwrap();
+            }
+        }
     }
 }
 

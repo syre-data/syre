@@ -1,7 +1,6 @@
 use super::{
-    fs,
     graph::{NodeMap, Tree},
-    HasName, Ptr, WPtr,
+    HasName, Ptr, Reducible, WPtr,
 };
 use has_id::HasId;
 use std::{
@@ -140,8 +139,12 @@ impl State {
         let data = project.data().borrow();
         if let Ok(rel_path) = path.strip_prefix(data.path()) {
             let Some(graph) = data.graph() else {
-                panic!();
+                return Some(FolderResource::Data(Ptr::downgrade(project.data())).into());
             };
+
+            if rel_path.as_os_str() == "" {
+                return Some(FolderResource::Container(Ptr::downgrade(&graph.root())).into());
+            }
 
             if rel_path.file_name().unwrap() == common::app_dir() {
                 let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
@@ -194,7 +197,10 @@ impl State {
                 return Some(FolderResource::Container(Ptr::downgrade(&container)).into());
             }
 
-            let container = graph.find_by_path(rel_path.parent().unwrap()).unwrap();
+            let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                return None;
+            };
+
             let container = container.borrow();
             if let Some(data) = container.data().as_ref() {
                 let config = data.config().borrow();
@@ -278,6 +284,10 @@ impl State {
                 FolderResource::Analyses(resource) => {
                     let resource = resource.upgrade()?;
                     self.find_analyses_project(&resource)
+                }
+                FolderResource::Data(resource) => {
+                    let resource = resource.upgrade()?;
+                    self.find_data_project(&resource)
                 }
                 FolderResource::Container(resource) => {
                     let resource = resource.upgrade()?;
@@ -540,6 +550,12 @@ impl State {
         })
     }
 
+    pub fn find_data_project(&self, resource: &Ptr<Data>) -> Option<&Ptr<Project>> {
+        self.projects
+            .iter()
+            .find(|project| Ptr::ptr_eq(project.borrow().data(), &resource))
+    }
+
     pub fn find_container_project(&self, resource: &Ptr<Container>) -> Option<&Ptr<Project>> {
         self.projects
             .iter()
@@ -708,6 +724,10 @@ impl State {
                 let path = project.borrow().path().join(resource.borrow().path());
                 Some(path)
             }
+            FolderResource::Data(resource) => {
+                let resource = resource.upgrade()?;
+                self.data_path(&resource)
+            }
             FolderResource::Container(resource) => {
                 let resource = resource.upgrade()?;
                 self.container_path(&resource)
@@ -728,7 +748,7 @@ impl State {
     ) -> Option<PathBuf> {
         let project = project.borrow();
         let data = project.data().borrow();
-        let graph = data.graph().as_ref()?;
+        let graph = data.graph()?;
         let container_path = graph.path(&container).unwrap();
 
         Some(project.path().join(data.path()).join(container_path))
@@ -780,14 +800,23 @@ impl State {
         Some(common::app_dir_of(project.borrow().path()))
     }
 
+    pub fn data_path(&self, resource: &Ptr<Data>) -> Option<PathBuf> {
+        let project = self.find_data_project(&resource)?;
+        let project = project.borrow();
+        let data = project.data().borrow();
+        Some(project.path().join(data.path()))
+    }
+
     pub fn container_path(&self, resource: &Ptr<Container>) -> Option<PathBuf> {
         let project = self.find_container_project(&resource)?;
         let project = project.borrow();
         let data = project.data().borrow();
-        let graph = data.graph().as_ref()?;
+        let graph = data.graph()?;
         let container_path = graph.path(&resource).unwrap();
 
-        Some(project.path().join(data.path()).join(container_path))
+        let path = project.path().join(data.path());
+        let path = path.parent().unwrap(); // account for doubling of data root
+        Some(path.join(container_path))
     }
 
     pub fn container_config_path(&self, resource: &Ptr<ContainerConfig>) -> Option<PathBuf> {
@@ -823,6 +852,198 @@ impl State {
             },
             project_map,
         )
+    }
+}
+
+#[derive(Debug, derive_more::From)]
+pub enum Action {
+    App(AppAction),
+    Project(ProjectAction),
+}
+
+#[derive(Debug)]
+pub enum AppAction {
+    UserManifest(ManifestAction),
+    ProjectManifest(ManifestAction),
+}
+
+#[derive(Debug)]
+pub enum ProjectAction {
+    Create(PathBuf),
+    Remove(PathBuf),
+    SetPath {
+        project: PathBuf,
+        to: PathBuf,
+    },
+    Config {
+        project: PathBuf,
+        action: ConfigAction,
+    },
+    Analyses {
+        project: PathBuf,
+        action: ManifestAction,
+    },
+    Data {
+        project: PathBuf,
+        action: DataAction,
+    },
+}
+
+#[derive(Debug)]
+pub enum DataAction {
+    InitializeGraph,
+    RemoveGraph,
+    InsertContainer {
+        /// Parent relative to data root.
+        parent: PathBuf,
+        name: OsString,
+    },
+
+    RemoveContainer(
+        /// Path relative to data root.
+        PathBuf,
+    ),
+
+    ContainerConfig {
+        /// Path relative to data root.
+        container: PathBuf,
+        action: ConfigAction,
+    },
+}
+
+#[derive(Debug, derive_more::From)]
+pub enum ConfigAction {
+    Insert,
+    Remove,
+    Manifest(ManifestAction),
+}
+
+#[derive(Debug)]
+pub enum ManifestAction {
+    AddItem(String),
+    RemoveItem(usize),
+}
+
+impl Reducible for State {
+    type Action = Action;
+    fn reduce(&mut self, action: Self::Action) {
+        match action {
+            Action::App(action) => self.reduce_app(action),
+            Action::Project(action) => self.reduce_project(action),
+        }
+    }
+}
+
+impl State {
+    fn reduce_app(&mut self, action: AppAction) {
+        match action {
+            AppAction::UserManifest(action) => self.reduce_app_user_manifest(action),
+            AppAction::ProjectManifest(action) => self.reduce_app_project_manifest(action),
+        }
+    }
+
+    fn reduce_app_user_manifest(&mut self, action: ManifestAction) {
+        match action {
+            ManifestAction::AddItem(_) => todo!(),
+            ManifestAction::RemoveItem(index) => {
+                self.app.user_manifest.borrow_mut().remove(index);
+            }
+        }
+    }
+
+    fn reduce_app_project_manifest(&mut self, action: ManifestAction) {
+        match action {
+            ManifestAction::AddItem(path) => {
+                let path = PathBuf::from(path);
+                self.app.project_manifest.borrow_mut().push(path.clone());
+                let project = Project::new(path, "data");
+                self.projects.push(Ptr::new(project));
+            }
+            ManifestAction::RemoveItem(index) => {
+                self.app.project_manifest.borrow_mut().remove(index);
+            }
+        }
+    }
+
+    fn reduce_project(&mut self, action: ProjectAction) {
+        match action {
+            ProjectAction::Create(path) => {
+                if !self
+                    .projects
+                    .iter()
+                    .any(|project| project.borrow().path() == &path)
+                {
+                    let project = Project::new(path, "data");
+                    self.projects.push(Ptr::new(project));
+                }
+            }
+            ProjectAction::Remove(path) => self
+                .projects
+                .retain(|project| project.borrow().path() != &path),
+            ProjectAction::SetPath { project, to } => {
+                let project = self
+                    .projects
+                    .iter()
+                    .find(|prj| prj.borrow().path() == &project)
+                    .unwrap();
+
+                project.borrow_mut().set_path(to);
+            }
+            ProjectAction::Config { project, action } => {
+                let project = self.find_path_project(project).unwrap().clone();
+                self.reduce_project_config(project, action);
+            }
+            ProjectAction::Analyses { project, action } => unreachable!(),
+            ProjectAction::Data { project, action } => {
+                let project = self.find_path_project(project).unwrap().clone();
+                self.reduce_project_data(project, action)
+            }
+        }
+    }
+
+    fn reduce_project_config(&mut self, project: Ptr<Project>, action: ConfigAction) {
+        match action {
+            ConfigAction::Insert => {
+                project.borrow_mut().insert_config();
+            }
+            ConfigAction::Remove => {
+                project.borrow_mut().remove_config();
+            }
+            ConfigAction::Manifest(_) => todo!(),
+        }
+    }
+
+    fn reduce_project_data(&mut self, project: Ptr<Project>, action: DataAction) {
+        match action {
+            DataAction::InitializeGraph => {
+                let project = project.borrow();
+                let mut data = project.data().borrow_mut();
+                data.initialize_graph();
+            }
+            DataAction::RemoveGraph => {
+                let project = project.borrow();
+                let mut data = project.data().borrow_mut();
+                data.remove_graph();
+            }
+            DataAction::InsertContainer { parent, name } => todo!(),
+            DataAction::RemoveContainer(_) => todo!(),
+            DataAction::ContainerConfig { container, action } => {
+                let project = project.borrow();
+                let data = project.data.borrow();
+                let graph = data.graph().unwrap();
+                let container = graph.find_by_path(container).unwrap();
+                let mut container = container.borrow_mut();
+                match action {
+                    ConfigAction::Insert => {
+                        container.set_data(ContainerData::new());
+                    }
+                    ConfigAction::Remove => {
+                        container.remove_data();
+                    }
+                    ConfigAction::Manifest(_) => todo!(),
+                }
+            }
+        }
     }
 }
 
@@ -976,9 +1197,9 @@ impl Project {
         &self.config
     }
 
-    pub fn set_config_folder(&mut self, folder: &Ptr<fs::Folder>) {
+    pub fn insert_config(&mut self) {
         assert!(!self.config.is_present());
-        let config = ProjectConfig::new(Ptr::downgrade(folder));
+        let config = ProjectConfig::new();
         self.config = Resource::Present(Ptr::new(config));
     }
 
@@ -1177,12 +1398,24 @@ impl Data {
         self.path = path.into();
     }
 
-    pub fn graph(&self) -> &Option<Tree<Container>> {
-        &self.graph
+    pub fn graph(&self) -> Option<&Tree<Container>> {
+        self.graph.as_ref()
     }
 
     pub fn graph_mut(&mut self) -> &mut Option<Tree<Container>> {
         &mut self.graph
+    }
+
+    pub fn initialize_graph(&mut self) {
+        assert!(self.graph.is_none());
+        let root = Container::new(self.path().file_name().unwrap());
+        let graph = Tree::new(root);
+        let _ = self.graph.insert(graph);
+    }
+
+    pub fn remove_graph(&mut self) {
+        assert!(self.graph.is_some());
+        let _ = self.graph.take();
     }
 
     /// Sets the graph's root.
@@ -1191,10 +1424,6 @@ impl Data {
         let root = Container::new(name);
         let graph = Tree::new(root);
         self.graph = Some(graph);
-    }
-
-    pub fn remove_graph(&mut self) {
-        self.graph = None;
     }
 
     /// Remove a container from the graph.
@@ -1268,7 +1497,7 @@ impl Container {
 
     pub fn set_data(&mut self, data: ContainerData) {
         assert!(self.data.is_none());
-        self.data.insert(data);
+        let _ = self.data.insert(data);
     }
 
     pub fn remove_data(&mut self) -> Option<ContainerData> {
@@ -1285,10 +1514,10 @@ pub struct ContainerData {
 }
 
 impl ContainerData {
-    pub fn new(folder: &Ptr<fs::Folder>) -> Self {
+    pub fn new() -> Self {
         Self {
             rid: ResourceId::new(),
-            config: Ptr::new(ContainerConfig::new(folder)),
+            config: Ptr::new(ContainerConfig::new()),
         }
     }
 
@@ -1309,7 +1538,7 @@ pub struct ContainerConfig {
 }
 
 impl ContainerConfig {
-    pub fn new(folder: &Ptr<fs::Folder>) -> Self {
+    pub fn new() -> Self {
         Self {
             properties: Ptr::new(ContainerProperties),
             settings: Ptr::new(ContainerSettings),
@@ -1504,6 +1733,9 @@ pub enum FolderResource {
     Project(WPtr<Project>),
     ProjectConfig(WPtr<ProjectConfig>),
     Analyses(WPtr<Analyses>),
+    /// Indicates the resource points to the data root,
+    /// but the data root has not yet been created.
+    Data(WPtr<Data>),
     Container(WPtr<Container>),
     ContainerConfig(WPtr<ContainerConfig>),
 }
@@ -1520,6 +1752,7 @@ impl std::fmt::Debug for FolderResource {
             FolderResource::Analyses(ptr) => {
                 f.write_fmt(format_args!("Analyses [{:?}]", ptr.as_ptr()))
             }
+            FolderResource::Data(ptr) => f.write_fmt(format_args!("Data [{:?}]", ptr.as_ptr())),
             FolderResource::Container(ptr) => {
                 f.write_fmt(format_args!("Container [{:?}]", ptr.as_ptr()))
             }

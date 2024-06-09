@@ -14,7 +14,7 @@ fn test_simulator() {
             .unwrap();
 
     let mut options = simulator::options::Builder::new(base_dir.path().to_path_buf());
-    options.set_max_ticks(1000);
+    options.set_max_ticks(10000);
     options.set_user_manifest(prepend_root(
         user_manifest.path().strip_prefix(base_dir.path()).unwrap(),
     ));

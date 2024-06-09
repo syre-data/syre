@@ -152,7 +152,27 @@ impl State {
             FolderResource::Project(_) => {
                 let project = self.app.find_resource_project(resource.into()).unwrap();
                 let project = project.borrow().path().clone();
-                self.app.reduce(app::ProjectAction::Create(project).into());
+                self.app
+                    .reduce(app::ProjectAction::Create(project.clone()).into());
+
+                let folder = self.fs.graph().find_by_path(&project).unwrap();
+                for child in self.fs.graph().children(&folder).unwrap() {
+                    let path = project.join(child.borrow().name());
+                    if let Some(app::AppResource::Folder(resource)) =
+                        self.app.find_path_resource(path)
+                    {
+                        self.insert_folder_resource(resource);
+                    }
+                }
+
+                for file in folder.borrow().files() {
+                    let path = project.join(file.borrow().name());
+                    if let Some(app::AppResource::File(resource)) =
+                        self.app.find_path_resource(path)
+                    {
+                        self.insert_file_resource(resource)
+                    }
+                }
             }
             FolderResource::ProjectConfig(_) | FolderResource::ContainerConfig(_) => {
                 unreachable!("handled elsewhere")
@@ -454,12 +474,19 @@ impl Reducible for State {
 
                         app::FileResource::ProjectManifest(_) => {
                             match kind {
-                                fs::ModifyKind::ManifestAdd(path) => self.app.reduce(
-                                    app::AppAction::ProjectManifest(app::ManifestAction::AddItem(
-                                        path,
-                                    ))
-                                    .into(),
-                                ),
+                                fs::ModifyKind::ManifestAdd(path) => {
+                                    self.app.reduce(
+                                        app::AppAction::ProjectManifest(
+                                            app::ManifestAction::AddItem(path.clone()),
+                                        )
+                                        .into(),
+                                    );
+
+                                    if self.fs.exists(&path) {
+                                        let project = self.app.find_path_project(path).unwrap();
+                                        project.borrow_mut().sync_with_fs(&self.fs);
+                                    }
+                                }
                                 fs::ModifyKind::ManifestRemove(index) => self.app.reduce(
                                     app::AppAction::ProjectManifest(
                                         app::ManifestAction::RemoveItem(index),

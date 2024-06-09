@@ -28,6 +28,82 @@ use syre_local::{common as local_common, system::collections::ProjectManifest};
 
 pub type EventResult = StdResult<Vec<Event>, Vec<Error>>;
 
+pub struct Builder {
+    /// Sends events to the client.
+    event_tx: Sender<EventResult>,
+
+    // Recieve commands from the client.
+    command_rx: Receiver<Command>,
+
+    app_config: config::AppConfig,
+
+    /// Initial paths to watch.
+    paths: Vec<PathBuf>,
+}
+
+impl Builder {
+    /// # Arguments
+    /// 1. `command_rx`: Channel to recieve commands over.
+    /// 2. `event_tx`: Channel to send events over.
+    /// 3. `app_config`
+    pub fn new(
+        command_rx: Receiver<Command>,
+        event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
+        app_config: config::AppConfig,
+    ) -> Self {
+        Self {
+            event_tx,
+            command_rx,
+            app_config,
+            paths: vec![],
+        }
+    }
+
+    pub fn add_path(&mut self, path: impl Into<PathBuf>) {
+        self.paths.push(path.into());
+    }
+
+    pub fn add_paths(&mut self, paths: Vec<PathBuf>) {
+        self.paths.extend(paths);
+    }
+
+    pub fn run(self) -> Result<(), crossbeam::channel::RecvError> {
+        let (fs_tx, fs_rx) = crossbeam::channel::unbounded();
+        let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
+        let mut file_system_actor = FileSystemActor::new(fs_tx, fs_command_rx);
+        thread::Builder::new()
+            .name("syre file system watcher actor".to_string())
+            .spawn(move || file_system_actor.run())
+            .unwrap();
+
+        for path in self.paths.iter() {
+            let (tx, rx) = crossbeam::channel::bounded(1);
+            fs_command_tx
+                .send(WatcherCommand::Watch {
+                    path: path.clone(),
+                    tx,
+                })
+                .unwrap();
+            if let Err(err) = rx.recv()? {
+                panic!("{err:?}");
+            }
+        }
+
+        let watcher = FsWatcher {
+            event_tx: self.event_tx,
+            command_rx: self.command_rx,
+            command_tx: fs_command_tx,
+            event_rx: fs_rx,
+            file_ids: Arc::new(Mutex::new(FileIdMap::new())),
+            roots: Mutex::new(vec![]),
+            app_config: self.app_config,
+            shutdown: Mutex::new(false),
+        };
+
+        watcher.run()
+    }
+}
+
 /// Listens for events on the file system.
 pub struct FsWatcher {
     /// Sends events to the client.
@@ -46,9 +122,12 @@ pub struct FsWatcher {
     // is automatically updated on events recieved before we have access.
     // This means we lose the ability to get the file's id on destructive events
     // such as when a file is removed or moved from a location.
-    // This cach is in the CommandInnder and EventInner structs.
+    // This cache is in the CommandInner and EventInner structs.
     /// Cache to hold file ids.
     file_ids: Arc<Mutex<FileIdMap>>,
+
+    /// Project roots being watched.
+    roots: Mutex<Vec<PathBuf>>,
 
     app_config: config::AppConfig,
 
@@ -57,37 +136,6 @@ pub struct FsWatcher {
 }
 
 impl FsWatcher {
-    /// Creates a new file system watcher.
-    /// The watcher immediately begins listening for file system events.
-    /// Call the `run` method to listen for events.
-    ///
-    /// # Arguments
-    /// 1. `command_rx`: Channel to recieve commands over.
-    /// 2. `event_tx`: Channel to send events over.
-    pub fn new(
-        command_rx: Receiver<Command>,
-        event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
-        app_config: config::AppConfig,
-    ) -> Self {
-        let (fs_tx, fs_rx) = crossbeam::channel::unbounded();
-        let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
-        let mut file_system_actor = FileSystemActor::new(fs_tx, fs_command_rx);
-        thread::Builder::new()
-            .name("syre file system watcher actor".to_string())
-            .spawn(move || file_system_actor.run())
-            .unwrap();
-
-        Self {
-            event_tx,
-            command_rx,
-            command_tx: fs_command_tx,
-            event_rx: fs_rx,
-            file_ids: Arc::new(Mutex::new(FileIdMap::new())),
-            app_config,
-            shutdown: Mutex::new(false),
-        }
-    }
-
     /// Begins responsiveness allowing events to be sent.
     pub fn run(&self) -> StdResult<(), crossbeam::channel::RecvError> {
         loop {
@@ -142,6 +190,11 @@ impl FsWatcher {
                 if let Err(err) = res {
                     tracing::error!(?err);
                     return;
+                }
+
+                let mut roots = self.roots.lock().unwrap();
+                if !roots.contains(&path) {
+                    roots.push(path.clone());
                 }
 
                 let mut file_ids = self.file_ids.lock().unwrap();
@@ -268,10 +321,10 @@ impl FsWatcher {
         tracing::debug!(?events);
         let (fs_events, mut errors) = self.process_events_notify_to_fs(&events);
 
-        tracing::debug!(?events);
+        tracing::debug!(?fs_events, ?errors);
         let (app_events, app_errors) = self.process_events_fs_to_app(fs_events);
 
-        tracing::debug!(?events);
+        tracing::debug!(?app_events, ?app_errors);
         errors.extend(app_errors);
         (app_events, errors)
     }
@@ -656,15 +709,29 @@ impl FsWatcher {
                 let to = fs::canonicalize(to).unwrap();
                 let from = normalize_path_root(from);
                 if to.is_file() {
-                    Some(fs_event::Event::new(
-                        fs_event::File::Renamed { from, to },
-                        time,
-                    ))
+                    if to.parent() == from.parent() {
+                        Some(fs_event::Event::new(
+                            fs_event::File::Renamed { from, to },
+                            time,
+                        ))
+                    } else {
+                        Some(fs_event::Event::new(
+                            fs_event::File::Moved { from, to },
+                            time,
+                        ))
+                    }
                 } else if to.is_dir() {
-                    Some(fs_event::Event::new(
-                        fs_event::Folder::Renamed { from, to },
-                        time,
-                    ))
+                    if to.parent() == from.parent() {
+                        Some(fs_event::Event::new(
+                            fs_event::Folder::Renamed { from, to },
+                            time,
+                        ))
+                    } else {
+                        Some(fs_event::Event::new(
+                            fs_event::Folder::Moved { from, to },
+                            time,
+                        ))
+                    }
                 } else {
                     return Err(error::Process::UnknownFileType);
                 }
@@ -897,7 +964,7 @@ impl FsWatcher {
     ) -> StdResult<Vec<Event>, error::processing::Error> {
         let events = match &event.kind {
             fs_event::EventKind::File(fs_event::File::Created(path)) => {
-                let event = match Self::handle_file_created(&path, &self.app_config) {
+                let event = match self.handle_file_created(&path, &self.app_config) {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         Event::with_time(EventKind::File(app::ResourceEvent::Created), event.time)
@@ -909,7 +976,7 @@ impl FsWatcher {
             }
 
             fs_event::EventKind::File(fs_event::File::Removed(path)) => {
-                let event = match Self::handle_file_removed(&path, &self.app_config) {
+                let event = match self.handle_file_removed(&path, &self.app_config) {
                     Ok(kind) => Event::with_time(kind, event.time).add_path(path.clone()),
                     Err(err) => {
                         Event::with_time(EventKind::File(app::ResourceEvent::Removed), event.time)
@@ -1033,24 +1100,100 @@ impl FsWatcher {
     }
 
     fn handle_file_created(
+        &self,
         path: &PathBuf,
         app_config: &config::AppConfig,
     ) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path, app_config)? {
-            Some(kind) => Self::convert_resource_to_event_kind_created(kind),
-            None => EventKind::File(app::ResourceEvent::Created),
+        let kind = match resources::resource_kind(path, app_config) {
+            Ok(Some(kind)) => Self::convert_resource_to_event_kind_created(kind),
+            Ok(None) => EventKind::File(app::ResourceEvent::Created),
+            Err(err) => match err.kind() {
+                resources::error::ErrorKind::NotInProject => {
+                    let roots = self.roots.lock().unwrap();
+                    let project = roots
+                        .iter()
+                        .find(|project| path.starts_with(project))
+                        .expect("event should not be triggered if not in a root");
+
+                    assert_ne!(
+                        *path,
+                        local_common::project_file_of(&project),
+                        "NotInProject error indicates project file does not exist"
+                    );
+                    if *path == local_common::project_settings_file_of(&project) {
+                        app::Project::Settings(app::StaticResourceEvent::Created).into()
+                    } else if *path == local_common::analyses_file_of(&project) {
+                        app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                    } else {
+                        return Err(err);
+                    }
+                }
+                resources::error::ErrorKind::LoadProject(_) => {
+                    let project = syre_local::project::project::project_root_path(path)
+                        .expect("LoadProject error indicates we are in a project");
+
+                    if *path == local_common::project_file_of(&project) {
+                        app::Project::Properties(app::StaticResourceEvent::Created).into()
+                    } else if *path == local_common::project_settings_file_of(&project) {
+                        app::Project::Settings(app::StaticResourceEvent::Created).into()
+                    } else if *path == local_common::analyses_file_of(&project) {
+                        app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                    } else {
+                        return Err(err);
+                    }
+                }
+                _ => return Err(err),
+            },
         };
 
         Ok(kind)
     }
 
     fn handle_file_removed(
+        &self,
         path: &PathBuf,
         app_config: &config::AppConfig,
     ) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path, app_config)? {
-            Some(kind) => Self::convert_resource_to_event_kind_removed(kind),
-            None => EventKind::File(app::ResourceEvent::Removed),
+        let kind = match resources::resource_kind(path, app_config) {
+            Ok(Some(kind)) => Self::convert_resource_to_event_kind_removed(kind),
+            Ok(None) => EventKind::File(app::ResourceEvent::Removed),
+            Err(err) => match err.kind() {
+                resources::error::ErrorKind::NotInProject => {
+                    let roots = self.roots.lock().unwrap();
+                    let project = roots
+                        .iter()
+                        .find(|project| path.starts_with(project))
+                        .expect("event should not be triggered if not in a root");
+
+                    if *path == local_common::project_file_of(&project) {
+                        app::Project::Properties(app::StaticResourceEvent::Removed).into()
+                    } else if *path == local_common::project_settings_file_of(&project) {
+                        app::Project::Settings(app::StaticResourceEvent::Removed).into()
+                    } else if *path == local_common::analyses_file_of(&project) {
+                        app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                    } else {
+                        return Err(err);
+                    }
+                }
+                resources::error::ErrorKind::LoadProject(_) => {
+                    let project = syre_local::project::project::project_root_path(path)
+                        .expect("LoadProject error indicates the path is in a project");
+
+                    assert_ne!(
+                        *path,
+                        local_common::project_file_of(&project),
+                        "LoadProject error indicates the path is in a project, requiring a project file to be present."
+                    );
+                    if *path == local_common::project_settings_file_of(&project) {
+                        app::Project::Settings(app::StaticResourceEvent::Removed).into()
+                    } else if *path == local_common::analyses_file_of(&project) {
+                        app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                    } else {
+                        return Err(err);
+                    }
+                }
+                _ => return Err(err),
+            },
         };
 
         Ok(kind)
@@ -1064,7 +1207,6 @@ impl FsWatcher {
     ) -> Vec<Event> {
         let from_kind = resources::resource_kind(&from, app_config);
         let to_kind = resources::resource_kind(&to, app_config);
-
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
                 vec![
@@ -1203,17 +1345,52 @@ impl FsWatcher {
     }
 
     fn handle_folder_created(&self, path: &PathBuf) -> StdResult<EventKind, resources::Error> {
+        use resources::error::ErrorKind;
+
         assert!(path.exists());
-        let kind = match resources::dir_kind(path)? {
-            resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Created),
-            resources::DirKind::ContainerLike { .. } => {
+        let kind = match resources::dir_kind(path) {
+            Ok(resources::DirKind::None { .. }) => {
+                app::EventKind::Folder(app::ResourceEvent::Created)
+            }
+            Ok(resources::DirKind::ContainerLike { .. }) => {
                 if local_common::container_file_of(path).exists() {
                     app::Graph::Created.into()
                 } else {
                     app::EventKind::Folder(app::ResourceEvent::Created)
                 }
             }
-            kind => Self::convert_dir_to_event_kind_created(&kind),
+            Ok(kind) => Self::convert_dir_to_event_kind_created(&kind),
+            Err(err) if matches!(err.kind(), resources::error::ErrorKind::NotInProject) => {
+                let projects = match self.app_config.load_project_manifest() {
+                    Ok(projects) => projects,
+                    Err(err) => {
+                        return Err(resources::error::Error::new(
+                            path.clone(),
+                            ErrorKind::LoadProjectManifest(err),
+                        ));
+                    }
+                };
+
+                let Some(project) = projects.iter().find(|project| path.starts_with(project))
+                else {
+                    return Err(resources::error::Error::new(
+                        path.clone(),
+                        ErrorKind::NotInProject,
+                    ));
+                };
+
+                if path == project {
+                    app::Project::Created.into()
+                } else if path == &syre_local::common::app_dir_of(project) {
+                    app::Project::ConfigDir(app::StaticResourceEvent::Created).into()
+                } else {
+                    return Err(resources::error::Error::new(
+                        path.clone(),
+                        ErrorKind::NotInProject,
+                    ));
+                }
+            }
+            Err(err) => return Err(err),
         };
 
         Ok(kind)
@@ -1252,7 +1429,7 @@ impl FsWatcher {
                 if matches!(
                     from_kind,
                     resources::DirKind::Project {
-                        kind: resources::ProjectDir::Project,
+                        kind: resources::ProjectDir::Root,
                         ..
                     }
                 ) {
@@ -1279,7 +1456,7 @@ impl FsWatcher {
                 if matches!(
                     to_kind,
                     resources::DirKind::Project {
-                        kind: resources::ProjectDir::Project,
+                        kind: resources::ProjectDir::Root,
                         ..
                     },
                 ) {
@@ -1393,7 +1570,7 @@ impl FsWatcher {
                     (from_kind, to_err.kind()),
                     (
                         resources::DirKind::Project {
-                            kind: resources::ProjectDir::Project,
+                            kind: resources::ProjectDir::Root,
                             ..
                         },
                         resources::ErrorKind::NotInProject
@@ -1416,7 +1593,7 @@ impl FsWatcher {
                     (
                         resources::ErrorKind::NotInProject,
                         resources::DirKind::Project {
-                            kind: resources::ProjectDir::Project,
+                            kind: resources::ProjectDir::Root,
                             ..
                         }
                     )
@@ -1448,7 +1625,7 @@ impl FsWatcher {
                             !matches!(
                                 from_kind,
                                 resources::DirKind::Project {
-                                    kind: resources::ProjectDir::Project,
+                                    kind: resources::ProjectDir::Root,
                                     ..
                                 }
                             ),
@@ -1493,7 +1670,7 @@ impl FsWatcher {
                             !matches!(
                                 to_kind,
                                 resources::DirKind::Project {
-                                    kind: resources::ProjectDir::Project,
+                                    kind: resources::ProjectDir::Root,
                                     ..
                                 }
                             ),
@@ -2003,7 +2180,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Created.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Modified.into(),
+                resources::ProjectDir::Root => app::Project::Modified.into(),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Created).into()
                 }
@@ -2017,7 +2194,7 @@ impl FsWatcher {
             resources::DirKind::ContainerLike { .. } => unreachable!("should be handled elsewhere"),
             resources::DirKind::Container { .. } => EventKind::Graph(app::Graph::Created),
             resources::DirKind::ContainerConfig { .. } => {
-                EventKind::Folder(app::ResourceEvent::Created)
+                EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Created))
             }
             resources::DirKind::None { .. } => EventKind::Folder(app::ResourceEvent::Created),
         }
@@ -2027,7 +2204,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Removed.into(),
+                resources::ProjectDir::Root => app::Project::Removed.into(),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }
@@ -2056,7 +2233,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Modified.into(),
+                resources::ProjectDir::Root => app::Project::Modified.into(),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }
@@ -2081,7 +2258,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Modified(app::ModifiedKind::Other).into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Modified.into(),
+                resources::ProjectDir::Root => app::Project::Modified.into(),
                 resources::ProjectDir::Config => app::Project::ConfigDir(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
@@ -2111,7 +2288,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Removed.into(),
+                resources::ProjectDir::Root => app::Project::Removed.into(),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }
@@ -2136,7 +2313,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Modified(app::ModifiedKind::Other).into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Modified.into(),
+                resources::ProjectDir::Root => app::Project::Modified.into(),
                 resources::ProjectDir::Config => app::Project::ConfigDir(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
@@ -2242,11 +2419,11 @@ impl FsWatcher {
 
             (
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     project: from_project,
                 },
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     project: to_project,
                 },
             ) => {
@@ -2282,7 +2459,7 @@ impl FsWatcher {
         let kind = match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => unreachable!("should be handled elsewhere"),
+                resources::ProjectDir::Root => unreachable!("should be handled elsewhere"),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }
@@ -2314,7 +2491,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Modified(app::ModifiedKind::Other).into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Project => app::Project::Modified.into(),
+                resources::ProjectDir::Root => app::Project::Modified.into(),
                 resources::ProjectDir::Config => app::Project::ConfigDir(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
@@ -2461,11 +2638,11 @@ impl FsWatcher {
 
             (
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     ..
                 },
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     ..
                 },
             ) => Ok(vec![
@@ -2475,7 +2652,7 @@ impl FsWatcher {
 
             (
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     ..
                 },
                 resources::DirKind::Project { kind: to_kind, .. },
@@ -2489,7 +2666,7 @@ impl FsWatcher {
                     kind: from_kind, ..
                 },
                 resources::DirKind::Project {
-                    kind: resources::ProjectDir::Project,
+                    kind: resources::ProjectDir::Root,
                     ..
                 },
             ) => {
@@ -2535,10 +2712,13 @@ pub mod config {
     }
 
     impl AppConfig {
-        pub fn new(user_manifest: PathBuf, project_manifest: PathBuf) -> Self {
+        pub fn new(
+            user_manifest: impl Into<PathBuf>,
+            project_manifest: impl Into<PathBuf>,
+        ) -> Self {
             Self {
-                user_manifest,
-                project_manifest,
+                user_manifest: user_manifest.into(),
+                project_manifest: project_manifest.into(),
             }
         }
 
@@ -2656,7 +2836,7 @@ mod resources {
     #[derive(Debug)]
     pub(crate) enum ProjectDir {
         /// A project's base folder.
-        Project,
+        Root,
 
         /// A project's config (.syre) folder.
         Config,
@@ -2669,6 +2849,7 @@ mod resources {
     }
 
     /// Represents potential of a path to be a config resource based on its location.
+    #[derive(Debug)]
     pub(crate) enum ConfigLocationKind {
         /// Not a config resource.
         /// Path either does not contain any app folders (.syre) in it,
@@ -2751,7 +2932,7 @@ mod resources {
         if *path == project.base_path() {
             return Ok(DirKind::Project {
                 project: project.rid.clone(),
-                kind: ProjectDir::Project,
+                kind: ProjectDir::Root,
             });
         }
 
@@ -2908,6 +3089,11 @@ mod resources {
                         project: project.rid.clone(),
                         kind: Container::Settings,
                     })
+                } else if path.ends_with(common::assets_file()) {
+                    Some(ResourceEvent::Container {
+                        project: project.rid.clone(),
+                        kind: Container::Assets,
+                    })
                 } else {
                     None
                 }
@@ -2988,6 +3174,9 @@ mod resources {
 
             /// The project failed to load.
             LoadProject(IoSerde),
+
+            /// The project manifest failed to load.
+            LoadProjectManifest(IoSerde),
         }
     }
 }

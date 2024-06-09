@@ -267,6 +267,7 @@ mod linux {
                 .cache()
                 .add_root(path, RecursiveMode::Recursive);
 
+            tracing::debug!("watching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
                 tracing::error!(?err);
             }
@@ -283,6 +284,7 @@ mod linux {
             }
 
             self.watcher.cache().remove_root(path);
+            tracing::debug!("unwatching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
                 tracing::error!(?err);
             }

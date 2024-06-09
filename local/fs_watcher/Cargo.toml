@@ -30,6 +30,7 @@ has_id = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-dev_utils = { workspace = true, features = ["fs"] }
 test-log = { version = "0.2.15", features = ["trace"] }
-syre-fs-watcher-simulator = { path = "simulator" }
+test-utils = { path = "test_utils", features = ["syre_core", "fs"] }
+serde = { workspace = true }
+serde_json = { workspace = true }

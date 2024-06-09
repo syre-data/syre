@@ -5,7 +5,7 @@ use crate::{
 use crossbeam::channel::{Receiver, Sender, TryRecvError};
 use options::Options;
 use rand::{
-    distributions::{Alphanumeric, DistString},
+    distributions::{Alphanumeric, DistString, WeightedIndex},
     prelude::*,
 };
 use rand_chacha::ChaCha8Rng;
@@ -38,7 +38,7 @@ impl Simulator {
         let (validation_tx, validation_rx) = crossbeam::channel::unbounded();
 
         let rng = ChaCha8Rng::seed_from_u64(options.seed());
-        let watcher = watcher::FsWatcher::new(command_rx, event_tx, options.app_config().clone());
+        let watcher = watcher::Builder::new(command_rx, event_tx, options.app_config().clone());
         let watcher_thread = thread::Builder::new()
             .name("syre fs watcher simulator watcher".into())
             .spawn(move || {
@@ -75,10 +75,11 @@ impl Simulator {
         while self.state.current_tick < self.options.max_ticks() {
             tracing::debug!(?self.state.current_tick);
             let action_count = self.rng.gen_range(self.options.action_count_range());
-            let (actions, app_state_final) =
+            let (actions, _app_state_final) =
                 Self::choose_actions(action_count, self.state.app.clone(), &mut self.rng);
 
             tracing::debug!(?actions);
+            // tracing::debug!("{:?}", self.state.app.app().projects());
             self.perform_actions(actions);
             match self.validation_rx.try_recv() {
                 Ok(Validation { expected, received }) => {
@@ -143,13 +144,16 @@ impl Simulator {
     where
         R: rand::Rng,
     {
-        let mut valid_actions = Self::valid_actions(&state, rng);
-        let index = rng.gen_range(0..valid_actions.len());
-        valid_actions.swap_remove(index)
+        let valid_actions = Self::valid_actions(&state, rng);
+        let (mut actions, weights): (Vec<state::fs::Action>, Vec<u8>) =
+            valid_actions.into_iter().unzip();
+        let dist = WeightedIndex::new(weights).unwrap();
+        let index = dist.sample(rng);
+        actions.swap_remove(index)
     }
 
     /// Returns a list of all valid actions given a state.
-    fn valid_actions<R>(state: &state::State, rng: &mut R) -> Vec<state::fs::Action>
+    fn valid_actions<R>(state: &state::State, rng: &mut R) -> Vec<(state::fs::Action, u8)>
     where
         R: rand::Rng,
     {
@@ -172,14 +176,20 @@ impl Simulator {
         }
 
         actions.extend([
-            state::fs::Action::CreateFolder {
-                path: folder_path.join(utils::random_file_name(rng)),
-                with_parents: true,
-            },
-            state::fs::Action::CreateFile {
-                path: folder_path.join(filename),
-                with_parents: false,
-            },
+            (
+                state::fs::Action::CreateFolder {
+                    path: folder_path.join(utils::random_file_name(rng)),
+                    with_parents: true,
+                },
+                1,
+            ),
+            (
+                state::fs::Action::CreateFile {
+                    path: folder_path.join(filename),
+                    with_parents: false,
+                },
+                1,
+            ),
         ]);
 
         actions
@@ -189,7 +199,7 @@ impl Simulator {
         state: &state::State,
         folders: &Vec<Ptr<state::fs::Folder>>,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         R: rand::Rng,
     {
@@ -213,32 +223,44 @@ impl Simulator {
             match serde_json::from_str::<'_, Vec<String>>(file.borrow().content()) {
                 Err(err) => {
                     if err.is_eof() {
-                        actions.push(Action::Modify {
-                            file: user_manifest.path().clone(),
-                            kind: ModifyKind::Initialize,
-                        })
+                        actions.push((
+                            Action::Modify {
+                                file: user_manifest.path().clone(),
+                                kind: ModifyKind::Initialize,
+                            },
+                            2,
+                        ))
                     } else if err.is_syntax() {
-                        actions.push(Action::Modify {
-                            file: user_manifest.path().clone(),
-                            kind: ModifyKind::Repair,
-                        })
+                        actions.push((
+                            Action::Modify {
+                                file: user_manifest.path().clone(),
+                                kind: ModifyKind::Repair,
+                            },
+                            2,
+                        ))
                     } else {
                         unreachable!()
                     }
                 }
 
                 Ok(manifest) => {
-                    actions.push(Action::Modify {
-                        file: user_manifest.path().clone(),
-                        kind: ModifyKind::Corrupt,
-                    });
+                    actions.push((
+                        Action::Modify {
+                            file: user_manifest.path().clone(),
+                            kind: ModifyKind::Corrupt,
+                        },
+                        1,
+                    ));
 
                     if manifest.len() > 0 {
                         let remove_index = rng.gen_range(0..manifest.len());
-                        actions.push(Action::Modify {
-                            file: user_manifest.path().clone(),
-                            kind: ModifyKind::ManifestRemove(remove_index),
-                        });
+                        actions.push((
+                            Action::Modify {
+                                file: user_manifest.path().clone(),
+                                kind: ModifyKind::ManifestRemove(remove_index),
+                            },
+                            1,
+                        ));
                     }
                 }
             }
@@ -265,15 +287,21 @@ impl Simulator {
             match serde_json::from_str::<'_, Vec<PathBuf>>(file.borrow().content()) {
                 Err(err) => {
                     if err.is_eof() {
-                        actions.push(Action::Modify {
-                            file: file_path.clone(),
-                            kind: ModifyKind::Initialize,
-                        })
+                        actions.push((
+                            Action::Modify {
+                                file: file_path.clone(),
+                                kind: ModifyKind::Initialize,
+                            },
+                            2,
+                        ))
                     } else if err.is_syntax() {
-                        actions.push(Action::Modify {
-                            file: file_path.clone(),
-                            kind: ModifyKind::Repair,
-                        })
+                        actions.push((
+                            Action::Modify {
+                                file: file_path.clone(),
+                                kind: ModifyKind::Repair,
+                            },
+                            2,
+                        ))
                     } else {
                         unreachable!()
                     }
@@ -281,27 +309,36 @@ impl Simulator {
 
                 Ok(manifest) => {
                     actions.extend([
-                        state::fs::Action::Modify {
-                            file: file_path.clone(),
-                            kind: state::fs::ModifyKind::ManifestAdd(
-                                utils::prepend_root(utils::random_file_name(rng))
-                                    .to_string_lossy()
-                                    .to_string(),
-                            ),
-                        },
-                        Action::Modify {
-                            file: file_path.clone(),
-                            kind: ModifyKind::Corrupt,
-                        },
+                        (
+                            state::fs::Action::Modify {
+                                file: file_path.clone(),
+                                kind: state::fs::ModifyKind::ManifestAdd(
+                                    utils::prepend_root(utils::random_file_name(rng))
+                                        .to_string_lossy()
+                                        .to_string(),
+                                ),
+                            },
+                            2,
+                        ),
+                        (
+                            Action::Modify {
+                                file: file_path.clone(),
+                                kind: ModifyKind::Corrupt,
+                            },
+                            1,
+                        ),
                     ]);
 
                     if manifest.len() > 0 {
-                        actions.push(state::fs::Action::Modify {
-                            file: file_path.clone(),
-                            kind: state::fs::ModifyKind::ManifestRemove(
-                                rng.gen_range(0..manifest.len()),
-                            ),
-                        });
+                        actions.push((
+                            state::fs::Action::Modify {
+                                file: file_path.clone(),
+                                kind: state::fs::ModifyKind::ManifestRemove(
+                                    rng.gen_range(0..manifest.len()),
+                                ),
+                            },
+                            1,
+                        ));
                     }
 
                     let project_folders = folders
@@ -331,24 +368,30 @@ impl Simulator {
                             .manifest()
                             .contains(&path)
                         {
-                            actions.push(state::fs::Action::Modify {
-                                file: file_path.clone(),
-                                kind: state::fs::ModifyKind::ManifestAdd(
-                                    path.to_string_lossy().to_string(),
-                                ),
-                            });
+                            actions.push((
+                                state::fs::Action::Modify {
+                                    file: file_path.clone(),
+                                    kind: state::fs::ModifyKind::ManifestAdd(
+                                        path.to_string_lossy().to_string(),
+                                    ),
+                                },
+                                4,
+                            ));
                         }
                     }
 
                     for project in state.app().projects() {
                         let path = project.borrow().path().clone();
                         if !project_manifest.borrow().manifest().contains(&path) {
-                            actions.push(state::fs::Action::Modify {
-                                file: file_path.clone(),
-                                kind: state::fs::ModifyKind::ManifestAdd(
-                                    path.to_string_lossy().to_string(),
-                                ),
-                            });
+                            actions.push((
+                                state::fs::Action::Modify {
+                                    file: file_path.clone(),
+                                    kind: state::fs::ModifyKind::ManifestAdd(
+                                        path.to_string_lossy().to_string(),
+                                    ),
+                                },
+                                2,
+                            ));
                         }
                     }
                 }
@@ -363,7 +406,7 @@ impl Simulator {
         state: &state::State,
         folders: &Vec<Ptr<state::fs::Folder>>,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         R: rand::Rng,
     {
@@ -373,19 +416,25 @@ impl Simulator {
         let mut actions = Vec::with_capacity(50);
         let project = project.borrow();
         match state.fs().find_folder(project.path()) {
-            None => actions.push(Action::CreateFolder {
-                path: project.path().clone(),
-                with_parents: true,
-            }),
+            None => actions.push((
+                Action::CreateFolder {
+                    path: project.path().clone(),
+                    with_parents: true,
+                },
+                2,
+            )),
             Some(folder) => {
                 let mv = &folders[rng.gen_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(mv).unwrap();
                 actions.extend([
-                    Action::Remove(project.path().clone()),
-                    Action::Rename {
-                        from: project.path().clone(),
-                        to: utils::random_file_name(rng),
-                    },
+                    (Action::Remove(project.path().clone()), 1),
+                    (
+                        Action::Rename {
+                            from: project.path().clone(),
+                            to: utils::random_file_name(rng),
+                        },
+                        1,
+                    ),
                 ]);
 
                 if project.path() != &mv_path {
@@ -395,23 +444,32 @@ impl Simulator {
                         && !state.fs().exists(&mv_path)
                     {
                         actions.extend([
-                            Action::Move {
-                                from: project.path().clone(),
-                                to: mv_path.clone(),
-                            },
-                            Action::Copy {
-                                from: project.path().clone(),
-                                to: mv_path.clone(),
-                            },
+                            (
+                                Action::Move {
+                                    from: project.path().clone(),
+                                    to: mv_path.clone(),
+                                },
+                                1,
+                            ),
+                            (
+                                Action::Copy {
+                                    from: project.path().clone(),
+                                    to: mv_path.clone(),
+                                },
+                                1,
+                            ),
                         ]);
                     }
                 }
 
                 match project.config() {
-                    Resource::NotPresent => actions.push(Action::CreateFolder {
-                        path: project.path().join(constants::APP_DIR),
-                        with_parents: true,
-                    }),
+                    Resource::NotPresent => actions.push((
+                        Action::CreateFolder {
+                            path: project.path().join(constants::APP_DIR),
+                            with_parents: true,
+                        },
+                        2,
+                    )),
                     Resource::Present(config_ptr) => {
                         let config = config_ptr.borrow();
                         let path = state.app().project_config_path(config_ptr).unwrap();
@@ -419,25 +477,34 @@ impl Simulator {
                         let mv_path = state.fs().graph().path(mv).unwrap();
 
                         actions.extend([
-                            Action::Remove(path.clone()),
-                            Action::Rename {
-                                from: path.clone(),
-                                to: utils::random_file_name(rng),
-                            },
+                            (Action::Remove(path.clone()), 1),
+                            (
+                                Action::Rename {
+                                    from: path.clone(),
+                                    to: utils::random_file_name(rng),
+                                },
+                                1,
+                            ),
                         ]);
 
                         if mv_path != path {
                             let mv_path = mv_path.join(path.file_name().unwrap());
                             if !state.fs().exists(&mv_path) {
                                 actions.extend([
-                                    Action::Move {
-                                        from: path.clone(),
-                                        to: mv_path.clone(),
-                                    },
-                                    Action::Copy {
-                                        from: path.clone(),
-                                        to: mv_path.clone(),
-                                    },
+                                    (
+                                        Action::Move {
+                                            from: path.clone(),
+                                            to: mv_path.clone(),
+                                        },
+                                        1,
+                                    ),
+                                    (
+                                        Action::Copy {
+                                            from: path.clone(),
+                                            to: mv_path.clone(),
+                                        },
+                                        1,
+                                    ),
                                 ]);
                             }
                         }
@@ -485,33 +552,45 @@ impl Simulator {
                     let analyses = analyses.borrow();
                     let path = project.path().join(analyses.path());
                     match state.fs().exists(&path) {
-                        false => actions.push(Action::CreateFolder {
-                            path,
-                            with_parents: true,
-                        }),
+                        false => actions.push((
+                            Action::CreateFolder {
+                                path,
+                                with_parents: true,
+                            },
+                            2,
+                        )),
                         true => {
                             let mv = &folders[rng.gen_range(0..folders.len())];
                             let mv_path = state.fs().graph().path(mv).unwrap();
                             actions.extend([
-                                Action::Remove(path.clone()),
-                                Action::Rename {
-                                    from: path.clone(),
-                                    to: utils::random_file_name(rng),
-                                },
+                                (Action::Remove(path.clone()), 1),
+                                (
+                                    Action::Rename {
+                                        from: path.clone(),
+                                        to: utils::random_file_name(rng),
+                                    },
+                                    1,
+                                ),
                             ]);
 
                             if !Ptr::ptr_eq(&folder, mv) {
                                 let mv_path = mv_path.join(path.file_name().unwrap());
                                 if !state.fs().exists(&mv_path) {
                                     actions.extend([
-                                        Action::Move {
-                                            from: path.clone(),
-                                            to: mv_path.clone(),
-                                        },
-                                        Action::Copy {
-                                            from: path.clone(),
-                                            to: mv_path.clone(),
-                                        },
+                                        (
+                                            Action::Move {
+                                                from: path.clone(),
+                                                to: mv_path.clone(),
+                                            },
+                                            1,
+                                        ),
+                                        (
+                                            Action::Copy {
+                                                from: path.clone(),
+                                                to: mv_path.clone(),
+                                            },
+                                            1,
+                                        ),
                                     ]);
                                 }
                             }
@@ -528,12 +607,15 @@ impl Simulator {
                                 &analysis_files[rng.gen_range(0..analysis_files.len())];
                             let analysis_path = state.fs().file_path(&analysis_file).unwrap();
                             let rel_path = analysis_path.strip_prefix(analyses.path()).unwrap();
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: state::fs::ModifyKind::ManifestAdd(
-                                    rel_path.to_string_lossy().to_string(),
-                                ),
-                            });
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: state::fs::ModifyKind::ManifestAdd(
+                                        rel_path.to_string_lossy().to_string(),
+                                    ),
+                                },
+                                2,
+                            ));
                         }
                     }
                 }
@@ -541,10 +623,13 @@ impl Simulator {
                 match project.data().borrow().graph() {
                     None => {
                         let path = project.path().join(project.data().borrow().path().clone());
-                        actions.push(Action::CreateFolder {
-                            path,
-                            with_parents: true,
-                        })
+                        actions.push((
+                            Action::CreateFolder {
+                                path,
+                                with_parents: true,
+                            },
+                            2,
+                        ))
                     }
                     Some(graph) => {
                         for container in graph.nodes() {
@@ -565,7 +650,7 @@ impl Simulator {
         state: &state::State,
         folder: &Ptr<state::fs::Folder>,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         M: state::app::HasPath + state::app::Manifest,
         R: rand::Rng,
@@ -576,23 +661,32 @@ impl Simulator {
         let mut actions = Vec::with_capacity(10);
         match state.fs().find_file(manifest.path()) {
             None => {
-                actions.push(Action::CreateFile {
-                    path: manifest.path().clone(),
-                    with_parents: true,
-                });
+                actions.push((
+                    Action::CreateFile {
+                        path: manifest.path().clone(),
+                        with_parents: true,
+                    },
+                    2,
+                ));
             }
 
             Some(file) => {
                 actions.extend([
-                    Action::Remove(manifest.path().clone()),
-                    Action::Rename {
-                        from: manifest.path().clone(),
-                        to: utils::random_file_name(rng),
-                    },
-                    Action::Modify {
-                        file: manifest.path().clone(),
-                        kind: ModifyKind::Other,
-                    },
+                    (Action::Remove(manifest.path().clone()), 1),
+                    (
+                        Action::Rename {
+                            from: manifest.path().clone(),
+                            to: utils::random_file_name(rng),
+                        },
+                        1,
+                    ),
+                    (
+                        Action::Modify {
+                            file: manifest.path().clone(),
+                            kind: ModifyKind::Other,
+                        },
+                        1,
+                    ),
                 ]);
 
                 let parent = state.fs().find_file_folder_by_ptr(&file).unwrap();
@@ -602,14 +696,20 @@ impl Simulator {
                     let mv_path = state.fs().graph().path(folder).unwrap().join(filename);
                     if !state.fs().exists(&mv_path) {
                         actions.extend([
-                            Action::Move {
-                                from: manifest.path().clone(),
-                                to: mv_path.clone(),
-                            },
-                            Action::Copy {
-                                from: manifest.path().clone(),
-                                to: mv_path.clone(),
-                            },
+                            (
+                                Action::Move {
+                                    from: manifest.path().clone(),
+                                    to: mv_path.clone(),
+                                },
+                                1,
+                            ),
+                            (
+                                Action::Copy {
+                                    from: manifest.path().clone(),
+                                    to: mv_path.clone(),
+                                },
+                                1,
+                            ),
                         ]);
                     }
                 }
@@ -632,7 +732,7 @@ impl Simulator {
         folder: PathBuf,
         state: &state::State,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         R: rand::Rng,
     {
@@ -642,51 +742,72 @@ impl Simulator {
         let path = parent.join(name.as_ref());
         match state.fs().find_file(&path) {
             None => {
-                actions.push(Action::CreateFile {
-                    path: path.clone(),
-                    with_parents: false,
-                });
+                actions.push((
+                    Action::CreateFile {
+                        path: path.clone(),
+                        with_parents: false,
+                    },
+                    2,
+                ));
             }
 
             Some(file) => {
                 actions.extend([
-                    Action::Remove(path.clone()),
-                    Action::Rename {
-                        from: path.clone(),
-                        to: utils::random_file_name(rng),
-                    },
-                    Action::Modify {
-                        file: path.clone(),
-                        kind: ModifyKind::Other,
-                    },
+                    (Action::Remove(path.clone()), 1),
+                    (
+                        Action::Rename {
+                            from: path.clone(),
+                            to: utils::random_file_name(rng),
+                        },
+                        1,
+                    ),
+                    (
+                        Action::Modify {
+                            file: path.clone(),
+                            kind: ModifyKind::Other,
+                        },
+                        1,
+                    ),
                 ]);
 
                 if parent != folder {
                     let mv_path = folder.join(name.as_ref());
                     actions.extend([
-                        Action::Move {
-                            from: path.clone(),
-                            to: mv_path.clone(),
-                        },
-                        Action::Copy {
-                            from: path.clone(),
-                            to: mv_path.clone(),
-                        },
+                        (
+                            Action::Move {
+                                from: path.clone(),
+                                to: mv_path.clone(),
+                            },
+                            1,
+                        ),
+                        (
+                            Action::Copy {
+                                from: path.clone(),
+                                to: mv_path.clone(),
+                            },
+                            1,
+                        ),
                     ]);
                 }
 
                 match serde_json::from_str::<'_, Vec<String>>(file.borrow().content()) {
                     Err(err) => {
                         if err.is_eof() {
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::Initialize,
-                            })
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::Initialize,
+                                },
+                                1,
+                            ))
                         } else if err.is_syntax() {
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::Repair,
-                            })
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::Repair,
+                                },
+                                1,
+                            ))
                         } else {
                             unreachable!()
                         }
@@ -694,22 +815,33 @@ impl Simulator {
 
                     Ok(manifest) => {
                         actions.extend([
-                            Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::Corrupt,
-                            },
-                            Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::ManifestAdd(Alphanumeric.sample_string(rng, 16)),
-                            },
+                            (
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::Corrupt,
+                                },
+                                1,
+                            ),
+                            (
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::ManifestAdd(
+                                        Alphanumeric.sample_string(rng, 16),
+                                    ),
+                                },
+                                1,
+                            ),
                         ]);
 
                         if manifest.len() > 0 {
                             let remove_index = rng.gen_range(0..manifest.len());
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::ManifestRemove(remove_index),
-                            });
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::ManifestRemove(remove_index),
+                                },
+                                1,
+                            ));
                         }
                     }
                 }
@@ -731,7 +863,7 @@ impl Simulator {
         folder: PathBuf,
         fs_state: &state::fs::State,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         T: serde::de::DeserializeOwned,
         R: rand::Rng,
@@ -741,58 +873,82 @@ impl Simulator {
         let mut actions = Vec::with_capacity(10);
         let path = parent.join(name.as_ref());
         match fs_state.find_file(&path) {
-            None => actions.push(Action::CreateFile {
-                path: path.clone(),
-                with_parents: false,
-            }),
+            None => actions.push((
+                Action::CreateFile {
+                    path: path.clone(),
+                    with_parents: false,
+                },
+                2,
+            )),
             Some(file) => {
                 actions.extend([
-                    Action::Remove(path.clone()),
-                    Action::Rename {
-                        from: path.clone(),
-                        to: utils::random_file_name(rng),
-                    },
-                    Action::Modify {
-                        file: path.clone(),
-                        kind: ModifyKind::Other,
-                    },
+                    (Action::Remove(path.clone()), 1),
+                    (
+                        Action::Rename {
+                            from: path.clone(),
+                            to: utils::random_file_name(rng),
+                        },
+                        1,
+                    ),
+                    (
+                        Action::Modify {
+                            file: path.clone(),
+                            kind: ModifyKind::Other,
+                        },
+                        1,
+                    ),
                 ]);
 
                 if parent != folder {
                     let to = folder.join(name.as_ref());
                     actions.extend([
-                        Action::Move {
-                            from: path.clone(),
-                            to: to.clone(),
-                        },
-                        Action::Copy {
-                            from: path.clone(),
-                            to: to.clone(),
-                        },
+                        (
+                            Action::Move {
+                                from: path.clone(),
+                                to: to.clone(),
+                            },
+                            1,
+                        ),
+                        (
+                            Action::Copy {
+                                from: path.clone(),
+                                to: to.clone(),
+                            },
+                            1,
+                        ),
                     ]);
                 }
 
                 match serde_json::from_str::<'_, T>(file.borrow().content()) {
                     Err(err) => {
                         if err.is_eof() {
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::Initialize,
-                            })
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::Initialize,
+                                },
+                                1,
+                            ))
                         } else if err.is_syntax() {
-                            actions.push(Action::Modify {
-                                file: path.clone(),
-                                kind: ModifyKind::Repair,
-                            })
+                            actions.push((
+                                Action::Modify {
+                                    file: path.clone(),
+                                    kind: ModifyKind::Repair,
+                                },
+                                1,
+                            ))
                         } else {
                             unreachable!()
                         }
                     }
 
-                    Ok(_manifest) => actions.push(Action::Modify {
-                        file: path.clone(),
-                        kind: ModifyKind::Corrupt,
-                    }),
+                    Ok(_manifest) => actions.push((
+                        Action::Modify {
+                            file: path.clone(),
+                            kind: ModifyKind::Corrupt,
+                        },
+                        1,
+                    )),
                 }
             }
         }
@@ -810,7 +966,7 @@ impl Simulator {
         state: &state::State,
         folders: &Vec<Ptr<state::fs::Folder>>,
         rng: &mut R,
-    ) -> Vec<state::fs::Action>
+    ) -> Vec<(state::fs::Action, u8)>
     where
         R: rand::Rng,
     {
@@ -826,33 +982,48 @@ impl Simulator {
         let mv_path = state.fs().graph().path(&mv).unwrap();
 
         actions.extend([
-            Action::Remove(container_path.clone()),
-            Action::Rename {
-                from: container_path.clone(),
-                to: utils::random_file_name(rng),
-            },
-            Action::CreateFolder {
-                path: container_path.join(utils::random_file_name(rng)),
-                with_parents: false,
-            },
-            Action::CreateFile {
-                path: container_path.join(utils::random_file_name(rng)),
-                with_parents: false,
-            },
+            (Action::Remove(container_path.clone()), 1),
+            (
+                Action::Rename {
+                    from: container_path.clone(),
+                    to: utils::random_file_name(rng),
+                },
+                1,
+            ),
+            (
+                Action::CreateFolder {
+                    path: container_path.join(utils::random_file_name(rng)),
+                    with_parents: false,
+                },
+                4,
+            ),
+            (
+                Action::CreateFile {
+                    path: container_path.join(utils::random_file_name(rng)),
+                    with_parents: false,
+                },
+                4,
+            ),
         ]);
 
         if mv_path != container_path {
             let mv_path = mv_path.join(container_path.file_name().unwrap());
             if !state.fs().exists(&mv_path) {
                 actions.extend([
-                    Action::Move {
-                        from: container_path.clone(),
-                        to: mv_path.clone(),
-                    },
-                    Action::Copy {
-                        from: container_path.clone(),
-                        to: mv_path.clone(),
-                    },
+                    (
+                        Action::Move {
+                            from: container_path.clone(),
+                            to: mv_path.clone(),
+                        },
+                        1,
+                    ),
+                    (
+                        Action::Copy {
+                            from: container_path.clone(),
+                            to: mv_path.clone(),
+                        },
+                        1,
+                    ),
                 ])
             };
         }
@@ -860,28 +1031,40 @@ impl Simulator {
         let config_path = common::app_dir_of(&container_path);
         match container.borrow().data() {
             None => {
-                actions.push(Action::CreateFolder {
-                    path: config_path.clone(),
-                    with_parents: false,
-                });
+                actions.push((
+                    Action::CreateFolder {
+                        path: config_path.clone(),
+                        with_parents: false,
+                    },
+                    2,
+                ));
             }
 
             Some(data) => {
                 let config = data.config().borrow();
                 actions.extend([
-                    Action::CreateFolder {
-                        path: config_path.join(utils::random_file_name(rng)),
-                        with_parents: false,
-                    },
-                    Action::CreateFile {
-                        path: config_path.join(utils::random_file_name(rng)),
-                        with_parents: false,
-                    },
-                    Action::Remove(config_path.clone()),
-                    Action::Rename {
-                        from: config_path.clone(),
-                        to: utils::random_file_name(rng),
-                    },
+                    (
+                        Action::CreateFolder {
+                            path: config_path.join(utils::random_file_name(rng)),
+                            with_parents: false,
+                        },
+                        1,
+                    ),
+                    (
+                        Action::CreateFile {
+                            path: config_path.join(utils::random_file_name(rng)),
+                            with_parents: false,
+                        },
+                        1,
+                    ),
+                    (Action::Remove(config_path.clone()), 1),
+                    (
+                        Action::Rename {
+                            from: config_path.clone(),
+                            to: utils::random_file_name(rng),
+                        },
+                        1,
+                    ),
                 ]);
 
                 let folder = &folders[rng.gen_range(0..folders.len())];

@@ -264,6 +264,9 @@ pub mod app {
 
     #[derive(Debug)]
     pub enum Project {
+        /// The project root directory was created.
+        Created,
+
         /// The project was deleted.
         Removed,
 
@@ -307,6 +310,7 @@ pub mod app {
         Removed,
 
         /// A container directory was moved within the same project.
+        /// i.e. The parent directory changed.
         Moved,
 
         /// A container directory was modified.

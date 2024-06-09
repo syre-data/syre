@@ -3,7 +3,7 @@
 mod actor;
 pub(crate) mod command;
 pub mod error;
-pub(crate) mod event;
+pub mod event;
 pub(crate) mod watcher;
 
 #[cfg(target_os = "windows")]
@@ -12,4 +12,4 @@ mod preprocess_file_system_events_windows;
 pub use command::Command;
 pub use error::{Error, Result};
 pub use event::app::{Event, EventKind};
-pub use watcher::{config, EventResult, FsWatcher};
+pub use watcher::{config, EventResult, FsWatcher, Builder};

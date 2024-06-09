@@ -1,6 +1,5 @@
 // NB: Writes to manifests.
 use super::*;
-use dev_utils::project::{Build, Fireworks, Options, Project};
 use std::{assert_matches::assert_matches, fs};
 use syre_core::graph::ResourceTree;
 use syre_local::{
@@ -8,6 +7,8 @@ use syre_local::{
     project::resources::{Container, Project as LocalProject},
     system::collections::ProjectManifest,
 };
+
+use test_utils::project::{Build, Fireworks, Options, Project};
 
 type ContainerTree = ResourceTree<Container>;
 
@@ -44,7 +45,7 @@ fn watcher_group_notify_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = FsWatcher::new(
+    let watcher = build_watcher(
         command_rx,
         event_tx,
         config::AppConfig::try_default().unwrap(),
@@ -111,7 +112,7 @@ fn watcher_convert_fs_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = FsWatcher::new(
+    let watcher = build_watcher(
         command_rx,
         event_tx,
         config::AppConfig::try_default().unwrap(),
@@ -1786,4 +1787,29 @@ mod convert_fs {
             EventKind::Folder(app::ResourceEvent::Moved)
         );
     }
+}
+
+fn build_watcher(
+        command_rx: Receiver<Command>,
+        event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
+        app_config: config::AppConfig,
+    ) -> FsWatcher {
+        let (fs_tx, fs_rx) = crossbeam::channel::unbounded();
+        let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
+        let mut file_system_actor = FileSystemActor::new(fs_tx, fs_command_rx);
+        thread::Builder::new()
+            .name("syre file system watcher actor".to_string())
+            .spawn(move || file_system_actor.run())
+            .unwrap();
+
+         FsWatcher {
+            event_tx,
+            command_rx,
+            command_tx: fs_command_tx,
+            event_rx: fs_rx,
+            file_ids: Arc::new(Mutex::new(FileIdMap::new())),
+            roots: Mutex::new(vec![]),
+            app_config,
+            shutdown: Mutex::new(false),
+        }
 }

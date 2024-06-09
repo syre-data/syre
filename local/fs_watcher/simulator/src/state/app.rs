@@ -147,7 +147,8 @@ impl State {
             }
 
             if rel_path.file_name().unwrap() == common::app_dir() {
-                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                let container_path = rel_path.parent().unwrap();
+                let Some(container) = graph.find_by_path(container_path) else {
                     panic!();
                 };
 
@@ -157,7 +158,8 @@ impl State {
             }
 
             if rel_path.ends_with(common::container_file()) {
-                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                let container_path = rel_path.parent().unwrap().parent().unwrap();
+                let Some(container) = graph.find_by_path(container_path) else {
                     panic!();
                 };
 
@@ -170,7 +172,8 @@ impl State {
             }
 
             if rel_path.ends_with(common::container_settings_file()) {
-                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                let container_path = rel_path.parent().unwrap().parent().unwrap();
+                let Some(container) = graph.find_by_path(container_path) else {
                     panic!();
                 };
 
@@ -183,7 +186,8 @@ impl State {
             }
 
             if rel_path.ends_with(common::assets_file()) {
-                let Some(container) = graph.find_by_path(rel_path.parent().unwrap()) else {
+                let container_path = rel_path.parent().unwrap().parent().unwrap();
+                let Some(container) = graph.find_by_path(container_path) else {
                     panic!();
                 };
 
@@ -1225,6 +1229,37 @@ impl Project {
 }
 
 impl Project {
+    pub fn sync_with_fs(&mut self, fs: &super::fs::State) {
+        if let Some(_root) = fs.find_folder(&self.path) {
+            if let Some(_config) = fs.find_folder(common::app_dir_of(&self.path)) {
+                if !self.config.is_present() {
+                    self.insert_config();
+                }
+            } else {
+                self.remove_config();
+            }
+
+            let data_path = self.data.borrow().path().clone();
+            if let Some(root) = fs.find_folder(self.path.join(data_path)) {
+                let mut data = self.data.borrow_mut();
+                if data.graph().is_none() {
+                    data.initialize_graph();
+                }
+
+                data.sync_with_fs(&root, fs)
+            } else {
+                if self.data.borrow().graph().is_some() {
+                    self.remove_data_root();
+                }
+            }
+        } else {
+            self.remove_config();
+            self.remove_data_root();
+        }
+    }
+}
+
+impl Project {
     /// Duplicates the project.
     /// All `fs` references point to their original resource.
     ///
@@ -1437,6 +1472,54 @@ impl Data {
         } else {
             graph.remove(container).unwrap();
         }
+    }
+}
+
+impl Data {
+    pub fn sync_with_fs(&mut self, root: &Ptr<super::fs::Folder>, fs: &super::fs::State) {
+        fn create_container(root: &Ptr<super::fs::Folder>, fs: &super::fs::State) -> Container {
+            let mut container = Container::new(root.borrow().name());
+            if fs
+                .graph()
+                .children(root)
+                .unwrap()
+                .iter()
+                .any(|child| child.borrow().name() == common::app_dir())
+            {
+                let data = ContainerData::new();
+                let config = data.config().borrow();
+                let mut assets = config.assets().borrow_mut();
+                for file in root.borrow().files() {
+                    let asset = Asset::new(file.borrow().name());
+                    let asset = Ptr::new(asset);
+                    assets.push(asset);
+                }
+
+                drop(assets);
+                drop(config);
+                container.set_data(data);
+            }
+
+            container
+        }
+
+        fn build_tree(
+            folder: &Ptr<super::fs::Folder>,
+            container: &Ptr<Container>,
+            fs: &super::fs::State,
+            graph: &mut Tree<Container>,
+        ) {
+            for child_folder in fs.graph().children(&folder).unwrap() {
+                let child = create_container(&child_folder, fs);
+                let child = graph.insert(child, container).unwrap();
+                build_tree(&child_folder, &child, fs, graph)
+            }
+        }
+
+        assert_eq!(root.borrow().name(), self.path);
+        let container = create_container(root, fs);
+        let mut graph = Tree::new(container);
+        build_tree(root, &graph.root(), fs, &mut graph);
     }
 }
 

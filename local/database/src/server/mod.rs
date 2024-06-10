@@ -6,5 +6,5 @@ mod event;
 pub(self) mod store;
 mod types;
 
-pub use database::Database;
+pub use database::{Builder, Database};
 pub(self) use event::Event;

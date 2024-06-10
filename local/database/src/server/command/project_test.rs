@@ -1,5 +1,4 @@
 use crate::server::Database;
-use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
@@ -15,7 +14,7 @@ fn load_user_projects_should_work() {
 #[test]
 fn update_project_should_work() {
     // setup
-    let _dir = TempDir::new().expect("could not create new `TempDir`");
+    let _dir = tempfile::tempdir().unwrap();
     project::init(_dir.path()).expect("could not init `Project`");
     let project = LocalProject::load_from(_dir.path()).expect("could not load `Project`");
     let pid = project.rid.clone();

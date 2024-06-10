@@ -1,5 +1,5 @@
 //! Runs a local [`Database`].
-use syre_local_database::server::Database;
+use syre_local_database::server;
 
 fn main() {
     logging::enable();
@@ -9,9 +9,12 @@ fn main() {
         default_panic_hook(panic_info);
     }));
 
+    let projects = syre_local::system::collections::ProjectManifest::load_or_default().unwrap();
+
     // run database
-    let mut db = Database::new().unwrap();
-    db.start();
+    let db = server::Builder::default()
+        .add_paths(projects.to_vec());
+    db.run().unwrap();
 }
 
 fn panic_hook(panic_info: &std::panic::PanicInfo) {

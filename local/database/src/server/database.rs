@@ -1,55 +1,51 @@
-//! Database for storing resources.
+//! Database for storing resources.syre_local::system::collections::
 #[path = "./command/mod.rs"]
 pub(super) mod command;
 
 #[path = "./file_system/mod.rs"]
 mod file_system;
 
-use self::command::CommandActor;
-use super::store::{data_store, Objectstore};
-use super::Event;
-use crate::command::Command;
-use crate::event::Update;
-use crate::{common, constants, Result};
-use notify_debouncer_full::DebounceEventResult;
+use super::store::data_store;
+use crate::{common, constants, event::Update};
+use command::CommandActor;
+use crossbeam::channel::{select, Receiver, Sender};
 use serde_json::Value as JsValue;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::result::Result as StdResult;
-use std::sync::mpsc;
-use std::thread;
-use syre_file_watcher::actor::{FileSystemActor, FileSystemActorCommand};
-use syre_file_watcher::file_system_event_processor::FileSystemEventProcessor;
+use std::{collections::HashMap, path::PathBuf, thread};
+use syre_local::{
+    file_resource::SystemResource,
+    system::collections::{ProjectManifest, UserManifest},
+};
 
-/// Database.
-pub struct Database {
-    object_store: Objectstore,
-    data_store: data_store::Client,
-    event_rx: mpsc::Receiver<Event>,
-    file_system_tx: mpsc::Sender<FileSystemActorCommand>,
-
-    /// Publication socket to broadcast updates.
-    update_tx: zmq::Socket,
+#[derive(Default)]
+pub struct Builder {
+    paths: Vec<PathBuf>,
 }
 
-impl Database {
-    /// Creates a new Database.
-    /// The database immediately begins listening for ZMQ and file system events.
-    pub fn new() -> StdResult<Self, zmq::Error> {
+impl Builder {
+    pub fn run(self) -> Result<(), zmq::Error> {
         let zmq_context = zmq::Context::new();
         let update_tx = zmq_context.socket(zmq::PUB)?;
         update_tx.bind(&common::zmq_url(zmq::PUB).unwrap())?;
 
-        let (event_tx, event_rx) = mpsc::channel();
-        let (file_system_tx, file_system_rx) = mpsc::channel();
-        let command_actor = CommandActor::new(event_tx.clone());
-        let mut file_system_actor = FileSystemActor::new(event_tx, file_system_rx);
+        let (command_tx, command_rx) = crossbeam::channel::unbounded();
+        let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
+        let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
+        let command_actor = CommandActor::new(command_tx.clone());
+
+        let fs_watcher_config = syre_fs_watcher::config::AppConfig::new(
+            UserManifest::path().unwrap(),
+            ProjectManifest::path().unwrap(),
+        );
+
+        let mut fs_watcher =
+            syre_fs_watcher::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+        fs_watcher.add_paths(self.paths);
 
         let (store_tx, store_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut datastore = data_store::Datastore::new(store_rx);
         let data_store = data_store::Client::new(store_tx);
 
-        thread::spawn(move || file_system_actor.run());
+        thread::spawn(move || fs_watcher.run());
         thread::spawn(move || {
             if let Err(err) = command_actor.run() {
                 tracing::error!(?err);
@@ -62,15 +58,49 @@ impl Database {
             }
         });
 
-        Ok(Self {
-            object_store: Objectstore::new(),
+        let mut db = Database {
+            // object_store: Objectstore::new(),
             data_store,
-            event_rx,
-            file_system_tx,
+            command_rx,
+            fs_event_rx,
+            fs_command_tx,
             update_tx,
-        })
+        };
+
+        db.start();
+        Ok(())
     }
 
+    pub fn add_path(self, path: impl Into<PathBuf>) -> Self {
+        let Self { mut paths } = self;
+        paths.push(path.into());
+        Self { paths }
+    }
+
+    pub fn add_paths(self, paths: Vec<PathBuf>) -> Self {
+        let Self {
+            paths: mut paths_stored,
+        } = self;
+        paths_stored.extend(paths);
+        Self {
+            paths: paths_stored,
+        }
+    }
+}
+
+/// Database.
+pub struct Database {
+    // object_store: Objectstore,
+    data_store: data_store::Client,
+    command_rx: Receiver<command::Command>,
+    fs_event_rx: Receiver<syre_fs_watcher::EventResult>,
+    fs_command_tx: Sender<syre_fs_watcher::Command>,
+
+    /// Publication socket to broadcast updates.
+    update_tx: zmq::Socket,
+}
+
+impl Database {
     /// Begin responding to events.
     pub fn start(&mut self) {
         self.listen_for_events();
@@ -79,30 +109,36 @@ impl Database {
     /// Listen for events coming from child actors.
     fn listen_for_events(&mut self) {
         loop {
-            match self.event_rx.recv().unwrap() {
-                Event::Command { cmd, tx } => {
-                    let response = self.handle_command(cmd);
-                    if let Err(err) = tx.send(response) {
-                        tracing::error!(?err);
+            select! {
+                recv(self.command_rx) -> cmd => match cmd {
+                    Ok(command::Command{cmd, tx}) => {
+                        let response = self.handle_command(cmd);
+                        if let Err(err) = tx.send(response) {
+                            tracing::error!(?err);
+                        }
                     }
-                }
+                    Err(err) => panic!("{err:?}")
+                },
 
-                Event::FileSystem(events) => self.handle_file_system_events(events).unwrap(),
+                recv(self.fs_event_rx) -> events => match events {
+                    Ok(events) => self.handle_file_system_events(events).unwrap(),
+                    Err(err) => panic!("{err:?}"),
+                }
             }
         }
     }
 
     /// Add a path to watch for file system changes.
     fn watch_path(&mut self, path: impl Into<PathBuf>) {
-        self.file_system_tx
-            .send(FileSystemActorCommand::Watch(path.into()))
+        self.fs_command_tx
+            .send(syre_fs_watcher::Command::Watch(path.into()))
             .unwrap();
     }
 
     /// Remove a path from watching file system changes.
     fn unwatch_path(&mut self, path: impl Into<PathBuf>) {
-        self.file_system_tx
-            .send(FileSystemActorCommand::Unwatch(path.into()))
+        self.fs_command_tx
+            .send(syre_fs_watcher::Command::Unwatch(path.into()))
             .unwrap();
     }
 
@@ -110,10 +146,10 @@ impl Database {
     fn get_final_path(
         &self,
         path: impl Into<PathBuf>,
-    ) -> StdResult<Option<PathBuf>, file_path_from_id::Error> {
-        let (tx, rx) = mpsc::channel();
-        self.file_system_tx
-            .send(FileSystemActorCommand::FinalPath {
+    ) -> Result<Option<PathBuf>, file_path_from_id::Error> {
+        let (tx, rx) = crossbeam::channel::bounded(1);
+        self.fs_command_tx
+            .send(syre_fs_watcher::Command::FinalPath {
                 path: path.into(),
                 tx,
             })
@@ -156,7 +192,9 @@ impl Database {
 
     // TODO Handle errors.
     /// Handles a given command, returning the correct data.
-    fn handle_command(&mut self, command: Command) -> JsValue {
+    fn handle_command(&mut self, command: crate::Command) -> JsValue {
+        use crate::Command;
+
         tracing::debug!(?command);
         match command {
             Command::Asset(cmd) => self.handle_command_asset(cmd),
@@ -346,5 +384,78 @@ mod macos {
                 return path.starts_with(trash_path);
             }
         }
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod linux {
+    use super::*;
+    use std::path::{Component, Path};
+    use std::time::Instant;
+
+    const TRASH_PATH: &str = ".Trash";
+
+    impl Database {
+        /// Handle file system events.
+        /// To be used with [`notify::Watcher`]s.
+        #[tracing::instrument(skip(self))]
+        pub fn handle_file_system_events(
+            &mut self,
+            events: syre_fs_watcher::EventResult,
+        ) -> crate::Result {
+            let events = match events {
+                Ok(events) => events,
+                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
+            };
+
+            let updates = self.process_file_system_events(events);
+            if let Err(err) = self.publish_updates(&updates) {
+                tracing::error!(?err);
+            }
+
+            Ok(())
+        }
+
+        fn handle_file_system_watcher_errors(
+            &self,
+            errors: Vec<syre_fs_watcher::Error>,
+        ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
+            todo!("use macos mod for reference");
+        }
+    }
+
+    fn path_in_trash(path: impl AsRef<Path>) -> bool {
+        let path = path.as_ref();
+        match std::env::var_os("HOME") {
+            None => {
+                for component in path.components() {
+                    match component {
+                        Component::Normal(component) => {
+                            if component == TRASH_PATH {
+                                return true;
+                            }
+                        }
+
+                        _ => {}
+                    }
+                }
+
+                return false;
+            }
+            Some(home) => {
+                let trash_path = PathBuf::from(home).join(TRASH_PATH);
+                return path.starts_with(trash_path);
+            }
+        }
+    }
+}
+
+impl Database {
+    #[tracing::instrument(skip(self))]
+    pub fn process_file_system_events(
+        &mut self,
+        events: Vec<syre_fs_watcher::Event>,
+    ) -> Vec<Update> {
+        self.process_events(events)
     }
 }

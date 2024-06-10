@@ -1,5 +1,5 @@
 use super::*;
-use dev_utils::fs::TempDir;
+use crate::server::Builder;
 use syre_core::graph::ResourceTree;
 use syre_core::project::{AnalysisAssociation, Script};
 use syre_local::project::resources::{
@@ -9,16 +9,16 @@ use syre_local::project::resources::{
 #[test]
 fn remove_script_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("could not create new `TempDir`");
-    let data_dir = dir.mkdir().expect("could not create new child directory");
-    let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let child_dir = tempfile::tempdir_in(data_dir.path()).unwrap();
 
     // initialize project
     let mut project = LocalProject::new(dir.path()).unwrap();
-    let mut container = LocalContainer::new(data_dir.clone());
-    let mut child_container = LocalContainer::new(child_dir.clone());
+    let mut container = LocalContainer::new(data_dir.path());
+    let mut child_container = LocalContainer::new(child_dir.path());
 
-    project.data_root = data_dir.clone();
+    project.data_root = data_dir.path().to_path_buf();
     let cid = container.rid.clone();
     let child_cid = child_container.rid.clone();
     let pid = project.rid.clone();
@@ -64,7 +64,7 @@ fn remove_script_should_work() {
     graph.insert(cid.clone(), child_container).unwrap();
 
     // database setup
-    let mut db = Database::new().unwrap();
+    let db = Builder::default();
     db.object_store.insert_project(project).unwrap();
     db.object_store
         .insert_project_graph_canonical(pid.clone(), graph)

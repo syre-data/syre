@@ -16,6 +16,7 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
+crossbeam.workspace = true
 file-id = "0.2"
 futures = "0.3"
 indexmap = { workspace = true, features = ["serde"] }
@@ -44,8 +45,6 @@ rand = "0.8"
 fake = "2.4"
 lazy_static = "1.4"
 tempfile = "3.9.0"
-
-dev_utils = { workspace = true, features = ["syre_core"] }
 
 [features]
 default = ["error"]

@@ -1,5 +1,4 @@
 use super::*;
-use dev_utils::fs::TempDir;
 use std::fs;
 use syre_core::db::StandardSearchFilter as StdFilter;
 use syre_core::types::ResourceId;
@@ -14,7 +13,7 @@ use syre_local::project::resources::{
 #[test]
 fn insert_project_should_work() {
     // setup
-    let dir = TempDir::new().expect("new `TempDir` should work");
+    let dir = tempfile::tempdir().unwrap();
     let project = LocalProject::load_from(dir.path()).expect("load `Project` should work");
     let pid = project.rid.clone();
 
@@ -109,8 +108,8 @@ fn update_project_path_should_work() {
 fn insert_project_graph_should_work() {
     // setup
     let pid = ResourceId::new();
-    let mut dir = TempDir::new().unwrap();
-    let child_dir = dir.mkdir().unwrap();
+    let mut dir = tempfile::tempdir().unwrap();
+    let child_dir = tempfile::tempdir_in(dir.path()).unwrap();
 
     let mut root = ContainerLoader::load(dir.path()).unwrap();
     let mut child = ContainerLoader::load(&child_dir).unwrap();
@@ -167,7 +166,7 @@ fn insert_project_graph_should_work() {
 #[test]
 fn get_container_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut db = Objectstore::new();
     let container = LocalContainer::new(dir.path());
     let rid = container.rid.clone();
@@ -188,7 +187,7 @@ fn get_container_should_work() {
 #[test]
 fn get_asset_container_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut db = Objectstore::new();
     let mut container = LocalContainer::new(dir.path());
     let cid = container.rid.clone();
@@ -222,13 +221,13 @@ fn update_container_should_work() {
 #[test]
 fn find_containers_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("new `TempDir` should work");
-    let child_1_dir = dir.mkdir().expect("mkdir should work");
-    let child_2_dir = dir.mkdir().expect("mkdir should work");
+    let dir = tempfile::tempdir().unwrap();
+    let child_1_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let child_2_dir = tempfile::tempdir_in(dir.path()).unwrap();
 
     let mut root = LocalContainer::new(dir.path());
-    let mut child_1 = LocalContainer::new(&child_1_dir);
-    let child_2 = LocalContainer::new(&child_2_dir);
+    let mut child_1 = LocalContainer::new(&child_1_dir.path());
+    let child_2 = LocalContainer::new(&child_2_dir.path());
 
     let root_rid = root.rid.clone();
     let child_1_rid = child_1.rid.clone();
@@ -302,11 +301,11 @@ fn find_containers_should_work() {
 #[test]
 fn find_assets_should_work() {
     // setup
-    let mut _dir = TempDir::new().expect("new `TempDir` should work");
-    let child_dir = _dir.mkdir().expect("mkdir should work");
+    let mut _dir = tempfile::tempdir().unwrap();
+    let child_dir = tempfile::tempdir_in(_dir.path()).unwrap();
 
     let mut root = LocalContainer::new(_dir.path());
-    let mut child = LocalContainer::new(&child_dir);
+    let mut child = LocalContainer::new(child_dir.path());
 
     let mut a0 = LocalAsset::new("asset").unwrap();
     let mut a1 = LocalAsset::new("asset").unwrap();
@@ -394,8 +393,7 @@ fn find_assets_should_work() {
 #[test]
 fn remove_project_script_should_work() {
     // setup
-    let _dir = TempDir::new().expect("could not create temporary directory");
-
+    let _dir = tempfile::tempdir().unwrap();
     let pid = ResourceId::new();
 
     let mut scripts = LocalScripts::load_from(_dir.path()).expect("could not load `Scripts`");

@@ -1,6 +1,5 @@
 use super::*;
 use crate::command::{GraphCommand, ProjectCommand};
-use dev_utils::fs::TempDir;
 use fake::faker::lorem::raw::Word;
 use fake::locales::EN;
 use fake::Fake;
@@ -13,8 +12,8 @@ use syre_local::project::{container, project};
 #[test]
 fn database_command_update_container_properties_without_name_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("could not create new temp dir");
-    let data_dir = dir.mkdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data_dir = tempfile::tempdir_in(dir.path()).unwrap();
     let pid = project::init(dir.path()).unwrap();
     let builder = container::InitOptions::new();
     let _rid = builder
@@ -58,13 +57,13 @@ fn database_command_update_container_properties_without_name_should_work() {
 #[test]
 fn database_command_update_container_name_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("could not create new temp dir");
-    let data_dir = dir.mkdir().unwrap();
-    let child_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
-    let sibling_dir = dir.children.get_mut(&data_dir).unwrap().mkdir().unwrap();
+    let mut dir = tempfile::tempdir().unwrap();
+    let data_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let child_dir = tempfile::tempdir_in(data_dir.path()).unwrap();
+    let sibling_dir = tempfile::tempdir_in(data_dir.path()).unwrap();
 
     let mut project = LocalProject::new(dir.path().to_path_buf()).unwrap();
-    project.data_root = data_dir.clone();
+    project.data_root = data_dir.path().to_path_buf();
     project.save().unwrap();
 
     let pid = project.rid.clone();
@@ -91,7 +90,11 @@ fn database_command_update_container_name_should_work() {
         "incorrect name stored"
     );
 
-    assert_eq!(&data_dir, stored.base_path(), "root path should not change");
+    assert_eq!(
+        data_dir.path(),
+        stored.base_path(),
+        "root path should not change"
+    );
     let saved = ContainerLoader::load(&data_dir).expect("could not load `Container`");
     assert_eq!(
         properties.name, saved.properties.name,
@@ -112,7 +115,7 @@ fn database_command_update_container_name_should_work() {
     );
 
     assert_ne!(
-        child_dir,
+        child_dir.path(),
         stored.base_path(),
         "container path should change"
     );

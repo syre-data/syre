@@ -1,22 +1,26 @@
-//! File system event handler.
-pub mod actor;
-pub mod app_event_processor;
-pub mod asset;
-pub mod container;
-pub mod event;
-pub mod file;
-pub mod file_system_event_processor;
-pub mod folder;
-pub mod graph;
-pub mod project;
-pub mod script;
+use crate::{event::Update, Database};
+use syre_fs_watcher::EventKind;
 
-#[cfg(target_os = "windows")]
-pub mod preprocess_file_system_events_windows;
+impl Database {
+    pub fn process_events(&mut self, events: Vec<syre_fs_watcher::Event>) -> Vec<Update> {
+        events
+            .into_iter()
+            .flat_map(|event| self.process_event(event))
+            .collect()
+    }
 
-use syre_core::types::ResourceId;
-
-struct ParentChild {
-    parent: ResourceId,
-    child: ResourceId,
+    fn process_event(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        match event.kind() {
+            EventKind::Config(_) => todo!(),
+            EventKind::Project(_) => todo!(),
+            EventKind::Graph(_) => todo!(),
+            EventKind::Container(_) => todo!(),
+            EventKind::AssetFile(_) => todo!(),
+            EventKind::AnalysisFile(_) => todo!(),
+            EventKind::File(_) => todo!(),
+            EventKind::Folder(_) => todo!(),
+            EventKind::Any(_) => todo!(),
+            EventKind::OutOfSync => todo!(),
+        }
+    }
 }

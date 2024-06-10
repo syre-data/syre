@@ -10,4 +10,4 @@ pub mod runner;
 pub mod search;
 pub mod user;
 
-pub(super) use actor::CommandActor;
+pub(super) use actor::{Command, CommandActor};

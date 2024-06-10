@@ -1,18 +1,21 @@
-use crate::common;
-use crate::server::Event;
-use crate::{Command, Error, Result};
-use std::sync::mpsc;
+use crate::{common, Error, Result};
+use crossbeam::channel::Sender;
+
+pub struct Command {
+    pub cmd: crate::Command,
+    pub tx: Sender<serde_json::Value>,
+}
 
 /// Actor to handle command events.
 pub struct CommandActor {
-    event_tx: mpsc::Sender<Event>,
+    event_tx: Sender<Command>,
 
     /// Reply socket for command requests.
     zmq_socket: zmq::Socket,
 }
 
 impl CommandActor {
-    pub fn new(event_tx: mpsc::Sender<Event>) -> Self {
+    pub fn new(event_tx: Sender<Command>) -> Self {
         let zmq_context = zmq::Context::new();
         let zmq_socket = zmq_context.socket(zmq::REP).unwrap();
         zmq_socket
@@ -34,17 +37,15 @@ impl CommandActor {
     fn listen_for_commands(&self) -> Result {
         loop {
             let cmd = self.receive_command()?;
-            let (value_tx, value_rx) = mpsc::channel();
-            self.event_tx
-                .send(Event::Command { cmd, tx: value_tx })
-                .unwrap();
+            let (value_tx, value_rx) = crossbeam::channel::bounded(1);
+            self.event_tx.send(Command { cmd, tx: value_tx }).unwrap();
 
             let res = value_rx.recv().unwrap();
             self.zmq_socket.send(&res.to_string(), 0)?;
         }
     }
 
-    fn receive_command(&self) -> Result<Command> {
+    fn receive_command(&self) -> Result<crate::Command> {
         let mut msg = zmq::Message::new();
         self.zmq_socket
             .recv(&mut msg, 0)

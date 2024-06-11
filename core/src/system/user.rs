@@ -29,12 +29,21 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(email: String, name: Option<String>) -> User {
+    pub fn new(email: impl Into<String>) -> Self {
         Self {
             rid: ResourceId::new(),
             created: Utc::now(),
-            name,
-            email,
+            name: None,
+            email: email.into(),
+        }
+    }
+
+    pub fn with_name(email: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            created: Utc::now(),
+            name: Some(name.into()),
+            email: email.into(),
         }
     }
 }

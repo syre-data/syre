@@ -25,7 +25,32 @@ DEFINE TABLE project SCHEMAFULL;
 
 DEFINE FIELD name ON TABLE project TYPE string;
 DEFINE FIELD description ON TABLE project TYPE option<string>;
+DEFINE FIELD data_root ON TABLE project TYPE string;
+DEFINE FIELD analysis_root ON TABLE project TYPE option<string>;
+
+DEFINE FIELD creator ON TABLE project TYPE option<string>;
+DEFINE FIELD creator_kind ON TABLE project TYPE option<string>;
+DEFINE FIELD created ON TABLE project TYPE datetime;
+
 DEFINE FIELD base_path ON TABLE project TYPE string;
+";
+
+// NB: `env` field may need to be marked as `FLEXIBLE`.
+// https://surrealdb.com/docs/surrealdb/surrealql/statements/define/field#flexible-data-types
+const DEFINE_TABLE_ANALYSIS: &str = "
+DEFINE TABLE analysis SCHEMAFULL;
+
+DEFINE FIELD path ON TABLE analysis TYPE string;
+DEFINE FIELD name ON TABLE analysis TYPE option<string>;
+DEFINE FIELD description ON TABLE analysis TYPE option<string>;
+
+DEFINE FIELD language ON TABLE analysis TYPE string;
+DEFINE FIELD cmd ON TABLE analysis TYPE string;
+DEFINE FIELD args ON TABLE analysis TYPE array<string>;
+DEFINE FIELD env ON TABLE analysis TYPE object;
+
+DEFINE FIELD creator ON TABLE container TYPE option<string>;
+DEFINE FIELD created ON TABLE container TYPE datetime;
 ";
 
 const DEFINE_TABLE_CONTAINER: &str = "
@@ -36,6 +61,11 @@ DEFINE FIELD kind ON TABLE container TYPE option<string>;
 DEFINE FIELD description ON TABLE container TYPE option<string>;
 DEFINE FIELD tags ON TABLE container TYPE set<string>;
 DEFINE FIELD metadata ON TABLE container TYPE object;
+
+DEFINE FIELD creator ON TABLE container TYPE option<string>;
+DEFINE FIELD created ON TABLE container TYPE datetime;
+
+DEFINE FIELD base_path ON TABLE container TYPE string;
 ";
 
 const DEFINE_TABLE_ASSET: &str = "
@@ -273,11 +303,17 @@ impl Store {
 
 pub mod project {
     use super::super::command::project::Command;
-    use super::{Result, Store};
+    use super::{
+        types::{Creator, CreatorKind},
+        Result, Store,
+    };
+    use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::path::PathBuf;
-    use syre_core::project::Project as CoreProject;
-    use syre_core::types::ResourceId;
+    use syre_core::{
+        project::Project as CoreProject,
+        types::{Creator as CoreCreator, ResourceId},
+    };
     use syre_local::project::resources::Project as LocalProject;
 
     impl Store {
@@ -319,16 +355,39 @@ pub mod project {
     pub struct Record {
         name: String,
         description: Option<String>,
+        data_root: PathBuf,
+        analysis_root: Option<PathBuf>,
+
+        creator: Option<Creator>,
+        created: DateTime<Utc>,
+
         base_path: PathBuf,
     }
 
     impl Record {
-        pub fn new(name: String, description: Option<String>, base_path: PathBuf) -> Self {
+        pub fn new(
+            base_path: impl Into<PathBuf>,
+            name: impl Into<String>,
+            data_root: impl Into<PathBuf>,
+            created: DateTime<Utc>,
+        ) -> Self {
             Self {
-                name,
-                description,
-                base_path,
+                name: name.into(),
+                description: None,
+                data_root: data_root.into(),
+                analysis_root: None,
+                creator: None,
+                created,
+                base_path: base_path.into(),
             }
+        }
+
+        pub fn set_description(&mut self, description: impl Into<String>) {
+            let _ = self.description.insert(description.into());
+        }
+
+        pub fn set_analysis_root(&mut self, analysis_root: impl Into<PathBuf>) {
+            let _ = self.analysis_root.insert(analysis_root.into());
         }
     }
 
@@ -336,20 +395,38 @@ pub mod project {
         fn from(value: LocalProject) -> Self {
             let CoreProject {
                 rid: _,
-                creator: _,
-                created: _,
+                creator,
+                created,
                 name,
                 description,
-                data_root: _,
-                analysis_root: _,
+                data_root,
+                analysis_root,
                 meta_level: _,
             } = value.inner().clone();
 
             let base_path = value.base_path().to_path_buf();
+            let creator = match creator {
+                CoreCreator::User(Some(id)) => {
+                    let id = match id {
+                        syre_core::types::UserId::Email(email) => email,
+                        syre_core::types::UserId::Id(id) => id.to_string(),
+                    };
+
+                    Some(Creator::new(id, CreatorKind::User))
+                }
+                CoreCreator::Script(id) => {
+                    Some(Creator::new(id.to_string(), CreatorKind::Analysis))
+                }
+                _ => None,
+            };
 
             Self {
                 name,
                 description,
+                data_root,
+                analysis_root,
+                creator,
+                created,
                 base_path,
             }
         }
@@ -863,6 +940,31 @@ pub mod asset {
                 path,
             }
         }
+    }
+}
+
+mod types {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Creator {
+        id: String,
+        kind: CreatorKind,
+    }
+
+    impl Creator {
+        pub fn new(id: impl Into<String>, kind: CreatorKind) -> Self {
+            Self {
+                id: id.into(),
+                kind,
+            }
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub enum CreatorKind {
+        User,
+        Analysis,
     }
 }
 

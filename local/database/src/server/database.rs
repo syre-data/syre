@@ -32,13 +32,14 @@ impl Builder {
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
         let command_actor = CommandActor::new(command_tx.clone());
 
-        let fs_watcher_config = syre_fs_watcher::config::AppConfig::new(
+        let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
             UserManifest::path().unwrap(),
             ProjectManifest::path().unwrap(),
         );
 
+        let fs_command_client = syre_fs_watcher::Client::new(fs_command_tx);
         let mut fs_watcher =
-            syre_fs_watcher::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+            syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
         fs_watcher.add_paths(self.paths);
 
         let (store_tx, store_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -63,7 +64,7 @@ impl Builder {
             data_store,
             command_rx,
             fs_event_rx,
-            fs_command_tx,
+            fs_command_client,
             update_tx,
         };
 
@@ -94,7 +95,7 @@ pub struct Database {
     data_store: data_store::Client,
     command_rx: Receiver<command::Command>,
     fs_event_rx: Receiver<syre_fs_watcher::EventResult>,
-    fs_command_tx: Sender<syre_fs_watcher::Command>,
+    fs_command_client: syre_fs_watcher::Client,
 
     /// Publication socket to broadcast updates.
     update_tx: zmq::Socket,
@@ -130,16 +131,16 @@ impl Database {
 
     /// Add a path to watch for file system changes.
     fn watch_path(&mut self, path: impl Into<PathBuf>) {
-        self.fs_command_tx
-            .send(syre_fs_watcher::Command::Watch(path.into()))
-            .unwrap();
+        let path: PathBuf = path.into();
+        assert!(path.is_absolute());
+        self.fs_command_client.watch(path).unwrap();
     }
 
     /// Remove a path from watching file system changes.
     fn unwatch_path(&mut self, path: impl Into<PathBuf>) {
-        self.fs_command_tx
-            .send(syre_fs_watcher::Command::Unwatch(path.into()))
-            .unwrap();
+        let path: PathBuf = path.into();
+        assert!(path.is_absolute());
+        self.fs_command_client.unwatch(path).unwrap();
     }
 
     /// Gets the final path of a file from the file system watcher.
@@ -147,15 +148,14 @@ impl Database {
         &self,
         path: impl Into<PathBuf>,
     ) -> Result<Option<PathBuf>, file_path_from_id::Error> {
-        let (tx, rx) = crossbeam::channel::bounded(1);
-        self.fs_command_tx
-            .send(syre_fs_watcher::Command::FinalPath {
-                path: path.into(),
-                tx,
+        let path: PathBuf = path.into();
+        assert!(path.is_absolute());
+        self.fs_command_client
+            .final_path(path)
+            .map_err(|err| match err {
+                syre_fs_watcher::client::error::FinalPath::InvalidPath => unreachable!(),
+                syre_fs_watcher::client::error::FinalPath::Retrieval(err) => err,
             })
-            .unwrap();
-
-        rx.recv().unwrap()
     }
 
     /// Publish a updates to subscribers.

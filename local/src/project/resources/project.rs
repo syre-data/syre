@@ -130,6 +130,19 @@ impl Project {
     }
 }
 
+impl Project {
+    /// Only load the project's properties.
+    pub fn load_from_properties_only(base_path: impl Into<PathBuf>) -> StdResult<CoreProject, IoSerdeError> {
+        let base_path = fs::canonicalize(base_path.into())?;
+        let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+        let project_file = fs::File::open(project_path)?;
+        let project_reader = BufReader::new(project_file);
+        let project = serde_json::from_reader(project_reader)?;
+        Ok(project)
+    }
+
+}
+
 impl Deref for Project {
     type Target = CoreProject;
 

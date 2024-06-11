@@ -1,12 +1,10 @@
 use super::*;
 use crate::types::ResourceId;
-use dev_utils::fs::TempDir;
 use rand::Rng;
 
 #[test]
 fn from_hashset_should_work() {
     // setup
-    let mut _dir = TempDir::new().expect("setup shoudl work");
     let assocs = create_script_associations();
     let groups = ScriptGroups::from(assocs);
 
@@ -24,7 +22,6 @@ fn from_hashset_should_work() {
 #[test]
 fn into_vec_should_work() {
     // setup
-    let mut _dir = TempDir::new().expect("setup shoudl work");
     let assocs = create_script_associations();
     let groups = ScriptGroups::from(assocs);
 

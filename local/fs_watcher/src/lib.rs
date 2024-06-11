@@ -1,15 +1,20 @@
 #![feature(assert_matches)]
 //! File system event handler.
-mod actor;
-pub(crate) mod command;
+mod command;
 pub mod error;
 pub mod event;
-pub(crate) mod watcher;
 
-#[cfg(target_os = "windows")]
-mod preprocess_file_system_events_windows;
+#[cfg(feature = "client")]
+pub mod client;
+
+#[cfg(feature = "server")]
+pub mod server;
 
 pub use command::Command;
-pub use error::{Error, Result};
-pub use event::app::{Event, EventKind};
-pub use watcher::{config, EventResult, FsWatcher, Builder};
+pub use error::Error;
+pub use event::{Event, EventKind, EventResult};
+
+pub type Result<T = ()> = std::result::Result<T, Error>;
+
+#[cfg(feature = "client")]
+pub use client::Client;

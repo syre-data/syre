@@ -1,342 +1,241 @@
-pub(crate) mod file_system {
-    //! File system events.
-    use notify_debouncer_full::DebouncedEvent;
-    use std::{path::PathBuf, time::Instant};
+//! Syre application events.
+use std::{path::PathBuf, time::Instant};
 
-    #[derive(Debug)]
-    pub struct Event<'a> {
-        /// Tracker ids that led to this event.
-        parents: Vec<&'a DebouncedEvent>,
+pub type EventResult = Result<Vec<Event>, Vec<crate::Error>>;
 
-        /// The instant the event was created.
-        pub time: Instant,
+#[derive(Debug)]
+pub struct Event {
+    /// Instant the underlying event was created.
+    time: Instant,
 
-        pub kind: EventKind,
-    }
+    kind: EventKind,
 
-    impl Event<'_> {
-        pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
-            Self {
-                parents: Vec::new(),
-                time,
-                kind: kind.into(),
-            }
+    paths: Vec<PathBuf>,
+}
+
+impl Event {
+    pub fn new(kind: EventKind) -> Self {
+        Self {
+            time: Instant::now(),
+            kind,
+            paths: Vec::new(),
         }
     }
 
-    impl<'a> Event<'a> {
-        pub fn add_parent<'b: 'a>(mut self, parent: &'b DebouncedEvent) -> Self {
-            self.parents.push(parent);
-            self
-        }
-
-        pub fn parents(&self) -> Vec<&'a DebouncedEvent> {
-            self.parents.clone()
+    pub fn with_time(kind: EventKind, time: Instant) -> Self {
+        Self {
+            time,
+            kind,
+            paths: Vec::new(),
         }
     }
 
-    #[derive(Debug, derive_more::From)]
-    pub enum EventKind {
-        File(File),
-        Folder(Folder),
-
-        /// Could not determine if the event affect a file, folder, or other resource.
-        Any(Any),
+    pub fn time(&self) -> &Instant {
+        &self.time
     }
 
-    #[derive(Debug)]
-    pub enum File {
-        Created(PathBuf),
-        Removed(PathBuf),
-
-        /// A file's name was changed.
-        /// Its base directory is unchanged.
-        Renamed {
-            from: PathBuf,
-            to: PathBuf,
-        },
-
-        /// A file was moved to a different folder.
-        Moved {
-            from: PathBuf,
-            to: PathBuf,
-        },
-
-        /// The content of the file changed.
-        DataModified(PathBuf),
-
-        /// The file was modified, but the type of change could not be determined.
-        Other(PathBuf),
+    pub fn kind(&self) -> &EventKind {
+        &self.kind
     }
 
-    #[derive(Debug)]
-    pub enum Folder {
-        /// A new folder was created.
-        /// This folder may already have contents in it, e.g. if it was pasted in from another location.
-        Created(PathBuf),
-
-        Removed(PathBuf),
-
-        /// A folder's name was changed.
-        Renamed {
-            from: PathBuf,
-            to: PathBuf,
-        },
-
-        /// A folder was moved to a different parent.
-        Moved {
-            from: PathBuf,
-            to: PathBuf,
-        },
-
-        /// The folder was modified, but the type of change could not be determined.
-        Other(PathBuf),
+    pub fn paths(&self) -> &Vec<PathBuf> {
+        &self.paths
     }
 
-    #[derive(Debug)]
-    pub enum Any {
-        Removed(PathBuf),
+    /// Sets `paths` to a single path.
+    pub fn add_path(mut self, path: PathBuf) -> Self {
+        self.paths.push(path);
+        self
     }
 }
 
-pub mod app {
-    //! Syre application events.
-    use std::{path::PathBuf, time::Instant};
+#[derive(Debug, derive_more::From)]
+pub enum EventKind {
+    /// An application config resource was modified.
+    #[from]
+    Config(Config),
 
-    #[derive(Debug)]
-    pub struct Event {
-        /// Instant the underlying event was created.
-        time: Instant,
+    #[from]
+    Project(Project),
 
-        kind: EventKind,
+    #[from]
+    Graph(Graph),
 
-        paths: Vec<PathBuf>,
-    }
+    #[from]
+    Container(Container),
 
-    impl Event {
-        pub fn new(kind: EventKind) -> Self {
-            Self {
-                time: Instant::now(),
-                kind,
-                paths: Vec::new(),
-            }
-        }
+    /// An asset file was modified.
+    /// The file may not be assocated with an Asset yet.
+    AssetFile(ResourceEvent),
 
-        pub fn with_time(kind: EventKind, time: Instant) -> Self {
-            Self {
-                time,
-                kind,
-                paths: Vec::new(),
-            }
-        }
+    /// An analysis file was modified.
+    /// The file may not be assocated with an Analysis yet.
+    AnalysisFile(ResourceEvent),
 
-        pub fn time(&self) -> &Instant {
-            &self.time
-        }
+    /// A file not associated to a resource type was modified.
+    File(ResourceEvent),
 
-        pub fn kind(&self) -> &EventKind {
-            &self.kind
-        }
-
-        pub fn paths(&self) -> &Vec<PathBuf> {
-            &self.paths
-        }
-
-        /// Sets `paths` to a single path.
-        pub fn add_path(mut self, path: PathBuf) -> Self {
-            self.paths.push(path);
-            self
-        }
-    }
-
-    #[derive(Debug, derive_more::From)]
-    pub enum EventKind {
-        /// An application config resource was modified.
-        #[from]
-        Config(Config),
-
-        #[from]
-        Project(Project),
-
-        #[from]
-        Graph(Graph),
-
-        #[from]
-        Container(Container),
-
-        /// An asset file was modified.
-        /// The file may not be assocated with an Asset yet.
-        AssetFile(ResourceEvent),
-
-        /// An analysis file was modified.
-        /// The file may not be assocated with an Analysis yet.
-        AnalysisFile(ResourceEvent),
-
-        /// A file not associated to a resource type was modified.
-        File(ResourceEvent),
-
-        /// A folder not associated with a resource type was modified.
-        ///
-        /// This is the default event in case the resource type could not be determined.
-        /// This occurs for instance, when a folder is removed.
-        /// It is left to the client application to determine if the folder actually represented a
-        /// resource.
-        Folder(ResourceEvent),
-
-        /// An unknown resource was modified.
-        #[from]
-        Any(Any),
-
-        /// Indicates the provided events may not be in sync with the file system any longer.
-        /// Programs relying on an in-memory representation of the file system should sync directly
-        /// with the file system.
-        /// See [`notify::event::Flag::Rescan] for more info.
-        OutOfSync,
-    }
-
-    /// A resource that is distinguished by path.
-    /// i.e. The resource's file is identified by its path.
+    /// A folder not associated with a resource type was modified.
     ///
-    /// This means renaming the file at that path to another name
-    /// effectively removes that file from begin identified as the resource,
-    /// and renaming a file to that path effectively creates or modifies the resource.
-    #[derive(Debug)]
-    pub enum StaticResourceEvent {
-        Created,
-        Removed,
+    /// This is the default event in case the resource type could not be determined.
+    /// This occurs for instance, when a folder is removed.
+    /// It is left to the client application to determine if the folder actually represented a
+    /// resource.
+    Folder(ResourceEvent),
 
-        /// The resource was modified.
-        /// This could occur for multiple reasons including:
-        /// + A file was moved to the resource's path.
-        /// + The content of the resource's file was modified.
-        Modified(ModifiedKind),
-    }
+    /// An unknown resource was modified.
+    #[from]
+    Any(Any),
 
-    /// A resource that is distinguished by its inode (macOS, *nix) or file id (Windows).
-    /// i.e. The resource's file is the resource its self.
-    #[derive(Debug)]
-    pub enum ResourceEvent {
-        Created,
-        Removed,
-        Renamed,
+    /// Indicates the provided events may not be in sync with the file system any longer.
+    /// Programs relying on an in-memory representation of the file system should sync directly
+    /// with the file system.
+    /// See [`notify::event::Flag::Rescan] for more info.
+    OutOfSync,
+}
 
-        /// The resource file was moved within the same project.
-        Moved,
+/// A resource that is distinguished by path.
+/// i.e. The resource's file is identified by its path.
+///
+/// This means renaming the file at that path to another name
+/// effectively removes that file from begin identified as the resource,
+/// and renaming a file to that path effectively creates or modifies the resource.
+#[derive(Debug)]
+pub enum StaticResourceEvent {
+    Created,
+    Removed,
 
-        /// The resource file was moved into another project.
-        MovedProject,
+    /// The resource was modified.
+    /// This could occur for multiple reasons including:
+    /// + A file was moved to the resource's path.
+    /// + The content of the resource's file was modified.
+    Modified(ModifiedKind),
+}
 
-        /// The resource was modified.
-        /// This could occur for multiple reasons including:
-        /// + A file was moved to the resource's path.
-        /// + The content of the resource's file was modified.
-        Modified(ModifiedKind),
-    }
+/// A resource that is distinguished by its inode (macOS, *nix) or file id (Windows).
+/// i.e. The resource's file is the resource its self.
+#[derive(Debug)]
+pub enum ResourceEvent {
+    Created,
+    Removed,
+    Renamed,
 
-    #[derive(Debug)]
-    pub enum ModifiedKind {
-        /// The content of the resource was changed.
-        Data,
+    /// The resource file was moved within the same project.
+    Moved,
 
-        /// The type of modification could not be determined.
-        /// The resource likely needs to be rescanned.
-        Other,
-    }
+    /// The resource file was moved into another project.
+    MovedProject,
 
-    /// App config events.
-    #[derive(Debug)]
-    pub enum Config {
-        /// The app config directory was created.
-        Created,
+    /// The resource was modified.
+    /// This could occur for multiple reasons including:
+    /// + A file was moved to the resource's path.
+    /// + The content of the resource's file was modified.
+    Modified(ModifiedKind),
+}
 
-        /// The app config directory was removed.
-        Removed,
+#[derive(Debug)]
+pub enum ModifiedKind {
+    /// The content of the resource was changed.
+    Data,
 
-        /// The app config directory was modified.
-        Modified(ModifiedKind),
+    /// The type of modification could not be determined.
+    /// The resource likely needs to be rescanned.
+    Other,
+}
 
-        /// The project manifest file was modified.
-        ProjectManifest(StaticResourceEvent),
+/// App config events.
+#[derive(Debug)]
+pub enum Config {
+    /// The app config directory was created.
+    Created,
 
-        /// The user manifest file was modified.
-        UserManifest(StaticResourceEvent),
-    }
+    /// The app config directory was removed.
+    Removed,
 
-    #[derive(Debug)]
-    pub enum Project {
-        /// The project root directory was created.
-        Created,
+    /// The app config directory was modified.
+    Modified(ModifiedKind),
 
-        /// The project was deleted.
-        Removed,
+    /// The project manifest file was modified.
+    ProjectManifest(StaticResourceEvent),
 
-        /// The project folder was moved or renamed.
-        Moved,
+    /// The user manifest file was modified.
+    UserManifest(StaticResourceEvent),
+}
 
-        /// The project's config dir was modified.
-        ConfigDir(StaticResourceEvent),
+#[derive(Debug)]
+pub enum Project {
+    /// The project root directory was created.
+    Created,
 
-        /// The project's analysis dir was modified.
-        AnalysisDir(ResourceEvent),
+    /// The project was deleted.
+    Removed,
 
-        /// The project's data dir was modified.
-        DataDir(ResourceEvent),
+    /// The project folder was moved or renamed.
+    Moved,
 
-        /// The project's properties file was modified.
-        Properties(StaticResourceEvent),
+    /// The project's config dir was modified.
+    ConfigDir(StaticResourceEvent),
 
-        /// The project's settings file was modified.
-        Settings(StaticResourceEvent),
+    /// The project's analysis dir was modified.
+    AnalysisDir(ResourceEvent),
 
-        /// The project's analyses file was modified.
-        Analysis(StaticResourceEvent),
+    /// The project's data dir was modified.
+    DataDir(ResourceEvent),
 
-        /// The project directory was modified.
-        /// It should likely be rescanned.
-        Modified,
-    }
+    /// The project's properties file was modified.
+    Properties(StaticResourceEvent),
 
-    /// Graph events.
-    ///
-    /// # Notes
-    /// + The `Removed` event indicates that a folder that could be determined to be a container
-    /// was removed. This can not always be determined, in which case a [Folder] event is emitted.
-    #[derive(Debug)]
-    pub enum Graph {
-        /// A directory in a project's data folder was created as a container.
-        Created,
+    /// The project's settings file was modified.
+    Settings(StaticResourceEvent),
 
-        /// A container directory in a project's data folder was removed.
-        Removed,
+    /// The project's analyses file was modified.
+    Analysis(StaticResourceEvent),
 
-        /// A container directory was moved within the same project.
-        /// i.e. The parent directory changed.
-        Moved,
+    /// The project directory was modified.
+    /// It should likely be rescanned.
+    Modified,
+}
 
-        /// A container directory was modified.
-        Modified(ModifiedKind),
-    }
+/// Graph events.
+///
+/// # Notes
+/// + The `Removed` event indicates that a folder that could be determined to be a container
+/// was removed. This can not always be determined, in which case a [Folder] event is emitted.
+#[derive(Debug)]
+pub enum Graph {
+    /// A directory in a project's data folder was created as a container.
+    Created,
 
-    #[derive(Debug)]
-    pub enum Container {
-        /// The name of the container's folder was changed.
-        Renamed,
+    /// A container directory in a project's data folder was removed.
+    Removed,
 
-        /// The container's config dir (i.e. `.syre` folder) was modified.
-        ConfigDir(StaticResourceEvent),
+    /// A container directory was moved within the same project.
+    /// i.e. The parent directory changed.
+    Moved,
 
-        /// The container's properties file was modified.
-        Properties(StaticResourceEvent),
+    /// A container directory was modified.
+    Modified(ModifiedKind),
+}
 
-        /// The container's settings file was modified.
-        Settings(StaticResourceEvent),
+#[derive(Debug)]
+pub enum Container {
+    /// The name of the container's folder was changed.
+    Renamed,
 
-        /// The container's assets file was modified.
-        Assets(StaticResourceEvent),
-    }
+    /// The container's config dir (i.e. `.syre` folder) was modified.
+    ConfigDir(StaticResourceEvent),
 
-    #[derive(Debug)]
-    pub enum Any {
-        Removed,
-    }
+    /// The container's properties file was modified.
+    Properties(StaticResourceEvent),
+
+    /// The container's settings file was modified.
+    Settings(StaticResourceEvent),
+
+    /// The container's assets file was modified.
+    Assets(StaticResourceEvent),
+}
+
+#[derive(Debug)]
+pub enum Any {
+    Removed,
 }

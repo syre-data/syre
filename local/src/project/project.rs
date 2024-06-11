@@ -102,6 +102,7 @@ pub fn path_is_resource(path: &Path) -> bool {
 }
 
 /// Returns whether the given path is a project root,
+/// Deteremined by the presence of a project's properties file.
 /// i.e. has a <APP_DIR>/<PROJECT_FILE>.
 pub fn path_is_project_root(path: impl AsRef<Path>) -> bool {
     let path = common::project_file_of(path);

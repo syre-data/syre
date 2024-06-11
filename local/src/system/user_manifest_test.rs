@@ -2,11 +2,11 @@
 //! There are concurrency errors that cause tests to fail.
 //! To ensure a test is failing run it singularly.
 use super::*;
-use dev_utils::{create_lock, lock::get_lock};
 use fake::faker::internet::raw::FreeEmail;
 use fake::faker::name::raw::Name;
 use fake::locales::EN;
 use fake::Fake;
+use std::sync::{Mutex, MutexGuard};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 
 // *************
@@ -72,8 +72,8 @@ fn add_user_should_error_if_email_exists() {
     let name0: String = Name(EN).fake();
     let name1: String = Name(EN).fake();
 
-    let user0 = User::new(email0, Some(name0));
-    let user1 = User::new(email1, Some(name1));
+    let user0 = User::with_name(email0, name0);
+    let user1 = User::with_name(email1, name1);
 
     // add first user
     add_user(user0).expect("should work");
@@ -99,7 +99,7 @@ fn add_user_should_error_if_email_is_invalid() {
     let name: String = Name(EN).fake();
     let email = String::from("invalid");
 
-    let user = User::new(email, Some(name));
+    let user = User::with_name(email, name);
     match add_user(user) {
         Ok(_) => {
             assert!(false, "should not succeed")
@@ -420,7 +420,14 @@ fn create_user() -> User {
     let name: String = Name(EN).fake();
     let email: String = FreeEmail(EN).fake();
 
-    User::new(email, Some(name))
+    User::with_name(email, name)
 }
 
-create_lock!(MTX);
+pub fn get_lock(m: &'static Mutex<()>) -> MutexGuard<'static, ()> {
+    match m.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+static MTX: Mutex<()> = Mutex::new(());

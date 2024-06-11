@@ -1,5 +1,4 @@
 use super::*;
-use dev_utils::fs::TempDir;
 use syre_core::project::RunParameters;
 
 // *****************
@@ -13,7 +12,7 @@ use syre_core::project::RunParameters;
 #[test]
 fn container_contains_script_association_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let assoc = AnalysisAssociation::new(sid.clone());
@@ -34,7 +33,7 @@ fn container_contains_script_association_should_work() {
 #[test]
 fn container_add_script_association_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let assoc = AnalysisAssociation::new(sid.clone());
@@ -53,7 +52,7 @@ fn container_add_script_association_should_work() {
 #[should_panic(expected = "AlreadyExists")]
 fn container_add_script_association_if_already_exists_should_error() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let assoc = AnalysisAssociation::new(sid.clone());
@@ -68,7 +67,7 @@ fn container_add_script_association_if_already_exists_should_error() {
 #[test]
 fn container_set_script_association_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let mut assoc = AnalysisAssociation::new(sid.clone());
@@ -103,7 +102,7 @@ fn container_set_script_association_should_work() {
 #[test]
 fn container_remove_script_association_should_work() {
     // setup
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let params = RunParameters::new();

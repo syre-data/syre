@@ -31,7 +31,12 @@ pub fn list() -> Result {
 }
 
 pub fn add(user: AddArgs) -> Result {
-    let u = User::new(user.email, user.name);
+    let u = if let Some(name) = user.name {
+        User::with_name(user.email, name)
+    } else {
+        User::new(user.email)
+    };
+
     match user_manifest::add_user(u) {
         Ok(_) => Ok(()),
         Err(err) => Err(err.into()),

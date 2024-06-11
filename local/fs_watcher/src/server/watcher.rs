@@ -4,12 +4,12 @@
 // a folder created event at the final path.
 // However, there is still the chance for a race condition between the events being recieved
 // and what is on disk.
-// It is currenlty assumed that they arein sync.
+// It is currenlty assumed that they are in sync.
+use super::{actor::FileSystemActor, event as fs_event};
 use crate::{
-    actor::FileSystemActor,
     command::WatcherCommand,
     error,
-    event::{app, file_system as fs_event},
+    event::{self as app, EventResult},
     Command, Error, Event, EventKind,
 };
 use crossbeam::channel::{Receiver, Sender};
@@ -24,9 +24,7 @@ use std::{
     thread,
     time::Instant,
 };
-use syre_local::{common as local_common, system::collections::ProjectManifest};
-
-pub type EventResult = StdResult<Vec<Event>, Vec<Error>>;
+use syre_local::common as local_common;
 
 pub struct Builder {
     /// Sends events to the client.
@@ -48,7 +46,7 @@ impl Builder {
     /// 3. `app_config`
     pub fn new(
         command_rx: Receiver<Command>,
-        event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
+        event_tx: Sender<EventResult>,
         app_config: config::AppConfig,
     ) -> Self {
         Self {
@@ -171,27 +169,19 @@ impl FsWatcher {
         tracing::debug!(?command);
         match command {
             Command::Watch(path) => {
+                assert!(path.is_absolute());
                 let (tx, rx) = crossbeam::channel::bounded(1);
-                if let Err(err) = self.command_tx.send(WatcherCommand::Watch {
-                    path: path.clone(),
-                    tx,
-                }) {
-                    tracing::error!(?err);
-                };
+                self.command_tx
+                    .send(WatcherCommand::Watch {
+                        path: path.clone(),
+                        tx,
+                    })
+                    .unwrap();
 
-                let res = match rx.recv() {
-                    Ok(res) => res,
-                    Err(err) => {
-                        tracing::error!(?err);
-                        return;
-                    }
-                };
-
-                if let Err(err) = res {
-                    tracing::error!(?err);
-                    return;
-                }
-
+                // Only way for watch to fail is if relative path is given
+                // but can not be canonicalized.
+                // Because only absolute paths are accepted, watch should not fail.
+                rx.recv().unwrap().unwrap();
                 let mut roots = self.roots.lock().unwrap();
                 if !roots.contains(&path) {
                     roots.push(path.clone());
@@ -202,29 +192,47 @@ impl FsWatcher {
             }
 
             Command::Unwatch(path) => {
+                assert!(path.is_absolute());
                 let (tx, rx) = crossbeam::channel::bounded(1);
-                if let Err(err) = self.command_tx.send(WatcherCommand::Unwatch {
-                    path: path.clone(),
-                    tx,
-                }) {
-                    tracing::error!(?err);
-                };
+                self.command_tx
+                    .send(WatcherCommand::Unwatch {
+                        path: path.clone(),
+                        tx,
+                    })
+                    .unwrap();
 
-                let res = match rx.recv() {
-                    Ok(res) => res,
-                    Err(err) => {
-                        tracing::error!(?err);
-                        return;
-                    }
-                };
-
-                if let Err(err) = res {
-                    tracing::error!(?err);
-                    return;
-                }
+                // Only way for unwatch to fail is if relative path is given
+                // but can not be canonicalized.
+                // Because only absolute paths are accepted, watch should not fail.
+                rx.recv().unwrap().unwrap();
+                let mut roots = self.roots.lock().unwrap();
+                roots.retain(|root| root != &path);
 
                 let mut file_ids = self.file_ids.lock().unwrap();
                 file_ids.remove_root(&path);
+            }
+
+            Command::ClearProjects => {
+                let (tx, rx) = crossbeam::channel::bounded(1);
+                let mut roots = self.roots.lock().unwrap();
+                for path in roots.clone().iter() {
+                    self.command_tx
+                        .send(WatcherCommand::Unwatch {
+                            path: path.clone(),
+                            tx: tx.clone(),
+                        })
+                        .unwrap();
+
+                    // Only way for unwatch to fail is if relative path is given
+                    // but can not be canonicalized.
+                    // Because only absolute paths are accepted, watch should not fail.
+                    rx.recv().unwrap().unwrap();
+                    roots.retain(|root| root != path);
+                    let mut file_ids = self.file_ids.lock().unwrap();
+                    file_ids.remove_root(&path);
+                }
+
+                assert!(roots.is_empty());
             }
 
             Command::FinalPath { path, tx } => {
@@ -254,9 +262,7 @@ impl FsWatcher {
         let id = {
             let file_ids = self.file_ids.lock().unwrap();
             let Some(id) = file_ids.cached_file_id(path).cloned() else {
-                if let Err(err) = tx.send(Ok(None)) {
-                    tracing::error!(?err);
-                };
+                tx.send(Ok(None)).unwrap();
                 return;
             };
 
@@ -264,9 +270,7 @@ impl FsWatcher {
         };
 
         let path = file_path_from_id::path_from_id(&id).map(|path| Some(path));
-        if let Err(err) = tx.send(path) {
-            tracing::error!(?err);
-        }
+        tx.send(path).unwrap();
     }
 
     fn handle_events(&self, events: DebounceEventResult) {
@@ -281,33 +285,24 @@ impl FsWatcher {
         if events.iter().any(|event| event.need_rescan()) {
             let mut file_ids = self.file_ids.lock().unwrap();
             file_ids.rescan();
-            if let Err(err) = self
-                .event_tx
+            self.event_tx
                 .send(Ok(vec![Event::new(EventKind::OutOfSync)]))
-            {
-                tracing::error!(?err);
-            }
+                .unwrap();
         } else {
             let (events, errors) = self.process_events(events);
             if !events.is_empty() {
-                if let Err(err) = self.event_tx.send(Ok(events)) {
-                    tracing::error!(?err);
-                }
+                self.event_tx.send(Ok(events)).unwrap();
             }
 
             if !errors.is_empty() {
-                if let Err(err) = self.event_tx.send(Err(errors)) {
-                    tracing::error!(?err);
-                }
+                self.event_tx.send(Err(errors)).unwrap();
             }
         }
     }
 
     fn handle_event_errors(&self, errors: Vec<notify::Error>) {
         let errors = errors.into_iter().map(|err| Error::Watch(err)).collect();
-        if let Err(err) = self.event_tx.send(Err(errors)) {
-            tracing::error!(?err);
-        }
+        self.event_tx.send(Err(errors)).unwrap();
     }
 
     /// Process file system events into app events.

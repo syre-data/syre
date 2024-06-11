@@ -1,7 +1,6 @@
 use super::*;
 use crate::loader::tree::Loader as ContainerTreeLoader;
 use crate::project::container;
-use dev_utils::fs::TempDir;
 
 #[test]
 fn container_tree_transform_core_to_local_should_work() {
@@ -58,19 +57,14 @@ fn container_tree_transform_core_to_local_should_work() {
 #[test]
 fn container_tree_duplicate_without_assets_to_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("could not create temp dir");
-    let c1_dir = dir.mkdir().expect("could not create child dir");
-    let c2_dir = dir.mkdir().expect("could not create child dir");
-    let dup_dir = TempDir::new().unwrap();
-    let dup_child_dir = TempDir::new().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let c1_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let c2_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let dup_dir = tempfile::tempdir().unwrap();
+    let dup_child_dir = tempfile::tempdir().unwrap();
 
-    let c1_tdir = dir
-        .children
-        .get_mut(&c1_dir)
-        .expect("could not get child dhirectory");
-
-    let c11_dir = c1_tdir.mkdir().expect("could not create child dir");
-    let c12_dir = c1_tdir.mkdir().expect("could not create child dir");
+    let c11_dir = tempfile::tempdir_in(c1_dir.path()).unwrap();
+    let c12_dir = tempfile::tempdir_in(c1_dir.path()).unwrap();
 
     let builder = container::InitOptions::init();
     let _rid = builder

@@ -7,7 +7,7 @@ use std::{
     thread,
     time::Duration,
 };
-use syre_fs_watcher::{event::app as event, EventKind};
+use syre_fs_watcher::{event, EventKind};
 use syre_local::common;
 
 const TIMEOUT: Duration = Duration::from_millis(1000);
@@ -26,11 +26,13 @@ fn test_watcher_app() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config =
-        syre_fs_watcher::config::AppConfig::new(user_manifest.path(), project_manifest.path());
+    let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
+        user_manifest.path(),
+        project_manifest.path(),
+    );
 
     let mut fs_watcher =
-        syre_fs_watcher::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+        syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
 
     fs_watcher.add_path(config_dir.path());
     thread::spawn(move || fs_watcher.run());
@@ -120,11 +122,13 @@ fn test_watcher_project() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config =
-        syre_fs_watcher::config::AppConfig::new(user_manifest.path(), project_manifest.path());
+    let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
+        user_manifest.path(),
+        project_manifest.path(),
+    );
 
     let mut fs_watcher =
-        syre_fs_watcher::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+        syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
 
     fs_watcher.add_path(config_dir.path());
     thread::spawn(move || fs_watcher.run());
@@ -488,10 +492,9 @@ fn test_watcher_project() {
     assert_eq!(event.len(), 1);
     assert_matches!(
         event[0].kind(),
-        EventKind::Container(
-            event::Container::ConfigDir(
+        EventKind::Container(event::Container::ConfigDir(
             event::StaticResourceEvent::Created
-            ))
+        ))
     );
 
     fs::File::create(common::assets_file_of(&path)).unwrap();
@@ -536,10 +539,7 @@ fn test_watcher_project() {
     container.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
-        event[0].kind(),
-        EventKind::Graph(event::Graph::Created)
-    );
+    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
 
     let mut to = container.base_path().to_path_buf();
     to.set_file_name("child-1");
@@ -557,19 +557,13 @@ fn test_watcher_project() {
     container_sibling.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
-        event[0].kind(),
-        EventKind::Graph(event::Graph::Created)
-    );
+    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
 
     let to = container.base_path().join(path.file_name().unwrap());
     fs::rename(container_sibling.base_path(), &to).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
-        event[0].kind(),
-        EventKind::Graph(event::Graph::Moved)
-    );
+    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Moved));
     container_sibling.set_base_path(to);
 
     fs::remove_dir_all(container_sibling.base_path()).unwrap();

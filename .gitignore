@@ -6,6 +6,7 @@
 # general
 /tags
 /target
+target-tauri
 rusty-tags.vi
 .DS_Store
 

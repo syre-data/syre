@@ -40,7 +40,5 @@ lazy_static = "1.4.0"
 rand = { workspace = true }
 tempfile = { workspace = true }
 
-dev_utils = { workspace = true, features = ["syre_core"] }
-
 [features]
 fs = ["dep:directories", "dep:glob"]

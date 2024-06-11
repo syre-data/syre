@@ -33,6 +33,7 @@ features=[
     "CssStyleDeclaration",
     "DataTransfer",
 	"DomStringMap",
+	"DomRect",
     "DragEvent",
     "Element",
 	"Event",
@@ -51,6 +52,7 @@ features=[
 [dependencies.yew_icons]
 workspace = true
 features=[
+	"BootstrapExclamationTriangle",
     "FontAwesomeRegularFile",
     "FontAwesomeRegularFileAudio",
     "FontAwesomeRegularFileCode",

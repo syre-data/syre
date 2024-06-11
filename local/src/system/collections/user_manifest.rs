@@ -52,7 +52,9 @@ impl UserManifest {
     }
 
     pub fn save(&self) -> Result<(), IoSerde> {
-        fs::write(&Self::path()?, serde_json::to_string_pretty(&self)?)?;
+        let path = Self::path()?;
+        fs::create_dir_all(path.parent().unwrap())?;
+        fs::write(&path, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 }

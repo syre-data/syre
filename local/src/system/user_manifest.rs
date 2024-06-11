@@ -1,7 +1,7 @@
 use super::collections::user_manifest::UserManifest;
 use super::settings::user_settings::UserSettings;
-use crate::error::{Error, Result, Users as UsersError};
-use std::collections::HashMap;
+use crate::error::{Error, IoSerde, Result, Users as UsersError};
+use std::{collections::HashMap, result::Result as StdResult};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::system::User;
 use syre_core::types::ResourceId;
@@ -11,7 +11,7 @@ use syre_core::types::ResourceId;
 // *************
 
 /// Returns a user by the given id if it exists, otherwise returns an error.
-pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
+pub fn user_by_id(rid: &ResourceId) -> StdResult<Option<User>, IoSerde> {
     let users = UserManifest::load()?;
     Ok(users.get(&rid).cloned())
 }
@@ -20,14 +20,15 @@ pub fn user_by_id(rid: &ResourceId) -> Result<Option<User>> {
 ///
 /// # Errors
 /// + [`UsersError::DuplicateEmail`]: If multiple users are registered with the given email.
-pub fn user_by_email(email: &str) -> Result<Option<User>> {
+pub fn user_by_email(email: impl Into<String>) -> Result<Option<User>> {
+    let email = email.into();
     let users = UserManifest::load()?;
     let users: Vec<&User> = users.values().filter(|user| user.email == email).collect();
 
     match users.len() {
         0 => Ok(None),
         1 => Ok(Some(users[0].clone())),
-        _ => Err(Error::Users(UsersError::DuplicateEmail(email.to_string()))),
+        _ => Err(Error::Users(UsersError::DuplicateEmail(email))),
     }
 }
 
@@ -54,7 +55,7 @@ pub fn add_user(user: User) -> Result {
 }
 
 /// Delete a user by id.
-pub fn delete_user(rid: &ResourceId) -> Result {
+pub fn delete_user(rid: &ResourceId) -> StdResult<(), IoSerde> {
     let mut users = UserManifest::load()?;
     let mut settings = UserSettings::load()?;
 
@@ -75,7 +76,8 @@ pub fn delete_user_by_email(email: &str) -> Result {
         return Ok(());
     };
 
-    delete_user(&user.rid)
+    delete_user(&user.rid)?;
+    Ok(())
 }
 
 /// Update the user with the given id.
@@ -98,7 +100,7 @@ pub fn update_user(user: User) -> Result {
 }
 
 /// Gets the active user.
-pub fn get_active_user() -> Result<Option<User>> {
+pub fn get_active_user() -> StdResult<Option<User>, IoSerde> {
     let user_settings = UserSettings::load_or_default()?;
     let Some(active_user) = user_settings.active_user.as_ref() else {
         return Ok(None);
@@ -142,7 +144,7 @@ pub fn set_active_user_by_email(email: &str) -> Result {
 }
 
 /// Unsets the active user.
-pub fn unset_active_user() -> Result {
+pub fn unset_active_user() -> StdResult<(), IoSerde> {
     let mut settings = UserSettings::load()?;
     settings.active_user = None;
     settings.save()?;

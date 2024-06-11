@@ -1,12 +1,11 @@
 use super::*;
-use dev_utils::fs::TempDir;
 
 #[test]
 fn container_tree_load_should_work() {
     // setup
-    let mut dir = TempDir::new().expect("could not create temp dir");
-    let c1_dir = dir.mkdir().expect("could not create child dir");
-    let c2_dir = dir.mkdir().expect("could not create child dir");
+    let dir = tempfile::tempdir().unwrap();
+    let c1_dir = tempfile::tempdir_in(dir.path()).unwrap();
+    let c2_dir = tempfile::tempdir_in(dir.path()).unwrap();
 
     let builder = container::InitOptions::init();
     let rid = builder

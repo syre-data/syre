@@ -38,7 +38,7 @@ has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
 syre-local = { workspace = true }
-syre-fs-watcher = { workspace = true }
+syre-fs-watcher = { workspace = true, features = ["server", "client"] }
 
 [dev-dependencies]
 rand = "0.8"

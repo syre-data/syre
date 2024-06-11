@@ -25,7 +25,6 @@ pub type AnalysisMap = ResourceMap<RunParameters>;
 // *****************
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[derive(PartialEq, Eq, Clone, Debug, HasId)]
 pub struct Container {
     #[id]

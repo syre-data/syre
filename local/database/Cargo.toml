@@ -17,9 +17,11 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 crossbeam.workspace = true
+derive_more = { workspace = true, optional = true }
 file-id = "0.2"
 futures = "0.3"
 indexmap = { workspace = true, features = ["serde"] }
+notify = { workspace = true, default-features = false, optional = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -38,7 +40,7 @@ has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
 syre-local = { workspace = true }
-syre-fs-watcher = { workspace = true, features = ["server", "client"] }
+syre-fs-watcher = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -55,7 +57,9 @@ server = [
 	"dep:has_id",
 	"dep:trash",
 	"dep:tokio",
-	"dep:surrealdb"
+	"dep:surrealdb",
+	"dep:derive_more",
+	"dep:notify",
 ]
 client = ["dep:zmq"]
 error = []

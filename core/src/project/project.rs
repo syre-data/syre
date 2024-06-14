@@ -15,9 +15,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 pub struct Project {
     pub rid: ResourceId,
-    pub creator: Creator,
-    pub created: DateTime<Utc>,
-
     pub name: String,
     pub description: Option<String>,
     pub data_root: PathBuf,
@@ -34,8 +31,6 @@ impl Project {
         Project {
             rid: ResourceId::new(),
             name: name.into(),
-            creator: Creator::User(None),
-            created: Utc::now(),
             description: None,
             data_root: PathBuf::from("data"),
             analysis_root: None,

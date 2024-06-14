@@ -24,7 +24,7 @@ impl Database {
                     panic!("resource not found");
                 };
 
-                self.publish_updates(&vec![Update::new_project(
+                self.publish_updates(&vec![Update::project(
                     project,
                     AnalysisUpdate::Flag { resource, message }.into(),
                 )])

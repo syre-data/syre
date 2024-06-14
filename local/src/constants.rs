@@ -1,7 +1,7 @@
 //! Crate wide constant values.
 
 /// Current project format version.
-pub static PROJECT_FORMAT_VERSION: &str = "0.10.2";
+pub static PROJECT_FORMAT_VERSION: &str = "0.11.0";
 
 // ***********
 // *** app ***

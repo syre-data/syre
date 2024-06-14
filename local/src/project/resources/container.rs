@@ -19,28 +19,6 @@ use syre_core::project::{
 };
 use syre_core::types::{Creator, ResourceId, UserId};
 
-// **********************************
-// *** Local Container Properties ***
-// **********************************
-
-pub struct ContainerProperties;
-impl ContainerProperties {
-    /// Creates a new [`ContainerProperties`](CoreContainerProperties) with fields actively filled from system settings.
-    pub fn new(name: String) -> Result<CoreContainerProperties> {
-        let settings = UserSettings::load()?;
-        let creator = match settings.active_user.as_ref() {
-            Some(uid) => Some(UserId::Id(uid.clone().into())),
-            None => None,
-        };
-
-        let creator = Creator::User(creator);
-        let mut props = CoreContainerProperties::new(name);
-        props.creator = creator;
-
-        Ok(props)
-    }
-}
-
 // ***********************************
 // *** Stored Container Properties ***
 // ***********************************
@@ -176,6 +154,20 @@ impl Container {
 
     pub fn settings_mut(&mut self) -> &mut ContainerSettings {
         &mut self.settings
+    }
+
+    /// Breaks self into parts.
+    ///
+    /// # Returns
+    /// Tuple of (properties, settings, base path).
+    pub fn into_parts(self) -> (CoreContainer, ContainerSettings, PathBuf) {
+        let Self {
+            container,
+            base_path,
+            settings,
+        } = self;
+
+        (container, settings, base_path)
     }
 }
 

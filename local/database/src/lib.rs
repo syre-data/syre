@@ -1,8 +1,9 @@
 #![feature(io_error_more)]
+#![feature(assert_matches)]
 //! # Syre Local Database
 //! Implements a local database for Syre.
-pub mod command;
 pub mod event;
+pub mod query;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod constants;
@@ -22,13 +23,8 @@ pub mod client;
 #[cfg(feature = "server")]
 pub mod server;
 
-// Re-exports
-pub use command::{
-    AnalysisCommand, AssetCommand, Command, ContainerCommand, DatabaseCommand, GraphCommand,
-    ProjectCommand,
-};
-
 pub use event::Update;
+pub use query::Query;
 
 #[cfg(any(feature = "client", feature = "server", feature = "error"))]
 pub use error::{Error, Result};

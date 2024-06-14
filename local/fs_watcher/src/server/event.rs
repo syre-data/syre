@@ -1,9 +1,13 @@
 //! File system events.
 use notify_debouncer_full::DebouncedEvent;
 use std::{path::PathBuf, time::Instant};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Event<'a> {
+    /// Tracker id.
+    id: Uuid,
+
     /// Tracker ids that led to this event.
     parents: Vec<&'a DebouncedEvent>,
 
@@ -16,10 +20,15 @@ pub struct Event<'a> {
 impl Event<'_> {
     pub fn new(kind: impl Into<EventKind>, time: Instant) -> Self {
         Self {
+            id: Uuid::now_v7(),
             parents: Vec::new(),
             time,
             kind: kind.into(),
         }
+    }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
     }
 }
 

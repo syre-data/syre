@@ -16,7 +16,6 @@ use has_id::HasIdSerde;
 
 /// Assets represent a consumable or producable resource.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize, HasIdSerde))]
-#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[derive(HasId, Debug, Clone, PartialEq, Eq)]
 pub struct Asset {
     #[id]

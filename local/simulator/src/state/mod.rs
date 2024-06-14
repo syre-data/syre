@@ -5,13 +5,13 @@ use std::{
     path::{Path, PathBuf},
     rc::{Rc, Weak},
 };
-use syre_local::{common, constants};
+use syre_local::{common, Reducible};
 
 pub mod app;
 pub mod fs;
 pub mod graph;
 
-use app::{FolderResource, HasPath, Manifest};
+use app::FolderResource;
 
 pub struct Ptr<T>(Rc<RefCell<T>>);
 impl<T> Ptr<T> {
@@ -98,11 +98,6 @@ impl<T> Clone for WPtr<T> {
 pub trait HasName {
     fn name(&self) -> &std::ffi::OsStr;
     fn set_name(&mut self, name: impl Into<std::ffi::OsString>);
-}
-
-pub trait Reducible {
-    type Action;
-    fn reduce(&mut self, action: Self::Action);
 }
 
 #[derive(Debug)]
@@ -599,7 +594,7 @@ impl Reducible for State {
 
                         app::FileResource::ProjectSettings(_) => match kind {
                             fs::ModifyKind::Initialize => {
-                                let settings = syre_local::types::ProjectSettings::default();
+                                let settings = syre_local::types::ProjectSettings::new();
                                 let fs_resource = self.fs.find_file(&file).unwrap();
                                 fs_resource
                                     .borrow_mut()

@@ -1,4 +1,10 @@
 //! Runs a local [`Database`].
+use syre_fs_watcher::server::config::AppConfig;
+use syre_local::{
+    file_resource::SystemResource,
+    system::collections::{ProjectManifest, UserManifest},
+};
+
 use syre_local_database::server;
 
 fn main() {
@@ -9,11 +15,13 @@ fn main() {
         default_panic_hook(panic_info);
     }));
 
-    let projects = syre_local::system::collections::ProjectManifest::load_or_default().unwrap();
+    let app_config = AppConfig::new(
+        UserManifest::path().unwrap(),
+        ProjectManifest::path().unwrap(),
+    );
 
-    // run database
-    let db = server::Builder::default()
-        .add_paths(projects.to_vec());
+    let projects = ProjectManifest::load_or_default().unwrap();
+    let db = server::Builder::new(app_config).add_paths(projects.to_vec());
     db.run().unwrap();
 }
 
@@ -33,11 +41,12 @@ fn panic_hook(panic_info: &std::panic::PanicInfo) {
 mod logging {
     use std::io;
     use syre_local::system::common;
-    use tracing_subscriber::filter::LevelFilter;
-    use tracing_subscriber::fmt;
-    use tracing_subscriber::fmt::time::UtcTime;
-    use tracing_subscriber::prelude::*;
-    use tracing_subscriber::{Layer, Registry};
+    use tracing_subscriber::{
+        filter::LevelFilter,
+        fmt::{self, time::UtcTime},
+        prelude::*,
+        Layer, Registry,
+    };
 
     const LOG_PREFIX: &str = "database.local.log";
     const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;

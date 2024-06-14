@@ -93,6 +93,11 @@ impl UserManifest {
         fs::write(&self.path, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
+
+    /// Consumes `self` returning the underlying `Vec`.
+    pub fn to_vec(self) -> Vec<User> {
+        self.inner.into_values().collect()
+    }
 }
 
 impl Deref for UserManifest {

@@ -43,7 +43,7 @@ impl Project {
         Ok(Self {
             base_path: path,
             inner: CoreProject::new(name),
-            settings: ProjectSettings::default(),
+            settings: ProjectSettings::new(),
         })
     }
 
@@ -52,7 +52,7 @@ impl Project {
         Self {
             base_path: path.into(),
             inner: project,
-            settings: ProjectSettings::default(),
+            settings: ProjectSettings::new(),
         }
     }
 
@@ -84,7 +84,7 @@ impl Project {
         let Some(parent) = project_path.parent() else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidFilename,
-                "project path does nto have a parent",
+                "project path does not have a parent",
             )
             .into());
         };
@@ -95,7 +95,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn inner(&self) -> &CoreProject {
+    pub fn properties(&self) -> &CoreProject {
         &self.inner
     }
 
@@ -128,11 +128,27 @@ impl Project {
 
         Some(self.base_path.join(analysis_root))
     }
+
+    /// Breaks self into parts.
+    ///
+    /// # Returns
+    /// Tuple of (properties, settings, base path).
+    pub fn into_parts(self) -> (CoreProject, ProjectSettings, PathBuf) {
+        let Self {
+            inner,
+            base_path,
+            settings,
+        } = self;
+
+        (inner, settings, base_path)
+    }
 }
 
 impl Project {
     /// Only load the project's properties.
-    pub fn load_from_properties_only(base_path: impl Into<PathBuf>) -> StdResult<CoreProject, IoSerdeError> {
+    pub fn load_from_properties_only(
+        base_path: impl Into<PathBuf>,
+    ) -> StdResult<CoreProject, IoSerdeError> {
         let base_path = fs::canonicalize(base_path.into())?;
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let project_file = fs::File::open(project_path)?;
@@ -140,7 +156,6 @@ impl Project {
         let project = serde_json::from_reader(project_reader)?;
         Ok(project)
     }
-
 }
 
 impl Deref for Project {

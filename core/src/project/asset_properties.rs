@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 
 /// Standard resource properties.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AssetProperties {
     created: DateTime<Utc>,

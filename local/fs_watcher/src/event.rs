@@ -1,10 +1,14 @@
 //! Syre application events.
 use std::{path::PathBuf, time::Instant};
+use uuid::Uuid;
 
 pub type EventResult = Result<Vec<Event>, Vec<crate::Error>>;
 
 #[derive(Debug)]
 pub struct Event {
+    id: Uuid,
+    parent: ParentId,
+
     /// Instant the underlying event was created.
     time: Instant,
 
@@ -14,20 +18,38 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new(kind: EventKind) -> Self {
+    pub fn new(kind: EventKind, parent: Uuid) -> Self {
         Self {
+            id: Uuid::now_v7(),
+            parent: ParentId::Fs(parent),
             time: Instant::now(),
             kind,
             paths: Vec::new(),
         }
     }
 
-    pub fn with_time(kind: EventKind, time: Instant) -> Self {
+    pub fn with_time(kind: EventKind, time: Instant, parent: Uuid) -> Self {
         Self {
+            id: Uuid::now_v7(),
+            parent: ParentId::Fs(parent),
             time,
             kind,
             paths: Vec::new(),
         }
+    }
+
+    pub fn new_from_notify(kind: EventKind, parent: Option<usize>) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            parent: ParentId::Notify(parent),
+            time: Instant::now(),
+            kind,
+            paths: Vec::new(),
+        }
+    }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
     }
 
     pub fn time(&self) -> &Instant {
@@ -47,6 +69,12 @@ impl Event {
         self.paths.push(path);
         self
     }
+}
+
+#[derive(Debug)]
+pub enum ParentId {
+    Fs(Uuid),
+    Notify(Option<usize>),
 }
 
 #[derive(Debug, derive_more::From)]

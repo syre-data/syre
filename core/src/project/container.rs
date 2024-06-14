@@ -3,9 +3,7 @@ use super::container_properties::{Builder as PropertiesBuilder, ContainerPropert
 use super::Metadata;
 use super::{AnalysisAssociation, Asset, RunParameters};
 use crate::db::Resource;
-use crate::types::Creator;
 use crate::types::{ResourceId, ResourceMap};
-use chrono::prelude::*;
 use has_id::HasId;
 use serde_json::Value as JsValue;
 use std::hash::{Hash, Hasher};
@@ -81,21 +79,6 @@ impl Builder {
             assets: AssetMap::new(),
             analyses: AnalysisMap::new(),
         }
-    }
-
-    pub fn set_created(&mut self, value: DateTime<Utc>) -> &mut Self {
-        self.properties.set_created(value);
-        self
-    }
-
-    pub fn clear_created(&mut self) -> &mut Self {
-        self.properties.clear_created();
-        self
-    }
-
-    pub fn set_creator(&mut self, value: Creator) -> &mut Self {
-        self.properties.set_creator(value);
-        self
     }
 
     pub fn set_name(&mut self, value: impl Into<String>) -> &mut Self {

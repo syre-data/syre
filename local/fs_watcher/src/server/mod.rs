@@ -1,7 +1,7 @@
-#![feature(assert_matches)]
 //! File system event handler.
 mod actor;
 pub mod event;
+mod path_watcher;
 pub(crate) mod watcher;
 
 #[cfg(target_os = "windows")]

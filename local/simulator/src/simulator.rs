@@ -1,6 +1,6 @@
 use crate::{
     event_validator::{self, error::Validation},
-    state::{self, Ptr, Reducible},
+    state::{self, Ptr},
 };
 use crossbeam::channel::{Receiver, Sender, TryRecvError};
 use options::Options;
@@ -16,6 +16,7 @@ use std::{
     thread,
 };
 use syre_fs_watcher::{self as watcher};
+use syre_local::Reducible;
 
 type Result<T = ()> = std::result::Result<T, error::Error>;
 
@@ -38,7 +39,8 @@ impl Simulator {
         let (validation_tx, validation_rx) = crossbeam::channel::unbounded();
 
         let rng = ChaCha8Rng::seed_from_u64(options.seed());
-        let watcher = watcher::Builder::new(command_rx, event_tx, options.app_config().clone());
+        let watcher =
+            watcher::server::Builder::new(command_rx, event_tx, options.app_config().clone());
         let watcher_thread = thread::Builder::new()
             .name("syre fs watcher simulator watcher".into())
             .spawn(move || {
@@ -1257,7 +1259,7 @@ impl Simulator {
                 serde_json::to_writer(file, &project).unwrap();
             }
             state::app::FileResource::ProjectSettings(_) => {
-                let settings = syre_local::types::ProjectSettings::default();
+                let settings = syre_local::types::ProjectSettings::new();
                 let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
                 serde_json::to_writer(file, &settings).unwrap();
             }
@@ -1361,7 +1363,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::config::AppConfig) -> Self {
+    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::config::AppConfig) -> Self {
         Self {
             current_tick: 0,
             app: state::State::new(
@@ -1538,7 +1540,7 @@ mod utils {
 
 pub mod options {
     use std::{ops::Range, path::PathBuf};
-    use syre_fs_watcher::config::AppConfig;
+    use syre_fs_watcher::server::config::AppConfig;
 
     pub struct Options {
         seed: u64,

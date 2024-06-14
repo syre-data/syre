@@ -1,7 +1,5 @@
 //! Container properties.
 use super::Metadata;
-use crate::types::Creator;
-use chrono::prelude::*;
 use serde_json::Value as JsValue;
 use std::collections::HashMap;
 
@@ -9,12 +7,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContainerProperties {
-    created: DateTime<Utc>,
-    pub creator: Creator,
-
     pub name: String,
     pub kind: Option<String>,
     pub description: Option<String>,
@@ -25,19 +19,12 @@ pub struct ContainerProperties {
 impl ContainerProperties {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
-            created: Utc::now(),
-            creator: Creator::User(None),
-
             name: name.into(),
             kind: None,
             description: None,
             tags: Vec::new(),
             metadata: HashMap::new(),
         }
-    }
-
-    pub fn created(&self) -> &DateTime<Utc> {
-        &self.created
     }
 }
 
@@ -47,8 +34,6 @@ impl ContainerProperties {
 
 #[derive(Default)]
 pub struct Builder {
-    created: Option<DateTime<Utc>>,
-    creator: Creator,
     name: String,
     kind: Option<String>,
     description: Option<String>,
@@ -57,21 +42,6 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn set_created(&mut self, value: DateTime<Utc>) -> &mut Self {
-        self.created = Some(value);
-        self
-    }
-
-    pub fn clear_created(&mut self) -> &mut Self {
-        self.created = None;
-        self
-    }
-
-    pub fn set_creator(&mut self, value: Creator) -> &mut Self {
-        self.creator = value;
-        self
-    }
-
     pub fn set_name(&mut self, value: impl Into<String>) -> &mut Self {
         self.name = value.into();
         self
@@ -150,8 +120,6 @@ impl Builder {
 impl Builder {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
-            created: None,
-            creator: Creator::default(),
             name: name.into(),
             kind: None,
             description: None,
@@ -164,8 +132,6 @@ impl Builder {
 impl Into<ContainerProperties> for Builder {
     fn into(self) -> ContainerProperties {
         ContainerProperties {
-            created: self.created.unwrap_or_else(|| Utc::now()),
-            creator: self.creator,
             name: self.name,
             kind: self.kind,
             description: self.description,

@@ -15,8 +15,8 @@ categories = []
 
 [dependencies]
 file_path_from_id = { workspace = true }
-notify = { version = "6.1", default-features = false, features = ["macos_kqueue"], optional = true }
-notify-debouncer-full = { version = "0.3", default-features = false, optional = true }
+notify = { workspace = true, default-features = false, features = ["macos_kqueue"], optional = true }
+notify-debouncer-full = { workspace = true, default-features = false, optional = true }
 syre-core = { workspace = true, optional = true }
 syre-local = { workspace = true, features = ["fs"], optional = true }
 uuid = { workspace = true, features = ["v7"], optional = true }
@@ -36,6 +36,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
+default = ["client", "server"]
 server = [
 	"dep:notify",
 	"dep:notify-debouncer-full",
@@ -43,5 +44,7 @@ server = [
 	"dep:tracing-appender",
 	"dep:file-id",
 	"dep:has_id",
+	"dep:syre-core",
+	"dep:syre-local",
 ]
 client = []

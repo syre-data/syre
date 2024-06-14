@@ -1,11 +1,16 @@
 use super::Command;
-use crate::command::search::ResourceKind;
 use std::str::FromStr;
 use surrealdb::engine::local::{Db, Mem};
 use surrealdb::sql::Thing;
 use surrealdb::{error, Error, Surreal};
 use syre_core::types::ResourceId;
 use tokio::sync::{mpsc, oneshot};
+
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+pub enum ResourceKind {
+    Container,
+    Asset,
+}
 
 pub type Result<T = ()> = surrealdb::Result<T>;
 type Tx<T> = oneshot::Sender<Result<T>>;
@@ -20,6 +25,12 @@ struct IdRecord {
     id: Thing,
 }
 
+const DEFINE_TABLE_USER: &str = "
+DEFINE TABLE user SCHEMAFULL;
+
+DEFINE FIELD email ON TABLE user TYPE string;
+";
+
 const DEFINE_TABLE_PROJECT: &str = "
 DEFINE TABLE project SCHEMAFULL;
 
@@ -29,7 +40,6 @@ DEFINE FIELD data_root ON TABLE project TYPE string;
 DEFINE FIELD analysis_root ON TABLE project TYPE option<string>;
 
 DEFINE FIELD creator ON TABLE project TYPE option<string>;
-DEFINE FIELD creator_kind ON TABLE project TYPE option<string>;
 DEFINE FIELD created ON TABLE project TYPE datetime;
 
 DEFINE FIELD base_path ON TABLE project TYPE string;
@@ -78,6 +88,23 @@ DEFINE FIELD tags ON TABLE asset TYPE set<string>;
 DEFINE FIELD metadata ON TABLE asset TYPE object;
 
 DEFINE FIELD path ON TABLE asset TYPE string;
+
+DEFINE FIELD creator_kind ON TABLE container TYPE string;
+DEFINE FIELD creator ON TABLE container TYPE option<string>;
+DEFINE FIELD created ON TABLE container TYPE datetime;
+";
+
+const DEFINE_TABLE_PERMISSIONS: &str = "
+DEFINE TABLE permissions SCHEMAFULL;
+
+DEFINE FIELD resource ON TABLE permissions TYPE record<string>;
+DEFINE FIELD user ON TABLE permissions TYPE record<user>;
+DEFINE FIELD owner ON TABLE permissions TYPE bool;
+DEFINE FIELD read ON TABLE permissions TYPE bool;
+DEFINE FIELD write ON TABLE permissions TYPE bool;
+DEFINE FIELD execute ON TABLE permissions TYPE bool;
+
+DEFINE INDEX id ON TABLE permissions FIELDS resource, user UNIQUE;
 ";
 
 const DEFINE_SEARCH_INDICES: &str = "
@@ -303,18 +330,12 @@ impl Store {
 
 pub mod project {
     use super::super::command::project::Command;
-    use super::{
-        types::{Creator, CreatorKind},
-        Result, Store,
-    };
+    use super::{Result, Store};
     use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::path::PathBuf;
-    use syre_core::{
-        project::Project as CoreProject,
-        types::{Creator as CoreCreator, ResourceId},
-    };
-    use syre_local::project::resources::Project as LocalProject;
+    use syre_core::{project::Project as CoreProject, types::ResourceId};
+    use syre_local::{project::resources::Project as LocalProject, types::ProjectSettings};
 
     impl Store {
         pub async fn handle_command_project(&self, cmd: Command) {
@@ -358,7 +379,7 @@ pub mod project {
         data_root: PathBuf,
         analysis_root: Option<PathBuf>,
 
-        creator: Option<Creator>,
+        creator: Option<syre_core::types::UserId>,
         created: DateTime<Utc>,
 
         base_path: PathBuf,
@@ -393,32 +414,22 @@ pub mod project {
 
     impl From<LocalProject> for Record {
         fn from(value: LocalProject) -> Self {
+            let (properties, settings, base_path) = value.into_parts();
             let CoreProject {
                 rid: _,
-                creator,
-                created,
                 name,
                 description,
                 data_root,
                 analysis_root,
                 meta_level: _,
-            } = value.inner().clone();
+            } = properties;
 
-            let base_path = value.base_path().to_path_buf();
-            let creator = match creator {
-                CoreCreator::User(Some(id)) => {
-                    let id = match id {
-                        syre_core::types::UserId::Email(email) => email,
-                        syre_core::types::UserId::Id(id) => id.to_string(),
-                    };
-
-                    Some(Creator::new(id, CreatorKind::User))
-                }
-                CoreCreator::Script(id) => {
-                    Some(Creator::new(id.to_string(), CreatorKind::Analysis))
-                }
-                _ => None,
-            };
+            let ProjectSettings {
+                local_format_version: _,
+                created,
+                creator,
+                permissions: _,
+            } = settings;
 
             Self {
                 name,
@@ -439,12 +450,13 @@ pub mod graph {
     use super::container::Record as ContainerRecord;
     use super::{error, Error, Result, Store};
     use futures::future::{BoxFuture, FutureExt};
-    use std::collections::HashMap;
-    use std::str::FromStr;
+    use std::{collections::HashMap, str::FromStr};
     use surrealdb::sql::Thing;
-    use syre_core::graph::ResourceNode;
-    use syre_core::project::{Asset, Container};
-    use syre_core::types::ResourceId;
+    use syre_core::{
+        graph::ResourceNode,
+        project::{Asset, Container},
+        types::ResourceId,
+    };
 
     type Nodes = HashMap<ResourceId, ResourceNode<Container>>;
 
@@ -629,25 +641,28 @@ pub mod graph {
                 assets,
                 analyses: _,
             } = container.into_data();
+            todo!();
 
-            container_info.push(ContainerInfo {
-                id: cid.clone(),
-                record: properties.into(),
-            });
+            // let record = ContainerRecord::;
 
-            for asset in assets.into_values() {
-                let Asset {
-                    rid: aid,
-                    properties,
-                    path,
-                } = asset;
+            // container_info.push(ContainerInfo {
+            //     id: cid.clone(),
+            //     record,
+            // });
 
-                asset_info.push(AssetInfo {
-                    id: aid,
-                    record: AssetRecord::new(properties, path),
-                    container: cid.clone(),
-                });
-            }
+            // for asset in assets.into_values() {
+            //     let Asset {
+            //         rid: aid,
+            //         properties,
+            //         path,
+            //     } = asset;
+
+            //     asset_info.push(AssetInfo {
+            //         id: aid,
+            //         record: AssetRecord::from_properties(properties, path),
+            //         container: cid.clone(),
+            //     });
+            // }
         }
 
         Resources {
@@ -674,14 +689,19 @@ pub mod graph {
 }
 
 pub mod container {
-    use crate::command::search::ResourceKind;
-
     use super::super::command::container::Command;
+    use super::ResourceKind;
     use super::{Result, Store};
+    use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
+    use std::path::PathBuf;
     use surrealdb::{error, sql::Thing, Error};
-    use syre_core::project::{ContainerProperties, Metadata};
-    use syre_core::types::ResourceId;
+    use syre_core::{
+        project::{ContainerProperties, Metadata},
+        types::{ResourceId, UserId},
+    };
+    use syre_local::project::resources::Container;
+    use syre_local::types::ContainerSettings;
 
     impl Store {
         pub async fn handle_command_container(&self, cmd: Command) {
@@ -763,19 +783,26 @@ pub mod container {
         description: Option<String>,
         tags: Vec<String>,
         metadata: Metadata,
+        creator: Option<UserId>,
+        created: DateTime<Utc>,
+        base_path: PathBuf,
     }
 
-    impl From<ContainerProperties> for Record {
-        fn from(value: ContainerProperties) -> Self {
+    impl From<Container> for Record {
+        fn from(value: Container) -> Self {
+            let (container, settings, base_path) = value.into_parts();
             let ContainerProperties {
-                creator: _,
                 name,
                 kind,
                 description,
                 tags,
                 metadata,
                 ..
-            } = value;
+            } = container.properties;
+
+            let ContainerSettings {
+                creator, created, ..
+            } = settings;
 
             Self {
                 name,
@@ -783,6 +810,9 @@ pub mod container {
                 description,
                 tags,
                 metadata,
+                creator,
+                created,
+                base_path,
             }
         }
     }
@@ -790,8 +820,9 @@ pub mod container {
 
 pub mod asset {
     use super::super::command::asset::Command;
+    use super::ResourceKind;
     use super::{Result, Store};
-    use crate::command::search::ResourceKind;
+    use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::path::PathBuf;
     use surrealdb::{error, sql::Thing, Error};
@@ -889,12 +920,35 @@ pub mod asset {
         tags: Vec<String>,
         metadata: Metadata,
         path: PathBuf,
+        creator_kind: types::CreatorKind,
+        creator: Option<types::CreatorId>,
+        created: DateTime<Utc>,
     }
 
     impl Record {
-        pub fn new(properties: AssetProperties, path: PathBuf) -> Self {
+        pub fn new(
+            path: PathBuf,
+            creator: syre_core::types::Creator,
+            created: DateTime<Utc>,
+        ) -> Self {
+            let (creator_kind, creator) = types::creator_to_parts(creator);
+            Self {
+                path,
+                created,
+                name: None,
+                kind: None,
+                description: None,
+                tags: vec![],
+                metadata: Metadata::new(),
+                creator,
+                creator_kind,
+            }
+        }
+
+        pub fn from_properties(properties: AssetProperties, path: PathBuf) -> Self {
+            let created = properties.created().clone();
             let AssetProperties {
-                creator: _,
+                creator,
                 name,
                 kind,
                 description,
@@ -902,14 +956,17 @@ pub mod asset {
                 metadata,
                 ..
             } = properties;
-
+            let (creator_kind, creator) = types::creator_to_parts(creator);
             Self {
+                path,
+                created,
                 name,
                 kind,
                 description,
                 tags,
                 metadata,
-                path,
+                creator,
+                creator_kind,
             }
         }
     }
@@ -922,14 +979,17 @@ pub mod asset {
                 path,
             } = value;
 
+            let created = properties.created().clone();
             let AssetProperties {
                 name,
                 kind,
                 description,
                 tags,
                 metadata,
+                creator,
                 ..
             } = properties;
+            let (creator_kind, creator) = types::creator_to_parts(creator);
 
             Self {
                 name,
@@ -938,33 +998,43 @@ pub mod asset {
                 tags,
                 metadata,
                 path,
-            }
-        }
-    }
-}
-
-mod types {
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct Creator {
-        id: String,
-        kind: CreatorKind,
-    }
-
-    impl Creator {
-        pub fn new(id: impl Into<String>, kind: CreatorKind) -> Self {
-            Self {
-                id: id.into(),
-                kind,
+                created,
+                creator,
+                creator_kind,
             }
         }
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
-    pub enum CreatorKind {
-        User,
-        Analysis,
+    mod types {
+        use serde::{Deserialize, Serialize};
+        use syre_core::types::{Creator, ResourceId, UserId};
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub enum CreatorId {
+            Id(ResourceId),
+            Email(String),
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub enum CreatorKind {
+            User,
+            Script,
+        }
+
+        /// Converts a [syre_core::Creator](syre_core::types::Creator) into its
+        /// corresponding components.
+        pub fn creator_to_parts(
+            creator: syre_core::types::Creator,
+        ) -> (CreatorKind, Option<CreatorId>) {
+            match creator {
+                Creator::User(None) => (CreatorKind::User, None),
+                Creator::User(Some(UserId::Id(id))) => (CreatorKind::User, Some(CreatorId::Id(id))),
+                Creator::User(Some(UserId::Email(email))) => {
+                    (CreatorKind::User, Some(CreatorId::Email(email)))
+                }
+                Creator::Script(id) => (CreatorKind::Script, Some(CreatorId::Id(id))),
+            }
+        }
     }
 }
 

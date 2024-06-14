@@ -269,7 +269,7 @@ pub mod converter {
 
                         if let Ok(settings) = settings::UserSettings::load() {
                             let user = settings.active_user.clone().map(|user| UserId::Id(user));
-                            project.creator = Creator::User(user);
+                            project.settings_mut().creator = user;
 
                             if let Some(user) = settings.active_user.as_ref() {
                                 project.settings_mut().permissions.insert(

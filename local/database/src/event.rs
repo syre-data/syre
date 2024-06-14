@@ -11,41 +11,69 @@ use syre_core::project::{
 use syre_core::types::ResourceId;
 use uuid::Uuid;
 
-// **************
-// *** Update ***
-// **************
-
 /// Update types.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Update {
+pub struct Update {
+    id: Uuid,
+    parent: Uuid,
+    kind: UpdateKind,
+}
+
+impl Update {
+    pub fn project(project: ResourceId, update: Project, parent: Uuid) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            parent,
+            kind: UpdateKind::Project { project, update },
+        }
+    }
+
+    pub fn app(update: impl Into<App>, parent: Uuid) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            parent,
+            kind: UpdateKind::App(update.into()),
+        }
+    }
+}
+
+impl Update {
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+
+    pub fn kind(&self) -> &UpdateKind {
+        &self.kind
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum UpdateKind {
+    App(App),
+    ProjectCreated,
     Project {
-        event_id: Uuid,
         project: ResourceId,
         update: Project,
     },
 }
 
-impl Update {
-    pub fn project(project: ResourceId, update: Project, event_id: Uuid) -> Self {
-        Self::Project {
-            event_id,
-            project,
-            update,
-        }
-    }
-
-    pub fn new_project(project: ResourceId, update: Project) -> Self {
-        Self::Project {
-            event_id: Uuid::new_v4(),
-            project,
-            update,
-        }
-    }
+#[derive(Serialize, Deserialize, Clone, Debug, derive_more::From)]
+pub enum App {
+    UserManifest(UserManifest),
+    ProjectManifest(ProjectManifest),
 }
 
-// ***************
-// *** Project ***
-// ***************
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum UserManifest {
+    Added,
+    Removed,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ProjectManifest {
+    Added(Vec<PathBuf>),
+    Removed(Vec<PathBuf>),
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {

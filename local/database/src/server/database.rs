@@ -1,24 +1,31 @@
 //! Database for storing resources.syre_local::system::collections::
-#[path = "./command/mod.rs"]
-pub(super) mod command;
+#[path = "query/mod.rs"]
+pub(super) mod query;
 
-#[path = "./file_system/mod.rs"]
+#[path = "file_system/mod.rs"]
 mod file_system;
 
-use super::store::data_store;
+use super::{state::State, store::data_store};
 use crate::{common, constants, event::Update};
-use command::CommandActor;
-use crossbeam::channel::{select, Receiver, Sender};
+use crossbeam::channel::{select, Receiver};
+use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, path::PathBuf, thread};
-use syre_local::{
-    file_resource::SystemResource,
-    system::collections::{ProjectManifest, UserManifest},
-};
+use syre_fs_watcher::server::config::AppConfig;
+use syre_local::system::collections::{ProjectManifest, UserManifest};
 
-#[derive(Default)]
 pub struct Builder {
+    app_config: AppConfig,
     paths: Vec<PathBuf>,
+}
+
+impl Builder {
+    pub fn new(app_config: AppConfig) -> Self {
+        Self {
+            app_config,
+            paths: vec![],
+        }
+    }
 }
 
 impl Builder {
@@ -27,42 +34,121 @@ impl Builder {
         let update_tx = zmq_context.socket(zmq::PUB)?;
         update_tx.bind(&common::zmq_url(zmq::PUB).unwrap())?;
 
-        let (command_tx, command_rx) = crossbeam::channel::unbounded();
+        let (query_tx, query_rx) = crossbeam::channel::unbounded();
         let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
-        let command_actor = CommandActor::new(command_tx.clone());
-
-        let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
-            UserManifest::path().unwrap(),
-            ProjectManifest::path().unwrap(),
-        );
+        let query_actor = query::Actor::new(query_tx.clone());
 
         let fs_command_client = syre_fs_watcher::Client::new(fs_command_tx);
-        let mut fs_watcher =
-            syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+        let mut fs_watcher = syre_fs_watcher::server::Builder::new(
+            fs_command_rx,
+            fs_event_tx,
+            self.app_config.clone(),
+        );
         fs_watcher.add_paths(self.paths);
 
         let (store_tx, store_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut datastore = data_store::Datastore::new(store_rx);
         let data_store = data_store::Client::new(store_tx);
 
-        thread::spawn(move || fs_watcher.run());
-        thread::spawn(move || {
-            if let Err(err) = command_actor.run() {
-                tracing::error!(?err);
-            }
-        });
+        thread::Builder::new()
+            .name("syre local database file system watcher".to_string())
+            .spawn(move || fs_watcher.run())
+            .unwrap();
 
-        thread::spawn(move || {
-            if let Err(err) = datastore.run() {
-                tracing::error!(?err);
-            }
-        });
+        thread::Builder::new()
+            .name("syre local database query actor".to_string())
+            .spawn(move || {
+                if let Err(err) = query_actor.run() {
+                    tracing::error!(?err);
+                }
+            })
+            .unwrap();
 
+        thread::Builder::new()
+            .name("syre local database data store".to_string())
+            .spawn(move || {
+                if let Err(err) = datastore.run() {
+                    tracing::error!(?err);
+                }
+            })
+            .unwrap();
+
+        let mut user_manifest_state = Ok(vec![]);
+        let mut project_manifest_state = Ok(vec![]);
+        if let Err(errors) = fs_event_rx.recv().unwrap() {
+            for err in errors {
+                match err {
+                    syre_fs_watcher::Error::Watch(err) => {
+                        if let [path] = &err.paths[..] {
+                            if path == self.app_config.user_manifest() {
+                                let err = match err.kind {
+                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::MaxFilesWatch
+                                    | notify::ErrorKind::PathNotFound
+                                    | notify::ErrorKind::Generic(_) => todo!(),
+                                    notify::ErrorKind::WatchNotFound
+                                    | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
+                                };
+
+                                // if err.kind() == std::io::ErrorKind::NotFound {
+                                //     todo!("handle missing user manifest on start up");
+                                // }
+                                user_manifest_state = Err(err.into());
+                            } else if path == self.app_config.project_manifest() {
+                                let err = match err.kind {
+                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::MaxFilesWatch
+                                    | notify::ErrorKind::PathNotFound
+                                    | notify::ErrorKind::Generic(_) => todo!(),
+                                    notify::ErrorKind::WatchNotFound
+                                    | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
+                                };
+
+                                // if err.kind() == std::io::ErrorKind::NotFound {
+                                //     todo!("handle missing project manifest on start up");
+                                // }
+                                project_manifest_state = Err(err.into());
+                            } else {
+                                tracing::error!(?err);
+                            }
+                        }
+                    }
+                    syre_fs_watcher::Error::Processing { events, kind } => {
+                        tracing::error!(?events, ?kind);
+                        todo!()
+                    }
+                }
+            }
+        }
+
+        if let Ok(manifest_state) = user_manifest_state.as_mut() {
+            match UserManifest::load_from(self.app_config.user_manifest()) {
+                Ok(manifest) => {
+                    manifest_state.extend(manifest.to_vec());
+                }
+                Err(err) => {
+                    user_manifest_state = Err(err);
+                }
+            }
+        }
+
+        if let Ok(manifest_state) = project_manifest_state.as_mut() {
+            match ProjectManifest::load_from(self.app_config.project_manifest()) {
+                Ok(manifest) => {
+                    manifest_state.extend(manifest.to_vec());
+                }
+                Err(err) => {
+                    project_manifest_state = Err(err);
+                }
+            }
+        }
+
+        let state = State::new(user_manifest_state, project_manifest_state);
         let mut db = Database {
-            // object_store: Objectstore::new(),
+            state,
             data_store,
-            command_rx,
+            query_rx,
             fs_event_rx,
             fs_command_client,
             update_tx,
@@ -73,27 +159,34 @@ impl Builder {
     }
 
     pub fn add_path(self, path: impl Into<PathBuf>) -> Self {
-        let Self { mut paths } = self;
+        let Self {
+            mut paths,
+            app_config,
+        } = self;
+
         paths.push(path.into());
-        Self { paths }
+        Self { paths, app_config }
     }
 
     pub fn add_paths(self, paths: Vec<PathBuf>) -> Self {
         let Self {
             paths: mut paths_stored,
+            app_config,
         } = self;
+
         paths_stored.extend(paths);
         Self {
             paths: paths_stored,
+            app_config,
         }
     }
 }
 
 /// Database.
 pub struct Database {
-    // object_store: Objectstore,
+    state: State,
     data_store: data_store::Client,
-    command_rx: Receiver<command::Command>,
+    query_rx: Receiver<Query>,
     fs_event_rx: Receiver<syre_fs_watcher::EventResult>,
     fs_command_client: syre_fs_watcher::Client,
 
@@ -111,9 +204,9 @@ impl Database {
     fn listen_for_events(&mut self) {
         loop {
             select! {
-                recv(self.command_rx) -> cmd => match cmd {
-                    Ok(command::Command{cmd, tx}) => {
-                        let response = self.handle_command(cmd);
+                recv(self.query_rx) -> query => match query {
+                    Ok(query::Query{query, tx}) => {
+                        let response = self.handle_query(query);
                         if let Err(err) = tx.send(response) {
                             tracing::error!(?err);
                         }
@@ -161,24 +254,42 @@ impl Database {
     /// Publish a updates to subscribers.
     /// Triggered by file system events.
     fn publish_updates(&self, updates: &Vec<Update>) -> zmq::Result<()> {
-        let mut project_updates = HashMap::with_capacity(updates.len());
+        use crate::event;
+
+        let mut sorted_updates = HashMap::with_capacity(updates.len());
         for update in updates.iter() {
-            match update {
-                Update::Project {
-                    event_id: _,
-                    project,
-                    update: _,
-                } => {
-                    let project = project_updates.entry(project).or_insert(vec![]);
-                    project.push(update);
+            match update.kind() {
+                event::UpdateKind::App(event::App::UserManifest(_)) => {
+                    let events = sorted_updates
+                        .entry("app/user_manifest".to_string())
+                        .or_insert(vec![]);
+                    events.push(update);
+                }
+                event::UpdateKind::App(event::App::ProjectManifest(_)) => {
+                    let events = sorted_updates
+                        .entry("app/project_manifest".to_string())
+                        .or_insert(vec![]);
+                    events.push(update);
+                }
+                event::UpdateKind::ProjectCreated => {
+                    let events = sorted_updates
+                        .entry("project/created".to_string())
+                        .or_insert(vec![]);
+                    events.push(update);
+                }
+                event::UpdateKind::Project { project, .. } => {
+                    let events = sorted_updates
+                        .entry(format!("project/{project}"))
+                        .or_insert(vec![]);
+                    events.push(update);
                 }
             };
         }
 
-        let topic = constants::PUB_SUB_TOPIC.to_string();
-        for (project, updates) in project_updates {
-            let project_topic = format!("{topic}/project/{project}");
-            self.update_tx.send(&project_topic, zmq::SNDMORE)?;
+        let base_topic = constants::PUB_SUB_TOPIC.to_string();
+        for (event_topic, updates) in sorted_updates {
+            let topic = format!("{base_topic}/{event_topic}");
+            self.update_tx.send(&topic, zmq::SNDMORE)?;
             if let Err(err) = self
                 .update_tx
                 .send(&serde_json::to_string(&updates).unwrap(), 0)
@@ -190,24 +301,33 @@ impl Database {
         Ok(())
     }
 
-    // TODO Handle errors.
-    /// Handles a given command, returning the correct data.
-    fn handle_command(&mut self, command: crate::Command) -> JsValue {
-        use crate::Command;
+    fn handle_query(&self, query: crate::Query) -> JsValue {
+        use crate::Query;
 
-        tracing::debug!(?command);
-        match command {
-            Command::Asset(cmd) => self.handle_command_asset(cmd),
-            Command::Container(cmd) => self.handle_command_container(cmd),
-            Command::Database(cmd) => self.handle_command_database(cmd),
-            Command::Project(cmd) => self.handle_command_project(cmd),
-            Command::Graph(cmd) => self.handle_command_graph(cmd),
-            Command::Analysis(cmd) => self.handle_command_analysis(cmd),
-            Command::User(cmd) => self.handle_command_user(cmd),
-            Command::Runner(cmd) => self.handle_command_runner(cmd),
-            Command::Search(cmd) => self.handle_command_search(cmd),
+        tracing::debug!(?query);
+        match query {
+            Query::User(query) => self.handle_query_user(query),
+            Query::Project(query) => self.handle_query_project(query),
         }
     }
+    // // TODO Handle errors.
+    // /// Handles a given command, returning the correct data.
+    // fn handle_command(&mut self, command: crate::Command) -> JsValue {
+    //     use crate::Command;
+
+    //     tracing::debug!(?command);
+    //     match command {
+    //         Command::Asset(cmd) => self.handle_command_asset(cmd),
+    //         Command::Container(cmd) => self.handle_command_container(cmd),
+    //         Command::Database(cmd) => self.handle_command_database(cmd),
+    //         Command::Project(cmd) => self.handle_command_project(cmd),
+    //         Command::Graph(cmd) => self.handle_command_graph(cmd),
+    //         Command::Analysis(cmd) => self.handle_command_analysis(cmd),
+    //         Command::User(cmd) => self.handle_command_user(cmd),
+    //         Command::Runner(cmd) => self.handle_command_runner(cmd),
+    //         Command::Search(cmd) => self.handle_command_search(cmd),
+    //     }
+    // }
 }
 
 #[cfg(target_os = "windows")]
@@ -393,8 +513,6 @@ mod linux {
     use std::path::{Component, Path};
     use std::time::Instant;
 
-    const TRASH_PATH: &str = ".Trash";
-
     impl Database {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
@@ -408,7 +526,9 @@ mod linux {
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
             };
 
+            tracing::debug!(?self.state);
             let updates = self.process_file_system_events(events);
+            tracing::debug!(?self.state);
             if let Err(err) = self.publish_updates(&updates) {
                 tracing::error!(?err);
             }
@@ -420,33 +540,12 @@ mod linux {
             &self,
             errors: Vec<syre_fs_watcher::Error>,
         ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
-            todo!("use macos mod for reference");
+            todo!();
         }
     }
 
     fn path_in_trash(path: impl AsRef<Path>) -> bool {
-        let path = path.as_ref();
-        match std::env::var_os("HOME") {
-            None => {
-                for component in path.components() {
-                    match component {
-                        Component::Normal(component) => {
-                            if component == TRASH_PATH {
-                                return true;
-                            }
-                        }
-
-                        _ => {}
-                    }
-                }
-
-                return false;
-            }
-            Some(home) => {
-                let trash_path = PathBuf::from(home).join(TRASH_PATH);
-                return path.starts_with(trash_path);
-            }
-        }
+        todo!()
     }
 }
 

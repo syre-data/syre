@@ -215,14 +215,8 @@ mod linux {
         /// Create a new actor to watch the file system.
         /// Begins watching upon creation.
         pub fn new(event_tx: Sender<DebounceEventResult>, command_rx: Receiver<Command>) -> Self {
-            let watcher = notify_debouncer_full::new_debouncer(
-                DEBOUNCE_TIMEOUT,
-                None,
-                move |event: DebounceEventResult| {
-                    event_tx.send(event).unwrap();
-                },
-            )
-            .unwrap();
+            let watcher =
+                notify_debouncer_full::new_debouncer(DEBOUNCE_TIMEOUT, None, event_tx).unwrap();
 
             Self {
                 command_rx,

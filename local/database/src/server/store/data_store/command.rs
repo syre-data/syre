@@ -3,7 +3,7 @@ use super::data_store::Result;
 use syre_core::types::ResourceId;
 use tokio::sync::oneshot::Sender as Tx;
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::From)]
 pub enum Command {
     /// Remove all records from all tables.
     Clear {
@@ -22,34 +22,17 @@ pub enum Command {
         query: String,
     },
 
+    #[from]
     Project(project::Command),
+
+    #[from]
     Graph(graph::Command),
+
+    #[from]
     Container(container::Command),
+
+    #[from]
     Asset(asset::Command),
-}
-
-impl From<project::Command> for Command {
-    fn from(value: project::Command) -> Self {
-        Self::Project(value)
-    }
-}
-
-impl From<graph::Command> for Command {
-    fn from(value: graph::Command) -> Self {
-        Self::Graph(value)
-    }
-}
-
-impl From<container::Command> for Command {
-    fn from(value: container::Command) -> Self {
-        Self::Container(value)
-    }
-}
-
-impl From<asset::Command> for Command {
-    fn from(value: asset::Command) -> Self {
-        Self::Asset(value)
-    }
 }
 
 pub mod project {

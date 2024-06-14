@@ -95,20 +95,22 @@ impl Database {
     ///
     /// # Side effects
     /// + Watches the project folder.
-    pub fn load_project(&mut self, path: &Path) -> StdResult<&LocalProject, IoSerdeError> {
+    pub fn load_project(&mut self, path: &Path) -> StdResult<LocalProject, IoSerdeError> {
         let project = LocalProject::load_from(path)?;
-        self.object_store.insert_project(project)?;
         self.watch_path(path);
 
-        let project = self.get_path_project(&path).unwrap();
-        if let Err(err) = self.data_store.project().create(
-            project.rid.clone(),
-            Record::new(
-                project.name.clone(),
-                project.description.clone(),
-                project.base_path().to_path_buf(),
-            ),
-        ) {
+        let mut record = Record::new(
+            project.base_path().to_path_buf(),
+            project.name.clone(),
+            project.data_root.clone(),
+            project.created.clone(),
+        );
+        record.set_description(project.description.clone());
+        if let Err(err) = self
+            .data_store
+            .project()
+            .create(project.rid.clone(), record)
+        {
             tracing::error!(?err);
         }
 

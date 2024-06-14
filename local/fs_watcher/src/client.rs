@@ -19,7 +19,7 @@ impl Client {
     /// 1. `path`: Path to watch. Must be absolute.
     ///
     /// # Errors
-    /// If the given path is no absolute.
+    /// If the given path is not absolute.
     pub fn watch(&self, path: impl Into<PathBuf>) -> Result<(), ()> {
         let path: PathBuf = path.into();
         if !path.is_absolute() {
@@ -35,7 +35,7 @@ impl Client {
     /// 1. `path`: Path to watch. Must be absolute.
     ///
     /// # Errors
-    /// If the given path is no absolute.
+    /// If the given path is not absolute.
     pub fn unwatch(&self, path: impl Into<PathBuf>) -> Result<(), ()> {
         let path: PathBuf = path.into();
         if !path.is_absolute() {

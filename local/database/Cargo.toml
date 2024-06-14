@@ -17,7 +17,7 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 crossbeam.workspace = true
-derive_more = { workspace = true, optional = true }
+derive_more = { workspace = true }
 file-id = "0.2"
 futures = "0.3"
 indexmap = { workspace = true, features = ["serde"] }
@@ -58,7 +58,6 @@ server = [
 	"dep:trash",
 	"dep:tokio",
 	"dep:surrealdb",
-	"dep:derive_more",
 	"dep:notify",
 ]
 client = ["dep:zmq"]

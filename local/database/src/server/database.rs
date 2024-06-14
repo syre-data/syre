@@ -91,9 +91,6 @@ impl Builder {
                                     | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
                                 };
 
-                                // if err.kind() == std::io::ErrorKind::NotFound {
-                                //     todo!("handle missing user manifest on start up");
-                                // }
                                 user_manifest_state = Err(err.into());
                             } else if path == self.app_config.project_manifest() {
                                 let err = match err.kind {
@@ -105,9 +102,6 @@ impl Builder {
                                     | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
                                 };
 
-                                // if err.kind() == std::io::ErrorKind::NotFound {
-                                //     todo!("handle missing project manifest on start up");
-                                // }
                                 project_manifest_state = Err(err.into());
                             } else {
                                 tracing::error!(?err);

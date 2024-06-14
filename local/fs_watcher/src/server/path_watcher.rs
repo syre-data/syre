@@ -1,7 +1,7 @@
 //! File system watcher used to check if paths exist.
 //! Used because `notify` watchers require the path to
 //! exist before wathcing it.
-use crossbeam::channel::{Receiver, RecvTimeoutError, Sender};
+use crossbeam::channel::{Receiver, Sender};
 use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
@@ -40,7 +40,15 @@ impl Watcher {
 
     pub fn run(&mut self) {
         loop {
-            match self.command_rx.recv_timeout(self.poll_interval) {
+            let cmd: Result<Command, RecvError> = if self.paths.len() == 0 {
+                self.command_rx.recv().map_err(|err| err.into())
+            } else {
+                self.command_rx
+                    .recv_timeout(self.poll_interval)
+                    .map_err(|err| err.into())
+            };
+
+            match cmd {
                 Ok(cmd) => {
                     match cmd {
                         Command::Watch(path) => self.watch(path),
@@ -51,11 +59,11 @@ impl Watcher {
                         self.poll();
                     }
                 }
-                Err(RecvTimeoutError::Timeout) => {
+                Err(RecvError::Timeout) => {
                     self.poll();
                 }
 
-                Err(RecvTimeoutError::Disconnected) => break,
+                Err(RecvError::Disconnected) => break,
             };
         }
 
@@ -83,5 +91,27 @@ impl Watcher {
         }
 
         self.last_poll = Instant::now();
+    }
+}
+
+enum RecvError {
+    Disconnected,
+    Timeout,
+}
+
+impl From<crossbeam::channel::RecvTimeoutError> for RecvError {
+    fn from(value: crossbeam::channel::RecvTimeoutError) -> Self {
+        use crossbeam::channel::RecvTimeoutError;
+
+        match value {
+            RecvTimeoutError::Timeout => Self::Timeout,
+            RecvTimeoutError::Disconnected => Self::Disconnected,
+        }
+    }
+}
+
+impl From<crossbeam::channel::RecvError> for RecvError {
+    fn from(_value: crossbeam::channel::RecvError) -> Self {
+        Self::Disconnected
     }
 }

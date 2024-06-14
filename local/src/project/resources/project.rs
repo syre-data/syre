@@ -3,12 +3,10 @@ use crate::common::{project_file, project_settings_file};
 use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
-use crate::Result;
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use std::result::Result as StdResult;
 use syre_core::project::Project as CoreProject;
 
 /// Represents a Syre project.
@@ -21,7 +19,11 @@ pub struct Project {
 impl Project {
     /// Create a new `Project` with the given path.
     /// Name of the `Project` is taken from the last component of the path.
-    pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
+    ///
+    /// # Errors
+    /// + `io::ErrorKind::InvalidFilename`: If file name can not be extracted
+    /// from path.
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self, io::Error> {
         let path = path.into();
         let Some(name) = path.file_name() else {
             return Err(io::Error::new(
@@ -56,29 +58,52 @@ impl Project {
         }
     }
 
-    pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerdeError> {
-        let base_path = fs::canonicalize(base_path.into())?;
-        let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
-        let settings_path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self, LoadError> {
+        let Ok(base_path) = fs::canonicalize(base_path.into()) else {
+            return Err(LoadError {
+                properties: Err(io::ErrorKind::NotFound.into()),
+                settings: Err(io::ErrorKind::NotFound.into()),
+            });
+        };
 
-        let project_file = fs::File::open(project_path)?;
-        let settings_file = fs::File::open(settings_path)?;
+        let project = 'project: {
+            let path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(err) => break 'project Err(err.into()),
+            };
 
-        let project_reader = BufReader::new(project_file);
-        let settings_reader = BufReader::new(settings_file);
+            let reader = BufReader::new(file);
+            serde_json::from_reader(reader).map_err(|err| err.into())
+        };
 
-        let project = serde_json::from_reader(project_reader)?;
-        let settings = serde_json::from_reader(settings_reader)?;
+        let settings = 'settings: {
+            let path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(err) => break 'settings Err(err.into()),
+            };
 
-        Ok(Self {
-            base_path,
-            inner: project,
-            settings,
-        })
+            let reader = BufReader::new(file);
+            serde_json::from_reader(reader).map_err(|err| err.into())
+        };
+
+        match (project, settings) {
+            (Ok(project), Ok(settings)) => Ok(Self {
+                base_path,
+                inner: project,
+                settings,
+            }),
+
+            (project, settings) => Err(LoadError {
+                properties: project,
+                settings,
+            }),
+        }
     }
 
     /// Save all data.
-    pub fn save(&self) -> StdResult<(), IoSerdeError> {
+    pub fn save(&self) -> Result<(), IoSerdeError> {
         let project_path = <Project as LocalResource<CoreProject>>::path(self);
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
         let Some(parent) = project_path.parent() else {
@@ -148,7 +173,7 @@ impl Project {
     /// Only load the project's properties.
     pub fn load_from_properties_only(
         base_path: impl Into<PathBuf>,
-    ) -> StdResult<CoreProject, IoSerdeError> {
+    ) -> Result<CoreProject, IoSerdeError> {
         let base_path = fs::canonicalize(base_path.into())?;
         let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let project_file = fs::File::open(project_path)?;
@@ -196,4 +221,10 @@ impl LocalResource<ProjectSettings> for Project {
     fn base_path(&self) -> &Path {
         &self.base_path
     }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct LoadError {
+    pub properties: Result<CoreProject, IoSerdeError>,
+    pub settings: Result<ProjectSettings, IoSerdeError>,
 }

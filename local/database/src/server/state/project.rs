@@ -56,13 +56,77 @@ impl TryReducible for State {
     }
 }
 
-mod project {
+pub mod project {
     use super::{Action, DataResource, Error, FolderResource};
+    use std::io::ErrorKind;
     use syre_core::project::Project as CoreProject;
     use syre_local::{
+        error::IoSerde,
         types::{AnalysisKind, ProjectSettings},
         TryReducible,
     };
+
+    #[derive(Debug)]
+    pub struct Builder {
+        properties: DataResource<CoreProject>,
+        settings: DataResource<ProjectSettings>,
+        analyses: DataResource<Vec<AnalysisKind>>,
+        graph: FolderResource<()>,
+    }
+
+    impl Builder {
+        pub fn set_properties(&mut self, properties: CoreProject) {
+            self.properties = DataResource::Ok(properties);
+        }
+
+        pub fn set_properties_err(&mut self, properties: impl Into<IoSerde>) {
+            self.properties = DataResource::Err(properties.into());
+        }
+
+        pub fn set_settings(&mut self, settings: ProjectSettings) {
+            self.settings = DataResource::Ok(settings);
+        }
+
+        pub fn set_settings_err(&mut self, settings: impl Into<IoSerde>) {
+            self.settings = DataResource::Err(settings.into());
+        }
+
+        pub fn set_analyses(&mut self, analyses: Vec<AnalysisKind>) {
+            self.analyses = DataResource::Ok(analyses);
+        }
+
+        pub fn set_analyses_err(&mut self, analyses: impl Into<IoSerde>) {
+            self.analyses = DataResource::Err(analyses.into());
+        }
+
+        pub fn build(self) -> State {
+            let Self {
+                properties,
+                settings,
+                analyses,
+                graph,
+            } = self;
+
+            State {
+                properties,
+                settings,
+                analyses,
+                graph,
+            }
+        }
+    }
+
+    impl Default for Builder {
+        /// Initialize all resources in a "missing" state.
+        fn default() -> Self {
+            Self {
+                properties: DataResource::Err(ErrorKind::NotFound.into()),
+                settings: DataResource::Err(ErrorKind::NotFound.into()),
+                analyses: DataResource::Err(ErrorKind::NotFound.into()),
+                graph: FolderResource::Absent,
+            }
+        }
+    }
 
     #[derive(Debug)]
     pub struct State {

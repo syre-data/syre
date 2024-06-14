@@ -125,14 +125,18 @@ pub enum IoSerde {
     Serde(String),
 }
 
-#[cfg(feature = "fs")]
+impl From<io::ErrorKind> for IoSerde {
+    fn from(value: io::ErrorKind) -> Self {
+        Self::Io(value)
+    }
+}
+
 impl From<io::Error> for IoSerde {
     fn from(value: io::Error) -> Self {
         Self::Io(value.kind())
     }
 }
 
-#[cfg(feature = "fs")]
 impl From<serde_json::Error> for IoSerde {
     fn from(value: serde_json::Error) -> Self {
         if let Some(kind) = value.io_error_kind() {
@@ -184,6 +188,11 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("{0}")]
     LoadContainer(LoadContainer),
+
+    /// Could not load the resource correctly from disk.
+    #[cfg(feature = "fs")]
+    #[error("Load")]
+    Load,
 }
 
 impl From<Users> for Error {
@@ -246,6 +255,13 @@ impl From<IoSerde> for Error {
 impl From<LoadContainer> for Error {
     fn from(value: LoadContainer) -> Self {
         Self::LoadContainer(value)
+    }
+}
+
+#[cfg(feature = "fs")]
+impl From<crate::project::resources::project::LoadError> for Error {
+    fn from(_value: crate::project::resources::project::LoadError) -> Self {
+        Self::Load
     }
 }
 

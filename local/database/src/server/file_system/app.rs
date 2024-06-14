@@ -3,9 +3,12 @@ use crate::{
     server::state,
     Database,
 };
-use std::assert_matches::assert_matches;
+use std::{assert_matches::assert_matches, io, path::PathBuf};
 use syre_fs_watcher::{event, EventKind};
-use syre_local::TryReducible;
+use syre_local::{
+    project::resources::{Analyses, Project},
+    TryReducible,
+};
 
 impl Database {
     pub fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<crate::Update> {
@@ -78,6 +81,14 @@ impl Database {
                     )
                     .unwrap();
 
+                for path in manifest.iter() {
+                    self.state
+                        .try_reduce(state::Action::InsertProject(
+                            self.init_project_state_from_path(path),
+                        ))
+                        .unwrap();
+                }
+
                 vec![Update::app(
                     update::ProjectManifest::Added((*manifest).clone()),
                     event.id().clone(),
@@ -116,5 +127,64 @@ impl Database {
         );
 
         todo!();
+    }
+}
+
+impl Database {
+    fn init_project_state_from_path(&self, path: impl Into<PathBuf>) -> state::project::State {
+        use state::project;
+        use syre_local::{common, project::resources::project::LoadError};
+
+        let path: PathBuf = path.into();
+        if !path.is_dir() {
+            return project::State::new(path);
+        }
+
+        let config = common::app_dir_of(&path);
+        if !config.is_dir() {
+            return project::State::with_project(
+                path,
+                project::project::Builder::default().build(),
+            );
+        }
+
+        let mut state = project::project::Builder::default();
+        match Project::load_from(path.clone()) {
+            Ok(project) => {
+                let (properties, settings, _path) = project.into_parts();
+                state.set_properties(properties);
+                state.set_settings(settings);
+            }
+
+            Err(LoadError {
+                properties,
+                settings,
+            }) => {
+                match properties {
+                    Ok(properties) => {
+                        state.set_properties(properties);
+                    }
+                    Err(err) => {
+                        state.set_properties_err(err);
+                    }
+                }
+
+                match settings {
+                    Ok(settings) => {
+                        state.set_settings(settings);
+                    }
+                    Err(err) => {
+                        state.set_settings_err(err);
+                    }
+                }
+            }
+        }
+
+        match Analyses::load_from(path.clone()) {
+            Ok(analyses) => state.set_analyses(analyses.to_vec()),
+            Err(err) => state.set_analyses_err(err),
+        };
+
+        return project::State::with_project(path, state.build());
     }
 }

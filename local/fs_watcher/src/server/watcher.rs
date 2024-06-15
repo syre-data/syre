@@ -11,27 +11,16 @@ mod fs_processor;
 #[path = "notify_processor.rs"]
 mod notify_processor;
 
-use super::{actor::FileSystemActor, event as fs_event, path_watcher};
-use crate::{
-    command::WatcherCommand,
-    error,
-    event::{self as app, EventResult},
-    Command, Error, Event, EventKind,
-};
+use super::{actor::FileSystemActor, path_watcher};
+use crate::{command::WatcherCommand, event::EventResult, Command, Error, Event, EventKind};
 use crossbeam::channel::{Receiver, Sender};
-use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, FileIdCache, FileIdMap};
 use std::{
-    collections::HashMap,
-    fs, io,
     path::{Path, PathBuf},
     result::Result as StdResult,
     sync::{Arc, Mutex},
     thread,
-    time::Instant,
 };
-use syre_local::common as local_common;
-use uuid::Uuid;
 
 pub struct Builder {
     /// Sends events to the client.
@@ -182,6 +171,7 @@ pub struct FsWatcher {
     /// Project roots being watched.
     roots: Mutex<Vec<PathBuf>>,
 
+    /// Application configuration.
     app_config: config::AppConfig,
 
     /// Flag to indicate the watcher should be set down.
@@ -390,6 +380,9 @@ impl FsWatcher {
         &self,
         events: Vec<notify_debouncer_full::DebouncedEvent>,
     ) -> (Vec<Event>, Vec<Error>) {
+        #[cfg(target_os = "linux")]
+        let events = self.handle_remove_events(events);
+
         tracing::debug!(?events);
         let (fs_events, mut errors) = self.process_events_notify_to_fs(&events);
 
@@ -480,6 +473,93 @@ impl FsWatcher {
 
         let mut file_ids = self.file_ids.lock().unwrap();
         file_ids.remove_root(&path);
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl FsWatcher {
+    /// Some text editors remove then replace a file when saving it.
+    /// We must manually check it the file exists to determine if this occured.
+    /// See https://docs.rs/notify/latest/notify/#editor-behaviour.
+    fn handle_remove_events(&self, mut events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+        let mut remove_events = vec![];
+        for (index, event) in events.iter().enumerate() {
+            match &event.kind {
+                notify::EventKind::Remove(_) => {
+                    let [path] = &event.paths[..] else {
+                        panic!("invalid paths");
+                    };
+
+                    if !remove_events.iter().any(|&index| {
+                        let event: &DebouncedEvent = &events[index];
+                        if let Some(p) = event.paths.get(0) {
+                            p == path
+                        } else {
+                            false
+                        }
+                    }) {
+                        remove_events.push(index);
+                    }
+                }
+                notify::EventKind::Create(_) => {
+                    let [path] = &event.paths[..] else {
+                        panic!("invalid paths");
+                    };
+
+                    if let Some(index) = remove_events.iter().position(|&index| {
+                        let event = &events[index];
+                        &event.paths[0] == path
+                    }) {
+                        remove_events.swap_remove(index);
+                    }
+                }
+                notify::EventKind::Any
+                | notify::EventKind::Access(_)
+                | notify::EventKind::Modify(_)
+                | notify::EventKind::Other => {}
+            }
+        }
+
+        for index in remove_events {
+            let event = &events[index];
+            let [path] = &event.paths[..] else {
+                panic!("invalid paths");
+            };
+
+            if !path.exists() {
+                // represents actual remove event
+                // no further processing required
+                continue;
+            }
+
+            if path == self.app_config.user_manifest() || path == self.app_config.project_manifest()
+            {
+                let (tx, rx) = crossbeam::channel::bounded(1);
+                self.command_tx
+                    .send(WatcherCommand::Watch {
+                        path: path.clone(),
+                        tx,
+                    })
+                    .unwrap();
+
+                match rx.recv().unwrap() {
+                    Ok(()) => {
+                        let event = event.event.clone().set_kind(notify::EventKind::Modify(
+                            notify::event::ModifyKind::Data(notify::event::DataChange::Any),
+                        ));
+
+                        *events[index] = event;
+                    }
+                    Err(err) => {
+                        panic!("UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}");
+                    }
+                }
+            } else {
+                tracing::debug!("UNUSUAL REMOVE EVENT: {event:?}");
+            }
+        }
+
+        events
     }
 }
 

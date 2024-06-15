@@ -1,8 +1,8 @@
 use super::{super::event as fs_event, FsWatcher};
 use crate::{command::WatcherCommand, error, Error};
 use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
-use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, FileIdCache, FileIdMap};
-use std::{collections::HashMap, fs, io, path::PathBuf, result::Result as StdResult};
+use notify_debouncer_full::{DebouncedEvent, FileIdCache};
+use std::{collections::HashMap, ffi::OsStr, fs, io, path::PathBuf, result::Result as StdResult};
 use syre_local::common as local_common;
 
 impl FsWatcher {
@@ -43,7 +43,15 @@ impl FsWatcher {
             .filter(|event| {
                 if let [path] = &event.paths[..] {
                     if let Some(file_name) = path.file_name() {
-                        return file_name != ".DS_Store";
+                        if file_name == ".DS_Store" {
+                            return false;
+                        }
+
+                        if let Some(file_name) = file_name.to_str() {
+                            if is_lock_file(file_name) {
+                                return false;
+                            }
+                        }
                     }
                 }
 
@@ -607,4 +615,14 @@ fn normalize_path_root(path: impl Into<PathBuf>) -> PathBuf {
     } else {
         path.into()
     }
+}
+
+/// Whether the file name matches that of a lock file.
+/// i.e. .~<file_name>#
+fn is_lock_file(file_name: impl AsRef<str>) -> bool {
+    const START_PATTERN: &str = ".~";
+    const END_PATTERN: &str = "#";
+
+    let name: &str = file_name.as_ref();
+    name.starts_with(START_PATTERN) && name.ends_with(END_PATTERN)
 }

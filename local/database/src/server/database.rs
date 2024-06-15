@@ -140,6 +140,7 @@ impl Builder {
 
         let state = State::new(user_manifest_state, project_manifest_state);
         let mut db = Database {
+            config: self.app_config,
             state,
             data_store,
             query_rx,
@@ -178,6 +179,7 @@ impl Builder {
 
 /// Database.
 pub struct Database {
+    config: AppConfig,
     state: State,
     data_store: data_store::Client,
     query_rx: Receiver<Query>,
@@ -520,9 +522,7 @@ mod linux {
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
             };
 
-            tracing::debug!(?self.state);
             let updates = self.process_file_system_events(events);
-            tracing::debug!(?self.state);
             if let Err(err) = self.publish_updates(&updates) {
                 tracing::error!(?err);
             }

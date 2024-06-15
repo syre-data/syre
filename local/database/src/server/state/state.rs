@@ -26,6 +26,14 @@ impl State {
             projects: vec![],
         }
     }
+
+    pub fn app(&self) -> &App {
+        &self.app
+    }
+
+    pub fn projects(&self) -> &Vec<Project> {
+        &self.projects
+    }
 }
 
 impl TryReducible for State {

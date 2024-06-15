@@ -119,6 +119,8 @@ impl Database {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
+        use state::config::{action::Manifest as ManifestAction, Action as ConfigAction};
+
         assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
@@ -126,7 +128,95 @@ impl Database {
             ))
         );
 
-        todo!();
+        let manifest = syre_local::system::collections::ProjectManifest::load_or_default();
+        let state = self.state.app().project_manifest();
+        match (manifest, state) {
+            (Ok(manifest), Ok(state)) => {
+                let mut added = vec![];
+                for path in manifest.iter() {
+                    if !state.contains(path) {
+                        added.push(path.clone());
+                    }
+                }
+
+                let mut removed = vec![];
+                for path in state.iter() {
+                    if !manifest.contains(path) {
+                        removed.push(path.clone());
+                    }
+                }
+
+                self.state
+                    .try_reduce(
+                        ConfigAction::ProjectManifest(ManifestAction::SetOk((*manifest).clone()))
+                            .into(),
+                    )
+                    .unwrap();
+
+                let mut updates = vec![];
+                if added.len() > 0 {
+                    updates.push(Update::app(
+                        update::ProjectManifest::Added(added),
+                        event.id().clone(),
+                    ));
+                }
+
+                if removed.len() > 0 {
+                    updates.push(Update::app(
+                        update::ProjectManifest::Removed(removed),
+                        event.id().clone(),
+                    ));
+                }
+
+                updates
+            }
+
+            (Ok(manifest), Err(_state)) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::ProjectManifest(ManifestAction::SetOk((*manifest).clone()))
+                            .into(),
+                    )
+                    .unwrap();
+
+                if manifest.len() > 0 {
+                    vec![Update::app(
+                        update::ProjectManifest::Added(manifest.to_vec()),
+                        event.id().clone(),
+                    )]
+                } else {
+                    vec![]
+                }
+            }
+
+            (Err(manifest), Ok(state)) => {
+                let state = (*state).clone();
+                self.state
+                    .try_reduce(
+                        ConfigAction::ProjectManifest(ManifestAction::SetErr(manifest)).into(),
+                    )
+                    .unwrap();
+
+                if state.len() > 0 {
+                    vec![Update::app(
+                        update::ProjectManifest::Removed(state),
+                        event.id().clone(),
+                    )]
+                } else {
+                    vec![]
+                }
+            }
+
+            (Err(manifest), Err(_state)) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::ProjectManifest(ManifestAction::SetErr(manifest)).into(),
+                    )
+                    .unwrap();
+
+                vec![]
+            }
+        }
     }
 }
 

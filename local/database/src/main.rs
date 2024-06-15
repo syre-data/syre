@@ -20,8 +20,15 @@ fn main() {
         ProjectManifest::path().unwrap(),
     );
 
-    let projects = ProjectManifest::load_or_default().unwrap();
-    let db = server::Builder::new(app_config).add_paths(projects.to_vec());
+    let projects = match ProjectManifest::load_or_default() {
+        Ok(projects) => projects.to_vec(),
+        Err(err) => {
+            tracing::error!(?err);
+            vec![]
+        }
+    };
+
+    let db = server::Builder::new(app_config).add_paths(projects);
     db.run().unwrap();
 }
 

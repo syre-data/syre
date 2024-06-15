@@ -1,23 +1,6 @@
-use super::{super::path_watcher, config, FsWatcher};
-use crate::{
-    command::WatcherCommand,
-    error,
-    event::{self as app, EventResult},
-    server::event as fs_event,
-    Command, Error, Event, EventKind,
-};
-use crossbeam::channel::{Receiver, Sender};
-use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
-use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, FileIdCache, FileIdMap};
-use std::{
-    collections::HashMap,
-    fs, io,
-    path::{Path, PathBuf},
-    result::Result as StdResult,
-    sync::{Arc, Mutex},
-    thread,
-    time::Instant,
-};
+use super::{config, FsWatcher};
+use crate::{error, event as app, server::event as fs_event, Error, Event, EventKind};
+use std::{path::PathBuf, result::Result as StdResult, time::Instant};
 use syre_local::common as local_common;
 use uuid::Uuid;
 
@@ -237,11 +220,16 @@ impl FsWatcher {
             .add_path(path.clone())],
 
             fs_event::EventKind::Any(fs_event::Any::Removed(path)) => {
-                // TODO Could check file ids to get if path is file or dir.
-                vec![
+                let event = if let Ok(kind) = self.handle_file_removed(path, &self.app_config) {
+                    Event::with_time(kind, event.time, event.id().clone()).add_path(path.clone())
+                } else if let Ok(kind) = self.handle_folder_removed(path) {
+                    Event::with_time(kind, event.time, event.id().clone()).add_path(path.clone())
+                } else {
                     Event::with_time(app::Any::Removed.into(), event.time, event.id().clone())
-                        .add_path(path.clone()),
-                ]
+                        .add_path(path.clone())
+                };
+
+                vec![event]
             }
         };
 

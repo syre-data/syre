@@ -69,18 +69,12 @@ impl Fireworks {
         Options<F, D, A>: OptionsSpecs,
     {
         let mut root = ContainerBuilder::new("data");
-        if let Some(creator) = options.creator().as_ref() {
-            root.set_creator(creator.clone());
-        }
         if options.with_analysis() {
             root.add_analysis(AnalysisAssociation::new(analyses.recipe_comparison.clone()));
         }
         let root = root.build();
 
         let mut recipe_a = ContainerBuilder::new("Recipe A");
-        if let Some(creator) = options.creator().as_ref() {
-            recipe_a.set_creator(creator.clone());
-        }
         recipe_a.set_kind("recipe");
         recipe_a.set_metadatum("name", "A");
         if options.with_analysis() {
@@ -89,9 +83,6 @@ impl Fireworks {
         let recipe_a = recipe_a.build();
 
         let mut recipe_b = ContainerBuilder::new("Recipe B");
-        if let Some(creator) = options.creator().as_ref() {
-            recipe_b.set_creator(creator.clone());
-        }
         recipe_b.set_kind("recipe");
         recipe_b.set_metadatum("name", "B");
         if options.with_analysis() {
@@ -100,9 +91,6 @@ impl Fireworks {
         let recipe_b = recipe_b.build();
 
         let mut batch_a1 = ContainerBuilder::new("Batch 1");
-        if let Some(creator) = options.creator().as_ref() {
-            batch_a1.set_creator(creator.clone());
-        }
         batch_a1.set_kind("batch");
         batch_a1.set_metadatum("number", 1);
         if options.with_assets() {
@@ -117,9 +105,6 @@ impl Fireworks {
         let batch_a1 = batch_a1.build();
 
         let mut batch_a2 = ContainerBuilder::new("Batch 2");
-        if let Some(creator) = options.creator().as_ref() {
-            batch_a2.set_creator(creator.clone());
-        }
         batch_a2.set_kind("batch");
         batch_a2.set_metadatum("number", 2);
         if options.with_assets() {
@@ -134,9 +119,6 @@ impl Fireworks {
         let batch_a2 = batch_a2.build();
 
         let mut batch_b1 = ContainerBuilder::new("Batch 1");
-        if let Some(creator) = options.creator().as_ref() {
-            batch_b1.set_creator(creator.clone());
-        }
         batch_b1.set_kind("batch");
         batch_b1.set_metadatum("number", 1);
         if options.with_assets() {
@@ -151,9 +133,6 @@ impl Fireworks {
         let batch_b1 = batch_b1.build();
 
         let mut batch_b2 = ContainerBuilder::new("Batch 2");
-        if let Some(creator) = options.creator().as_ref() {
-            batch_b2.set_creator(creator.clone());
-        }
         batch_b2.set_kind("batch");
         batch_b2.set_metadatum("number", 2);
         if options.with_assets() {

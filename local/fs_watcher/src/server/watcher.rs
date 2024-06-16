@@ -535,6 +535,7 @@ impl FsWatcher {
             if path == self.app_config.user_manifest() || path == self.app_config.project_manifest()
             {
                 let (tx, rx) = crossbeam::channel::bounded(1);
+                tracing::debug!("rewatching {path:?}");
                 self.command_tx
                     .send(WatcherCommand::Watch {
                         path: path.clone(),
@@ -613,7 +614,3 @@ pub mod config {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "watcher_test.rs"]
-mod watcher_test;

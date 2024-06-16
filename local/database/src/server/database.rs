@@ -302,6 +302,7 @@ impl Database {
 
         tracing::debug!(?query);
         match query {
+            Query::Config(query) => self.handle_query_config(query),
             Query::User(query) => self.handle_query_user(query),
             Query::Project(query) => self.handle_query_project(query),
         }

@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
 use notify::Watcher;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{fs, io};
-use syre_local_database::{constants, Client};
+use syre_local_database::constants;
 
 const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -28,13 +28,6 @@ fn main() {
             } else {
                 watch_file_system_debounce(&path);
             }
-        }
-
-        Command::LoadPath { path } => {
-            let db = Client::new();
-            let path = fs::canonicalize(path).unwrap();
-            let project = db.project().load(path).unwrap().unwrap();
-            db.graph().load(project.rid.clone()).unwrap().unwrap();
         }
     }
 }
@@ -212,10 +205,4 @@ enum Command {
         #[clap(long)]
         no_debounce: bool,
     },
-
-    /// Load the project and its graph at the given path.
-    ///
-    /// # Notes
-    /// + `canonicalize`s the path.
-    LoadPath { path: PathBuf },
 }

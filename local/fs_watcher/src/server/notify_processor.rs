@@ -626,3 +626,7 @@ fn is_lock_file(file_name: impl AsRef<str>) -> bool {
     let name: &str = file_name.as_ref();
     name.starts_with(START_PATTERN) && name.ends_with(END_PATTERN)
 }
+
+#[cfg(test)]
+#[path = "notify_processor_test.rs"]
+mod notify_processor_test;

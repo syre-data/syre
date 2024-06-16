@@ -2333,3 +2333,7 @@ mod resources {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "fs_processor_test.rs"]
+mod fs_processor_test;

@@ -26,10 +26,8 @@ fn test_watcher_app() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
-        user_manifest.path(),
-        project_manifest.path(),
-    );
+    let fs_watcher_config =
+        syre_fs_watcher::server::Config::new(user_manifest.path(), project_manifest.path());
 
     let mut fs_watcher =
         syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
@@ -122,10 +120,8 @@ fn test_watcher_project() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config = syre_fs_watcher::server::config::AppConfig::new(
-        user_manifest.path(),
-        project_manifest.path(),
-    );
+    let fs_watcher_config =
+        syre_fs_watcher::server::Config::new(user_manifest.path(), project_manifest.path());
 
     let mut fs_watcher =
         syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);

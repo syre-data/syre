@@ -67,12 +67,17 @@ pub enum App {
 pub enum UserManifest {
     Added,
     Removed,
+    Updated,
+    Repaired,
+    Corrupted,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ProjectManifest {
     Added(Vec<PathBuf>),
     Removed(Vec<PathBuf>),
+    Repaired,
+    Corrupted,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

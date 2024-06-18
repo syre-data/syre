@@ -1,7 +1,7 @@
 use super::super::command::{graph::Command as GraphCommand, project::Command as ProjectCommand};
 use super::project::Record as ProjectRecord;
 use super::*;
-use std::path::PathBuf;
+use chrono::Utc;
 use std::thread;
 use syre_core::graph::ResourceTree;
 use syre_core::project::{asset::Builder as Asset, container::Builder as Container};
@@ -15,11 +15,13 @@ fn datastore_graph_create_subgraph_should_work() {
     // *************
 
     let pid = ResourceId::new();
-    let project = ProjectRecord::new(
-        "fireworks".to_string(),
-        Some("Testing which fireworks recipe has the quietest explosion.".to_string()),
-        PathBuf::from("/Users/user/Documents/test"),
+    let mut project = ProjectRecord::new(
+        "/Users/user/Documents/test",
+        "fireworks",
+        "data",
+        Utc::now(),
     );
+    project.set_description("Testing which fireworks recipe has the quietest explosion.");
 
     let (ids, mut graph) = create_fireworks_graph();
     let recipe_b = graph.remove(&ids.recipe_b).unwrap();
@@ -81,11 +83,13 @@ fn datastore_graph_remove_should_work() {
     // *************
 
     let pid = ResourceId::new();
-    let project = ProjectRecord::new(
-        "fireworks".to_string(),
-        Some("Testing which fireworks recipe has the quietest explosion.".to_string()),
-        PathBuf::from("/Users/user/Documents/test"),
+    let mut project = ProjectRecord::new(
+        "/Users/user/Documents/test",
+        "fireworks",
+        "data",
+        Utc::now(),
     );
+    project.set_description("Testing which fireworks recipe has the quietest explosion.");
 
     let (ids, graph) = create_fireworks_graph();
     let (tx, rx) = mpsc::unbounded_channel();
@@ -164,11 +168,13 @@ fn datastore_search_should_work() {
     // *************
 
     let pid = ResourceId::new();
-    let project = ProjectRecord::new(
-        "fireworks".to_string(),
-        Some("Testing which fireworks recipe has the quietest explosion.".to_string()),
-        PathBuf::from("/Users/user/Documents/test"),
+    let mut project = ProjectRecord::new(
+        "/Users/user/Documents/test",
+        "fireworks",
+        "data",
+        Utc::now(),
     );
+    project.set_description("Testing which fireworks recipe has the quietest explosion.");
 
     let (ids, graph) = create_fireworks_graph();
 

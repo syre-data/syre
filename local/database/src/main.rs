@@ -1,10 +1,8 @@
 //! Runs a local [`Database`].
-use syre_fs_watcher::server::config::AppConfig;
 use syre_local::{
     file_resource::SystemResource,
     system::collections::{ProjectManifest, UserManifest},
 };
-
 use syre_local_database::server;
 
 fn main() {
@@ -15,9 +13,10 @@ fn main() {
         default_panic_hook(panic_info);
     }));
 
-    let app_config = AppConfig::new(
+    let config = server::Config::new(
         UserManifest::path().unwrap(),
         ProjectManifest::path().unwrap(),
+        syre_local_database::constants::PUB_SUB_PORT,
     );
 
     let projects = match ProjectManifest::load_or_default() {
@@ -28,7 +27,7 @@ fn main() {
         }
     };
 
-    let db = server::Builder::new(app_config).add_paths(projects);
+    let db = server::Builder::new(config).add_paths(projects);
     db.run().unwrap();
 }
 

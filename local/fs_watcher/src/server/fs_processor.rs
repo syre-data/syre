@@ -239,9 +239,9 @@ impl FsWatcher {
     fn handle_file_created(
         &self,
         path: &PathBuf,
-        app_config: &config::AppConfig,
+        config: &config::Config,
     ) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path, app_config) {
+        let kind = match resources::resource_kind(path, config) {
             Ok(Some(kind)) => Self::convert_resource_to_event_kind_created(kind),
             Ok(None) => EventKind::File(app::ResourceEvent::Created),
             Err(err) => match err.kind() {
@@ -289,7 +289,7 @@ impl FsWatcher {
     fn handle_file_removed(
         &self,
         path: &PathBuf,
-        app_config: &config::AppConfig,
+        app_config: &config::Config,
     ) -> StdResult<EventKind, resources::Error> {
         let kind = match resources::resource_kind(path, app_config) {
             Ok(Some(kind)) => Self::convert_resource_to_event_kind_removed(kind),
@@ -341,7 +341,7 @@ impl FsWatcher {
         to: PathBuf,
         time: Instant,
         parent: Uuid,
-        app_config: &config::AppConfig,
+        app_config: &config::Config,
     ) -> Vec<Event> {
         let from_kind = resources::resource_kind(&from, app_config);
         let to_kind = resources::resource_kind(&to, app_config);
@@ -419,7 +419,7 @@ impl FsWatcher {
         to: PathBuf,
         time: Instant,
         parent: Uuid,
-        app_config: &config::AppConfig,
+        app_config: &config::Config,
     ) -> StdResult<Vec<Event>, error::processing::Error> {
         let from_kind = resources::resource_kind(&from, app_config);
         let to_kind = resources::resource_kind(&to, app_config);
@@ -483,7 +483,7 @@ impl FsWatcher {
 
     fn handle_file_data_modified(
         path: &PathBuf,
-        app_config: &config::AppConfig,
+        app_config: &config::Config,
     ) -> StdResult<EventKind, resources::Error> {
         let kind = match resources::resource_kind(path, app_config)? {
             Some(kind) => Self::convert_resource_to_event_kind_data_modified(kind),
@@ -2037,7 +2037,7 @@ mod resources {
     /// + If the path is in a project that is corrupt.
     pub(crate) fn resource_kind(
         path: &PathBuf,
-        app_config: &config::AppConfig,
+        app_config: &config::Config,
     ) -> Result<Option<ResourceEvent>, Error> {
         if path == app_config.project_manifest() {
             return Ok(Some(Config::ProjectManifest.into()));

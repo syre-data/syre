@@ -22,6 +22,8 @@ use std::{
     thread,
 };
 
+pub use config::Config;
+
 pub struct Builder {
     /// Sends events to the client.
     event_tx: Sender<EventResult>,
@@ -29,7 +31,7 @@ pub struct Builder {
     // Recieve commands from the client.
     command_rx: Receiver<Command>,
 
-    app_config: config::AppConfig,
+    app_config: Config,
 
     /// Initial paths to watch.
     paths: Vec<PathBuf>,
@@ -43,7 +45,7 @@ impl Builder {
     pub fn new(
         command_rx: Receiver<Command>,
         event_tx: Sender<EventResult>,
-        app_config: config::AppConfig,
+        app_config: config::Config,
     ) -> Self {
         Self {
             event_tx,
@@ -172,7 +174,7 @@ pub struct FsWatcher {
     roots: Mutex<Vec<PathBuf>>,
 
     /// Application configuration.
-    app_config: config::AppConfig,
+    app_config: config::Config,
 
     /// Flag to indicate the watcher should be set down.
     shutdown: Mutex<bool>,
@@ -573,12 +575,12 @@ pub mod config {
     };
 
     #[derive(Clone)]
-    pub struct AppConfig {
+    pub struct Config {
         user_manifest: PathBuf,
         project_manifest: PathBuf,
     }
 
-    impl AppConfig {
+    impl Config {
         pub fn new(
             user_manifest: impl Into<PathBuf>,
             project_manifest: impl Into<PathBuf>,

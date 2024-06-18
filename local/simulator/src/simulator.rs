@@ -1363,7 +1363,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::config::AppConfig) -> Self {
+    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::config::Config) -> Self {
         Self {
             current_tick: 0,
             app: state::State::new(
@@ -1540,7 +1540,7 @@ mod utils {
 
 pub mod options {
     use std::{ops::Range, path::PathBuf};
-    use syre_fs_watcher::server::config::AppConfig;
+    use syre_fs_watcher::server::config::Config;
 
     pub struct Options {
         seed: u64,
@@ -1549,7 +1549,7 @@ pub mod options {
 
         /// Range [min, max) of actions to be performed on each tick.
         action_count_range: Range<u8>,
-        app_config: AppConfig,
+        app_config: Config,
     }
 
     impl Options {
@@ -1569,7 +1569,7 @@ pub mod options {
             self.action_count_range.clone()
         }
 
-        pub fn app_config(&self) -> &AppConfig {
+        pub fn app_config(&self) -> &Config {
             &self.app_config
         }
     }
@@ -1639,7 +1639,7 @@ pub mod options {
 
         pub fn build(self) -> Options {
             let app_config =
-                AppConfig::new(self.user_manifest.unwrap(), self.project_manifest.unwrap());
+                Config::new(self.user_manifest.unwrap(), self.project_manifest.unwrap());
 
             Options {
                 seed: self.seed,

@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    server::{config, path_watcher},
+    server::{path_watcher, Config},
     Command, Event,
 };
 use crossbeam::channel::{Receiver, Sender};
@@ -44,11 +44,7 @@ fn watcher_group_notify_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = build_watcher(
-        command_rx,
-        event_tx,
-        config::AppConfig::try_default().unwrap(),
-    );
+    let watcher = build_watcher(command_rx, event_tx, Config::try_default().unwrap());
     watcher.handle_command(Command::Watch(dir.path().to_path_buf()));
 
     let mut f_to_path = f_from.path().to_path_buf();
@@ -111,7 +107,7 @@ fn watcher_group_notify_events_should_work() {
 fn build_watcher(
     command_rx: Receiver<Command>,
     event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
-    app_config: config::AppConfig,
+    config: Config,
 ) -> FsWatcher {
     use crate::server::actor::FileSystemActor;
     use notify_debouncer_full::FileIdMap;
@@ -145,7 +141,7 @@ fn build_watcher(
         path_watcher_rx,
         file_ids: Arc::new(Mutex::new(FileIdMap::new())),
         roots: Mutex::new(vec![]),
-        app_config,
+        app_config: config,
         shutdown: Mutex::new(false),
     }
 }

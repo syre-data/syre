@@ -2,7 +2,7 @@
 use super::*;
 use crate::{
     event as app,
-    server::{config, event as fs_event},
+    server::{event as fs_event, Config},
     Command, Event,
 };
 use crossbeam::channel::{Receiver, Sender};
@@ -35,11 +35,7 @@ fn watcher_convert_fs_events_should_work() {
 
     let (_, command_rx) = crossbeam::channel::unbounded();
     let (event_tx, _) = crossbeam::channel::unbounded();
-    let watcher = build_watcher(
-        command_rx,
-        event_tx,
-        config::AppConfig::try_default().unwrap(),
-    );
+    let watcher = build_watcher(command_rx, event_tx, config::Config::try_default().unwrap());
     watcher.handle_command(Command::Watch(dir_path.clone()));
 
     convert_fs::test_config(&watcher);
@@ -1715,7 +1711,7 @@ mod convert_fs {
 fn build_watcher(
     command_rx: Receiver<Command>,
     event_tx: Sender<StdResult<Vec<Event>, Vec<Error>>>,
-    app_config: config::AppConfig,
+    app_config: config::Config,
 ) -> FsWatcher {
     use crate::server::{actor::FileSystemActor, path_watcher};
     use notify_debouncer_full::FileIdMap;

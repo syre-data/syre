@@ -4,6 +4,7 @@ use syre_core::types::UserId;
 #[derive(Serialize, Deserialize, Debug, derive_more::From)]
 pub enum Query {
     Config(Config),
+    State(State),
     User(User),
     Project(Project),
 }
@@ -11,6 +12,12 @@ pub enum Query {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Config {
     Id,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum State {
+    UserManifest,
+    ProjectManifest,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

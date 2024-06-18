@@ -1,5 +1,10 @@
 //! Common functions.
-use crate::constants::{DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
+use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
+
+/// Returns a localhost tcp address with the given port.
+pub fn localhost_with_port(port: PortNumber) -> String {
+    format!("tcp://{LOCALHOST}:{port}")
+}
 
 /// Returns the URL of the ZMQ socket of the given type.
 ///
@@ -14,7 +19,7 @@ pub fn zmq_url(kind: zmq::SocketType) -> Option<String> {
         _ => return None,
     };
 
-    Some(format!("tcp://{LOCALHOST}:{port}"))
+    Some(localhost_with_port(port))
 }
 
 pub fn datastore_url() -> String {

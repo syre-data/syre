@@ -31,6 +31,43 @@ impl State {
     }
 }
 
+impl State {
+    pub fn load_from(path: impl Into<PathBuf>) -> Self {
+        use syre_local::project::resources::{project::LoadError, Analyses, Project};
+
+        let mut state = Self::new(path);
+        if state.path().is_dir() {
+            let mut project = project::Builder::default();
+            match Project::load_from(state.path()) {
+                Ok(prj) => {
+                    let (properties, settings, path) = prj.into_parts();
+                    assert_eq!(&path, state.path());
+
+                    project.set_properties_ok(properties);
+                    project.set_settings_ok(settings);
+                }
+
+                Err(LoadError {
+                    properties,
+                    settings,
+                }) => {
+                    project.set_properties(properties);
+                    project.set_settings(settings);
+                }
+            };
+
+            project
+                .set_analyses(Analyses::load_from(state.path()).map(|analyses| analyses.to_vec()));
+
+            state
+                .try_reduce(Action::CreateFolder(project.build()))
+                .unwrap();
+        }
+
+        state
+    }
+}
+
 impl TryReducible for State {
     type Action = Action;
     type Error = Error;
@@ -44,7 +81,10 @@ impl TryReducible for State {
                 self.fs_resource = FolderResource::Absent;
                 Ok(())
             }
-            Action::CreateFolder(project) => todo!(),
+            Action::CreateFolder(project) => {
+                self.fs_resource = FolderResource::Present(project);
+                Ok(())
+            }
             Action::RemoveConfig => {
                 let FolderResource::Present(project) = self.fs_resource.as_mut() else {
                     return Err(Error::InvalidTransition);
@@ -58,7 +98,7 @@ impl TryReducible for State {
 
 pub mod project {
     use super::{Action, DataResource, Error, FolderResource};
-    use std::io::ErrorKind;
+    use std::{io::ErrorKind, path::Path};
     use syre_core::project::Project as CoreProject;
     use syre_local::{
         error::IoSerde,
@@ -75,7 +115,11 @@ pub mod project {
     }
 
     impl Builder {
-        pub fn set_properties(&mut self, properties: CoreProject) {
+        pub fn set_properties(&mut self, properties: DataResource<CoreProject>) {
+            self.properties = properties;
+        }
+
+        pub fn set_properties_ok(&mut self, properties: CoreProject) {
             self.properties = DataResource::Ok(properties);
         }
 
@@ -83,7 +127,11 @@ pub mod project {
             self.properties = DataResource::Err(properties.into());
         }
 
-        pub fn set_settings(&mut self, settings: ProjectSettings) {
+        pub fn set_settings(&mut self, settings: DataResource<ProjectSettings>) {
+            self.settings = settings;
+        }
+
+        pub fn set_settings_ok(&mut self, settings: ProjectSettings) {
             self.settings = DataResource::Ok(settings);
         }
 
@@ -91,7 +139,11 @@ pub mod project {
             self.settings = DataResource::Err(settings.into());
         }
 
-        pub fn set_analyses(&mut self, analyses: Vec<AnalysisKind>) {
+        pub fn set_analyses(&mut self, analyses: DataResource<Vec<AnalysisKind>>) {
+            self.analyses = analyses;
+        }
+
+        pub fn set_analyses_ok(&mut self, analyses: Vec<AnalysisKind>) {
             self.analyses = DataResource::Ok(analyses);
         }
 

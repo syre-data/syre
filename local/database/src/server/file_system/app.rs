@@ -66,12 +66,13 @@ impl Database {
             ))
         );
 
-        match syre_local::system::collections::ProjectManifest::load_or_default() {
+        match syre_local::system::collections::ProjectManifest::load_from(
+            self.config.project_manifest(),
+        ) {
             Ok(manifest) => {
                 self.fs_command_client.clear_projects();
-
                 for path in manifest.iter() {
-                    self.fs_command_client.watch(path);
+                    self.fs_command_client.watch(path).unwrap();
                 }
 
                 self.state
@@ -84,7 +85,7 @@ impl Database {
                 for path in manifest.iter() {
                     self.state
                         .try_reduce(state::Action::InsertProject(
-                            self.init_project_state_from_path(path),
+                            state::project::State::load_from(path),
                         ))
                         .unwrap();
                 }
@@ -128,7 +129,9 @@ impl Database {
             ))
         );
 
-        let manifest = syre_local::system::collections::ProjectManifest::load_or_default();
+        let manifest = syre_local::system::collections::ProjectManifest::load_from(
+            self.config.project_manifest(),
+        );
         let state = self.state.app().project_manifest();
         match (manifest, state) {
             (Ok(manifest), Ok(state)) => {
@@ -152,6 +155,30 @@ impl Database {
                             .into(),
                     )
                     .unwrap();
+
+                let (added, invalid): (Vec<_>, Vec<_>) =
+                    added.into_iter().partition(|path| path.is_absolute());
+
+                for path in added.iter() {
+                    let project = state::project::State::new(path);
+                    self.state
+                        .try_reduce(state::Action::InsertProject(project))
+                        .unwrap();
+
+                    self.fs_command_client.watch(path.clone()).unwrap();
+                }
+
+                for path in removed.iter() {
+                    self.state
+                        .try_reduce(state::Action::RemoveProject(path.clone()))
+                        .unwrap();
+
+                    self.fs_command_client.unwatch(path.clone()).unwrap();
+                }
+
+                for path in invalid {
+                    todo!();
+                }
 
                 let mut updates = vec![];
                 if added.len() > 0 {
@@ -179,32 +206,84 @@ impl Database {
                     )
                     .unwrap();
 
-                if manifest.len() > 0 {
-                    vec![Update::app(
-                        update::ProjectManifest::Added(manifest.to_vec()),
-                        event.id().clone(),
-                    )]
-                } else {
-                    vec![]
+                let mut added = vec![];
+                let mut invalid = vec![];
+                for path in manifest.iter() {
+                    if path.is_absolute() {
+                        if !self
+                            .state
+                            .projects()
+                            .iter()
+                            .any(|project| project.path() == path)
+                        {
+                            self.state
+                                .try_reduce(state::Action::InsertProject(
+                                    state::project::State::load_from(path),
+                                ))
+                                .unwrap();
+
+                            added.push(path.clone());
+                        }
+                    } else {
+                        invalid.push(path.clone());
+                    }
                 }
+
+                let mut removed = vec![];
+                let project_paths = self
+                    .state
+                    .projects()
+                    .iter()
+                    .map(|project| project.path().clone())
+                    .collect::<Vec<_>>();
+
+                for project in project_paths {
+                    if !manifest.contains(&project) {
+                        self.state
+                            .try_reduce(state::Action::RemoveProject(project.clone()))
+                            .unwrap();
+                    }
+
+                    removed.push(project);
+                }
+
+                let mut updates = vec![Update::app(
+                    update::ProjectManifest::Repaired,
+                    event.id().clone(),
+                )];
+
+                if added.len() > 0 {
+                    updates.push(Update::app(
+                        update::ProjectManifest::Added(added),
+                        event.id().clone(),
+                    ));
+                }
+
+                if removed.len() > 0 {
+                    updates.push(Update::app(
+                        update::ProjectManifest::Removed(removed),
+                        event.id().clone(),
+                    ));
+                }
+
+                if invalid.len() > 0 {
+                    todo!();
+                }
+
+                updates
             }
 
-            (Err(manifest), Ok(state)) => {
-                let state = (*state).clone();
+            (Err(manifest), Ok(_state)) => {
                 self.state
                     .try_reduce(
                         ConfigAction::ProjectManifest(ManifestAction::SetErr(manifest)).into(),
                     )
                     .unwrap();
 
-                if state.len() > 0 {
-                    vec![Update::app(
-                        update::ProjectManifest::Removed(state),
-                        event.id().clone(),
-                    )]
-                } else {
-                    vec![]
-                }
+                vec![Update::app(
+                    update::ProjectManifest::Corrupted,
+                    event.id().clone(),
+                )]
             }
 
             (Err(manifest), Err(_state)) => {
@@ -217,64 +296,5 @@ impl Database {
                 vec![]
             }
         }
-    }
-}
-
-impl Database {
-    fn init_project_state_from_path(&self, path: impl Into<PathBuf>) -> state::project::State {
-        use state::project;
-        use syre_local::{common, project::resources::project::LoadError};
-
-        let path: PathBuf = path.into();
-        if !path.is_dir() {
-            return project::State::new(path);
-        }
-
-        let config = common::app_dir_of(&path);
-        if !config.is_dir() {
-            return project::State::with_project(
-                path,
-                project::project::Builder::default().build(),
-            );
-        }
-
-        let mut state = project::project::Builder::default();
-        match Project::load_from(path.clone()) {
-            Ok(project) => {
-                let (properties, settings, _path) = project.into_parts();
-                state.set_properties(properties);
-                state.set_settings(settings);
-            }
-
-            Err(LoadError {
-                properties,
-                settings,
-            }) => {
-                match properties {
-                    Ok(properties) => {
-                        state.set_properties(properties);
-                    }
-                    Err(err) => {
-                        state.set_properties_err(err);
-                    }
-                }
-
-                match settings {
-                    Ok(settings) => {
-                        state.set_settings(settings);
-                    }
-                    Err(err) => {
-                        state.set_settings_err(err);
-                    }
-                }
-            }
-        }
-
-        match Analyses::load_from(path.clone()) {
-            Ok(analyses) => state.set_analyses(analyses.to_vec()),
-            Err(err) => state.set_analyses_err(err),
-        };
-
-        return project::State::with_project(path, state.build());
     }
 }

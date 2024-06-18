@@ -5,24 +5,32 @@ pub(super) mod query;
 #[path = "file_system/mod.rs"]
 mod file_system;
 
-use super::{state::State, store::data_store};
+use super::{
+    state::{self, State},
+    store::data_store,
+};
 use crate::{common, constants, event::Update};
 use crossbeam::channel::{select, Receiver};
 use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, path::PathBuf, thread};
-use syre_fs_watcher::server::config::AppConfig;
-use syre_local::system::collections::{ProjectManifest, UserManifest};
+use syre_local::{
+    project::resources::{project::LoadError, Analyses, Project},
+    system::collections::{ProjectManifest, UserManifest},
+    TryReducible,
+};
+
+pub use config::Config;
 
 pub struct Builder {
-    app_config: AppConfig,
+    config: Config,
     paths: Vec<PathBuf>,
 }
 
 impl Builder {
-    pub fn new(app_config: AppConfig) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
-            app_config,
+            config,
             paths: vec![],
         }
     }
@@ -32,7 +40,7 @@ impl Builder {
     pub fn run(self) -> Result<(), zmq::Error> {
         let zmq_context = zmq::Context::new();
         let update_tx = zmq_context.socket(zmq::PUB)?;
-        update_tx.bind(&common::zmq_url(zmq::PUB).unwrap())?;
+        update_tx.bind(&common::localhost_with_port(self.config.update_port()))?;
 
         let (query_tx, query_rx) = crossbeam::channel::unbounded();
         let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
@@ -43,7 +51,10 @@ impl Builder {
         let mut fs_watcher = syre_fs_watcher::server::Builder::new(
             fs_command_rx,
             fs_event_tx,
-            self.app_config.clone(),
+            syre_fs_watcher::server::Config::new(
+                self.config.user_manifest().clone(),
+                self.config.project_manifest().clone(),
+            ),
         );
         fs_watcher.add_paths(self.paths);
 
@@ -81,7 +92,7 @@ impl Builder {
                 match err {
                     syre_fs_watcher::Error::Watch(err) => {
                         if let [path] = &err.paths[..] {
-                            if path == self.app_config.user_manifest() {
+                            if path == self.config.user_manifest() {
                                 let err = match err.kind {
                                     notify::ErrorKind::Io(err) => err,
                                     notify::ErrorKind::MaxFilesWatch
@@ -92,7 +103,7 @@ impl Builder {
                                 };
 
                                 user_manifest_state = Err(err.into());
-                            } else if path == self.app_config.project_manifest() {
+                            } else if path == self.config.project_manifest() {
                                 let err = match err.kind {
                                     notify::ErrorKind::Io(err) => err,
                                     notify::ErrorKind::MaxFilesWatch
@@ -117,7 +128,7 @@ impl Builder {
         }
 
         if let Ok(manifest_state) = user_manifest_state.as_mut() {
-            match UserManifest::load_from(self.app_config.user_manifest()) {
+            match UserManifest::load_from(self.config.user_manifest()) {
                 Ok(manifest) => {
                     manifest_state.extend(manifest.to_vec());
                 }
@@ -128,7 +139,7 @@ impl Builder {
         }
 
         if let Ok(manifest_state) = project_manifest_state.as_mut() {
-            match ProjectManifest::load_from(self.app_config.project_manifest()) {
+            match ProjectManifest::load_from(self.config.project_manifest()) {
                 Ok(manifest) => {
                     manifest_state.extend(manifest.to_vec());
                 }
@@ -138,9 +149,20 @@ impl Builder {
             }
         }
 
-        let state = State::new(user_manifest_state, project_manifest_state);
+        let mut state = State::new(user_manifest_state, project_manifest_state);
+        if let Ok(manifest) = state.app().project_manifest().as_ref() {
+            for path in manifest.clone() {
+                state
+                    .try_reduce(state::Action::InsertProject(
+                        state::project::State::load_from(path),
+                    ))
+                    .unwrap();
+            }
+        }
+
+        tracing::debug!(?state);
         let mut db = Database {
-            config: self.app_config,
+            config: self.config,
             state,
             data_store,
             query_rx,
@@ -156,30 +178,33 @@ impl Builder {
     pub fn add_path(self, path: impl Into<PathBuf>) -> Self {
         let Self {
             mut paths,
-            app_config,
+            config: app_config,
         } = self;
 
         paths.push(path.into());
-        Self { paths, app_config }
+        Self {
+            paths,
+            config: app_config,
+        }
     }
 
     pub fn add_paths(self, paths: Vec<PathBuf>) -> Self {
         let Self {
             paths: mut paths_stored,
-            app_config,
+            config: app_config,
         } = self;
 
         paths_stored.extend(paths);
         Self {
             paths: paths_stored,
-            app_config,
+            config: app_config,
         }
     }
 }
 
 /// Database.
 pub struct Database {
-    config: AppConfig,
+    config: Config,
     state: State,
     data_store: data_store::Client,
     query_rx: Receiver<Query>,
@@ -303,6 +328,7 @@ impl Database {
         tracing::debug!(?query);
         match query {
             Query::Config(query) => self.handle_query_config(query),
+            Query::State(query) => self.handle_query_state(query),
             Query::User(query) => self.handle_query_user(query),
             Query::Project(query) => self.handle_query_project(query),
         }
@@ -507,8 +533,7 @@ mod macos {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::*;
-    use std::path::{Component, Path};
-    use std::time::Instant;
+    use std::path::Path;
 
     impl Database {
         /// Handle file system events.
@@ -528,6 +553,7 @@ mod linux {
                 tracing::error!(?err);
             }
 
+            tracing::debug!(?self.state);
             Ok(())
         }
 
@@ -551,5 +577,42 @@ impl Database {
         events: Vec<syre_fs_watcher::Event>,
     ) -> Vec<Update> {
         self.process_events(events)
+    }
+}
+
+mod config {
+    use crate::constants::PortNumber;
+    use std::path::PathBuf;
+
+    pub struct Config {
+        user_manifest: PathBuf,
+        project_manifest: PathBuf,
+        update_port: PortNumber,
+    }
+
+    impl Config {
+        pub fn new(
+            user_manifest: impl Into<PathBuf>,
+            project_manifest: impl Into<PathBuf>,
+            update_port: impl Into<PortNumber>,
+        ) -> Self {
+            Self {
+                user_manifest: user_manifest.into(),
+                project_manifest: project_manifest.into(),
+                update_port: update_port.into(),
+            }
+        }
+
+        pub fn user_manifest(&self) -> &PathBuf {
+            &self.user_manifest
+        }
+
+        pub fn project_manifest(&self) -> &PathBuf {
+            &self.project_manifest
+        }
+
+        pub fn update_port(&self) -> PortNumber {
+            self.update_port
+        }
     }
 }

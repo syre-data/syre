@@ -18,6 +18,7 @@ pub enum Config {
 pub enum State {
     UserManifest,
     ProjectManifest,
+    Projects,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

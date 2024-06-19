@@ -594,8 +594,8 @@ pub mod config {
         /// Creates an app config using the paths obtained from the system.
         pub fn try_default() -> Result<Self, io::Error> {
             Ok(Self {
-                user_manifest: UserManifest::path()?,
-                project_manifest: ProjectManifest::path()?,
+                user_manifest: UserManifest::default_path()?,
+                project_manifest: ProjectManifest::default_path()?,
             })
         }
 

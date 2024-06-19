@@ -1,14 +1,22 @@
 //! Database update messages.
 //!
-//! Topic should be `project:` followed by the resource id of the affected project.
-//! e.g. `project:123-4567-890
+//! Topic should be `project:` followed by the resource id of the affected project, if known,
+//! otherwise `unknown`.
+//! e.g. `project/123-4567-890`, `project/unknown`
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use syre_core::graph::ResourceTree;
-use syre_core::project::{
-    Container as CoreContainer, ContainerProperties, Project as CoreProject, Script as CoreScript,
+use syre_core::{
+    graph::ResourceTree,
+    project::{
+        Container as CoreContainer, ContainerProperties, Project as CoreProject,
+        Script as CoreScript,
+    },
+    types::ResourceId,
 };
-use syre_core::types::ResourceId;
+use syre_local::{
+    error::IoSerde,
+    types::{AnalysisKind, ProjectSettings},
+};
 use uuid::Uuid;
 
 /// Update types.
@@ -20,11 +28,49 @@ pub struct Update {
 }
 
 impl Update {
-    pub fn project(project: ResourceId, update: Project, parent: Uuid) -> Self {
+    pub fn project(
+        id: Option<ResourceId>,
+        path: impl Into<PathBuf>,
+        update: Project,
+        parent: Uuid,
+    ) -> Self {
         Self {
             id: Uuid::now_v7(),
             parent,
-            kind: UpdateKind::Project { project, update },
+            kind: UpdateKind::Project {
+                project: id,
+                path: path.into(),
+                update,
+            },
+        }
+    }
+
+    pub fn project_with_id(
+        id: ResourceId,
+        path: impl Into<PathBuf>,
+        update: Project,
+        parent: Uuid,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            parent,
+            kind: UpdateKind::Project {
+                project: Some(id),
+                path: path.into(),
+                update,
+            },
+        }
+    }
+
+    pub fn project_no_id(path: impl Into<PathBuf>, update: Project, parent: Uuid) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            parent,
+            kind: UpdateKind::Project {
+                project: None,
+                path: path.into(),
+                update,
+            },
         }
     }
 
@@ -50,9 +96,9 @@ impl Update {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum UpdateKind {
     App(App),
-    ProjectCreated,
     Project {
-        project: ResourceId,
+        project: Option<ResourceId>,
+        path: PathBuf,
         update: Project,
     },
 }
@@ -82,8 +128,11 @@ pub enum ProjectManifest {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Project {
-    Removed(Option<CoreProject>),
+    Removed,
     Moved(PathBuf),
+    Properties(DataResource<CoreProject>),
+    Settings(DataResource<ProjectSettings>),
+    Analyses(DataResource<Vec<AnalysisKind>>),
 
     Graph(Graph),
     Container(Container),
@@ -122,10 +171,6 @@ impl From<Analysis> for Project {
     }
 }
 
-// *************
-// *** Graph ***
-// *************
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Graph {
     /// A subgraph was created.
@@ -150,10 +195,6 @@ pub enum Graph {
     Removed(ResourceTree<CoreContainer>),
 }
 
-// *****************
-// *** Container ***
-// *****************
-
 /// Container updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Container {
@@ -163,10 +204,6 @@ pub enum Container {
         properties: ContainerProperties,
     },
 }
-
-// *************
-// *** Asset ***
-// *************
 
 /// Asset updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -212,10 +249,6 @@ pub enum Script {
     },
 }
 
-// ****************
-// *** Analysis ***
-// ****************
-
 /// Analysis updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Analysis {
@@ -223,4 +256,13 @@ pub enum Analysis {
         resource: ResourceId,
         message: String,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum DataResource<T> {
+    Created(Result<T, IoSerde>),
+    Removed,
+    Corrupted(IoSerde),
+    Repaired(T),
+    Modified(T),
 }

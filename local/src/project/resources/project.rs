@@ -175,11 +175,21 @@ impl Project {
         base_path: impl Into<PathBuf>,
     ) -> Result<CoreProject, IoSerdeError> {
         let base_path = fs::canonicalize(base_path.into())?;
-        let project_path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
-        let project_file = fs::File::open(project_path)?;
-        let project_reader = BufReader::new(project_file);
-        let project = serde_json::from_reader(project_reader)?;
-        Ok(project)
+        let path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
+
+    /// Only load the project's settings.
+    pub fn load_from_settings_only(
+        base_path: impl Into<PathBuf>,
+    ) -> Result<ProjectSettings, IoSerdeError> {
+        let base_path = fs::canonicalize(base_path.into())?;
+        let path = base_path.join(<Project as LocalResource<ProjectSettings>>::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
     }
 }
 

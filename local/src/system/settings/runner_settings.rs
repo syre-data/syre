@@ -6,9 +6,16 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{self, BufReader},
+    ops::Deref,
     path::PathBuf,
     result::Result as StdResult,
 };
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct Settings {
+    pub python_path: Option<String>,
+    pub r_path: Option<String>,
+}
 
 /// Represents Syre runner settings.
 ///
@@ -21,31 +28,46 @@ use std::{
 /// + **python_path:** Option for the python binary path.
 /// + **r_path:** Option for the r binary path.
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(transparent)]
 pub struct RunnerSettings {
-    pub python_path: Option<String>,
-    pub r_path: Option<String>,
+    #[serde(skip)]
+    path: PathBuf,
+    inner: Settings,
 }
 
 impl RunnerSettings {
     const FILE_NAME: &'static str = "runner_settings.json";
 
     pub fn load() -> Result<Self> {
-        let file = fs::File::open(Self::path()?)?;
+        let path = Self::default_path()?;
+        let file = fs::File::open(&path)?;
         let reader = BufReader::new(file);
-        Ok(serde_json::from_reader(reader)?)
+        let inner = serde_json::from_reader(reader)?;
+        Ok(Self { path, inner })
     }
 
     pub fn save(&self) -> Result {
-        fs::create_dir_all(Self::path()?.parent().expect("invalid path"))?;
-        fs::write(Self::path()?, serde_json::to_string_pretty(&self)?)?;
+        fs::create_dir_all(self.path().parent().unwrap())?;
+        fs::write(self.path(), serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 }
 
 // TODO Should probably be a `UserResource`.
-impl SystemResource<RunnerSettings> for RunnerSettings {
+impl SystemResource<Settings> for RunnerSettings {
+    fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
     /// Returns the path to the system settings file.
-    fn path() -> StdResult<PathBuf, io::Error> {
+    fn default_path() -> StdResult<PathBuf, io::Error> {
         Ok(config_dir_path()?.join(Self::FILE_NAME))
+    }
+}
+
+impl Deref for RunnerSettings {
+    type Target = Settings;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }

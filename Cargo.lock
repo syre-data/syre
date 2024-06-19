@@ -7261,6 +7261,7 @@ dependencies = [
  "syre-fs-watcher",
  "syre-local",
  "tempfile",
+ "test-log",
  "thiserror",
  "tokio",
  "tracing",

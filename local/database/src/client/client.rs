@@ -19,20 +19,25 @@ fn port_is_free(port: PortNumber) -> bool {
 }
 
 pub struct Client {
+    config: Config,
     zmq_context: zmq::Context,
+    state: state::Client,
 }
 
 impl Client {
     pub fn new() -> Self {
+        let config = Config::new(CONNECT_TIMEOUT, RECV_TIMEOUT);
         let ctx = zmq::Context::new();
         Self {
+            config: config.clone(),
             zmq_context: ctx.clone(),
+            state: state::Client::new(config.clone(), ctx.clone()),
         }
     }
 
     pub fn send(&self, query: Query) -> zmq::Result<JsValue> {
         // TODO: May be able to move creation of `socket` to `#new`, but may run into `Sync` issues.
-        let socket = Self::socket(&self.zmq_context);
+        let socket = self.socket();
         socket.send(&serde_json::to_string(&query).unwrap(), 0)?;
 
         let mut msg = zmq::Message::new();
@@ -41,15 +46,106 @@ impl Client {
         Ok(serde_json::from_str(msg.as_str().unwrap()).unwrap())
     }
 
-    fn socket(ctx: &zmq::Context) -> zmq::Socket {
+    pub fn state(&self) -> &state::Client {
+        &self.state
+    }
+
+    fn socket(&self) -> zmq::Socket {
         const SOCKET_KIND: zmq::SocketType = zmq::REQ;
-        let socket = ctx.socket(SOCKET_KIND).unwrap();
-        socket.set_connect_timeout(CONNECT_TIMEOUT).unwrap();
-        socket.set_rcvtimeo(RECV_TIMEOUT).unwrap();
+        let socket = self.zmq_context.socket(SOCKET_KIND).unwrap();
+        socket
+            .set_connect_timeout(self.config.connect_timeout())
+            .unwrap();
+        socket.set_rcvtimeo(self.config.recv_timeout()).unwrap();
         socket
             .connect(&common::zmq_url(SOCKET_KIND).unwrap())
             .unwrap();
 
         socket
+    }
+}
+
+mod state {
+    use super::Config;
+    use crate::{common, query, server::state::config::ManifestState, Query};
+    use serde_json::Value as JsValue;
+    use std::path::PathBuf;
+    use syre_core::system::User;
+
+    pub struct Client {
+        config: Config,
+        zmq_context: zmq::Context,
+    }
+
+    impl Client {
+        pub(super) fn new(config: Config, zmq_context: zmq::Context) -> Self {
+            Self {
+                config,
+                zmq_context,
+            }
+        }
+
+        pub fn user_manifest(&self) -> zmq::Result<ManifestState<User>> {
+            let state = self.send(query::State::ProjectManifest.into())?;
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        pub fn project_manifest(&self) -> zmq::Result<ManifestState<PathBuf>> {
+            let state = self.send(query::State::ProjectManifest.into())?;
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        pub fn projects(&self) -> zmq::Result<Vec<crate::server::state::project::State>> {
+            let state = self.send(query::State::Projects.into())?;
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        fn send(&self, query: Query) -> zmq::Result<JsValue> {
+            // TODO: May be able to move creation of `socket` to `#new`, but may run into `Sync` issues.
+            let socket = self.socket();
+            socket.send(&serde_json::to_string(&query).unwrap(), 0)?;
+
+            let mut msg = zmq::Message::new();
+            socket.recv(&mut msg, 0)?;
+
+            Ok(serde_json::from_str(msg.as_str().unwrap()).unwrap())
+        }
+
+        fn socket(&self) -> zmq::Socket {
+            const SOCKET_KIND: zmq::SocketType = zmq::REQ;
+            let socket = self.zmq_context.socket(SOCKET_KIND).unwrap();
+            socket
+                .set_connect_timeout(self.config.connect_timeout())
+                .unwrap();
+            socket.set_rcvtimeo(self.config.recv_timeout()).unwrap();
+            socket
+                .connect(&common::zmq_url(SOCKET_KIND).unwrap())
+                .unwrap();
+
+            socket
+        }
+    }
+}
+
+#[derive(Clone)]
+struct Config {
+    connect_timeout: i32,
+    recv_timeout: i32,
+}
+
+impl Config {
+    pub fn new(connect_timeout: i32, recv_timeout: i32) -> Self {
+        Self {
+            connect_timeout,
+            recv_timeout,
+        }
+    }
+
+    pub fn connect_timeout(&self) -> i32 {
+        self.connect_timeout
+    }
+
+    pub fn recv_timeout(&self) -> i32 {
+        self.recv_timeout
     }
 }

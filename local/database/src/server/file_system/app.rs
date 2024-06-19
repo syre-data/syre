@@ -11,7 +11,7 @@ use syre_local::{
 };
 
 impl Database {
-    pub fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<crate::Update> {
+    pub fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -128,10 +128,13 @@ impl Database {
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
             ))
         );
+        assert_eq!(event.paths().len(), 1);
+        assert_eq!(event.paths()[0], *self.config.project_manifest());
 
         let manifest = syre_local::system::collections::ProjectManifest::load_from(
             self.config.project_manifest(),
         );
+
         let state = self.state.app().project_manifest();
         match (manifest, state) {
             (Ok(manifest), Ok(state)) => {
@@ -160,7 +163,7 @@ impl Database {
                     added.into_iter().partition(|path| path.is_absolute());
 
                 for path in added.iter() {
-                    let project = state::project::State::new(path);
+                    let project = state::project::State::load_from(path);
                     self.state
                         .try_reduce(state::Action::InsertProject(project))
                         .unwrap();

@@ -5,7 +5,7 @@ use super::{
 };
 pub use action::Action;
 pub use error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use syre_core::system::User;
 use syre_local::{Reducible, TryReducible};
 
@@ -33,6 +33,12 @@ impl State {
 
     pub fn projects(&self) -> &Vec<Project> {
         &self.projects
+    }
+
+    pub fn find_project_by_path(&self, path: impl AsRef<Path>) -> Option<&Project> {
+        self.projects
+            .iter()
+            .find(|project| project.path() == path.as_ref())
     }
 }
 
@@ -82,6 +88,7 @@ mod action {
         InsertProject(Project),
         RemoveProject(PathBuf),
         Project {
+            /// Path to the project's base folder.
             path: PathBuf,
             action: ProjectAction,
         },

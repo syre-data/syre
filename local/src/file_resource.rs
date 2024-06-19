@@ -48,6 +48,9 @@ pub trait UserResource<T> {
 
 /// System resources have only one file for the entire system that resides at a fixed path.
 pub trait SystemResource<T> {
-    /// Returns the path to the settings file.
-    fn path() -> Result<PathBuf, io::Error>;
+    /// Returns the path to the file.
+    fn path(&self) -> &PathBuf;
+
+    /// Returns the default path to the file.
+    fn default_path() -> Result<PathBuf, io::Error>;
 }

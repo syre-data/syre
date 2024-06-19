@@ -18,6 +18,7 @@ impl Database {
             query::State::ProjectManifest => {
                 serde_json::to_value(self.state.app().project_manifest()).unwrap()
             }
+            query::State::Projects => serde_json::to_value(self.state.projects()).unwrap(),
         }
     }
 }

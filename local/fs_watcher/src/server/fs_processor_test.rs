@@ -56,7 +56,7 @@ mod convert_fs {
         // -- created
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::Created(collections::ProjectManifest::path().unwrap()),
+                fs_event::File::Created(watcher.app_config.project_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();
@@ -71,7 +71,7 @@ mod convert_fs {
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::Created(collections::UserManifest::path().unwrap()),
+                fs_event::File::Created(watcher.app_config.user_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();
@@ -86,7 +86,7 @@ mod convert_fs {
         // -- removed
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::Removed(collections::ProjectManifest::path().unwrap()),
+                fs_event::File::Removed(watcher.app_config.project_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();
@@ -101,7 +101,7 @@ mod convert_fs {
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::Removed(collections::UserManifest::path().unwrap()),
+                fs_event::File::Removed(watcher.app_config.user_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();
@@ -116,7 +116,7 @@ mod convert_fs {
         // -- modified
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::DataModified(collections::ProjectManifest::path().unwrap()),
+                fs_event::File::DataModified(watcher.app_config.project_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();
@@ -131,7 +131,7 @@ mod convert_fs {
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
-                fs_event::File::DataModified(collections::UserManifest::path().unwrap()),
+                fs_event::File::DataModified(watcher.app_config.user_manifest().clone()),
                 Instant::now(),
             ))
             .unwrap();

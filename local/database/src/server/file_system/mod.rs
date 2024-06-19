@@ -1,4 +1,5 @@
 mod app;
+mod project;
 
 use crate::{event::Update, Database};
 use syre_fs_watcher::EventKind;
@@ -14,7 +15,7 @@ impl Database {
     fn process_event(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         match event.kind() {
             EventKind::Config(_) => self.handle_fs_event_config(event),
-            EventKind::Project(_) => todo!(),
+            EventKind::Project(_) => self.handle_fs_event_project(event),
             EventKind::Graph(_) => todo!(),
             EventKind::Container(_) => todo!(),
             EventKind::AssetFile(_) => todo!(),

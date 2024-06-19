@@ -292,16 +292,13 @@ impl Database {
                         .or_insert(vec![]);
                     events.push(update);
                 }
-                event::UpdateKind::ProjectCreated => {
-                    let events = sorted_updates
-                        .entry("project/created".to_string())
-                        .or_insert(vec![]);
-                    events.push(update);
-                }
                 event::UpdateKind::Project { project, .. } => {
-                    let events = sorted_updates
-                        .entry(format!("project/{project}"))
-                        .or_insert(vec![]);
+                    let key = match project {
+                        None => format!("project/unknown"),
+                        Some(id) => format!("project/{id}"),
+                    };
+
+                    let events = sorted_updates.entry(key).or_insert(vec![]);
                     events.push(update);
                 }
             };

@@ -116,7 +116,7 @@ pub enum Users {
 // *** IoSerde ***
 // ***************
 
-#[derive(Serialize, Deserialize, Error, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Error, PartialEq, Clone, Debug)]
 pub enum IoSerde {
     #[error("{0:?}")]
     Io(#[serde(with = "IoErrorKind")] io::ErrorKind),

@@ -1,11 +1,12 @@
 //! Project state.
 use super::Error;
 pub use action::Action;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_local::{error::IoSerde, TryReducible};
 
 /// Project state.
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct State {
     path: PathBuf,
     fs_resource: FolderResource<project::State>,
@@ -28,6 +29,10 @@ impl State {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub fn fs_resource(&self) -> &FolderResource<project::State> {
+        &self.fs_resource
     }
 }
 
@@ -85,7 +90,10 @@ impl TryReducible for State {
                 self.fs_resource = FolderResource::Present(project);
                 Ok(())
             }
-            Action::RemoveConfig => {
+            Action::RemoveConfig
+            | Action::SetProperties(_)
+            | Action::SetSettings(_)
+            | Action::SetAnalyses(_) => {
                 let FolderResource::Present(project) = self.fs_resource.as_mut() else {
                     return Err(Error::InvalidTransition);
                 };
@@ -98,7 +106,8 @@ impl TryReducible for State {
 
 pub mod project {
     use super::{Action, DataResource, Error, FolderResource};
-    use std::{io::ErrorKind, path::Path};
+    use serde::{Deserialize, Serialize};
+    use std::io::{self, ErrorKind};
     use syre_core::project::Project as CoreProject;
     use syre_local::{
         error::IoSerde,
@@ -180,12 +189,30 @@ pub mod project {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct State {
         properties: DataResource<CoreProject>,
         settings: DataResource<ProjectSettings>,
         analyses: DataResource<Vec<AnalysisKind>>,
         graph: FolderResource<()>,
+    }
+
+    impl State {
+        pub fn properties(&self) -> &DataResource<CoreProject> {
+            &self.properties
+        }
+
+        pub fn settings(&self) -> &DataResource<ProjectSettings> {
+            &self.settings
+        }
+
+        pub fn analyses(&self) -> &DataResource<Vec<AnalysisKind>> {
+            &self.analyses
+        }
+
+        pub fn graph(&self) -> &FolderResource<()> {
+            &self.graph
+        }
     }
 
     impl TryReducible for State {
@@ -197,13 +224,30 @@ pub mod project {
                     unreachable!("handled elsewhere");
                 }
 
-                Action::RemoveConfig => todo!(),
+                Action::RemoveConfig => {
+                    self.properties = DataResource::Err(io::ErrorKind::NotFound.into());
+                    self.settings = DataResource::Err(io::ErrorKind::NotFound.into());
+                    self.analyses = DataResource::Err(io::ErrorKind::NotFound.into());
+                    Ok(())
+                }
+                Action::SetProperties(properties) => {
+                    self.properties = properties;
+                    Ok(())
+                }
+                Action::SetSettings(settings) => {
+                    self.settings = settings;
+                    Ok(())
+                }
+                Action::SetAnalyses(analyses) => {
+                    self.analyses = analyses;
+                    Ok(())
+                }
             }
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum FolderResource<T> {
     Present(T),
     Absent,
@@ -228,8 +272,10 @@ impl<T> FolderResource<T> {
 pub type DataResource<T> = Result<T, IoSerde>;
 
 mod action {
-    use super::project::State as Project;
+    use super::{project::State as Project, DataResource};
     use std::path::PathBuf;
+    use syre_core::project::Project as CoreProject;
+    use syre_local::types::{AnalysisKind, ProjectSettings};
 
     #[derive(Debug)]
     pub enum Action {
@@ -244,5 +290,9 @@ mod action {
 
         /// Sets all config resources to be `Absent`.
         RemoveConfig,
+
+        SetProperties(DataResource<CoreProject>),
+        SetSettings(DataResource<ProjectSettings>),
+        SetAnalyses(DataResource<Vec<AnalysisKind>>),
     }
 }

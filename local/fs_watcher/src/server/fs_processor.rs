@@ -896,7 +896,7 @@ impl FsWatcher {
                     app::Project::Settings(app::StaticResourceEvent::Created).into()
                 }
 
-                resources::Project::Analysis => {
+                resources::Project::Analyses => {
                     app::Project::Analysis(app::StaticResourceEvent::Created).into()
                 }
             },
@@ -945,7 +945,7 @@ impl FsWatcher {
                     app::Project::Settings(app::StaticResourceEvent::Removed).into()
                 }
 
-                resources::Project::Analysis => {
+                resources::Project::Analyses => {
                     app::Project::Analysis(app::StaticResourceEvent::Removed).into()
                 }
             },
@@ -994,7 +994,7 @@ impl FsWatcher {
                     app::Project::Settings(app::StaticResourceEvent::Removed).into()
                 }
 
-                resources::Project::Analysis => {
+                resources::Project::Analyses => {
                     app::Project::Analysis(app::StaticResourceEvent::Removed).into()
                 }
             },
@@ -1048,7 +1048,7 @@ impl FsWatcher {
                 )
                 .into(),
 
-                resources::Project::Analysis => app::Project::Analysis(
+                resources::Project::Analyses => app::Project::Analysis(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
                 .into(),
@@ -1163,7 +1163,7 @@ impl FsWatcher {
                     app::Project::Settings(app::StaticResourceEvent::Removed).into()
                 }
 
-                resources::Project::Analysis => {
+                resources::Project::Analyses => {
                     app::Project::Analysis(app::StaticResourceEvent::Removed).into()
                 }
             },
@@ -1213,7 +1213,7 @@ impl FsWatcher {
                     app::Project::Settings(app::StaticResourceEvent::Created).into()
                 }
 
-                resources::Project::Analysis => {
+                resources::Project::Analyses => {
                     app::Project::Analysis(app::StaticResourceEvent::Created).into()
                 }
             },
@@ -1332,7 +1332,7 @@ impl FsWatcher {
                 )
                 .into(),
 
-                resources::Project::Analysis => app::Project::Analysis(
+                resources::Project::Analyses => app::Project::Analysis(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Data),
                 )
                 .into(),
@@ -1919,7 +1919,7 @@ mod resources {
         #[from]
         Config(Config),
         Project {
-            project: ResourceId,
+            project: PathBuf,
             kind: Project,
         },
 
@@ -1947,7 +1947,7 @@ mod resources {
     pub(crate) enum Project {
         Properties,
         Settings,
-        Analysis,
+        Analyses,
     }
 
     #[derive(Debug)]
@@ -2047,11 +2047,33 @@ mod resources {
             return Ok(Some(Config::UserManifest.into()));
         }
 
-        let project = project_by_resource_path(&path)?;
+        let project = match project_by_resource_path(&path) {
+            Ok(project) => project,
+            Err(err) => match err.kind() {
+                ErrorKind::NotInProject | ErrorKind::LoadProjectManifest(_) => return Err(err),
+                ErrorKind::LoadProject(_) => {
+                    let kind = if *path == common::project_file_of(err.path()) {
+                        Project::Properties
+                    } else if *path == common::project_settings_file_of(err.path()) {
+                        Project::Settings
+                    } else if *path == common::analyses_file_of(err.path()) {
+                        Project::Analyses
+                    } else {
+                        return Err(err);
+                    };
+
+                    return Ok(Some(ResourceEvent::Project {
+                        project: err.path().clone(),
+                        kind,
+                    }));
+                }
+            },
+        };
+
         if path.starts_with(common::app_dir_of(project.base_path())) {
             let kind =
                 handle_file_project(path, project.base_path()).map(|kind| ResourceEvent::Project {
-                    project: project.rid.clone(),
+                    project: project.base_path().to_path_buf(),
                     kind,
                 });
 
@@ -2175,6 +2197,7 @@ mod resources {
     /// # Errors
     /// + The path is not in a project.
     /// + The path is in a project that can not be loaded.
+    ///     The associated path is the base path of the project.
     fn project_by_resource_path(path: impl Into<PathBuf>) -> Result<LocalProject, Error> {
         let path = path.into();
         let Some(project_path) = project::project_root_path(&path) else {
@@ -2191,7 +2214,7 @@ mod resources {
         } else if *path == common::project_settings_file_of(project) {
             Some(Project::Settings)
         } else if *path == common::analyses_file_of(project) {
-            Some(Project::Analysis)
+            Some(Project::Analyses)
         } else {
             None
         }

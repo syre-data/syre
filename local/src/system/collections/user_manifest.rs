@@ -27,7 +27,7 @@ impl UserManifest {
     const FILE_NAME: &'static str = "users.json";
 
     pub fn load() -> Result<Self, IoSerde> {
-        let path = Self::path()?;
+        let path = Self::default_path()?;
         let file = fs::File::open(&path)?;
         let reader = BufReader::new(file);
         Ok(Self {
@@ -37,7 +37,7 @@ impl UserManifest {
     }
 
     pub fn load_or_default() -> Result<Self, IoSerde> {
-        let path = Self::path()?;
+        let path = Self::default_path()?;
         match fs::File::open(&path) {
             Ok(file) => {
                 let reader = BufReader::new(file);
@@ -52,7 +52,7 @@ impl UserManifest {
     }
 
     pub fn save(&self) -> Result<(), IoSerde> {
-        let path = Self::path()?;
+        let path = self.path();
         fs::create_dir_all(path.parent().unwrap())?;
         fs::write(&path, serde_json::to_string_pretty(&self)?)?;
         Ok(())
@@ -115,8 +115,12 @@ impl DerefMut for UserManifest {
 }
 
 impl SystemResource<UserMap> for UserManifest {
+    fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
     /// Returns the path to the system settings file.
-    fn path() -> Result<PathBuf, io::Error> {
+    fn default_path() -> Result<PathBuf, io::Error> {
         Ok(config_dir_path()?.join(Self::FILE_NAME))
     }
 }

@@ -14,8 +14,8 @@ fn main() {
     }));
 
     let config = server::Config::new(
-        UserManifest::path().unwrap(),
-        ProjectManifest::path().unwrap(),
+        UserManifest::default_path().unwrap(),
+        ProjectManifest::default_path().unwrap(),
         syre_local_database::constants::PUB_SUB_PORT,
     );
 

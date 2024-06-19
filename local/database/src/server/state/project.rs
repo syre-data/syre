@@ -1,9 +1,11 @@
 //! Project state.
+use crate::server::state;
+
 use super::Error;
 pub use action::Action;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use syre_local::{error::IoSerde, TryReducible};
+use syre_local::{error::IoSerde, file_resource::LocalResource, TryReducible};
 
 /// Project state.
 #[derive(Serialize, Deserialize, Debug)]
@@ -61,8 +63,31 @@ impl State {
                 }
             };
 
-            project
-                .set_analyses(Analyses::load_from(state.path()).map(|analyses| analyses.to_vec()));
+            let analyses = Analyses::load_from(state.path()).map(|analyses| {
+                let path = analyses.path();
+                analyses
+                    .to_vec()
+                    .into_iter()
+                    .map(|analysis| match analysis {
+                        syre_local::types::AnalysisKind::Script(ref script) => {
+                            if path.join(&script.path).is_file() {
+                                state::project::analysis::State::present(analysis)
+                            } else {
+                                state::project::analysis::State::absent(analysis)
+                            }
+                        }
+                        syre_local::types::AnalysisKind::ExcelTemplate(ref template) => {
+                            if path.join(&template.template.path).is_file() {
+                                state::project::analysis::State::present(analysis)
+                            } else {
+                                state::project::analysis::State::absent(analysis)
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+            project.set_analyses(analyses);
 
             state
                 .try_reduce(Action::CreateFolder(project.build()))
@@ -105,7 +130,7 @@ impl TryReducible for State {
 }
 
 pub mod project {
-    use super::{Action, DataResource, Error, FolderResource};
+    use super::{analysis, Action, DataResource, Error, FolderResource};
     use serde::{Deserialize, Serialize};
     use std::io::{self, ErrorKind};
     use syre_core::project::Project as CoreProject;
@@ -119,7 +144,7 @@ pub mod project {
     pub struct Builder {
         properties: DataResource<CoreProject>,
         settings: DataResource<ProjectSettings>,
-        analyses: DataResource<Vec<AnalysisKind>>,
+        analyses: DataResource<Vec<analysis::State>>,
         graph: FolderResource<()>,
     }
 
@@ -148,11 +173,11 @@ pub mod project {
             self.settings = DataResource::Err(settings.into());
         }
 
-        pub fn set_analyses(&mut self, analyses: DataResource<Vec<AnalysisKind>>) {
+        pub fn set_analyses(&mut self, analyses: DataResource<Vec<analysis::State>>) {
             self.analyses = analyses;
         }
 
-        pub fn set_analyses_ok(&mut self, analyses: Vec<AnalysisKind>) {
+        pub fn set_analyses_ok(&mut self, analyses: Vec<analysis::State>) {
             self.analyses = DataResource::Ok(analyses);
         }
 
@@ -193,7 +218,7 @@ pub mod project {
     pub struct State {
         properties: DataResource<CoreProject>,
         settings: DataResource<ProjectSettings>,
-        analyses: DataResource<Vec<AnalysisKind>>,
+        analyses: DataResource<Vec<analysis::State>>,
         graph: FolderResource<()>,
     }
 
@@ -206,7 +231,7 @@ pub mod project {
             &self.settings
         }
 
-        pub fn analyses(&self) -> &DataResource<Vec<AnalysisKind>> {
+        pub fn analyses(&self) -> &DataResource<Vec<analysis::State>> {
             &self.analyses
         }
 
@@ -247,9 +272,94 @@ pub mod project {
     }
 }
 
+pub mod analysis {
+    use super::FileResource;
+    use serde::{Deserialize, Serialize};
+    use std::{ops::Deref, path::PathBuf};
+    use syre_local::{
+        file_resource::LocalResource, project::resources::Analyses, types::AnalysisKind,
+    };
+
+    #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
+    pub struct State {
+        properties: AnalysisKind,
+        fs_resource: FileResource,
+    }
+
+    impl State {
+        pub fn present(properties: AnalysisKind) -> Self {
+            Self {
+                properties,
+                fs_resource: FileResource::Present,
+            }
+        }
+
+        pub fn absent(properties: AnalysisKind) -> Self {
+            Self {
+                properties,
+                fs_resource: FileResource::Absent,
+            }
+        }
+
+        /// Create from list of analyses by if checking paths are present in the file system.
+        ///
+        /// # Arguments
+        /// + `path`: Path to the analysis root.
+        /// + `analyses`: List of analysis properties.
+        pub fn from_analyses(analyses: Analyses) -> Vec<Self> {
+            Self::from_resources(analyses.path(), analyses.to_vec())
+        }
+
+        /// Create from list of analyses by if checking paths are present in the file system.
+        ///
+        /// # Arguments
+        /// + `path`: Path to the analysis root.
+        /// + `analyses`: List of analysis properties.
+        pub fn from_resources(path: impl Into<PathBuf>, analyses: Vec<AnalysisKind>) -> Vec<Self> {
+            let path = path.into();
+            analyses
+                .into_iter()
+                .map(|analysis| match analysis {
+                    syre_local::types::AnalysisKind::Script(ref script) => {
+                        if path.join(&script.path).is_file() {
+                            Self::present(analysis)
+                        } else {
+                            Self::absent(analysis)
+                        }
+                    }
+                    syre_local::types::AnalysisKind::ExcelTemplate(ref template) => {
+                        if path.join(&template.template.path).is_file() {
+                            Self::present(analysis)
+                        } else {
+                            Self::absent(analysis)
+                        }
+                    }
+                })
+                .collect()
+        }
+
+        pub fn is_present(&self) -> bool {
+            matches!(self.fs_resource, FileResource::Present)
+        }
+    }
+
+    impl Deref for State {
+        type Target = AnalysisKind;
+        fn deref(&self) -> &Self::Target {
+            &self.properties
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum FolderResource<T> {
     Present(T),
+    Absent,
+}
+
+#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
+pub enum FileResource {
+    Present,
     Absent,
 }
 
@@ -272,7 +382,7 @@ impl<T> FolderResource<T> {
 pub type DataResource<T> = Result<T, IoSerde>;
 
 mod action {
-    use super::{project::State as Project, DataResource};
+    use super::{analysis, project::State as Project, DataResource};
     use std::path::PathBuf;
     use syre_core::project::Project as CoreProject;
     use syre_local::types::{AnalysisKind, ProjectSettings};
@@ -293,6 +403,6 @@ mod action {
 
         SetProperties(DataResource<CoreProject>),
         SetSettings(DataResource<ProjectSettings>),
-        SetAnalyses(DataResource<Vec<AnalysisKind>>),
+        SetAnalyses(DataResource<Vec<analysis::State>>),
     }
 }

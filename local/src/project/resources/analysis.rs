@@ -28,9 +28,9 @@ pub struct Analyses {
 }
 
 impl Analyses {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            base_path: path,
+            base_path: path.into(),
             inner: Store::new(),
         }
     }

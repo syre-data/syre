@@ -46,7 +46,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     let project = Project::new(path)?;
     project.save()?;
 
-    let scripts = Analyses::new(path.into());
+    let scripts = Analyses::new(path);
     scripts.save()?;
 
     project_manifest::register_project(project.base_path())?;

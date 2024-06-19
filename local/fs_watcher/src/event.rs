@@ -217,7 +217,7 @@ pub enum Project {
     Settings(StaticResourceEvent),
 
     /// The project's analyses file was modified.
-    Analysis(StaticResourceEvent),
+    Analyses(StaticResourceEvent),
 
     /// The project directory was modified.
     /// It should likely be rescanned.

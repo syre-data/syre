@@ -7,7 +7,8 @@ use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{
     error::IoSerde,
-    project::resources::{project::LoadError, Project},
+    file_resource::LocalResource,
+    project::resources::{project::LoadError, Analyses, Project},
     TryReducible,
 };
 
@@ -26,7 +27,7 @@ impl Database {
             event::Project::DataDir(_) => todo!(),
             event::Project::Properties(_) => self.handle_fs_event_project_properties(event),
             event::Project::Settings(_) => self.handle_fs_event_project_settings(event),
-            event::Project::Analysis(_) => todo!(),
+            event::Project::Analyses(_) => self.handle_fs_event_project_analyses(event),
             event::Project::Modified => todo!(),
         }
     }
@@ -736,6 +737,260 @@ impl Database {
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Corrupted(err)),
+                    event.id().clone(),
+                )]
+            }
+        }
+    }
+}
+
+impl Database {
+    fn handle_fs_event_project_analyses(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Project(event::Project::Analyses(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::StaticResourceEvent::Created => {
+                self.handle_fs_event_project_analyses_created(event)
+            }
+            event::StaticResourceEvent::Removed => {
+                self.handle_fs_event_project_analyses_removed(event)
+            }
+            event::StaticResourceEvent::Modified(_) => {
+                self.handle_fs_event_project_analyses_modified(event)
+            }
+        }
+    }
+
+    fn handle_fs_event_project_analyses_created(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Created)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let base_path = path.parent().unwrap().parent().unwrap();
+        let project_state = self.state.find_project_by_path(base_path).unwrap();
+        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        assert_matches!(
+            project.analyses(),
+            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+        );
+
+        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
+        {
+            Some(properties.rid.clone())
+        } else {
+            None
+        };
+
+        match Analyses::load_from(base_path) {
+            Ok(analyses) => {
+                let analyses = state::project::analysis::State::from_analyses(analyses);
+                self.state
+                    .try_reduce(state::Action::Project {
+                        path: base_path.to_path_buf(),
+                        action: state::project::Action::SetAnalyses(
+                            state::project::DataResource::Ok(analyses.clone()),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![update::Update::project(
+                    project_id,
+                    base_path,
+                    update::Project::Analyses(update::DataResource::Created(Ok(analyses))),
+                    event.id().clone(),
+                )]
+            }
+
+            Err(IoSerde::Io(io::ErrorKind::NotFound)) => todo!(),
+            Err(err) => {
+                self.state
+                    .try_reduce(state::Action::Project {
+                        path: base_path.to_path_buf(),
+                        action: state::project::Action::SetAnalyses(
+                            state::project::DataResource::Err(err.clone()),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![update::Update::project(
+                    project_id,
+                    base_path,
+                    update::Project::Analyses(update::DataResource::Created(Err(err))),
+                    event.id().clone(),
+                )]
+            }
+        }
+    }
+
+    fn handle_fs_event_project_analyses_removed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Removed)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let base_path = path.parent().unwrap().parent().unwrap();
+        let project_state = self.state.find_project_by_path(base_path).unwrap();
+        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        assert!(!matches!(
+            project.settings(),
+            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+        ));
+
+        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
+        {
+            Some(properties.rid.clone())
+        } else {
+            None
+        };
+
+        self.state
+            .try_reduce(state::Action::Project {
+                path: base_path.to_path_buf(),
+                action: state::project::Action::SetAnalyses(Err(IoSerde::Io(
+                    io::ErrorKind::NotFound,
+                ))),
+            })
+            .unwrap();
+
+        vec![update::Update::project(
+            project_id,
+            base_path,
+            update::Project::Analyses(update::DataResource::Removed),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_project_analyses_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Modified(
+            kind,
+        ))) = event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        if matches!(kind, event::ModifiedKind::Other) {
+            todo!();
+        }
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let base_path = path.parent().unwrap().parent().unwrap();
+        let project_state = self.state.find_project_by_path(base_path).unwrap();
+        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
+        {
+            Some(properties.rid.clone())
+        } else {
+            None
+        };
+
+        let state = project.analyses();
+        assert!(!matches!(
+            state,
+            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+        ));
+
+        match (Analyses::load_from(base_path), state) {
+            (Ok(analyses), Ok(state)) => {
+                let analyses = state::project::analysis::State::from_analyses(analyses);
+                if analyses.len() == state.len() {
+                    let mut equal = true;
+                    for analysis in analyses.iter() {
+                        if !state.contains(analysis) {
+                            equal = false;
+                            break;
+                        }
+                    }
+
+                    if equal {
+                        return vec![];
+                    }
+                }
+
+                self.state
+                    .try_reduce(state::Action::Project {
+                        path: base_path.to_path_buf(),
+                        action: state::project::Action::SetAnalyses(
+                            state::project::DataResource::Ok(analyses.clone()),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![update::Update::project(
+                    project_id,
+                    base_path,
+                    update::Project::Analyses(update::DataResource::Modified(analyses)),
+                    event.id().clone(),
+                )]
+            }
+
+            (Ok(analyses), Err(_)) => {
+                let analyses = state::project::analysis::State::from_analyses(analyses);
+                self.state
+                    .try_reduce(state::Action::Project {
+                        path: base_path.to_path_buf(),
+                        action: state::project::Action::SetAnalyses(
+                            state::project::DataResource::Ok(analyses.clone()),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![update::Update::project(
+                    project_id,
+                    base_path,
+                    update::Project::Analyses(update::DataResource::Repaired(analyses)),
+                    event.id().clone(),
+                )]
+            }
+
+            (Err(IoSerde::Io(io::ErrorKind::NotFound)), _) => todo!(),
+            (Err(err), _) => {
+                self.state
+                    .try_reduce(state::Action::Project {
+                        path: base_path.to_path_buf(),
+                        action: state::project::Action::SetAnalyses(
+                            state::project::DataResource::Err(err.clone()),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![update::Update::project(
+                    project_id,
+                    base_path,
+                    update::Project::Analyses(update::DataResource::Corrupted(err)),
                     event.id().clone(),
                 )]
             }

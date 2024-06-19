@@ -755,7 +755,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Created))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Created))
         );
 
         let events = watcher
@@ -768,7 +768,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Removed))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
 
         let events = watcher
@@ -781,7 +781,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Modified(
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Data
             )))
         );
@@ -799,7 +799,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Removed))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
 
         let events = watcher
@@ -815,7 +815,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Created))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Created))
         );
 
         let events = watcher
@@ -834,7 +834,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Removed))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
 
         let events = watcher
@@ -853,7 +853,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Removed))
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
 
         let events = watcher
@@ -873,7 +873,7 @@ mod convert_fs {
         assert_eq!(events.len(), 1);
         assert_matches!(
             *events[0].kind(),
-            EventKind::Project(app::Project::Analysis(app::StaticResourceEvent::Modified(
+            EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Other
             )))
         );

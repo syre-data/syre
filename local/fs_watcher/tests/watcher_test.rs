@@ -203,7 +203,7 @@ fn test_watcher_project() {
     assert_eq!(event.len(), 1);
     assert_matches!(
         event[0].kind(),
-        EventKind::Project(event::Project::Analysis(
+        EventKind::Project(event::Project::Analyses(
             event::StaticResourceEvent::Created
         ))
     );
@@ -213,7 +213,7 @@ fn test_watcher_project() {
     assert_eq!(event.len(), 1);
     assert_matches!(
         event[0].kind(),
-        EventKind::Project(event::Project::Analysis(
+        EventKind::Project(event::Project::Analyses(
             event::StaticResourceEvent::Removed
         ))
     );

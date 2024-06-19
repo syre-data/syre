@@ -260,7 +260,7 @@ impl FsWatcher {
                     if *path == local_common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Created).into()
                     } else if *path == local_common::analyses_file_of(&project) {
-                        app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                        app::Project::Analyses(app::StaticResourceEvent::Created).into()
                     } else {
                         return Err(err);
                     }
@@ -274,7 +274,7 @@ impl FsWatcher {
                     } else if *path == local_common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Created).into()
                     } else if *path == local_common::analyses_file_of(&project) {
-                        app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                        app::Project::Analyses(app::StaticResourceEvent::Created).into()
                     } else {
                         return Err(err);
                     }
@@ -307,7 +307,7 @@ impl FsWatcher {
                     } else if *path == local_common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Removed).into()
                     } else if *path == local_common::analyses_file_of(&project) {
-                        app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                        app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                     } else {
                         return Err(err);
                     }
@@ -324,7 +324,7 @@ impl FsWatcher {
                     if *path == local_common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Removed).into()
                     } else if *path == local_common::analyses_file_of(&project) {
-                        app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                        app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                     } else {
                         return Err(err);
                     }
@@ -897,7 +897,7 @@ impl FsWatcher {
                 }
 
                 resources::Project::Analyses => {
-                    app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                    app::Project::Analyses(app::StaticResourceEvent::Created).into()
                 }
             },
 
@@ -946,7 +946,7 @@ impl FsWatcher {
                 }
 
                 resources::Project::Analyses => {
-                    app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                    app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                 }
             },
 
@@ -995,7 +995,7 @@ impl FsWatcher {
                 }
 
                 resources::Project::Analyses => {
-                    app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                    app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                 }
             },
 
@@ -1048,7 +1048,7 @@ impl FsWatcher {
                 )
                 .into(),
 
-                resources::Project::Analyses => app::Project::Analysis(
+                resources::Project::Analyses => app::Project::Analyses(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )
                 .into(),
@@ -1164,7 +1164,7 @@ impl FsWatcher {
                 }
 
                 resources::Project::Analyses => {
-                    app::Project::Analysis(app::StaticResourceEvent::Removed).into()
+                    app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                 }
             },
 
@@ -1214,7 +1214,7 @@ impl FsWatcher {
                 }
 
                 resources::Project::Analyses => {
-                    app::Project::Analysis(app::StaticResourceEvent::Created).into()
+                    app::Project::Analyses(app::StaticResourceEvent::Created).into()
                 }
             },
 
@@ -1332,7 +1332,7 @@ impl FsWatcher {
                 )
                 .into(),
 
-                resources::Project::Analyses => app::Project::Analysis(
+                resources::Project::Analyses => app::Project::Analyses(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Data),
                 )
                 .into(),

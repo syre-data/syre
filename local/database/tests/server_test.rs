@@ -3,8 +3,13 @@
 use crossbeam::channel::Sender;
 use rand::Rng;
 use std::{assert_matches::assert_matches, fs, io, thread, time::Duration};
+use syre_core::project::Script;
 use syre_local::{
-    error::IoSerde, project::resources::Project, system::collections::ProjectManifest,
+    error::IoSerde,
+    file_resource::LocalResource,
+    project::resources::{Analyses, Project},
+    system::collections::ProjectManifest,
+    types::AnalysisKind,
 };
 use syre_local_database::{
     event,
@@ -246,6 +251,229 @@ fn test_server_state_and_updates() {
         event::Project::Properties(event::DataResource::Corrupted(err))
         if matches!(err, IoSerde::Serde(_))
     );
+
+    fs::write(
+        syre_local::common::project_settings_file_of(project.base_path()),
+        "",
+    )
+    .unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert_matches!(project_state.settings(), Err(IoSerde::Serde(_)));
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(path, project.base_path());
+    assert_matches!(
+        update,
+        event::Project::Settings(event::DataResource::Corrupted(err))
+        if matches!(err, IoSerde::Serde(_))
+    );
+
+    project.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert!(project_state.properties().is_ok());
+    assert!(project_state.settings().is_ok());
+    assert_matches!(
+        project_state.analyses(),
+        state::project::DataResource::Err(IoSerde::Io(err))
+        if *err == io::ErrorKind::NotFound
+    );
+    assert_matches!(
+        project_state.graph(),
+        state::project::FolderResource::Absent
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 2);
+    let properties_update = update
+        .iter()
+        .find(|update| {
+            let event::UpdateKind::Project {
+                project: id,
+                path: _,
+                update,
+            } = update.kind()
+            else {
+                return false;
+            };
+
+            let Some(id) = id.as_ref() else {
+                return false;
+            };
+
+            if *id != project.rid {
+                return false;
+            }
+
+            matches!(
+                update,
+                event::Project::Properties(event::DataResource::Repaired(_))
+            )
+        })
+        .unwrap();
+    let event::UpdateKind::Project {
+        update: properties_update,
+        ..
+    } = properties_update.kind()
+    else {
+        panic!()
+    };
+    let event::Project::Properties(event::DataResource::Repaired(properties)) = properties_update
+    else {
+        panic!();
+    };
+    assert_eq!(properties.description, project.description);
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: _,
+            update,
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if *id != project.rid {
+            return false;
+        }
+
+        matches!(
+            update,
+            event::Project::Settings(event::DataResource::Repaired(_))
+        )
+    }));
+
+    let mut analyses = Analyses::new(project.base_path());
+    analyses.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert!(project_state.properties().is_ok());
+    assert!(project_state.settings().is_ok());
+    assert!(project_state.analyses().is_ok());
+    assert_matches!(
+        project_state.graph(),
+        state::project::FolderResource::Absent
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(path, project.base_path());
+    assert_matches!(
+        update,
+        event::Project::Analyses(event::DataResource::Created(_))
+    );
+
+    fs::write(analyses.path(), "").unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert_matches!(project_state.analyses(), Err(IoSerde::Serde(_)));
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: _,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(path, project.base_path());
+    assert_matches!(
+        update,
+        event::Project::Analyses(event::DataResource::Corrupted(err))
+        if matches!(err, IoSerde::Serde(_))
+    );
+
+    let script = Script::from_path("test.py").unwrap();
+    analyses.insert(script.rid.clone(), AnalysisKind::Script(script.clone()));
+    analyses.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert!(project_state.properties().is_ok());
+    assert!(project_state.settings().is_ok());
+    assert!(project_state.analyses().is_ok());
+    assert_matches!(
+        project_state.graph(),
+        state::project::FolderResource::Absent
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(path, project.base_path());
+    let event::Project::Analyses(event::DataResource::Repaired(analyses_state)) = update else {
+        panic!();
+    };
+    assert_eq!(analyses_state.len(), 1);
+    assert_eq!(*analyses_state[0], AnalysisKind::Script(script));
+
+    project.set_analysis_root("analysis");
 }
 
 struct UpdateListener {

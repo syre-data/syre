@@ -3,6 +3,7 @@
 //! Topic should be `project:` followed by the resource id of the affected project, if known,
 //! otherwise `unknown`.
 //! e.g. `project/123-4567-890`, `project/unknown`
+use crate::server::state::project::analysis;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::{
@@ -132,7 +133,7 @@ pub enum Project {
     Moved(PathBuf),
     Properties(DataResource<CoreProject>),
     Settings(DataResource<ProjectSettings>),
-    Analyses(DataResource<Vec<AnalysisKind>>),
+    Analyses(DataResource<Vec<analysis::State>>),
 
     Graph(Graph),
     Container(Container),

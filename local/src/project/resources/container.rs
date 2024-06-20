@@ -1,23 +1,30 @@
 //! Container and container settings.
-use crate::common;
-use crate::error::{Error, IoSerde as IoSerdeError, Result};
-use crate::file_resource::LocalResource;
-use crate::system::settings::UserSettings;
-use crate::types::ContainerSettings;
+use crate::{
+    common,
+    error::{Error, IoSerde as IoSerdeError, Result},
+    file_resource::LocalResource,
+    system::settings::UserSettings,
+    types::ContainerSettings,
+};
 use has_id::HasId;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::hash::{Hash, Hasher};
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
-use std::result::Result as StdResult;
-use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::project::container::AssetMap;
-use syre_core::project::{
-    container::AnalysisMap, AnalysisAssociation, Container as CoreContainer,
-    ContainerProperties as CoreContainerProperties,
+use std::{
+    fs,
+    hash::{Hash, Hasher},
+    io,
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+    result::Result as StdResult,
 };
-use syre_core::types::{Creator, ResourceId, UserId};
+use syre_core::{
+    error::{Error as CoreError, Resource as ResourceError},
+    project::{
+        container::{AnalysisMap, AssetMap},
+        AnalysisAssociation, Container as CoreContainer,
+        ContainerProperties as CoreContainerProperties,
+    },
+    types::{Creator, ResourceId, UserId},
+};
 
 // ***********************************
 // *** Stored Container Properties ***
@@ -74,7 +81,7 @@ impl Container {
     }
 
     /// Save all data.
-    pub fn save(&self) -> StdResult<(), IoSerdeError> {
+    pub fn save(&self) -> StdResult<(), io::Error> {
         let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
         let assets_path = <Container as LocalResource<AssetMap>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
@@ -82,9 +89,20 @@ impl Container {
         fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
         let properties: StoredContainerProperties = self.container.clone().into();
 
-        fs::write(properties_path, serde_json::to_string_pretty(&properties)?)?;
-        fs::write(assets_path, serde_json::to_string_pretty(&self.assets)?)?;
-        fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
+        fs::write(
+            properties_path,
+            serde_json::to_string_pretty(&properties).unwrap(),
+        )?;
+
+        fs::write(
+            assets_path,
+            serde_json::to_string_pretty(&self.assets).unwrap(),
+        )?;
+
+        fs::write(
+            settings_path,
+            serde_json::to_string_pretty(&self.settings).unwrap(),
+        )?;
         Ok(())
     }
 

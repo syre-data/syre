@@ -23,7 +23,7 @@ impl Database {
             event::Project::Moved => todo!(),
             event::Project::ConfigDir(_) => self.handle_fs_event_project_config_dir(event),
             event::Project::AnalysisDir(_) => self.handle_fs_event_project_analysis_dir(event),
-            event::Project::DataDir(_) => todo!(),
+            event::Project::DataDir(_) => self.handle_fs_event_project_data_dir(event),
             event::Project::Properties(_) => self.handle_fs_event_project_properties(event),
             event::Project::Settings(_) => self.handle_fs_event_project_settings(event),
             event::Project::Analyses(_) => self.handle_fs_event_project_analyses(event),
@@ -363,6 +363,60 @@ impl Database {
             update::Project::Analyses(update::DataResource::Modified(analyses)),
             event.id().clone(),
         )]
+    }
+}
+
+impl Database {
+    fn handle_fs_event_project_data_dir(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Project(event::Project::DataDir(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::ResourceEvent::Created => self.handle_fs_event_project_data_dir_created(event),
+            event::ResourceEvent::Removed => todo!(),
+            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Moved => todo!(),
+            event::ResourceEvent::MovedProject => todo!(),
+            event::ResourceEvent::Modified(_) => todo!(),
+        }
+    }
+
+    fn handle_fs_event_project_data_dir_created(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Created)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(path).unwrap();
+        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let data_root_path = project.path().join(&properties.data_root);
+        if *path == data_root_path {
+            assert!(
+                !project_state.graph().is_present()
+            );
+
+            let project_path = project.path().clone();
+            self.state.try_reduce(self::state::Action::Project { path: project_path,
+                action: state::project::Action:: })
+        } else {
+            todo!();
+        }
     }
 }
 

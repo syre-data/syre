@@ -51,10 +51,10 @@ impl UserManifest {
         }
     }
 
-    pub fn save(&self) -> Result<(), IoSerde> {
+    pub fn save(&self) -> Result<(), io::Error> {
         let path = self.path();
         fs::create_dir_all(path.parent().unwrap())?;
-        fs::write(&path, serde_json::to_string_pretty(&self)?)?;
+        fs::write(&path, serde_json::to_string_pretty(&self).unwrap())?;
         Ok(())
     }
 }

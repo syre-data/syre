@@ -43,7 +43,9 @@ impl State {
         use syre_local::project::resources::{project::LoadError, Analyses, Project};
 
         let mut state = Self::new(path);
-        if state.path().is_dir() {
+        if !state.path().is_dir() {
+            return state;
+        }
             let mut project = project::Builder::default();
             match Project::load_from(state.path()) {
                 Ok(prj) => {
@@ -92,7 +94,7 @@ impl State {
             state
                 .try_reduce(Action::CreateFolder(project.build()))
                 .unwrap();
-        }
+        
 
         state
     }
@@ -131,25 +133,18 @@ impl TryReducible for State {
 }
 
 pub mod project {
-    use super::{analysis, Action, DataResource, Error, FolderResource};
+    use super::{analysis, graph, Action, DataResource, Error, FolderResource};
     use serde::{Deserialize, Serialize};
-    use std::{
-        io::{self, ErrorKind},
-        path::Path,
-    };
+    use std::io::{self, ErrorKind};
     use syre_core::project::Project as CoreProject;
-    use syre_local::{
-        error::IoSerde,
-        types::{AnalysisKind, ProjectSettings},
-        TryReducible,
-    };
+    use syre_local::{error::IoSerde, types::ProjectSettings, TryReducible};
 
     #[derive(Debug)]
     pub struct Builder {
         properties: DataResource<CoreProject>,
         settings: DataResource<ProjectSettings>,
         analyses: DataResource<Vec<analysis::State>>,
-        graph: FolderResource<()>,
+        graph: FolderResource<graph::State>,
     }
 
     impl Builder {
@@ -414,6 +409,101 @@ pub mod analysis {
     }
 }
 
+mod container {
+    use super::{DataResource, FileResource};
+    use std::{ffi::OsString, ops::Deref, path::Path};
+    use syre_core::project::{container::AnalysisMap, Asset as CoreAsset, ContainerProperties};
+    use syre_local::types::ContainerSettings;
+
+    #[derive(Debug)]
+    pub struct State {
+        /// Name of the container's folder.
+        name: OsString,
+        properties: DataResource<ContainerProperties>,
+        settings: DataResource<ContainerSettings>,
+        assets: DataResource<Vec<Asset>>,
+        analyses: DataResource<AnalysisMap>,
+    }
+
+    impl State {
+        pub fn load_from(path: impl AsRef<Path>)-> Self {
+            let path = path.as_ref();
+
+            let name = 
+        }
+
+        pub fn name(&self) -> &OsString {
+            &self.name
+        }
+
+        pub fn properties(&self) -> &DataResource<ContainerProperties> {
+            &self.properties
+        }
+
+        pub fn settings(&self) -> &DataResource<ContainerSettings> {
+            &self.settings
+        }
+
+        pub fn assets(&self) -> &DataResource<Vec<Asset>> {
+            &self.assets
+        }
+
+        pub fn analyses(&self) -> &DataResource<AnalysisMap> {
+            &self.analyses
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Asset {
+        properties: CoreAsset,
+        fs_resource: FileResource,
+    }
+
+    impl Deref for Asset {
+        type Target = CoreAsset;
+        fn deref(&self) -> &Self::Target {
+            &self.properties
+        }
+    }
+}
+
+mod graph {
+    use super::container::State as Container;
+    use std::{
+        cell::RefCell,
+        rc::{Rc, Weak},
+    };
+
+    pub type Node = Rc<RefCell<Container>>;
+    pub type NodeRef = Weak<RefCell<Container>>;
+
+    #[derive(Debug)]
+    pub struct State {
+        nodes: Vec<Node>,
+
+        root: NodeRef,
+
+        /// child-parent relationships.
+        parents: Vec<(NodeRef, NodeRef)>,
+
+        /// parent-children relationships.
+        children: Vec<(NodeRef, Vec<NodeRef>)>,
+    }
+
+    impl State {
+        pub fn new(root: Container) -> Self {
+            let root = Rc::new(RefCell::new(root));
+            let root_ref = Rc::downgrade(&root);
+            Self {
+                nodes: vec![root],
+                root: root_ref.clone(),
+                parents: vec![],
+                children: vec![(root_ref, vec![])],
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum FolderResource<T> {
     Present(T),
@@ -440,17 +530,26 @@ impl<T> FolderResource<T> {
             Self::Absent => FolderResource::Absent,
         }
     }
+
+    pub fn is_present(&self) -> bool {
+        match self {
+            Self::Absent => false,
+            Self::Present(_) => true,
+        }
+    }
 }
 
 pub type DataResource<T> = Result<T, IoSerde>;
 
-mod action {
-    use super::{analysis, project::State as Project, DataResource};
+pub(crate) mod action {
+    use super::{
+        analysis, container, graph, project::State as Project, DataResource, FolderResource,
+    };
     use std::path::PathBuf;
     use syre_core::project::Project as CoreProject;
-    use syre_local::types::{AnalysisKind, ProjectSettings};
+    use syre_local::types::ProjectSettings;
 
-    #[derive(Debug)]
+    #[derive(Debug, derive_more::From)]
     pub enum Action {
         /// Sets the project's path.
         SetPath(PathBuf),
@@ -471,5 +570,17 @@ mod action {
         /// Sets all analyses' file system resource to be absent.
         /// Used if the project's analysis directory is removed.
         SetAnalysesAbsent,
+
+        #[from]
+        Graph(Graph),
+    }
+
+    #[derive(Debug)]
+    pub enum Graph {
+        /// Sets the state of the graph.
+        Set(FolderResource<graph::State>),
+
+        /// Create the graph.
+        Create(container::State),
     }
 }

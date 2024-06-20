@@ -528,6 +528,43 @@ fn test_server_state_and_updates() {
     let analyses_state = project_state.analyses().as_ref().unwrap();
     assert_eq!(analyses_state.len(), 1);
     assert!(analyses_state[0].is_present());
+    assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
+
+    fs::remove_file(&script_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    let analyses_state = project_state.analyses().as_ref().unwrap();
+    assert_eq!(analyses_state.len(), 1);
+    assert!(!analyses_state[0].is_present());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(path, project.base_path());
+    let event::Project::AnalysisFile(event::AnalysisFile::Removed(removed_path)) = update else {
+        panic!();
+    };
+    assert_eq!(
+        removed_path
+            .strip_prefix(project.analysis_root_path().unwrap())
+            .unwrap(),
+        script.path
+    );
 
     let analysis_file =
         tempfile::NamedTempFile::new_in(project.analysis_root_path().unwrap()).unwrap();
@@ -550,6 +587,14 @@ fn test_server_state_and_updates() {
         panic!();
     };
     assert_eq!(*created_path, analysis_file.path());
+
+    fs::remove_file(analysis_file.path()).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+    assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
+
+    fs::create_dir(project.data_root_path()).unwrap();
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    dbg!(update);
 }
 
 struct UpdateListener {

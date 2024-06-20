@@ -103,7 +103,7 @@ impl Project {
     }
 
     /// Save all data.
-    pub fn save(&self) -> Result<(), IoSerdeError> {
+    pub fn save(&self) -> Result<(), io::Error> {
         let project_path = <Project as LocalResource<CoreProject>>::path(self);
         let settings_path = <Project as LocalResource<ProjectSettings>>::path(self);
         let Some(parent) = project_path.parent() else {
@@ -115,8 +115,14 @@ impl Project {
         };
 
         fs::create_dir_all(parent)?;
-        fs::write(project_path, serde_json::to_string_pretty(&self.inner)?)?;
-        fs::write(settings_path, serde_json::to_string_pretty(&self.settings)?)?;
+        fs::write(
+            project_path,
+            serde_json::to_string_pretty(&self.inner).unwrap(),
+        )?;
+        fs::write(
+            settings_path,
+            serde_json::to_string_pretty(&self.settings).unwrap(),
+        )?;
         Ok(())
     }
 

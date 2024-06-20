@@ -1,16 +1,17 @@
 /// Asset and Assets.
-use crate::common;
-use crate::file_resource::LocalResource;
-use crate::system::settings::UserSettings;
-use crate::Result;
-use std::fs;
-use std::io::BufReader;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
-use syre_core::project::container::AssetMap;
-use syre_core::project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties};
-use syre_core::types::ResourceId;
-use syre_core::types::{Creator, UserId};
+use crate::{
+    common, error::IoSerde, file_resource::LocalResource, system::settings::UserSettings, Result,
+};
+use std::{
+    fs, io,
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+    result::Result as StdResult,
+};
+use syre_core::{
+    project::{container::AssetMap, Asset as CoreAsset, AssetProperties as CoreAssetProperties},
+    types::{Creator, ResourceId, UserId},
+};
 
 // ******************************
 // *** Local Asset Properties ***
@@ -68,19 +69,19 @@ pub struct Assets {
 }
 
 impl Assets {
-    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self> {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerde> {
         let base_path = base_path.into();
         let path = base_path.join(Self::rel_path());
         let file = fs::File::open(path)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         let assets = serde_json::from_reader(reader)?;
 
         Ok(Self { base_path, assets })
     }
 
-    pub fn save(&self) -> Result {
+    pub fn save(&self) -> StdResult<(), io::Error> {
         let file = fs::OpenOptions::new().write(true).open(self.path())?;
-        Ok(serde_json::to_writer_pretty(file, &self.assets)?)
+        Ok(serde_json::to_writer_pretty(file, &self.assets).unwrap())
     }
 
     pub fn insert(&mut self, asset: CoreAsset) -> Option<CoreAsset> {

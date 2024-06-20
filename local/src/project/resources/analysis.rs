@@ -8,7 +8,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::{
-    fs,
+    fs, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     result::Result as StdResult,
@@ -55,8 +55,8 @@ impl Analyses {
         Ok(Self { base_path, inner })
     }
 
-    pub fn save(&self) -> Result {
-        fs::write(self.path(), serde_json::to_string_pretty(&self)?)?;
+    pub fn save(&self) -> StdResult<(), io::Error> {
+        fs::write(self.path(), serde_json::to_string_pretty(&self).unwrap())?;
         Ok(())
     }
 

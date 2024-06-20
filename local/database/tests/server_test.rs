@@ -2,7 +2,11 @@
 
 use crossbeam::channel::Sender;
 use rand::Rng;
-use std::{assert_matches::assert_matches, fs, io, thread, time::Duration};
+use std::{
+    assert_matches::{self, assert_matches},
+    fs, io, thread,
+    time::Duration,
+};
 use syre_core::project::Script;
 use syre_local::{
     error::IoSerde,
@@ -448,11 +452,18 @@ fn test_server_state_and_updates() {
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
-    assert!(project_state.analyses().is_ok());
     assert_matches!(
         project_state.graph(),
         state::project::FolderResource::Absent
     );
+
+    let analyses_state = project_state.analyses().as_ref().unwrap();
+    assert_eq!(analyses_state.len(), 1);
+    let AnalysisKind::Script(script_state) = &*analyses_state[0] else {
+        panic!();
+    };
+    assert_eq!(*script_state, script);
+    assert!(!analyses_state[0].is_present());
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
@@ -471,9 +482,74 @@ fn test_server_state_and_updates() {
         panic!();
     };
     assert_eq!(analyses_state.len(), 1);
-    assert_eq!(*analyses_state[0], AnalysisKind::Script(script));
+    assert_matches!(&*analyses_state[0], AnalysisKind::Script(s) if *s == script);
+    assert!(!analyses_state[0].is_present());
 
     project.set_analysis_root("analysis");
+    project.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    let state::project::DataResource::Ok(properties_state) = project_state.properties() else {
+        panic!();
+    };
+    assert_eq!(&properties_state.analysis_root, &project.analysis_root);
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project { update, .. } = update[0].kind() else {
+        panic!();
+    };
+
+    let event::Project::Properties(event::DataResource::Modified(properties)) = update else {
+        panic!();
+    };
+    assert_eq!(&properties.analysis_root, &project.analysis_root);
+
+    fs::create_dir(project.analysis_root_path().unwrap()).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+    assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
+
+    let script_path = project.analysis_root_path().unwrap().join(&script.path);
+    fs::File::create(&script_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::project::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    let analyses_state = project_state.analyses().as_ref().unwrap();
+    assert_eq!(analyses_state.len(), 1);
+    assert!(analyses_state[0].is_present());
+
+    let analysis_file =
+        tempfile::NamedTempFile::new_in(project.analysis_root_path().unwrap()).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(path, project.base_path());
+    let event::Project::AnalysisFile(event::AnalysisFile::Created(created_path)) = update else {
+        panic!();
+    };
+    assert_eq!(*created_path, analysis_file.path());
 }
 
 struct UpdateListener {

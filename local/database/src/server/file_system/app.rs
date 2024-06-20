@@ -11,7 +11,7 @@ use syre_local::{
 };
 
 impl Database {
-    pub fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(kind) = event.kind() else {
             panic!("invalid event kind");
         };

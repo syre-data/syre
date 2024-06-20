@@ -1,7 +1,8 @@
+mod analysis;
 mod app;
 mod project;
 
-use crate::{event::Update, Database};
+use crate::{Database, Update};
 use syre_fs_watcher::EventKind;
 
 impl Database {
@@ -19,7 +20,7 @@ impl Database {
             EventKind::Graph(_) => todo!(),
             EventKind::Container(_) => todo!(),
             EventKind::AssetFile(_) => todo!(),
-            EventKind::AnalysisFile(_) => todo!(),
+            EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),
             EventKind::File(_) => todo!(),
             EventKind::Folder(_) => todo!(),
             EventKind::Any(_) => todo!(),

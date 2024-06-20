@@ -7,13 +7,12 @@ use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{
     error::IoSerde,
-    file_resource::LocalResource,
     project::resources::{project::LoadError, Analyses, Project},
     TryReducible,
 };
 
 impl Database {
-    pub fn handle_fs_event_project(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_project(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -23,7 +22,7 @@ impl Database {
             event::Project::Removed => todo!(),
             event::Project::Moved => todo!(),
             event::Project::ConfigDir(_) => self.handle_fs_event_project_config_dir(event),
-            event::Project::AnalysisDir(_) => todo!(),
+            event::Project::AnalysisDir(_) => self.handle_fs_event_project_analysis_dir(event),
             event::Project::DataDir(_) => todo!(),
             event::Project::Properties(_) => self.handle_fs_event_project_properties(event),
             event::Project::Settings(_) => self.handle_fs_event_project_settings(event),
@@ -54,6 +53,13 @@ impl Database {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::ConfigDir(
+                event::StaticResourceEvent::Created
+            ))
+        );
+
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -105,13 +111,13 @@ impl Database {
 
                 let project_id = properties.rid.clone();
                 updates.extend([
-                    update::Update::project_with_id(
+                    Update::project_with_id(
                         project_id.clone(),
                         base_path.to_path_buf(),
                         update::Project::Properties(update::DataResource::Created(Ok(properties))),
                         event.id().clone(),
                     ),
-                    update::Update::project_with_id(
+                    Update::project_with_id(
                         project_id,
                         base_path.to_path_buf(),
                         update::Project::Settings(update::DataResource::Created(Ok(settings))),
@@ -141,7 +147,7 @@ impl Database {
                         .unwrap();
 
                     let update = match properties {
-                        Ok(properties) => update::Update::project_with_id(
+                        Ok(properties) => Update::project_with_id(
                             properties.rid.clone(),
                             base_path.to_path_buf(),
                             update::Project::Properties(update::DataResource::Created(Ok(
@@ -150,7 +156,7 @@ impl Database {
                             event.id().clone(),
                         ),
 
-                        Err(err) => update::Update::project_no_id(
+                        Err(err) => Update::project_no_id(
                             base_path.to_path_buf(),
                             update::Project::Properties(update::DataResource::Created(Err(err))),
                             event.id().clone(),
@@ -172,13 +178,13 @@ impl Database {
                         .unwrap();
 
                     let update = match settings {
-                        Ok(settings) => update::Update::project(
+                        Ok(settings) => Update::project(
                             project_id,
                             base_path.to_path_buf(),
                             update::Project::Settings(update::DataResource::Created(Ok(settings))),
                             event.id().clone(),
                         ),
-                        Err(err) => update::Update::project(
+                        Err(err) => Update::project(
                             project_id,
                             base_path.to_path_buf(),
                             update::Project::Settings(update::DataResource::Created(Err(err))),
@@ -198,6 +204,13 @@ impl Database {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::ConfigDir(
+                event::StaticResourceEvent::Removed
+            ))
+        );
+
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -214,7 +227,7 @@ impl Database {
         match project_state.properties().as_ref() {
             Ok(properties) => {
                 project_id = Some(properties.rid.clone());
-                updates.push(update::Update::project_with_id(
+                updates.push(Update::project_with_id(
                     properties.rid.clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Removed),
@@ -223,7 +236,7 @@ impl Database {
             }
             Err(IoSerde::Io(err)) if *err == io::ErrorKind::NotFound => {}
             Err(_) => {
-                updates.push(update::Update::project_no_id(
+                updates.push(Update::project_no_id(
                     base_path,
                     update::Project::Properties(update::DataResource::Removed),
                     event.id().clone(),
@@ -235,14 +248,14 @@ impl Database {
             Err(IoSerde::Io(err)) if *err == io::ErrorKind::NotFound)
         {
             if let Some(project_id) = project_id {
-                updates.push(update::Update::project_with_id(
+                updates.push(Update::project_with_id(
                     project_id,
                     base_path,
                     update::Project::Properties(update::DataResource::Removed),
                     event.id().clone(),
                 ));
             } else {
-                updates.push(update::Update::project_no_id(
+                updates.push(Update::project_no_id(
                     base_path,
                     update::Project::Settings(update::DataResource::Removed),
                     event.id().clone(),
@@ -258,6 +271,98 @@ impl Database {
             .unwrap();
 
         updates
+    }
+}
+
+impl Database {
+    fn handle_fs_event_project_analysis_dir(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::AnalysisDir(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::ResourceEvent::Created => {
+                self.handle_fs_event_project_analysis_dir_created(event)
+            }
+            event::ResourceEvent::Removed => todo!(),
+            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Moved => todo!(),
+            event::ResourceEvent::MovedProject => todo!(),
+            event::ResourceEvent::Modified(_) => todo!(),
+        }
+    }
+
+    fn handle_fs_event_project_analysis_dir_created(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use syre_local::types::AnalysisKind;
+
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Created))
+        );
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(path).unwrap();
+        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+        assert_eq!(
+            properties.analysis_root.as_ref().unwrap(),
+            path.strip_prefix(project.path()).unwrap()
+        );
+
+        let state::project::DataResource::Ok(mut analyses) = project_state.analyses().clone()
+        else {
+            return vec![];
+        };
+
+        let mut modified = false;
+        for analysis in analyses.iter_mut() {
+            assert!(!analysis.is_present());
+            let analysis_path = match analysis.properties() {
+                AnalysisKind::Script(script) => path.join(&script.path),
+                AnalysisKind::ExcelTemplate(template) => path.join(&template.template.path),
+            };
+
+            if analysis_path.is_file() {
+                analysis.set_present();
+                modified = true;
+            }
+        }
+
+        if !modified {
+            return vec![];
+        }
+
+        let project_path = project.path().clone();
+        let project_id = properties.rid.clone();
+        self.state
+            .try_reduce(state::Action::Project {
+                path: project_path.clone(),
+                action: state::project::Action::SetAnalyses(state::project::DataResource::Ok(
+                    analyses.clone(),
+                )),
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Project::Analyses(update::DataResource::Modified(analyses)),
+            event.id().clone(),
+        )]
     }
 }
 
@@ -334,7 +439,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_with_id(
+                vec![Update::project_with_id(
                     properties.rid.clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Created(Ok(properties))),
@@ -353,7 +458,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_no_id(
+                vec![Update::project_no_id(
                     base_path,
                     update::Project::Properties(update::DataResource::Created(Err(err))),
                     event.id().clone(),
@@ -403,7 +508,7 @@ impl Database {
             })
             .unwrap();
 
-        vec![update::Update::project(
+        vec![Update::project(
             project_id,
             base_path,
             update::Project::Properties(update::DataResource::Removed),
@@ -457,7 +562,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_with_id(
+                vec![Update::project_with_id(
                     properties.rid.clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Modified(properties)),
@@ -475,7 +580,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_with_id(
+                vec![Update::project_with_id(
                     properties.rid.clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Repaired(properties)),
@@ -495,7 +600,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_with_id(
+                vec![Update::project_with_id(
                     project_id,
                     base_path,
                     update::Project::Properties(update::DataResource::Corrupted(err)),
@@ -513,7 +618,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project_no_id(
+                vec![Update::project_no_id(
                     base_path,
                     update::Project::Properties(update::DataResource::Corrupted(err)),
                     event.id().clone(),
@@ -565,7 +670,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Created(Ok(settings))),
@@ -584,7 +689,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Created(Err(err))),
@@ -635,7 +740,7 @@ impl Database {
             })
             .unwrap();
 
-        vec![update::Update::project(
+        vec![Update::project(
             project_id,
             base_path,
             update::Project::Settings(update::DataResource::Removed),
@@ -696,7 +801,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Modified(settings)),
@@ -714,7 +819,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Repaired(settings)),
@@ -733,7 +838,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Settings(update::DataResource::Corrupted(err)),
@@ -807,7 +912,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Created(Ok(analyses))),
@@ -826,7 +931,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Created(Err(err))),
@@ -877,7 +982,7 @@ impl Database {
             })
             .unwrap();
 
-        vec![update::Update::project(
+        vec![Update::project(
             project_id,
             base_path,
             update::Project::Analyses(update::DataResource::Removed),
@@ -949,7 +1054,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Modified(analyses)),
@@ -968,7 +1073,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Repaired(analyses)),
@@ -987,7 +1092,7 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![update::Update::project(
+                vec![Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Corrupted(err)),

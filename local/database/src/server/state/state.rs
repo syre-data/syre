@@ -35,10 +35,19 @@ impl State {
         &self.projects
     }
 
+    /// Finds a project with the matching path.
     pub fn find_project_by_path(&self, path: impl AsRef<Path>) -> Option<&Project> {
         self.projects
             .iter()
             .find(|project| project.path() == path.as_ref())
+    }
+
+    /// Finds a project for the resource.
+    pub fn find_resource_project_by_path(&self, path: impl AsRef<Path>) -> Option<&Project> {
+        let path = path.as_ref();
+        self.projects
+            .iter()
+            .find(|project| path.starts_with(project.path()))
     }
 }
 

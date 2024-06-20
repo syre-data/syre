@@ -118,7 +118,8 @@ impl TryReducible for State {
             Action::RemoveConfig
             | Action::SetProperties(_)
             | Action::SetSettings(_)
-            | Action::SetAnalyses(_) => {
+            | Action::SetAnalyses(_)
+            | Action::SetAnalysesAbsent => {
                 let FolderResource::Present(project) = self.fs_resource.as_mut() else {
                     return Err(Error::InvalidTransition);
                 };
@@ -132,7 +133,10 @@ impl TryReducible for State {
 pub mod project {
     use super::{analysis, Action, DataResource, Error, FolderResource};
     use serde::{Deserialize, Serialize};
-    use std::io::{self, ErrorKind};
+    use std::{
+        io::{self, ErrorKind},
+        path::Path,
+    };
     use syre_core::project::Project as CoreProject;
     use syre_local::{
         error::IoSerde,
@@ -267,6 +271,15 @@ pub mod project {
                     self.analyses = analyses;
                     Ok(())
                 }
+                Action::SetAnalysesAbsent => {
+                    if let Ok(analyses) = self.analyses.as_mut() {
+                        for analysis in analyses.iter_mut() {
+                            analysis.set_absent();
+                        }
+                    }
+
+                    Ok(())
+                }
             }
         }
     }
@@ -275,7 +288,10 @@ pub mod project {
 pub mod analysis {
     use super::FileResource;
     use serde::{Deserialize, Serialize};
-    use std::{ops::Deref, path::PathBuf};
+    use std::{
+        ops::Deref,
+        path::{Path, PathBuf},
+    };
     use syre_local::{
         file_resource::LocalResource, project::resources::Analyses, types::AnalysisKind,
     };
@@ -337,9 +353,23 @@ pub mod analysis {
                 })
                 .collect()
         }
+    }
+
+    impl State {
+        pub fn properties(&self) -> &AnalysisKind {
+            &self.properties
+        }
 
         pub fn is_present(&self) -> bool {
             matches!(self.fs_resource, FileResource::Present)
+        }
+
+        pub fn set_present(&mut self) {
+            self.fs_resource = FileResource::Present;
+        }
+
+        pub fn set_absent(&mut self) {
+            self.fs_resource = FileResource::Absent;
         }
     }
 
@@ -348,6 +378,39 @@ pub mod analysis {
         fn deref(&self) -> &Self::Target {
             &self.properties
         }
+    }
+
+    /// Find an analysis by its path.
+    ///
+    /// # Arguments
+    /// + `path`: Needle. Should be af relative path.
+    /// + `analyses`: Haystack.
+    pub fn find_analysis_by_path(path: impl AsRef<Path>, analyses: &Vec<State>) -> Option<&State> {
+        let path = path.as_ref();
+        analyses
+            .iter()
+            .find(|analysis| match analysis.properties() {
+                AnalysisKind::Script(script) => path == script.path,
+                AnalysisKind::ExcelTemplate(template) => path == template.template.path,
+            })
+    }
+
+    /// Find an analysis by its path.
+    ///
+    /// # Arguments
+    /// + `path`: Needle. Should be af relative path.
+    /// + `analyses`: Haystack.
+    pub fn find_analysis_by_path_mut(
+        path: impl AsRef<Path>,
+        analyses: &mut Vec<State>,
+    ) -> Option<&mut State> {
+        let path = path.as_ref();
+        analyses
+            .iter_mut()
+            .find(|analysis| match analysis.properties() {
+                AnalysisKind::Script(script) => path == script.path,
+                AnalysisKind::ExcelTemplate(template) => path == template.template.path,
+            })
     }
 }
 
@@ -404,5 +467,9 @@ mod action {
         SetProperties(DataResource<CoreProject>),
         SetSettings(DataResource<ProjectSettings>),
         SetAnalyses(DataResource<Vec<analysis::State>>),
+
+        /// Sets all analyses' file system resource to be absent.
+        /// Used if the project's analysis directory is removed.
+        SetAnalysesAbsent,
     }
 }

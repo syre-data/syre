@@ -127,7 +127,7 @@ pub enum ProjectManifest {
     Corrupted,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, derive_more::From)]
 pub enum Project {
     Removed,
     Moved(PathBuf),
@@ -135,41 +135,22 @@ pub enum Project {
     Settings(DataResource<ProjectSettings>),
     Analyses(DataResource<Vec<analysis::State>>),
 
+    #[from]
     Graph(Graph),
+
+    #[from]
     Container(Container),
+
+    #[from]
     Asset(Asset),
-    Script(Script),
-    Analysis(Analysis),
-}
 
-impl From<Graph> for Project {
-    fn from(update: Graph) -> Self {
-        Self::Graph(update)
-    }
-}
+    #[from]
+    AnalysisFile(AnalysisFile),
 
-impl From<Container> for Project {
-    fn from(update: Container) -> Self {
-        Self::Container(update)
-    }
-}
-
-impl From<Asset> for Project {
-    fn from(update: Asset) -> Self {
-        Self::Asset(update)
-    }
-}
-
-impl From<Script> for Project {
-    fn from(update: Script) -> Self {
-        Self::Script(update)
-    }
-}
-
-impl From<Analysis> for Project {
-    fn from(update: Analysis) -> Self {
-        Self::Analysis(update)
-    }
+    Flag {
+        resource: ResourceId,
+        message: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -230,32 +211,19 @@ pub enum Asset {
     Removed(ResourceId),
 }
 
-// **************
-// *** Script ***
-// **************
-
-/// Script updates.
+/// Analysis updates.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Script {
-    Created(CoreScript),
-    Removed(ResourceId),
+pub enum AnalysisFile {
+    Created(PathBuf),
+    Removed(PathBuf),
 
-    /// A `Script`'s relative path changed.
+    /// An `Analysis`'s path changed.
     ///
     /// # Notes
-    /// + The `Script` remains in the same project.
+    /// + The `Analysis` remains in the same project.
     Moved {
         script: ResourceId,
         path: PathBuf,
-    },
-}
-
-/// Analysis updates.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Analysis {
-    Flag {
-        resource: ResourceId,
-        message: String,
     },
 }
 

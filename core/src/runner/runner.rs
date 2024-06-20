@@ -1,5 +1,5 @@
 //! Syre project runner.
-use super::resources::script_groups::{ScriptGroups, ScriptSet};
+// use super::resources::script_groups::{ScriptGroups, ScriptSet};
 use super::{Runnable, CONTAINER_ID_KEY};
 use crate::error::Runner as RunnerError;
 use crate::graph::ResourceTree;
@@ -175,7 +175,7 @@ struct TreeRunner<'a> {
     max_tasks: Option<usize>,
     ignore_errors: bool,
     verbose: bool,
-    scripts: HashMap<ResourceId, Box<dyn Runnable>>,
+    analyses: HashMap<ResourceId, Box<dyn Runnable>>,
 }
 
 impl<'a> TreeRunner<'a> {
@@ -187,7 +187,7 @@ impl<'a> TreeRunner<'a> {
             max_tasks: None,
             ignore_errors: false,
             verbose: false,
-            scripts: HashMap::new(),
+            analyses: HashMap::new(),
         }
     }
 
@@ -204,7 +204,7 @@ impl<'a> TreeRunner<'a> {
             max_tasks: Some(max_tasks),
             ignore_errors: false,
             verbose: false,
-            scripts: HashMap::new(),
+            analyses: HashMap::new(),
         }
     }
 
@@ -212,14 +212,18 @@ impl<'a> TreeRunner<'a> {
         let get_script = self.hooks.get_script;
         let mut script_errors = HashMap::new();
         for (_, container) in self.tree.iter_nodes() {
-            for sid in container.analyses.keys() {
-                if self.scripts.contains_key(sid) {
+            for sid in container
+                .analyses
+                .iter()
+                .map(|association| association.analysis())
+            {
+                if self.analyses.contains_key(sid) {
                     continue;
                 }
 
                 match get_script(sid) {
                     Ok(script) => {
-                        self.scripts.insert(sid.clone(), script);
+                        self.analyses.insert(sid.clone(), script);
                     }
 
                     Err(err) => {
@@ -272,16 +276,23 @@ impl<'a> TreeRunner<'a> {
         };
 
         // batch and sort scripts by priority
-        let mut script_groups: Vec<(i32, ScriptSet)> =
-            ScriptGroups::from(container.analyses.clone()).into();
+        let mut analysis_groups = HashMap::new();
+        for association in container.analyses.iter() {
+            let group = analysis_groups
+                .entry(association.priority)
+                .or_insert(vec![]);
 
-        script_groups.sort_by(|(p0, _), (p1, _)| p0.cmp(p1));
+            group.push(association);
+        }
 
-        for (_priority, script_group) in script_groups {
+        let mut analysis_groups = analysis_groups.into_iter().collect::<Vec<_>>();
+        analysis_groups.sort_by(|(p0, _), (p1, _)| p0.cmp(p1));
+
+        for (_priority, script_group) in analysis_groups {
             let scripts = script_group
                 .into_iter()
                 .filter(|s| s.autorun)
-                .map(|assoc| self.scripts.get(&assoc.analysis).unwrap())
+                .map(|assoc| self.analyses.get(&assoc.analysis()).unwrap())
                 .collect();
 
             self.run_scripts(scripts, &container)?;
@@ -315,7 +326,7 @@ impl<'a> TreeRunner<'a> {
         for script in scripts {
             let exec_ctx = ScriptExecutionContext {
                 script: script.id().clone(),
-                container: container.rid.clone(),
+                container: container.rid().clone(),
             };
 
             if let Some(pre_script) = self.hooks.pre_script {
@@ -373,7 +384,7 @@ impl<'a> TreeRunner<'a> {
     ) -> Result<process::Output> {
         let mut out = script.command();
         let out = match out
-            .env(CONTAINER_ID_KEY, container.rid.clone().to_string())
+            .env(CONTAINER_ID_KEY, container.rid().clone().to_string())
             .output()
         {
             Ok(out) => out,
@@ -381,7 +392,7 @@ impl<'a> TreeRunner<'a> {
                 tracing::debug!(?err);
                 return Err(RunnerError::CommandError {
                     script: script.id().clone(),
-                    container: container.rid.clone(),
+                    container: container.rid().clone(),
                     cmd: format!("{out:?}"),
                 }
                 .into());
@@ -393,7 +404,7 @@ impl<'a> TreeRunner<'a> {
 
             return Err(RunnerError::ScriptError {
                 script: script.id().clone(),
-                container: container.rid.clone(),
+                container: container.rid().clone(),
                 description: stderr,
             }
             .into());

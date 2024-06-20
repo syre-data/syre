@@ -109,7 +109,7 @@ impl Database {
                     })
                     .unwrap();
 
-                let project_id = properties.rid.clone();
+                let project_id = properties.rid().clone();
                 updates.extend([
                     Update::project_with_id(
                         project_id.clone(),
@@ -136,7 +136,7 @@ impl Database {
                     state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
                 ) {
                     if let Ok(properties) = properties.as_ref() {
-                        project_id = Some(properties.rid.clone());
+                        project_id = Some(properties.rid().clone());
                     }
 
                     self.state
@@ -148,7 +148,7 @@ impl Database {
 
                     let update = match properties {
                         Ok(properties) => Update::project_with_id(
-                            properties.rid.clone(),
+                            properties.rid().clone(),
                             base_path.to_path_buf(),
                             update::Project::Properties(update::DataResource::Created(Ok(
                                 properties,
@@ -226,9 +226,9 @@ impl Database {
         let mut project_id = None;
         match project_state.properties().as_ref() {
             Ok(properties) => {
-                project_id = Some(properties.rid.clone());
+                project_id = Some(properties.rid().clone());
                 updates.push(Update::project_with_id(
-                    properties.rid.clone(),
+                    properties.rid().clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Removed),
                     event.id().clone(),
@@ -347,7 +347,7 @@ impl Database {
         }
 
         let project_path = project.path().clone();
-        let project_id = properties.rid.clone();
+        let project_id = properties.rid().clone();
         self.state
             .try_reduce(state::Action::Project {
                 path: project_path.clone(),
@@ -407,13 +407,13 @@ impl Database {
 
         let data_root_path = project.path().join(&properties.data_root);
         if *path == data_root_path {
-            assert!(
-                !project_state.graph().is_present()
-            );
+            assert!(!project_state.graph().is_present());
 
             let project_path = project.path().clone();
-            self.state.try_reduce(self::state::Action::Project { path: project_path,
-                action: state::project::Action:: })
+            self.state.try_reduce(self::state::Action::Project {
+                path: project_path,
+                action: state::project::action::Graph::Create(container_state),
+            })
         } else {
             todo!();
         }
@@ -494,7 +494,7 @@ impl Database {
                     .unwrap();
 
                 vec![Update::project_with_id(
-                    properties.rid.clone(),
+                    properties.rid().clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Created(Ok(properties))),
                     event.id().clone(),
@@ -548,7 +548,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -617,7 +617,7 @@ impl Database {
                     .unwrap();
 
                 vec![Update::project_with_id(
-                    properties.rid.clone(),
+                    properties.rid().clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Modified(properties)),
                     event.id().clone(),
@@ -635,7 +635,7 @@ impl Database {
                     .unwrap();
 
                 vec![Update::project_with_id(
-                    properties.rid.clone(),
+                    properties.rid().clone(),
                     base_path,
                     update::Project::Properties(update::DataResource::Repaired(properties)),
                     event.id().clone(),
@@ -644,7 +644,7 @@ impl Database {
 
             (Err(IoSerde::Io(io::ErrorKind::NotFound)), _) => todo!(),
             (Err(err), Ok(state)) => {
-                let project_id = state.rid.clone();
+                let project_id = state.rid().clone();
                 self.state
                     .try_reduce(state::Action::Project {
                         path: base_path.to_path_buf(),
@@ -708,7 +708,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -780,7 +780,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -829,7 +829,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -949,7 +949,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -1022,7 +1022,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };
@@ -1071,7 +1071,7 @@ impl Database {
 
         let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
         {
-            Some(properties.rid.clone())
+            Some(properties.rid().clone())
         } else {
             None
         };

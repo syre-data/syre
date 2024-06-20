@@ -50,7 +50,7 @@ pub fn init(path: impl AsRef<Path>) -> Result<ResourceId> {
     scripts.save()?;
 
     project_manifest::register_project(project.base_path())?;
-    Ok(project.rid.clone().into())
+    Ok(project.rid().clone().into())
 }
 
 /// Creates a new Syre project.
@@ -179,7 +179,7 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
     };
 
     let project = Project::load_from(root)?;
-    Ok(Some(project.rid.clone()))
+    Ok(Some(project.rid().clone()))
 }
 
 pub mod converter {
@@ -286,7 +286,7 @@ pub mod converter {
                     Err(Error::Project(ProjectError::PathNotRegistered(_path))) => {
                         let project = Project::load_from(&root)?;
                         project_manifest::register_project(root.clone())?;
-                        project.rid.clone()
+                        project.rid().clone()
                     }
 
                     Err(err) => return Err(err),

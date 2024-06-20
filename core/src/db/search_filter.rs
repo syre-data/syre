@@ -35,7 +35,6 @@ where
 }
 
 /// Search filter for all properties.
-#[cfg_attr(feature = "pyo3", pyo3::pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Default, Debug, Clone)]
 pub struct StandardSearchFilter {
@@ -69,7 +68,7 @@ impl StandardSearchFilter {
 impl SearchFilter<Container> for StandardSearchFilter {
     fn matches(&self, container: &Container) -> bool {
         if let Some(s_rid) = self.rid.as_ref() {
-            if s_rid != &container.rid {
+            if s_rid != container.rid() {
                 return false;
             }
         }
@@ -130,7 +129,7 @@ impl SearchFilter<Container> for StandardSearchFilter {
 impl SearchFilter<Asset> for StandardSearchFilter {
     fn matches(&self, asset: &Asset) -> bool {
         if let Some(s_rid) = self.rid.as_ref() {
-            if s_rid != &asset.rid {
+            if s_rid != asset.rid() {
                 return false;
             }
         }

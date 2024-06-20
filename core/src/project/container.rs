@@ -1,9 +1,9 @@
 //! Container.
 use super::container_properties::{Builder as PropertiesBuilder, ContainerProperties};
 use super::Metadata;
-use super::{AnalysisAssociation, Asset, RunParameters};
+use super::{AnalysisAssociation, Asset};
 use crate::db::Resource;
-use crate::types::{ResourceId, ResourceMap};
+use crate::types::ResourceId;
 use has_id::HasId;
 use serde_json::Value as JsValue;
 use std::hash::{Hash, Hasher};
@@ -11,25 +11,14 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// *************
-// *** types ***
-// *************
-
-pub type AssetMap = ResourceMap<Asset>;
-pub type AnalysisMap = ResourceMap<RunParameters>;
-
-// *****************
-// *** Container ***
-// *****************
-
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Eq, Clone, Debug, HasId)]
 pub struct Container {
     #[id]
-    pub rid: ResourceId,
+    rid: ResourceId,
     pub properties: ContainerProperties,
-    pub assets: AssetMap,
-    pub analyses: AnalysisMap,
+    pub assets: Vec<Asset>,
+    pub analyses: Vec<AnalysisAssociation>,
 }
 
 impl Container {
@@ -37,19 +26,13 @@ impl Container {
         Container {
             rid: ResourceId::new(),
             properties: ContainerProperties::new(name),
-            assets: AssetMap::default(),
-            analyses: AnalysisMap::default(),
+            assets: vec![],
+            analyses: vec![],
         }
     }
 
-    /// Inserts an [`Asset`] into the [`Container`].
-    pub fn insert_asset(&mut self, asset: Asset) -> Option<Asset> {
-        self.assets.insert(asset.rid.clone(), asset)
-    }
-
-    /// Inserts an [`Asset`] into the [`Container`].
-    pub fn remove_asset(&mut self, rid: &ResourceId) -> Option<Asset> {
-        self.assets.remove(rid)
+    pub fn rid(&self) -> &ResourceId {
+        &self.rid
     }
 }
 
@@ -68,16 +51,16 @@ impl Resource for Container {}
 #[derive(Default)]
 pub struct Builder {
     properties: PropertiesBuilder,
-    assets: AssetMap,
-    analyses: AnalysisMap,
+    assets: Vec<Asset>,
+    analyses: Vec<AnalysisAssociation>,
 }
 
 impl Builder {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             properties: PropertiesBuilder::new(name),
-            assets: AssetMap::new(),
-            analyses: AnalysisMap::new(),
+            assets: vec![],
+            analyses: vec![],
         }
     }
 
@@ -150,23 +133,33 @@ impl Builder {
         self
     }
 
-    pub fn add_asset(&mut self, asset: Asset) -> &mut Self {
-        self.assets.insert(asset.rid.clone(), asset);
+    /// Inserts the `Asset`.
+    /// If an `Asset` with the same resource id already exists,
+    /// it is replaced.
+    pub fn insert_asset(&mut self, asset: Asset) -> &mut Self {
+        self.assets.retain(|a| a.rid() != asset.rid());
+        self.assets.push(asset);
         self
     }
 
     pub fn remove_asset(&mut self, rid: &ResourceId) -> &mut Self {
-        self.assets.remove(rid);
+        self.assets.retain(|asset| asset.rid() != rid);
         self
     }
 
-    pub fn add_analysis(&mut self, script: AnalysisAssociation) -> &mut Self {
-        self.analyses.insert(script.analysis.clone(), script.into());
+    /// Inserts an analysis association.
+    /// If an association with the same analysis already exists,
+    /// it is replaced.
+    pub fn insert_analysis(&mut self, association: AnalysisAssociation) -> &mut Self {
+        self.analyses
+            .retain(|a| a.analysis() != association.analysis());
+        self.analyses.push(association);
         self
     }
 
     pub fn remove_analysis(&mut self, rid: &ResourceId) -> &mut Self {
-        self.analyses.remove(rid);
+        self.analyses
+            .retain(|association| association.analysis() != rid);
         self
     }
 

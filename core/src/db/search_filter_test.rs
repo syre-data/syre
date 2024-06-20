@@ -39,7 +39,7 @@ fn standard_search_filter_container_matches_should_work() {
 
     // filters
     let mut rid_filter = StandardSearchFilter::default();
-    rid_filter.rid = Some(obj0.rid.clone());
+    rid_filter.rid = Some(obj0.rid().clone());
 
     let mut name_filter = StandardSearchFilter::default();
     name_filter.name = Some(Some(obj0.properties.name.clone()));
@@ -157,7 +157,7 @@ fn standard_search_filter_asset_matches_should_work() {
 
     // filters
     let mut rid_filter = StandardSearchFilter::default();
-    rid_filter.rid = Some(obj0.rid.clone());
+    rid_filter.rid = Some(obj0.rid().clone());
 
     let mut name_filter = StandardSearchFilter::default();
     name_filter.name = Some(obj0.properties.name.clone());

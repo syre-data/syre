@@ -130,7 +130,7 @@ impl InitOptions<InitNew> {
         }
 
         container.save()?;
-        Ok(container.rid.clone())
+        Ok(container.rid().clone())
     }
 }
 
@@ -264,7 +264,7 @@ impl InitOptions<InitExisting> {
                 }
             }
 
-            Ok(container.rid.clone())
+            Ok(container.rid().clone())
         }
 
         // main

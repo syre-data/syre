@@ -883,7 +883,7 @@ mod convert_fs {
     pub fn test_graph(watcher: &FsWatcher, project: &Project<LocalProject, ContainerTree>) {
         let data_path = project.project.data_root_path();
         let root = project.graph.get(project.graph.root()).unwrap();
-        let children = project.graph.children(&root.rid).unwrap();
+        let children = project.graph.children(&root.rid()).unwrap();
         let recipe_1 = project.graph.get(&children[0]).unwrap();
         let recipe_1_path = recipe_1.base_path().to_path_buf();
 
@@ -943,7 +943,7 @@ mod convert_fs {
 
     pub fn test_container(watcher: &FsWatcher, project: &Project<LocalProject, ContainerTree>) {
         let root = project.graph.get(project.graph.root()).unwrap();
-        let children = project.graph.children(&root.rid).unwrap();
+        let children = project.graph.children(&root.rid()).unwrap();
         let recipe_1 = project.graph.get(&children[0]).unwrap();
         let root_path = root.base_path();
         let container_path = recipe_1.base_path().to_path_buf();
@@ -1189,9 +1189,9 @@ mod convert_fs {
         project: &Project<LocalProject, ContainerTree>,
     ) {
         let root = project.graph.get(project.graph.root()).unwrap();
-        let children = project.graph.children(&root.rid).unwrap();
+        let children = project.graph.children(&root.rid()).unwrap();
         let recipe_1 = project.graph.get(&children[0]).unwrap();
-        let batch_1 = project.graph.children(&recipe_1.rid).unwrap();
+        let batch_1 = project.graph.children(&recipe_1.rid()).unwrap();
         let batch_11 = project.graph.get(&batch_1[0]).unwrap();
         let batch_12 = project.graph.get(&batch_1[1]).unwrap();
         let asset_11 = batch_11.assets.values().next().unwrap();
@@ -1353,7 +1353,7 @@ mod convert_fs {
 
     pub fn test_files_simple(watcher: &FsWatcher, project: &Project<LocalProject, ContainerTree>) {
         let root = project.graph.get(project.graph.root()).unwrap();
-        let children = project.graph.children(&root.rid).unwrap();
+        let children = project.graph.children(&root.rid()).unwrap();
         let recipe_1 = project.graph.get(&children[0]).unwrap();
         let analysis_path = project.project.analysis_root_path().unwrap();
 

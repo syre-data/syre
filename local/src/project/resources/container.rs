@@ -41,7 +41,7 @@ pub struct StoredContainerProperties {
 impl From<CoreContainer> for StoredContainerProperties {
     fn from(container: CoreContainer) -> Self {
         Self {
-            rid: container.rid,
+            rid: container.rid().clone(),
             properties: container.properties,
             analyses: container.analyses,
         }
@@ -137,13 +137,13 @@ impl Container {
     /// # See also
     /// + `set_analysis_association`
     pub fn add_analysis_association(&mut self, assoc: AnalysisAssociation) -> Result {
-        if self.contains_analysis_association(&assoc.analysis) {
+        if self.contains_analysis_association(assoc.analysis()) {
             return Err(Error::Core(CoreError::Resource(
                 ResourceError::already_exists("Association with analysis already exists"),
             )));
         }
 
-        let analysis = assoc.analysis.clone();
+        let analysis = assoc.analysis().clone();
         self.analyses.insert(analysis, assoc.into());
         Ok(())
     }
@@ -154,7 +154,7 @@ impl Container {
     /// # See also
     /// + [`add_analysis_association`]
     pub fn set_analysis_association(&mut self, assoc: AnalysisAssociation) -> bool {
-        let analysis = assoc.analysis.clone();
+        let analysis = assoc.analysis().clone();
         let old = self.analyses.insert(analysis, assoc.into());
         old.is_none()
     }
@@ -213,7 +213,7 @@ impl DerefMut for Container {
 
 impl Hash for Container {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.rid.hash(state);
+        self.rid().hash(state);
     }
 }
 

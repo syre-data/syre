@@ -44,12 +44,8 @@ impl Asset {
     /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].
     pub fn new(path: impl Into<PathBuf>) -> Result<CoreAsset> {
-        let props = AssetProperties::new()?;
-        Ok(CoreAsset {
-            rid: ResourceId::new(),
-            properties: props,
-            path: path.into(),
-        })
+        let properties = AssetProperties::new()?;
+        Ok(CoreAsset::with_properties(path, properties))
     }
 }
 
@@ -85,7 +81,7 @@ impl Assets {
     }
 
     pub fn insert(&mut self, asset: CoreAsset) -> Option<CoreAsset> {
-        self.assets.insert(asset.rid.clone(), asset)
+        self.assets.insert(asset.rid().clone(), asset)
     }
 }
 

@@ -19,7 +19,7 @@ use has_id::HasIdSerde;
 #[derive(HasId, Debug, Clone, PartialEq, Eq)]
 pub struct Asset {
     #[id]
-    pub rid: ResourceId,
+    rid: ResourceId,
     pub properties: AssetProperties,
 
     /// Path to the `Asset`'s resource file.
@@ -27,12 +27,24 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn new(path: impl Into<PathBuf>) -> Asset {
-        Asset {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
             rid: ResourceId::new(),
             properties: AssetProperties::new(),
             path: path.into(),
         }
+    }
+
+    pub fn with_properties(path: impl Into<PathBuf>, properties: AssetProperties) -> Self {
+        Self {
+            rid: ResourceId::new(),
+            properties,
+            path: path.into(),
+        }
+    }
+
+    pub fn rid(&self) -> &ResourceId {
+        &self.rid
     }
 
     /// Returns the `bucket` path of the `Asset`

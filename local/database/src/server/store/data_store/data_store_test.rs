@@ -336,27 +336,27 @@ fn create_fireworks_graph() -> (FireworkIds, ContainerTree) {
         .set_kind("recipe-comparison")
         .add_tag("image");
     let recipe_comp_png = recipe_comp_png.build();
-    let recipe_comp_png_id = recipe_comp_png.rid.clone();
+    let recipe_comp_png_id = recipe_comp_png.rid().clone();
 
     let mut recipe_comp_csv = Asset::with_path("recipe_comparison.csv");
     recipe_comp_csv
         .set_kind("recipe-comparison")
         .add_tag("table");
     let recipe_comp_csv = recipe_comp_csv.build();
-    let recipe_comp_csv_id = recipe_comp_csv.rid.clone();
+    let recipe_comp_csv_id = recipe_comp_csv.rid().clone();
 
     let mut root = Container::new("Root");
     root.set_kind("project")
         .set_description("Testing different firework recipes.")
-        .add_asset(recipe_comp_csv)
-        .add_asset(recipe_comp_png);
+        .insert_asset(recipe_comp_csv)
+        .insert_asset(recipe_comp_png);
     let root = root.build();
-    let root_id = root.rid.clone();
+    let root_id = root.rid().clone();
 
     let mut ra_stats = Asset::with_path("recipe_stats.csv");
     ra_stats.set_kind("recipe-stats");
     let ra_stats = ra_stats.build();
-    let ra_stats_id = ra_stats.rid.clone();
+    let ra_stats_id = ra_stats.rid().clone();
 
     let mut ra = Container::new("Recipe A");
     ra.set_kind("recipe")
@@ -364,14 +364,14 @@ fn create_fireworks_graph() -> (FireworkIds, ContainerTree) {
         .set_metadatum("name", "A")
         .set_metadatum("h", 0.8)
         .set_metadatum("c", 0.2)
-        .add_asset(ra_stats);
+        .insert_asset(ra_stats);
     let ra = ra.build();
-    let ra_id = ra.rid.clone();
+    let ra_id = ra.rid().clone();
 
     let mut rb_stats = Asset::with_path("recipe_stats.csv");
     rb_stats.set_kind("recipe-stats");
     let rb_stats = rb_stats.build();
-    let rb_stats_id = rb_stats.rid.clone();
+    let rb_stats_id = rb_stats.rid().clone();
 
     let mut rb = Container::new("Recipe B");
     rb.set_kind("recipe")
@@ -379,91 +379,91 @@ fn create_fireworks_graph() -> (FireworkIds, ContainerTree) {
         .set_metadatum("name", "B")
         .set_metadatum("h", 0.5)
         .set_metadatum("c", 0.5)
-        .add_asset(rb_stats);
+        .insert_asset(rb_stats);
     let rb = rb.build();
-    let rb_id = rb.rid.clone();
+    let rb_id = rb.rid().clone();
 
     let mut rab1_data = Asset::with_path("a1-data.csv");
     rab1_data
         .set_kind("noise-data")
         .set_metadatum("humidity", "low");
     let rab1_data = rab1_data.build();
-    let rab1_data_id = rab1_data.rid.clone();
+    let rab1_data_id = rab1_data.rid().clone();
 
     let mut rab1_stats = Asset::with_path("noise_stats.csv");
     rab1_stats
         .set_kind("noise-stats")
         .set_metadatum("humidity", "high");
     let rab1_stats = rab1_stats.build();
-    let rab1_stats_id = rab1_stats.rid.clone();
+    let rab1_stats_id = rab1_stats.rid().clone();
 
     let mut rab1 = Container::new("Batch 1");
     rab1.set_kind("batch")
         .set_metadatum("batch", 1)
-        .add_asset(rab1_data)
-        .add_asset(rab1_stats);
+        .insert_asset(rab1_data)
+        .insert_asset(rab1_stats);
     let rab1 = rab1.build();
-    let rab1_id = rab1.rid.clone();
+    let rab1_id = rab1.rid().clone();
 
     let mut rab2_data = Asset::with_path("a2-data.csv");
     rab2_data.set_kind("noise-data");
     let rab2_data = rab2_data.build();
-    let rab2_data_id = rab2_data.rid.clone();
+    let rab2_data_id = rab2_data.rid().clone();
 
     let mut rab2_stats = Asset::with_path("noise_stats.csv");
     rab2_stats.set_kind("noise-stats");
     let rab2_stats = rab2_stats.build();
-    let rab2_stats_id = rab2_stats.rid.clone();
+    let rab2_stats_id = rab2_stats.rid().clone();
 
     let mut rab2 = Container::new("Batch 2");
     rab2.set_kind("batch")
         .set_metadatum("batch", 2)
         .set_metadatum("is_second_batch", true)
-        .add_asset(rab2_data)
-        .add_asset(rab2_stats);
+        .insert_asset(rab2_data)
+        .insert_asset(rab2_stats);
     let rab2 = rab2.build();
-    let rab2_id = rab2.rid.clone();
+    let rab2_id = rab2.rid().clone();
 
     let mut rbb1_data = Asset::with_path("b1-data.csv");
     rbb1_data
         .set_kind("noise-data")
         .set_metadatum("humidity", "low");
     let rbb1_data = rbb1_data.build();
-    let rbb1_data_id = rbb1_data.rid.clone();
+    let rbb1_data_id = rbb1_data.rid().clone();
 
     let mut rbb1_stats = Asset::with_path("noise_stats.csv");
     rbb1_stats.set_kind("noise-stats");
     let rbb1_stats = rbb1_stats.build();
-    let rbb1_stats_id = rbb1_stats.rid.clone();
+    let rbb1_stats_id = rbb1_stats.rid().clone();
 
     let mut rbb1 = Container::new("Batch 1");
     rbb1.set_kind("batch")
         .set_metadatum("batch", 1)
-        .add_asset(rbb1_data)
-        .add_asset(rbb1_stats);
+        .insert_asset(rbb1_data)
+        .insert_asset(rbb1_stats);
     let rbb1 = rbb1.build();
-    let rbb1_id = rbb1.rid.clone();
+    let rbb1_id = rbb1.rid().clone();
 
     let mut rbb2_data = Asset::with_path("b2-data.csv");
     rbb2_data
         .set_kind("noise-data")
         .set_metadatum("humidity", "high");
     let rbb2_data = rbb2_data.build();
-    let rbb2_data_id = rbb2_data.rid.clone();
+    let rbb2_data_id = rbb2_data.rid().clone();
 
     let mut rbb2_stats = Asset::with_path("noise_stats.csv");
     rbb2_stats.set_kind("noise-stats");
     let rbb2_stats = rbb2_stats.build();
-    let rbb2_stats_id = rbb2_stats.rid.clone();
+    let rbb2_stats_id = rbb2_stats.rid().clone();
 
     let mut rbb2 = Container::new("Batch 2");
     rbb2.set_kind("batch")
         .set_metadatum("batch", 2)
         .set_metadatum("is_second_batch", true)
-        .add_asset(rbb2_data)
-        .add_asset(rbb2_stats);
+        .insert_asset(rbb2_data)
+        .insert_asset(rbb2_stats);
     let rbb2 = rbb2.build();
-    let rbb2_id = rbb2.rid.clone();
+    let rbb2_id = rbb2.rid().clone();
 
     let mut graph = ContainerTree::new(root);
     graph.insert(root_id.clone(), ra).unwrap();

@@ -70,7 +70,7 @@ impl Fireworks {
     {
         let mut root = ContainerBuilder::new("data");
         if options.with_analysis() {
-            root.add_analysis(AnalysisAssociation::new(analyses.recipe_comparison.clone()));
+            root.insert_analysis(AnalysisAssociation::new(analyses.recipe_comparison.clone()));
         }
         let root = root.build();
 
@@ -78,7 +78,7 @@ impl Fireworks {
         recipe_a.set_kind("recipe");
         recipe_a.set_metadatum("name", "A");
         if options.with_analysis() {
-            recipe_a.add_analysis(AnalysisAssociation::new(analyses.recipe_stats.clone()));
+            recipe_a.insert_analysis(AnalysisAssociation::new(analyses.recipe_stats.clone()));
         }
         let recipe_a = recipe_a.build();
 
@@ -86,7 +86,7 @@ impl Fireworks {
         recipe_b.set_kind("recipe");
         recipe_b.set_metadatum("name", "B");
         if options.with_analysis() {
-            recipe_b.add_analysis(AnalysisAssociation::new(analyses.recipe_stats.clone()));
+            recipe_b.insert_analysis(AnalysisAssociation::new(analyses.recipe_stats.clone()));
         }
         let recipe_b = recipe_b.build();
 
@@ -96,10 +96,10 @@ impl Fireworks {
         if options.with_assets() {
             let mut data_a1 = AssetBuilder::with_path("a1_data.csv");
             data_a1.set_kind("noise-data");
-            batch_a1.add_asset(data_a1.build());
+            batch_a1.insert_asset(data_a1.build());
         }
         if options.with_analysis() {
-            batch_a1.add_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
+            batch_a1.insert_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
         }
 
         let batch_a1 = batch_a1.build();
@@ -110,10 +110,10 @@ impl Fireworks {
         if options.with_assets() {
             let mut data_a2 = AssetBuilder::with_path("a2_data.csv");
             data_a2.set_kind("noise-data");
-            batch_a2.add_asset(data_a2.build());
+            batch_a2.insert_asset(data_a2.build());
         }
         if options.with_analysis() {
-            batch_a2.add_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
+            batch_a2.insert_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
         }
 
         let batch_a2 = batch_a2.build();
@@ -124,10 +124,10 @@ impl Fireworks {
         if options.with_assets() {
             let mut data_b1 = AssetBuilder::with_path("a2_data.csv");
             data_b1.set_kind("noise-data");
-            batch_b1.add_asset(data_b1.build());
+            batch_b1.insert_asset(data_b1.build());
         }
         if options.with_analysis() {
-            batch_b1.add_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
+            batch_b1.insert_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
         }
 
         let batch_b1 = batch_b1.build();
@@ -138,17 +138,17 @@ impl Fireworks {
         if options.with_assets() {
             let mut data_b2 = AssetBuilder::with_path("a2_data.csv");
             data_b2.set_kind("noise-data");
-            batch_b2.add_asset(data_b2.build());
+            batch_b2.insert_asset(data_b2.build());
         }
         if options.with_analysis() {
-            batch_b2.add_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
+            batch_b2.insert_analysis(AnalysisAssociation::new(analyses.noise_stats.clone()));
         }
 
         let batch_b2 = batch_b2.build();
 
-        let root_id = root.rid.clone();
-        let recipe_a_id = recipe_a.rid.clone();
-        let recipe_b_id = recipe_b.rid.clone();
+        let root_id = root.rid().clone();
+        let recipe_a_id = recipe_a.rid().clone();
+        let recipe_b_id = recipe_b.rid().clone();
 
         let mut graph = ContainerTree::new(root);
         graph.insert(root_id.clone(), recipe_a).unwrap();

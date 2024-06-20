@@ -1,20 +1,15 @@
 //! Project and project settings.
-use crate::types::{Creator, ResourceId};
-use chrono::prelude::*;
+use crate::types::ResourceId;
 use std::path::PathBuf;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-// ***************
-// *** Project ***
-// ***************
-
 /// Represents a Syre project.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Project {
-    pub rid: ResourceId,
+    rid: ResourceId,
     pub name: String,
     pub description: Option<String>,
     pub data_root: PathBuf,
@@ -36,6 +31,10 @@ impl Project {
             analysis_root: None,
             meta_level: 0,
         }
+    }
+
+    pub fn rid(&self) -> &ResourceId {
+        &self.rid
     }
 
     pub fn set_analysis_root(&mut self, analysis_root: impl Into<PathBuf>) {

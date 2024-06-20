@@ -2083,7 +2083,7 @@ mod resources {
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
             if path.starts_with(analysis_root) {
                 return Ok(is_analysis(path).then_some(ResourceEvent::Analysis {
-                    project: project.rid.clone(),
+                    project: project.rid().clone(),
                 }));
             }
         }
@@ -2106,14 +2106,14 @@ mod resources {
         let project = project_by_resource_path(&path)?;
         if *path == project.base_path() {
             return Ok(DirKind::Project {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
                 kind: ProjectDir::Root,
             });
         }
 
         if *path == project.data_root_path() {
             return Ok(DirKind::Project {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
                 kind: ProjectDir::Data,
             });
         }
@@ -2121,7 +2121,7 @@ mod resources {
         if let Some(analysis_dir) = project.analysis_root_path() {
             if *path == analysis_dir {
                 return Ok(DirKind::Project {
-                    project: project.rid.clone(),
+                    project: project.rid().clone(),
                     kind: ProjectDir::Analysis,
                 });
             }
@@ -2129,7 +2129,7 @@ mod resources {
 
         if *path == common::app_dir_of(project.base_path()) {
             return Ok(DirKind::Project {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
                 kind: ProjectDir::Config,
             });
         }
@@ -2140,7 +2140,7 @@ mod resources {
         }
 
         Ok(DirKind::None {
-            project: project.rid.clone(),
+            project: project.rid().clone(),
         })
     }
 
@@ -2245,7 +2245,7 @@ mod resources {
 
         match config_location {
             ConfigLocationKind::Not => Some(ResourceEvent::Asset {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
             }),
 
             ConfigLocationKind::Dir => {
@@ -2257,17 +2257,17 @@ mod resources {
             ConfigLocationKind::Child => {
                 if path.ends_with(common::container_file()) {
                     Some(ResourceEvent::Container {
-                        project: project.rid.clone(),
+                        project: project.rid().clone(),
                         kind: Container::Properties,
                     })
                 } else if path.ends_with(common::container_settings_file()) {
                     Some(ResourceEvent::Container {
-                        project: project.rid.clone(),
+                        project: project.rid().clone(),
                         kind: Container::Settings,
                     })
                 } else if path.ends_with(common::assets_file()) {
                     Some(ResourceEvent::Container {
-                        project: project.rid.clone(),
+                        project: project.rid().clone(),
                         kind: Container::Assets,
                     })
                 } else {
@@ -2287,7 +2287,7 @@ mod resources {
         let rel_path = path.strip_prefix(project.base_path()).unwrap();
         let Ok(config_location) = config_resource_location(rel_path) else {
             return DirKind::None {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
             };
         };
 
@@ -2295,25 +2295,25 @@ mod resources {
             ConfigLocationKind::Not => {
                 if common::container_file_of(path).exists() {
                     DirKind::Container {
-                        project: project.rid.clone(),
+                        project: project.rid().clone(),
                     }
                 } else {
                     DirKind::ContainerLike {
-                        project: project.rid.clone(),
+                        project: project.rid().clone(),
                     }
                 }
             }
 
             ConfigLocationKind::Dir => DirKind::ContainerConfig {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
             },
 
             ConfigLocationKind::Child => DirKind::None {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
             },
 
             ConfigLocationKind::Nested => DirKind::None {
-                project: project.rid.clone(),
+                project: project.rid().clone(),
             },
         }
     }

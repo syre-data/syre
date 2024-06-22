@@ -5,17 +5,13 @@ pub(super) mod query;
 #[path = "file_system/mod.rs"]
 mod file_system;
 
-use super::{
-    state::{self, State},
-    store::data_store,
-};
-use crate::{common, constants, event::Update};
+use super::store::data_store;
+use crate::{common, constants, event::Update, state};
 use crossbeam::channel::{select, Receiver};
 use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, path::PathBuf, thread};
 use syre_local::{
-    project::resources::{project::LoadError, Analyses, Project},
     system::collections::{ProjectManifest, UserManifest},
     TryReducible,
 };
@@ -149,12 +145,12 @@ impl Builder {
             }
         }
 
-        let mut state = State::new(user_manifest_state, project_manifest_state);
+        let mut state = super::State::new(user_manifest_state, project_manifest_state);
         if let Ok(manifest) = state.app().project_manifest().as_ref() {
             for path in manifest.clone() {
                 state
-                    .try_reduce(state::Action::InsertProject(
-                        state::project::State::load_from(path),
+                    .try_reduce(super::state::Action::InsertProject(
+                        super::state::project::State::load(path),
                     ))
                     .unwrap();
             }
@@ -205,7 +201,7 @@ impl Builder {
 /// Database.
 pub struct Database {
     config: Config,
-    state: State,
+    state: super::State,
     data_store: data_store::Client,
     query_rx: Receiver<Query>,
     fs_event_rx: Receiver<syre_fs_watcher::EventResult>,

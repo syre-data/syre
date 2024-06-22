@@ -1,5 +1,4 @@
 use super::*;
-use syre_core::project::RunParameters;
 
 // *****************
 // *** Container ***
@@ -16,7 +15,7 @@ fn container_contains_script_association_should_work() {
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
     let assoc = AnalysisAssociation::new(sid.clone());
-    container.analyses.insert(sid.clone(), assoc.into());
+    container.analyses.push(assoc);
 
     // test
     assert!(
@@ -74,12 +73,13 @@ fn container_set_script_association_should_work() {
 
     // test
     // initial
-    let init = container.set_analysis_association(assoc.clone());
-    let found = container.analyses.get(&sid);
-    assert!(found.is_some(), "association should be added");
+    container.set_analysis_association(assoc.clone());
+    let found = container
+        .analyses
+        .iter()
+        .find(|association| association.analysis() == &sid)
+        .unwrap();
 
-    let found = found.unwrap();
-    assert!(init, "initial association add should return true");
     assert_eq!(
         &assoc.priority, &found.priority,
         "association should be set"
@@ -87,12 +87,13 @@ fn container_set_script_association_should_work() {
 
     // second
     assoc.priority = 1;
-    let sec = container.set_analysis_association(assoc.clone());
-    let found = container.analyses.get(&sid);
-    assert!(found.is_some(), "association should still exist");
+    container.set_analysis_association(assoc.clone());
+    let found = container
+        .analyses
+        .iter()
+        .find(|association| association.analysis() == &sid)
+        .unwrap();
 
-    let found = found.unwrap();
-    assert_eq!(false, sec, "second associaiton set should return false");
     assert_eq!(
         &assoc.priority, &found.priority,
         "association should be updated"
@@ -105,20 +106,14 @@ fn container_remove_script_association_should_work() {
     let dir = tempfile::tempdir().unwrap();
     let mut container = Container::new(dir.path());
     let sid = ResourceId::new();
-    let params = RunParameters::new();
-    container.analyses.insert(sid.clone(), params);
+    container
+        .analyses
+        .push(AnalysisAssociation::new(sid.clone()));
 
-    // test
-    // first
-    let init = container.remove_analysis_association(&sid);
+    container.remove_analysis_association(&sid);
     assert_eq!(
         false,
         container.contains_analysis_association(&sid),
         "association should no longer exist"
     );
-    assert!(init, "remove should return true");
-
-    // second
-    let sec = container.remove_analysis_association(&sid);
-    assert_eq!(false, sec, "remove should return false");
 }

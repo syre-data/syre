@@ -141,21 +141,15 @@ pub fn project_resource_root_path(path: impl AsRef<Path>) -> Result<PathBuf> {
 
     let mut path = path.join("tmp"); // false join to pop off in loop
     while path.pop() {
-        let prj_file = common::project_file_of(&path);
-        if !prj_file.exists() {
+        let prj_path = common::project_file_of(&path);
+        if !prj_path.exists() {
             // folder is not root
             continue;
         }
 
-        let Ok(prj_json) = fs::read_to_string(prj_file) else {
-            // TODO Handle metalevel.
-            // Currently assumed that if project file can't be read, it is because
-            // the file is being controlled by another process, likely the database
-            // so just return the path.
-            return Ok(fs::canonicalize(path)?);
-        };
-
-        let prj: CoreProject = match serde_json::from_str(prj_json.as_str()) {
+        let file = fs::File::open(prj_path)?;
+        let reader = io::BufReader::new(file);
+        let prj: CoreProject = match serde_json::from_reader(reader) {
             Ok(prj) => prj,
             Err(err) => return Err(err.into()),
         };
@@ -194,7 +188,7 @@ pub mod converter {
     use std::path::{Component, Path, PathBuf};
     use std::{fs, io};
     use syre_core::project::{AnalysisAssociation, Script, ScriptLang};
-    use syre_core::types::{Creator, ResourceId, UserId, UserPermissions};
+    use syre_core::types::{ResourceId, UserId, UserPermissions};
 
     pub struct Converter {
         data_root: PathBuf,
@@ -374,7 +368,7 @@ pub mod converter {
                         .entry(script.path.parent().unwrap())
                         .or_insert(Vec::new());
 
-                    entry.push(script.rid.clone());
+                    entry.push(script.rid().clone());
                 }
 
                 for (container, scripts) in container_scripts {

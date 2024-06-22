@@ -1,8 +1,6 @@
 //! App state.
-use super::{
-    config::{ManifestState, State as App},
-    project::State as Project,
-};
+use super::{config::State as App, project::State as Project};
+use crate::state::ManifestState;
 pub use action::Action;
 pub use error::Error;
 use std::path::{Path, PathBuf};

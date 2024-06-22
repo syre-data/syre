@@ -23,7 +23,7 @@ impl ContainerTreeTransformer {
             .map(|(rid, node)| (rid.clone(), ResourceNode::new((*node.data()).clone())))
             .collect::<NodeMap<CoreContainer>>();
 
-        ResourceTree::from_components(core_nodes, tree.edges().clone())
+        ResourceTree::from_parts(core_nodes, tree.edges().clone())
             .expect("could not build tree from components")
     }
 
@@ -53,7 +53,7 @@ impl ContainerTreeTransformer {
         }
 
         let graph =
-            ResourceTree::from_components(core_nodes, edges).expect("could not reconstuct graph");
+            ResourceTree::from_parts(core_nodes, edges).expect("could not reconstuct graph");
 
         Some(graph)
     }
@@ -65,7 +65,7 @@ impl ContainerTreeTransformer {
             .values()
             .map(|node| {
                 let mut path = tree
-                    .ancestors(&node.rid)
+                    .ancestors(node.rid())
                     .into_iter()
                     .map(|rid| &tree.get(&rid).unwrap().properties.name)
                     .collect::<Vec<_>>();
@@ -75,7 +75,7 @@ impl ContainerTreeTransformer {
                     .into_iter()
                     .fold(base_path.clone(), |path, segment| path.join(segment));
 
-                (node.rid.clone(), path)
+                (node.rid().clone(), path)
             })
             .collect::<HashMap<_, _>>();
 
@@ -83,13 +83,13 @@ impl ContainerTreeTransformer {
         let nodes = nodes
             .into_values()
             .map(|node| {
-                let mut container = Container::new(rel_paths.get(&node.rid).unwrap());
+                let mut container = Container::new(rel_paths.get(&node.rid()).unwrap());
                 container.container = node.into_data();
-                (container.rid.clone(), ResourceNode::new(container))
+                (container.rid().clone(), ResourceNode::new(container))
             })
             .collect::<HashMap<ResourceId, ResourceNode<Container>>>();
 
-        ResourceTree::from_components(nodes, edges).unwrap()
+        ResourceTree::from_parts(nodes, edges).unwrap()
     }
 }
 
@@ -120,13 +120,13 @@ impl ContainerTreeDuplicator {
         let mut container = Container::new(node.base_path());
         container.properties = node.properties.clone();
         container.analyses = node.analyses.clone();
-        for asset_base in node.assets.values() {
+        for asset_base in node.assets.iter() {
             let mut asset = Asset::new(asset_base.path.clone());
             asset.properties = asset_base.properties.clone();
-            container.insert_asset(asset);
+            container.assets.push(asset);
         }
 
-        let dup_root = container.rid.clone();
+        let dup_root = container.rid().clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(
@@ -172,7 +172,7 @@ impl ContainerTreeDuplicator {
         container.analyses = node.analyses.clone();
         container.save()?;
 
-        let dup_root = container.rid.clone();
+        let dup_root = container.rid().clone();
         let mut dup_graph = ResourceTree::new(container);
         let Some(children) = graph.children(&root).cloned() else {
             return Err(CoreError::Resource(ResourceError::does_not_exist(

@@ -70,7 +70,7 @@ where
     ///
     /// # Errors
     /// + If the nodes and edges do not create a valid tree.
-    pub fn from_components(nodes: NodeMap<D>, edges: EdgeMap) -> Result<Self> {
+    pub fn from_parts(nodes: NodeMap<D>, edges: EdgeMap) -> Result<Self> {
         let mut parents = ResourceMap::new();
         let mut root = nodes
             .keys()

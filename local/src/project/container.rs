@@ -1,14 +1,19 @@
 //! High level functionality related to Containers.
-use super::project;
-use super::resources::Container;
-use crate::common::{app_dir, container_file_of};
-use crate::loader::container::Loader as ContainerLoader;
-use crate::Result;
-use std::path::{self, Path, PathBuf};
-use std::{fs, io};
-use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::project::{Asset, ContainerProperties};
-use syre_core::types::ResourceId;
+use super::{project, resources::Container};
+use crate::{
+    common::{app_dir, container_file_of},
+    loader::container::Loader as ContainerLoader,
+    Error, Result,
+};
+use std::{
+    fs, io,
+    path::{self, Path, PathBuf},
+};
+use syre_core::{
+    error::{Error as CoreError, Resource as ResourceError},
+    project::{Asset, ContainerProperties},
+    types::ResourceId,
+};
 
 // ***************
 // *** Builder ***
@@ -124,7 +129,7 @@ impl InitOptions<InitNew> {
                 let entry_path = entry.path();
                 if entry_path.is_file() {
                     let asset = Asset::new(entry_path);
-                    container.insert_asset(asset);
+                    container.assets.push(asset);
                 }
             }
         }
@@ -189,7 +194,10 @@ impl InitOptions<InitExisting> {
             let path = path.as_ref();
             // TODO What if path is a project?
             let mut container = if path_is_container(path) {
-                ContainerLoader::load(path)?
+                match ContainerLoader::load(path) {
+                    Ok(container) => container,
+                    Err(_state) => return Err(Error::Load),
+                }
             } else {
                 Container::new(path)
             };
@@ -224,7 +232,7 @@ impl InitOptions<InitExisting> {
             let container_path = fs::canonicalize(container.base_path()).unwrap();
             let asset_paths = container
                 .assets
-                .values()
+                .iter()
                 .map(|asset| {
                     let asset_path = container.base_path().join(asset.path.as_path());
                     fs::canonicalize(asset_path).unwrap()
@@ -253,7 +261,7 @@ impl InitOptions<InitExisting> {
                         .to_path_buf();
 
                     let asset = Asset::new(rel_path);
-                    container.insert_asset(asset);
+                    container.assets.push(asset);
                 }
             }
             container.save()?;

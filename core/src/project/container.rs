@@ -22,12 +22,35 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn new(name: impl Into<String>) -> Container {
-        Container {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
             rid: ResourceId::new(),
             properties: ContainerProperties::new(name),
             assets: vec![],
             analyses: vec![],
+        }
+    }
+
+    pub fn with_id(name: impl Into<String>, rid: ResourceId) -> Self {
+        Self {
+            rid,
+            properties: ContainerProperties::new(name),
+            assets: vec![],
+            analyses: vec![],
+        }
+    }
+
+    pub fn from_parts(
+        rid: ResourceId,
+        properties: ContainerProperties,
+        assets: Vec<Asset>,
+        analyses: Vec<AnalysisAssociation>,
+    ) -> Self {
+        Self {
+            rid,
+            properties,
+            assets,
+            analyses,
         }
     }
 

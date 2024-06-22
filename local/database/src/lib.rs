@@ -4,6 +4,7 @@
 //! Implements a local database for Syre.
 pub mod event;
 pub mod query;
+pub mod state;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod constants;

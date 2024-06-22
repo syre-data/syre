@@ -1,4 +1,4 @@
-use crate::{event as update, server::state, Database, Update};
+use crate::{event as update, server, state, Database, Update};
 use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
 use syre_local::TryReducible;
@@ -42,15 +42,15 @@ impl Database {
         };
 
         let project = self.state.find_resource_project_by_path(path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
             panic!("invalid state");
         };
 
-        let state::project::DataResource::Ok(analyses) = project_state.analyses() else {
+        let state::DataResource::Ok(analyses) = project_state.analyses() else {
             return vec![];
         };
 
-        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+        let state::DataResource::Ok(properties) = project_state.properties() else {
             panic!("invalid state");
         };
 
@@ -63,15 +63,16 @@ impl Database {
             )
             .unwrap();
 
-        if let Some(analysis) =
-            state::project::analysis::find_analysis_by_path_mut(rel_path, &mut analyses_state)
-        {
+        if let Some(analysis) = server::state::project::analysis::find_analysis_by_path_mut(
+            rel_path,
+            &mut analyses_state,
+        ) {
             assert!(!analysis.is_present());
             analysis.set_present();
             self.state
-                .try_reduce(state::Action::Project {
+                .try_reduce(server::state::Action::Project {
                     path: project.path().clone(),
-                    action: state::project::Action::SetAnalyses(state::project::DataResource::Ok(
+                    action: server::state::project::Action::SetAnalyses(state::DataResource::Ok(
                         analyses_state,
                     )),
                 })
@@ -80,7 +81,7 @@ impl Database {
             vec![]
         } else {
             vec![Update::project_with_id(
-                properties.rid.clone(),
+                properties.rid().clone(),
                 project.path().clone(),
                 update::AnalysisFile::Created(path.clone()).into(),
                 event.id().clone(),
@@ -102,15 +103,15 @@ impl Database {
         };
 
         let project = self.state.find_resource_project_by_path(path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
             panic!("invalid state");
         };
 
-        let state::project::DataResource::Ok(analyses) = project_state.analyses() else {
+        let state::DataResource::Ok(analyses) = project_state.analyses() else {
             panic!("invalid state");
         };
 
-        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+        let state::DataResource::Ok(properties) = project_state.properties() else {
             panic!("invalid state");
         };
 
@@ -123,18 +124,19 @@ impl Database {
             )
             .unwrap();
 
-        if let Some(analysis) =
-            state::project::analysis::find_analysis_by_path_mut(rel_path, &mut analyses_state)
-        {
+        if let Some(analysis) = server::state::project::analysis::find_analysis_by_path_mut(
+            rel_path,
+            &mut analyses_state,
+        ) {
             assert!(analysis.is_present());
             analysis.set_absent();
 
             let project_path = project.path().clone();
-            let project_id = properties.rid.clone();
+            let project_id = properties.rid().clone();
             self.state
-                .try_reduce(state::Action::Project {
+                .try_reduce(server::state::Action::Project {
                     path: project_path.clone(),
-                    action: state::project::Action::SetAnalyses(state::project::DataResource::Ok(
+                    action: server::state::project::Action::SetAnalyses(state::DataResource::Ok(
                         analyses_state,
                     )),
                 })

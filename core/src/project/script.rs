@@ -23,7 +23,7 @@ use has_id::HasIdSerde;
 #[derive(HasId, PartialEq, Debug, Clone)]
 pub struct Script {
     #[id]
-    pub rid: ResourceId,
+    rid: ResourceId,
     pub path: PathBuf,
     pub name: Option<String>,
     pub description: Option<String>,
@@ -61,6 +61,10 @@ impl Script {
             created: Utc::now(),
             env,
         })
+    }
+
+    pub fn rid(&self) -> &ResourceId {
+        &self.rid
     }
 
     /// Returns the date-time the script was created.

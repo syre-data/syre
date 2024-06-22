@@ -201,7 +201,7 @@ impl AssetBuilder {
         // insert asset
         let container = self.container_path()?;
         let mut assets = Assets::load_from(container)?;
-        assets.insert(asset);
+        assets.push(asset);
         assets.save()?;
         Ok(rid)
     }
@@ -265,7 +265,7 @@ impl AssetBuilder {
         // insert asset
         let container = self.container_path()?;
         let mut assets = Assets::load_from(container)?;
-        assets.insert(asset.clone());
+        assets.push(asset.clone());
         assets.save()?;
 
         Ok(asset)
@@ -321,7 +321,7 @@ pub fn init(path: &Path, container: Option<&Path>) -> Result<ResourceId> {
 
     // insert asset
     let mut assets = Assets::load_from(container)?;
-    assets.insert(asset);
+    assets.push(asset);
     assets.save()?;
     Ok(rid)
 }

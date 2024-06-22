@@ -1,5 +1,4 @@
 //! Common error types.
-use crate::loader::error::container::Error as LoadContainer;
 pub use io_error_kind::IoErrorKind;
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -151,11 +150,12 @@ impl From<serde_json::Error> for IoSerde {
 // *** Local Error ***
 // *******************
 
-#[derive(Serialize, Deserialize, Error, Debug)]
+#[derive(Serialize, Deserialize, Error, Debug, derive_more::From)]
 pub enum Error {
     #[error("{0}")]
     Core(CoreError),
 
+    #[from(ignore)]
     #[error("{0}")]
     InvalidPath(PathBuf),
 
@@ -185,76 +185,21 @@ pub enum Error {
     #[error("{0}")]
     SettingsFileError(SettingsFileError),
 
-    #[cfg(feature = "fs")]
-    #[error("{0}")]
-    LoadContainer(LoadContainer),
-
     /// Could not load the resource correctly from disk.
     #[cfg(feature = "fs")]
     #[error("Load")]
     Load,
 }
 
-impl From<Users> for Error {
-    fn from(value: Users) -> Self {
-        Self::Users(value)
-    }
-}
-
-impl From<CoreError> for Error {
-    fn from(err: CoreError) -> Self {
-        Error::Core(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<AssetError> for Error {
-    fn from(err: AssetError) -> Self {
-        Error::AssetError(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<ContainerError> for Error {
-    fn from(err: ContainerError) -> Self {
-        Error::ContainerError(err)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<Project> for Error {
-    fn from(err: Project) -> Self {
-        Error::Project(err)
-    }
-}
-
-// TODO: Probably shouldn't cast to CoreError.
-// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Error::Io(err.kind())
+    fn from(value: io::Error) -> Self {
+        Self::Io(value.kind())
     }
 }
 
-// TODO: Probably shouldn't cast to CoreError.
-// Check contexts where used. Maybe overridden by SerdeIo.
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error::Core(err.into())
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<IoSerde> for Error {
-    fn from(value: IoSerde) -> Self {
-        Self::IoSerde(value)
-    }
-}
-
-#[cfg(feature = "fs")]
-impl From<LoadContainer> for Error {
-    fn from(value: LoadContainer) -> Self {
-        Self::LoadContainer(value)
+        Error::IoSerde(err.into())
     }
 }
 

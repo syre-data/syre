@@ -3,25 +3,23 @@
 //! Topic should be `project:` followed by the resource id of the affected project, if known,
 //! otherwise `unknown`.
 //! e.g. `project/123-4567-890`, `project/unknown`
-use crate::server::state::project::analysis;
+use crate::state;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::{
     graph::ResourceTree,
-    project::{
-        Container as CoreContainer, ContainerProperties, Project as CoreProject,
-        Script as CoreScript,
-    },
+    project::{Container as CoreContainer, ContainerProperties, Project as CoreProject},
     types::ResourceId,
 };
 use syre_local::{
     error::IoSerde,
-    types::{AnalysisKind, ProjectSettings},
+    project::resources::container::StoredContainerProperties,
+    types::{ContainerSettings, ProjectSettings},
 };
 use uuid::Uuid;
 
 /// Update types.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Update {
     id: Uuid,
     parent: Uuid,
@@ -29,6 +27,11 @@ pub struct Update {
 }
 
 impl Update {
+    /// # Arguments
+    /// 1. `id`: Project id.
+    /// 2. `path`: Project base path.
+    /// 3. `update`
+    /// 4. `parent`: Event's parent event id.
     pub fn project(
         id: Option<ResourceId>,
         path: impl Into<PathBuf>,
@@ -46,6 +49,11 @@ impl Update {
         }
     }
 
+    /// # Arguments
+    /// 1. `id`: Project id.
+    /// 2. `path`: Project base path.
+    /// 3. `update`
+    /// 4. `parent`: Event's parent event id.
     pub fn project_with_id(
         id: ResourceId,
         path: impl Into<PathBuf>,
@@ -63,6 +71,10 @@ impl Update {
         }
     }
 
+    /// # Arguments
+    /// 1. `path`: Project base path.
+    /// 2. `update`
+    /// 3. `parent`: Event's parent event id.
     pub fn project_no_id(path: impl Into<PathBuf>, update: Project, parent: Uuid) -> Self {
         Self {
             id: Uuid::now_v7(),
@@ -75,6 +87,9 @@ impl Update {
         }
     }
 
+    /// # Arguments
+    /// 1. `update`
+    /// 2. `parent`: Event's parent event id.
     pub fn app(update: impl Into<App>, parent: Uuid) -> Self {
         Self {
             id: Uuid::now_v7(),
@@ -94,23 +109,26 @@ impl Update {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum UpdateKind {
     App(App),
     Project {
+        /// Project id.
         project: Option<ResourceId>,
+
+        /// Project base path.
         path: PathBuf,
         update: Project,
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, derive_more::From)]
+#[derive(Serialize, Deserialize, Debug, derive_more::From)]
 pub enum App {
     UserManifest(UserManifest),
     ProjectManifest(ProjectManifest),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum UserManifest {
     Added,
     Removed,
@@ -119,7 +137,7 @@ pub enum UserManifest {
     Corrupted,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ProjectManifest {
     Added(Vec<PathBuf>),
     Removed(Vec<PathBuf>),
@@ -127,22 +145,29 @@ pub enum ProjectManifest {
     Corrupted,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, derive_more::From)]
+#[derive(Serialize, Deserialize, Debug, derive_more::From)]
 pub enum Project {
     Removed,
     Moved(PathBuf),
     Properties(DataResource<CoreProject>),
     Settings(DataResource<ProjectSettings>),
-    Analyses(DataResource<Vec<analysis::State>>),
+    Analyses(DataResource<Vec<state::Analysis>>),
 
     #[from]
     Graph(Graph),
 
     #[from]
-    Container(Container),
+    Container {
+        /// Absolute path from the data root.
+        ///
+        /// # Notes
+        /// Root container's path is `/`.
+        path: PathBuf,
+        update: Container,
+    },
 
     #[from]
-    Asset(Asset),
+    Asset(AssetFile),
 
     #[from]
     AnalysisFile(AnalysisFile),
@@ -153,12 +178,15 @@ pub enum Project {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Graph {
+    /// The root graph was created.
+    Created(state::Graph),
+
     /// A subgraph was created.
-    Created {
+    Inserted {
         parent: ResourceId,
-        graph: ResourceTree<CoreContainer>,
+        graph: state::Graph,
     },
 
     /// A subgraph was moved within the `Project`.
@@ -178,18 +206,17 @@ pub enum Graph {
 }
 
 /// Container updates.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Container {
     /// `Container`'s properties were modified.
-    Properties {
-        container: ResourceId,
-        properties: ContainerProperties,
-    },
+    Properties(DataResource<StoredContainerProperties>),
+    Settings(DataResource<ContainerSettings>),
+    Assets(DataResource<Vec<state::Asset>>),
 }
 
 /// Asset updates.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Asset {
+#[derive(Serialize, Deserialize, Debug)]
+pub enum AssetFile {
     Created {
         container: ResourceId,
         asset: syre_core::project::Asset,
@@ -212,7 +239,7 @@ pub enum Asset {
 }
 
 /// Analysis updates.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum AnalysisFile {
     Created(PathBuf),
     Removed(PathBuf),
@@ -227,7 +254,7 @@ pub enum AnalysisFile {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DataResource<T> {
     Created(Result<T, IoSerde>),
     Removed,

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use syre_core::types::UserId;
 
 #[derive(Serialize, Deserialize, Debug, derive_more::From)]
@@ -19,6 +20,21 @@ pub enum State {
     UserManifest,
     ProjectManifest,
     Projects,
+
+    /// Retrieve the entire graph of a project.
+    Graph(
+        /// Base path of the project.
+        PathBuf,
+    ),
+
+    /// Retrieve the state of a container.
+    Container {
+        /// Base path of the project.
+        project: PathBuf,
+
+        /// Relative path to the container from the data root.
+        container: PathBuf,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

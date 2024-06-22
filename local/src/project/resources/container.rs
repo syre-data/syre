@@ -19,8 +19,7 @@ use std::{
 use syre_core::{
     error::{Error as CoreError, Resource as ResourceError},
     project::{
-        container::{AnalysisMap, AssetMap},
-        AnalysisAssociation, Container as CoreContainer,
+        AnalysisAssociation, Asset, Container as CoreContainer,
         ContainerProperties as CoreContainerProperties,
     },
     types::{Creator, ResourceId, UserId},
@@ -35,7 +34,7 @@ use syre_core::{
 pub struct StoredContainerProperties {
     pub rid: ResourceId,
     pub properties: CoreContainerProperties,
-    pub analyses: AnalysisMap,
+    pub analyses: Vec<AnalysisAssociation>,
 }
 
 impl From<CoreContainer> for StoredContainerProperties {
@@ -55,8 +54,8 @@ impl From<CoreContainer> for StoredContainerProperties {
 #[derive(Debug)]
 pub struct Container {
     pub(crate) base_path: PathBuf,
-    pub(crate) container: CoreContainer,
-    pub(crate) settings: ContainerSettings,
+    pub container: CoreContainer,
+    pub settings: ContainerSettings,
 }
 
 impl Container {
@@ -83,7 +82,7 @@ impl Container {
     /// Save all data.
     pub fn save(&self) -> StdResult<(), io::Error> {
         let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
-        let assets_path = <Container as LocalResource<AssetMap>>::path(self);
+        let assets_path = <Container as LocalResource<Vec<Asset>>>::path(self);
         let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
 
         fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
@@ -116,19 +115,17 @@ impl Container {
 
     pub fn buckets(&self) -> Vec<PathBuf> {
         self.assets
-            .values()
+            .iter()
             .filter_map(|asset| asset.bucket())
             .collect()
     }
 
-    // ---------------
-    // --- analysis ---
-    // ---------------
-
     /// Returns if the container is already associated with the analysis with the given id,
     /// regardless of the associations priority or autorun status.
     pub fn contains_analysis_association(&self, rid: &ResourceId) -> bool {
-        self.analyses.get(rid).is_some()
+        self.analyses
+            .iter()
+            .any(|association| association.analysis() == rid)
     }
 
     /// Adds an association to the Container.
@@ -136,34 +133,31 @@ impl Container {
     ///
     /// # See also
     /// + `set_analysis_association`
-    pub fn add_analysis_association(&mut self, assoc: AnalysisAssociation) -> Result {
-        if self.contains_analysis_association(assoc.analysis()) {
+    pub fn add_analysis_association(&mut self, association: AnalysisAssociation) -> Result {
+        if self.contains_analysis_association(association.analysis()) {
             return Err(Error::Core(CoreError::Resource(
                 ResourceError::already_exists("Association with analysis already exists"),
             )));
         }
 
-        let analysis = assoc.analysis().clone();
-        self.analyses.insert(analysis, assoc.into());
+        self.analyses.push(association);
         Ok(())
     }
 
     /// Sets or adds an analysis association with the Container.
-    /// Returns whether or not the association with the analysis was added.
     ///
     /// # See also
     /// + [`add_analysis_association`]
-    pub fn set_analysis_association(&mut self, assoc: AnalysisAssociation) -> bool {
-        let analysis = assoc.analysis().clone();
-        let old = self.analyses.insert(analysis, assoc.into());
-        old.is_none()
+    pub fn set_analysis_association(&mut self, association: AnalysisAssociation) {
+        self.analyses
+            .retain(|a| a.analysis() != association.analysis());
+        self.analyses.push(association);
     }
 
     /// Removes an association with the given analysis.
-    /// Returns if an association with the analysis existed.
-    pub fn remove_analysis_association(&mut self, rid: &ResourceId) -> bool {
-        let old = self.analyses.remove(rid);
-        old.is_some()
+    pub fn remove_analysis_association(&mut self, rid: &ResourceId) {
+        self.analyses
+            .retain(|association| association.analysis() != rid);
     }
 
     pub fn settings(&self) -> &ContainerSettings {
@@ -235,7 +229,7 @@ impl LocalResource<StoredContainerProperties> for Container {
     }
 }
 
-impl LocalResource<AssetMap> for Container {
+impl LocalResource<Vec<Asset>> for Container {
     fn rel_path() -> PathBuf {
         common::assets_file()
     }

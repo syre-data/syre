@@ -1,10 +1,5 @@
 //! Client to interact with a [`Database`].
-use crate::{
-    common,
-    constants::{DATABASE_ID, LOCALHOST, REQ_REP_PORT},
-    types::PortNumber,
-    Query,
-};
+use crate::{common, constants::LOCALHOST, types::PortNumber, Query};
 use serde_json::Value as JsValue;
 use std::net::TcpListener;
 
@@ -67,7 +62,11 @@ impl Client {
 
 mod state {
     use super::Config;
-    use crate::{common, query, server::state::config::ManifestState, Query};
+    use crate::{
+        common, query,
+        state::{self, ManifestState},
+        Query,
+    };
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::system::User;
@@ -95,8 +94,44 @@ mod state {
             Ok(serde_json::from_value(state).unwrap())
         }
 
-        pub fn projects(&self) -> zmq::Result<Vec<crate::server::state::project::State>> {
+        pub fn projects(&self) -> zmq::Result<Vec<crate::state::Project>> {
             let state = self.send(query::State::Projects.into())?;
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        /// Retrieve the entrie graph of a project.
+        ///
+        /// # Arguments
+        /// 1. `project`: Base path of the project.
+        ///
+        /// # Returns
+        /// `None` if the project or graph does not exist.
+        pub fn graph(&self, project: impl Into<PathBuf>) -> zmq::Result<Option<state::Graph>> {
+            let state = self.send(query::State::Graph(project.into()).into())?;
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        /// Retrieve the state of a container.
+        ///
+        /// # Arguments
+        /// 1. `project`: Base path of the project.
+        /// 2. `container`: Relative path to the container from the data root.
+        ///
+        /// # Returns
+        /// `None` if the project or graph does not exist.
+        pub fn container(
+            &self,
+            project: impl Into<PathBuf>,
+            container: impl Into<PathBuf>,
+        ) -> zmq::Result<Option<state::Container>> {
+            let state = self.send(
+                query::State::Container {
+                    project: project.into(),
+                    container: container.into(),
+                }
+                .into(),
+            )?;
+
             Ok(serde_json::from_value(state).unwrap())
         }
 

@@ -16,11 +16,11 @@ fn container_tree_transform_core_to_local_should_work() {
     let c11 = CoreContainer::new(c11_name);
     let c21 = CoreContainer::new(c21_name);
 
-    let root_id = root.rid.clone();
-    let c1_id = c1.rid.clone();
-    let c2_id = c2.rid.clone();
-    let c11_id = c11.rid.clone();
-    let c21_id = c21.rid.clone();
+    let root_id = root.rid().clone();
+    let c1_id = c1.rid().clone();
+    let c2_id = c2.rid().clone();
+    let c11_id = c11.rid().clone();
+    let c21_id = c21.rid().clone();
 
     let mut core_tree = ResourceTree::new(root);
     core_tree.insert(root_id.clone(), c1).unwrap();

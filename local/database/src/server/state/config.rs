@@ -1,10 +1,9 @@
 //! Application configuration state.
+use crate::state::ManifestState;
 pub use action::Action;
 use std::path::PathBuf;
 use syre_core::system::User;
-use syre_local::{error::IoSerde, Reducible};
-
-pub type ManifestState<T> = Result<Vec<T>, IoSerde>;
+use syre_local::Reducible;
 
 /// Application config state.
 #[derive(Debug)]

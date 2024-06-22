@@ -4,7 +4,6 @@ use crate::{
     error,
     file_resource::LocalResource,
     types::analysis::{AnalysisKind, Store},
-    Result,
 };
 use serde::Serialize;
 use std::{
@@ -44,8 +43,8 @@ impl Analyses {
             .into_iter()
             .map(|analysis| {
                 let rid = match &analysis {
-                    AnalysisKind::Script(script) => script.rid.clone(),
-                    AnalysisKind::ExcelTemplate(template) => template.rid.clone(),
+                    AnalysisKind::Script(script) => script.rid().clone(),
+                    AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
                 };
 
                 (rid, analysis)
@@ -81,7 +80,7 @@ impl Analyses {
             ));
         }
 
-        self.insert(script.rid.clone(), script.into());
+        self.insert(script.rid().clone(), script.into());
 
         Ok(())
     }

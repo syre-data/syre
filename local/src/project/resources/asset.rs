@@ -9,8 +9,8 @@ use std::{
     result::Result as StdResult,
 };
 use syre_core::{
-    project::{container::AssetMap, Asset as CoreAsset, AssetProperties as CoreAssetProperties},
-    types::{Creator, ResourceId, UserId},
+    project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties},
+    types::{Creator, UserId},
 };
 
 // ******************************
@@ -61,7 +61,7 @@ impl Asset {
 /// should be prefered over `insert`.
 pub struct Assets {
     base_path: PathBuf,
-    assets: AssetMap,
+    assets: Vec<CoreAsset>,
 }
 
 impl Assets {
@@ -79,15 +79,10 @@ impl Assets {
         let file = fs::OpenOptions::new().write(true).open(self.path())?;
         Ok(serde_json::to_writer_pretty(file, &self.assets).unwrap())
     }
-
-    pub fn insert(&mut self, asset: CoreAsset) -> Option<CoreAsset> {
-        self.assets.insert(asset.rid().clone(), asset)
-    }
 }
 
 impl Deref for Assets {
-    type Target = AssetMap;
-
+    type Target = Vec<CoreAsset>;
     fn deref(&self) -> &Self::Target {
         &self.assets
     }
@@ -99,7 +94,7 @@ impl DerefMut for Assets {
     }
 }
 
-impl LocalResource<AssetMap> for Assets {
+impl LocalResource<Vec<CoreAsset>> for Assets {
     fn rel_path() -> PathBuf {
         common::assets_file()
     }

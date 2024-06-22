@@ -3,12 +3,9 @@ use crate::{
     server::state,
     Database,
 };
-use std::{assert_matches::assert_matches, io, path::PathBuf};
+use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::{
-    project::resources::{Analyses, Project},
-    TryReducible,
-};
+use syre_local::TryReducible;
 
 impl Database {
     pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
@@ -20,9 +17,7 @@ impl Database {
             event::Config::Created => todo!(),
             event::Config::Removed => todo!(),
             event::Config::Modified(_) => todo!(),
-            event::Config::ProjectManifest(kind) => {
-                self.handle_fs_event_app_project_manifest(event)
-            }
+            event::Config::ProjectManifest(_) => self.handle_fs_event_app_project_manifest(event),
             event::Config::UserManifest(_) => todo!(),
         }
     }
@@ -84,9 +79,9 @@ impl Database {
 
                 for path in manifest.iter() {
                     self.state
-                        .try_reduce(state::Action::InsertProject(
-                            state::project::State::load_from(path),
-                        ))
+                        .try_reduce(state::Action::InsertProject(state::project::State::load(
+                            path,
+                        )))
                         .unwrap();
                 }
 
@@ -163,7 +158,7 @@ impl Database {
                     added.into_iter().partition(|path| path.is_absolute());
 
                 for path in added.iter() {
-                    let project = state::project::State::load_from(path);
+                    let project = state::project::State::load(path);
                     self.state
                         .try_reduce(state::Action::InsertProject(project))
                         .unwrap();
@@ -221,7 +216,7 @@ impl Database {
                         {
                             self.state
                                 .try_reduce(state::Action::InsertProject(
-                                    state::project::State::load_from(path),
+                                    state::project::State::load(path),
                                 ))
                                 .unwrap();
 

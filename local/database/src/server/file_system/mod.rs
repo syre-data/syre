@@ -1,5 +1,6 @@
 mod analysis;
 mod app;
+mod container;
 mod project;
 
 use crate::{Database, Update};
@@ -18,7 +19,7 @@ impl Database {
             EventKind::Config(_) => self.handle_fs_event_config(event),
             EventKind::Project(_) => self.handle_fs_event_project(event),
             EventKind::Graph(_) => todo!(),
-            EventKind::Container(_) => todo!(),
+            EventKind::Container(_) => self.handle_fs_event_container(event),
             EventKind::AssetFile(_) => todo!(),
             EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),
             EventKind::File(_) => todo!(),

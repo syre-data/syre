@@ -45,7 +45,7 @@ pub fn get_path(rid: &ResourceId) -> Result<Option<PathBuf>, IoSerdeError> {
             continue;
         };
 
-        if &project.rid == rid {
+        if project.rid() == rid {
             return Ok(Some(path.to_path_buf()));
         }
     }

@@ -416,12 +416,12 @@ pub mod project {
         fn from(value: LocalProject) -> Self {
             let (properties, settings, base_path) = value.into_parts();
             let CoreProject {
-                rid: _,
                 name,
                 description,
                 data_root,
                 analysis_root,
                 meta_level: _,
+                ..
             } = properties;
 
             let ProjectSettings {
@@ -635,13 +635,13 @@ pub mod graph {
         let mut container_info = Vec::with_capacity(nodes.len());
         let mut asset_info = Vec::new();
         for container in nodes.into_values() {
-            let Container {
-                rid: cid,
-                properties,
-                assets,
-                analyses: _,
-            } = container.into_data();
             todo!();
+            // let Container {
+            //     rid: cid,
+            //     properties,
+            //     assets,
+            //     analyses: _,
+            // } = container.into_data();
 
             // let record = ContainerRecord::;
 
@@ -974,9 +974,7 @@ pub mod asset {
     impl From<Asset> for Record {
         fn from(value: Asset) -> Self {
             let Asset {
-                rid: _,
-                properties,
-                path,
+                properties, path, ..
             } = value;
 
             let created = properties.created().clone();

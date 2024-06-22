@@ -1,10 +1,11 @@
 #![feature(assert_matches)]
-
 use crossbeam::channel::Sender;
 use rand::Rng;
 use std::{
     assert_matches::{self, assert_matches},
-    fs, io, thread,
+    fs, io,
+    path::Path,
+    thread,
     time::Duration,
 };
 use syre_core::project::Script;
@@ -15,12 +16,7 @@ use syre_local::{
     system::collections::ProjectManifest,
     types::AnalysisKind,
 };
-use syre_local_database::{
-    event,
-    server::{state, Config},
-    types::PortNumber,
-    Update,
-};
+use syre_local_database::{event, server::Config, state, types::PortNumber, Update};
 
 const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
@@ -87,27 +83,23 @@ fn test_server_state_and_updates() {
     assert_eq!(projects_state.len(), 1);
     assert_eq!(projects_state[0].path(), project.path());
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert_matches!(
         project_state.properties(),
-        state::project::DataResource::Err(IoSerde::Io(err))
-        if *err == io::ErrorKind::NotFound
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
     );
     assert_matches!(
         project_state.settings(),
-        state::project::DataResource::Err(IoSerde::Io(err))
-        if *err == io::ErrorKind::NotFound
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
     );
     assert_matches!(
         project_state.analyses(),
-        state::project::DataResource::Err(IoSerde::Io(err))
-        if *err == io::ErrorKind::NotFound
-    );
-    assert_matches!(
-        project_state.graph(),
-        state::project::FolderResource::Absent
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
     );
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
@@ -126,19 +118,15 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
     assert_matches!(
         project_state.analyses(),
-        state::project::DataResource::Err(IoSerde::Io(err))
-        if *err == io::ErrorKind::NotFound
-    );
-    assert_matches!(
-        project_state.graph(),
-        state::project::FolderResource::Absent
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
     );
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
@@ -157,7 +145,7 @@ fn test_server_state_and_updates() {
             return false;
         };
 
-        if *id != project.rid {
+        if id != project.rid() {
             return false;
         }
 
@@ -180,7 +168,7 @@ fn test_server_state_and_updates() {
             return false;
         };
 
-        if *id != project.rid {
+        if id != project.rid() {
             return false;
         }
 
@@ -197,7 +185,7 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert_eq!(
@@ -217,7 +205,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     assert_matches!(
         update,
@@ -231,7 +219,7 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert_matches!(project_state.properties(), Err(IoSerde::Serde(_)));
@@ -248,7 +236,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     assert_matches!(
         update,
@@ -266,7 +254,7 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert_matches!(project_state.settings(), Err(IoSerde::Serde(_)));
@@ -295,19 +283,15 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
     assert_matches!(
         project_state.analyses(),
-        state::project::DataResource::Err(IoSerde::Io(err))
-        if *err == io::ErrorKind::NotFound
-    );
-    assert_matches!(
-        project_state.graph(),
-        state::project::FolderResource::Absent
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
     );
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
@@ -328,7 +312,7 @@ fn test_server_state_and_updates() {
                 return false;
             };
 
-            if *id != project.rid {
+            if id != project.rid() {
                 return false;
             }
 
@@ -364,7 +348,7 @@ fn test_server_state_and_updates() {
             return false;
         };
 
-        if *id != project.rid {
+        if id != project.rid() {
             return false;
         }
 
@@ -381,16 +365,12 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
     assert!(project_state.analyses().is_ok());
-    assert_matches!(
-        project_state.graph(),
-        state::project::FolderResource::Absent
-    );
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
@@ -403,7 +383,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     assert_matches!(
         update,
@@ -416,7 +396,7 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert_matches!(project_state.analyses(), Err(IoSerde::Serde(_)));
@@ -440,24 +420,20 @@ fn test_server_state_and_updates() {
     );
 
     let script = Script::from_path("test.py").unwrap();
-    analyses.insert(script.rid.clone(), AnalysisKind::Script(script.clone()));
+    analyses.insert(script.rid().clone(), AnalysisKind::Script(script.clone()));
     analyses.save().unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
 
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
-    assert_matches!(
-        project_state.graph(),
-        state::project::FolderResource::Absent
-    );
 
-    let analyses_state = project_state.analyses().as_ref().unwrap();
+    let analyses_state = project_state.analyses().unwrap();
     assert_eq!(analyses_state.len(), 1);
     let AnalysisKind::Script(script_state) = &*analyses_state[0] else {
         panic!();
@@ -476,7 +452,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     let event::Project::Analyses(event::DataResource::Repaired(analyses_state)) = update else {
         panic!();
@@ -492,10 +468,10 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    let state::project::DataResource::Ok(properties_state) = project_state.properties() else {
+    let state::DataResource::Ok(properties_state) = project_state.properties() else {
         panic!();
     };
     assert_eq!(&properties_state.analysis_root, &project.analysis_root);
@@ -522,10 +498,10 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    let analyses_state = project_state.analyses().as_ref().unwrap();
+    let analyses_state = project_state.analyses().unwrap();
     assert_eq!(analyses_state.len(), 1);
     assert!(analyses_state[0].is_present());
     assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
@@ -536,10 +512,10 @@ fn test_server_state_and_updates() {
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     let project_state = &projects_state[0].fs_resource();
-    let state::project::FolderResource::Present(project_state) = project_state else {
+    let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    let analyses_state = project_state.analyses().as_ref().unwrap();
+    let analyses_state = project_state.analyses().unwrap();
     assert_eq!(analyses_state.len(), 1);
     assert!(!analyses_state[0].is_present());
 
@@ -554,7 +530,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     let event::Project::AnalysisFile(event::AnalysisFile::Removed(removed_path)) = update else {
         panic!();
@@ -581,7 +557,7 @@ fn test_server_state_and_updates() {
         panic!();
     };
 
-    assert_eq!(*project_id.as_ref().unwrap(), project.rid);
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
     let event::Project::AnalysisFile(event::AnalysisFile::Created(created_path)) = update else {
         panic!();
@@ -593,8 +569,136 @@ fn test_server_state_and_updates() {
     assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
 
     fs::create_dir(project.data_root_path()).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let _graph = db.state().graph(project.base_path()).unwrap().unwrap();
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
-    dbg!(update);
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Created(graph)) = update else {
+        panic!();
+    };
+    assert_eq!(graph.nodes.len(), 1);
+    assert_eq!(graph.nodes[0].name(), &project.data_root);
+    assert_matches!(
+        graph.nodes[0].properties(),
+        Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+    assert_matches!(
+        graph.nodes[0].settings(),
+        Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+    assert_matches!(
+        graph.nodes[0].assets(),
+        Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+
+    let config_path = syre_local::common::app_dir_of(project.data_root_path());
+    fs::create_dir(config_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+    assert!(update_rx.recv_timeout(RECV_TIMEOUT).is_err());
+
+    let properties_path = syre_local::common::container_file_of(project.data_root_path());
+    fs::File::create(&properties_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    assert_matches!(
+        container.properties(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+    assert_matches!(
+        container.settings(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+    assert_matches!(
+        container.assets(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container {
+        path,
+        update: event::Container::Properties(update),
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(path, Path::new("/"));
+    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+
+    let settings_path = syre_local::common::container_settings_file_of(project.data_root_path());
+    fs::File::create(&settings_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let graph = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    assert_matches!(
+        container.properties(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+    assert_matches!(
+        container.settings(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+    assert_matches!(
+        container.assets(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container {
+        path,
+        update: event::Container::Settings(update),
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(path, Path::new("/"));
+    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 }
 
 struct UpdateListener {

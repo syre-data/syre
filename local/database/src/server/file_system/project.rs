@@ -1,7 +1,6 @@
 use crate::{
     event::{self as update, Update},
-    server::state,
-    Database,
+    server, state, Database,
 };
 use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
@@ -66,22 +65,21 @@ impl Database {
 
         let base_path = path.parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project_state.fs_resource()
-        else {
+        let state::FolderResource::Present(project_state) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert_matches!(
             project_state.properties(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
         assert_matches!(
             project_state.settings(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
         assert_matches!(
             project_state.analyses(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
 
         let mut updates = vec![];
@@ -91,19 +89,19 @@ impl Database {
                 let (properties, settings, project_path) = project.into_parts();
                 assert_eq!(base_path, project_path);
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Ok(properties.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Ok(properties.clone()),
                         ),
                     })
                     .unwrap();
 
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Ok(settings.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Ok(settings.clone()),
                         )
                         .into(),
                     })
@@ -133,16 +131,18 @@ impl Database {
                 let mut project_id = None;
                 if !matches!(
                     properties,
-                    state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+                    state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
                 ) {
                     if let Ok(properties) = properties.as_ref() {
                         project_id = Some(properties.rid().clone());
                     }
 
                     self.state
-                        .try_reduce(state::Action::Project {
+                        .try_reduce(server::state::Action::Project {
                             path: base_path.to_path_buf(),
-                            action: state::project::Action::SetProperties(properties.clone()),
+                            action: server::state::project::Action::SetProperties(
+                                properties.clone(),
+                            ),
                         })
                         .unwrap();
 
@@ -168,12 +168,12 @@ impl Database {
 
                 if !matches!(
                     settings,
-                    state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+                    state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
                 ) {
                     self.state
-                        .try_reduce(state::Action::Project {
+                        .try_reduce(server::state::Action::Project {
                             path: base_path.to_path_buf(),
-                            action: state::project::Action::SetSettings(settings.clone()),
+                            action: server::state::project::Action::SetSettings(settings.clone()),
                         })
                         .unwrap();
 
@@ -197,6 +197,12 @@ impl Database {
             }
         }
 
+        match Analyses::load_from(&base_path) {
+            Ok(manifest) => todo!(),
+            Err(IoSerde::Io(io::ErrorKind::NotFound)) => {}
+            Err(err) => todo!(),
+        }
+
         updates
     }
 
@@ -217,8 +223,7 @@ impl Database {
 
         let base_path = path.parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project_state.fs_resource()
-        else {
+        let state::FolderResource::Present(project_state) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
@@ -264,9 +269,9 @@ impl Database {
         }
 
         self.state
-            .try_reduce(state::Action::Project {
+            .try_reduce(server::state::Action::Project {
                 path: base_path.to_path_buf(),
-                action: state::project::Action::RemoveConfig,
+                action: server::state::project::Action::RemoveConfig,
             })
             .unwrap();
 
@@ -311,11 +316,11 @@ impl Database {
         };
 
         let project = self.state.find_resource_project_by_path(path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
             panic!("invalid state");
         };
 
-        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+        let state::DataResource::Ok(properties) = project_state.properties() else {
             panic!("invalid state");
         };
         assert_eq!(
@@ -323,10 +328,10 @@ impl Database {
             path.strip_prefix(project.path()).unwrap()
         );
 
-        let state::project::DataResource::Ok(mut analyses) = project_state.analyses().clone()
-        else {
+        let state::DataResource::Ok(analyses) = project_state.analyses() else {
             return vec![];
         };
+        let mut analyses = analyses.clone();
 
         let mut modified = false;
         for analysis in analyses.iter_mut() {
@@ -349,9 +354,9 @@ impl Database {
         let project_path = project.path().clone();
         let project_id = properties.rid().clone();
         self.state
-            .try_reduce(state::Action::Project {
+            .try_reduce(server::state::Action::Project {
                 path: project_path.clone(),
-                action: state::project::Action::SetAnalyses(state::project::DataResource::Ok(
+                action: server::state::project::Action::SetAnalyses(state::DataResource::Ok(
                     analyses.clone(),
                 )),
             })
@@ -360,7 +365,7 @@ impl Database {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Project::Analyses(update::DataResource::Modified(analyses)),
+            update::Project::Analyses(update::DataResource::Modified(analyses.clone())),
             event.id().clone(),
         )]
     }
@@ -397,11 +402,11 @@ impl Database {
         };
 
         let project = self.state.find_resource_project_by_path(path).unwrap();
-        let state::project::FolderResource::Present(project_state) = project.fs_resource() else {
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
             panic!("invalid state");
         };
 
-        let state::project::DataResource::Ok(properties) = project_state.properties() else {
+        let state::DataResource::Ok(properties) = project_state.properties() else {
             panic!("invalid state");
         };
 
@@ -410,10 +415,25 @@ impl Database {
             assert!(!project_state.graph().is_present());
 
             let project_path = project.path().clone();
-            self.state.try_reduce(self::state::Action::Project {
-                path: project_path,
-                action: state::project::action::Graph::Create(container_state),
-            })
+            let project_id = properties.rid().clone();
+            let graph = server::state::project::graph::State::load(path).unwrap();
+            let graph_state = graph.as_graph();
+            self.state
+                .try_reduce(server::state::Action::Project {
+                    path: project_path.clone(),
+                    action: server::state::project::action::Graph::Set(
+                        state::FolderResource::Present(graph),
+                    )
+                    .into(),
+                })
+                .unwrap();
+
+            vec![Update::project_with_id(
+                project_id,
+                project_path,
+                update::Graph::Created(graph_state).into(),
+                event.id().clone(),
+            )]
         } else {
             todo!();
         }
@@ -473,22 +493,22 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert_matches!(
             project.properties(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
 
         match Project::load_from_properties_only(base_path) {
             Ok(properties) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Ok(properties.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Ok(properties.clone()),
                         ),
                     })
                     .unwrap();
@@ -504,10 +524,10 @@ impl Database {
             Err(IoSerde::Io(io::ErrorKind::NotFound)) => todo!(),
             Err(err) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -537,26 +557,25 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert!(!matches!(
             project.properties(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
         };
 
         self.state
-            .try_reduce(state::Action::Project {
+            .try_reduce(server::state::Action::Project {
                 path: base_path.to_path_buf(),
-                action: state::project::Action::SetProperties(Err(IoSerde::Io(
+                action: server::state::project::Action::SetProperties(Err(IoSerde::Io(
                     io::ErrorKind::NotFound,
                 ))),
             })
@@ -591,14 +610,14 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         let state = project.properties();
         assert!(!matches!(
             state,
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
         match (Project::load_from_properties_only(base_path), state) {
@@ -608,10 +627,10 @@ impl Database {
                 }
 
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Ok(properties.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Ok(properties.clone()),
                         ),
                     })
                     .unwrap();
@@ -626,10 +645,10 @@ impl Database {
 
             (Ok(properties), Err(_)) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Ok(properties.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Ok(properties.clone()),
                         ),
                     })
                     .unwrap();
@@ -646,10 +665,10 @@ impl Database {
             (Err(err), Ok(state)) => {
                 let project_id = state.rid().clone();
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -664,10 +683,10 @@ impl Database {
 
             (Err(err), Err(_)) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetProperties(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetProperties(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -697,17 +716,16 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert_matches!(
             project.settings(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
@@ -716,10 +734,10 @@ impl Database {
         match Project::load_from_settings_only(base_path) {
             Ok(settings) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Ok(settings.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Ok(settings.clone()),
                         ),
                     })
                     .unwrap();
@@ -735,10 +753,10 @@ impl Database {
             Err(IoSerde::Io(io::ErrorKind::NotFound)) => todo!(),
             Err(err) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -769,26 +787,25 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert!(!matches!(
             project.settings(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
         };
 
         self.state
-            .try_reduce(state::Action::Project {
+            .try_reduce(server::state::Action::Project {
                 path: base_path.to_path_buf(),
-                action: state::project::Action::SetSettings(Err(IoSerde::Io(
+                action: server::state::project::Action::SetSettings(Err(IoSerde::Io(
                     io::ErrorKind::NotFound,
                 ))),
             })
@@ -823,12 +840,11 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
@@ -837,7 +853,7 @@ impl Database {
         let state = project.settings();
         assert!(!matches!(
             state,
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
         match (Project::load_from_settings_only(base_path), state) {
@@ -847,10 +863,10 @@ impl Database {
                 }
 
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Ok(settings.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Ok(settings.clone()),
                         ),
                     })
                     .unwrap();
@@ -865,10 +881,10 @@ impl Database {
 
             (Ok(settings), Err(_)) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Ok(settings.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Ok(settings.clone()),
                         ),
                     })
                     .unwrap();
@@ -884,10 +900,10 @@ impl Database {
             (Err(IoSerde::Io(io::ErrorKind::NotFound)), _) => todo!(),
             (Err(err), _) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetSettings(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetSettings(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -938,17 +954,16 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert_matches!(
             project.analyses(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
@@ -956,12 +971,12 @@ impl Database {
 
         match Analyses::load_from(base_path) {
             Ok(analyses) => {
-                let analyses = state::project::analysis::State::from_analyses(analyses);
+                let analyses = state::Analysis::from_analyses(analyses);
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetAnalyses(
-                            state::project::DataResource::Ok(analyses.clone()),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Ok(analyses.clone()),
                         ),
                     })
                     .unwrap();
@@ -977,10 +992,10 @@ impl Database {
             Err(IoSerde::Io(io::ErrorKind::NotFound)) => todo!(),
             Err(err) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetAnalyses(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();
@@ -1011,26 +1026,25 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
         assert!(!matches!(
             project.settings(),
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
         };
 
         self.state
-            .try_reduce(state::Action::Project {
+            .try_reduce(server::state::Action::Project {
                 path: base_path.to_path_buf(),
-                action: state::project::Action::SetAnalyses(Err(IoSerde::Io(
+                action: server::state::project::Action::SetAnalyses(Err(IoSerde::Io(
                     io::ErrorKind::NotFound,
                 ))),
             })
@@ -1065,12 +1079,11 @@ impl Database {
 
         let base_path = path.parent().unwrap().parent().unwrap();
         let project_state = self.state.find_project_by_path(base_path).unwrap();
-        let state::project::FolderResource::Present(project) = project_state.fs_resource() else {
+        let state::FolderResource::Present(project) = project_state.fs_resource() else {
             panic!("invalid state");
         };
 
-        let project_id = if let state::project::DataResource::Ok(properties) = project.properties()
-        {
+        let project_id = if let state::DataResource::Ok(properties) = project.properties() {
             Some(properties.rid().clone())
         } else {
             None
@@ -1079,12 +1092,12 @@ impl Database {
         let state = project.analyses();
         assert!(!matches!(
             state,
-            state::project::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
         match (Analyses::load_from(base_path), state) {
             (Ok(analyses), Ok(state)) => {
-                let analyses = state::project::analysis::State::from_analyses(analyses);
+                let analyses = state::Analysis::from_analyses(analyses);
                 if analyses.len() == state.len() {
                     let mut equal = true;
                     for analysis in analyses.iter() {
@@ -1100,10 +1113,10 @@ impl Database {
                 }
 
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetAnalyses(
-                            state::project::DataResource::Ok(analyses.clone()),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Ok(analyses.clone()),
                         ),
                     })
                     .unwrap();
@@ -1117,12 +1130,12 @@ impl Database {
             }
 
             (Ok(analyses), Err(_)) => {
-                let analyses = state::project::analysis::State::from_analyses(analyses);
+                let analyses = state::Analysis::from_analyses(analyses);
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetAnalyses(
-                            state::project::DataResource::Ok(analyses.clone()),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Ok(analyses.clone()),
                         ),
                     })
                     .unwrap();
@@ -1138,10 +1151,10 @@ impl Database {
             (Err(IoSerde::Io(io::ErrorKind::NotFound)), _) => todo!(),
             (Err(err), _) => {
                 self.state
-                    .try_reduce(state::Action::Project {
+                    .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
-                        action: state::project::Action::SetAnalyses(
-                            state::project::DataResource::Err(err.clone()),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Err(err.clone()),
                         ),
                     })
                     .unwrap();

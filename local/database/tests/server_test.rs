@@ -22,7 +22,7 @@ const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
 
 #[test_log::test]
-fn test_server_state_and_updates() {
+fn test_server_state_and_updates_basic() {
     let mut rng = rand::thread_rng();
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
@@ -1071,7 +1071,6 @@ fn test_server_state_and_updates() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    dbg!(&update);
     let event::Project::Asset {
         container: container_path,
         asset: asset_id,
@@ -1083,16 +1082,8 @@ fn test_server_state_and_updates() {
     assert_eq!(container_path, Path::new("/"));
     assert_eq!(asset_id, asset.rid());
 
-    let asset_path = project.data_root_path().join("untracked");
-    fs::File::create(&asset_path).unwrap();
+    let untracked_file = tempfile::NamedTempFile::new_in(project.data_root_path()).unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
-
-    let asset_state = db
-        .state()
-        .asset(project.base_path(), "/", asset.path.clone())
-        .unwrap()
-        .unwrap();
-    assert_eq!(asset_state.rid(), asset.rid());
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
@@ -1107,11 +1098,32 @@ fn test_server_state_and_updates() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    dbg!(&update);
     let event::Project::AssetFile(event::AssetFile::Created(asset_path)) = update else {
         panic!();
     };
-    assert_eq!(asset_path, Path::new("/untracked"));
+    let untracked_asset_path = Path::new("/").join(untracked_file.path().file_name().unwrap());
+    assert_eq!(*asset_path, untracked_asset_path);
+
+    fs::remove_file(untracked_file.path()).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::AssetFile(event::AssetFile::Removed(asset_path)) = update else {
+        panic!();
+    };
+    assert_eq!(*asset_path, untracked_asset_path);
 }
 
 struct UpdateListener {

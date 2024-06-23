@@ -1046,6 +1046,72 @@ fn test_server_state_and_updates() {
     assert_eq!(update.len(), 1);
     assert_eq!(update[0].rid(), asset.rid());
     assert!(!update[0].is_present());
+
+    let asset_path = project.data_root_path().join(&asset.path);
+    fs::File::create(&asset_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let asset_state = db
+        .state()
+        .asset(project.base_path(), "/", asset.path.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(asset_state.rid(), asset.rid());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    dbg!(&update);
+    let event::Project::Asset {
+        container: container_path,
+        asset: asset_id,
+        update: event::Asset::FileCreated,
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(container_path, Path::new("/"));
+    assert_eq!(asset_id, asset.rid());
+
+    let asset_path = project.data_root_path().join("untracked");
+    fs::File::create(&asset_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let asset_state = db
+        .state()
+        .asset(project.base_path(), "/", asset.path.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(asset_state.rid(), asset.rid());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    dbg!(&update);
+    let event::Project::AssetFile(event::AssetFile::Created(asset_path)) = update else {
+        panic!();
+    };
+    assert_eq!(asset_path, Path::new("/untracked"));
 }
 
 struct UpdateListener {

@@ -5,7 +5,7 @@
 //! e.g. `project/123-4567-890`, `project/unknown`
 use crate::state;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{ffi::OsString, path::PathBuf};
 use syre_core::{
     graph::ResourceTree,
     project::{Container as CoreContainer, ContainerProperties, Project as CoreProject},
@@ -166,8 +166,20 @@ pub enum Project {
         update: Container,
     },
 
+    /// Events assocated with a tracked asset.
+    Asset {
+        /// Absolute path from the data root.
+        ///
+        /// # Notes
+        /// Root container's path is `/`.
+        container: PathBuf,
+        asset: ResourceId,
+        update: Asset,
+    },
+
+    /// Events associated with files not currently tracked as an asset.
     #[from]
-    Asset(AssetFile),
+    AssetFile(AssetFile),
 
     #[from]
     AnalysisFile(AnalysisFile),
@@ -214,28 +226,40 @@ pub enum Container {
     Assets(DataResource<Vec<state::Asset>>),
 }
 
-/// Asset updates.
+/// Asset state updates.
+/// Indicates the associated file is being tracked as an asset.
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Asset {
+    FileCreated,
+    FileRemoved,
+}
+
+/// Asset file updates.
+/// Indicates the file is not associated with an asset.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum AssetFile {
-    Created {
-        container: ResourceId,
-        asset: syre_core::project::Asset,
-    },
+    Created(
+        /// Absolute path from the project's data root.
+        PathBuf,
+    ),
 
-    /// The `Asset`'s path property changed.
-    PathChanged {
-        asset: ResourceId,
-        path: PathBuf,
-    },
+    Removed(
+        /// Absolute path from the project's data root.
+        PathBuf,
+    ),
 
-    /// An Asset moved `Container`s.
-    Moved {
-        asset: ResourceId,
-        container: ResourceId,
-        path: PathBuf,
-    },
+    /// File name changed, but parent directory remained the same.
+    ///
+    /// # Fields
+    /// + `from`: Absolute path from the project's data root.
+    /// + `to`: New file name.
+    Renamed { from: PathBuf, to: OsString },
 
-    Removed(ResourceId),
+    /// File changed locations.
+    ///
+    /// # Fields
+    /// Paths are absolute from the project's data root.
+    Moved { from: PathBuf, to: PathBuf },
 }
 
 /// Analysis updates.

@@ -35,6 +35,18 @@ pub enum State {
         /// Relative path to the container from the data root.
         container: PathBuf,
     },
+
+    /// Retrieve the state of a container.
+    Asset {
+        /// Base path of the project.
+        project: PathBuf,
+
+        /// Relative path to the container from the data root.
+        container: PathBuf,
+
+        /// Relative path to the asset from the container.
+        asset: PathBuf,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

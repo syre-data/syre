@@ -118,7 +118,7 @@ mod state {
         /// 2. `container`: Relative path to the container from the data root.
         ///
         /// # Returns
-        /// `None` if the project or graph does not exist.
+        /// `None` if the project or container does not exist.
         pub fn container(
             &self,
             project: impl Into<PathBuf>,
@@ -128,6 +128,33 @@ mod state {
                 query::State::Container {
                     project: project.into(),
                     container: container.into(),
+                }
+                .into(),
+            )?;
+
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        /// Retrieve the state of a container.
+        ///
+        /// # Arguments
+        /// 1. `project`: Base path of the project.
+        /// 2. `container`: Relative path to the container from the data root.
+        /// 3. `asset`: Relative path to the asset from the container.
+        ///
+        /// # Returns
+        /// `None` if the project, container, or asset does not exist.
+        pub fn asset(
+            &self,
+            project: impl Into<PathBuf>,
+            container: impl Into<PathBuf>,
+            asset: impl Into<PathBuf>,
+        ) -> zmq::Result<Option<state::Asset>> {
+            let state = self.send(
+                query::State::Asset {
+                    project: project.into(),
+                    container: container.into(),
+                    asset: asset.into(),
                 }
                 .into(),
             )?;

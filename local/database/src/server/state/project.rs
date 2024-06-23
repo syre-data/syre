@@ -142,7 +142,7 @@ impl TryReducible for State {
 
 pub mod project {
     use super::{action, graph, Action, DataResource, Error, FolderResource};
-    use crate::state;
+    use crate::state::{self, FileResource};
     use std::{
         io::{self, ErrorKind},
         path::PathBuf,
@@ -338,6 +338,20 @@ pub mod project {
                     container.properties = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
                     container.settings = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
                     container.assets = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
+                }
+                action::Container::Asset { rid, action } => {
+                    let Ok(assets) = &mut container.assets else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    let Some(asset) = assets.iter_mut().find(|asset| asset.rid() == &rid) else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    match action {
+                        action::Asset::SetPresent => asset.fs_resource = FileResource::Present,
+                        action::Asset::SetAbsent => asset.fs_resource = FileResource::Absent,
+                    }
                 }
             }
 
@@ -558,7 +572,7 @@ pub mod graph {
 
             let root = graph.root().clone();
             for child in children {
-                graph.insert(&root, child);
+                graph.insert(&root, child).unwrap();
             }
 
             graph
@@ -721,6 +735,7 @@ pub mod graph {
     }
 
     mod error {
+        #[derive(Debug)]
         pub enum Insert {
             ParentNotFound,
             NameCollision,
@@ -732,7 +747,7 @@ pub(crate) mod action {
     use super::{graph, project::State as Project, DataResource, FolderResource};
     use crate::state;
     use std::path::PathBuf;
-    use syre_core::project::Project as CoreProject;
+    use syre_core::{project::Project as CoreProject, types::ResourceId};
     use syre_local::{
         project::resources::container::StoredContainerProperties,
         types::{ContainerSettings, ProjectSettings},
@@ -777,7 +792,7 @@ pub(crate) mod action {
         Set(FolderResource<graph::State>),
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, derive_more::From)]
     pub enum Container {
         SetProperties(DataResource<StoredContainerProperties>),
         SetSettings(DataResource<ContainerSettings>),
@@ -785,6 +800,18 @@ pub(crate) mod action {
 
         /// Sets all config resources to be absent.
         RemoveConfig,
+
+        #[from]
+        Asset {
+            rid: ResourceId,
+            action: Asset,
+        },
+    }
+
+    #[derive(Debug)]
+    pub enum Asset {
+        SetPresent,
+        SetAbsent,
     }
 }
 

@@ -37,6 +37,14 @@ impl Database {
 
                 serde_json::to_value(state).unwrap()
             }
+            query::State::Asset {
+                project,
+                container,
+                asset,
+            } => {
+                let state = self.handle_query_state_asset(project, container, asset);
+                serde_json::to_value(state).unwrap()
+            }
         }
     }
 
@@ -97,6 +105,42 @@ impl Database {
         };
 
         graph.find(container)
+    }
+
+    // NB: Asset is copied for code cleanliness.
+    //      If this becomes a performance issue, this can be changed.
+    /// # Arguments
+    /// 1. `project`: Path to the project's base folder.
+    /// 2. `container`: Absolute path to the container from the graph root.
+    /// 3. `asset`: Relative path to the asset file from the container.
+    fn handle_query_state_asset(
+        &self,
+        project: PathBuf,
+        container: PathBuf,
+        asset: PathBuf,
+    ) -> Option<state::Asset> {
+        let Some(project) = self.state.find_project_by_path(&project) else {
+            return None;
+        };
+
+        let state::FolderResource::Present(project) = project.fs_resource() else {
+            return None;
+        };
+
+        let state::FolderResource::Present(graph) = project.graph() else {
+            return None;
+        };
+
+        let Some(container) = graph.find(container) else {
+            return None;
+        };
+
+        let container = container.lock().unwrap();
+        let state::DataResource::Ok(ref assets) = container.assets else {
+            return None;
+        };
+
+        assets.iter().find(|state| state.path == asset).cloned()
     }
 }
 

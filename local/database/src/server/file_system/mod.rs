@@ -1,5 +1,6 @@
 mod analysis;
 mod app;
+mod asset;
 mod container;
 mod project;
 
@@ -20,7 +21,7 @@ impl Database {
             EventKind::Project(_) => self.handle_fs_event_project(event),
             EventKind::Graph(_) => todo!(),
             EventKind::Container(_) => self.handle_fs_event_container(event),
-            EventKind::AssetFile(_) => todo!(),
+            EventKind::AssetFile(_) => self.handle_fs_event_asset_file(event),
             EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),
             EventKind::File(_) => todo!(),
             EventKind::Folder(_) => todo!(),

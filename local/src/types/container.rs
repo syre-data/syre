@@ -7,7 +7,7 @@ use syre_core::types::{UserId, UserPermissions};
 // *************************
 
 /// Settings for a Container
-#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+#[derive(PartialEq, Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ContainerSettings {
     pub creator: Option<UserId>,
     pub created: DateTime<Utc>,

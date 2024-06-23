@@ -126,10 +126,26 @@ impl Container {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct Asset {
     pub(crate) properties: CoreAsset,
     pub(crate) fs_resource: FileResource,
+}
+
+impl Asset {
+    pub fn is_present(&self) -> bool {
+        match self.fs_resource {
+            FileResource::Present => true,
+            FileResource::Absent => false,
+        }
+    }
+}
+
+impl Deref for Asset {
+    type Target = CoreAsset;
+    fn deref(&self) -> &Self::Target {
+        &self.properties
+    }
 }
 
 /// # Notes

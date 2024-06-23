@@ -63,12 +63,24 @@ impl Loader {
         base_path: impl AsRef<Path>,
     ) -> Result<StoredContainerProperties, IoSerde> {
         let base_path = base_path.as_ref();
-        let properties_path =
+        let path =
             base_path.join(<Container as LocalResource<StoredContainerProperties>>::rel_path());
 
-        Ok(Self::load_json::<StoredContainerProperties>(
-            properties_path,
-        )?)
+        Ok(Self::load_json::<StoredContainerProperties>(path)?)
+    }
+
+    pub fn load_from_only_settings(
+        base_path: impl AsRef<Path>,
+    ) -> Result<ContainerSettings, IoSerde> {
+        let base_path = base_path.as_ref();
+        let path = base_path.join(<Container as LocalResource<ContainerSettings>>::rel_path());
+        Ok(Self::load_json::<ContainerSettings>(path)?)
+    }
+
+    pub fn load_from_only_assets(base_path: impl AsRef<Path>) -> Result<Vec<Asset>, IoSerde> {
+        let base_path = base_path.as_ref();
+        let path = base_path.join(<Container as LocalResource<Vec<Asset>>>::rel_path());
+        Ok(Self::load_json::<Vec<Asset>>(path)?)
     }
 
     /// Convenience function for loading data from a JSON file.

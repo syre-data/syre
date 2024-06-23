@@ -30,7 +30,7 @@ use syre_core::{
 // ***********************************
 
 /// Properties for a Container.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct StoredContainerProperties {
     pub rid: ResourceId,
     pub properties: CoreContainerProperties,

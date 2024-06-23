@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use syre_core::project::Script;
+use syre_core::project::{Asset, Script};
 use syre_local::{
     error::IoSerde,
     file_resource::LocalResource,
@@ -658,7 +658,7 @@ fn test_server_state_and_updates() {
     fs::File::create(&settings_path).unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
 
-    let graph = db
+    let container = db
         .state()
         .container(project.base_path(), "/")
         .unwrap()
@@ -699,6 +699,353 @@ fn test_server_state_and_updates() {
     };
     assert_eq!(path, Path::new("/"));
     assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+
+    let assets_path = syre_local::common::assets_file_of(project.data_root_path());
+    fs::File::create(&assets_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    assert_matches!(
+        container.properties(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+    assert_matches!(
+        container.settings(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+    assert_matches!(
+        container.assets(),
+        state::DataResource::Err(IoSerde::Serde(_))
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container {
+        path,
+        update: event::Container::Assets(update),
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(path, Path::new("/"));
+    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+
+    fs::remove_dir_all(syre_local::common::app_dir_of(project.data_root_path())).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    assert_matches!(
+        container.properties(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+    assert_matches!(
+        container.settings(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+    assert_matches!(
+        container.assets(),
+        state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 3);
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update: event::Container::Properties(event::DataResource::Removed),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        true
+    }));
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update: event::Container::Settings(event::DataResource::Removed),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        true
+    }));
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update: event::Container::Assets(event::DataResource::Removed),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        true
+    }));
+
+    let mut container = syre_local::project::resources::Container::new(project.data_root_path());
+    container.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container_state = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    let state::DataResource::Ok(container_id) = container_state.rid() else {
+        panic!();
+    };
+    assert_eq!(container_id, container.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    let state::DataResource::Ok(assets) = container_state.assets() else {
+        panic!("invalid state");
+    };
+    assert!(assets.is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 3);
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update:
+                        event::Container::Properties(event::DataResource::Created(Ok(properties))),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        &properties.rid == container.rid()
+    }));
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update: event::Container::Settings(event::DataResource::Created(Ok(_))),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        true
+    }));
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: project_path,
+            update:
+                event::Project::Container {
+                    path: container_path,
+                    update: event::Container::Assets(event::DataResource::Created(Ok(assets))),
+                },
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid()
+            || project_path != project.base_path()
+            || container_path.as_os_str() != "/"
+        {
+            return false;
+        }
+
+        assets.is_empty()
+    }));
+
+    container.properties.kind = Some("test".to_string());
+    container.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container_state = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    let state::DataResource::Ok(container_id) = container_state.rid() else {
+        panic!();
+    };
+    assert_eq!(container_id, container.rid());
+    let state::DataResource::Ok(properties) = container_state.properties() else {
+        panic!();
+    };
+    assert_eq!(properties, &container.properties);
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container {
+        path,
+        update: event::Container::Properties(event::DataResource::Modified(update)),
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(path, Path::new("/"));
+    assert_eq!(&update.rid, container.rid());
+    assert_eq!(&update.properties, &container.properties);
+
+    let asset = Asset::new("my_asset.csv");
+    container.assets.push(asset.clone());
+    container.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container_state = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    let state::DataResource::Ok(container_id) = container_state.rid() else {
+        panic!();
+    };
+    assert_eq!(container_id, container.rid());
+    let state::DataResource::Ok(assets) = container_state.assets() else {
+        panic!();
+    };
+    assert_eq!(assets.len(), 1);
+    assert_eq!(assets[0].rid(), asset.rid());
+    assert!(!assets[0].is_present());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container {
+        path,
+        update: event::Container::Assets(event::DataResource::Modified(update)),
+    } = update
+    else {
+        panic!();
+    };
+    assert_eq!(path, Path::new("/"));
+    assert_eq!(update.len(), 1);
+    assert_eq!(update[0].rid(), asset.rid());
+    assert!(!update[0].is_present());
 }
 
 struct UpdateListener {

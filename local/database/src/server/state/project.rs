@@ -334,6 +334,11 @@ pub mod project {
                 action::Container::SetAssets(assets) => {
                     container.assets = assets;
                 }
+                action::Container::RemoveConfig => {
+                    container.properties = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
+                    container.settings = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
+                    container.assets = DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound));
+                }
             }
 
             Ok(())
@@ -344,10 +349,8 @@ pub mod project {
 pub mod analysis {
     use super::FileResource;
     use crate::state::Analysis;
-    use std::path::{Path, PathBuf};
-    use syre_local::{
-        file_resource::LocalResource, project::resources::Analyses, types::AnalysisKind,
-    };
+    use std::path::Path;
+    use syre_local::types::AnalysisKind;
 
     impl Analysis {
         pub fn present(properties: AnalysisKind) -> Self {
@@ -362,43 +365,6 @@ pub mod analysis {
                 properties,
                 fs_resource: FileResource::Absent,
             }
-        }
-
-        /// Create from list of analyses by if checking paths are present in the file system.
-        ///
-        /// # Arguments
-        /// + `path`: Path to the analysis root.
-        /// + `analyses`: List of analysis properties.
-        pub fn from_analyses(analyses: Analyses) -> Vec<Self> {
-            Self::from_resources(analyses.path(), analyses.to_vec())
-        }
-
-        /// Create from list of analyses by if checking paths are present in the file system.
-        ///
-        /// # Arguments
-        /// + `path`: Path to the analysis root.
-        /// + `analyses`: List of analysis properties.
-        pub fn from_resources(path: impl Into<PathBuf>, analyses: Vec<AnalysisKind>) -> Vec<Self> {
-            let path = path.into();
-            analyses
-                .into_iter()
-                .map(|analysis| match analysis {
-                    syre_local::types::AnalysisKind::Script(ref script) => {
-                        if path.join(&script.path).is_file() {
-                            Self::present(analysis)
-                        } else {
-                            Self::absent(analysis)
-                        }
-                    }
-                    syre_local::types::AnalysisKind::ExcelTemplate(ref template) => {
-                        if path.join(&template.template.path).is_file() {
-                            Self::present(analysis)
-                        } else {
-                            Self::absent(analysis)
-                        }
-                    }
-                })
-                .collect()
         }
     }
 
@@ -504,10 +470,19 @@ mod container {
         }
     }
 
-    impl Deref for Asset {
-        type Target = CoreAsset;
-        fn deref(&self) -> &Self::Target {
-            &self.properties
+    impl Asset {
+        pub fn present(asset: CoreAsset) -> Self {
+            Self {
+                properties: asset,
+                fs_resource: FileResource::Present,
+            }
+        }
+
+        pub fn absent(asset: CoreAsset) -> Self {
+            Self {
+                properties: asset,
+                fs_resource: FileResource::Absent,
+            }
         }
     }
 }
@@ -774,7 +749,7 @@ pub(crate) mod action {
         /// Sets the project's base folder to be `Present` with the given state.
         CreateFolder(Project),
 
-        /// Sets all config resources to be `Absent`.
+        /// Sets all config resources to be absent.
         RemoveConfig,
 
         SetProperties(DataResource<CoreProject>),
@@ -807,6 +782,9 @@ pub(crate) mod action {
         SetProperties(DataResource<StoredContainerProperties>),
         SetSettings(DataResource<ContainerSettings>),
         SetAssets(DataResource<Vec<state::Asset>>),
+
+        /// Sets all config resources to be absent.
+        RemoveConfig,
     }
 }
 

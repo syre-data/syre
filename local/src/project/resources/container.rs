@@ -75,7 +75,7 @@ impl Container {
         Self {
             base_path: path,
             container: CoreContainer::new(name),
-            settings: ContainerSettings::default(),
+            settings: ContainerSettings::new(),
         }
     }
 

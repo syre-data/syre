@@ -1,4 +1,5 @@
 use crate::{
+    common,
     event::{self as update, Update},
     server, state, Database,
 };
@@ -76,10 +77,11 @@ impl Database {
             panic!("invalid state");
         };
 
-        let container_graph_path = base_path
-            .strip_prefix(project.path().join(&project_properties.data_root))
-            .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::container_graph_path(
+            project.path().join(&project_properties.data_root),
+            &base_path,
+        )
+        .unwrap();
         let container_state = graph.find(&container_graph_path).unwrap();
         let container_state = container_state.lock().unwrap();
         assert_matches!(

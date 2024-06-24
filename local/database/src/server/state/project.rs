@@ -298,18 +298,39 @@ pub mod project {
 
                     Ok(())
                 }
-                Action::Graph(action) => match action {
-                    super::action::Graph::Set(graph) => {
-                        self.graph = graph;
-                        Ok(())
-                    }
-                },
+                Action::Graph(action) => self.try_reduce_graph(action),
                 Action::Container { path, action } => self.try_reduce_container(path, action),
             }
         }
     }
 
     impl State {
+        fn try_reduce_graph(&mut self, action: action::Graph) -> std::result::Result<(), Error> {
+            match action {
+                super::action::Graph::Set(graph) => {
+                    self.graph = graph;
+                    Ok(())
+                }
+                super::action::Graph::Insert {
+                    parent,
+                    graph: subgraph,
+                } => {
+                    let FolderResource::Present(ref mut graph) = self.graph else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    let Some(parent) = graph.find(&parent).cloned() else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    graph.insert(&parent, subgraph).map_err(|err| match err {
+                        graph::error::Insert::ParentNotFound => Error::DoesNotExist,
+                        graph::error::Insert::NameCollision => Error::InvalidTransition,
+                    })
+                }
+            }
+        }
+
         fn try_reduce_container(
             &mut self,
             path: PathBuf,
@@ -565,9 +586,18 @@ pub mod graph {
             let children = fs::read_dir(path)
                 .unwrap()
                 .into_iter()
+                .filter_map(|entry| {
+                    let path = entry.unwrap().path();
+                    if path.file_name().unwrap() == syre_local::common::app_dir() || !path.is_dir()
+                    {
+                        None
+                    } else {
+                        Some(path)
+                    }
+                })
                 .collect::<Vec<_>>()
                 .into_par_iter()
-                .map(|entry| Self::load_tree(entry.unwrap().path()))
+                .map(|path| Self::load_tree(path))
                 .collect::<Vec<_>>();
 
             let root = graph.root().clone();
@@ -584,6 +614,7 @@ pub mod graph {
             &self.root
         }
 
+        /// Insert a subtree into the graph as a child of the given parent.
         pub fn insert(&mut self, parent: &Node, graph: Self) -> Result<(), error::Insert> {
             let Self {
                 nodes,
@@ -640,6 +671,26 @@ pub mod graph {
                     None
                 }
             })
+        }
+
+        /// Retrieve all descendants of the root node,
+        /// including self.
+        ///
+        /// # Returns
+        /// `None` if the root node is not found in the graph.
+        /// Parents come before  their children.
+        /// The root node is at index 0.
+        fn descendants(&self, root: &Node) -> Option<Vec<Node>> {
+            if !self.nodes.iter().any(|node| Arc::ptr_eq(node, root)) {
+                return None;
+            }
+
+            let mut descendants = vec![root.clone()];
+            for child in self.children(root).unwrap() {
+                descendants.extend(self.descendants(child).unwrap());
+            }
+
+            Some(descendants)
         }
 
         /// Returns the given node's parent if the node exists
@@ -732,14 +783,47 @@ pub mod graph {
 
             Graph { nodes, children }
         }
+
+        pub fn subgraph_as_graph(&self, root: impl AsRef<Path>) -> Result<Graph, error::NotFound> {
+            let Some(root) = self.find(root) else {
+                return Err(error::NotFound);
+            };
+
+            let nodes = self.descendants(root).unwrap();
+            let (nodes, children) = nodes
+                .iter()
+                .enumerate()
+                .map(|(idx, node)| {
+                    let children = self
+                        .children(node)
+                        .unwrap()
+                        .iter()
+                        .map(|child| {
+                            nodes
+                                .iter()
+                                .position(|node| Arc::ptr_eq(node, child))
+                                .unwrap()
+                        })
+                        .collect();
+
+                    let container = node.lock().unwrap();
+                    ((*container).clone(), (idx, children))
+                })
+                .unzip();
+
+            Ok(Graph { nodes, children })
+        }
     }
 
-    mod error {
+    pub mod error {
         #[derive(Debug)]
         pub enum Insert {
             ParentNotFound,
             NameCollision,
         }
+
+        #[derive(Debug)]
+        pub struct NotFound;
     }
 }
 
@@ -790,6 +874,14 @@ pub(crate) mod action {
     pub enum Graph {
         /// Sets the state of the graph.
         Set(FolderResource<graph::State>),
+
+        /// Insert a subgraph.
+        Insert {
+            /// Absoulte path from the project's data root to the parent container.
+            /// i.e. The root path represents the data root container.
+            parent: PathBuf,
+            graph: graph::State,
+        },
     }
 
     #[derive(Debug, derive_more::From)]

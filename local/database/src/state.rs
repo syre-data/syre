@@ -155,6 +155,8 @@ pub struct Graph {
     pub nodes: Vec<Container>,
 
     /// Parent-children relations.
+    ///
+    /// Elements are indices of `nodes`.
     pub children: Vec<(usize, Vec<usize>)>,
 }
 

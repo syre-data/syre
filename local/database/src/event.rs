@@ -197,24 +197,21 @@ pub enum Graph {
 
     /// A subgraph was created.
     Inserted {
-        parent: ResourceId,
+        /// Absolute path from the project's data root to the parent container.
+        /// i.e. The root path is the data root container.
+        parent: PathBuf,
         graph: state::Graph,
     },
 
     /// A subgraph was moved within the `Project`.
     ///
     /// # Fields
-    /// `parent`: New parent of the subgraph.
-    /// `root`: Root of the subgraph.
-    /// `name`: Name of the root `Container`.
-    Moved {
-        root: ResourceId,
-        parent: ResourceId,
-        name: String,
-    },
+    /// Paths are absolute from the the data root.
+    Moved { from: PathBuf, to: PathBuf },
 
-    /// Subgraph was removed.
-    Removed(ResourceTree<CoreContainer>),
+    /// The subgraph at the path was removed.
+    /// Path is absolute from the project's data root.
+    Removed(PathBuf),
 }
 
 /// Container updates.

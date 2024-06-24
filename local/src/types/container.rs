@@ -11,7 +11,15 @@ use syre_core::types::{UserId, UserPermissions};
 pub struct ContainerSettings {
     pub creator: Option<UserId>,
     pub created: DateTime<Utc>,
-
-    #[serde(default)]
     pub permissions: Vec<UserPermissions>,
+}
+
+impl ContainerSettings {
+    pub fn new() -> Self {
+        Self {
+            creator: None,
+            created: Utc::now(),
+            permissions: vec![],
+        }
+    }
 }

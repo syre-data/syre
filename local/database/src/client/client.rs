@@ -115,7 +115,7 @@ mod state {
         ///
         /// # Arguments
         /// 1. `project`: Base path of the project.
-        /// 2. `container`: Relative path to the container from the data root.
+        /// 2. `container`: Absolute path to the container from the data root.
         ///
         /// # Returns
         /// `None` if the project or container does not exist.

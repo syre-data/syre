@@ -1,18 +1,12 @@
 #![feature(assert_matches)]
 use crossbeam::channel::Sender;
 use rand::Rng;
-use std::{
-    assert_matches::{self, assert_matches},
-    fs, io,
-    path::Path,
-    thread,
-    time::Duration,
-};
+use std::{assert_matches::assert_matches, fs, io, path::Path, thread, time::Duration};
 use syre_core::project::{Asset, Script};
 use syre_local::{
     error::IoSerde,
     file_resource::LocalResource,
-    project::resources::{Analyses, Project},
+    project::resources::{Analyses, Container, Project},
     system::collections::ProjectManifest,
     types::AnalysisKind,
 };
@@ -22,7 +16,7 @@ const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
 
 #[test_log::test]
-fn test_server_state_and_updates_basic() {
+fn test_server_state_and_updates_basics() {
     let mut rng = rand::thread_rng();
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
@@ -40,6 +34,7 @@ fn test_server_state_and_updates_basic() {
     let db = syre_local_database::server::Builder::new(config);
     thread::spawn(move || db.run().unwrap());
     let db = syre_local_database::Client::new();
+    thread::sleep(ACTION_SLEEP_TIME);
 
     let user_manifest_state = db.state().user_manifest().unwrap();
     assert_matches!(user_manifest_state, Err(IoSerde::Serde(_)));
@@ -852,7 +847,7 @@ fn test_server_state_and_updates_basic() {
         true
     }));
 
-    let mut container = syre_local::project::resources::Container::new(project.data_root_path());
+    let mut container = Container::new(project.data_root_path());
     container.save().unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
 
@@ -868,10 +863,7 @@ fn test_server_state_and_updates_basic() {
     assert_eq!(container_id, container.rid());
     assert!(container_state.properties().is_ok());
     assert!(container_state.settings().is_ok());
-    let state::DataResource::Ok(assets) = container_state.assets() else {
-        panic!("invalid state");
-    };
-    assert!(assets.is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 3);
@@ -1124,6 +1116,190 @@ fn test_server_state_and_updates_basic() {
         panic!();
     };
     assert_eq!(*asset_path, untracked_asset_path);
+}
+
+#[test_log::test]
+fn test_server_state_and_updates_graph() {
+    let mut rng = rand::thread_rng();
+    let dir = tempfile::tempdir().unwrap();
+    let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+    let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+    fs::write(user_manifest.path(), "[]").unwrap();
+    fs::write(project_manifest.path(), "[]").unwrap();
+    let config = Config::new(
+        user_manifest.path(),
+        project_manifest.path(),
+        rng.gen_range(1024..PortNumber::max_value()),
+    );
+
+    let (update_tx, update_rx) = crossbeam::channel::unbounded();
+    let update_listener = UpdateListener::new(update_tx, config.update_port());
+    thread::spawn(move || update_listener.run());
+
+    let db = syre_local_database::server::Builder::new(config);
+    thread::spawn(move || db.run().unwrap());
+    let db = syre_local_database::Client::new();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let project = tempfile::tempdir().unwrap();
+    let mut project_manifest = ProjectManifest::load_from(project_manifest.path()).unwrap();
+    project_manifest.push(project.path().to_path_buf());
+    project_manifest.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let project_manifest_state = db.state().project_manifest().unwrap();
+    assert_matches!(project_manifest_state, Ok(paths) if *paths == *project_manifest);
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    assert_eq!(projects_state[0].path(), project.path());
+    assert!(&projects_state[0].fs_resource().is_present());
+    update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+
+    let mut project = Project::new(project.path()).unwrap();
+    project.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let projects_state = db.state().projects().unwrap();
+    assert_eq!(projects_state.len(), 1);
+    let project_state = &projects_state[0].fs_resource();
+    let state::FolderResource::Present(project_state) = project_state else {
+        panic!();
+    };
+    assert!(project_state.properties().is_ok());
+    assert!(project_state.settings().is_ok());
+    assert_matches!(
+        project_state.analyses(),
+        state::DataResource::Err(IoSerde::Io(err))
+        if err == io::ErrorKind::NotFound
+    );
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 2);
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: _,
+            update,
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid() {
+            return false;
+        }
+
+        matches!(
+            update,
+            event::Project::Properties(event::DataResource::Created(_))
+        )
+    }));
+    assert!(update.iter().any(|update| {
+        let event::UpdateKind::Project {
+            project: id,
+            path: _,
+            update,
+        } = update.kind()
+        else {
+            return false;
+        };
+
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+
+        if id != project.rid() {
+            return false;
+        }
+
+        matches!(
+            update,
+            event::Project::Settings(event::DataResource::Created(_))
+        )
+    }));
+
+    let root_container = Container::new(project.data_root_path());
+    root_container.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let container_state = db
+        .state()
+        .container(project.base_path(), "/")
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), root_container.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Created(graph)) = update else {
+        panic!();
+    };
+    assert_eq!(graph.nodes.len(), 1);
+    assert_eq!(graph.nodes[0].name(), &project.data_root);
+    assert_eq!(graph.nodes[0].rid().unwrap(), root_container.rid());
+
+    let c1 = Container::new(project.data_root_path().join("c1"));
+    c1.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let c1_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), c1.base_path())
+            .unwrap();
+    let container_state = db
+        .state()
+        .container(project.base_path(), &c1_graph_path)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), c1.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Inserted { parent, graph }) = update else {
+        panic!();
+    };
+    assert_eq!(parent.as_os_str(), "/");
+    assert_eq!(graph.nodes.len(), 1);
+    assert_eq!(
+        graph.nodes[0].name().to_string_lossy().to_string(),
+        c1.properties.name
+    );
+    assert_eq!(graph.nodes[0].rid().unwrap(), c1.rid());
 }
 
 struct UpdateListener {

@@ -17,7 +17,7 @@ impl Database {
         match kind {
             event::Graph::Created => self.handle_fs_event_graph_created(event),
             event::Graph::Removed => todo!(),
-            event::Graph::Moved => todo!(),
+            event::Graph::Moved => self.handle_fs_event_graph_moved(event),
             event::Graph::Modified(_) => todo!(),
         }
     }
@@ -68,6 +68,54 @@ impl Database {
             update::Graph::Inserted {
                 parent: parent_path,
                 graph: subgraph_state,
+            }
+            .into(),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_graph_moved(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Graph(event::Graph::Moved) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        assert!(project_state.graph().is_present());
+        let state::DataResource::Ok(project_properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let data_root_path = project.path().join(&project_properties.data_root);
+        let from_path = common::container_graph_path(&data_root_path, from).unwrap();
+        let to_path = common::container_graph_path(&data_root_path, to).unwrap();
+
+        let project_path = project.path().clone();
+        let project_id = project_properties.rid().clone();
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Graph::Move {
+                    from: from_path.clone(),
+                    to: to_path.clone(),
+                }
+                .into(),
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id.clone(),
+            project_path.clone(),
+            update::Graph::Moved {
+                from: from_path,
+                to: to_path,
             }
             .into(),
             event.id().clone(),

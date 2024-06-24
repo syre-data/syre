@@ -145,7 +145,7 @@ pub mod project {
     use crate::state::{self, FileResource};
     use std::{
         io::{self, ErrorKind},
-        path::PathBuf,
+        path::{Path, PathBuf},
     };
     use syre_core::project::Project as CoreProject;
     use syre_local::{error::IoSerde, types::ProjectSettings, TryReducible};
@@ -305,7 +305,7 @@ pub mod project {
     }
 
     impl State {
-        fn try_reduce_graph(&mut self, action: action::Graph) -> std::result::Result<(), Error> {
+        fn try_reduce_graph(&mut self, action: action::Graph) -> Result<(), Error> {
             match action {
                 super::action::Graph::Set(graph) => {
                     self.graph = graph;
@@ -328,6 +328,20 @@ pub mod project {
                         graph::error::Insert::NameCollision => Error::InvalidTransition,
                     })
                 }
+                action::Graph::Move { from, to } => {
+                    let FolderResource::Present(ref mut graph) = self.graph else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    graph.mv(&from, &to).map_err(|err| match err {
+                        graph::error::Move::FromNotFound | graph::error::Move::ParentNotFound => {
+                            Error::DoesNotExist
+                        }
+                        graph::error::Move::Root
+                        | graph::error::Move::InvalidPaths
+                        | graph::error::Move::NameCollision => Error::InvalidTransition,
+                    })
+                }
             }
         }
 
@@ -346,6 +360,9 @@ pub mod project {
 
             let mut container = container.lock().unwrap();
             match action {
+                action::Container::SetName(name) => {
+                    container.name = name;
+                }
                 action::Container::SetProperties(properties) => {
                     container.properties = properties;
                 }
@@ -742,6 +759,60 @@ pub mod graph {
 
             Some(node)
         }
+
+        /// Move a subgraph to a new parent.
+        ///
+        /// # Arguments
+        /// 1. `from`: Absolute path of the node to move.
+        /// 2. `to`: Absolute path of the new location.
+        pub fn mv(
+            &mut self,
+            from: impl AsRef<Path>,
+            to: impl AsRef<Path>,
+        ) -> Result<(), error::Move> {
+            let from_path = from.as_ref();
+            let to_path = to.as_ref();
+            if !(from_path.is_absolute() && to_path.is_absolute()) {
+                return Err(error::Move::InvalidPaths);
+            }
+
+            let root_path = Path::new("/");
+            if from_path == root_path || to_path == root_path {
+                return Err(error::Move::Root);
+            }
+
+            if to_path.starts_with(from_path) {
+                return Err(error::Move::InvalidPaths);
+            }
+
+            let Some(from_node) = self.find(from_path).cloned() else {
+                return Err(error::Move::FromNotFound);
+            };
+
+            let Some(to_parent) = self.find(to_path.parent().unwrap()).cloned() else {
+                return Err(error::Move::ParentNotFound);
+            };
+
+            let from_parent = self.parent(&from_node).unwrap().clone();
+            if Arc::ptr_eq(&from_parent, &to_parent) {
+                return Ok(());
+            }
+
+            self.children_mut(&from_parent)
+                .unwrap()
+                .retain(|child| !Arc::ptr_eq(child, &from_node));
+            self.children_mut(&to_parent)
+                .unwrap()
+                .push(from_node.clone());
+
+            self.parents
+                .retain(|(child, _)| !Arc::ptr_eq(child, &from_node));
+            self.parents.push((from_node.clone(), to_parent));
+
+            let mut container = from_node.lock().unwrap();
+            container.name = to_path.file_name().unwrap().to_os_string();
+            Ok(())
+        }
     }
 
     impl State {
@@ -823,6 +894,21 @@ pub mod graph {
         }
 
         #[derive(Debug)]
+        pub enum Move {
+            /// Root node can not be moved.
+            Root,
+            FromNotFound,
+
+            /// The new parent was not found.
+            ParentNotFound,
+
+            /// The paths are invalid relative to each other.
+            /// e.g. If to is a child of from.
+            InvalidPaths,
+            NameCollision,
+        }
+
+        #[derive(Debug)]
         pub struct NotFound;
     }
 }
@@ -830,7 +916,7 @@ pub mod graph {
 pub(crate) mod action {
     use super::{graph, project::State as Project, DataResource, FolderResource};
     use crate::state;
-    use std::path::PathBuf;
+    use std::{ffi::OsString, path::PathBuf};
     use syre_core::{project::Project as CoreProject, types::ResourceId};
     use syre_local::{
         project::resources::container::StoredContainerProperties,
@@ -882,10 +968,17 @@ pub(crate) mod action {
             parent: PathBuf,
             graph: graph::State,
         },
+
+        /// Move a subgraph.
+        ///
+        /// # Fields
+        /// Paths are absolute from the graph root to the container.
+        Move { from: PathBuf, to: PathBuf },
     }
 
     #[derive(Debug, derive_more::From)]
     pub enum Container {
+        SetName(OsString),
         SetProperties(DataResource<StoredContainerProperties>),
         SetSettings(DataResource<ContainerSettings>),
         SetAssets(DataResource<Vec<state::Asset>>),

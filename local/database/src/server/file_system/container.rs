@@ -17,12 +17,69 @@ impl Database {
         };
 
         match kind {
-            event::Container::Renamed => todo!(),
+            event::Container::Renamed => self.handle_fs_event_container_renamed(event),
             event::Container::ConfigDir(_) => self.handle_fs_event_container_config_dir(event),
             event::Container::Properties(_) => self.handle_fs_event_container_properties(event),
             event::Container::Settings(_) => self.handle_fs_event_container_settings(event),
             event::Container::Assets(_) => self.handle_fs_event_container_assets(event),
         }
+    }
+}
+
+impl Database {
+    fn handle_fs_event_container_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Container(event::Container::Renamed)
+        );
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+        assert_eq!(from.parent(), to.parent());
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::FolderResource::Present(graph) = project_state.graph() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(project_properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let container_graph_path =
+            common::container_graph_path(project.path().join(&project_properties.data_root), &from)
+                .unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = container_state.lock().unwrap();
+        let to_name = to.file_name().unwrap().to_os_string();
+        let project_path = project.path().clone();
+        let project_id = project_properties.rid().clone();
+        drop(container_state);
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::Action::Container {
+                    path: container_graph_path.clone(),
+                    action: server::state::project::action::Container::SetName(to_name.clone()),
+                },
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id.clone(),
+            project_path.clone(),
+            update::Graph::Renamed {
+                from: container_graph_path,
+                to: to_name,
+            }
+            .into(),
+            event.id().clone(),
+        )]
     }
 }
 

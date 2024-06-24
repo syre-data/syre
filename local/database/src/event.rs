@@ -203,10 +203,23 @@ pub enum Graph {
         graph: state::Graph,
     },
 
+    /// A subgraph root wa renamed.
+    ///
+    /// # Fields
+    /// + `from`: Absolute path from the the data root.
+    /// + `to`: New name.
+    ///
+    /// # Notes
+    /// + The parent container of the root has not changed.
+    Renamed { from: PathBuf, to: OsString },
+
     /// A subgraph was moved within the `Project`.
     ///
     /// # Fields
     /// Paths are absolute from the the data root.
+    ///
+    /// # Notes
+    /// + The parent container of the root changed.
     Moved { from: PathBuf, to: PathBuf },
 
     /// The subgraph at the path was removed.

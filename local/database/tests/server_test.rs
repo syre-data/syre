@@ -1300,6 +1300,187 @@ fn test_server_state_and_updates_graph() {
         c1.properties.name
     );
     assert_eq!(graph.nodes[0].rid().unwrap(), c1.rid());
+
+    let mut c2 = Container::new(project.data_root_path().join("c2"));
+    c2.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let c2_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+            .unwrap();
+    let container_state = db
+        .state()
+        .container(project.base_path(), &c2_graph_path)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), c2.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Inserted { parent, graph }) = update else {
+        panic!();
+    };
+    assert_eq!(parent.as_os_str(), "/");
+    assert_eq!(graph.nodes.len(), 1);
+    assert_eq!(
+        graph.nodes[0].name().to_string_lossy().to_string(),
+        c2.properties.name
+    );
+    assert_eq!(graph.nodes[0].rid().unwrap(), c2.rid());
+
+    let mut c2_new_path = c2.base_path().to_path_buf();
+    c2_new_path.set_file_name("c2_new");
+    fs::rename(c2.base_path(), &c2_new_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let c2_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+            .unwrap();
+    let c2_new_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), &c2_new_path)
+            .unwrap();
+
+    assert!(db
+        .state()
+        .container(project.base_path(), &c2_graph_path)
+        .unwrap()
+        .is_none());
+
+    let container_state = db
+        .state()
+        .container(project.base_path(), &c2_new_graph_path)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), c2.rid());
+    assert_eq!(container_state.name(), c2_new_path.file_name().unwrap());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Renamed { from, to }) = update else {
+        panic!();
+    };
+    assert_eq!(*from, c2_graph_path);
+    assert_eq!(to, c2_new_path.file_name().unwrap());
+
+    c2.set_base_path(c2_new_path);
+    c2.properties.name = "c2_new".to_string();
+    c2.save().unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let c2_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+            .unwrap();
+    let container_state = db
+        .state()
+        .container(project.base_path(), &c2_graph_path)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), c2.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Container { path, update } = update else {
+        panic!();
+    };
+    assert_eq!(*path, c2_graph_path);
+    let event::Container::Properties(event::DataResource::Modified(properties)) = update else {
+        panic!();
+    };
+    assert_eq!(properties.properties.name, c2.properties.name);
+
+    let c2_path = c1.base_path().join(c2.base_path().file_name().unwrap());
+    fs::rename(c2.base_path(), &c2_path).unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let c2_graph_path =
+        syre_local_database::common::container_graph_path(project.data_root_path(), &c2_path)
+            .unwrap();
+    let container_state = db
+        .state()
+        .container(project.base_path(), &c2_graph_path)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(container_state.rid().unwrap(), c2.rid());
+    assert!(container_state.properties().is_ok());
+    assert!(container_state.settings().is_ok());
+    assert!(container_state.analyses().unwrap().is_empty());
+    assert!(container_state.assets().unwrap().is_empty());
+
+    let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
+    assert_eq!(update.len(), 1);
+    let event::UpdateKind::Project {
+        project: project_id,
+        path,
+        update,
+    } = update[0].kind()
+    else {
+        panic!();
+    };
+
+    assert_eq!(project_id.as_ref().unwrap(), project.rid());
+    assert_eq!(path, project.base_path());
+    let event::Project::Graph(event::Graph::Moved { from, to }) = update else {
+        panic!();
+    };
+
+    assert_eq!(
+        *from,
+        syre_local_database::common::container_graph_path(
+            project.data_root_path(),
+            &c2.base_path()
+        )
+        .unwrap()
+    );
+    assert_eq!(*to, c2_graph_path);
 }
 
 struct UpdateListener {

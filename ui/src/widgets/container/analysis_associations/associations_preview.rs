@@ -112,7 +112,7 @@ pub fn analysis_associations_preview(props: &AnalysisAssociationsPreviewProps) -
         let onchange = props.onchange.clone();
         let analysis = analysis.clone();
         move |params| {
-            onchange.emit(AnalysisAssociation::new_with_params(
+            onchange.emit(AnalysisAssociation::with_params(
                 analysis.clone(),
                 params,
             ));

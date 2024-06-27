@@ -885,6 +885,9 @@ impl FsWatcher {
                 resources::Config::UserManifest => {
                     EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Created))
                 }
+                resources::Config::LocalConfig => {
+                    EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Created))
+                }
             },
 
             resources::ResourceEvent::Project { kind, .. } => match kind {
@@ -933,6 +936,9 @@ impl FsWatcher {
                 ),
                 resources::Config::UserManifest => {
                     EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Removed))
+                }
+                resources::Config::LocalConfig => {
+                    EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Removed))
                 }
             },
 
@@ -983,6 +989,9 @@ impl FsWatcher {
                 resources::Config::UserManifest => {
                     EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Removed))
                 }
+                resources::Config::LocalConfig => {
+                    EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Removed))
+                }
             },
 
             resources::ResourceEvent::Project { kind, .. } => match kind {
@@ -1031,8 +1040,10 @@ impl FsWatcher {
                         app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                     ))
                 }
-
                 resources::Config::UserManifest => EventKind::Config(app::Config::UserManifest(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )),
+                resources::Config::LocalConfig => EventKind::Config(app::Config::LocalConfig(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
                 )),
             },
@@ -1152,6 +1163,9 @@ impl FsWatcher {
                 resources::Config::UserManifest => {
                     EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Removed))
                 }
+                resources::Config::LocalConfig => {
+                    EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Removed))
+                }
             },
 
             resources::ResourceEvent::Project { kind, .. } => match kind {
@@ -1201,6 +1215,10 @@ impl FsWatcher {
 
                 resources::Config::UserManifest => {
                     EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Created))
+                }
+
+                resources::Config::LocalConfig => {
+                    EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Created))
                 }
             },
 
@@ -1316,6 +1334,11 @@ impl FsWatcher {
                 .into(),
 
                 resources::Config::UserManifest => app::Config::UserManifest(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Data),
+                )
+                .into(),
+
+                resources::Config::LocalConfig => app::Config::LocalConfig(
                     app::StaticResourceEvent::Modified(app::ModifiedKind::Data),
                 )
                 .into(),
@@ -1941,6 +1964,7 @@ mod resources {
     pub(crate) enum Config {
         ProjectManifest,
         UserManifest,
+        LocalConfig,
     }
 
     #[derive(Debug)]
@@ -2045,6 +2069,10 @@ mod resources {
 
         if path == app_config.user_manifest() {
             return Ok(Some(Config::UserManifest.into()));
+        }
+
+        if path == app_config.local_config() {
+            return Ok(Some(Config::LocalConfig.into()));
         }
 
         let project = match project_by_resource_path(&path) {

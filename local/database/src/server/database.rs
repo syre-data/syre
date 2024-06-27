@@ -6,13 +6,17 @@ pub(super) mod query;
 mod file_system;
 
 use super::store::data_store;
-use crate::{common, constants, event::Update, state};
+use crate::{common, constants, event::Update};
 use crossbeam::channel::{select, Receiver};
 use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, path::PathBuf, thread};
 use syre_local::{
-    system::collections::{ProjectManifest, UserManifest},
+    system::{
+        collections::{ProjectManifest, UserManifest},
+        config::Config as LocalConfig,
+        resources::Config as ConfigData,
+    },
     TryReducible,
 };
 
@@ -50,6 +54,7 @@ impl Builder {
             syre_fs_watcher::server::Config::new(
                 self.config.user_manifest().clone(),
                 self.config.project_manifest().clone(),
+                self.config.local_config().clone(),
             ),
         );
         fs_watcher.add_paths(self.paths);
@@ -83,6 +88,7 @@ impl Builder {
 
         let mut user_manifest_state = Ok(vec![]);
         let mut project_manifest_state = Ok(vec![]);
+        let mut local_config_state = Ok(ConfigData::default());
         if let Err(errors) = fs_event_rx.recv().unwrap() {
             for err in errors {
                 match err {
@@ -110,6 +116,17 @@ impl Builder {
                                 };
 
                                 project_manifest_state = Err(err.into());
+                            } else if path == self.config.local_config() {
+                                let err = match err.kind {
+                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::MaxFilesWatch
+                                    | notify::ErrorKind::PathNotFound
+                                    | notify::ErrorKind::Generic(_) => todo!(),
+                                    notify::ErrorKind::WatchNotFound
+                                    | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
+                                };
+
+                                local_config_state = Err(err.into());
                             } else {
                                 tracing::error!(?err);
                             }
@@ -145,7 +162,23 @@ impl Builder {
             }
         }
 
-        let mut state = super::State::new(user_manifest_state, project_manifest_state);
+        if let Ok(config_state) = local_config_state.as_mut() {
+            match LocalConfig::load_from(self.config.local_config()) {
+                Ok(config) => {
+                    *config_state = config.to_data();
+                }
+                Err(err) => {
+                    project_manifest_state = Err(err);
+                }
+            }
+        }
+
+        let mut state = super::State::new(
+            user_manifest_state,
+            project_manifest_state,
+            local_config_state,
+        );
+
         if let Ok(manifest) = state.app().project_manifest().as_ref() {
             for path in manifest.clone() {
                 state
@@ -199,6 +232,19 @@ impl Builder {
 }
 
 /// Database.
+///
+/// # Updates
+/// Updates are published on the [`crate::constants::PUB_SUB_PORT`] port.
+/// Each update is published on the [`crate::constants::PUB_SUB_TOPIC`] topic,
+/// with an event specific topic after.
+///
+/// ## Event topics
+/// + [`crate::constants::pub_sub_topic::APP_USER_MANIFEST`]: Changes to the user manifest file.
+/// + [`crate::constants::pub_sub_topic::APP_PROJECT_MANIFEST`]: Changes to the paroject manifest file.
+/// + [`crate::constants::pub_sub_topic::APP_LOCAL_CONFIG`]: Changes to the local config file.
+/// + [`crate::constants::pub_sub_topic::PROJECT_UNKNOWN`]: Changes to a project whose id could not be obtained.
+///     It is left to the client application to infer the project based on the paths.
+/// + `[crate::constants::pub_sub_topic::PROJECT_PREFIX]/{id}`: Changes made to the project with resource id `id`.
 pub struct Database {
     config: Config,
     state: super::State,
@@ -278,20 +324,26 @@ impl Database {
             match update.kind() {
                 event::UpdateKind::App(event::App::UserManifest(_)) => {
                     let events = sorted_updates
-                        .entry("app/user_manifest".to_string())
+                        .entry(constants::pub_sub_topic::APP_USER_MANIFEST.to_string())
                         .or_insert(vec![]);
                     events.push(update);
                 }
                 event::UpdateKind::App(event::App::ProjectManifest(_)) => {
                     let events = sorted_updates
-                        .entry("app/project_manifest".to_string())
+                        .entry(constants::pub_sub_topic::APP_PROJECT_MANIFEST.to_string())
+                        .or_insert(vec![]);
+                    events.push(update);
+                }
+                event::UpdateKind::App(event::App::LocalConfig(_)) => {
+                    let events = sorted_updates
+                        .entry(constants::pub_sub_topic::APP_LOCAL_CONFIG.to_string())
                         .or_insert(vec![]);
                     events.push(update);
                 }
                 event::UpdateKind::Project { project, .. } => {
                     let key = match project {
-                        None => format!("project/unknown"),
-                        Some(id) => format!("project/{id}"),
+                        None => constants::pub_sub_topic::PROJECT_UNKNOWN.to_string(),
+                        Some(id) => format!("{}/{id}", constants::pub_sub_topic::PROJECT_PREFIX),
                     };
 
                     let events = sorted_updates.entry(key).or_insert(vec![]);
@@ -300,9 +352,8 @@ impl Database {
             };
         }
 
-        let base_topic = constants::PUB_SUB_TOPIC.to_string();
         for (event_topic, updates) in sorted_updates {
-            let topic = format!("{base_topic}/{event_topic}");
+            let topic = format!("{}/{event_topic}", constants::PUB_SUB_TOPIC);
             self.update_tx.send(&topic, zmq::SNDMORE)?;
             if let Err(err) = self
                 .update_tx
@@ -580,6 +631,7 @@ mod config {
     pub struct Config {
         user_manifest: PathBuf,
         project_manifest: PathBuf,
+        local_config: PathBuf,
         update_port: PortNumber,
     }
 
@@ -587,11 +639,13 @@ mod config {
         pub fn new(
             user_manifest: impl Into<PathBuf>,
             project_manifest: impl Into<PathBuf>,
+            local_config: impl Into<PathBuf>,
             update_port: impl Into<PortNumber>,
         ) -> Self {
             Self {
                 user_manifest: user_manifest.into(),
                 project_manifest: project_manifest.into(),
+                local_config: local_config.into(),
                 update_port: update_port.into(),
             }
         }
@@ -602,6 +656,10 @@ mod config {
 
         pub fn project_manifest(&self) -> &PathBuf {
             &self.project_manifest
+        }
+
+        pub fn local_config(&self) -> &PathBuf {
+            &self.local_config
         }
 
         pub fn update_port(&self) -> PortNumber {

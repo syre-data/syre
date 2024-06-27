@@ -29,17 +29,16 @@ surrealdb = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
-validator = "0.16"
-yew = { workspace = true, optional = true }
+validator = "0.18"
 
 has_id = { path = "../has_id", features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.8"
 fake = "2.4"
-mockall = { version = "0.11", features = ["nightly"] }
-mockall_double = "0.3"
-ntest = "0.9"
+# mockall = { version = "0.11", features = ["nightly"] }
+# mockall_double = "0.3"
+# ntest = "0.9"
 lazy_static = "1.4"
 tempfile = { workspace = true }
 

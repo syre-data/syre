@@ -3,7 +3,6 @@ use crate::error::IoSerde;
 use crate::file_resource::SystemResource;
 use crate::system::common::config_dir_path;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
@@ -11,12 +10,10 @@ use std::path::PathBuf;
 use syre_core::system::User;
 use syre_core::types::ResourceId;
 
-pub type UserMap = HashMap<ResourceId, User>;
-
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(transparent)]
 pub struct UserManifest {
-    inner: UserMap,
+    inner: Vec<User>,
 
     /// Path to the user manifest file.
     #[serde(skip)]
@@ -47,7 +44,10 @@ impl UserManifest {
                 })
             }
 
-            Err(_) => Ok(Self::default()),
+            Err(_) => Ok(Self {
+                inner: vec![],
+                path,
+            }),
         }
     }
 
@@ -82,8 +82,10 @@ impl UserManifest {
                     path,
                 })
             }
-
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self {
+                inner: vec![],
+                path,
+            }),
             Err(err) => Err(err.into()),
         }
     }
@@ -96,12 +98,22 @@ impl UserManifest {
 
     /// Consumes `self` returning the underlying `Vec`.
     pub fn to_vec(self) -> Vec<User> {
-        self.inner.into_values().collect()
+        self.inner
+    }
+}
+
+impl UserManifest {
+    pub fn get(&self, id: &ResourceId) -> Option<&User> {
+        self.iter().find(|user| user.rid() == id)
+    }
+
+    pub fn remove(&mut self, id: &ResourceId) {
+        self.retain(|user| user.rid() != id)
     }
 }
 
 impl Deref for UserManifest {
-    type Target = UserMap;
+    type Target = Vec<User>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -114,7 +126,7 @@ impl DerefMut for UserManifest {
     }
 }
 
-impl SystemResource<UserMap> for UserManifest {
+impl SystemResource<Vec<User>> for UserManifest {
     fn path(&self) -> &PathBuf {
         &self.path
     }

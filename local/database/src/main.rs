@@ -1,7 +1,12 @@
 //! Runs a local [`Database`].
+//!
+//! Must be run with the `server` feature enabled.
 use syre_local::{
     file_resource::SystemResource,
-    system::collections::{ProjectManifest, UserManifest},
+    system::{
+        collections::{ProjectManifest, UserManifest},
+        config::Config as LocalConfig,
+    },
 };
 use syre_local_database::server;
 
@@ -16,6 +21,7 @@ fn main() {
     let config = server::Config::new(
         UserManifest::default_path().unwrap(),
         ProjectManifest::default_path().unwrap(),
+        LocalConfig::default_path().unwrap(),
         syre_local_database::constants::PUB_SUB_PORT,
     );
 

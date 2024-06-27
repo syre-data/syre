@@ -472,12 +472,24 @@ impl FsWatcher {
             }
 
             NotifyEventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
+                // NB: Must check if paths exists due to operation of `notify` crate.
+                // See https://github.com/notify-rs/notify/issues/554.
                 let [path] = &event.paths[..] else {
                     panic!("invalid paths");
                 };
 
                 let path = normalize_path_root(path);
-                Some(fs_event::Event::new(fs_event::Any::Removed(path), time))
+                if path.exists() {
+                    if path.is_dir() {
+                        Some(fs_event::Event::new(fs_event::Folder::Created(path), time))
+                    } else if path.is_file() {
+                        Some(fs_event::Event::new(fs_event::File::Created(path), time))
+                    } else {
+                        return Err(error::Process::UnknownFileType);
+                    }
+                } else {
+                    Some(fs_event::Event::new(fs_event::Any::Removed(path), time))
+                }
             }
 
             NotifyEventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
@@ -520,6 +532,8 @@ impl FsWatcher {
                 #[cfg(not(target_os = "macos"))]
                 todo!();
 
+                /// Must check if paths exists due to operation of `notify` crate.
+                /// See https://github.com/notify-rs/notify/issues/554.
                 match &event.paths[..] {
                     [path] => {
                         if path.exists() {

@@ -35,3 +35,39 @@ pub use client::Client;
 
 #[cfg(feature = "server")]
 pub use server::Database;
+
+// #[cfg(target_arch = "wasm32")]
+mod serde_os_string {
+    use serde::{de::Visitor, Deserializer, Serializer};
+    use std::{ffi::OsString, fmt, str::FromStr};
+
+    pub fn serialize<S>(value: &OsString, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&value.to_string_lossy().to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<OsString, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_string(OsStringVisitor)
+    }
+
+    struct OsStringVisitor;
+    impl<'de> Visitor<'de> for OsStringVisitor {
+        type Value = OsString;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("os string")
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            OsString::from_str(&v).map_err(|err| serde::de::Error::custom(format!("{err:?}")))
+        }
+    }
+}

@@ -3,7 +3,7 @@ use crate::{
     server::state,
     Database,
 };
-use std::assert_matches::assert_matches;
+use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::TryReducible;
 
@@ -18,7 +18,8 @@ impl Database {
             event::Config::Removed => todo!(),
             event::Config::Modified(_) => todo!(),
             event::Config::ProjectManifest(_) => self.handle_fs_event_app_project_manifest(event),
-            event::Config::UserManifest(_) => todo!(),
+            event::Config::UserManifest(_) => self.handle_fs_event_app_user_manifest(event),
+            event::Config::LocalConfig(_) => self.handle_fs_event_app_local_config(event),
         }
     }
 }
@@ -52,7 +53,7 @@ impl Database {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::Manifest as ManifestAction, Action as ConfigAction};
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
 
         assert_matches!(
             event.kind(),
@@ -72,7 +73,7 @@ impl Database {
 
                 self.state
                     .try_reduce(
-                        ConfigAction::ProjectManifest(ManifestAction::SetOk((*manifest).clone()))
+                        ConfigAction::ProjectManifest(DataAction::SetOk((*manifest).clone()))
                             .into(),
                     )
                     .unwrap();
@@ -92,7 +93,18 @@ impl Database {
             }
 
             Err(err) => {
-                todo!();
+                if self.state.projects().len() == 0 {
+                    self.state
+                        .try_reduce(ConfigAction::ProjectManifest(DataAction::SetErr(err)).into())
+                        .unwrap();
+
+                    vec![Update::app(
+                        update::ProjectManifest::Corrupted,
+                        event.id().clone(),
+                    )]
+                } else {
+                    todo!();
+                }
             }
         }
     }
@@ -101,6 +113,10 @@ impl Database {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        // NB: Can not assert that user manifest state must at least be present
+        // because file system watch may emit multiple remove events.
         assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
@@ -108,14 +124,30 @@ impl Database {
             ))
         );
 
-        todo!();
+        if self.state.projects().len() == 0 {
+            self.state
+                .try_reduce(
+                    ConfigAction::ProjectManifest(DataAction::SetErr(
+                        io::ErrorKind::NotFound.into(),
+                    ))
+                    .into(),
+                )
+                .unwrap();
+
+            vec![Update::app(
+                update::ProjectManifest::Corrupted,
+                event.id().clone(),
+            )]
+        } else {
+            todo!();
+        }
     }
 
     fn handle_fs_event_app_project_manifest_modified(
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::Manifest as ManifestAction, Action as ConfigAction};
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
 
         assert_matches!(
             event.kind(),
@@ -149,7 +181,7 @@ impl Database {
 
                 self.state
                     .try_reduce(
-                        ConfigAction::ProjectManifest(ManifestAction::SetOk((*manifest).clone()))
+                        ConfigAction::ProjectManifest(DataAction::SetOk((*manifest).clone()))
                             .into(),
                     )
                     .unwrap();
@@ -199,7 +231,7 @@ impl Database {
             (Ok(manifest), Err(_state)) => {
                 self.state
                     .try_reduce(
-                        ConfigAction::ProjectManifest(ManifestAction::SetOk((*manifest).clone()))
+                        ConfigAction::ProjectManifest(DataAction::SetOk((*manifest).clone()))
                             .into(),
                     )
                     .unwrap();
@@ -273,9 +305,7 @@ impl Database {
 
             (Err(manifest), Ok(_state)) => {
                 self.state
-                    .try_reduce(
-                        ConfigAction::ProjectManifest(ManifestAction::SetErr(manifest)).into(),
-                    )
+                    .try_reduce(ConfigAction::ProjectManifest(DataAction::SetErr(manifest)).into())
                     .unwrap();
 
                 vec![Update::app(
@@ -286,12 +316,306 @@ impl Database {
 
             (Err(manifest), Err(_state)) => {
                 self.state
-                    .try_reduce(
-                        ConfigAction::ProjectManifest(ManifestAction::SetErr(manifest)).into(),
-                    )
+                    .try_reduce(ConfigAction::ProjectManifest(DataAction::SetErr(manifest)).into())
                     .unwrap();
 
                 vec![]
+            }
+        }
+    }
+}
+
+impl Database {
+    fn handle_fs_event_app_user_manifest(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Config(event::Config::UserManifest(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::StaticResourceEvent::Created => {
+                self.handle_fs_event_app_user_manifest_created(event)
+            }
+            event::StaticResourceEvent::Removed => {
+                self.handle_fs_event_app_user_manifest_removed(event)
+            }
+            event::StaticResourceEvent::Modified(kind) => match kind {
+                event::ModifiedKind::Data => self.handle_fs_event_app_user_manifest_modified(event),
+                event::ModifiedKind::Other => todo!(),
+            },
+        }
+    }
+
+    fn handle_fs_event_app_user_manifest_created(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::UserManifest(
+                event::StaticResourceEvent::Created
+            ))
+        );
+
+        match syre_local::system::collections::UserManifest::load_from(self.config.user_manifest())
+        {
+            Ok(manifest) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::UserManifest(DataAction::SetOk((*manifest).clone())).into(),
+                    )
+                    .unwrap();
+
+                vec![Update::app(
+                    update::UserManifest::Added((*manifest).clone()),
+                    event.id().clone(),
+                )]
+            }
+
+            Err(err) => {
+                self.state
+                    .try_reduce(ConfigAction::UserManifest(DataAction::SetErr(err)).into())
+                    .unwrap();
+
+                vec![Update::app(update::UserManifest::Error, event.id().clone())]
+            }
+        }
+    }
+
+    fn handle_fs_event_app_user_manifest_removed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        // NB: Can not assert that user manifest state must at least be present
+        // because file system watch may emit multiple remove events.
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::UserManifest(
+                event::StaticResourceEvent::Removed
+            ))
+        );
+
+        self.state
+            .try_reduce(
+                ConfigAction::UserManifest(DataAction::SetErr(io::ErrorKind::NotFound.into()))
+                    .into(),
+            )
+            .unwrap();
+
+        vec![Update::app(update::UserManifest::Error, event.id().clone())]
+    }
+
+    fn handle_fs_event_app_user_manifest_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::UserManifest(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
+            ))
+        );
+        assert_eq!(event.paths().len(), 1);
+        assert_eq!(event.paths()[0], *self.config.user_manifest());
+
+        let manifest =
+            syre_local::system::collections::UserManifest::load_from(self.config.user_manifest());
+
+        let state = self.state.app().user_manifest();
+        match (manifest, state) {
+            (Ok(manifest), Ok(state)) => {
+                let mut added = vec![];
+                for user in manifest.iter() {
+                    if !state.iter().any(|u| u.rid() == user.rid()) {
+                        added.push(user.clone());
+                    }
+                }
+
+                let mut removed = vec![];
+                for user in state.iter() {
+                    if !manifest.iter().any(|u| u.rid() == user.rid()) {
+                        removed.push(user.rid().clone());
+                    }
+                }
+
+                self.state
+                    .try_reduce(
+                        ConfigAction::UserManifest(DataAction::SetOk((*manifest).clone())).into(),
+                    )
+                    .unwrap();
+
+                let mut updates = vec![];
+                if added.len() > 0 {
+                    updates.push(Update::app(
+                        update::UserManifest::Added(added),
+                        event.id().clone(),
+                    ));
+                }
+
+                if removed.len() > 0 {
+                    updates.push(Update::app(
+                        update::UserManifest::Removed(removed),
+                        event.id().clone(),
+                    ));
+                }
+
+                updates
+            }
+
+            (Ok(manifest), Err(_state)) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::UserManifest(DataAction::SetOk((*manifest).clone())).into(),
+                    )
+                    .unwrap();
+
+                vec![Update::app(
+                    update::UserManifest::Ok(manifest.to_vec()),
+                    event.id().clone(),
+                )]
+            }
+
+            (Err(manifest), Ok(_state)) => {
+                self.state
+                    .try_reduce(ConfigAction::UserManifest(DataAction::SetErr(manifest)).into())
+                    .unwrap();
+
+                vec![Update::app(update::UserManifest::Error, event.id().clone())]
+            }
+
+            (Err(manifest), Err(_state)) => {
+                self.state
+                    .try_reduce(ConfigAction::UserManifest(DataAction::SetErr(manifest)).into())
+                    .unwrap();
+
+                vec![]
+            }
+        }
+    }
+}
+
+impl Database {
+    fn handle_fs_event_app_local_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Config(event::Config::LocalConfig(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::StaticResourceEvent::Created => {
+                self.handle_fs_event_app_local_config_created(event)
+            }
+            event::StaticResourceEvent::Removed => {
+                self.handle_fs_event_app_local_config_removed(event)
+            }
+            event::StaticResourceEvent::Modified(kind) => match kind {
+                event::ModifiedKind::Data => self.handle_fs_event_app_local_config_modified(event),
+                event::ModifiedKind::Other => todo!(),
+            },
+        }
+    }
+
+    fn handle_fs_event_app_local_config_created(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::LocalConfig(
+                event::StaticResourceEvent::Created
+            ))
+        );
+
+        match syre_local::system::config::Config::load_from(self.config.local_config()) {
+            Ok(config) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::LocalConfig(DataAction::SetOk((*config).clone())).into(),
+                    )
+                    .unwrap();
+
+                vec![Update::app(
+                    update::LocalConfig::Ok((*config).clone()),
+                    event.id().clone(),
+                )]
+            }
+
+            Err(err) => {
+                self.state
+                    .try_reduce(ConfigAction::LocalConfig(DataAction::SetErr(err.clone())).into())
+                    .unwrap();
+
+                vec![Update::app(update::LocalConfig::Error, event.id().clone())]
+            }
+        }
+    }
+
+    fn handle_fs_event_app_local_config_removed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        // NB: Can not assert that user manifest state must at least be present
+        // because file system watch may emit multiple remove events.
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::LocalConfig(
+                event::StaticResourceEvent::Removed
+            ))
+        );
+
+        self.state
+            .try_reduce(
+                ConfigAction::LocalConfig(DataAction::SetErr(io::ErrorKind::NotFound.into()))
+                    .into(),
+            )
+            .unwrap();
+
+        vec![Update::app(update::LocalConfig::Error, event.id().clone())]
+    }
+
+    fn handle_fs_event_app_local_config_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::LocalConfig(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
+            ))
+        );
+        assert_eq!(event.paths().len(), 1);
+        assert_eq!(event.paths()[0], *self.config.local_config());
+
+        match syre_local::system::config::Config::load_from(self.config.local_config()) {
+            Ok(config) => {
+                self.state
+                    .try_reduce(
+                        ConfigAction::LocalConfig(DataAction::SetOk((*config).clone())).into(),
+                    )
+                    .unwrap();
+
+                vec![Update::app(
+                    update::LocalConfig::Updated,
+                    event.id().clone(),
+                )]
+            }
+
+            Err(err) => {
+                self.state
+                    .try_reduce(ConfigAction::LocalConfig(DataAction::SetErr(err.clone())).into())
+                    .unwrap();
+
+                vec![Update::app(update::LocalConfig::Error, event.id().clone())]
             }
         }
     }

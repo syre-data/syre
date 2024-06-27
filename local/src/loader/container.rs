@@ -1,8 +1,8 @@
 use crate::{
     error::IoSerde,
     file_resource::LocalResource,
-    project::resources::container::{Container, StoredContainerProperties},
-    types::ContainerSettings,
+    project::resources::container::Container,
+    types::{ContainerSettings, StoredContainerProperties},
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{

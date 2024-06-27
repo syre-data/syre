@@ -46,9 +46,9 @@ impl Fireworks {
         let recipe_stats = Script::from_path(Self::SCRIPT_RECIPE_STATS_PATH).unwrap();
         let noise_stats = Script::from_path(Self::SCRIPT_NOISE_STATS_PATH).unwrap();
         let analyses = Analyses {
-            recipe_comparison: recipe_comparison.rid.clone(),
-            recipe_stats: recipe_stats.rid.clone(),
-            noise_stats: noise_stats.rid.clone(),
+            recipe_comparison: recipe_comparison.rid().clone(),
+            recipe_stats: recipe_stats.rid().clone(),
+            noise_stats: noise_stats.rid().clone(),
         };
 
         let graph = Self::build_graph(options, analyses);
@@ -187,7 +187,7 @@ impl Build for Fireworks {
         for node in graph.nodes().values() {
             node.save().unwrap();
             if options.with_assets_fs() {
-                for asset in node.assets.values() {
+                for asset in node.assets.iter() {
                     touch(&node.base_path().join(asset.path.clone()))?;
                 }
             }

@@ -1,42 +1,42 @@
-//! Startup functionality.
-use crate::db::UpdateActor;
-use std::thread;
-use tauri::{App, Manager};
+//! Setup functionality for the app.
+use syre_local_database::state::ConfigState;
+use tauri::Manager;
 
-pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    // database updates
-    let update_actor = UpdateActor::new(app.get_window("main").unwrap());
-    thread::Builder::new()
-        .name("update-actor".into())
-        .spawn(move || update_actor.run())
-        .unwrap();
+/// Runs setup tasks:
+/// 1. Launches the update listener.
+pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some((_rx, _child)) = crate::db::start_database_if_needed(app.handle()) {
+        tracing::debug!("initialized local database");
+    } else {
+        tracing::debug!("database already running");
+    };
 
-    // dev tools
-    // app.get_window("main").unwrap().open_devtools();
+    let actor = crate::db::actor::Builder::new(app.handle().clone());
+    std::thread::Builder::new()
+        .name("syre desktop update listener".into())
+        .spawn(move || actor.run())?;
 
-    Ok(())
-}
-
-/// Launches the splashscreen.
-fn splashscreen(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    // get windows
-    let w_splashscreen = app
-        .get_window("splashscreen")
-        .expect("could not get splashscreen");
-
-    let w_main = app.get_window("main").expect("could not get main window");
-
-    // run init in new task
-    tauri::async_runtime::spawn(async move {
-        // NOTE If sleep time is less than 150ms SIGBUS error occurs.
-        std::thread::sleep(std::time::Duration::from_millis(250));
-        // TODO: Load user settings.
-        w_splashscreen
-            .close()
-            .expect("could not close splashscreen");
-
-        w_main.show().expect("could not show main window");
+    let main = app.get_webview_window("main").unwrap();
+    main.listen(crate::db::FS_EVENT_TOPIC, move |event| {
+        tracing::debug!(?event);
     });
+
+    let db = app.state::<syre_local_database::Client>();
+    let state = crate::State::new();
+    if let ConfigState::Ok(local_config) = db.state().local_config().unwrap() {
+        if let Some(user) = local_config.user {
+            *state.user().lock().unwrap() = Some(user.clone());
+            *state.projects().lock().unwrap() = db
+                .user()
+                .projects(user)
+                .unwrap()
+                .into_iter()
+                .map(|(path, _)| path)
+                .collect();
+        }
+    }
+
+    assert!(app.manage(state));
 
     Ok(())
 }

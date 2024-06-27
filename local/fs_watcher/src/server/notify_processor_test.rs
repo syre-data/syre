@@ -10,7 +10,7 @@ use notify::{
 };
 use std::fs;
 
-// NB: Flakey test. Not sure why.
+// NB: Flaky test. Not sure why.
 #[test_log::test]
 fn watcher_group_notify_events_should_work() {
     let dir = tempfile::TempDir::new().unwrap();
@@ -99,7 +99,6 @@ fn watcher_group_notify_events_should_work() {
 
     let events: Vec<DebouncedEvent> = events.into_iter().map(|e| e.into()).collect();
     let (converted, remaining) = watcher.group_events(events.iter().collect());
-    dbg!(&converted);
     assert_eq!(converted.len(), 4);
     assert_eq!(remaining.len(), 2);
 }

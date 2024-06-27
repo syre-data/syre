@@ -6,20 +6,16 @@
 use crate::state;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, path::PathBuf};
-use syre_core::{
-    graph::ResourceTree,
-    project::{Container as CoreContainer, ContainerProperties, Project as CoreProject},
-    types::ResourceId,
-};
+use syre_core::{project::Project as CoreProject, system::User, types::ResourceId};
 use syre_local::{
     error::IoSerde,
-    project::resources::container::StoredContainerProperties,
-    types::{ContainerSettings, ProjectSettings},
+    system::resources::Config as ConfigData,
+    types::{ContainerSettings, ProjectSettings, StoredContainerProperties},
 };
 use uuid::Uuid;
 
 /// Update types.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Update {
     id: Uuid,
     parent: Uuid,
@@ -109,7 +105,7 @@ impl Update {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum UpdateKind {
     App(App),
     Project {
@@ -122,30 +118,58 @@ pub enum UpdateKind {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, derive_more::From)]
+#[derive(Serialize, Deserialize, Debug, Clone, derive_more::From)]
 pub enum App {
     UserManifest(UserManifest),
     ProjectManifest(ProjectManifest),
+    LocalConfig(LocalConfig),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum UserManifest {
-    Added,
-    Removed,
-    Updated,
-    Repaired,
-    Corrupted,
+    /// The manifest became readable.
+    Ok(Vec<User>),
+
+    // The manifest became unreadable.
+    Error,
+
+    /// Users were added to the manifest.
+    Added(Vec<User>),
+
+    /// Users were removed from the manifest
+    Removed(Vec<ResourceId>),
+
+    /// User properties were updated.
+    Updated(Vec<User>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ProjectManifest {
+    /// Paths were added to the manifest.
     Added(Vec<PathBuf>),
+    /// Paths were removed from the manifest.
     Removed(Vec<PathBuf>),
+
+    /// The manifest was repaired.
     Repaired,
+
+    /// The manifest can not be loaded.
     Corrupted,
 }
 
-#[derive(Serialize, Deserialize, Debug, derive_more::From)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum LocalConfig {
+    /// The config became readable.
+    Ok(ConfigData),
+
+    /// The config became unreadable.
+    Error,
+
+    /// Config settings were changed.
+    Updated,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, derive_more::From)]
 pub enum Project {
     Removed,
     Moved(PathBuf),
@@ -190,7 +214,7 @@ pub enum Project {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Graph {
     /// The root graph was created.
     Created(state::Graph),
@@ -211,7 +235,12 @@ pub enum Graph {
     ///
     /// # Notes
     /// + The parent container of the root has not changed.
-    Renamed { from: PathBuf, to: OsString },
+    Renamed {
+        from: PathBuf,
+
+        #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
+        to: OsString,
+    },
 
     /// A subgraph was moved within the `Project`.
     ///
@@ -228,7 +257,7 @@ pub enum Graph {
 }
 
 /// Container updates.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Container {
     /// `Container`'s properties were modified.
     Properties(DataResource<StoredContainerProperties>),
@@ -238,7 +267,7 @@ pub enum Container {
 
 /// Asset state updates.
 /// Indicates the associated file is being tracked as an asset.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Asset {
     FileCreated,
     FileRemoved,
@@ -246,7 +275,7 @@ pub enum Asset {
 
 /// Asset file updates.
 /// Indicates the file is not associated with an asset.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AssetFile {
     Created(
         /// Absolute path from the project's data root.
@@ -263,7 +292,12 @@ pub enum AssetFile {
     /// # Fields
     /// + `from`: Absolute path from the project's data root.
     /// + `to`: New file name.
-    Renamed { from: PathBuf, to: OsString },
+    Renamed {
+        from: PathBuf,
+
+        #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
+        to: OsString,
+    },
 
     /// File changed locations.
     ///
@@ -273,7 +307,7 @@ pub enum AssetFile {
 }
 
 /// Analysis updates.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AnalysisFile {
     Created(PathBuf),
     Removed(PathBuf),
@@ -288,7 +322,7 @@ pub enum AnalysisFile {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum DataResource<T> {
     Created(Result<T, IoSerde>),
     Removed,

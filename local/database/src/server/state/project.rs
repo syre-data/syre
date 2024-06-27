@@ -260,6 +260,15 @@ pub mod project {
         pub fn graph(&self) -> &FolderResource<graph::State> {
             &self.graph
         }
+
+        /// Creates a [`state::ProjectData`] from the state.
+        pub fn project_data(&self) -> state::ProjectData {
+            state::ProjectData {
+                properties: self.properties.clone(),
+                settings: self.settings.clone(),
+                analyses: self.analyses.clone(),
+            }
+        }
     }
 
     impl TryReducible for State {
@@ -477,8 +486,8 @@ mod container {
         types::ResourceId,
     };
     use syre_local::{
-        loader::container::Loader, project::resources::container::StoredContainerProperties,
-        types::ContainerSettings,
+        loader::container::Loader,
+        types::{ContainerSettings, StoredContainerProperties},
     };
 
     impl Container {
@@ -816,6 +825,7 @@ pub mod graph {
     }
 
     impl State {
+        /// Converts the graph to a [`crate::state::Graph`].
         pub fn as_graph(&self) -> Graph {
             assert!(Arc::ptr_eq(&self.nodes[0], &self.root));
 
@@ -855,6 +865,7 @@ pub mod graph {
             Graph { nodes, children }
         }
 
+        /// Converts a subgraph to a [`crate::state::Graph`].
         pub fn subgraph_as_graph(&self, root: impl AsRef<Path>) -> Result<Graph, error::NotFound> {
             let Some(root) = self.find(root) else {
                 return Err(error::NotFound);
@@ -918,10 +929,7 @@ pub(crate) mod action {
     use crate::state;
     use std::{ffi::OsString, path::PathBuf};
     use syre_core::{project::Project as CoreProject, types::ResourceId};
-    use syre_local::{
-        project::resources::container::StoredContainerProperties,
-        types::{ContainerSettings, ProjectSettings},
-    };
+    use syre_local::types::{ContainerSettings, ProjectSettings, StoredContainerProperties};
 
     #[derive(Debug, derive_more::From)]
     pub enum Action {

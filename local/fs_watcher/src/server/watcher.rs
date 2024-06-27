@@ -89,6 +89,7 @@ impl Builder {
         let mut errors = vec![];
         for path in std::iter::once(self.app_config.user_manifest())
             .chain(std::iter::once(self.app_config.project_manifest()))
+            .chain(std::iter::once(self.app_config.local_config()))
             .chain(self.paths.iter())
         {
             let (tx, rx) = crossbeam::channel::bounded(1);
@@ -482,6 +483,13 @@ impl FsWatcher {
 impl FsWatcher {
     /// Some text editors remove then replace a file when saving it.
     /// We must manually check it the file exists to determine if this occured.
+    ///
+    /// If a config file is removed, it is added to the path watcher.
+    ///
+    /// # Returns
+    /// Events modified to account for false removals.
+    ///
+    /// # Notes
     /// See https://docs.rs/notify/latest/notify/#editor-behaviour.
     fn handle_remove_events(&self, mut events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
         let mut remove_events = vec![];
@@ -528,34 +536,36 @@ impl FsWatcher {
                 panic!("invalid paths");
             };
 
-            if !path.exists() {
-                // represents actual remove event
-                // no further processing required
-                continue;
-            }
-
-            if path == self.app_config.user_manifest() || path == self.app_config.project_manifest()
+            if path == self.app_config.user_manifest()
+                || path == self.app_config.project_manifest()
+                || path == self.app_config.local_config()
             {
-                let (tx, rx) = crossbeam::channel::bounded(1);
-                tracing::debug!("rewatching {path:?}");
-                self.command_tx
-                    .send(WatcherCommand::Watch {
-                        path: path.clone(),
-                        tx,
-                    })
-                    .unwrap();
+                if path.exists() {
+                    let (tx, rx) = crossbeam::channel::bounded(1);
+                    tracing::debug!("rewatching {path:?}");
+                    self.command_tx
+                        .send(WatcherCommand::Watch {
+                            path: path.clone(),
+                            tx,
+                        })
+                        .unwrap();
 
-                match rx.recv().unwrap() {
-                    Ok(()) => {
-                        let event = event.event.clone().set_kind(notify::EventKind::Modify(
-                            notify::event::ModifyKind::Data(notify::event::DataChange::Any),
-                        ));
+                    match rx.recv().unwrap() {
+                        Ok(()) => {
+                            let event = event.event.clone().set_kind(notify::EventKind::Modify(
+                                notify::event::ModifyKind::Data(notify::event::DataChange::Any),
+                            ));
 
-                        *events[index] = event;
+                            *events[index] = event;
+                        }
+                        Err(err) => {
+                            panic!("UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}");
+                        }
                     }
-                    Err(err) => {
-                        panic!("UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}");
-                    }
+                } else {
+                    self.path_watcher_command_tx
+                        .send(path_watcher::Command::Watch(path.clone()))
+                        .unwrap();
                 }
             } else {
                 tracing::debug!("UNUSUAL REMOVE EVENT: {event:?}");
@@ -571,23 +581,37 @@ pub mod config {
     use syre_local::{
         error::IoSerde,
         file_resource::SystemResource,
-        system::collections::{ProjectManifest, UserManifest},
+        system::{
+            collections::{ProjectManifest, UserManifest},
+            config::Config as LocalConfig,
+        },
     };
 
     #[derive(Clone)]
     pub struct Config {
+        /// Path to the local user manifest file.
+        /// Should be absolute.
         user_manifest: PathBuf,
+
+        /// Path to the local project manifest file.
+        /// Should be absolute.
         project_manifest: PathBuf,
+
+        /// Path to the local config file.
+        /// Should be absolute.
+        local_config: PathBuf,
     }
 
     impl Config {
         pub fn new(
             user_manifest: impl Into<PathBuf>,
             project_manifest: impl Into<PathBuf>,
+            local_config: impl Into<PathBuf>,
         ) -> Self {
             Self {
                 user_manifest: user_manifest.into(),
                 project_manifest: project_manifest.into(),
+                local_config: local_config.into(),
             }
         }
 
@@ -596,6 +620,7 @@ pub mod config {
             Ok(Self {
                 user_manifest: UserManifest::default_path()?,
                 project_manifest: ProjectManifest::default_path()?,
+                local_config: LocalConfig::default_path()?,
             })
         }
 
@@ -607,12 +632,20 @@ pub mod config {
             &self.project_manifest
         }
 
+        pub fn local_config(&self) -> &PathBuf {
+            &self.local_config
+        }
+
         pub fn load_user_manifest(&self) -> Result<UserManifest, IoSerde> {
             UserManifest::load_from(self.user_manifest.clone())
         }
 
         pub fn load_project_manifest(&self) -> Result<ProjectManifest, IoSerde> {
             ProjectManifest::load_from(self.project_manifest.clone())
+        }
+
+        pub fn load_local_config(&self) -> Result<LocalConfig, IoSerde> {
+            LocalConfig::load_from(self.local_config.clone())
         }
     }
 }

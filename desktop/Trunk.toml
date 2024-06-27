@@ -2,9 +2,15 @@
 target = "./index.html"
 
 [watch]
-ignore = ["./src-tauri", "../local/database"]
+ignore = ["./src-tauri"]
 
 [serve]
-address = "127.0.0.1"
+address = "0.0.0.0"
 port = 1420
 open = false
+ws_protocol = "ws"
+
+[[hooks]]
+stage = "pre_build"
+command = "sh"
+command_arguments = ["-c", "npx tailwindcss -i styles/main.css -o styles/output.css"]

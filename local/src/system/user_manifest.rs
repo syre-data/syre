@@ -1,5 +1,5 @@
 use super::collections::user_manifest::UserManifest;
-use super::settings::user_settings::UserSettings;
+use super::config::Config;
 use crate::error::{Error, IoSerde, Result, Users as UsersError};
 use std::{collections::HashMap, result::Result as StdResult};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
@@ -23,7 +23,7 @@ pub fn user_by_id(rid: &ResourceId) -> StdResult<Option<User>, IoSerde> {
 pub fn user_by_email(email: impl Into<String>) -> Result<Option<User>> {
     let email = email.into();
     let users = UserManifest::load()?;
-    let users: Vec<&User> = users.values().filter(|user| user.email == email).collect();
+    let users: Vec<&User> = users.iter().filter(|user| user.email == email).collect();
 
     match users.len() {
         0 => Ok(None),
@@ -49,7 +49,7 @@ pub fn add_user(user: User) -> Result {
     }
 
     // add user
-    users.insert(user.rid.clone(), user);
+    users.push(user);
     users.save()?;
     Ok(())
 }
@@ -57,14 +57,14 @@ pub fn add_user(user: User) -> Result {
 /// Delete a user by id.
 pub fn delete_user(rid: &ResourceId) -> StdResult<(), IoSerde> {
     let mut users = UserManifest::load()?;
-    let mut settings = UserSettings::load()?;
+    let mut config = Config::load()?;
 
     users.remove(&rid);
 
     // unset as active user, if required
-    if settings.active_user.as_ref() == Some(rid) {
-        settings.active_user = None;
-        settings.save()?;
+    if config.user.as_ref() == Some(rid) {
+        config.user = None;
+        config.save()?;
     }
 
     users.save()?;
@@ -76,7 +76,7 @@ pub fn delete_user_by_email(email: &str) -> Result {
         return Ok(());
     };
 
-    delete_user(&user.rid)?;
+    delete_user(user.rid())?;
     Ok(())
 }
 
@@ -92,17 +92,17 @@ pub fn update_user(user: User) -> Result {
     }
 
     let mut users = UserManifest::load()?;
-    validate_id_is_present(&user.rid, &users)?;
+    validate_id_is_present(user.rid(), &users)?;
 
-    users.insert(user.rid.clone(), user);
+    users.push(user);
     users.save()?;
     Ok(())
 }
 
 /// Gets the active user.
 pub fn get_active_user() -> StdResult<Option<User>, IoSerde> {
-    let user_settings = UserSettings::load_or_default()?;
-    let Some(active_user) = user_settings.active_user.as_ref() else {
+    let config = Config::load_or_default()?;
+    let Some(active_user) = config.user.as_ref() else {
         return Ok(None);
     };
 
@@ -116,12 +116,12 @@ pub fn get_active_user() -> StdResult<Option<User>, IoSerde> {
 pub fn set_active_user(rid: &ResourceId) -> Result {
     // ensure valid users
     let users = UserManifest::load()?;
-    validate_id_is_present(&rid, &users)?;
+    validate_id_is_present(rid, &users)?;
 
     // set active user
-    let mut settings = UserSettings::load_or_default()?;
-    settings.active_user = Some(rid.clone());
-    settings.save()?;
+    let mut config = Config::load_or_default()?;
+    config.user = Some(rid.clone());
+    config.save()?;
     Ok(())
 }
 
@@ -137,17 +137,17 @@ pub fn set_active_user_by_email(email: &str) -> Result {
         );
     };
 
-    let mut settings = UserSettings::load()?;
-    settings.active_user = Some(user.rid.into());
-    settings.save()?;
+    let mut config = Config::load()?;
+    config.user = Some(user.rid().clone());
+    config.save()?;
     Ok(())
 }
 
 /// Unsets the active user.
 pub fn unset_active_user() -> StdResult<(), IoSerde> {
-    let mut settings = UserSettings::load()?;
-    settings.active_user = None;
-    settings.save()?;
+    let mut config = Config::load()?;
+    config.user = None;
+    config.save()?;
     Ok(())
 }
 
@@ -159,16 +159,15 @@ pub fn unset_active_user() -> StdResult<(), IoSerde> {
 fn user_count_by_email(email: &str, users: &UserManifest) -> usize {
     // ensure valid users
     users
-        .values()
+        .iter()
         .filter(|user| user.email == email)
         .collect::<Vec<&User>>()
         .len()
 }
 
 /// Validates that a user exists.
-fn validate_id_is_present<V>(rid: &ResourceId, store: &HashMap<ResourceId, V>) -> Result {
-    // validate id
-    if !store.contains_key(&rid) {
+fn validate_id_is_present(rid: &ResourceId, store: &UserManifest) -> Result {
+    if store.get(rid).is_none() {
         return Err(
             CoreError::Resource(ResourceError::does_not_exist("`User` does not exist.")).into(),
         );

@@ -1,123 +1,285 @@
-//! Home dashboard.
-use crate::app::{
-    AppStateAction, AppStateReducer, AppWidget, ProjectsStateAction, ProjectsStateReducer,
+use crate::{
+    commands::fs::{pick_folder, pick_folder_with_location},
+    components::ModalDialog,
+    invoke::{invoke, invoke_result},
 };
-use crate::hooks::{use_user, use_user_projects};
-use crate::navigation::MainNavigation;
-use crate::routes::Route;
-use std::str::FromStr;
-use syre_core::types::ResourceId;
-use syre_ui::widgets::project::ProjectDeck;
-use syre_ui::widgets::suspense::Loading;
-use yew::prelude::*;
-use yew::virtual_dom::Key;
-use yew_router::prelude::*;
+use futures::stream::StreamExt;
+use leptos::*;
+use leptos_router::use_navigate;
+use serde::Serialize;
+use std::path::PathBuf;
+use syre_core::{project::Project, system::User, types::ResourceId};
+use syre_desktop_lib as lib;
+use syre_local_database as db;
+use web_sys::{MouseEvent, SubmitEvent};
 
-/// Dashboard for user's [`Project`]s.
-#[function_component(DashboardView)]
-pub fn dashboard_view() -> HtmlResult {
-    let navigator = use_navigator().unwrap();
-    let app_state = use_context::<AppStateReducer>().unwrap();
-    let projects_state = use_context::<ProjectsStateReducer>().unwrap();
-
-    let user = use_user();
-    let Some(user) = user.as_ref() else {
-        navigator.push(&Route::SignIn);
-        return Ok(html! {{ "Redirecting to login" }});
-    };
-
-    let projects = use_user_projects(&user.rid);
-    let create_project = use_callback((), {
-        let app_state = app_state.dispatcher();
-        move |_: MouseEvent, _| {
-            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
-                AppWidget::CreateProject,
-            )))
+#[component]
+pub fn Dashboard() -> impl IntoView {
+    let user = expect_context::<User>();
+    let projects = create_resource(|| (), {
+        let user = user.rid().clone();
+        move |_| {
+            let user = user.clone();
+            async move { fetch_user_projects(user).await }
         }
     });
+    view! {
+        <Suspense fallback=Loading>
+            {move || projects.map(|projects| view! { <DashboardView projects=projects.clone()/> })}
 
-    let import_project = use_callback((), {
-        let app_state = app_state.dispatcher();
-        move |_: MouseEvent, _| {
-            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
-                AppWidget::ImportProject,
-            )));
-        }
-    });
-
-    let init_project = use_callback((), {
-        let app_state = app_state.dispatcher();
-        move |_: MouseEvent, _| {
-            app_state.dispatch(AppStateAction::SetActiveWidget(Some(
-                AppWidget::InitializeProject,
-            )));
-        }
-    });
-
-    let onclick_card = use_callback((), {
-        let navigator = navigator.clone();
-        let projects_state = projects_state.dispatcher();
-
-        move |rid: Key, _| {
-            let rid = ResourceId::from_str(&rid.to_string()).expect("invalid `ResourceId`");
-            projects_state.dispatch(ProjectsStateAction::AddOpenProject(rid.clone()));
-            projects_state.dispatch(ProjectsStateAction::SetActiveProject(rid.clone()));
-            navigator.push(&Route::Workspace);
-        }
-    });
-
-    Ok(html! {
-        <>
-        <MainNavigation />
-        <div id={"dashboard"}>
-            <div id={"dashboard-container"}>
-                <div id={"dashboard-header"}>
-                    <h1 class={"title"}>
-                        { "Dashboard" }
-                    </h1>
-                    <div>
-                        <button
-                            class={"btn-primary"}
-                            title={"Create a new project."}
-                            onclick={create_project}>
-
-                            { "New" }
-                        </button>
-                    </div>
-                    <div>
-                        <button
-                            class={"btn-secondary"}
-                            title={"Initialize an existing folder as a project."}
-                            onclick={init_project}>
-
-                            { "Initialize" }
-                        </button>
-                    </div>
-                    <div>
-                        <button
-                            class={"btn-secondary"}
-                            title={"Import an existing project."}
-                            onclick={import_project}>
-
-                            { "Import" }
-                        </button>
-                    </div>
-                </div>
-
-                <ProjectDeck items={(*projects).clone()} {onclick_card} />
-            </div>
-        </div>
-        </>
-    })
-}
-
-#[function_component(Dashboard)]
-pub fn dashboard() -> Html {
-    let fallback = html! { <Loading text={"Loading resources"} />  };
-
-    html! {
-        <Suspense {fallback}>
-            <DashboardView />
         </Suspense>
     }
+}
+
+#[component]
+fn Loading() -> impl IntoView {
+    view! { <div>"Loading projects..."</div> }
+}
+
+#[component]
+fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoView {
+    let (projects, set_projects) = create_signal(
+        projects
+            .into_iter()
+            .map(|project| RwSignal::new(project))
+            .collect::<Vec<_>>(),
+    );
+
+    let create_project_path = RwSignal::new(None);
+    let create_project_ref = NodeRef::<html::Dialog>::new();
+
+    spawn_local(async move {
+        let mut listener =
+            tauri_sys::event::listen::<Vec<lib::Event>>(lib::event::topic::PROJECT_MANIFEST)
+                .await
+                .unwrap();
+
+        while let Some(events) = listener.next().await {
+            for event in events.payload {
+                let lib::EventKind::ProjectManifest(update) = event.kind() else {
+                    panic!("invalid event kind");
+                };
+
+                match update {
+                    lib::event::ProjectManifest::Added(states) => {
+                        set_projects.update(|projects| {
+                            projects.extend(
+                                states
+                                    .iter()
+                                    .map(|state| RwSignal::new(state.clone()))
+                                    .collect::<Vec<_>>(),
+                            )
+                        });
+                    }
+                    lib::event::ProjectManifest::Removed(removed) => {
+                        set_projects.update(|projects| {
+                            projects.retain(|project| {
+                                project.with_untracked(|(path, _)| !removed.contains(path))
+                            });
+                        });
+                    }
+                    lib::event::ProjectManifest::Corrupted => todo!(),
+                    lib::event::ProjectManifest::Repaired => todo!(),
+                }
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        if create_project_path.with(|path| path.is_none()) {
+            let dialog = create_project_ref.get().unwrap();
+            dialog.close();
+        }
+    });
+
+    let show_create_project_dialog = move |e: MouseEvent| {
+        spawn_local(async move {
+            if let Some(p) = pick_folder("Create a new project").await {
+                create_project_path.update(|path| {
+                    let _ = path.insert(p);
+                });
+                let dialog = create_project_ref.get_untracked().unwrap();
+                dialog.show_modal().unwrap();
+            }
+        })
+    };
+
+    view! {
+        <div>
+            <div>
+                <button on:mousedown=show_create_project_dialog>"New project"</button>
+            </div>
+
+            <ProjectDeck projects/>
+
+            <ModalDialog node_ref=create_project_ref>
+                <CreateProject path=create_project_path/>
+            </ModalDialog>
+        </div>
+    }
+}
+
+#[component]
+fn ProjectDeck(
+    projects: ReadSignal<Vec<RwSignal<(PathBuf, db::state::ProjectData)>>>,
+) -> impl IntoView {
+    view! {
+        <div class="flex">
+            <For
+                each=projects
+                key=|state| {
+                    state
+                        .with(|(path, project)| {
+                            if let db::state::DataResource::Ok(properties) = project.properties() {
+                                properties.rid().to_string()
+                            } else {
+                                path.to_string_lossy().to_string()
+                            }
+                        })
+                }
+
+                let:project
+            >
+                <ProjectCard project=project.read_only()/>
+            </For>
+        </div>
+    }
+}
+
+#[component]
+fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl IntoView {
+    let navigate = use_navigate();
+    move || {
+        project.with(|(path, project)| {
+            if let db::state::DataResource::Ok(project) = project.properties() {
+                let goto_project = {
+                    let navigate = navigate.clone();
+                    let project = project.rid().to_string();
+                    move |_| {
+                        navigate(&project, Default::default());
+                    }
+                };
+
+                view! {
+                    <div on:mousedown=goto_project>
+                        <h3>{project.name.clone()}</h3>
+                        <div>{project.description.clone()}</div>
+                        <div>{path.to_string_lossy().to_string()}</div>
+                    </div>
+                }
+                .into_view()
+            } else {
+                view! {
+                    <div>{path.to_string_lossy().to_string()}</div>
+                    <div>"is broken"</div>
+                }
+                .into_view()
+            }
+        })
+    }
+}
+
+#[component]
+fn CreateProject(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
+    let user = expect_context::<User>();
+    let (error, set_error) = create_signal(None);
+    let create_project = {
+        move |e: SubmitEvent| {
+            e.prevent_default();
+
+            let user = user.rid().clone();
+            match path() {
+                None => {
+                    set_error(Some("Path is required."));
+                }
+                Some(p) => {
+                    spawn_local(async move {
+                        match create_project(user, p).await {
+                            Ok(_project) => {
+                                path.update(|path| {
+                                    path.take();
+                                });
+                            }
+                            Err(err) => {
+                                tracing::error!(?err);
+                                set_error(Some("Could not create project."));
+                            }
+                        }
+                    });
+                }
+            }
+        }
+    };
+
+    let select_path = move |_| {
+        spawn_local(async move {
+            let init_dir = path.with(|path| match path {
+                None => PathBuf::new(),
+                Some(path) => path
+                    .parent()
+                    .map(|path| path.to_path_buf())
+                    .unwrap_or(PathBuf::new()),
+            });
+
+            if let Some(p) = pick_folder_with_location("Create a new project", init_dir).await {
+                path.update(|path| {
+                    let _ = path.insert(p);
+                });
+            }
+        });
+    };
+
+    let close = move |_| {
+        path.update(|path| {
+            path.take();
+        });
+    };
+
+    view! {
+        <form on:submit=create_project>
+            <div>
+                <input
+                    name="path"
+                    prop:value=move || {
+                        path.with(|path| match path {
+                            None => "".to_string(),
+                            Some(path) => path.to_string_lossy().to_string(),
+                        })
+                    }
+
+                    readonly
+                />
+
+                <button type="button" on:mousedown=select_path>
+                    "Change"
+                </button>
+            </div>
+            <div>
+                <button disabled=move || path.with(|path| path.is_none())>"Create"</button>
+                <button type="button" on:mousedown=close>
+                    "Cancel"
+                </button>
+            </div>
+            <div>{error}</div>
+        </form>
+    }
+}
+
+async fn fetch_user_projects(user: ResourceId) -> Vec<(PathBuf, db::state::ProjectData)> {
+    invoke("user_projects", UserProjectsArgs { user }).await
+}
+
+#[derive(Serialize)]
+struct UserProjectsArgs {
+    user: ResourceId,
+}
+
+async fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Project> {
+    invoke_result("create_project", CreateProjectArgs { user, path }).await
+}
+
+#[derive(Serialize)]
+struct CreateProjectArgs {
+    user: ResourceId,
+    path: PathBuf,
 }

@@ -1,77 +1,60 @@
-//! Index page.
-use std::io;
+use super::{Home, Landing};
+use crate::invoke::invoke_result;
+use futures::StreamExt;
+use leptos::*;
+use syre_core::system::User;
+use syre_desktop_lib as lib;
+use syre_local::error::IoSerde;
 
-use crate::app::{AppStateAction, AppStateReducer, AuthStateAction, AuthStateReducer};
-use crate::commands::user::{get_active_user, set_active_user};
-use crate::routes::Route;
-use syre_local::error::{Error as LocalError, IoSerde as IoSerdeError};
-use syre_ui::types::Message;
-use wasm_bindgen_futures::spawn_local;
-use yew::prelude::*;
-use yew_router::prelude::*;
+#[component]
+pub fn Index() -> impl IntoView {
+    let active_user = create_resource(|| (), |_| async move { fetch_user().await });
+    let fallback = |errors| {
+        tracing::debug!(?errors);
+        view! { <div>"An error occurred"</div> }
+    };
 
-#[function_component(Index)]
-pub fn index() -> Html {
-    let auth_state = use_context::<AuthStateReducer>().unwrap();
-    let app_state = use_context::<AppStateReducer>().unwrap();
-    let navigator = use_navigator().unwrap();
+    view! {
+        <Suspense fallback=Initializing>
+            <ErrorBoundary fallback>
+                {move || { active_user().map(|user| user.map(|user| view! { <IndexView user/> })) }}
 
-    // initialize auth state
-    // TODO: Check if any users exist. If not redirect to sign up page
-    //  instead of sign in page.
-    use_effect_with((), {
-        let auth_state = auth_state.dispatcher();
-        let app_state = app_state.dispatcher();
-        let navigator = navigator.clone();
+            </ErrorBoundary>
+        </Suspense>
+    }
+}
 
-        move |_| {
-            let auth_state = auth_state.clone();
-            let app_state = app_state.clone();
-            let navigator = navigator.clone();
+#[component]
+fn IndexView(user: Option<User>) -> impl IntoView {
+    let (user, set_user) = create_signal(user);
+    spawn_local(async move {
+        let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(lib::event::topic::USER)
+            .await
+            .unwrap();
 
-            spawn_local(async move {
-                let active_user = match get_active_user().await {
-                    Ok(user) => user,
-                    Err(err) => {
-                        match err {
-                            LocalError::IoSerde(IoSerdeError::Io(io::ErrorKind::NotFound)) => {}
-                            _ => {
-                                let mut msg = Message::error("Could not get user.");
-                                msg.set_details(format!("{err:?}"));
-                                app_state.dispatch(AppStateAction::AddMessage(msg));
-                            }
-                        }
-
-                        navigator.push(&Route::SignIn);
-                        return;
-                    }
+        while let Some(event) = listener.next().await {
+            for event in event.payload {
+                let lib::EventKind::User(user) = event.kind() else {
+                    panic!("invalid event kind");
                 };
 
-                match active_user {
-                    None => navigator.push(&Route::SignIn),
-                    Some(user) => {
-                        // TODO: Backend user should be set when `get_user` called.
-                        // set active user on backend
-                        match set_active_user(user.rid.clone()).await {
-                            Ok(_) => {
-                                // set active user on front end
-                                auth_state.dispatch(AuthStateAction::SetUser(Some(user)));
-                                navigator.push(&Route::Home);
-                            }
-                            Err(err) => {
-                                let mut msg = Message::error("Could not set user.");
-                                msg.set_details(format!("{err:?}"));
-                                app_state.dispatch(AppStateAction::AddMessage(msg));
-                            }
-                        };
-                    }
-                }
-            });
+                set_user(user.clone());
+            }
         }
     });
 
-    // default to sign in page
-    html! {
-       <Redirect<Route> to={Route::SignIn} />
+    view! {
+        <Show when=move || { user.with(|user| user.is_some()) } fallback=|| view! { <Landing/> }>
+            <Home user=user().unwrap()/>
+        </Show>
     }
+}
+
+#[component]
+fn Initializing() -> impl IntoView {
+    view! { <div>"Initializing app"</div> }
+}
+
+async fn fetch_user() -> Result<Option<User>, IoSerde> {
+    invoke_result("active_user", ()).await
 }

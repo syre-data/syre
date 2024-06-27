@@ -1,14 +1,20 @@
 //! Functionality and resources related to projects.
 use super::resources::{Analyses, Project};
-use crate::common;
-use crate::error::{Error, Project as ProjectError, Result};
-use crate::system::collections::ProjectManifest;
-use crate::system::project_manifest;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
-use syre_core::error::{Error as CoreError, Project as CoreProjectError};
-use syre_core::project::Project as CoreProject;
-use syre_core::types::ResourceId;
+use crate::{
+    common,
+    error::Project as ProjectError,
+    system::{collections::ProjectManifest, project_manifest},
+    Error, Result,
+};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
+use syre_core::{
+    error::{Error as CoreError, Project as CoreProjectError},
+    project::Project as CoreProject,
+    types::ResourceId,
+};
 
 // ************
 // *** Init ***
@@ -177,18 +183,26 @@ pub fn project_id(path: impl AsRef<Path>) -> Result<Option<ResourceId>> {
 }
 
 pub mod converter {
-    use super::super::container;
-    use super::super::resources::{Analyses, Project};
-    use crate::common;
-    use crate::error::{Error, Project as ProjectError, Result};
-    use crate::loader::container::Loader as ContainerLoader;
-    use crate::system::project_manifest;
-    use crate::system::settings;
-    use std::collections::HashMap;
-    use std::path::{Component, Path, PathBuf};
-    use std::{fs, io};
-    use syre_core::project::{AnalysisAssociation, Script, ScriptLang};
-    use syre_core::types::{ResourceId, UserId, UserPermissions};
+    use super::super::{
+        container,
+        resources::{Analyses, Project},
+    };
+    use crate::{
+        common,
+        error::{Error, Project as ProjectError, Result},
+        loader::container::Loader as ContainerLoader,
+        system::config,
+        system::project_manifest,
+    };
+    use std::{
+        collections::HashMap,
+        fs, io,
+        path::{Component, Path, PathBuf},
+    };
+    use syre_core::{
+        project::{AnalysisAssociation, Script, ScriptLang},
+        types::{ResourceId, UserId, UserPermissions},
+    };
 
     pub struct Converter {
         data_root: PathBuf,
@@ -261,11 +275,11 @@ pub mod converter {
                         project.data_root = self.data_root.clone();
                         project.analysis_root = self.analysis_root.clone();
 
-                        if let Ok(settings) = settings::UserSettings::load() {
-                            let user = settings.active_user.clone().map(|user| UserId::Id(user));
+                        if let Ok(config) = config::Config::load() {
+                            let user = config.user.clone().map(|user| UserId::Id(user));
                             project.settings_mut().creator = user;
 
-                            if let Some(user) = settings.active_user.as_ref() {
+                            if let Some(user) = config.user.as_ref() {
                                 project.settings_mut().permissions.insert(
                                     user.clone(),
                                     UserPermissions::with_permissions(true, true, true),

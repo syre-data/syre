@@ -1,13 +1,11 @@
 //! Container and container settings.
 use crate::{
     common,
-    error::{Error, IoSerde as IoSerdeError, Result},
+    error::{Error, Result},
     file_resource::LocalResource,
-    system::settings::UserSettings,
-    types::ContainerSettings,
+    types::{ContainerSettings, StoredContainerProperties},
 };
 use has_id::HasId;
-use serde::{Deserialize, Serialize};
 use std::{
     fs,
     hash::{Hash, Hasher},
@@ -18,38 +16,9 @@ use std::{
 };
 use syre_core::{
     error::{Error as CoreError, Resource as ResourceError},
-    project::{
-        AnalysisAssociation, Asset, Container as CoreContainer,
-        ContainerProperties as CoreContainerProperties,
-    },
-    types::{Creator, ResourceId, UserId},
+    project::{AnalysisAssociation, Asset, Container as CoreContainer},
+    types::ResourceId,
 };
-
-// ***********************************
-// *** Stored Container Properties ***
-// ***********************************
-
-/// Properties for a Container.
-#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub struct StoredContainerProperties {
-    pub rid: ResourceId,
-    pub properties: CoreContainerProperties,
-    pub analyses: Vec<AnalysisAssociation>,
-}
-
-impl From<CoreContainer> for StoredContainerProperties {
-    fn from(container: CoreContainer) -> Self {
-        Self {
-            rid: container.rid().clone(),
-            properties: container.properties,
-            analyses: container.analyses,
-        }
-    }
-}
-
-// *****************
-// *** Container ***
-// *****************
 
 #[derive(Debug)]
 pub struct Container {

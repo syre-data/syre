@@ -10,11 +10,11 @@ use syre_core::{
 };
 use syre_local::{
     error::IoSerde,
-    project::resources::container::StoredContainerProperties,
-    types::{AnalysisKind, ContainerSettings, ProjectSettings},
+    types::{AnalysisKind, ContainerSettings, ProjectSettings, StoredContainerProperties},
 };
 
 pub type ManifestState<T> = Result<Vec<T>, IoSerde>;
+pub type ConfigState<T> = Result<T, IoSerde>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Project {
@@ -79,6 +79,8 @@ impl Deref for Analysis {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Container {
     /// Name of the container's folder.
+    // #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
+    #[serde(with = "crate::serde_os_string")]
     pub(crate) name: OsString,
     pub(crate) properties: DataResource<StoredContainerProperties>,
     pub(crate) settings: DataResource<ContainerSettings>,
@@ -150,7 +152,7 @@ impl Deref for Asset {
 
 /// # Notes
 /// + Root node is at index 0.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Graph {
     pub nodes: Vec<Container>,
 

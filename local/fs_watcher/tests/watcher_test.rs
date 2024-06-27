@@ -19,15 +19,20 @@ fn test_watcher_app() {
     let config_dir = tempfile::tempdir_in(dir.path()).unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
+    let local_config = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
 
     fs::write(user_manifest.path(), "{}").unwrap();
     fs::write(project_manifest.path(), "[]").unwrap();
+    fs::write(local_config.path(), "{}").unwrap();
 
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config =
-        syre_fs_watcher::server::Config::new(user_manifest.path(), project_manifest.path());
+    let fs_watcher_config = syre_fs_watcher::server::Config::new(
+        user_manifest.path(),
+        project_manifest.path(),
+        local_config.path(),
+    );
 
     let mut fs_watcher =
         syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
@@ -38,6 +43,7 @@ fn test_watcher_app() {
 
     let mut user_manifest = Manifest::new(user_manifest.path());
     let mut project_manifest = Manifest::new(project_manifest.path());
+    let mut local_config = Manifest::new(local_config.path());
 
     fs::remove_file(&user_manifest.path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
@@ -106,6 +112,40 @@ fn test_watcher_app() {
             event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
         ))
     );
+
+    fs::remove_file(&local_config.path).unwrap();
+    let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
+    let event = event.unwrap();
+    assert_eq!(event.len(), 1);
+    assert_matches!(
+        event[0].kind(),
+        EventKind::Config(event::Config::LocalConfig(
+            event::StaticResourceEvent::Removed
+        ))
+    );
+
+    local_config.save();
+    let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
+    let event = event.unwrap();
+    assert_eq!(event.len(), 1);
+    assert_matches!(
+        event[0].kind(),
+        EventKind::Config(event::Config::LocalConfig(
+            event::StaticResourceEvent::Created
+        ))
+    );
+
+    local_config.push("settings");
+    local_config.save();
+    let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
+    let event = event.unwrap();
+    assert_eq!(event.len(), 1);
+    assert_matches!(
+        event[0].kind(),
+        EventKind::Config(event::Config::LocalConfig(
+            event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
+        ))
+    );
 }
 
 #[test_log::test]
@@ -114,14 +154,18 @@ fn test_watcher_project() {
     let config_dir = tempfile::tempdir_in(dir.path()).unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
+    let local_config = tempfile::NamedTempFile::new_in(config_dir.path()).unwrap();
 
     fs::write(project_manifest.path(), "[]").unwrap();
 
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config =
-        syre_fs_watcher::server::Config::new(user_manifest.path(), project_manifest.path());
+    let fs_watcher_config = syre_fs_watcher::server::Config::new(
+        user_manifest.path(),
+        project_manifest.path(),
+        local_config.path(),
+    );
 
     let mut fs_watcher =
         syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);

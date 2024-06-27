@@ -1,0 +1,71 @@
+use leptos::*;
+use leptos_router::{use_navigate, *};
+use serde::Serialize;
+use syre_core::system::User;
+use web_sys::{FormData, SubmitEvent};
+
+use crate::invoke::invoke_result;
+
+#[component]
+pub fn Login() -> impl IntoView {
+    let navigate = use_navigate();
+    let (loading, set_loading) = create_signal(false);
+    let (error, set_error) = create_signal(None);
+    let form_ref = NodeRef::new();
+    let login_user = {
+        let navigate = navigate.clone();
+        move |e: SubmitEvent| {
+            e.prevent_default();
+            set_loading(true);
+            set_error(None);
+
+            let data = FormData::new_with_form(&form_ref.get().unwrap()).unwrap();
+            let email = data.get("email").as_string().unwrap();
+
+            if email.trim().is_empty() {
+                set_error(Some("Email is required.".to_string()));
+                return;
+            }
+            let email = email.trim().to_string();
+
+            let navigate = navigate.clone();
+            spawn_local(async move {
+                match login(email).await {
+                    Ok(_user) => {
+                        navigate("/", Default::default());
+                    }
+
+                    Err(err) => {
+                        set_error(Some(err));
+                        set_loading(false);
+                    }
+                }
+            });
+        }
+    };
+
+    view! {
+        <h1>"Log in"</h1>
+        <form node_ref=form_ref on:submit=login_user>
+            <div>
+                <label>"Email"</label>
+                <input name="email" type="email" required/>
+            </div>
+
+            <div>
+                <button disabled=move || loading()>"Login"</button>
+                <A href="/register">"Sign up"</A>
+            </div>
+        </form>
+        <div>{error}</div>
+    }
+}
+
+async fn login(email: String) -> Result<User, String> {
+    invoke_result("login", LoginArgs { email }).await
+}
+
+#[derive(Serialize)]
+struct LoginArgs {
+    email: String,
+}

@@ -2,12 +2,18 @@
 use crossbeam::channel::Sender;
 use rand::Rng;
 use std::{assert_matches::assert_matches, fs, io, path::Path, thread, time::Duration};
-use syre_core::project::{Asset, Script};
+use syre_core::{
+    project::{Asset, Script},
+    types::ResourceId,
+};
 use syre_local::{
     error::IoSerde,
     file_resource::LocalResource,
     project::resources::{Analyses, Container, Project},
-    system::collections::ProjectManifest,
+    system::{
+        collections::ProjectManifest, config::Config as LocalConfig,
+        resources::Config as ConfigData,
+    },
     types::AnalysisKind,
 };
 use syre_local_database::{event, server::Config, state, types::PortNumber, Update};
@@ -21,9 +27,11 @@ fn test_server_state_and_updates_basics() {
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+    let local_config = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let config = Config::new(
         user_manifest.path(),
         project_manifest.path(),
+        local_config.path(),
         rng.gen_range(1024..PortNumber::max_value()),
     );
 
@@ -42,6 +50,9 @@ fn test_server_state_and_updates_basics() {
     let project_manifest_state = db.state().project_manifest().unwrap();
     assert_matches!(project_manifest_state, Err(IoSerde::Serde(_)));
 
+    let local_config_state = db.state().local_config().unwrap();
+    assert_matches!(local_config_state, Err(IoSerde::Serde(_)));
+
     // TODO: Handle user manifest
     // fs::write(user_manifest.path(), "{}").unwrap();
     // let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
@@ -50,6 +61,23 @@ fn test_server_state_and_updates_basics() {
     //     update[0].kind(),
     //     event::UpdateKind::App(event::App::UserManifest(event::UserManifest::Repaired))
     // );
+
+    fs::write(local_config.path(), "{}").unwrap();
+    thread::sleep(ACTION_SLEEP_TIME);
+
+    let local_config_state = db.state().local_config().unwrap();
+    assert!(local_config_state.is_ok());
+
+    let mut local_config = LocalConfig::load_from_or_default(local_config.path()).unwrap();
+    let user_id = ResourceId::new();
+    local_config.user = Some(user_id.clone());
+    local_config.save().unwrap();
+
+    let local_config_state = db.state().local_config().unwrap();
+    let Ok(ConfigData { user }) = local_config_state else {
+        panic!();
+    };
+    assert_eq!(user.unwrap(), user_id);
 
     fs::write(project_manifest.path(), "[]").unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
@@ -257,7 +285,7 @@ fn test_server_state_and_updates_basics() {
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
     let event::UpdateKind::Project {
-        project: project_id,
+        project: _project_id,
         path,
         update,
     } = update[0].kind()
@@ -557,7 +585,7 @@ fn test_server_state_and_updates_basics() {
     let event::Project::AnalysisFile(event::AnalysisFile::Created(created_path)) = update else {
         panic!();
     };
-    assert_eq!(*created_path, analysis_file.path());
+    assert_eq!(created_path, analysis_file.path());
 
     fs::remove_file(analysis_file.path()).unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
@@ -1072,7 +1100,7 @@ fn test_server_state_and_updates_basics() {
         panic!();
     };
     assert_eq!(container_path, Path::new("/"));
-    assert_eq!(asset_id, asset.rid());
+    assert_eq!(asset.rid(), asset_id);
 
     let untracked_file = tempfile::NamedTempFile::new_in(project.data_root_path()).unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
@@ -1124,11 +1152,14 @@ fn test_server_state_and_updates_graph() {
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+    let local_config = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     fs::write(user_manifest.path(), "[]").unwrap();
     fs::write(project_manifest.path(), "[]").unwrap();
+    fs::write(local_config.path(), "{}").unwrap();
     let config = Config::new(
         user_manifest.path(),
         project_manifest.path(),
+        local_config.path(),
         rng.gen_range(1024..PortNumber::max_value()),
     );
 
@@ -1155,7 +1186,7 @@ fn test_server_state_and_updates_graph() {
     assert!(&projects_state[0].fs_resource().is_present());
     update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
 
-    let mut project = Project::new(project.path()).unwrap();
+    let project = Project::new(project.path()).unwrap();
     project.save().unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
 

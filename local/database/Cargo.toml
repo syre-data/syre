@@ -16,13 +16,12 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
-crossbeam.workspace = true
+crossbeam = { workspace = true, optional = true }
 derive_more = { workspace = true }
-file-id = "0.2"
-futures = "0.3"
-indexmap = { workspace = true, features = ["serde"] }
+file-id = { version = "0.2", optional = true }
+futures  = { workspace = true, optional = true }
 notify = { workspace = true, default-features = false, optional = true }
-regex = { workspace = true }
+regex = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
@@ -31,17 +30,17 @@ thiserror = { workspace = true }
 tokio = { version = "1.36", features = ["sync", "macros", "rt-multi-thread"], optional = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
-tracing-subscriber = { version = "0.3.16", features = ["time", "json"] }
+tracing-subscriber = { version = "0.3", features = ["time", "json"] }
 trash = { workspace = true, optional = true }
-uuid = { workspace = true, features = ["serde", "v4"] }
+uuid = { workspace = true, features = ["serde", "v4", "v7"] }
 zmq = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
 
-has_id = { workspace = true, optional = true }
-file_path_from_id = { workspace = true }
 syre-core = { workspace = true }
 syre-local = { workspace = true }
-syre-fs-watcher = { workspace = true }
-rayon.workspace = true
+syre-fs-watcher = { workspace = true, optional = true }
+has_id = { workspace = true, optional = true }
+file_path_from_id = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = "0.8"
@@ -49,18 +48,29 @@ fake = "2.4"
 lazy_static = "1.4"
 tempfile = "3.9.0"
 test-log = { version = "0.2.16", features = ["trace"] }
+zmq.workspace = true
 
 [features]
 default = ["error"]
 server = [
-	"dep:zmq",
 	"syre-local/fs",
 	"syre-core/surreal_db",
+	"dep:syre-fs-watcher",
+	"dep:file_path_from_id",
 	"dep:has_id",
+	"dep:zmq",
+	"dep:rayon",
 	"dep:trash",
 	"dep:tokio",
 	"dep:surrealdb",
 	"dep:notify",
+	"dep:futures",
+	"dep:file-id",
+	"dep:crossbeam",
+	"dep:regex",
 ]
-client = ["dep:zmq"]
+client = [
+	"dep:zmq",
+	"dep:crossbeam",
+]
 error = []

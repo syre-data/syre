@@ -1,7 +1,5 @@
 /// Asset and Assets.
-use crate::{
-    common, error::IoSerde, file_resource::LocalResource, system::settings::UserSettings, Result,
-};
+use crate::{common, error::IoSerde, file_resource::LocalResource, system::config::Config, Result};
 use std::{
     fs, io,
     ops::{Deref, DerefMut},
@@ -21,8 +19,8 @@ pub struct AssetProperties;
 impl AssetProperties {
     /// Creates a new [`AssetProperties`](CoreAssetProperties) with fields actively filled from system settings.
     pub fn new() -> Result<CoreAssetProperties> {
-        let settings = UserSettings::load()?;
-        let creator = match settings.active_user.as_ref() {
+        let settings = Config::load()?;
+        let creator = match settings.user.as_ref() {
             Some(uid) => Some(UserId::Id(uid.clone().into())),
             None => None,
         };

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use syre_core::types::UserId;
+use syre_core::types::ResourceId;
 
 #[derive(Serialize, Deserialize, Debug, derive_more::From)]
 pub enum Query {
@@ -17,8 +17,16 @@ pub enum Config {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum State {
+    /// Retrieve the state of the user manifest.
     UserManifest,
+
+    /// Retrieve the state of the project manifest.
     ProjectManifest,
+
+    /// Retrieve the state of the local config.
+    LocalConfig,
+
+    /// Retrieve the state of all projects.
     Projects,
 
     /// Retrieve the entire graph of a project.
@@ -51,8 +59,25 @@ pub enum State {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum User {
-    Projects(UserId),
+    /// Return info on the user.
+    Info(ResourceId),
+
+    /// Get all the user's projects.
+    Projects(ResourceId),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum Project {}
+pub enum Project {
+    /// Retrieve the state of the project at the given path.
+    Get(PathBuf),
+
+    /// Retrieve the state of the projects at the given paths.
+    ///
+    /// # Notes
+    /// If a path is not associated with a state, it is excluded from the
+    /// result. It is up to the client application to diff the request and response.
+    GetMany(Vec<PathBuf>),
+
+    /// Retrieve the project's data graph.
+    Graph(ResourceId),
+}

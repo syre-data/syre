@@ -1,17 +1,12 @@
 //! Errors
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io, path::PathBuf, result::Result as StdResult};
-use syre_core::{types::ResourceId, Error as CoreError};
-use syre_local::{
-    error::{Error as Local, IoSerde},
-    loader::{container::error::AssetFile, tree::error::Error as ContainerTreeLoader},
-};
+use std::io;
+use syre_core::Error as CoreError;
+use syre_local::error::{Error as Local, IoSerde};
 use thiserror::Error;
 
 #[cfg(feature = "server")]
 use crate::types::SocketType;
-
-type ContainerTree = syre_core::graph::ResourceTree<syre_core::project::Container>;
 
 /// [`Database`](crate::db) related errors.
 #[derive(Serialize, Deserialize, Error, Debug)]
@@ -52,7 +47,6 @@ pub enum Error {
 
     #[error("{0}")]
     IoSerde(IoSerde),
-
 }
 
 #[cfg(any(feature = "server", feature = "client"))]
@@ -93,5 +87,4 @@ impl From<trash::Error> for Error {
     }
 }
 
-pub type Result<T = ()> = StdResult<T, Error>;
-
+pub type Result<T = ()> = std::result::Result<T, Error>;

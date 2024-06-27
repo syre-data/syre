@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use syre_core::project::{ExcelTemplate, Project, Script, ScriptLang};
 use syre_core::runner::{Runnable, RunnerHooks as CoreRunnerHooks};
 use syre_core::types::ResourceId;
-use syre_local::system::settings::RunnerSettings;
+use syre_local::system::config::RunnerSettings;
 use syre_local::types::analysis::AnalysisKind;
 use syre_local_database::{AnalysisCommand, Client as DbClient, ProjectCommand};
 

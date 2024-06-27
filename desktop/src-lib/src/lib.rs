@@ -1,10 +1,3 @@
-//! Shared types and functionality
-//! between the front- and back-end
-//! of the Syre Desktop app.
-pub mod error;
-pub mod excel_template;
-pub mod settings;
-pub mod types;
+pub mod event;
 
-// Re-exports
-pub use error::Error;
+pub use event::{Event, EventKind};

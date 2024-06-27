@@ -83,6 +83,7 @@ pub enum EventKind {
     #[from]
     Config(Config),
 
+    /// A project resource was modified.
     #[from]
     Project(Project),
 
@@ -188,6 +189,9 @@ pub enum Config {
 
     /// The user manifest file was modified.
     UserManifest(StaticResourceEvent),
+
+    /// The local config file was modified.
+    LocalConfig(StaticResourceEvent),
 }
 
 #[derive(Debug)]

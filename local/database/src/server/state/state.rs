@@ -1,11 +1,11 @@
 //! App state.
 use super::{config::State as App, project::State as Project};
-use crate::state::ManifestState;
+use crate::state::{ConfigState, ManifestState};
 pub use action::Action;
 pub use error::Error;
 use std::path::{Path, PathBuf};
 use syre_core::system::User;
-use syre_local::{Reducible, TryReducible};
+use syre_local::{system::resources::Config as LocalConfig, Reducible, TryReducible};
 
 /// Application state.
 #[derive(Debug)]
@@ -18,9 +18,10 @@ impl State {
     pub fn new(
         user_manifest: ManifestState<User>,
         project_manifest: ManifestState<PathBuf>,
+        local_config: ConfigState<LocalConfig>,
     ) -> Self {
         Self {
-            app: App::new(user_manifest, project_manifest),
+            app: App::new(user_manifest, project_manifest, local_config),
             projects: vec![],
         }
     }

@@ -8,7 +8,7 @@ use std::io::{self, BufReader};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(transparent)]
 pub struct ProjectManifest {
     inner: Vec<PathBuf>,
@@ -43,8 +43,8 @@ impl ProjectManifest {
             }
 
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self {
+                inner: vec![],
                 path,
-                ..Default::default()
             }),
 
             Err(err) => Err(err.into()),
@@ -96,8 +96,10 @@ impl ProjectManifest {
                     path,
                 })
             }
-
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Self {
+                inner: vec![],
+                path,
+            }),
             Err(err) => Err(err.into()),
         }
     }

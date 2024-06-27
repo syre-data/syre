@@ -20,7 +20,6 @@ calamine = { workspace = true }
 csv = { workspace = true }
 derivative = "2.2"
 directories = { workspace = true, optional = true }
-erased-serde = "0.4.2"
 glob = { version = "0.3.1", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

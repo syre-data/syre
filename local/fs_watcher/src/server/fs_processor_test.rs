@@ -1,10 +1,6 @@
 // NB: Writes to manifests.
 use super::*;
-use crate::{
-    event as app,
-    server::{event as fs_event, Config},
-    Command, Event,
-};
+use crate::{event as app, server::event as fs_event, Command, Event};
 use crossbeam::channel::{Receiver, Sender};
 use std::time::Instant;
 use std::{assert_matches::assert_matches, fs};
@@ -50,7 +46,6 @@ fn watcher_convert_fs_events_should_work() {
 
 mod convert_fs {
     use super::*;
-    use syre_local::{file_resource::SystemResource, system::collections};
 
     pub fn test_config(watcher: &FsWatcher) {
         // -- created
@@ -80,6 +75,19 @@ mod convert_fs {
         assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Created))
+        );
+
+        let events = watcher
+            .process_event_fs_to_apps(&fs_event::Event::new(
+                fs_event::File::Created(watcher.app_config.local_config().clone()),
+                Instant::now(),
+            ))
+            .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Created))
         );
         // -- created end
 
@@ -111,6 +119,19 @@ mod convert_fs {
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Removed))
         );
+
+        let events = watcher
+            .process_event_fs_to_apps(&fs_event::Event::new(
+                fs_event::File::Removed(watcher.app_config.local_config().clone()),
+                Instant::now(),
+            ))
+            .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Removed))
+        );
         // -- removed end
 
         // -- modified
@@ -140,6 +161,21 @@ mod convert_fs {
         assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(
+                app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
+            ))
+        );
+
+        let events = watcher
+            .process_event_fs_to_apps(&fs_event::Event::new(
+                fs_event::File::DataModified(watcher.app_config.local_config().clone()),
+                Instant::now(),
+            ))
+            .unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Config(app::Config::LocalConfig(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
             ))
         );
@@ -1194,7 +1230,7 @@ mod convert_fs {
         let batch_1 = project.graph.children(&recipe_1.rid()).unwrap();
         let batch_11 = project.graph.get(&batch_1[0]).unwrap();
         let batch_12 = project.graph.get(&batch_1[1]).unwrap();
-        let asset_11 = batch_11.assets.values().next().unwrap();
+        let asset_11 = batch_11.assets.iter().next().unwrap();
         let asset_11_path = batch_11.base_path().join(asset_11.path.clone());
 
         let events = watcher

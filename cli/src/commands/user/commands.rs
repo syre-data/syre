@@ -14,10 +14,10 @@ pub fn list() -> Result {
     };
 
     let users = users
-        .values()
+        .iter()
         .map(|user: &User| match &user.name {
-            None => format!("{} ({})", user.email, user.rid),
-            Some(name) => format!("{} <{}> ({})", user.email, name, user.rid),
+            None => format!("{} ({})", user.email, user.rid()),
+            Some(name) => format!("{} <{}> ({})", user.email, name, user.rid()),
         })
         .collect::<Vec<_>>();
 
@@ -54,7 +54,7 @@ pub fn delete(id: UserId) -> Result {
 
             match user {
                 None => return Ok(()),
-                Some(u) => u.rid,
+                Some(u) => u.rid().clone(),
             }
         }
     };

@@ -18,3 +18,11 @@ pub const PUB_SUB_TOPIC: &str = "syre://local-database";
 
 /// Identifier string for the database
 pub const DATABASE_ID: &str = "syre local database";
+
+pub mod pub_sub_topic {
+    pub const APP_USER_MANIFEST: &str = "app/user_manifest";
+    pub const APP_PROJECT_MANIFEST: &str = "app/project_manifest";
+    pub const APP_LOCAL_CONFIG: &str = "app/local_config";
+    pub const PROJECT_PREFIX: &str = "project";
+    pub const PROJECT_UNKNOWN: &str = "project/unknown";
+}

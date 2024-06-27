@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "postcss-import": "^16.1.0",
+    "postcss-nesting": "^12.1.5"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.0.0-beta.4"
+  }
+}

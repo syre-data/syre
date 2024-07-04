@@ -1,4 +1,5 @@
 use super::*;
+use crate::project::container;
 
 #[test]
 fn container_tree_load_should_work() {
@@ -7,7 +8,7 @@ fn container_tree_load_should_work() {
     let c1_dir = tempfile::tempdir_in(dir.path()).unwrap();
     let c2_dir = tempfile::tempdir_in(dir.path()).unwrap();
 
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     let rid = builder
         .build(dir.path())
         .expect("could not init root `Container`");

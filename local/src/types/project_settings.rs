@@ -19,7 +19,7 @@ impl ProjectSettings {
             local_format_version: PROJECT_FORMAT_VERSION.to_string(),
             created: Utc::now(),
             creator: None,
-            permissions: ResourceMap::default(),
+            permissions: ResourceMap::new(),
         }
     }
 }

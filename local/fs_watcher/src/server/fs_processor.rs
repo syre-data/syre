@@ -220,13 +220,43 @@ impl FsWatcher {
             .add_path(path.clone())],
 
             fs_event::EventKind::Any(fs_event::Any::Removed(path)) => {
-                let event = if let Ok(kind) = self.handle_file_removed(path, &self.app_config) {
-                    Event::with_time(kind, event.time, event.id().clone()).add_path(path.clone())
-                } else if let Ok(kind) = self.handle_folder_removed(path) {
-                    Event::with_time(kind, event.time, event.id().clone()).add_path(path.clone())
-                } else {
-                    Event::with_time(app::Any::Removed.into(), event.time, event.id().clone())
-                        .add_path(path.clone())
+                assert!(!path.exists());
+                let maybe_file_kind = resources::resource_kind(path, &self.app_config);
+                let maybe_folder_kind = resources::dir_kind(path);
+
+                let event = match (maybe_file_kind, maybe_folder_kind) {
+                    (Ok(_), Ok(_)) => Event::with_time(
+                        app::GraphResource::Removed.into(),
+                        event.time,
+                        event.id().clone(),
+                    )
+                    .add_path(path.clone()),
+
+                    (Ok(file_kind), Err(_)) => {
+                        if let Ok(kind) = self.convert_file_removed(path, Ok(file_kind)) {
+                            Event::with_time(kind, event.time, event.id().clone())
+                                .add_path(path.clone())
+                        } else {
+                            Event::with_time(
+                                app::Any::Removed.into(),
+                                event.time,
+                                event.id().clone(),
+                            )
+                            .add_path(path.clone())
+                        }
+                    }
+
+                    (Err(_), Ok(kind)) => Event::with_time(
+                        self.convert_folder_removed(kind),
+                        event.time,
+                        event.id().clone(),
+                    )
+                    .add_path(path.clone()),
+
+                    (Err(_), Err(_)) => {
+                        Event::with_time(app::Any::Removed.into(), event.time, event.id().clone())
+                            .add_path(path.clone())
+                    }
                 };
 
                 vec![event]
@@ -291,7 +321,15 @@ impl FsWatcher {
         path: &PathBuf,
         app_config: &config::Config,
     ) -> StdResult<EventKind, resources::Error> {
-        let kind = match resources::resource_kind(path, app_config) {
+        self.convert_file_removed(path, resources::resource_kind(path, app_config))
+    }
+
+    fn convert_file_removed(
+        &self,
+        path: &PathBuf,
+        kind: Result<Option<resources::ResourceEvent>, resources::Error>,
+    ) -> StdResult<EventKind, resources::Error> {
+        let kind = match kind {
             Ok(Some(kind)) => Self::convert_resource_to_event_kind_removed(kind),
             Ok(None) => EventKind::File(app::ResourceEvent::Removed),
             Err(err) => match err.kind() {
@@ -547,12 +585,15 @@ impl FsWatcher {
 
     fn handle_folder_removed(&self, path: &PathBuf) -> StdResult<EventKind, resources::Error> {
         assert!(!path.exists());
-        let kind = match resources::dir_kind(path)? {
+        let kind = resources::dir_kind(path)?;
+        Ok(self.convert_folder_removed(kind))
+    }
+
+    fn convert_folder_removed(&self, kind: resources::DirKind) -> EventKind {
+        match kind {
             resources::DirKind::None { .. } => app::EventKind::Folder(app::ResourceEvent::Removed),
             kind => Self::convert_dir_to_event_kind_removed(&kind),
-        };
-
-        Ok(kind)
+        }
     }
 
     /// Handles a moved folder

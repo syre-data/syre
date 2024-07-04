@@ -90,6 +90,10 @@ pub enum EventKind {
     #[from]
     Graph(Graph),
 
+    /// A container or asset, but could not be determined.
+    #[from]
+    GraphResource(GraphResource),
+
     #[from]
     Container(Container),
 
@@ -247,6 +251,13 @@ pub enum Graph {
 
     /// A container directory was modified.
     Modified(ModifiedKind),
+}
+
+/// A graph resource.
+/// i.e. A container or asset, but could not be deteremined.
+#[derive(Debug)]
+pub enum GraphResource {
+    Removed,
 }
 
 #[derive(Debug)]

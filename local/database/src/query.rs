@@ -8,6 +8,7 @@ pub enum Query {
     State(State),
     User(User),
     Project(Project),
+    Container(Container),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,15 +37,6 @@ pub enum State {
     ),
 
     /// Retrieve the state of a container.
-    Container {
-        /// Base path of the project.
-        project: PathBuf,
-
-        /// Relative path to the container from the data root.
-        container: PathBuf,
-    },
-
-    /// Retrieve the state of a container.
     Asset {
         /// Base path of the project.
         project: PathBuf,
@@ -71,6 +63,9 @@ pub enum Project {
     /// Retrieve the state of the project at the given path.
     Get(PathBuf),
 
+    /// Retrieve the state of the project with the given id.
+    GetById(ResourceId),
+
     /// Retrieve the state of the projects at the given paths.
     ///
     /// # Notes
@@ -78,6 +73,17 @@ pub enum Project {
     /// result. It is up to the client application to diff the request and response.
     GetMany(Vec<PathBuf>),
 
-    /// Retrieve the project's data graph.
-    Graph(ResourceId),
+    /// Retrieve the project's data and graph.
+    Resources(ResourceId),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Container {
+    /// Retrieve the state of a container.
+    Get {
+        project: ResourceId,
+
+        /// Relative path to the container from the data root.
+        container: PathBuf,
+    },
 }

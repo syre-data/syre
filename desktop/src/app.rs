@@ -7,9 +7,15 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
+/// For Tailwind to include classes
+/// they must appear as string literals in at least one place.
+/// This array is used to include them when needed.
+static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden"];
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+
     view! {
         <Title formatter=|text| text text="Syre"/>
 

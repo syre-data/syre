@@ -189,6 +189,10 @@ pub enum Error {
     #[cfg(feature = "fs")]
     #[error("Load")]
     Load,
+
+    #[cfg(feature = "fs")]
+    #[error("Load")]
+    ContainerBuild(crate::project::container::error::Build),
 }
 
 impl From<io::Error> for Error {

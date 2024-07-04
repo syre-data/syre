@@ -1072,7 +1072,7 @@ impl Simulator {
                 let folder = &folders[rng.gen_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource::<
-                    syre_local::project::resources::container::StoredContainerProperties,
+                    syre_local::types::StoredContainerProperties,
                     _,
                 >(
                     constants::CONTAINER_FILE,
@@ -1266,7 +1266,7 @@ impl Simulator {
             state::app::FileResource::ContainerProperties(_) => {
                 let container =
                     syre_core::project::Container::new(path.file_name().unwrap().to_string_lossy());
-                let container: syre_local::project::resources::container::StoredContainerProperties = container.into();
+                let container: syre_local::types::StoredContainerProperties = container.into();
                 let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
                 serde_json::to_writer(file, &container).unwrap();
             }
@@ -1363,7 +1363,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::config::Config) -> Self {
+    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::Config) -> Self {
         Self {
             current_tick: 0,
             app: state::State::new(
@@ -1540,7 +1540,7 @@ mod utils {
 
 pub mod options {
     use std::{ops::Range, path::PathBuf};
-    use syre_fs_watcher::server::config::Config;
+    use syre_fs_watcher::server::Config;
 
     pub struct Options {
         seed: u64,

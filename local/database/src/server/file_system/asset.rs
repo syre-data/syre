@@ -1,4 +1,4 @@
-use crate::{event as update, server, state, Database, Update};
+use crate::{common, event as update, server, state, Database, Update};
 use std::{assert_matches::assert_matches, path::Path};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::TryReducible;
@@ -52,10 +52,11 @@ impl Database {
         };
 
         let container_path = path.parent().unwrap();
-        let container_graph_path = container_path
-            .strip_prefix(project.path().join(&project_properties.data_root))
-            .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::container_graph_path(
+            project.path().join(&project_properties.data_root),
+            container_path,
+        )
+        .unwrap();
         let container_state = graph.find(&container_graph_path).unwrap();
         let container_state = container_state.lock().unwrap();
         let state::DataResource::Ok(assets) = container_state.assets() else {
@@ -66,10 +67,11 @@ impl Database {
             .iter()
             .find(|asset| asset.path == path.file_name().unwrap())
         else {
-            let path = path
-                .strip_prefix(project.path().join(&project_properties.data_root))
-                .unwrap();
-            let path = Path::new("/").join(path);
+            let path = common::container_graph_path(
+                project.path().join(&project_properties.data_root),
+                path,
+            )
+            .unwrap();
 
             return vec![Update::project_with_id(
                 project_properties.rid().clone(),
@@ -133,10 +135,11 @@ impl Database {
             panic!("invalid state");
         };
 
-        let container_graph_path = base_path
-            .strip_prefix(project.path().join(&project_properties.data_root))
-            .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::container_graph_path(
+            project.path().join(&project_properties.data_root),
+            base_path,
+        )
+        .unwrap();
         let container_state = graph.find(&container_graph_path).unwrap();
         let container_state = container_state.lock().unwrap();
         let state::DataResource::Ok(assets) = container_state.assets() else {
@@ -153,10 +156,11 @@ impl Database {
             .unwrap();
 
         let Some(asset_state) = assets.iter().find(|asset| asset.path == asset_path) else {
-            let path = path
-                .strip_prefix(project.path().join(&project_properties.data_root))
-                .unwrap();
-            let path = Path::new("/").join(path);
+            let path = common::container_graph_path(
+                project.path().join(&project_properties.data_root),
+                path,
+            )
+            .unwrap();
 
             return vec![Update::project_with_id(
                 project_properties.rid().clone(),

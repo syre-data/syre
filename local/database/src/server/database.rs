@@ -375,6 +375,7 @@ impl Database {
             Query::State(query) => self.handle_query_state(query),
             Query::User(query) => self.handle_query_user(query),
             Query::Project(query) => self.handle_query_project(query),
+            Query::Container(query) => self.handle_query_container(query),
         }
     }
     // // TODO Handle errors.
@@ -593,6 +594,7 @@ mod linux {
             };
 
             let updates = self.process_file_system_events(events);
+            tracing::debug!(?updates);
             if let Err(err) = self.publish_updates(&updates) {
                 tracing::error!(?err);
             }
@@ -611,16 +613,6 @@ mod linux {
 
     fn path_in_trash(path: impl AsRef<Path>) -> bool {
         todo!()
-    }
-}
-
-impl Database {
-    #[tracing::instrument(skip(self))]
-    pub fn process_file_system_events(
-        &mut self,
-        events: Vec<syre_fs_watcher::Event>,
-    ) -> Vec<Update> {
-        self.process_events(events)
     }
 }
 

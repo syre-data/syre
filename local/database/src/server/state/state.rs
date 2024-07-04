@@ -1,10 +1,10 @@
 //! App state.
-use super::{config::State as App, project::State as Project};
-use crate::state::{ConfigState, ManifestState};
+use super::{config::State as App, Project};
+use crate::state::{self, ConfigState, ManifestState};
 pub use action::Action;
 pub use error::Error;
 use std::path::{Path, PathBuf};
-use syre_core::system::User;
+use syre_core::{system::User, types::ResourceId};
 use syre_local::{system::resources::Config as LocalConfig, Reducible, TryReducible};
 
 /// Application state.
@@ -32,6 +32,21 @@ impl State {
 
     pub fn projects(&self) -> &Vec<Project> {
         &self.projects
+    }
+
+    /// Finds a project with the matching id.
+    pub fn find_project_by_id(&self, rid: &ResourceId) -> Option<&Project> {
+        self.projects.iter().find(|project| {
+            let state::FolderResource::Present(data) = project.fs_resource() else {
+                return false;
+            };
+
+            let state::DataResource::Ok(properties) = data.properties() else {
+                return false;
+            };
+
+            properties.rid() == rid
+        })
     }
 
     /// Finds a project with the matching path.

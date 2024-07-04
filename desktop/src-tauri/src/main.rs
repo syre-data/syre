@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use syre_desktop::{
-    commands::{auth, fs, project, user},
+    commands::{auth, fs, graph, project, user},
     setup,
 };
 
@@ -26,7 +26,8 @@ fn main() {
             user::user_count,
             user::user_projects,
             project::create_project,
-            project::project_graph,
+            project::project_resources,
+            graph::create_child_container,
             fs::pick_folder,
             fs::pick_folder_with_location,
         ])

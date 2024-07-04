@@ -66,7 +66,7 @@ fn container_tree_duplicate_without_assets_to_should_work() {
     let c11_dir = tempfile::tempdir_in(c1_dir.path()).unwrap();
     let c12_dir = tempfile::tempdir_in(c1_dir.path()).unwrap();
 
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     let _rid = builder
         .build(dir.path())
         .expect("could not init root `Container`");

@@ -6,8 +6,6 @@ use syre_core::system::User;
 use syre_local_database as db;
 use uuid::Uuid;
 
-pub use topic::topic;
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Event {
     id: Uuid,
@@ -46,6 +44,7 @@ pub enum EventKind {
     #[from(ignore)]
     App(App),
     ProjectManifest(ProjectManifest),
+    Project(db::event::Project),
 }
 
 impl<T> From<T> for EventKind
@@ -84,11 +83,19 @@ pub enum LocalConfig {
 }
 
 pub mod topic {
+    use syre_core::types::ResourceId;
+
     pub const PREFIX: &str = "syre";
     pub const USER: &str = "syre:user";
     pub const PROJECT_MANIFEST: &str = "syre:project_manifest";
+    pub const PROJECT: &str = "syre:project";
+    pub const GRAPH: &str = "syre:graph";
 
-    pub fn topic(topic: impl AsRef<str>) -> String {
-        format!("{}:{}", PREFIX, topic.as_ref())
+    pub fn project(project: ResourceId) -> String {
+        format!("{}/{}", PROJECT, project)
+    }
+
+    pub fn graph(project: &ResourceId) -> String {
+        format!("{}/{}", PROJECT, project)
     }
 }

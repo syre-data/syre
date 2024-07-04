@@ -337,6 +337,20 @@ pub mod project {
                         graph::error::Insert::NameCollision => Error::InvalidTransition,
                     })
                 }
+                action::Graph::Remove(path) => {
+                    let FolderResource::Present(ref mut graph) = self.graph else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    let Some(root) = graph.find(&path).cloned() else {
+                        return Err(Error::DoesNotExist);
+                    };
+
+                    graph.remove(&root).map_err(|err| match err {
+                        graph::error::Remove::NotFound => Error::DoesNotExist,
+                        graph::error::Remove::Root => panic!(),
+                    })
+                }
                 action::Graph::Move { from, to } => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
                         return Err(Error::DoesNotExist);
@@ -769,6 +783,45 @@ pub mod graph {
             Some(node)
         }
 
+        /// Remove a subgraph.
+        ///
+        /// # Arguments
+        /// 1. `root`: Root of the subgraph to remove.
+        pub fn remove(&mut self, root: &Node) -> Result<(), error::Remove> {
+            let Some(descendants) = self.descendants(root) else {
+                return Err(error::Remove::NotFound);
+            };
+
+            let Some(parent) = self.parent(root).cloned() else {
+                assert!(Node::ptr_eq(root, &self.root));
+                return Err(error::Remove::Root);
+            };
+
+            self.children_mut(&parent)
+                .unwrap()
+                .retain(|child| !Node::ptr_eq(child, root));
+
+            self.children.retain(|(parent, _)| {
+                descendants
+                    .iter()
+                    .any(|descendant| Node::ptr_eq(parent, descendant))
+            });
+
+            self.parents.retain(|(child, _)| {
+                descendants
+                    .iter()
+                    .any(|descendant| Node::ptr_eq(child, descendant))
+            });
+
+            self.nodes.retain(|node| {
+                descendants
+                    .iter()
+                    .any(|descendant| Node::ptr_eq(node, descendant))
+            });
+
+            Ok(())
+        }
+
         /// Move a subgraph to a new parent.
         ///
         /// # Arguments
@@ -905,6 +958,15 @@ pub mod graph {
         }
 
         #[derive(Debug)]
+        pub enum Remove {
+            /// The node was not in the graph.
+            NotFound,
+
+            /// The node was the root node.
+            Root,
+        }
+
+        #[derive(Debug)]
         pub enum Move {
             /// Root node can not be moved.
             Root,
@@ -977,6 +1039,17 @@ pub(crate) mod action {
             graph: graph::State,
         },
 
+        /// Remove a subgraph with root node at the given path.
+        ///
+        /// # Panics
+        /// + If the given path does not exist in the graph.
+        /// + If the path is the root path. (See [`Graph::Set`])
+        Remove(
+            /// Absoulte path from the project's data root to the subgraph root.
+            /// i.e. The root path represents the data root container.
+            PathBuf,
+        ),
+
         /// Move a subgraph.
         ///
         /// # Fields
@@ -984,7 +1057,7 @@ pub(crate) mod action {
         Move { from: PathBuf, to: PathBuf },
     }
 
-    #[derive(Debug, derive_more::From)]
+    #[derive(Debug)]
     pub enum Container {
         SetName(OsString),
         SetProperties(DataResource<StoredContainerProperties>),
@@ -994,7 +1067,6 @@ pub(crate) mod action {
         /// Sets all config resources to be absent.
         RemoveConfig,
 
-        #[from]
         Asset {
             rid: ResourceId,
             action: Asset,
@@ -1009,34 +1081,10 @@ pub(crate) mod action {
 }
 
 impl<T> FolderResource<T> {
-    pub fn as_ref(&self) -> FolderResource<&T> {
-        match *self {
-            Self::Present(ref x) => FolderResource::Present(x),
-            Self::Absent => FolderResource::Absent,
-        }
-    }
-
     pub fn as_mut(&mut self) -> FolderResource<&mut T> {
         match *self {
             Self::Present(ref mut x) => FolderResource::Present(x),
             Self::Absent => FolderResource::Absent,
-        }
-    }
-
-    pub fn map<U, F>(&self, f: F) -> FolderResource<U>
-    where
-        F: FnOnce(&T) -> U,
-    {
-        match self {
-            Self::Present(ref x) => FolderResource::Present(f(x)),
-            Self::Absent => FolderResource::Absent,
-        }
-    }
-
-    pub fn is_present(&self) -> bool {
-        match self {
-            Self::Absent => false,
-            Self::Present(_) => true,
         }
     }
 }

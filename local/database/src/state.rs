@@ -79,7 +79,6 @@ impl Deref for Analysis {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Container {
     /// Name of the container's folder.
-    // #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
     #[serde(with = "crate::serde_os_string")]
     pub(crate) name: OsString,
     pub(crate) properties: DataResource<StoredContainerProperties>,
@@ -170,8 +169,49 @@ pub enum FolderResource<T> {
     Absent,
 }
 
+impl<T> FolderResource<T> {
+    pub fn is_present(&self) -> bool {
+        matches!(self, FolderResource::Present(_))
+    }
+}
+
+impl<T> FolderResource<T> {
+    pub fn as_ref(&self) -> FolderResource<&T> {
+        match *self {
+            Self::Present(ref x) => FolderResource::Present(x),
+            Self::Absent => FolderResource::Absent,
+        }
+    }
+
+    pub fn map<U, F>(&self, f: F) -> FolderResource<U>
+    where
+        F: FnOnce(&T) -> U,
+    {
+        match self {
+            Self::Present(ref x) => FolderResource::Present(f(x)),
+            Self::Absent => FolderResource::Absent,
+        }
+    }
+
+    pub fn or_else<F>(self, f: F) -> FolderResource<T>
+    where
+        F: FnOnce() -> FolderResource<T>,
+    {
+        match self {
+            x @ Self::Present(_) => x,
+            Self::Absent => f(),
+        }
+    }
+}
+
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub enum FileResource {
     Present,
     Absent,
+}
+
+impl FileResource {
+    pub fn is_present(&self) -> bool {
+        matches!(self, FileResource::Present)
+    }
 }

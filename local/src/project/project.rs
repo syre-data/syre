@@ -368,7 +368,7 @@ pub mod converter {
             }
 
             // initialize container graph
-            let mut builder = container::InitOptions::init();
+            let mut builder = container::builder::InitOptions::init();
             builder.recurse(true);
             builder.with_assets();
             builder.build(&data_root)?;

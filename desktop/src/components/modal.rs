@@ -7,8 +7,6 @@ pub fn ModalDialog(
     #[prop(optional)] node_ref: NodeRef<html::Dialog>,
     children: Children,
 ) -> impl IntoView {
-    // let dialog_ref: NodeRef<html::Dialog> = create_node_ref();
-
     let close_dialog = move |e: MouseEvent| {
         let dialog = NodeRef::<html::Dialog>::new();
         let target = e.target().unwrap();

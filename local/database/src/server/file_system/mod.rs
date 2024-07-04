@@ -9,7 +9,10 @@ use crate::{Database, Update};
 use syre_fs_watcher::EventKind;
 
 impl Database {
-    pub fn process_events(&mut self, events: Vec<syre_fs_watcher::Event>) -> Vec<Update> {
+    pub fn process_file_system_events(
+        &mut self,
+        events: Vec<syre_fs_watcher::Event>,
+    ) -> Vec<Update> {
         events
             .into_iter()
             .flat_map(|event| self.process_event(event))
@@ -21,6 +24,7 @@ impl Database {
             EventKind::Config(_) => self.handle_fs_event_config(event),
             EventKind::Project(_) => self.handle_fs_event_project(event),
             EventKind::Graph(_) => self.handle_fs_event_graph(event),
+            EventKind::GraphResource(_) => self.handle_fs_event_graph_resource(event),
             EventKind::Container(_) => self.handle_fs_event_container(event),
             EventKind::AssetFile(_) => self.handle_fs_event_asset_file(event),
             EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),

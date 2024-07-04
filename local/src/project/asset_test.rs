@@ -1,8 +1,10 @@
 use super::*;
 use crate::project::container;
-use fake::faker::filesystem::raw::{FileName, FilePath};
-use fake::locales::EN;
-use fake::Fake;
+use fake::{
+    faker::filesystem::raw::{FileName, FilePath},
+    locales::EN,
+    Fake,
+};
 
 // ********************
 // *** AssetBuilder ***
@@ -12,7 +14,7 @@ use fake::Fake;
 fn asset_builder_container_path_should_work() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     builder
         .build(_dir.path())
         .expect("could not init dir as `Container`");
@@ -65,7 +67,7 @@ fn asset_builder_container_path_with_invalid_container_set_should_error() {
 fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     builder
         .build(_dir.path())
         .expect("could not init dir as `Container`");
@@ -93,7 +95,7 @@ fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work(
 fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     builder
         .build(_dir.path())
         .expect("could not init dir as `Container`");
@@ -149,7 +151,7 @@ fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
 fn asset_builder_tentative_final_path_with_bucket_set_should_work() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     builder
         .build(_dir.path())
         .expect("could not init dir as `Container`");
@@ -240,7 +242,7 @@ fn asset_builder_create_reference_should_work() {
 fn container_from_path_ancestor_should_work() {
     // setup
     let mut _dir = tempfile::tempdir().unwrap();
-    let builder = container::InitOptions::init();
+    let builder = container::builder::InitOptions::init();
     let _cid = builder
         .build(_dir.path())
         .expect("init container should work");

@@ -28,10 +28,63 @@ pub fn datastore_url() -> String {
 }
 
 /// Creates the absolute path from the data root to the container.
+///
+/// # Arguments
+/// 1. `data_root`: Absolute path from the file system root to the data root.
+/// 2. `container`: Absolute path from the file system root to the container.
+///
+/// # Panics
+/// If either path is not absolute.
+///
+/// # Examples
+/// ```rust
+/// let data_root = "/user/syre/project/data"
+/// let container = "/user/syre/project/data/child/grandchild"
+///
+/// assert_eq!(container_graph_path(&data_root, &data_root), "/");
+/// assert_eq!(container_graph_path(&data_root, &container), "/child/grandchild");
+/// ```
+///
+/// # See also
+/// + [`container_system_path`]
 pub fn container_graph_path(
     data_root: impl AsRef<Path>,
     container: impl AsRef<Path>,
 ) -> Result<PathBuf, StripPrefixError> {
+    assert!(data_root.as_ref().is_absolute());
+    assert!(container.as_ref().is_absolute());
+
     let path = container.as_ref().strip_prefix(data_root.as_ref())?;
     Ok(Path::new("/").join(path))
+}
+
+/// Creates the absolute path from the file system root to the container.
+///
+/// # Arguments
+/// 1. `data_root`: Absolute path from the file system root to the data root.
+/// 2. `container`: Absolute path from the file system root to the container.
+///
+/// # Panics
+/// If either path is not absolute.
+///
+/// # Examples
+/// ```rust
+/// let data_root = "/user/syre/project/data"
+/// let container = "/child/grandchild"
+///
+/// assert_eq!(container_system_path(&data_root, &data_root), data_root);
+/// assert_eq!(container_system_path(&data_root, &container), "/user/syre/project/data/child/grandchild");
+/// ```
+///
+/// # See also
+/// + [`container_graph_path`]
+pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<Path>) -> PathBuf {
+    assert!(data_root.as_ref().is_absolute());
+    assert!(container.as_ref().is_absolute());
+
+    data_root
+        .as_ref()
+        .components()
+        .chain(container.as_ref().components().skip(1))
+        .collect()
 }

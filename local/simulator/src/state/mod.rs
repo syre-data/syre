@@ -613,7 +613,8 @@ impl Reducible for State {
                                 let name = file.parent().unwrap().parent().unwrap();
                                 let container =
                                     syre_core::project::Container::new(name.to_string_lossy());
-                                let properties: syre_local::project::resources::container::StoredContainerProperties = container.into();
+                                let properties: syre_local::types::StoredContainerProperties =
+                                    container.into();
                                 let fs_resource = self.fs.find_file(&file).unwrap();
                                 fs_resource
                                     .borrow_mut()

@@ -36,9 +36,19 @@ pub fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Pro
 }
 
 #[tauri::command]
-pub fn project_graph(
+pub fn project_resources(
     db: tauri::State<db::Client>,
     project: ResourceId,
-) -> Option<db::state::FolderResource<db::state::Graph>> {
-    db.project().graph(project).unwrap()
+) -> Option<(
+    db::state::ProjectData,
+    db::state::FolderResource<db::state::Graph>,
+)> {
+    let resources = db.project().resources(project).unwrap();
+    assert!(if let Some((data, _)) = resources.as_ref() {
+        data.properties().is_ok()
+    } else {
+        true
+    });
+
+    resources
 }

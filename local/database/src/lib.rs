@@ -69,5 +69,12 @@ mod serde_os_string {
         {
             OsString::from_str(&v).map_err(|err| serde::de::Error::custom(format!("{err:?}")))
         }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            OsString::from_str(&v).map_err(|err| serde::de::Error::custom(format!("{err:?}")))
+        }
     }
 }

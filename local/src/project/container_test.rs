@@ -1,8 +1,8 @@
 use super::*;
-use crate::common;
-use fake::faker::lorem::raw::Words;
-use fake::locales::EN;
-use fake::Fake;
+use crate::{common, loader::container::Loader as ContainerLoader};
+use fake::{faker::lorem::raw::Words, locales::EN, Fake};
+use std::fs;
+use syre_core::project::ContainerProperties;
 
 #[test]
 fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {
@@ -12,7 +12,7 @@ fn builder_init_no_assets_no_recurse_on_non_resource_should_work() {
     fs::create_dir(&root).expect("create directory should work");
 
     // test
-    let builder = InitOptions::init();
+    let builder = builder::InitOptions::init();
     builder.build(root.as_path()).unwrap();
 
     // check app folder created
@@ -56,7 +56,7 @@ fn builder_init_should_return_resource_id_if_already_a_container() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
 
-    let builder = InitOptions::init();
+    let builder = builder::InitOptions::init();
     let rid = builder.build(_dir.path()).expect("init should work");
 
     // test
@@ -75,7 +75,7 @@ fn builder_init_if_folder_is_a_resource_but_not_a_container_should_error() {
     fs::create_dir(common::app_dir_of(_dir.path())).expect("creating app directory should work");
 
     // test
-    let builder = InitOptions::init();
+    let builder = builder::InitOptions::init();
     builder.build(_dir.path()).expect("init should work");
 }
 
@@ -87,7 +87,7 @@ fn builder_init_should_error_if_folder_does_not_exist() {
     let path = _dir.path().join("root");
 
     // test
-    let builder = InitOptions::init();
+    let builder = builder::InitOptions::init();
     builder.build(path.as_path()).unwrap();
 }
 
@@ -98,7 +98,7 @@ fn builder_new_should_work() {
 
     // test
     let c_path = _dir.path().join("container");
-    let builder = InitOptions::new();
+    let builder = builder::InitOptions::new();
     builder.build(c_path.as_path()).expect("new should work");
 }
 
@@ -114,7 +114,7 @@ fn builder_new_with_properties_should_work() {
     properties.kind = Some(kind);
 
     // test
-    let mut builder = InitOptions::new();
+    let mut builder = builder::InitOptions::new();
     builder.properties(properties.clone());
     builder.build(_dir.path()).expect("`init_from` should work");
 

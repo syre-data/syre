@@ -1,7 +1,6 @@
 //! Actor for listening to database updates.
-use std::collections::HashMap;
-
 use super::FS_EVENT_TOPIC;
+use std::collections::HashMap;
 use syre_desktop_lib as lib;
 use syre_local_database as db;
 use tauri::{EventTarget, Manager};
@@ -91,6 +90,7 @@ impl Actor {
             let events: Vec<db::event::Update> = match serde_json::from_str(&message) {
                 Ok(events) => events,
                 Err(err) => {
+                    tracing::error!(?message);
                     tracing::error!(?err);
                     continue;
                 }
@@ -130,7 +130,7 @@ impl Actor {
     ) -> Vec<(String, lib::Event)> {
         match event.kind() {
             db::event::UpdateKind::App(_) => self.process_event_app(topic, event),
-            db::event::UpdateKind::Project { .. } => todo!(),
+            db::event::UpdateKind::Project { .. } => self.process_event_project(topic, event),
         }
     }
 
@@ -151,7 +151,7 @@ impl Actor {
 
         if let Err(err) = self.app.emit_to(
             EventTarget::webview_window(FS_EVENT_TOPIC),
-            &lib::event::topic(topic.as_ref()),
+            topic.as_ref(),
             events,
         ) {
             tracing::error!(?err);
@@ -417,6 +417,41 @@ impl Actor {
                     event.id().clone(),
                 ),
             )]
+        }
+    }
+}
+
+impl Actor {
+    fn process_event_project(
+        &self,
+        topic: impl AsRef<str>,
+        event: db::event::Update,
+    ) -> Vec<(String, lib::Event)> {
+        let db::event::UpdateKind::Project {
+            project, update, ..
+        } = event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        match update {
+            db::event::Project::Removed
+            | db::event::Project::Moved(_)
+            | db::event::Project::Properties(_)
+            | db::event::Project::Settings(_) => todo!(),
+
+            db::event::Project::Analyses(_)
+            | db::event::Project::Graph(_)
+            | db::event::Project::Container { .. }
+            | db::event::Project::Asset { .. }
+            | db::event::Project::AssetFile(_)
+            | db::event::Project::AnalysisFile(_)
+            | db::event::Project::Flag { .. } => {
+                vec![(
+                    lib::event::topic::graph(project.as_ref().unwrap()),
+                    lib::Event::new(update.clone().into(), event.id().clone()),
+                )]
+            }
         }
     }
 }

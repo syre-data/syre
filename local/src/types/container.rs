@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use syre_core::{
     project::{AnalysisAssociation, Container, ContainerProperties},
-    types::{ResourceId, UserId, UserPermissions},
+    types::{ResourceId, ResourceMap, UserId, UserPermissions},
 };
 
 /// Properties for a Container.
@@ -28,7 +28,7 @@ impl From<Container> for StoredProperties {
 pub struct Settings {
     pub creator: Option<UserId>,
     pub created: DateTime<Utc>,
-    pub permissions: Vec<UserPermissions>,
+    pub permissions: ResourceMap<UserPermissions>,
 }
 
 impl Settings {
@@ -36,7 +36,7 @@ impl Settings {
         Self {
             creator: None,
             created: Utc::now(),
-            permissions: vec![],
+            permissions: ResourceMap::new(),
         }
     }
 }

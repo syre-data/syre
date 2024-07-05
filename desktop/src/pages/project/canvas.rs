@@ -26,18 +26,10 @@ pub fn Canvas() -> impl IntoView {
     let portal_ref = create_node_ref();
     provide_context(PortalRef(portal_ref.clone()));
 
-    let (tree_width, set_tree_width) = create_signal(vec![1]);
-    let (tree_height, set_tree_height) = create_signal(vec![1]);
-
     view! {
         <div>
             <svg viewBox="0 0 1000 1000">
-                <Graph
-                    root=graph.root().clone()
-                    index=0
-                    set_width=set_tree_width
-                    set_height=set_tree_height
-                />
+                <Graph root=graph.root().clone()/>
             </svg>
 
             <div ref=portal_ref></div>
@@ -46,51 +38,77 @@ pub fn Canvas() -> impl IntoView {
 }
 
 #[component]
-fn Graph(
-    root: state::graph::Node,
-    index: usize,
-    set_width: WriteSignal<Vec<usize>>,
-    set_height: WriteSignal<Vec<usize>>,
-) -> impl IntoView {
+fn Graph(root: state::graph::Node) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let portal_ref = expect_context::<PortalRef>();
     let create_child_ref = NodeRef::<html::Dialog>::new();
-
-    let children = graph.children(&root).unwrap().read_only();
-    let (descendants_width, set_descendants_width) =
-        create_signal(children.with_untracked(|children| vec![1, children.len()]));
-
-    let (descendants_height, set_descendants_height) =
-        create_signal(children.with_untracked(|children| vec![1, children.len()]));
-
     let create_child_dialog_show = move |_| {
         let dialog = create_child_ref.get().unwrap();
         dialog.show_modal().unwrap();
     };
 
-    let width = move || {
-        let width = cmp::max(descendants_width.with(|children| children.iter().sum()), 1);
-        set_width.update(|siblings| siblings[index] = width);
-        width * (CONTAINER_WIDTH + PADDING_X_SIBLING) - PADDING_X_SIBLING
+    let children = graph.children(&root).unwrap().read_only();
+    let siblings = {
+        let graph = graph.clone();
+        let root = root.clone();
+        move || {
+            graph
+                .parent(&root)
+                .map(|parent| parent.with(|parent| graph.children(parent).unwrap().read_only()))
+        }
     };
 
-    let height = move || {
-        let height = descendants_height
-            .with(|children| children.iter().max().cloned())
-            .unwrap_or(0)
-            + 1;
+    let width = {
+        let root = root.clone();
+        move || {
+            root.subtree_width()
+                .with(|width| width * (CONTAINER_WIDTH + PADDING_X_SIBLING) - PADDING_X_SIBLING)
+        }
+    };
 
-        set_height.update(|siblings| siblings[index] = height);
-        height * (CONTAINER_HEIGHT + PADDING_Y_CHILDREN) - PADDING_Y_CHILDREN
+    let height = {
+        let root = root.clone();
+        move || {
+            root.subtree_height().with(|height| {
+                height * (CONTAINER_HEIGHT + PADDING_Y_CHILDREN) - PADDING_Y_CHILDREN
+            })
+        }
+    };
+
+    let x = {
+        let root = root.clone();
+        move || {
+            let older_sibling_width = siblings()
+                .map(|siblings| {
+                    siblings.with(|siblings| {
+                        root.sibling_index().with(|index| {
+                            siblings
+                                .iter()
+                                .take(*index)
+                                .map(|sibling| sibling.subtree_width().get())
+                                .sum::<usize>()
+                        })
+                    })
+                })
+                .unwrap_or(0);
+
+            older_sibling_width * (CONTAINER_WIDTH + PADDING_X_SIBLING)
+        }
+    };
+
+    let y = {
+        let root = root.clone();
+        move || {
+            if state::graph::Node::ptr_eq(&root, graph.root()) {
+                0
+            } else {
+                CONTAINER_HEIGHT + PADDING_Y_CHILDREN
+            }
+        }
     };
 
     view! {
-        <svg
-            width=width
-            height=height
-            x=index * (CONTAINER_WIDTH + PADDING_X_SIBLING)
-            y=CONTAINER_HEIGHT + PADDING_Y_CHILDREN
-        >
+        <svg width=width height=height x=x y=y>
             <g>
                 <foreignObject width=CONTAINER_WIDTH height=CONTAINER_HEIGHT x=0 y=0>
                     <Container container=root.clone()/>
@@ -105,14 +123,8 @@ fn Graph(
             <g></g>
             <g>
                 <For
-                    each=move || {
-                        children
-                            .with(|children| {
-                                children.iter().cloned().enumerate().collect::<Vec<_>>()
-                            })
-                    }
-
-                    key=|(_, child)| {
+                    each=children
+                    key=|child| {
                         child
                             .properties()
                             .with(|properties| {
@@ -120,19 +132,14 @@ fn Graph(
                                     .as_ref()
                                     .map(|properties| properties.rid().with(|rid| rid.to_string()))
                                     .unwrap_or_else(|_| {
-                                        child.name().with(|name| name.to_string_lossy().to_string())
+                                        todo!("use path as id");
                                     })
                             })
                     }
 
                     let:child
                 >
-                    <Graph
-                        root=child.1
-                        index=child.0
-                        set_width=set_descendants_width
-                        set_height=set_descendants_height
-                    />
+                    <Graph root=child/>
                 </For>
 
             </g>
@@ -224,6 +231,7 @@ fn CreateChildContainer(
                         prop:value=name
                         minlength="1"
                         autofocus
+                        required
                     />
                     {move || {
                         create_child
@@ -279,8 +287,21 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let rid = {
+        let container = container.clone();
+        move || {
+            container.properties().with(|properties| {
+                if let db::state::DataResource::Ok(properties) = properties {
+                    properties.rid().with(|rid| rid.to_string())
+                } else {
+                    "".to_string()
+                }
+            })
+        }
+    };
+
     view! {
-        <div>
+        <div data-rid=rid>
             <div>
                 <span>{title}</span>
             </div>

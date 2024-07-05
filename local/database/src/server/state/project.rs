@@ -892,16 +892,11 @@ pub mod graph {
                 .collect();
 
             let children = self
-                .children
+                .nodes
                 .iter()
-                .map(|(parent, children)| {
-                    let parent_idx = self
-                        .nodes
-                        .iter()
-                        .position(|node| Arc::ptr_eq(node, parent))
-                        .unwrap();
-
-                    let children_idx = children
+                .map(|parent| {
+                    self.children(parent)
+                        .unwrap()
                         .iter()
                         .map(|child| {
                             self.nodes
@@ -909,9 +904,7 @@ pub mod graph {
                                 .position(|node| Arc::ptr_eq(node, child))
                                 .unwrap()
                         })
-                        .collect();
-
-                    (parent_idx, children_idx)
+                        .collect()
                 })
                 .collect();
 
@@ -927,8 +920,7 @@ pub mod graph {
             let nodes = self.descendants(root).unwrap();
             let (nodes, children) = nodes
                 .iter()
-                .enumerate()
-                .map(|(idx, node)| {
+                .map(|node| {
                     let children = self
                         .children(node)
                         .unwrap()
@@ -942,7 +934,7 @@ pub mod graph {
                         .collect();
 
                     let container = node.lock().unwrap();
-                    ((*container).clone(), (idx, children))
+                    ((*container).clone(), children)
                 })
                 .unzip();
 

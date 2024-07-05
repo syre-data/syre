@@ -155,10 +155,9 @@ impl Deref for Asset {
 pub struct Graph {
     pub nodes: Vec<Container>,
 
-    /// Parent-children relations.
-    ///
+    /// Children of the node at the same index in `nodes`.
     /// Elements are indices of `nodes`.
-    pub children: Vec<(usize, Vec<usize>)>,
+    pub children: Vec<Vec<usize>>,
 }
 
 pub type DataResource<T> = Result<T, IoSerde>;

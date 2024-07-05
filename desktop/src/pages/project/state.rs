@@ -174,33 +174,146 @@ pub mod graph {
     use leptos::*;
     use std::{
         cell::RefCell,
+        ops::Deref,
         path::{Component, Path, PathBuf},
         rc::Rc,
     };
     use syre_local_database as db;
 
-    pub type Node = Rc<Container>;
+    pub type Node = Rc<Data>;
+
+    #[derive(Debug, Clone)]
+    pub struct Data {
+        container: Container,
+        graph: GraphData,
+    }
+
+    impl Data {
+        /// # Arguments
+        /// 1. `container`: Container state.
+        /// 2. `subtree_width`: Width of the subtree rooted at container.
+        /// 3. `subtree_height`: Height of the subtree rooted at container.
+        /// 4. `sibling_index`: Index amongst siblings.
+        pub fn new(
+            container: db::state::Container,
+            subtree_width: usize,
+            subtree_height: usize,
+            sibling_index: usize,
+        ) -> Self {
+            Self {
+                container: Container::new(container),
+                graph: GraphData::new(subtree_width, subtree_height, sibling_index),
+            }
+        }
+
+        pub fn subtree_height(&self) -> ReadSignal<usize> {
+            self.graph.subtree_height.read_only()
+        }
+
+        pub fn subtree_width(&self) -> ReadSignal<usize> {
+            self.graph.subtree_width.read_only()
+        }
+
+        pub fn sibling_index(&self) -> ReadSignal<usize> {
+            self.graph.sibling_index.read_only()
+        }
+    }
+
+    impl Deref for Data {
+        type Target = Container;
+        fn deref(&self) -> &Self::Target {
+            &self.container
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct GraphData {
+        subtree_width: RwSignal<usize>,
+        subtree_height: RwSignal<usize>,
+
+        /// Index amongst siblings.
+        sibling_index: RwSignal<usize>,
+    }
+
+    impl GraphData {
+        pub fn new(subtree_width: usize, subtree_height: usize, sibling_index: usize) -> Self {
+            Self {
+                subtree_width: create_rw_signal(subtree_width),
+                subtree_height: create_rw_signal(subtree_height),
+                sibling_index: create_rw_signal(sibling_index),
+            }
+        }
+
+        pub(self) fn set_subtree_width(&self, width: usize) {
+            self.subtree_width.set(width);
+        }
+
+        pub(self) fn set_subtree_height(&self, height: usize) {
+            self.subtree_height.set(height);
+        }
+
+        pub(self) fn set_sibling_index(&self, index: usize) {
+            self.sibling_index.set(index);
+        }
+    }
 
     #[derive(Clone)]
     pub struct State {
         nodes: RwSignal<Vec<Node>>,
         root: Node,
         children: RwSignal<Vec<(Node, RwSignal<Vec<Node>>)>>,
-        parents: Rc<RefCell<Vec<(Node, Node)>>>,
+        parents: Rc<RefCell<Vec<(Node, RwSignal<Node>)>>>,
     }
 
     impl State {
         pub fn new(graph: db::state::Graph) -> Self {
             let db::state::Graph { nodes, children } = graph;
 
+            // TODO: Know that index 0 is root, so can skip it.
+            let parents = (0..nodes.len())
+                .into_iter()
+                .map(|child| {
+                    children
+                        .iter()
+                        .position(|children| children.contains(&child))
+                })
+                .collect::<Vec<_>>();
+
+            let graph_data = (0..nodes.len())
+                .map(|root| Self::graph_data(root, &children))
+                .collect::<Vec<_>>();
+
+            let sibling_index = (0..nodes.len())
+                .into_iter()
+                .map(|node| {
+                    parents[node]
+                        .map(|parent| {
+                            children[parent]
+                                .iter()
+                                .position(|child| *child == node)
+                                .unwrap()
+                        })
+                        .unwrap_or(0)
+                })
+                .collect::<Vec<_>>();
+
             let nodes = nodes
                 .into_iter()
-                .map(|container| Rc::new(Container::new(container)))
+                .enumerate()
+                .map(|(index, container)| {
+                    Rc::new(Data::new(
+                        container,
+                        graph_data[index].0,
+                        graph_data[index].1,
+                        sibling_index[index],
+                    ))
+                })
                 .collect::<Vec<_>>();
 
             let root = nodes[0].clone();
             let children = children
                 .into_iter()
+                .enumerate()
                 .map(|(parent, children)| {
                     let children = children
                         .into_iter()
@@ -211,15 +324,12 @@ pub mod graph {
                 })
                 .collect::<Vec<_>>();
 
-            let parents = children
-                .iter()
-                .flat_map(|(parent, children)| {
-                    children.with_untracked(|children| {
-                        children
-                            .iter()
-                            .map(|child| (parent.clone(), child.clone()))
-                            .collect::<Vec<_>>()
-                    })
+            let parents = parents
+                .into_iter()
+                .enumerate()
+                .filter_map(|(child, parent)| {
+                    parent
+                        .map(|parent| (nodes[child].clone(), RwSignal::new(nodes[parent].clone())))
                 })
                 .collect();
 
@@ -229,6 +339,22 @@ pub mod graph {
                 children: RwSignal::new(children),
                 parents: Rc::new(RefCell::new(parents)),
             }
+        }
+
+        /// # Returns
+        /// Tuple of (subgraph width, subgraph height) for the given node.
+        fn graph_data(root: usize, graph: &Vec<Vec<usize>>) -> (usize, usize) {
+            use std::cmp;
+
+            let children_data = graph[root]
+                .iter()
+                .map(|child| Self::graph_data(*child, graph))
+                .collect::<Vec<_>>();
+
+            let width = cmp::max(children_data.iter().map(|data| data.0).sum(), 1);
+            let height = children_data.iter().map(|data| data.1).max().unwrap_or(0) + 1;
+
+            (width, height)
         }
 
         pub fn nodes(&self) -> RwSignal<Vec<Node>> {
@@ -259,7 +385,7 @@ pub mod graph {
         /// 1. The child node does not exist in the graph.
         /// 2. The child node is the graph root.
         /// It is left for the caller to distinguish between tese cases if needed.
-        pub fn parent(&self, child: &Node) -> Option<Node> {
+        pub fn parent(&self, child: &Node) -> Option<RwSignal<Node>> {
             self.parents.borrow().iter().find_map(|(c, parent)| {
                 if Rc::ptr_eq(c, child) {
                     Some(parent.clone())
@@ -281,7 +407,7 @@ pub mod graph {
                 return vec![];
             };
 
-            let mut ancestors = self.ancestors(&parent);
+            let mut ancestors = parent.with_untracked(|parent| self.ancestors(parent));
             ancestors.insert(0, root.clone());
             ancestors
         }
@@ -300,7 +426,13 @@ pub mod graph {
                 .iter()
                 .rev()
                 .skip(1)
-                .map(|ancestor| ancestor.name().get().to_string_lossy().to_string())
+                .map(|ancestor| {
+                    ancestor
+                        .name()
+                        .get_untracked()
+                        .to_string_lossy()
+                        .to_string()
+                })
                 .collect::<Vec<_>>()
                 .join(SEPARATOR);
 
@@ -331,17 +463,19 @@ pub mod graph {
                     | Component::CurDir
                     | Component::ParentDir => return Err(error::InvalidPath),
                     Component::Normal(name) => {
-                        let Some(child) = self.children(&node).unwrap().with(|children| {
-                            children.iter().find_map(|child| {
-                                child.name().with(|child_name| {
-                                    if child_name == name {
-                                        Some(child.clone())
-                                    } else {
-                                        None
-                                    }
+                        let Some(child) =
+                            self.children(&node).unwrap().with_untracked(|children| {
+                                children.iter().find_map(|child| {
+                                    child.name().with_untracked(|child_name| {
+                                        if child_name == name {
+                                            Some(child.clone())
+                                        } else {
+                                            None
+                                        }
+                                    })
                                 })
                             })
-                        }) else {
+                        else {
                             return Ok(None);
                         };
 
@@ -357,6 +491,8 @@ pub mod graph {
     impl State {
         /// Inserts a subgraph at the indicated path.
         pub fn insert(&self, parent: impl AsRef<Path>, graph: Self) -> Result<(), error::Insert> {
+            use std::cmp;
+
             let Self {
                 nodes,
                 root,
@@ -380,36 +516,84 @@ pub mod graph {
                 return Err(error::Insert::ParentNotFound);
             };
 
-            self.nodes
-                .update(|current| current.extend(nodes.get_untracked()));
-
-            // NB: Order of adding children is important for recursion
-            // in graph view.
-            // Can not combine two operations due to borrow error.
-            self.children
-                .update(|current| current.extend(children.get_untracked()));
-
-            self.children.with_untracked(|current| {
-                current
-                    .iter()
-                    .find_map(|(p, children)| {
-                        if Node::ptr_eq(p, &parent) {
-                            Some(children)
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap()
-                    .update(|children| {
-                        children.push(root.clone());
-                    });
+            parent.graph.subtree_height.update(|height| {
+                *height = cmp::max(height.clone(), root.subtree_height().get_untracked() + 1)
             });
+            for ancestor in self.ancestors(&parent).iter().skip(1) {
+                let height = ancestor.subtree_height().get_untracked();
+                let height_new = self
+                    .children(ancestor)
+                    .unwrap()
+                    .with_untracked(|children| {
+                        children
+                            .iter()
+                            .map(|child| child.subtree_height().get_untracked())
+                            .collect::<Vec<_>>()
+                    })
+                    .into_iter()
+                    .max()
+                    .unwrap()
+                    + 1;
 
+                if height_new > height {
+                    ancestor.graph.set_subtree_height(height_new);
+                } else if height_new == height {
+                    break;
+                } else {
+                    panic!("inserting should not reduce height");
+                }
+            }
+
+            let siblings = self.children(&parent).unwrap();
+            parent.graph.subtree_width.update(|width| {
+                let root_width = root.subtree_width().get_untracked();
+                if siblings.with_untracked(|siblings| siblings.is_empty()) {
+                    *width = root_width;
+                } else {
+                    *width = *width + root_width;
+                }
+            });
+            for ancestor in self.ancestors(&parent).iter().skip(1) {
+                let width = ancestor.subtree_width().get_untracked();
+                let width_new = self.children(ancestor).unwrap().with_untracked(|children| {
+                    children
+                        .iter()
+                        .map(|child| child.subtree_width().get_untracked())
+                        .reduce(|sum, width| sum + width)
+                        .unwrap()
+                });
+
+                if width_new > width {
+                    ancestor.graph.set_subtree_width(width_new);
+                } else if width_new == width {
+                    break;
+                } else {
+                    panic!("inserting should not reduce width");
+                }
+            }
+
+            root.graph
+                .set_sibling_index(siblings.with_untracked(|siblings| siblings.len()));
+
+            // NB: Order of adding parents then children then nodes is important for recursion
+            // in graph view.
             self.parents
                 .borrow_mut()
                 .extend(Rc::into_inner(parents).unwrap().into_inner());
 
-            self.parents.borrow_mut().push((root, parent));
+            self.parents
+                .borrow_mut()
+                .push((root.clone(), RwSignal::new(parent.clone())));
+
+            self.children
+                .update(|current| current.extend(children.get_untracked()));
+
+            self.children(&parent)
+                .unwrap()
+                .update(|children| children.push(root.clone()));
+
+            self.nodes
+                .update(|current| current.extend(nodes.get_untracked()));
 
             Ok(())
         }

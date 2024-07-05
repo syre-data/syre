@@ -139,16 +139,6 @@ impl Actor {
     /// # Arguments
     /// + `topic`: Event name.
     fn emit_events_default(&self, topic: impl AsRef<str>, events: Vec<lib::Event>) {
-        self.app
-            .emit_to(
-                EventTarget::WebviewWindow {
-                    label: "main".to_string(),
-                },
-                topic.as_ref(),
-                events.clone(),
-            )
-            .unwrap();
-
         if let Err(err) = self.app.emit_to(
             EventTarget::webview_window(FS_EVENT_TOPIC),
             topic.as_ref(),

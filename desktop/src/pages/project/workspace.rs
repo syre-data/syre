@@ -90,7 +90,9 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         .unwrap();
 
         while let Some(events) = listener.next().await {
+            tracing::debug!(?events);
             for event in events.payload {
+                tracing::trace!(?event);
                 assert_matches!(event.kind(), lib::EventKind::Project(_));
                 handle_event_graph(event, graph.clone());
             }

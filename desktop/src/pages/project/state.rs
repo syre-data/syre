@@ -2,6 +2,7 @@ pub use container::{AnalysisAssociation, Asset, State as Container};
 pub use graph::State as Graph;
 pub use project::State as Project;
 pub use workspace::State as Workspace;
+pub use workspace_graph::State as WorkspaceGraph;
 
 pub mod workspace {
     use leptos::*;
@@ -40,6 +41,89 @@ pub mod workspace {
                 metadata: false,
             }
         }
+    }
+}
+
+pub mod workspace_graph {
+    use std::ops::Deref;
+
+    use leptos::*;
+    use syre_core::types::ResourceId;
+
+    #[derive(Clone, Debug)]
+    pub struct State {
+        selection: RwSignal<Vec<SelectedResource>>,
+    }
+
+    impl State {
+        pub fn new() -> Self {
+            Self {
+                selection: RwSignal::new(vec![]),
+            }
+        }
+
+        pub fn selection(&self) -> ReadSignal<Vec<SelectedResource>> {
+            self.selection.read_only()
+        }
+
+        /// Clear all selected resources.
+        pub fn select_clear(&self) {
+            self.selection.update(|selection| {
+                selection.clear();
+            })
+        }
+
+        /// Set the selection to be only the given resource.
+        pub fn select_only(&self, rid: ResourceId, kind: ResourceKind) {
+            self.selection.update(|selection| {
+                selection.clear();
+                selection.push(SelectedResource { rid, kind });
+            });
+        }
+
+        /// Add a selected resource if it isn't already.
+        pub fn select_add(&self, rid: ResourceId, kind: ResourceKind) {
+            self.selection.update(|selection| {
+                if !selection.iter().any(|resource| *resource.rid() == rid) {
+                    selection.push(SelectedResource { rid, kind });
+                }
+            });
+        }
+
+        /// Remove the selected resource if it is selected.
+        pub fn select_remove(&self, rid: &ResourceId) {
+            self.selection
+                .update(|selection| selection.retain(|resource| resource.rid() != rid));
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct SelectedResource {
+        rid: ResourceId,
+        kind: ResourceKind,
+    }
+
+    impl SelectedResource {
+        pub fn rid(&self) -> &ResourceId {
+            &self.rid
+        }
+
+        pub fn kind(&self) -> &ResourceKind {
+            &self.kind
+        }
+    }
+
+    impl Deref for SelectedResource {
+        type Target = ResourceId;
+        fn deref(&self) -> &Self::Target {
+            &self.rid
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum ResourceKind {
+        Container,
+        Asset,
     }
 }
 

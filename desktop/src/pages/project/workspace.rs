@@ -1,4 +1,4 @@
-use super::{state, Canvas, ProjectBar};
+use super::{state, Canvas, ProjectBar, PropertiesBar};
 use crate::invoke::invoke;
 use futures::stream::StreamExt;
 use leptos::*;
@@ -81,6 +81,7 @@ fn NoGraph() -> impl IntoView {
 fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     let graph = state::Graph::new(graph);
     provide_context(graph.clone());
+    provide_context(state::WorkspaceGraph::new());
     let project = expect_context::<state::Project>();
 
     spawn_local(async move {
@@ -109,7 +110,9 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                 <Canvas/>
 
             </div>
-            <div class="w-1/6 border-l-1">"right"</div>
+            <div class="w-1/6 border-l-1">
+                <PropertiesBar/>
+            </div>
         </div>
     }
 }

@@ -650,6 +650,10 @@ video {
   border-width: 2px;
 }
 
+.border-4 {
+  border-width: 4px;
+}
+
 .hover\:cursor-pointer:hover {
   cursor: pointer;
 }

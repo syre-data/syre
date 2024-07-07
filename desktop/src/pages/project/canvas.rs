@@ -37,11 +37,13 @@ pub fn Canvas() -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let portal_ref = create_node_ref();
     provide_context(PortalRef(portal_ref.clone()));
+    let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let (vb_x, set_vb_x) = create_signal(0);
     let (vb_y, set_vb_y) = create_signal(0);
     let (vb_width, set_vb_width) = create_signal(1000);
     let (vb_height, set_vb_height) = create_signal(1000);
     let (pan_drag, set_pan_drag) = create_signal(None);
+    let (was_dragged, set_was_dragged) = create_signal(false);
 
     let mousedown = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 {
@@ -51,7 +53,12 @@ pub fn Canvas() -> impl IntoView {
 
     let mouseup = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 && pan_drag.with(|c| c.is_some()) {
+            if !was_dragged() {
+                workspace_graph_state.select_clear();
+            }
+
             set_pan_drag(None);
+            set_was_dragged(false);
         }
     };
 
@@ -64,6 +71,10 @@ pub fn Canvas() -> impl IntoView {
                     let (x, y) = c.unwrap();
                     (e.client_x() - x, e.client_y() - y)
                 });
+
+                if dx > 0 || dy > 0 {
+                    set_was_dragged(true);
+                }
 
                 let x = vb_x() - dx;
                 let y = vb_y() - dy;
@@ -457,6 +468,8 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         .properties()
         .with_untracked(|properties| properties.is_ok()));
 
+    let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+
     let title = {
         let container = container.clone();
         move || {
@@ -479,8 +492,98 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let mousedown = {
+        let container = container.clone();
+        let workspace_graph_state = workspace_graph_state.clone();
+        move |e: MouseEvent| {
+            if e.button() == types::MouseButton::Primary as i16 {
+                e.stop_propagation();
+                if e.shift_key() {
+                    container.properties().with(|properties| {
+                        if let db::state::DataResource::Ok(properties) = properties {
+                            let rid = properties.rid().get();
+                            let is_selected = workspace_graph_state.selection().with(|selection| {
+                                selection.iter().any(|resource| resource.rid() == &rid)
+                            });
+
+                            if is_selected {
+                                workspace_graph_state.select_remove(&rid)
+                            } else {
+                                workspace_graph_state.select_add(
+                                    rid,
+                                    state::workspace_graph::ResourceKind::Container,
+                                );
+                            }
+                        }
+                    })
+                } else {
+                    container.properties().with(|properties| {
+                        if let db::state::DataResource::Ok(properties) = properties {
+                            let rid = properties.rid().get();
+                            let is_only_selected =
+                                workspace_graph_state.selection().with(|selection| {
+                                    if let [resource] = &selection[..] {
+                                        resource.rid() == &rid
+                                    } else {
+                                        false
+                                    }
+                                });
+
+                            if is_only_selected {
+                                workspace_graph_state.select_clear();
+                            } else {
+                                workspace_graph_state.select_only(
+                                    rid,
+                                    state::workspace_graph::ResourceKind::Container,
+                                );
+                            }
+                        }
+                    })
+                }
+            }
+        }
+    };
+
+    let selected = {
+        let container = container.clone();
+        let workspace_graph_state = workspace_graph_state.clone();
+        move || {
+            container.properties().with(|properties| {
+                if let db::state::DataResource::Ok(properties) = properties {
+                    workspace_graph_state.selection().with(|selection| {
+                        properties
+                            .rid()
+                            .with(|rid| selection.iter().any(|resource| resource.rid() == rid))
+                    })
+                } else {
+                    false
+                }
+            })
+        }
+    };
+
     view! {
-        <div class="border-2" data-rid=rid>
+        <div
+            class="cursor-pointer"
+            class=(
+                "border-2",
+                {
+                    let selected = selected.clone();
+                    move || !selected()
+                },
+            )
+
+            class=(
+                ["border-4", "border-blue"],
+                {
+                    let selected = selected.clone();
+                    move || selected()
+                },
+            )
+
+            on:mousedown=mousedown
+            data-rid=rid
+        >
             <div>
                 <span>{title}</span>
             </div>

@@ -575,8 +575,8 @@ pub mod graph {
             root.graph
                 .set_sibling_index(siblings.with_untracked(|siblings| siblings.len()));
 
-            // NB: Order of adding parents then children then nodes is important for recursion
-            // in graph view.
+            // NB: Order of adding parents then children then nodes is
+            // important for recursion in graph view.
             self.parents
                 .borrow_mut()
                 .extend(Rc::into_inner(parents).unwrap().into_inner());

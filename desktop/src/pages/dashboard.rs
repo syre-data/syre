@@ -161,7 +161,7 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
                 };
 
                 view! {
-                    <div on:mousedown=goto_project>
+                    <div class="cursor-pointer" on:mousedown=goto_project>
                         <h3>{project.name.clone()}</h3>
                         <div>{project.description.clone()}</div>
                         <div>{path.to_string_lossy().to_string()}</div>

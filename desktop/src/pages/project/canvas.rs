@@ -1,7 +1,11 @@
 use super::state;
-use crate::{commands, components::ModalDialog, invoke::invoke_result};
-use ev::SubmitEvent;
-use leptos::*;
+use crate::{commands, components::ModalDialog, invoke::invoke_result, types};
+
+use leptos::{
+    ev::{MouseEvent, SubmitEvent, WheelEvent},
+    *,
+};
+use leptos_icons::*;
 use std::{cmp, ops::Deref, path::PathBuf};
 use syre_local_database as db;
 
@@ -9,7 +13,15 @@ const CONTAINER_WIDTH: usize = 100;
 const CONTAINER_HEIGHT: usize = 60;
 const PADDING_X_SIBLING: usize = 20;
 const PADDING_Y_CHILDREN: usize = 20;
+const PADDING_X_KEBAB: usize = 10;
+const PADDING_Y_KEBAB: usize = 5;
 const RADIUS_ADD_CHILD: usize = 10;
+const ZOOM_FACTOR_IN: f32 = 0.9; // zoom in should reduce viewport.
+const ZOOM_FACTOR_OUT: f32 = 1.1;
+const VB_WIDTH_MIN: usize = 500;
+const VB_WIDTH_MAX: usize = 10_000;
+const VB_HEIGHT_MIN: usize = 500;
+const VB_HEIGHT_MAX: usize = 10_000;
 
 #[derive(Clone)]
 pub struct PortalRef(NodeRef<html::Div>);
@@ -25,10 +37,105 @@ pub fn Canvas() -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let portal_ref = create_node_ref();
     provide_context(PortalRef(portal_ref.clone()));
+    let (vb_x, set_vb_x) = create_signal(0);
+    let (vb_y, set_vb_y) = create_signal(0);
+    let (vb_width, set_vb_width) = create_signal(1000);
+    let (vb_height, set_vb_height) = create_signal(1000);
+    let (pan_drag, set_pan_drag) = create_signal(None);
+
+    let mousedown = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            set_pan_drag(Some((e.client_x(), e.client_y())));
+        }
+    };
+
+    let mouseup = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 && pan_drag.with(|c| c.is_some()) {
+            set_pan_drag(None);
+        }
+    };
+
+    let mousemove = {
+        let graph = graph.clone();
+        move |e: MouseEvent| {
+            if pan_drag.with(|c| c.is_some()) {
+                assert_eq!(e.button(), types::MouseButton::Primary as i16);
+                let (dx, dy) = pan_drag.with(|c| {
+                    let (x, y) = c.unwrap();
+                    (e.client_x() - x, e.client_y() - y)
+                });
+
+                let x = vb_x() - dx;
+                let y = vb_y() - dy;
+                let x_max = (graph.root().subtree_width().get()
+                    * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as i32
+                    - vb_width() / 2;
+                let y_max = cmp::max(
+                    (graph.root().subtree_height().get() * (CONTAINER_HEIGHT + PADDING_Y_CHILDREN))
+                        as i32
+                        - vb_height() / 2,
+                    0,
+                );
+                set_vb_x(clamp(
+                    x,
+                    -TryInto::<i32>::try_into(vb_width() / 2).unwrap(),
+                    x_max.try_into().unwrap(),
+                ));
+                set_vb_y(clamp(
+                    y,
+                    -TryInto::<i32>::try_into(vb_height() / 2).unwrap(),
+                    y_max.try_into().unwrap(),
+                ));
+                set_pan_drag(Some((e.client_x(), e.client_y())));
+            }
+        }
+    };
+
+    let mouseleave = move |e: MouseEvent| {
+        if pan_drag.with(|c| c.is_some()) {
+            assert_eq!(e.button(), types::MouseButton::Primary as i16);
+            set_pan_drag(None);
+        }
+    };
+
+    let wheel = move |e: WheelEvent| {
+        let dy = e.delta_y();
+        let zoom = if dy < 0.0 {
+            ZOOM_FACTOR_IN
+        } else if dy > 0.0 {
+            ZOOM_FACTOR_OUT
+        } else {
+            return;
+        };
+
+        let width = (vb_width() as f32 * zoom).round() as usize;
+        let height = (vb_height() as f32 * zoom).round() as usize;
+        set_vb_width(clamp(
+            width.try_into().unwrap(),
+            VB_WIDTH_MIN.try_into().unwrap(),
+            VB_WIDTH_MAX.try_into().unwrap(),
+        ));
+        set_vb_height(clamp(
+            height.try_into().unwrap(),
+            VB_HEIGHT_MIN.try_into().unwrap(),
+            VB_HEIGHT_MAX.try_into().unwrap(),
+        ));
+    };
 
     view! {
         <div>
-            <svg viewBox="0 0 1000 1000">
+            <svg
+                viewBox=move || {
+                    format!("{} {} {} {}", vb_x.get(), vb_y.get(), vb_width.get(), vb_height.get())
+                }
+
+                class=("cursor-grabbing", move || pan_drag.with(|c| c.is_some()))
+                on:mousedown=mousedown
+                on:mouseup=mouseup
+                on:mousemove=mousemove
+                on:mouseleave=mouseleave
+                on:wheel=wheel
+            >
                 <Graph root=graph.root().clone()/>
             </svg>
 
@@ -42,7 +149,11 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let portal_ref = expect_context::<PortalRef>();
     let create_child_ref = NodeRef::<html::Dialog>::new();
-    let create_child_dialog_show = move |_| {
+    let create_child_dialog_show = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
         let dialog = create_child_ref.get().unwrap();
         dialog.show_modal().unwrap();
     };
@@ -107,38 +218,106 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let x_node = {
+        let width = width.clone();
+        move || (width() - CONTAINER_WIDTH) / 2
+    };
+
+    let x_child_offset = {
+        let children = children.clone();
+        move |index: usize| -> usize {
+            children.with(|children| {
+                children
+                    .iter()
+                    .take(index)
+                    .map(|child| child.subtree_width().get())
+                    .sum::<usize>()
+            })
+        }
+    };
+
+    let child_key = |child: &state::graph::Node| {
+        child.properties().with(|properties| {
+            properties
+                .as_ref()
+                .map(|properties| properties.rid().with(|rid| rid.to_string()))
+                .unwrap_or_else(|_| {
+                    todo!("use path as id");
+                })
+        })
+    };
+
+    // NB [ RE: kebab menu]: It must currently be wrapped in an out `svg`
+    // for placement.
+    // See https://github.com/carloskiki/leptos-icons/issues/49.
     view! {
         <svg width=width height=height x=x y=y>
-            <g>
-                <foreignObject width=CONTAINER_WIDTH height=CONTAINER_HEIGHT x=0 y=0>
+            <g class="group">
+                <foreignObject width=CONTAINER_WIDTH height=CONTAINER_HEIGHT x=x_node.clone() y=0>
                     <Container container=root.clone()/>
                 </foreignObject>
-                <circle
-                    cx=CONTAINER_WIDTH / 2
-                    cy=CONTAINER_HEIGHT - RADIUS_ADD_CHILD
-                    r=RADIUS_ADD_CHILD
-                    on:mousedown=create_child_dialog_show
-                ></circle>
-            </g>
-            <g></g>
-            <g>
-                <For
-                    each=children
-                    key=|child| {
-                        child
-                            .properties()
-                            .with(|properties| {
-                                properties
-                                    .as_ref()
-                                    .map(|properties| properties.rid().with(|rid| rid.to_string()))
-                                    .unwrap_or_else(|_| {
-                                        todo!("use path as id");
-                                    })
-                            })
-                    }
+                <g class="group-[:not(:hover)]:hidden hover:cursor-pointer">
+                    <svg
+                        x={
+                            let x_node = x_node.clone();
+                            move || { x_node() + CONTAINER_WIDTH - PADDING_X_KEBAB }
+                        }
 
-                    let:child
-                >
+                        y=PADDING_Y_KEBAB
+                    >
+                        <Icon icon=icondata::ChMenuKebab/>
+                    </svg>
+
+                    <circle
+                        cx={
+                            let x_node = x_node.clone();
+                            move || { x_node() + CONTAINER_WIDTH / 2 }
+                        }
+
+                        cy=CONTAINER_HEIGHT - RADIUS_ADD_CHILD
+                        r=RADIUS_ADD_CHILD
+                        on:mousedown=create_child_dialog_show
+                    ></circle>
+                </g>
+            </g>
+            <g>
+                <For each=children key=child_key let:child>
+                    <polyline
+                        fill="none"
+                        stroke="black"
+                        // TODO: Extract points function for aesthetics.
+                        points={
+                            let x_node = x_node.clone();
+                            let x_child_offset = x_child_offset.clone();
+                            move || {
+                                let parent_x = x_node() + CONTAINER_WIDTH / 2;
+                                let parent_y = CONTAINER_HEIGHT - RADIUS_ADD_CHILD;
+                                let midway_y = CONTAINER_HEIGHT - RADIUS_ADD_CHILD
+                                    + PADDING_Y_CHILDREN / 2;
+                                let child_y = CONTAINER_HEIGHT + PADDING_Y_CHILDREN;
+                                let child_x_offset = x_child_offset(child.sibling_index().get());
+                                let child_x = (child_x_offset + child.subtree_width().get() / 2)
+                                    * (CONTAINER_WIDTH + PADDING_X_SIBLING) + CONTAINER_WIDTH / 2;
+                                format!(
+                                    "{},{} {},{} {},{} {},{}",
+                                    parent_x,
+                                    parent_y,
+                                    parent_x,
+                                    midway_y,
+                                    child_x,
+                                    midway_y,
+                                    child_x,
+                                    child_y,
+                                )
+                            }
+                        }
+                    >
+                    </polyline>
+                </For>
+
+            </g>
+            <g>
+                <For each=children key=child_key let:child>
                     <Graph root=child/>
                 </For>
 
@@ -301,7 +480,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
     };
 
     view! {
-        <div data-rid=rid>
+        <div class="border-2" data-rid=rid>
             <div>
                 <span>{title}</span>
             </div>
@@ -476,5 +655,19 @@ fn ContainerErr(container: state::graph::Node) -> impl IntoView {
                 <div>"Error"</div>
             </div>
         </div>
+    }
+}
+
+fn clamp<T>(value: T, min: T, max: T) -> T
+where
+    T: PartialOrd,
+{
+    assert!(min < max);
+    if value <= min {
+        min
+    } else if value >= max {
+        max
+    } else {
+        value
     }
 }

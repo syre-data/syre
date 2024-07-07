@@ -631,3 +631,29 @@ video {
 .grow {
   flex-grow: 1;
 }
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.select-none {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.border-2 {
+  border-width: 2px;
+}
+
+.hover\:cursor-pointer:hover {
+  cursor: pointer;
+}
+
+.group:not(:hover) .group-\[\:not\(\:hover\)\]\:hidden {
+  display: none;
+}

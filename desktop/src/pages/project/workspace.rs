@@ -54,18 +54,21 @@ fn WorkspaceView(
     provide_context(state::Project::new(project_data));
 
     view! {
-        <div class="h-1/8 border-b-1">"tab bar"</div>
-        <div class="h-1/6 border-b-1">
-            <ProjectBar/>
-        </div>
-        {move || {
-            match graph.as_ref() {
-                db::state::FolderResource::Present(graph) => {
-                    view! { <WorkspaceGraph graph=graph.clone()/> }
+        <div class="select-none">
+            <div class="h-1/8 border-b-1">"tab bar"</div>
+            <div class="h-1/6 border-b-1">
+                <ProjectBar/>
+            </div>
+            {move || {
+                match graph.as_ref() {
+                    db::state::FolderResource::Present(graph) => {
+                        view! { <WorkspaceGraph graph=graph.clone()/> }
+                    }
+                    db::state::FolderResource::Absent => view! { <NoGraph/> },
                 }
-                db::state::FolderResource::Absent => view! { <NoGraph/> },
-            }
-        }}
+            }}
+
+        </div>
     }
 }
 

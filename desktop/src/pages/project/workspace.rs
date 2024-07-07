@@ -184,6 +184,6 @@ fn handle_event_graph_graph(event: lib::Event, graph: state::Graph) {
             .unwrap(),
         db::event::Graph::Renamed { from, to } => todo!(),
         db::event::Graph::Moved { from, to } => todo!(),
-        db::event::Graph::Removed(_) => todo!(),
+        db::event::Graph::Removed(path) => graph.remove(path).unwrap(),
     }
 }

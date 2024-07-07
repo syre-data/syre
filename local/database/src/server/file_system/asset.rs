@@ -1,5 +1,5 @@
 use crate::{common, event as update, server, state, Database, Update};
-use std::{assert_matches::assert_matches, path::Path};
+use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
 use syre_local::TryReducible;
 
@@ -57,7 +57,7 @@ impl Database {
             container_path,
         )
         .unwrap();
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         let state::DataResource::Ok(assets) = container_state.assets() else {
             return vec![];
@@ -140,7 +140,7 @@ impl Database {
             base_path,
         )
         .unwrap();
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         let state::DataResource::Ok(assets) = container_state.assets() else {
             return vec![];

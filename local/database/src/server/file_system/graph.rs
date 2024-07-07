@@ -165,7 +165,7 @@ impl Database {
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
 
-        if let Some(_container) = graph.find(&graph_path) {
+        if let Some(_container) = graph.find(&graph_path).unwrap() {
             self.state
                 .try_reduce(server::state::Action::Project {
                     path: project_path.clone(),
@@ -188,13 +188,12 @@ impl Database {
             common::container_graph_path(&data_root_path, path.parent().unwrap()).unwrap();
         let rel_path = graph_path.strip_prefix(&parent_container_path).unwrap();
 
-        let parent_node = graph.find(&parent_container_path).unwrap();
+        let parent_node = graph.find(&parent_container_path).unwrap().unwrap();
         let parent_state = parent_node.lock().unwrap();
         if let state::DataResource::Ok(assets) = parent_state.assets().clone() {
             if let Some(asset) = assets.iter().find(|asset| asset.path == rel_path) {
                 let asset = asset.rid().clone();
                 drop(parent_state);
-                drop(parent_node);
 
                 self.state
                     .try_reduce(server::state::Action::Project {

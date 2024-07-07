@@ -496,6 +496,25 @@ pub mod graph {
             ancestors
         }
 
+        /// # Returns
+        /// Descendants of the root node, including the root node.
+        /// If the root node is not found, an empty `Vec` is returned.
+        pub fn descendants(&self, root: &Node) -> Vec<Node> {
+            let Some(children) = self.children(root) else {
+                return vec![];
+            };
+
+            let mut descendants = children.with_untracked(|children| {
+                children
+                    .iter()
+                    .flat_map(|child| self.descendants(child))
+                    .collect::<Vec<_>>()
+            });
+
+            descendants.insert(0, root.clone());
+            descendants
+        }
+
         /// Get the absolute path to the container from the root node.
         /// i.e. The root node has path `/`.
         pub fn path(&self, target: &Node) -> Option<PathBuf> {
@@ -681,6 +700,94 @@ pub mod graph {
 
             Ok(())
         }
+
+        /// Remove a subtree from the graph.
+        /// Path should be absolute from the graph root.
+        ///
+        /// # Notes
+        /// + Parent node signals are not updated.
+        pub fn remove(&self, path: impl AsRef<Path>) -> Result<(), error::Remove> {
+            use std::cmp;
+
+            let Some(root) = self.find(path.as_ref())? else {
+                return Err(error::Remove::NotFound);
+            };
+
+            let parent = self.parent(&root).unwrap();
+            let descendants = self.descendants(&root);
+            assert!(!descendants.is_empty());
+
+            let root_width = root.graph.subtree_width.get_untracked();
+            let delta_height = cmp::min(
+                root.graph.subtree_height.with_untracked(|height| {
+                    parent.with_untracked(|parent| {
+                        self.children(parent).unwrap().with_untracked(|children| {
+                            children
+                                .iter()
+                                .map(|child| child.graph.subtree_height.get_untracked())
+                                .max()
+                                .unwrap()
+                        })
+                    }) - height
+                }),
+                0,
+            );
+
+            parent.with_untracked(|parent| {
+                self.children(parent).unwrap().with_untracked(|children| {
+                    root.graph.sibling_index.with_untracked(|root_index| {
+                        for child in children.iter().skip(root_index + 1) {
+                            child.graph.sibling_index.update(|index| {
+                                *index -= 1;
+                            })
+                        }
+                    })
+                })
+            });
+
+            for ancestor in self.ancestors(&root).iter().skip(1) {
+                ancestor
+                    .graph
+                    .subtree_width
+                    .update(|width| *width -= root_width);
+
+                ancestor
+                    .graph
+                    .subtree_height
+                    .update(|height| *height += delta_height);
+            }
+
+            // NB: Parents do not update signal when removed.
+            self.parents.borrow_mut().retain(|(child, _)| {
+                !descendants
+                    .iter()
+                    .any(|descendant| Node::ptr_eq(child, descendant))
+            });
+
+            self.children.update(|children| {
+                children.retain(|(parent, _children)| {
+                    !descendants
+                        .iter()
+                        .any(|descendant| Node::ptr_eq(parent, descendant))
+                })
+            });
+
+            parent.with_untracked(|parent| {
+                self.children(&parent)
+                    .unwrap()
+                    .update(|siblings| siblings.retain(|sibling| !Node::ptr_eq(sibling, &root)))
+            });
+
+            self.nodes.update(|nodes| {
+                nodes.retain(|node| {
+                    descendants
+                        .iter()
+                        .any(|descendant| Node::ptr_eq(node, descendant))
+                })
+            });
+
+            Ok(())
+        }
     }
 
     pub mod error {
@@ -697,6 +804,18 @@ pub mod graph {
         }
 
         impl From<InvalidPath> for Insert {
+            fn from(_: InvalidPath) -> Self {
+                Self::InvalidPath
+            }
+        }
+
+        #[derive(Debug)]
+        pub enum Remove {
+            NotFound,
+            InvalidPath,
+        }
+
+        impl From<InvalidPath> for Remove {
             fn from(_: InvalidPath) -> Self {
                 Self::InvalidPath
             }

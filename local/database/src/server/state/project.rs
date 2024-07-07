@@ -145,7 +145,7 @@ pub mod project {
     use crate::state::{self, FileResource};
     use std::{
         io::{self, ErrorKind},
-        path::{Path, PathBuf},
+        path::PathBuf,
     };
     use syre_core::project::Project as CoreProject;
     use syre_local::{error::IoSerde, types::ProjectSettings, TryReducible};
@@ -328,7 +328,7 @@ pub mod project {
                         return Err(Error::DoesNotExist);
                     };
 
-                    let Some(parent) = graph.find(&parent).cloned() else {
+                    let Some(parent) = graph.find(&parent).unwrap().cloned() else {
                         return Err(Error::DoesNotExist);
                     };
 
@@ -342,7 +342,7 @@ pub mod project {
                         return Err(Error::DoesNotExist);
                     };
 
-                    let Some(root) = graph.find(&path).cloned() else {
+                    let Some(root) = graph.find(&path).unwrap().cloned() else {
                         return Err(Error::DoesNotExist);
                     };
 
@@ -377,7 +377,7 @@ pub mod project {
                 return Err(Error::DoesNotExist);
             };
 
-            let Some(container) = graph.find(&path) else {
+            let Some(container) = graph.find(&path).unwrap() else {
                 return Err(Error::DoesNotExist);
             };
 
@@ -745,26 +745,29 @@ pub mod graph {
             })
         }
 
-        /// Find a container py its path.
+        /// Find a container by its path.
         ///
         /// # Arguments
         /// 1. `path`: Absolute path to container, with the
         /// project's data root being the root path.
         ///
-        /// # Panics
-        /// + If path is not absolute.
-        /// + If any special path components are used.
-        ///     This includes path prefixes, current dir, and parent dir.
-        pub fn find(&self, path: impl AsRef<Path>) -> Option<&Node> {
-            assert!(path.as_ref().is_absolute());
+        /// # Returns
+        /// `Err` if path is not absolute or if any special path components are used.
+        /// This includes path prefixes, current dir, and parent dir.
+        pub fn find(&self, path: impl AsRef<Path>) -> Result<Option<&Node>, error::InvalidPath> {
+            let path = path.as_ref();
+            if !path.is_absolute() {
+                return Err(error::InvalidPath);
+            }
+
             let mut node = &self.root;
-            for component in path.as_ref().components().skip(1) {
+            for component in path.components().skip(1) {
                 match component {
                     std::path::Component::Prefix(_)
                     | std::path::Component::RootDir
                     | std::path::Component::CurDir
                     | std::path::Component::ParentDir => {
-                        panic!("invalid path");
+                        return Err(error::InvalidPath);
                     }
 
                     std::path::Component::Normal(name) => {
@@ -772,7 +775,7 @@ pub mod graph {
                             let child = child.lock().unwrap();
                             child.name() == name
                         }) else {
-                            return None;
+                            return Ok(None);
                         };
 
                         node = child;
@@ -780,7 +783,7 @@ pub mod graph {
                 }
             }
 
-            Some(node)
+            Ok(Some(node))
         }
 
         /// Remove a subgraph.
@@ -802,19 +805,19 @@ pub mod graph {
                 .retain(|child| !Node::ptr_eq(child, root));
 
             self.children.retain(|(parent, _)| {
-                descendants
+                !descendants
                     .iter()
                     .any(|descendant| Node::ptr_eq(parent, descendant))
             });
 
             self.parents.retain(|(child, _)| {
-                descendants
+                !descendants
                     .iter()
                     .any(|descendant| Node::ptr_eq(child, descendant))
             });
 
             self.nodes.retain(|node| {
-                descendants
+                !descendants
                     .iter()
                     .any(|descendant| Node::ptr_eq(node, descendant))
             });
@@ -847,11 +850,11 @@ pub mod graph {
                 return Err(error::Move::InvalidPaths);
             }
 
-            let Some(from_node) = self.find(from_path).cloned() else {
+            let Some(from_node) = self.find(from_path).unwrap().cloned() else {
                 return Err(error::Move::FromNotFound);
             };
 
-            let Some(to_parent) = self.find(to_path.parent().unwrap()).cloned() else {
+            let Some(to_parent) = self.find(to_path.parent().unwrap()).unwrap().cloned() else {
                 return Err(error::Move::ParentNotFound);
             };
 
@@ -913,7 +916,7 @@ pub mod graph {
 
         /// Converts a subgraph to a [`crate::state::Graph`].
         pub fn subgraph_as_graph(&self, root: impl AsRef<Path>) -> Result<Graph, error::NotFound> {
-            let Some(root) = self.find(root) else {
+            let Some(root) = self.find(root).unwrap() else {
                 return Err(error::NotFound);
             };
 
@@ -975,6 +978,9 @@ pub mod graph {
 
         #[derive(Debug)]
         pub struct NotFound;
+
+        #[derive(Debug)]
+        pub struct InvalidPath;
     }
 }
 

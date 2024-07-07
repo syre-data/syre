@@ -96,7 +96,7 @@ impl Database {
             return None;
         };
 
-        let Some(container) = graph.find(container) else {
+        let Some(container) = graph.find(container).unwrap() else {
             return None;
         };
 
@@ -305,6 +305,6 @@ impl Database {
             return None;
         };
 
-        graph.find(container)
+        graph.find(container).unwrap()
     }
 }

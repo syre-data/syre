@@ -54,7 +54,7 @@ impl Database {
         let container_graph_path =
             common::container_graph_path(project.path().join(&project_properties.data_root), &from)
                 .unwrap();
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         let to_name = to.file_name().unwrap().to_os_string();
         let project_path = project.path().clone();
@@ -139,7 +139,7 @@ impl Database {
             &base_path,
         )
         .unwrap();
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert_matches!(
             container_state.properties(),
@@ -307,7 +307,7 @@ impl Database {
         let container_graph_path = Path::new("/").join(container_graph_path);
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
-        assert!(graph.find(&container_graph_path).is_some());
+        assert!(graph.find(&container_graph_path).unwrap().is_some());
         self.state
             .try_reduce(server::state::Action::Project {
                 path: project_path.clone(),
@@ -419,7 +419,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert_matches!(
             container_state.properties(),
@@ -492,7 +492,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.properties(),
@@ -562,7 +562,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.properties(),
@@ -694,7 +694,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert_matches!(
             container_state.settings(),
@@ -765,7 +765,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.settings(),
@@ -835,7 +835,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.settings(),
@@ -965,7 +965,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert_matches!(
             container_state.assets(),
@@ -1067,7 +1067,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.assets(),
@@ -1137,7 +1137,7 @@ impl Database {
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
         let container_graph_path = Path::new("/").join(container_graph_path);
-        let container_state = graph.find(&container_graph_path).unwrap();
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
             container_state.assets(),

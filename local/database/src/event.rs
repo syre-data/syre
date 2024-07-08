@@ -238,7 +238,7 @@ pub enum Graph {
     Renamed {
         from: PathBuf,
 
-        #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
+        #[serde(with = "crate::serde_os_string")]
         to: OsString,
     },
 
@@ -295,7 +295,7 @@ pub enum AssetFile {
     Renamed {
         from: PathBuf,
 
-        #[cfg_attr(target_arch = "wasm32", serde(with = "crate::serde_os_string"))]
+        #[serde(with = "crate::serde_os_string")]
         to: OsString,
     },
 

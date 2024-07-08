@@ -188,6 +188,19 @@ impl HasId for Container {
     }
 }
 
+impl StoredContainerProperties {
+    /// Save the container properties.
+    ///
+    /// # Arguments
+    /// 1. `base_path`: Base path of the container the properties represent.
+    pub fn save(&self, base_path: impl AsRef<Path>) -> StdResult<(), io::Error> {
+        let path = common::container_file_of(base_path);
+        fs::create_dir_all(path.parent().expect("invalid Container path"))?;
+        fs::write(path, serde_json::to_string_pretty(self).unwrap())?;
+        Ok(())
+    }
+}
+
 impl LocalResource<StoredContainerProperties> for Container {
     fn rel_path() -> PathBuf {
         common::container_file()

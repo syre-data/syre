@@ -4,5 +4,5 @@ mod state;
 pub(self) mod store;
 mod types;
 
-pub use database::{Builder, Config, Database};
+pub use database::{config, Builder, Config, Database};
 use state::State;

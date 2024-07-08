@@ -18,13 +18,7 @@ fn main() {
         default_panic_hook(panic_info);
     }));
 
-    let config = server::Config::new(
-        UserManifest::default_path().unwrap(),
-        ProjectManifest::default_path().unwrap(),
-        LocalConfig::default_path().unwrap(),
-        syre_local_database::constants::PUB_SUB_PORT,
-    );
-
+    let config = server::config::Builder::try_default().unwrap();
     let projects = match ProjectManifest::load_or_default() {
         Ok(projects) => projects.to_vec(),
         Err(err) => {
@@ -33,7 +27,7 @@ fn main() {
         }
     };
 
-    let db = server::Builder::new(config).add_paths(projects);
+    let db = server::Builder::new(config.build()).add_paths(projects);
     db.run().unwrap();
 }
 

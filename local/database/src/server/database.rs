@@ -616,32 +616,101 @@ mod linux {
     }
 }
 
-mod config {
-    use crate::constants::PortNumber;
-    use std::path::PathBuf;
+pub mod config {
+    use crate::constants::{PortNumber, PUB_SUB_PORT};
+    use std::{io, path::PathBuf};
+    use syre_local::{
+        file_resource::SystemResource,
+        system::{
+            collections::{ProjectManifest, UserManifest},
+            config::Config as LocalConfig,
+        },
+    };
 
-    pub struct Config {
+    pub struct Builder {
         user_manifest: PathBuf,
         project_manifest: PathBuf,
         local_config: PathBuf,
         update_port: PortNumber,
+        handle_fs_resource_changes: bool,
     }
 
-    impl Config {
-        pub fn new(
-            user_manifest: impl Into<PathBuf>,
-            project_manifest: impl Into<PathBuf>,
-            local_config: impl Into<PathBuf>,
-            update_port: impl Into<PortNumber>,
-        ) -> Self {
-            Self {
-                user_manifest: user_manifest.into(),
-                project_manifest: project_manifest.into(),
-                local_config: local_config.into(),
-                update_port: update_port.into(),
+    impl Builder {
+        /// Intialize config with default paths and values.
+        pub fn try_default() -> Result<Self, io::Error> {
+            Ok(Self {
+                user_manifest: UserManifest::default_path()?,
+                project_manifest: ProjectManifest::default_path()?,
+                local_config: LocalConfig::default_path()?,
+                update_port: PUB_SUB_PORT,
+                handle_fs_resource_changes: true,
+            })
+        }
+
+        pub fn build(self) -> Config {
+            Config {
+                user_manifest: self.user_manifest,
+                project_manifest: self.project_manifest,
+                local_config: self.local_config,
+                update_port: self.update_port,
+                handle_fs_resource_changes: self.handle_fs_resource_changes,
             }
         }
 
+        pub fn set_user_manifest(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+            self.user_manifest = path.into();
+            self
+        }
+
+        pub fn set_project_manifest(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+            self.project_manifest = path.into();
+            self
+        }
+
+        pub fn set_local_config(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+            self.local_config = path.into();
+            self
+        }
+
+        pub fn set_update_port(&mut self, port: PortNumber) -> &mut Self {
+            self.update_port = port;
+            self
+        }
+
+        pub fn set_handle_fs_resource_changes(&mut self, handle: bool) -> &mut Self {
+            self.handle_fs_resource_changes = handle;
+            self
+        }
+    }
+
+    pub struct Config {
+        /// Path to the user manifest file.
+        user_manifest: PathBuf,
+
+        /// Path to the project maniferst file.
+        project_manifest: PathBuf,
+
+        /// Path to the local config file.
+        local_config: PathBuf,
+
+        /// Port over which updates should be sent.
+        update_port: PortNumber,
+
+        /// If `true` any file system resource modifi are automatically handled.
+        /// If `false` this task is left to the client applications.
+        /// Resource modifications include:
+        /// 1. Analysis-like files inserted in the analysis directory of a project.
+        /// 2. Container-like folders inserted, removed, renamed, or moved in or from the data directory of a project.
+        /// 3. Asset-like files inserted, removed, renamed, or moved in or from a container-like folder.
+        /// If this is enabled, the effected resources properties are updated accordingly.
+        ///
+        /// # Notes
+        /// + If handled by client applications, each client should ensure they are not
+        /// overwriting work by another client.
+        handle_fs_resource_changes: bool,
+    }
+
+    impl Config {
         pub fn user_manifest(&self) -> &PathBuf {
             &self.user_manifest
         }
@@ -656,6 +725,10 @@ mod config {
 
         pub fn update_port(&self) -> PortNumber {
             self.update_port
+        }
+
+        pub fn handle_fs_resource_changes(&self) -> bool {
+            self.handle_fs_resource_changes
         }
     }
 }

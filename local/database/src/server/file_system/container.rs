@@ -43,9 +43,9 @@ impl Database {
             panic!("invalid state");
         };
 
-        let state::FolderResource::Present(graph) = project_state.graph() else {
-            panic!("invalid state");
-        };
+        // let state::FolderResource::Present(graph) = project_state.graph() else {
+        //     panic!("invalid state");
+        // };
 
         let state::DataResource::Ok(project_properties) = project_state.properties() else {
             panic!("invalid state");
@@ -54,12 +54,12 @@ impl Database {
         let container_graph_path =
             common::container_graph_path(project.path().join(&project_properties.data_root), &from)
                 .unwrap();
-        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
-        let container_state = container_state.lock().unwrap();
+        // let container_state = graph.find(&container_graph_path).unwrap().unwrap();
+        // let container_state = container_state.lock().unwrap();
         let to_name = to.file_name().unwrap().to_os_string();
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
-        drop(container_state);
+        // drop(container_state);
         self.state
             .try_reduce(server::state::Action::Project {
                 path: project_path.clone(),
@@ -69,6 +69,12 @@ impl Database {
                 },
             })
             .unwrap();
+
+        if self.config.handle_fs_resource_changes() {
+            if let Err(err) = self.handle_fs_event_container_renamed_changes(&event) {
+                tracing::error!(?err);
+            }
+        }
 
         vec![Update::project_with_id(
             project_id.clone(),
@@ -80,6 +86,23 @@ impl Database {
             .into(),
             event.id().clone(),
         )]
+    }
+
+    fn handle_fs_event_container_renamed_changes(
+        &mut self,
+        event: &syre_fs_watcher::Event,
+    ) -> Result<(), IoSerde> {
+        use syre_local::loader::container::Loader;
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+        assert_eq!(from.parent(), to.parent());
+
+        let mut properties = Loader::load_from_only_properties(to)?;
+        properties.properties.name = to.file_name().unwrap().to_string_lossy().to_string();
+        properties.save(to)?;
+        Ok(())
     }
 }
 

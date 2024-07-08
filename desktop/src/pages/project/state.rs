@@ -120,7 +120,7 @@ pub mod workspace_graph {
         }
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     pub enum ResourceKind {
         Container,
         Asset,
@@ -258,6 +258,7 @@ pub mod graph {
     use leptos::*;
     use std::{
         cell::RefCell,
+        ffi::{OsStr, OsString},
         ops::Deref,
         path::{Component, Path, PathBuf},
         rc::Rc,
@@ -788,6 +789,19 @@ pub mod graph {
 
             Ok(())
         }
+
+        pub fn rename(
+            &self,
+            from: impl AsRef<Path>,
+            to: impl Into<OsString>,
+        ) -> Result<(), error::Move> {
+            let Some(node) = self.find(from)? else {
+                return Err(error::Move::NotFound);
+            };
+
+            node.container.name().set(to.into());
+            Ok(())
+        }
     }
 
     pub mod error {
@@ -816,6 +830,19 @@ pub mod graph {
         }
 
         impl From<InvalidPath> for Remove {
+            fn from(_: InvalidPath) -> Self {
+                Self::InvalidPath
+            }
+        }
+
+        #[derive(Debug)]
+        pub enum Move {
+            NotFound,
+            InvalidPath,
+            NameConflict,
+        }
+
+        impl From<InvalidPath> for Move {
             fn from(_: InvalidPath) -> Self {
                 Self::InvalidPath
             }

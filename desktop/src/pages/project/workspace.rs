@@ -157,7 +157,9 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
         | db::event::Project::Settings(_)
         | db::event::Project::Analyses(_) => unreachable!("handled elsewhere"),
         db::event::Project::Graph(_) => handle_event_graph_graph(event, graph),
-        db::event::Project::Container { path, update } => todo!(),
+        db::event::Project::Container { path, update } => {
+            handle_event_graph_container(event, graph)
+        }
         db::event::Project::Asset {
             container,
             asset,
@@ -182,8 +184,145 @@ fn handle_event_graph_graph(event: lib::Event, graph: state::Graph) {
         } => graph
             .insert(parent, state::Graph::new(subgraph.clone()))
             .unwrap(),
-        db::event::Graph::Renamed { from, to } => todo!(),
+        db::event::Graph::Renamed { from, to } => graph.rename(from, to).unwrap(),
         db::event::Graph::Moved { from, to } => todo!(),
         db::event::Graph::Removed(path) => graph.remove(path).unwrap(),
+    }
+}
+
+fn handle_event_graph_container(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container { path, update }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::Container::Properties(_) => {
+            handle_event_graph_container_properties(event, graph)
+        }
+        db::event::Container::Settings(_) => todo!(),
+        db::event::Container::Assets(_) => todo!(),
+    }
+}
+
+fn handle_event_graph_container_properties(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Properties(update),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    let container = graph.find(path).unwrap().unwrap();
+    match update {
+        db::event::DataResource::Created(_) => todo!(),
+        db::event::DataResource::Removed => todo!(),
+        db::event::DataResource::Corrupted(_) => todo!(),
+        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Modified(update) => {
+            container.properties().update(|properties| {
+                let db::state::DataResource::Ok(properties) = properties else {
+                    panic!("invalid state");
+                };
+
+                if properties.rid().with_untracked(|rid| update.rid != *rid) {
+                    properties.rid().set(update.rid.clone());
+                }
+
+                if properties
+                    .name()
+                    .with_untracked(|name| update.properties.name != *name)
+                {
+                    properties.name().set(update.properties.name.clone());
+                }
+
+                if properties
+                    .kind()
+                    .with_untracked(|kind| update.properties.kind != *kind)
+                {
+                    properties.kind().set(update.properties.kind.clone());
+                }
+
+                if properties
+                    .description()
+                    .with_untracked(|description| update.properties.description != *description)
+                {
+                    properties
+                        .description()
+                        .set(update.properties.description.clone());
+                }
+
+                if properties
+                    .tags()
+                    .with_untracked(|tags| update.properties.tags != *tags)
+                {
+                    properties.tags().set(update.properties.tags.clone());
+                }
+
+                properties.metadata().update(|metadata| {
+                    metadata.retain(|(key, value)| {
+                        if let Some(value_new) = update.properties.metadata.get(key) {
+                            if value.with_untracked(|value| value_new != value) {
+                                value.set(value_new.clone());
+                            }
+
+                            true
+                        } else {
+                            false
+                        }
+                    });
+
+                    for (key, value_new) in update.properties.metadata.iter() {
+                        if !metadata.iter().any(|(k, _)| key == key) {
+                            metadata.push((key.clone(), create_rw_signal(value_new.clone())));
+                        }
+                    }
+                });
+            });
+
+            container.analyses().update(|analyses| {
+                let db::state::DataResource::Ok(analyses) = analyses else {
+                    panic!("invalid state");
+                };
+
+                analyses.update(|analyses| {
+                    analyses.retain(|association| {
+                        if let Some(association_update) = update
+                            .analyses
+                            .iter()
+                            .find(|assoc| assoc.analysis() == association.analysis())
+                        {
+                            if association
+                                .autorun()
+                                .with_untracked(|autorun| association_update.autorun != *autorun)
+                            {
+                                association.autorun().set(association_update.autorun);
+                            }
+
+                            if association
+                                .priority()
+                                .with_untracked(|priority| association_update.priority != *priority)
+                            {
+                                association.priority().set(association_update.priority);
+                            }
+
+                            true
+                        } else {
+                            false
+                        }
+                    });
+
+                    for association_update in update.analyses.iter() {
+                        if !analyses.iter().any(|association| {
+                            association.analysis() == association_update.analysis()
+                        }) {
+                            analyses
+                                .push(state::AnalysisAssociation::new(association_update.clone()));
+                        }
+                    }
+                });
+            });
+        }
     }
 }

@@ -394,6 +394,15 @@ mod project {
         }
 
         /// # Returns
+        /// Base path and state of the project at the given path.
+        /// `None` if no state is associated with the path.
+        pub fn path(&self, project: ResourceId) -> zmq::Result<Option<PathBuf>> {
+            let path = self.send(query::Project::Path(project).into())?;
+            let path = serde_json::from_value::<Option<PathBuf>>(path).unwrap();
+            Ok(path)
+        }
+
+        /// # Returns
         /// State of the projects at the given paths.
         /// Paths without an associated state are ommitted from the result.
         pub fn get_many(&self, paths: Vec<PathBuf>) -> zmq::Result<Vec<state::Project>> {

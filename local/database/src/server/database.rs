@@ -607,6 +607,7 @@ mod linux {
             &self,
             errors: Vec<syre_fs_watcher::Error>,
         ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
+            tracing::error!(?errors);
             todo!();
         }
     }

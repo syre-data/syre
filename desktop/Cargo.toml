@@ -39,3 +39,4 @@ leptos_meta = { version = "0.6", features = ["nightly", "csr"] }
 chrono = { workspace = true, features = ["serde"] }
 leptos_icons = "0.3.1"
 icondata = "0.3.1"
+leptos-use = "0.10.10"

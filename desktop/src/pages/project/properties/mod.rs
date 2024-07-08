@@ -3,26 +3,26 @@ use leptos::*;
 
 mod container;
 
+use container::Editor as Container;
+
 #[component]
 pub fn PropertiesBar() -> impl IntoView {
     use state::workspace_graph::ResourceKind;
 
+    let graph = expect_context::<state::Graph>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
 
     move || {
         workspace_graph_state
             .selection()
             .with(|selection| match &selection[..] {
-                [] => view! {
-                    "Properties"
-                },
+                [] => view! { "Properties" }.into_view(),
                 [resource] => match resource.kind() {
                     ResourceKind::Container => {
-                        view! {"single container"}
+                        let container = graph.find_by_id(resource.rid()).unwrap();
+                        view! { <Container container=container.state().clone()/> }.into_view()
                     }
-                    ResourceKind::Asset => {
-                        view! {"single asset"}
-                    }
+                    ResourceKind::Asset => view! { "single asset" }.into_view(),
                 },
 
                 _ => {
@@ -36,18 +36,10 @@ pub fn PropertiesBar() -> impl IntoView {
                     match kinds[..] {
                         [] => panic!("invalid state"),
                         [kind] => match kind {
-                            ResourceKind::Container => view! {
-                                "Bulk container"
-                            },
-                            ResourceKind::Asset => view! {
-                                "Bulk asset"
-                            },
+                            ResourceKind::Container => view! { "Bulk container" }.into_view(),
+                            ResourceKind::Asset => view! { "Bulk asset" }.into_view(),
                         },
-                        _ => {
-                            view! {
-                                "Bulk mixed"
-                            }
-                        }
+                        _ => view! { "Bulk mixed" }.into_view(),
                     }
                 }
             })

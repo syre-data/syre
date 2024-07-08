@@ -171,6 +171,10 @@ impl Database {
                 let state = self.handle_query_project_get_by_id(&project);
                 serde_json::to_value(state).unwrap()
             }
+            query::Project::Path(project) => {
+                let state = self.handle_query_project_path(&project);
+                serde_json::to_value(state).unwrap()
+            }
             query::Project::GetMany(projects) => {
                 let states = self.handle_query_project_get_many(&projects);
                 serde_json::to_value(states).unwrap()
@@ -213,6 +217,27 @@ impl Database {
 
             if properties.rid() == project {
                 Some((state.path().clone(), project_state.project_data()))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// # Returns
+    /// Project's path.
+    /// `None` if a state is not associated with the project.
+    fn handle_query_project_path(&self, project: &ResourceId) -> Option<PathBuf> {
+        self.state.projects().iter().find_map(|state| {
+            let state::FolderResource::Present(project_state) = state.fs_resource() else {
+                return None;
+            };
+
+            let state::DataResource::Ok(properties) = project_state.properties() else {
+                return None;
+            };
+
+            if properties.rid() == project {
+                Some(state.path().clone())
             } else {
                 None
             }

@@ -66,6 +66,9 @@ pub enum Project {
     /// Retrieve the state of the project with the given id.
     GetById(ResourceId),
 
+    /// Retrieve the project's path.
+    Path(ResourceId),
+
     /// Retrieve the state of the projects at the given paths.
     ///
     /// # Notes

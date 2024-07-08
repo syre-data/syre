@@ -258,18 +258,19 @@ pub mod graph {
     use leptos::*;
     use std::{
         cell::RefCell,
-        ffi::{OsStr, OsString},
+        ffi::OsString,
         ops::Deref,
         path::{Component, Path, PathBuf},
         rc::Rc,
     };
+    use syre_core::types::ResourceId;
     use syre_local_database as db;
 
     pub type Node = Rc<Data>;
 
     #[derive(Debug, Clone)]
     pub struct Data {
-        container: Container,
+        state: Container,
         graph: GraphData,
     }
 
@@ -286,9 +287,13 @@ pub mod graph {
             sibling_index: usize,
         ) -> Self {
             Self {
-                container: Container::new(container),
+                state: Container::new(container),
                 graph: GraphData::new(subtree_width, subtree_height, sibling_index),
             }
+        }
+
+        pub fn state(&self) -> &Container {
+            &self.state
         }
 
         pub fn subtree_height(&self) -> ReadSignal<usize> {
@@ -307,7 +312,7 @@ pub mod graph {
     impl Deref for Data {
         type Target = Container;
         fn deref(&self) -> &Self::Target {
-            &self.container
+            &self.state
         }
     }
 
@@ -590,6 +595,23 @@ pub mod graph {
 
             Ok(Some(node))
         }
+
+        pub fn find_by_id(&self, rid: &ResourceId) -> Option<Node> {
+            self.nodes.with_untracked(|nodes| {
+                nodes
+                    .iter()
+                    .find(|node| {
+                        node.state.properties().with_untracked(|properties| {
+                            if let db::state::DataResource::Ok(properties) = properties {
+                                properties.rid().with_untracked(|id| id == rid)
+                            } else {
+                                false
+                            }
+                        })
+                    })
+                    .cloned()
+            })
+        }
     }
 
     impl State {
@@ -799,7 +821,7 @@ pub mod graph {
                 return Err(error::Move::NotFound);
             };
 
-            node.container.name().set(to.into());
+            node.state.name().set(to.into());
             Ok(())
         }
     }

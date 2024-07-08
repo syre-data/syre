@@ -37,7 +37,7 @@ pub use client::Client;
 pub use server::Database;
 
 // #[cfg(target_arch = "wasm32")]
-mod serde_os_string {
+pub mod serde_os_string {
     use serde::{de::Visitor, Deserializer, Serializer};
     use std::{ffi::OsString, fmt, str::FromStr};
 

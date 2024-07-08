@@ -7,5 +7,6 @@ edition = "2021"
 derive_more.workspace = true
 serde = { workspace = true, features = ["derive"] }
 syre-core.workspace = true
+syre-local.workspace = true
 syre-local-database.workspace = true
 uuid = { workspace = true, features = ["v7"] }

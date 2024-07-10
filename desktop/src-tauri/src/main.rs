@@ -29,6 +29,7 @@ fn main() {
             project::project_resources,
             graph::create_child_container,
             container::container_rename,
+            container::container_properties_update,
             fs::pick_folder,
             fs::pick_folder_with_location,
         ])

@@ -1016,6 +1016,26 @@ pub mod container {
         }
     }
 
+    impl Properties {
+        /// Convert into [`syre_core::project::ContainerProperties`].
+        pub fn as_properties(&self) -> syre_core::project::ContainerProperties {
+            let metadata = self.metadata().with_untracked(|metadata| {
+                metadata
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.get_untracked()))
+                    .collect()
+            });
+
+            syre_core::project::ContainerProperties {
+                name: self.name.get_untracked(),
+                kind: self.kind.get_untracked(),
+                description: self.description.get_untracked(),
+                tags: self.tags.get_untracked(),
+                metadata,
+            }
+        }
+    }
+
     #[derive(Clone)]
     pub struct AnalysisAssociation {
         analysis: ResourceId,

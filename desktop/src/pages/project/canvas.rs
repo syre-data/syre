@@ -609,41 +609,14 @@ fn ContainerPreview(
     assert!(analyses.with_untracked(|analyses| analyses.is_ok()));
     let workspace_state = expect_context::<state::Workspace>();
 
-    let kind = move || {
-        properties.with(|properties| {
-            properties
-                .as_ref()
-                .unwrap()
-                .kind()
-                .with(|kind| kind.clone().unwrap_or("(no type)".to_string()))
-        })
-    };
+    let kind =
+        properties.with_untracked(|properties| properties.as_ref().unwrap().kind().read_only());
 
-    let description = move || {
-        properties.with(|properties| {
-            properties
-                .as_ref()
-                .unwrap()
-                .description()
-                .with(|description| {
-                    description
-                        .clone()
-                        .unwrap_or("(no description)".to_string())
-                })
-        })
-    };
+    let description = properties
+        .with_untracked(|properties| properties.as_ref().unwrap().description().read_only());
 
-    let tags = move || {
-        properties.with(|properties| {
-            properties.as_ref().unwrap().tags().with(|tags| {
-                if tags.is_empty() {
-                    "(no tags)".to_string()
-                } else {
-                    tags.join(", ")
-                }
-            })
-        })
-    };
+    let tags =
+        properties.with_untracked(|properties| properties.as_ref().unwrap().tags().read_only());
 
     let metadata =
         properties.with_untracked(|properties| properties.as_ref().unwrap().metadata().read_only());
@@ -657,15 +630,23 @@ fn ContainerPreview(
 
             <div class:hidden=move || {
                 workspace_state.preview.with(|preview| !preview.kind)
-            }>{kind}</div>
+            }>{move || kind().unwrap_or("(no type)".to_string())}</div>
 
             <div class:hidden=move || {
                 workspace_state.preview.with(|preview| !preview.description)
-            }>{description}</div>
+            }>{move || description().unwrap_or("(no description)".to_string())}</div>
 
             <div class:hidden=move || {
                 workspace_state.preview.with(|preview| !preview.tags)
-            }>{tags}</div>
+            }>
+                {move || {
+                    tags
+                        .with(|tags| {
+                            if tags.is_empty() { "(no tags)".to_string() } else { tags.join(", ") }
+                        })
+                }}
+
+            </div>
 
             <Metadata metadata/>
         </div>

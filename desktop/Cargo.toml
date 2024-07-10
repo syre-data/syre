@@ -40,3 +40,4 @@ chrono = { workspace = true, features = ["serde"] }
 leptos_icons = "0.3.1"
 icondata = "0.3.1"
 leptos-use = "0.10.10"
+derive_more.workspace = true

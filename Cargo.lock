@@ -7195,6 +7195,7 @@ version = "0.11.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
+ "derive_more",
  "futures",
  "getrandom 0.2.15",
  "icondata",

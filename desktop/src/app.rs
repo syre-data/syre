@@ -1,7 +1,10 @@
-use crate::pages::{
-    auth::{Login, Logout, Register},
-    project::Workspace,
-    Index,
+use crate::{
+    pages::{
+        auth::{Login, Logout, Register},
+        project::Workspace,
+        Index,
+    },
+    types::Messages,
 };
 use leptos::*;
 use leptos_meta::*;
@@ -15,6 +18,7 @@ static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden"];
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+    provide_context(Messages::new()); // TODO: Only provide after user is logged in.
 
     view! {
         <Title formatter=|text| text text="Syre"/>

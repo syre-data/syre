@@ -7,11 +7,12 @@ use std::{fs, io};
 use syre_core::error::{Error as CoreError, Project as ProjectError};
 use syre_core::graph::ResourceTree;
 use syre_core::project::{Container, Project};
-use syre_core::types::{ResourceId, UserPermissions};
+use syre_core::types::{Creator, ResourceId, UserId, UserPermissions};
 use syre_desktop_lib::error::{Analysis as AnalysisError, RemoveResource as RemoveResourceError};
 use syre_local::error::{
     Error as LocalError, IoSerde as IoSerdeError, Project as LocalProjectError,
 };
+use syre_local::loader::tree::Loader as TreeLoader;
 use syre_local::project::project as local_project;
 use syre_local::project::resources::Project as LocalProject;
 use syre_local::system::collections::ProjectManifest;
@@ -163,9 +164,26 @@ pub fn init_project(path: &Path) -> Result<ResourceId> {
 }
 
 #[tauri::command]
-pub fn init_project_from(path: &Path) -> syre_local::Result<ResourceId> {
+pub fn init_project_from(
+    state: tauri::State<AppState>,
+    path: &Path,
+) -> syre_local::Result<ResourceId> {
     let converter = local_project::converter::Converter::new();
-    converter.convert(path)
+    let rid = converter.convert(path)?;
+    let user = state.user.lock().unwrap();
+    let user = user.clone().map(|user| UserId::Id(user.rid));
+    let creator = Creator::User(user);
+
+    let project = LocalProject::load_from(path).unwrap();
+    let mut graph = TreeLoader::load(project.data_root_path()).unwrap();
+    for (_, node) in graph.iter_nodes_mut() {
+        node.properties.creator = creator.clone();
+        for asset in node.assets.values_mut() {
+            asset.properties.creator = creator.clone();
+        }
+        node.save().unwrap();
+    }
+    Ok(rid)
 }
 
 // ************************

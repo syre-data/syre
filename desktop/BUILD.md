@@ -48,6 +48,7 @@ If you haven't already, go back to the root path `cd ../../`.
 - `cd desktop`
 - `cargo tauri build`
 
+> Use the `--debug` flag for a debug build.
 > If an error occurs, run with the `--verbose` flag.
 > If building from m1 to intel: `cargo tauri build --target x86_64-apple-darwin`
 > If building from intel to m1: `cargo tauri build --target aarch64-apple-darwin`

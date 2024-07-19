@@ -24,6 +24,9 @@ pub use config::Config;
 
 pub struct Builder {
     config: Config,
+
+    /// Paths to watch.
+    /// Usually project paths.
     paths: Vec<PathBuf>,
 }
 

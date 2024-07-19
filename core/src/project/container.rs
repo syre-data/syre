@@ -1,11 +1,13 @@
 //! Container.
-use super::container_properties::{Builder as PropertiesBuilder, ContainerProperties};
-use super::Metadata;
-use super::{AnalysisAssociation, Asset};
-use crate::db::Resource;
-use crate::types::ResourceId;
+use super::{
+    container_properties::{Builder as PropertiesBuilder, ContainerProperties},
+    AnalysisAssociation, Asset, Metadata,
+};
+use crate::{
+    db::Resource,
+    types::{ResourceId, Value},
+};
 use has_id::HasId;
-use serde_json::Value as JsValue;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "serde")]
@@ -142,11 +144,7 @@ impl Builder {
         self
     }
 
-    pub fn set_metadatum(
-        &mut self,
-        key: impl Into<String>,
-        value: impl Into<JsValue>,
-    ) -> &mut Self {
+    pub fn set_metadatum(&mut self, key: impl Into<String>, value: impl Into<Value>) -> &mut Self {
         self.properties.set_metadatum(key, value);
         self
     }

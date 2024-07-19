@@ -1,12 +1,15 @@
 /// Asset.
 use super::{asset_properties::Builder as PropertiesBuilder, AssetProperties, Metadata};
-use crate::db::Resource;
-use crate::types::{Creator, ResourceId};
+use crate::{
+    db::Resource,
+    types::{Creator, ResourceId, Value},
+};
 use chrono::prelude::*;
 use has_id::HasId;
-use serde_json::Value as JsValue;
-use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
+use std::{
+    hash::{Hash, Hasher},
+    path::PathBuf,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -157,11 +160,7 @@ impl<P> Builder<P> {
         self
     }
 
-    pub fn set_metadatum(
-        &mut self,
-        key: impl Into<String>,
-        value: impl Into<JsValue>,
-    ) -> &mut Self {
+    pub fn set_metadatum(&mut self, key: impl Into<String>, value: impl Into<Value>) -> &mut Self {
         self.properties.set_metadatum(key, value);
         self
     }

@@ -1,5 +1,6 @@
 pub use container::{AnalysisAssociation, Asset, State as Container};
 pub use graph::State as Graph;
+pub use metadata::{Metadata, Metadatum};
 pub use project::State as Project;
 pub use workspace::State as Workspace;
 pub use workspace_graph::State as WorkspaceGraph;
@@ -873,6 +874,7 @@ pub mod graph {
 }
 
 pub mod container {
+    use super::Metadata;
     use chrono::*;
     use leptos::*;
     use std::{ffi::OsString, path::PathBuf};
@@ -886,7 +888,6 @@ pub mod container {
     pub type AnalysesState = db::state::DataResource<RwSignal<Vec<AnalysisAssociation>>>;
     pub type AssetsState = db::state::DataResource<RwSignal<Vec<Asset>>>;
     pub type SettingsState = db::state::DataResource<Settings>;
-    pub type Metadata = Vec<(String, RwSignal<serde_json::Value>)>;
 
     #[derive(Clone, Debug)]
     pub struct State {
@@ -977,18 +978,13 @@ pub mod container {
                 metadata,
             } = properties;
 
-            let metadata = metadata
-                .into_iter()
-                .map(|(key, value)| (key, RwSignal::new(value)))
-                .collect();
-
             Self {
                 rid: RwSignal::new(rid),
                 name: RwSignal::new(name),
                 kind: RwSignal::new(kind),
                 description: RwSignal::new(description),
                 tags: RwSignal::new(tags),
-                metadata: RwSignal::new(metadata),
+                metadata: RwSignal::new(Metadata::from(metadata)),
             }
         }
         pub fn rid(&self) -> RwSignal<ResourceId> {
@@ -1092,12 +1088,8 @@ pub mod container {
                 db::state::FileResource::Absent
             };
 
-            let metadata = (*asset)
-                .properties
-                .metadata
-                .iter()
-                .map(|(key, value)| (key.clone(), RwSignal::new(value.clone())))
-                .collect();
+            let metadata = (*asset).properties.metadata.clone();
+            let metadata = Metadata::from(metadata);
 
             Self {
                 rid: RwSignal::new(asset.rid().clone()),
@@ -1176,4 +1168,40 @@ pub mod container {
             }
         }
     }
+}
+
+mod metadata {
+    use leptos::*;
+    use syre_core::types::data::Value;
+
+    #[derive(derive_more::Deref, derive_more::DerefMut, Clone)]
+    pub struct Metadata(Vec<Metadatum>);
+    impl Metadata {
+        pub fn from(metadata: syre_core::project::Metadata) -> Self {
+            let metadata = metadata
+                .into_iter()
+                .map(|(key, value)| (key, RwSignal::new(value)))
+                .collect();
+
+            Self(metadata)
+        }
+
+        pub fn as_properties(&self) -> syre_core::project::Metadata {
+            self.0
+                .iter()
+                .map(|(key, value)| (key.clone(), value()))
+                .collect()
+        }
+    }
+
+    impl IntoIterator for Metadata {
+        type Item = Metadatum;
+        type IntoIter = std::vec::IntoIter<Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            self.0.into_iter()
+        }
+    }
+
+    pub type Metadatum = (String, RwSignal<Value>);
 }

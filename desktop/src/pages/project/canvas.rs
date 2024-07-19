@@ -110,6 +110,7 @@ pub fn Canvas() -> impl IntoView {
     };
 
     let wheel = move |e: WheelEvent| {
+        // TODO: Stop scrolling if not fully zoomed.
         let dy = e.delta_y();
         let zoom = if dy < 0.0 {
             ZOOM_FACTOR_IN
@@ -640,10 +641,9 @@ fn ContainerPreview(
                 workspace_state.preview.with(|preview| !preview.tags)
             }>
                 {move || {
-                    tags
-                        .with(|tags| {
-                            if tags.is_empty() { "(no tags)".to_string() } else { tags.join(", ") }
-                        })
+                    tags.with(|tags| {
+                        if tags.is_empty() { "(no tags)".to_string() } else { tags.join(", ") }
+                    })
                 }}
 
             </div>
@@ -704,18 +704,18 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
 }
 
 #[component]
-fn Metadata(metadata: ReadSignal<state::container::Metadata>) -> impl IntoView {
+fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
     view! {
         <div class:hidden=move || { workspace_state.preview.with(|preview| !preview.metadata) }>
             <Show
-                when=move || metadata.with(|analyses| !analyses.is_empty())
+                when=move || metadata.with(|metadata| !metadata.is_empty())
                 fallback=|| view! { "(no metadata)" }
             >
                 <For each=metadata key=|(key, _)| key.clone() let:datum>
                     <div>
                         <span>{datum.0} ":"</span>
-                        <span>{move || datum.1.with(|value| value.to_string())}</span>
+                        <span>{move || datum.1.with(|value| serde_json::to_string(value))}</span>
                     </div>
                 </For>
             </Show>

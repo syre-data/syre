@@ -2,6 +2,7 @@ use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
     components::ModalDialog,
     invoke::{invoke, invoke_result},
+    types::MouseButton,
 };
 use futures::stream::StreamExt;
 use leptos::*;
@@ -155,8 +156,10 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
                 let goto_project = {
                     let navigate = navigate.clone();
                     let project = project.rid().to_string();
-                    move |_| {
-                        navigate(&project, Default::default());
+                    move |e: MouseEvent| {
+                        if e.button() == MouseButton::Primary as i16 {
+                            navigate(&project, Default::default());
+                        }
                     }
                 };
 

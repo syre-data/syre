@@ -7717,7 +7717,7 @@ dependencies = [
 [[package]]
 name = "tauri-sys"
 version = "0.2.0"
-source = "git+https://github.com/bicarlsen/tauri-sys?branch=v2#79b8d384dd63af9ae8f5968890ce6e1b0396508b"
+source = "git+https://github.com/JonasKruckenberg/tauri-sys?branch=v2#125136ae792873d9cc8bcc3d7ff9b50d59b9efa5"
 dependencies = [
  "futures",
  "js-sys",

@@ -30,7 +30,7 @@ thiserror = { workspace = true }
 tokio = { version = "1.36", features = ["sync", "macros", "rt-multi-thread"], optional = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["time", "json"] }
+tracing-subscriber = { version = "0.3", features = ["time", "json", "env-filter"] }
 trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4", "v7"] }
 zmq = { workspace = true, optional = true }

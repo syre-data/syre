@@ -1,6 +1,6 @@
 //! Container properties.
 use super::Metadata;
-use serde_json::Value as JsValue;
+use crate::types::Value;
 use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
@@ -102,11 +102,7 @@ impl Builder {
         self
     }
 
-    pub fn set_metadatum(
-        &mut self,
-        key: impl Into<String>,
-        value: impl Into<JsValue>,
-    ) -> &mut Self {
+    pub fn set_metadatum(&mut self, key: impl Into<String>, value: impl Into<Value>) -> &mut Self {
         self.metadata.insert(key.into(), value.into());
         self
     }

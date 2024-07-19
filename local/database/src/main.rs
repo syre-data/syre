@@ -48,14 +48,12 @@ mod logging {
     use std::io;
     use syre_local::system::common;
     use tracing_subscriber::{
-        filter::LevelFilter,
         fmt::{self, time::UtcTime},
         prelude::*,
-        Layer, Registry,
+        EnvFilter, Layer, Registry,
     };
 
     const LOG_PREFIX: &str = "database.local.log";
-    const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;
 
     pub fn enable() {
         // logging setup
@@ -66,13 +64,13 @@ mod logging {
             .with_writer(file_logger)
             .with_timer(UtcTime::rfc_3339())
             .json()
-            .with_filter(MAX_LOG_LEVEL);
+            .with_filter(EnvFilter::from_default_env());
 
         let console_logger = fmt::layer()
             .with_writer(io::stdout)
             .with_timer(UtcTime::rfc_3339())
             .pretty()
-            .with_filter(MAX_LOG_LEVEL);
+            .with_filter(EnvFilter::from_default_env());
 
         let subscriber = Registry::default().with(console_logger).with(file_logger);
         tracing::subscriber::set_global_default(subscriber).unwrap();

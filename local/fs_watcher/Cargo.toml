@@ -16,7 +16,7 @@ categories = []
 [dependencies]
 file_path_from_id = { workspace = true }
 notify = { workspace = true, default-features = false, features = ["macos_kqueue"], optional = true }
-notify-debouncer-full = { workspace = true, default-features = false, optional = true }
+notify-debouncer-full = { workspace = true, default-features = false, features = ["crossbeam"], optional = true }
 syre-core = { workspace = true, optional = true }
 syre-local = { workspace = true, features = ["fs"], optional = true }
 uuid = { workspace = true, features = ["v7"], optional = true }

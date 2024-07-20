@@ -433,7 +433,7 @@ mod metadata {
         let graph = expect_context::<state::Graph>();
         let (key, set_key) = create_signal("".to_string());
         let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
-        let value = create_rw_signal(Value::String("".to_string()));
+        let (value, set_value) = create_signal(Value::String("".to_string()));
 
         let invalid_key = move || {
             key.with(|key| metadata.with(|metadata| metadata.iter().any(|(k, _)| k == key)))
@@ -466,7 +466,7 @@ mod metadata {
                 }
 
                 set_key.update(|key| key.clear());
-                value.set(Value::String(String::new()));
+                set_value(Value::String(String::new()));
             });
         };
 
@@ -479,7 +479,7 @@ mod metadata {
                     minlength="1"
                     on:input=move |e| set_key(event_target_value(&e))
                 />
-                <ValueEditor value/>
+                <ValueEditor value set_value/>
                 <button on:click=add_metadatum>"Add"</button>
             </div>
         }
@@ -492,100 +492,107 @@ mod metadata {
         let graph = expect_context::<state::Graph>();
         let container = expect_context::<ActiveContainer>();
         let messages = expect_context::<Messages>();
-        let input_value = create_rw_signal(value.get_untracked());
+        let (input_value, set_input_value) = create_signal(value.get_untracked());
+        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
 
-        // create_effect(move |_| {
-        //     input_value.set(value());
-        // });
+        create_effect(move |_| {
+            set_input_value(value());
+        });
 
         // TODO: Handle errors with messages.
         // See https://github.com/leptos-rs/leptos/issues/2041
-        // create_effect({
-        //     let key = key.clone();
-        //     move |container_id| -> ResourceId {
-        //         // let messages = messages.write_only();
-        //         if container.with(|rid| {
-        //             if let Some(container_id) = container_id {
-        //                 *rid != container_id
-        //             } else {
-        //                 false
-        //             }
-        //         }) {
-        //             return container.get();
-        //         }
+        create_effect({
+            let key = key.clone();
+            move |container_id| -> ResourceId {
+                // let messages = messages.write_only();
+                if container.with(|rid| {
+                    if let Some(container_id) = container_id {
+                        *rid != container_id
+                    } else {
+                        false
+                    }
+                }) {
+                    return container.get();
+                }
 
-        //         let node = container.with(|rid| graph.find_by_id(rid).unwrap());
-        //         let path = graph.path(&node).unwrap();
-        //         let mut properties = node.properties().with_untracked(|properties| {
-        //             let db::state::DataResource::Ok(properties) = properties else {
-        //                 panic!("invalid state");
-        //             };
+                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+                let path = graph.path(&node).unwrap();
+                let mut properties = node.properties().with_untracked(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
 
-        //             properties.as_properties()
-        //         });
+                    properties.as_properties()
+                });
 
-        //         properties.metadata.insert(key.clone(), input_value.get());
-        //         let project = project.rid().get_untracked();
-        //         // let messages = messages.clone();
-        //         spawn_local(async move {
-        //             if let Err(err) = update_properties(project, path, properties).await {
-        //                 tracing::error!(?err);
-        //                 let mut msg = Message::error("Could not save container");
-        //                 msg.body(format!("{err:?}"));
-        //                 // messages.update(|messages| messages.push(msg.build()));
-        //             }
-        //         });
+                properties.metadata.insert(key.clone(), input_value.get());
+                let project = project.rid().get_untracked();
+                // let messages = messages.clone();
+                spawn_local(async move {
+                    if let Err(err) = update_properties(project, path, properties).await {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not save container");
+                        msg.body(format!("{err:?}"));
+                        // messages.update(|messages| messages.push(msg.build()));
+                    }
+                });
 
-        //         container.get()
-        //     }
-        // });
+                container.get()
+            }
+        });
 
         view! {
             <div>
                 <span>{key}</span>
-                <ValueEditor value=input_value/>
+                <ValueEditor value=input_value set_value=set_input_value/>
             </div>
         }
     }
 
     #[component]
-    fn ValueEditor(value: RwSignal<Value>) -> impl IntoView {
+    fn ValueEditor(
+        #[prop(into)] value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
         let value_editor = move || {
             value.with(|val| match val {
                 Value::Null => unreachable!(),
-                // Value::Bool(_) => {
-                //     view! { <BoolEditor value/> }
-                // }
-                Value::String(_) => {
-                    view! { <StringEditor value/> }
+                Value::Bool(_) => {
+                    view! { <BoolEditor value set_value/> }
                 }
-                // Value::Number(_) => {
-                //     view! { <NumberEditor value/> }
-                // }
-                // Value::Quantity { .. } => {
-                //     view! { <QuantityEditor value/> }
-                // }
-                // Value::Array(_) => {
-                //     view! { <ArrayEditor value/> }
-                // }
-                // Value::Map(_) => {
-                //     view! { <MapEditor value/> }
-                // }
-                _ => todo!(),
+                Value::String(_) => {
+                    view! { <StringEditor value set_value/> }
+                }
+                Value::Number(_) => {
+                    view! { <NumberEditor value set_value/> }
+                }
+                Value::Quantity { .. } => {
+                    view! { <QuantityEditor value set_value/> }
+                }
+                Value::Array(_) => {
+                    view! { <ArrayEditor value set_value/> }
+                }
+                Value::Map(_) => {
+                    view! { <MapEditor value set_value/> }
+                }
             })
         };
 
         view! {
-            <KindSelect value/>
+            <KindSelect value set_value/>
             {value_editor}
         }
     }
 
     #[component]
-    fn KindSelect(value: RwSignal<Value>) -> impl IntoView {
+    fn KindSelect(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
         let change = move |e| {
             let kind = string_to_kind(event_target_value(&e)).unwrap();
-            // value.set(convert_value_kind(value.get(), &kind));
+            set_value(convert_value_kind(value.get(), &kind));
         };
 
         view! {
@@ -610,112 +617,147 @@ mod metadata {
     }
 
     #[component]
-    fn BoolEditor(value: RwSignal<Value>) -> impl IntoView {
-        // view! { <input type="checkbox" value=value.read_only() set_value=value.write_only()/> }
-        view! {}
-    }
-
-    #[component]
-    fn StringEditor(value: RwSignal<Value>) -> impl IntoView {
-        let input_value = Signal::derive(move || {
+    fn BoolEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
+        let checked = move || {
             value.with(|value| {
-                let Value::String(s) = value else {
-                    panic!("invalid value kind");
+                let Value::Bool(value) = value else {
+                    panic!("invalid value");
                 };
 
-                s.clone()
+                *value
             })
-        });
+        };
 
-        let oninput = move |val| value.set(Value::String(val));
-        // view! { <InputTextDebounced debounce=INPUT_DEBOUNCE value=input_value oninput/> }
-        // view! {
-        //     <input
-        //         type="text"
-        //         prop:value=value.read_only()
-        //         minlength="1"
-        //         on:input=move |e| value.set(event_target_value(&e))
-        //         required="required"
-        //     />
-        // }
-        view! {}
+        view! {
+            <input
+                type="checkbox"
+                on:input=move |e| set_value(Value::Bool(event_target_checked(&e)))
+                checked=checked
+            />
+        }
     }
 
     #[component]
-    fn NumberEditor(value: RwSignal<Value>) -> impl IntoView {
+    fn StringEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
         let input_value = move || {
             value.with(|value| {
-                let Value::Number(n) = value else {
-                    panic!("invalid value kind");
+                let Value::String(value) = value else {
+                    panic!("invalid value");
                 };
 
-                n.as_f64().unwrap()
+                value.clone()
             })
         };
 
-        let oninput = move |val| {
-            value.set(Value::Number(serde_json::Number::from_f64(val).unwrap()));
-        };
-
-        // view! { <InputNumber value=Signal::derive(input_value) oninput/> }
-        view! {}
+        view! {
+            <input
+                type="text"
+                prop:value=input_value
+                minlength="1"
+                on:input=move |e| set_value(Value::String(event_target_value(&e)))
+            />
+        }
     }
 
     #[component]
-    fn QuantityEditor(value: RwSignal<Value>) -> impl IntoView {
-        let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
-            let Value::Quantity { magnitude, unit } = value.clone() else {
-                panic!("invalid value kind");
-            };
+    fn NumberEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
+        let input_value = move || {
+            value.with(|value| {
+                let Value::Number(value) = value else {
+                    panic!("invalid value");
+                };
 
-            (magnitude, unit)
-        }));
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
-
-        let input_magnitude = move |value: f64| {
-            set_input_value.update(|(magnitude, _unit)| *magnitude = value);
+                value.to_string()
+            })
         };
 
-        let input_unit = move |e| {
-            let value = event_target_value(&e);
-            set_input_value.update(|(_magnitude, unit)| *unit = value);
-        };
-
-        create_effect(move |_| {
-            let Value::Quantity { magnitude, unit } = value() else {
-                panic!("invalid value kind");
+        let oninput = move |value: String| {
+            let Ok(value) = serde_json::from_str(&value) else {
+                return;
             };
 
-            set_input_value((magnitude, unit));
-        });
+            set_value(Value::Number(value));
+        };
 
-        create_effect(move |_| {
-            let (magnitude, unit) = input_value();
-            value.set(Value::Quantity { magnitude, unit });
-        });
+        view! { <InputNumber value=Signal::derive(input_value) oninput/> }
+    }
+
+    #[component]
+    fn QuantityEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
+        let value_magnitude = move || {
+            value.with(|value| {
+                let Value::Quantity { magnitude, .. } = value else {
+                    panic!("invalid value");
+                };
+
+                magnitude.to_string()
+            })
+        };
+
+        let value_unit = move || {
+            value.with(|value| {
+                let Value::Quantity { unit, .. } = value else {
+                    panic!("invalid value");
+                };
+
+                unit.clone()
+            })
+        };
+
+        let oninput_magnitude = move |value: String| {
+            let Ok(mag) = value.parse::<f64>() else {
+                return;
+            };
+
+            set_value.update(move |value| {
+                let Value::Quantity { magnitude, .. } = value else {
+                    panic!("invalid value");
+                };
+
+                *magnitude = mag;
+            });
+        };
+
+        let oninput_unit = move |e| {
+            set_value.update(move |value| {
+                let Value::Quantity { unit, .. } = value else {
+                    panic!("invalid value");
+                };
+
+                *unit = event_target_value(&e).trim().to_string();
+            });
+        };
 
         view! {
             <div>
-                // <InputNumber
-                // debounce=INPUT_DEBOUNCE
-                // value=Signal::derive(move || {
-                // input_value.with(|(magnitude, _)| magnitude.clone())
-                // })
-
-                // oninput=input_magnitude
-                // />
-
-                <input
-                    prop:value=Signal::derive(move || input_value.with(|(_, unit)| unit.clone()))
-                    minlength=1
-                    on:input=input_unit
-                />
+                <InputNumber value=Signal::derive(value_magnitude) oninput=oninput_magnitude/>
+                <input prop:value=value_unit minlength=1 on:input=oninput_unit/>
             </div>
         }
     }
 
     #[component]
-    fn ArrayEditor(value: RwSignal<Value>) -> impl IntoView {
+    fn ArrayEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
             let Value::Array(value) = value else {
                 panic!("invalid value kind");
@@ -760,7 +802,7 @@ mod metadata {
                     .collect::<Vec<Value>>()
             });
 
-            value.set(Value::Array(val));
+            set_value(Value::Array(val));
         });
 
         view! {
@@ -771,7 +813,11 @@ mod metadata {
     }
 
     #[component]
-    fn MapEditor(value: RwSignal<Value>) -> impl IntoView {
+    fn MapEditor(
+        /// Read signal.
+        value: Signal<Value>,
+        set_value: WriteSignal<Value>,
+    ) -> impl IntoView {
         view! {}
     }
 

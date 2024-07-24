@@ -1,4 +1,3 @@
-use crate::invoke::invoke_result;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
@@ -16,7 +15,7 @@ pub async fn create_child(
         path: PathBuf,
     }
 
-    invoke_result::<ResourceId, container::error::Build>(
+    tauri_sys::core::invoke_result::<ResourceId, container::error::Build>(
         "create_child_container",
         CreateChildArgs {
             project,

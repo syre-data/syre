@@ -1,13 +1,18 @@
 use super::state;
-use crate::{commands, components::ModalDialog, invoke::invoke_result, types};
-
+use crate::{commands, common, components::ModalDialog, types};
+use futures::StreamExt;
 use leptos::{
-    ev::{MouseEvent, SubmitEvent, WheelEvent},
+    ev::{MouseEvent, WheelEvent},
     *,
 };
 use leptos_icons::*;
-use std::{cmp, ops::Deref, path::PathBuf};
+use serde::Serialize;
+use std::{cmp, io, ops::Deref, path::PathBuf, str::FromStr};
+use syre_core::types::ResourceId;
+use syre_desktop_lib as lib;
+use syre_local as local;
 use syre_local_database as db;
+use wasm_bindgen::JsCast;
 
 const CONTAINER_WIDTH: usize = 100;
 const CONTAINER_HEIGHT: usize = 60;
@@ -22,6 +27,23 @@ const VB_WIDTH_MIN: usize = 500;
 const VB_WIDTH_MAX: usize = 10_000;
 const VB_HEIGHT_MIN: usize = 500;
 const VB_HEIGHT_MAX: usize = 10_000;
+const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
+const DATA_KEY_CONTAINER: &str = "container";
+const DATA_KEY_ASSET: &str = "asset";
+
+#[derive(derive_more::Deref, Clone)]
+struct DragOverContainer(Option<ResourceId>);
+impl DragOverContainer {
+    pub fn new() -> Self {
+        Self(None)
+    }
+}
+
+impl From<Option<ResourceId>> for DragOverContainer {
+    fn from(value: Option<ResourceId>) -> Self {
+        Self(value)
+    }
+}
 
 #[derive(Clone)]
 pub struct PortalRef(NodeRef<html::Div>);
@@ -34,6 +56,9 @@ impl Deref for PortalRef {
 
 #[component]
 pub fn Canvas() -> impl IntoView {
+    use tauri_sys::window::DragDropEvent;
+
+    let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
     let portal_ref = create_node_ref();
     provide_context(PortalRef(portal_ref.clone()));
@@ -44,6 +69,65 @@ pub fn Canvas() -> impl IntoView {
     let (vb_height, set_vb_height) = create_signal(1000);
     let (pan_drag, set_pan_drag) = create_signal(None);
     let (was_dragged, set_was_dragged) = create_signal(false);
+    let (drag_over_container, set_drag_over_container) = create_signal(DragOverContainer::new());
+    let drag_over_container =
+        leptos_use::signal_throttled(drag_over_container, THROTTLE_DRAG_EVENT);
+    provide_context(drag_over_container);
+
+    {
+        // TODO: only for linux.
+        // Create Windows and Mac equivalents
+        let project = project.clone();
+        let graph = graph.clone();
+        spawn_local(async move {
+            let document = document();
+            let window = tauri_sys::window::get_current();
+            let mut listener = window.on_drag_drop_event().await.unwrap();
+            while let Some(event) = listener.next().await {
+                match event.payload {
+                    DragDropEvent::Enter(payload) => {
+                        set_drag_over_container(
+                            container_from_point(payload.position().x(), payload.position().y())
+                                .into(),
+                        );
+                    }
+                    DragDropEvent::Over(payload) => {
+                        set_drag_over_container(
+                            container_from_point(payload.position().x(), payload.position().y())
+                                .into(),
+                        );
+                    }
+                    DragDropEvent::Drop(payload) => {
+                        let over = drag_over_container.get_untracked();
+                        let Some(container) = over.as_ref() else {
+                            continue;
+                        };
+                        set_drag_over_container(None.into());
+
+                        let data_root = project
+                            .path()
+                            .get_untracked()
+                            .join(project.properties().data_root().get_untracked());
+                        let container_node = graph.find_by_id(&container).unwrap();
+                        let container_path = graph.path(&container_node).unwrap();
+                        let container_path =
+                            common::container_system_path(data_root, container_path);
+                        for res in
+                            add_file_system_resources(container_path, payload.paths().clone()).await
+                        {
+                            if let Err(err) = res {
+                                tracing::error!(?err);
+                                todo!();
+                            }
+                        }
+                    }
+                    DragDropEvent::Leave => {
+                        set_drag_over_container(None.into());
+                    }
+                }
+            }
+        });
+    }
 
     let mousedown = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 {
@@ -470,6 +554,8 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         .with_untracked(|properties| properties.is_ok()));
 
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let drag_over_container = expect_context::<Signal<DragOverContainer>>();
+    let node_ref = create_node_ref();
 
     let title = {
         let container = container.clone();
@@ -484,11 +570,11 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         let container = container.clone();
         move || {
             container.properties().with(|properties| {
-                if let db::state::DataResource::Ok(properties) = properties {
-                    properties.rid().with(|rid| rid.to_string())
-                } else {
-                    "".to_string()
-                }
+                let db::state::DataResource::Ok(properties) = properties else {
+                    panic!("invalid container state");
+                };
+
+                properties.rid().with(|rid| rid.to_string())
             })
         }
     };
@@ -563,26 +649,47 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let highlight = {
+        let container = container.clone();
+        move || {
+            let drag_over = drag_over_container.with(|over_id| {
+                container.properties().with(|properties| {
+                    if let db::state::DataResource::Ok(properties) = properties {
+                        if let Some(over_id) = over_id.as_ref() {
+                            return properties.rid().with(|rid| over_id == rid);
+                        }
+                    }
+
+                    false
+                })
+            });
+
+            selected() || drag_over
+        }
+    };
+
     view! {
         <div
+            ref=node_ref
             class="cursor-pointer"
             class=(
                 "border-2",
                 {
-                    let selected = selected.clone();
-                    move || !selected()
+                    let highlight = highlight.clone();
+                    move || !highlight()
                 },
             )
 
             class=(
                 ["border-4", "border-blue"],
                 {
-                    let selected = selected.clone();
-                    move || selected()
+                    let highlight = highlight.clone();
+                    move || highlight()
                 },
             )
 
             on:mousedown=mousedown
+            data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >
             <div>
@@ -673,11 +780,55 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
                 fallback=|| view! { "(no data)" }
             >
                 <For each=assets key=|asset| asset.rid().get() let:asset>
-                    <div>
-                        <span>{asset.name()}</span>
-                    </div>
+                    <Asset asset/>
                 </For>
             </Show>
+        </div>
+    }
+}
+
+#[component]
+fn Asset(asset: state::Asset) -> impl IntoView {
+    let rid = {
+        let rid = asset.rid();
+        move || rid.with(|rid| rid.to_string())
+    };
+
+    let title = {
+        let name = asset.name();
+        let path = asset.path();
+        move || {
+            if let Some(name) = name.with(|name| {
+                if let Some(name) = name {
+                    if name.is_empty() {
+                        None
+                    } else {
+                        Some(name.clone())
+                    }
+                } else {
+                    None
+                }
+            }) {
+                name
+            } else if let Some(path) = path.with(|path| {
+                let path = path.to_string_lossy().trim().to_string();
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(path)
+                }
+            }) {
+                path
+            } else {
+                tracing::error!("invalid asset: no name or path");
+                "(invalid asset)".to_string()
+            }
+        }
+    };
+
+    view! {
+        <div data-resource=DATA_KEY_ASSET data-rid=rid>
+            {title}
         </div>
     }
 }
@@ -730,7 +881,7 @@ fn ContainerErr(container: state::graph::Node) -> impl IntoView {
         .with_untracked(|properties| properties.is_err()));
 
     view! {
-        <div>
+        <div data-resource=DATA_KEY_CONTAINER>
             <div>
                 <span>{container.name().with(|name| name.to_string_lossy().to_string())}</span>
             </div>
@@ -754,4 +905,52 @@ where
     } else {
         value
     }
+}
+
+fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
+    document()
+        .elements_from_point(x as f32, y as f32)
+        .iter()
+        .find_map(|elm| {
+            let elm = elm.dyn_ref::<web_sys::Element>().unwrap();
+            if let Some(kind) = elm.get_attribute("data-resource") {
+                if kind == DATA_KEY_CONTAINER {
+                    if let Some(rid) = elm.get_attribute("data-rid") {
+                        let rid = ResourceId::from_str(&rid).unwrap();
+                        return Some(rid);
+                    }
+                }
+
+                None
+            } else {
+                None
+            }
+        })
+}
+
+async fn add_file_system_resources(
+    parent: PathBuf,
+    paths: Vec<PathBuf>,
+) -> Vec<Result<(), io::ErrorKind>> {
+    #[derive(Serialize)]
+    struct AddFsResourcesArgs {
+        resources: Vec<lib::types::AddFsResourceData>,
+    }
+    let resources = paths
+        .into_iter()
+        .map(|path| lib::types::AddFsResourceData {
+            path,
+            parent: parent.clone(),
+            action: local::types::FsResourceAction::Copy, // TODO: Get from user preferences.
+        })
+        .collect();
+
+    tauri_sys::core::invoke::<Vec<Result<(), lib::command::error::IoErrorKind>>>(
+        "add_file_system_resources",
+        AddFsResourcesArgs { resources },
+    )
+    .await
+    .into_iter()
+    .map(|res| res.map_err(|err| err.0))
+    .collect()
 }

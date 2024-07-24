@@ -1,4 +1,3 @@
-use crate::invoke::invoke_result;
 use leptos::*;
 use leptos_router::{use_navigate, *};
 use serde::Serialize;
@@ -76,7 +75,7 @@ pub fn Register(#[prop(default = true)] login_link: bool) -> impl IntoView {
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
-    invoke_result("register_user", RegisterArgs { email, name })
+    tauri_sys::core::invoke_result("register_user", RegisterArgs { email, name })
         .await
         .map_err(|err| match err {
             syre_local::Error::IoSerde(err) => {

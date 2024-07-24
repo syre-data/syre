@@ -1,12 +1,13 @@
 //! Common use functions.
 use crate::constants::*;
-use crate::{Error, Result};
 use regex::Regex;
-use std::fs;
-use std::path::{Component, Path, PathBuf, Prefix, MAIN_SEPARATOR};
+use std::{
+    fs, io,
+    path::{Component, Path, PathBuf, Prefix, MAIN_SEPARATOR},
+};
 
 /// Creates a unique file name.
-pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
+pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind> {
     let path = path.as_ref();
     if !path.exists() {
         return Ok(path.to_path_buf());
@@ -14,33 +15,33 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf> {
 
     // get file name
     let Some(file_prefix) = path.file_prefix() else {
-        return Err(Error::InvalidPath(path.to_path_buf()));
+        return Err(io::ErrorKind::InvalidFilename);
     };
 
     let Some(file_prefix) = file_prefix.to_str() else {
-        return Err(Error::InvalidPath(path.to_path_buf()));
+        return Err(io::ErrorKind::InvalidFilename);
     };
 
     // get extension
     let Some(ext) = path.file_name() else {
-        return Err(Error::InvalidPath(path.to_path_buf()));
+        return Err(io::ErrorKind::InvalidFilename);
     };
 
     let Some(ext) = ext.to_str() else {
-        return Err(Error::InvalidPath(path.to_path_buf()));
+        return Err(io::ErrorKind::InvalidFilename);
     };
 
     let ext = &ext[file_prefix.len()..];
 
     let Some(parent) = path.parent() else {
-        return Err(Error::InvalidPath(path.to_path_buf()));
+        return Err(io::ErrorKind::InvalidFilename);
     };
 
     // get highest counter
     let name_pattern = Regex::new(&format!(r" \((\d+)\){ext}$")).unwrap();
     let mut highest = None;
-    for entry in fs::read_dir(parent)? {
-        let entry = entry?;
+    for entry in fs::read_dir(parent).map_err(|err| err.kind())? {
+        let entry = entry.map_err(|err| err.kind())?;
         let entry_path = entry.path();
 
         let Some(entry_path_str) = entry_path.to_str() else {

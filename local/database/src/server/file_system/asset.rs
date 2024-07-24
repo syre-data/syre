@@ -1,7 +1,8 @@
 use crate::{common, event as update, server, state, Database, Update};
 use std::assert_matches::assert_matches;
+use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::TryReducible;
+use syre_local::{self as local, TryReducible};
 
 impl Database {
     pub(super) fn handle_fs_event_asset_file(
@@ -73,12 +74,22 @@ impl Database {
             )
             .unwrap();
 
-            return vec![Update::project_with_id(
-                project_properties.rid().clone(),
-                project.path().clone(),
-                update::Project::AssetFile(update::AssetFile::Created(path)),
-                event.id().clone(),
-            )];
+            if self.config.handle_fs_resource_changes() {
+                let mut assets =
+                    local::project::resources::Assets::load_from(&container_path).unwrap();
+                let asset_path = path.strip_prefix(&container_graph_path).unwrap();
+                assets.push(core::project::Asset::new(asset_path));
+                assets.save().unwrap();
+
+                return vec![];
+            } else {
+                return vec![Update::project_with_id(
+                    project_properties.rid().clone(),
+                    project.path().clone(),
+                    update::Project::AssetFile(update::AssetFile::Created(path)),
+                    event.id().clone(),
+                )];
+            }
         };
 
         assert!(!asset_state.is_present());

@@ -82,7 +82,7 @@ fn asset_builder_tentative_final_path_with_file_in_correct_location_should_work(
     let asset = AssetBuilder::new(path.clone());
 
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Copy)
+        .tentative_final_path(FsResourceAction::Copy)
         .expect("could not calculate final path with container unset");
 
     assert_eq!(
@@ -110,7 +110,7 @@ fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
     // test
     // container unset, bucket unset, reference
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Reference)
+        .tentative_final_path(FsResourceAction::Reference)
         .expect(
             "could not calculate final path with container unset for `AssetFileAction::Reference`",
         );
@@ -125,7 +125,7 @@ fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
     expected.push(file_name.clone());
 
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Copy)
+        .tentative_final_path(FsResourceAction::Copy)
         .expect("could not calculate final path with container unset for `AssetFileAction::Copy`");
 
     assert_eq!(
@@ -138,7 +138,7 @@ fn asset_builder_tentative_final_path_with_bucket_unset_should_work() {
     expected.push(file_name.clone());
 
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Move)
+        .tentative_final_path(FsResourceAction::Move)
         .expect("could not calculate final path with container unset for `AssetFileAction::Move`");
 
     assert_eq!(
@@ -169,7 +169,7 @@ fn asset_builder_tentative_final_path_with_bucket_set_should_work() {
     // test
     // container unset, bucket unset, reference
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Reference)
+        .tentative_final_path(FsResourceAction::Reference)
         .expect(
             "could not calculate final path with container unset for `AssetFileAction::Reference`",
         );
@@ -185,7 +185,7 @@ fn asset_builder_tentative_final_path_with_bucket_set_should_work() {
     expected.push(file_name.clone());
 
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Copy)
+        .tentative_final_path(FsResourceAction::Copy)
         .expect("could not calculate final path with container unset for `AssetFileAction::Copy`");
 
     assert_eq!(
@@ -199,7 +199,7 @@ fn asset_builder_tentative_final_path_with_bucket_set_should_work() {
     expected.push(file_name.clone());
 
     let final_path = asset
-        .tentative_final_path(AssetFileAction::Move)
+        .tentative_final_path(FsResourceAction::Move)
         .expect("could not calculate final path with container unset for `AssetFileAction::Move`");
 
     assert_eq!(

@@ -266,25 +266,30 @@ impl Database {
     }
 
     /// # Returns
-    /// Project's data and graph.
+    /// Project's path, data, and graph.
     /// `None` if a state is not associated with the project.
     fn handle_query_state_project_resources(
         &self,
         project: &ResourceId,
-    ) -> Option<(state::ProjectData, state::FolderResource<state::Graph>)> {
+    ) -> Option<(
+        PathBuf,
+        state::ProjectData,
+        state::FolderResource<state::Graph>,
+    )> {
         self.state.projects().iter().find_map(|state| {
-            let state::FolderResource::Present(state) = state.fs_resource() else {
+            let state::FolderResource::Present(project_data) = state.fs_resource() else {
                 return None;
             };
 
-            let state::DataResource::Ok(properties) = state.properties() else {
+            let state::DataResource::Ok(properties) = project_data.properties() else {
                 return None;
             };
 
             if properties.rid() == project {
                 Some((
-                    state.project_data(),
-                    state.graph().map(|graph| graph.as_graph()),
+                    state.path().clone(),
+                    project_data.project_data(),
+                    project_data.graph().map(|graph| graph.as_graph()),
                 ))
             } else {
                 None

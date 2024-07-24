@@ -1,8 +1,11 @@
 //! Common functions.
-use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
 use std::path::{Path, PathBuf, StripPrefixError};
 
+#[cfg(any(feature = "client", feature = "server"))]
+use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
+
 /// Returns a localhost tcp address with the given port.
+#[cfg(any(feature = "client", feature = "server"))]
 pub fn localhost_with_port(port: PortNumber) -> String {
     format!("tcp://{LOCALHOST}:{port}")
 }
@@ -11,6 +14,7 @@ pub fn localhost_with_port(port: PortNumber) -> String {
 ///
 /// # Returns
 /// `None` if the given socket type is not supported.
+#[cfg(any(feature = "client", feature = "server"))]
 pub fn zmq_url(kind: zmq::SocketType) -> Option<String> {
     let port = match kind {
         zmq::SocketType::REP => REQ_REP_PORT,
@@ -23,6 +27,7 @@ pub fn zmq_url(kind: zmq::SocketType) -> Option<String> {
     Some(localhost_with_port(port))
 }
 
+#[cfg(any(feature = "client", feature = "server"))]
 pub fn datastore_url() -> String {
     format!("{LOCALHOST}:{DATASTORE_PORT}")
 }

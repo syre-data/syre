@@ -28,6 +28,7 @@ fn main() {
             project::create_project,
             project::project_resources,
             graph::create_child_container,
+            graph::add_file_system_resources,
             container::container_rename,
             container::container_properties_update,
             fs::pick_folder,

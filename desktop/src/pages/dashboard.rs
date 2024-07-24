@@ -1,7 +1,6 @@
 use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
     components::ModalDialog,
-    invoke::{invoke, invoke_result},
     types::MouseButton,
 };
 use futures::stream::StreamExt;
@@ -269,7 +268,7 @@ fn CreateProject(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
 }
 
 async fn fetch_user_projects(user: ResourceId) -> Vec<(PathBuf, db::state::ProjectData)> {
-    invoke("user_projects", UserProjectsArgs { user }).await
+    tauri_sys::core::invoke("user_projects", UserProjectsArgs { user }).await
 }
 
 #[derive(Serialize)]
@@ -278,7 +277,7 @@ struct UserProjectsArgs {
 }
 
 async fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Project> {
-    invoke_result("create_project", CreateProjectArgs { user, path }).await
+    tauri_sys::core::invoke_result("create_project", CreateProjectArgs { user, path }).await
 }
 
 #[derive(Serialize)]

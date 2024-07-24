@@ -3,7 +3,7 @@ pub mod container {
     pub mod error {
         use serde::{Deserialize, Serialize};
         use std::io;
-        use syre_local::error::{IoErrorKind, IoSerde};
+        use syre_local::error::IoErrorKind;
 
         /// Error renaming container.
         #[derive(Serialize, Deserialize, Debug)]
@@ -20,4 +20,13 @@ pub mod container {
             Save(#[serde(with = "IoErrorKind")] io::ErrorKind),
         }
     }
+}
+
+pub mod error {
+    use serde::{Deserialize, Serialize};
+    use std::io;
+
+    /// Wrapper to allow for serialization
+    #[derive(Serialize, Deserialize, derive_more::From)]
+    pub struct IoErrorKind(#[serde(with = "syre_local::error::IoErrorKind")] pub io::ErrorKind);
 }

@@ -1,10 +1,9 @@
 use super::{state, Canvas, ProjectBar, PropertiesBar};
-use crate::invoke::invoke;
 use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::use_params_map;
 use serde::Serialize;
-use std::{assert_matches::assert_matches, ops::Deref, str::FromStr};
+use std::{assert_matches::assert_matches, path::PathBuf, str::FromStr};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local_database as db;
@@ -22,8 +21,8 @@ pub fn Workspace() -> impl IntoView {
                 resources()
                     .map(|resources| {
                         resources
-                            .map(|(project_data, graph)| {
-                                view! { <WorkspaceView project_data graph/> }
+                            .map(|(project_path, project_data, graph)| {
+                                view! { <WorkspaceView project_path project_data graph/> }
                             })
                             .or_else(|| Some(view! { <NoProject/> }))
                     })
@@ -45,13 +44,14 @@ fn NoProject() -> impl IntoView {
 
 #[component]
 fn WorkspaceView(
+    project_path: PathBuf,
     project_data: db::state::ProjectData,
     graph: db::state::FolderResource<db::state::Graph>,
 ) -> impl IntoView {
     assert!(project_data.properties().is_ok());
 
     provide_context(state::Workspace::new());
-    provide_context(state::Project::new(project_data));
+    provide_context(state::Project::new(project_path, project_data));
 
     view! {
         <div class="select-none">
@@ -117,21 +117,25 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     }
 }
 
+/// # Returns
+/// Project's path, data, and graph.
 async fn fetch_project_resources(
     project: ResourceId,
 ) -> Option<(
+    PathBuf,
     db::state::ProjectData,
     db::state::FolderResource<db::state::Graph>,
 )> {
-    let resources = invoke::<
+    let resources = tauri_sys::core::invoke::<
         Option<(
+            PathBuf,
             db::state::ProjectData,
             db::state::FolderResource<db::state::Graph>,
         )>,
     >("project_resources", ProjectArgs { project })
     .await;
 
-    assert!(if let Some((data, _)) = resources.as_ref() {
+    assert!(if let Some((_, data, _)) = resources.as_ref() {
         data.properties().is_ok()
     } else {
         true
@@ -165,7 +169,7 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
             asset,
             update,
         } => todo!(),
-        db::event::Project::AssetFile(_) => todo!(),
+        db::event::Project::AssetFile(_) => handle_event_graph_asset(event, graph),
         db::event::Project::AnalysisFile(_) => todo!(),
         db::event::Project::Flag { resource, message } => todo!(),
     }
@@ -201,7 +205,7 @@ fn handle_event_graph_container(event: lib::Event, graph: state::Graph) {
             handle_event_graph_container_properties(event, graph)
         }
         db::event::Container::Settings(_) => todo!(),
-        db::event::Container::Assets(_) => todo!(),
+        db::event::Container::Assets(_) => handle_event_graph_container_assets(event, graph),
     }
 }
 
@@ -324,5 +328,176 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
                 });
             });
         }
+    }
+}
+
+fn handle_event_graph_container_assets(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Assets(update),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::DataResource::Created(_) => todo!(),
+        db::event::DataResource::Removed => todo!(),
+        db::event::DataResource::Corrupted(_) => todo!(),
+        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Modified(_) => {
+            handle_event_graph_container_assets_modified(event, graph)
+        }
+    }
+}
+
+fn handle_event_graph_container_assets_modified(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Assets(db::event::DataResource::Modified(update)),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    let container = graph.find(path).unwrap().unwrap();
+    container.assets().update(|assets| {
+        let db::state::DataResource::Ok(assets) = assets else {
+            panic!("invalid state");
+        };
+
+        assets.update(|assets| {
+            assets.retain(|asset| {
+                update
+                    .iter()
+                    .any(|update| asset.rid().with(|rid| update.rid() == rid))
+            });
+
+            for asset_update in update.iter() {
+                if let Some(asset) = assets
+                    .iter()
+                    .find(|asset| asset.rid().with(|rid| rid == asset_update.rid()))
+                {
+                    update_asset(asset, asset_update);
+                } else {
+                    assets.push(state::Asset::new(asset_update.clone()));
+                }
+            }
+        });
+    });
+}
+
+fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
+    assert!(asset.rid().with_untracked(|rid| rid == update.rid()));
+
+    if asset
+        .name()
+        .with_untracked(|name| name != &update.properties.name)
+    {
+        asset
+            .name()
+            .update(|name| *name = update.properties.name.clone());
+    }
+
+    if asset
+        .kind()
+        .with_untracked(|kind| kind != &update.properties.kind)
+    {
+        asset
+            .kind()
+            .update(|kind| *kind = update.properties.kind.clone());
+    }
+
+    if asset
+        .description()
+        .with_untracked(|description| description != &update.properties.description)
+    {
+        asset
+            .description()
+            .update(|description| *description = update.properties.description.clone());
+    }
+
+    if asset
+        .tags()
+        .with_untracked(|tags| tags != &update.properties.tags)
+    {
+        asset
+            .tags()
+            .update(|tags| *tags = update.properties.tags.clone());
+    }
+
+    if asset.path().with_untracked(|path| path != &update.path) {
+        asset.path().update(|path| *path = update.path.clone());
+    }
+
+    if asset
+        .fs_resource()
+        .with_untracked(|fs_resource| fs_resource.is_present() != update.is_present())
+    {
+        asset.fs_resource().update(|fs_resource| {
+            *fs_resource = if update.is_present() {
+                db::state::FileResource::Present
+            } else {
+                db::state::FileResource::Absent
+            }
+        });
+    }
+
+    if asset
+        .created()
+        .with_untracked(|created| created != update.properties.created())
+    {
+        asset
+            .created()
+            .update(|created| *created = (*update).properties.created().clone());
+    }
+
+    if asset
+        .creator()
+        .with_untracked(|creator| creator != &update.properties.creator)
+    {
+        asset
+            .creator()
+            .update(|creator| *creator = (*update).properties.creator.clone());
+    }
+
+    asset.metadata().update(|metadata| {
+        metadata.retain(|(key, _)| update.properties.metadata.contains_key(key));
+
+        for (update_key, value_update) in update.properties.metadata.iter() {
+            if let Some(value) =
+                metadata.iter().find_map(
+                    |(key, value)| {
+                        if key == update_key {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    },
+                )
+            {
+                if value.with_untracked(|value| value != value_update) {
+                    value.update(|value| *value = value_update.clone());
+                }
+            } else {
+                metadata.push((update_key.clone(), RwSignal::new(value_update.clone())));
+            }
+        }
+    });
+}
+
+fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Asset {
+        container,
+        asset,
+        update,
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        syre_local_database::event::Asset::FileCreated => todo!(),
+        syre_local_database::event::Asset::FileRemoved => todo!(),
     }
 }

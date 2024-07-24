@@ -1,4 +1,3 @@
-use crate::invoke::invoke_result;
 use leptos::*;
 use leptos_router::*;
 use serde::Serialize;
@@ -137,7 +136,7 @@ pub fn Register() -> impl IntoView {
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
-    invoke_result("register_user", RegisterArgs { email, name })
+    tauri_sys::core::invoke_result("register_user", RegisterArgs { email, name })
         .await
         .map_err(|err| match err {
             syre_local::Error::IoSerde(err) => {
@@ -164,5 +163,5 @@ struct RegisterArgs {
 }
 
 async fn fetch_user_count() -> Result<usize, IoSerde> {
-    invoke_result("user_count", ()).await
+    tauri_sys::core::invoke_result("user_count", ()).await
 }

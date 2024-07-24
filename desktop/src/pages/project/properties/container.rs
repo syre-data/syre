@@ -1,4 +1,4 @@
-use crate::{invoke::invoke_result, pages::project::state};
+use crate::pages::project::state;
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::*;
@@ -191,7 +191,7 @@ mod name {
             name: OsString,
         }
 
-        crate::invoke::invoke_result(
+        tauri_sys::core::invoke_result(
             "container_rename",
             RenameContainerArgs {
                 project,
@@ -1008,7 +1008,7 @@ async fn update_properties(
         properties: syre_core::project::ContainerProperties,
     }
 
-    invoke_result(
+    tauri_sys::core::invoke_result(
         "container_properties_update",
         UpdateContainerPropertiesArgs {
             project,

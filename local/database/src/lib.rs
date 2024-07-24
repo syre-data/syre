@@ -2,15 +2,13 @@
 #![feature(assert_matches)]
 //! # Syre Local Database
 //! Implements a local database for Syre.
+pub mod common;
 pub mod event;
 pub mod query;
 pub mod state;
 
 #[cfg(any(feature = "client", feature = "server"))]
 pub mod constants;
-
-#[cfg(any(feature = "client", feature = "server"))]
-pub mod common;
 
 #[cfg(any(feature = "client", feature = "server", feature = "error"))]
 pub mod error;

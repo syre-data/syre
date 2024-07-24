@@ -1,4 +1,3 @@
-use crate::invoke::invoke;
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -8,7 +7,7 @@ pub async fn pick_folder(title: impl Into<String>) -> Option<PathBuf> {
         title: String,
     }
 
-    invoke(
+    tauri_sys::core::invoke(
         "pick_folder",
         PickFolderArgs {
             title: title.into(),
@@ -28,7 +27,7 @@ pub async fn pick_folder_with_location(
         dir: PathBuf,
     }
 
-    invoke(
+    tauri_sys::core::invoke(
         "pick_folder_with_location",
         PickFolderArgs {
             title: title.into(),

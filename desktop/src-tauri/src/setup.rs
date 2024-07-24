@@ -1,6 +1,6 @@
 //! Setup functionality for the app.
 use syre_local_database::state::ConfigState;
-use tauri::Manager;
+use tauri::{Listener, Manager};
 
 /// Runs setup tasks:
 /// 1. Launches the update listener.

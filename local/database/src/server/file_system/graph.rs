@@ -221,6 +221,10 @@ impl Database {
             }
         }
 
+        // TODO: It could be that a file unassociated with a graph resource was
+        // removed.
+        // e.g. A file in a container folder that is not registered as an Asset.
+        // Need to decide what to do in this case.
         panic!("expected a graph resource");
     }
 }

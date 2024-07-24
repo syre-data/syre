@@ -4,8 +4,6 @@ use serde::Serialize;
 use syre_core::system::User;
 use web_sys::{FormData, SubmitEvent};
 
-use crate::invoke::invoke_result;
-
 #[component]
 pub fn Login() -> impl IntoView {
     let navigate = use_navigate();
@@ -62,7 +60,7 @@ pub fn Login() -> impl IntoView {
 }
 
 async fn login(email: String) -> Result<User, String> {
-    invoke_result("login", LoginArgs { email }).await
+    tauri_sys::core::invoke_result("login", LoginArgs { email }).await
 }
 
 #[derive(Serialize)]

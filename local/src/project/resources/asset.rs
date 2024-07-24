@@ -11,10 +11,6 @@ use syre_core::{
     types::{Creator, UserId},
 };
 
-// ******************************
-// *** Local Asset Properties ***
-// ******************************
-
 pub struct AssetProperties;
 impl AssetProperties {
     /// Creates a new [`AssetProperties`](CoreAssetProperties) with fields actively filled from system settings.
@@ -33,10 +29,6 @@ impl AssetProperties {
     }
 }
 
-// *******************
-// *** Local Asset ***
-// *******************
-
 pub struct Asset;
 impl Asset {
     /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
@@ -46,10 +38,6 @@ impl Asset {
         Ok(CoreAsset::with_properties(path, properties))
     }
 }
-
-// **************
-// *** Assets ***
-// **************
 
 /// Assets for a given [`Container`].
 ///

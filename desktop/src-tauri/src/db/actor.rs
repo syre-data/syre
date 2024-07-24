@@ -3,7 +3,7 @@ use super::FS_EVENT_TOPIC;
 use std::collections::HashMap;
 use syre_desktop_lib as lib;
 use syre_local_database as db;
-use tauri::{EventTarget, Manager};
+use tauri::{Emitter, EventTarget, Manager};
 
 /// Builder for [`Actor`].
 pub struct Builder {

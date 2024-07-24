@@ -35,16 +35,19 @@ pub fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Pro
     Ok(project.into())
 }
 
+/// # Returns
+/// Tuple of (project path, project data, project graph).
 #[tauri::command]
 pub fn project_resources(
     db: tauri::State<db::Client>,
     project: ResourceId,
 ) -> Option<(
+    PathBuf,
     db::state::ProjectData,
     db::state::FolderResource<db::state::Graph>,
 )> {
     let resources = db.project().resources(project).unwrap();
-    assert!(if let Some((data, _)) = resources.as_ref() {
+    assert!(if let Some((_, data, _)) = resources.as_ref() {
         data.properties().is_ok()
     } else {
         true

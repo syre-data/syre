@@ -411,13 +411,18 @@ mod project {
         }
 
         /// # Returns
-        /// Project's data and graph.
+        /// Project's path, data, and graph.
         /// `None` if a state is not associated with the project.
         pub fn resources(
             &self,
             project: ResourceId,
-        ) -> zmq::Result<Option<(state::ProjectData, state::FolderResource<state::Graph>)>>
-        {
+        ) -> zmq::Result<
+            Option<(
+                PathBuf,
+                state::ProjectData,
+                state::FolderResource<state::Graph>,
+            )>,
+        > {
             let user = self.send(query::Project::Resources(project).into())?;
             Ok(serde_json::from_value(user).unwrap())
         }

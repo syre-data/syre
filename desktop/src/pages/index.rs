@@ -1,5 +1,5 @@
 use super::{Home, Landing};
-use crate::{invoke::invoke_result, types::Messages};
+use crate::types::Messages;
 use futures::StreamExt;
 use leptos::*;
 use syre_core::system::User;
@@ -56,5 +56,5 @@ fn Initializing() -> impl IntoView {
 }
 
 async fn fetch_user() -> Result<Option<User>, IoSerde> {
-    invoke_result("active_user", ()).await
+    tauri_sys::core::invoke_result("active_user", ()).await
 }

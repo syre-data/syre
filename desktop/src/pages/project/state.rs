@@ -1,6 +1,6 @@
 pub use container::{AnalysisAssociation, Asset, State as Container};
 pub use graph::State as Graph;
-pub use metadata::{Metadata, Metadatum};
+pub use metadata::Metadata;
 pub use project::State as Project;
 pub use workspace::State as Workspace;
 pub use workspace_graph::State as WorkspaceGraph;
@@ -141,6 +141,7 @@ pub mod project {
 
     #[derive(Clone)]
     pub struct State {
+        path: RwSignal<PathBuf>,
         rid: RwSignal<ResourceId>,
         properties: Properties,
         settings: RwSignal<db::state::DataResource<Settings>>,
@@ -149,12 +150,13 @@ pub mod project {
     impl State {
         /// # Notes
         /// Assumes `properties` is `Ok`.
-        pub fn new(data: db::state::ProjectData) -> Self {
+        pub fn new(path: impl Into<PathBuf>, data: db::state::ProjectData) -> Self {
             let db::state::DataResource::Ok(properties) = data.properties() else {
                 panic!("expected `properties` to be `Ok`");
             };
 
             Self {
+                path: RwSignal::new(path.into()),
                 rid: RwSignal::new(properties.rid().clone()),
                 properties: Properties::new(properties.clone()),
                 settings: RwSignal::new(
@@ -162,6 +164,10 @@ pub mod project {
                         .map(|settings| Settings::new(settings.clone())),
                 ),
             }
+        }
+
+        pub fn path(&self) -> RwSignal<PathBuf> {
+            self.path.clone()
         }
 
         pub fn rid(&self) -> RwSignal<ResourceId> {

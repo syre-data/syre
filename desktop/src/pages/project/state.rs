@@ -619,6 +619,50 @@ pub mod graph {
                     .cloned()
             })
         }
+
+        /// Gets the container node that contains the asset.
+        pub fn find_by_asset_id(&self, rid: &ResourceId) -> Option<Node> {
+            self.nodes.with_untracked(|nodes| {
+                nodes
+                    .iter()
+                    .find(|node| {
+                        node.state.assets().with_untracked(|assets| {
+                            if let db::state::DataResource::Ok(assets) = assets {
+                                assets.with_untracked(|assets| {
+                                    assets
+                                        .iter()
+                                        .any(|asset| asset.rid().with(|aid| aid == rid))
+                                })
+                            } else {
+                                false
+                            }
+                        })
+                    })
+                    .cloned()
+            })
+        }
+
+        pub fn find_asset_by_id(&self, rid: &ResourceId) -> Option<super::Asset> {
+            self.nodes.with_untracked(|nodes| {
+                nodes.iter().find_map(|node| {
+                    node.state.assets().with_untracked(|assets| {
+                        if let db::state::DataResource::Ok(assets) = assets {
+                            assets.with_untracked(|assets| {
+                                assets.iter().find_map(|asset| {
+                                    if asset.rid().with(|aid| aid == rid) {
+                                        Some(asset.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                })
+            })
+        }
     }
 
     impl State {
@@ -1149,6 +1193,41 @@ pub mod container {
 
         pub fn creator(&self) -> RwSignal<Creator> {
             self.creator.clone()
+        }
+    }
+
+    impl Asset {
+        /// Convert into [`syre_core::project::AssetProperties`].
+        pub fn as_properties(&self) -> syre_core::project::AssetProperties {
+            let mut asset = syre_core::project::asset_properties::Builder::new();
+            self.name.with_untracked(|name| {
+                if let Some(name) = name {
+                    asset.set_name(name);
+                }
+            });
+            self.kind.with_untracked(|kind| {
+                if let Some(kind) = kind {
+                    asset.set_kind(kind);
+                }
+            });
+            self.description.with_untracked(|description| {
+                if let Some(description) = description {
+                    asset.set_description(description);
+                }
+            });
+            asset.set_tags(self.tags.get_untracked());
+            asset.set_created(self.created.get_untracked());
+            asset.set_creator(self.creator.get_untracked());
+
+            let metadata = self.metadata().with_untracked(|metadata| {
+                metadata
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.get_untracked()))
+                    .collect()
+            });
+            asset.set_metadata(metadata);
+
+            asset.into()
         }
     }
 

@@ -60,9 +60,18 @@ pub fn add_file_system_resources(
 
                     let to_name = local::common::unique_file_name(&to_path)?;
                     let to_path = resource.parent.join(to_name);
-                    fs::copy(&resource.path, &to_path)
-                        .map(|_| ())
-                        .map_err(|err| err.kind().into())
+                    if resource.path.is_file() {
+                        fs::copy(&resource.path, &to_path)
+                            .map(|_| ())
+                            .map_err(|err| err.kind().into())
+
+                        // TODO: Set creator.
+                        // TODO: If file is already a resource, copy info.
+                    } else if resource.path.is_dir() {
+                        todo!();
+                    } else {
+                        todo!();
+                    }
                 }
                 FsResourceAction::Reference => todo!(),
             }

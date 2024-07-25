@@ -62,7 +62,10 @@ impl Assets {
     }
 
     pub fn save(&self) -> StdResult<(), io::Error> {
-        let file = fs::OpenOptions::new().write(true).open(self.path())?;
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(self.path())?;
         Ok(serde_json::to_writer_pretty(file, &self.assets).unwrap())
     }
 }

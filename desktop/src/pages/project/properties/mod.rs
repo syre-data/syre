@@ -1,9 +1,15 @@
 use super::state;
 use leptos::*;
 
+mod asset;
+mod common;
 mod container;
 
+use asset::Editor as Asset;
 use container::Editor as Container;
+
+/// Debounce time in milliseconds for editor input.
+pub const INPUT_DEBOUNCE: f64 = 200.0;
 
 #[component]
 pub fn PropertiesBar() -> impl IntoView {
@@ -16,13 +22,16 @@ pub fn PropertiesBar() -> impl IntoView {
         workspace_graph_state
             .selection()
             .with(|selection| match &selection[..] {
-                [] => view! { "Properties" }.into_view(),
+                [] => view! { "Project properties" }.into_view(),
                 [resource] => match resource.kind() {
                     ResourceKind::Container => {
                         let container = graph.find_by_id(resource.rid()).unwrap();
                         view! { <Container container=container.state().clone()/> }.into_view()
                     }
-                    ResourceKind::Asset => view! { "single asset" }.into_view(),
+                    ResourceKind::Asset => {
+                        let asset = graph.find_asset_by_id(resource.rid()).unwrap();
+                        view! { <Asset asset/> }.into_view()
+                    }
                 },
 
                 _ => {

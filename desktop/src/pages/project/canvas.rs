@@ -789,6 +789,8 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
 
 #[component]
 fn Asset(asset: state::Asset) -> impl IntoView {
+    let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+
     let rid = {
         let rid = asset.rid();
         move || rid.with(|rid| rid.to_string())
@@ -826,8 +828,54 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
     };
 
+    let mousedown = {
+        let workspace_graph_state = workspace_graph_state.clone();
+        let rid = asset.rid();
+        move |e: MouseEvent| {
+            if e.button() == types::MouseButton::Primary as i16 {
+                e.stop_propagation();
+                if e.shift_key() {
+                    rid.with(|rid| {
+                        let is_selected = workspace_graph_state.selection().with(|selection| {
+                            selection.iter().any(|resource| resource.rid() == rid)
+                        });
+
+                        if is_selected {
+                            workspace_graph_state.select_remove(&rid)
+                        } else {
+                            workspace_graph_state.select_add(
+                                rid.clone(),
+                                state::workspace_graph::ResourceKind::Asset,
+                            );
+                        }
+                    })
+                } else {
+                    rid.with(|rid| {
+                        let is_only_selected =
+                            workspace_graph_state.selection().with(|selection| {
+                                if let [resource] = &selection[..] {
+                                    resource.rid() == rid
+                                } else {
+                                    false
+                                }
+                            });
+
+                        if is_only_selected {
+                            workspace_graph_state.select_clear();
+                        } else {
+                            workspace_graph_state.select_only(
+                                rid.clone(),
+                                state::workspace_graph::ResourceKind::Asset,
+                            );
+                        }
+                    })
+                }
+            }
+        }
+    };
+
     view! {
-        <div data-resource=DATA_KEY_ASSET data-rid=rid>
+        <div on:mousedown=mousedown data-resource=DATA_KEY_ASSET data-rid=rid>
             {title}
         </div>
     }

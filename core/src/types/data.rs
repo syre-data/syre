@@ -41,6 +41,18 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn kind(&self) -> ValueKind {
+        match self {
+            Value::Null => todo!(),
+            Value::Bool(_) => ValueKind::Bool,
+            Value::String(_) => ValueKind::String,
+            Value::Number(_) => ValueKind::Number,
+            Value::Quantity { .. } => ValueKind::Quantity,
+            Value::Array(_) => ValueKind::Array,
+            Value::Map(_) => ValueKind::Map,
+        }
+    }
 }
 
 // Implementing Eq is fine because float values are always finite.
@@ -52,7 +64,7 @@ impl std::fmt::Display for Value {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum ValueKind {
     Bool,
     String,

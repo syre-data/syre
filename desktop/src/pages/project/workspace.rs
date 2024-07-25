@@ -278,7 +278,7 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
                     });
 
                     for (key, value_new) in update.properties.metadata.iter() {
-                        if !metadata.iter().any(|(k, _)| key == key) {
+                        if !metadata.iter().any(|(k, _)| k == key) {
                             metadata.push((key.clone(), create_rw_signal(value_new.clone())));
                         }
                     }
@@ -343,8 +343,12 @@ fn handle_event_graph_container_assets(event: lib::Event, graph: state::Graph) {
     match update {
         db::event::DataResource::Created(_) => todo!(),
         db::event::DataResource::Removed => todo!(),
-        db::event::DataResource::Corrupted(_) => todo!(),
-        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Corrupted(_) => {
+            handle_event_graph_container_assets_corrupted(event, graph)
+        }
+        db::event::DataResource::Repaired(_) => {
+            handle_event_graph_container_assets_repaired(event, graph)
+        }
         db::event::DataResource::Modified(_) => {
             handle_event_graph_container_assets_modified(event, graph)
         }
@@ -370,13 +374,13 @@ fn handle_event_graph_container_assets_modified(event: lib::Event, graph: state:
             assets.retain(|asset| {
                 update
                     .iter()
-                    .any(|update| asset.rid().with(|rid| update.rid() == rid))
+                    .any(|update| asset.rid().with_untracked(|rid| update.rid() == rid))
             });
 
             for asset_update in update.iter() {
                 if let Some(asset) = assets
                     .iter()
-                    .find(|asset| asset.rid().with(|rid| rid == asset_update.rid()))
+                    .find(|asset| asset.rid().with_untracked(|rid| rid == asset_update.rid()))
                 {
                     update_asset(asset, asset_update);
                 } else {
@@ -483,6 +487,41 @@ fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
                 metadata.push((update_key.clone(), RwSignal::new(value_update.clone())));
             }
         }
+    });
+}
+
+fn handle_event_graph_container_assets_corrupted(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Assets(db::event::DataResource::Corrupted(err)),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    let container = graph.find(path).unwrap().unwrap();
+    container.assets().update(|container_assets| {
+        *container_assets = db::state::DataResource::Err(err.clone());
+    });
+}
+
+fn handle_event_graph_container_assets_repaired(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Assets(db::event::DataResource::Repaired(assets)),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    let assets = assets
+        .into_iter()
+        .map(|asset| state::Asset::new(asset.clone()))
+        .collect();
+
+    let container = graph.find(path).unwrap().unwrap();
+    container.assets().update(|container_assets| {
+        *container_assets = db::state::DataResource::Ok(create_rw_signal(assets));
     });
 }
 

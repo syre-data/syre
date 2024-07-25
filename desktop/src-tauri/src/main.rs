@@ -31,6 +31,7 @@ fn main() {
             graph::add_file_system_resources,
             container::container_rename,
             container::container_properties_update,
+            container::asset_properties_update,
             fs::pick_folder,
             fs::pick_folder_with_location,
         ])

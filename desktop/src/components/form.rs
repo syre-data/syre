@@ -42,3 +42,141 @@ pub fn InputNumber(
         />
     }
 }
+
+pub mod debounced {
+    use leptos::*;
+
+    #[component]
+    pub fn InputText(
+        #[prop(into)] value: MaybeSignal<String>,
+        #[prop(into)] oninput: Callback<String>,
+        #[prop(into)] debounce: MaybeSignal<f64>,
+    ) -> impl IntoView {
+        let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
+        let input_value = leptos_use::signal_debounced(input_value, debounce);
+
+        create_effect(move |_| {
+            value.with(|value| {
+                let value = value.clone();
+                input_value.with_untracked(|input_value| {
+                    if value != *input_value.value() {
+                        set_input_value(value::State::set_from_state(value));
+                    }
+                })
+            })
+        });
+
+        create_effect(move |_| {
+            input_value.with(|value| {
+                if value.was_set_from_input() {
+                    oninput(value.value().clone());
+                }
+            })
+        });
+
+        view! {
+            <input
+                prop:value=move || { input_value.with(|value| { value.value().clone() }) }
+
+                on:input=move |e| {
+                    let v = event_target_value(&e);
+                    set_input_value(value::State::set_from_input(v))
+                }
+            />
+        }
+    }
+
+    #[component]
+    pub fn TextArea(
+        #[prop(into)] value: MaybeSignal<String>,
+        #[prop(into)] oninput: Callback<String>,
+        #[prop(into)] debounce: MaybeSignal<f64>,
+    ) -> impl IntoView {
+        let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
+        let input_value = leptos_use::signal_debounced(input_value, debounce);
+
+        create_effect(move |_| {
+            value.with(|value| {
+                let value = value.clone();
+                input_value.with_untracked(|input_value| {
+                    if value != *input_value.value() {
+                        set_input_value(value::State::set_from_state(value));
+                    }
+                })
+            })
+        });
+
+        create_effect(move |_| {
+            input_value.with(|value| {
+                if value.was_set_from_input() {
+                    oninput(value.value().clone());
+                }
+            })
+        });
+
+        // TODO: Update from source does not update value.
+        view! {
+            <textarea on:input=move |e| {
+                let v = event_target_value(&e);
+                set_input_value(value::State::set_from_input(v))
+            }>
+
+                {input_value.with(|value| value.value().clone())}
+            </textarea>
+        }
+    }
+
+    pub mod value {
+        /// Value and source.
+        #[derive(derive_more::Deref, Clone, Debug)]
+        pub struct State<T> {
+            /// Source of the value.
+            source: Source,
+
+            #[deref]
+            value: T,
+        }
+
+        impl<T> State<T> {
+            pub fn set_from_state(value: T) -> Self {
+                Self {
+                    source: Source::State,
+                    value,
+                }
+            }
+
+            pub fn set_from_input(value: T) -> Self {
+                Self {
+                    source: Source::Input,
+                    value,
+                }
+            }
+
+            pub fn source(&self) -> &Source {
+                &self.source
+            }
+
+            pub fn value(&self) -> &T {
+                &self.value
+            }
+
+            pub fn was_set_from_state(&self) -> bool {
+                self.source == Source::State
+            }
+
+            pub fn was_set_from_input(&self) -> bool {
+                self.source == Source::Input
+            }
+        }
+
+        /// Source of current value.
+        #[derive(PartialEq, Clone, Debug)]
+        pub enum Source {
+            /// Value state.
+            State,
+
+            /// User input.
+            Input,
+        }
+    }
+}

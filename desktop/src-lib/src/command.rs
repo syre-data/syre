@@ -3,7 +3,7 @@ pub mod container {
     pub mod error {
         use serde::{Deserialize, Serialize};
         use std::io;
-        use syre_local::error::IoErrorKind;
+        use syre_local::error::{IoErrorKind, IoSerde};
 
         /// Error renaming container.
         #[derive(Serialize, Deserialize, Debug)]
@@ -17,6 +17,7 @@ pub mod container {
         #[derive(Serialize, Deserialize, Debug)]
         pub enum Update {
             ProjectNotFound,
+            Load(IoSerde),
             Save(#[serde(with = "IoErrorKind")] io::ErrorKind),
         }
     }

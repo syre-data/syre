@@ -8,6 +8,7 @@ use name::Editor as Name;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
+use syre_desktop_lib as lib;
 use syre_local_database as db;
 use tags::Editor as Tags;
 
@@ -19,7 +20,9 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
     view! {
         <div>
-            <h3>"Container"</h3>
+            <div>
+                <h3>"Container"</h3>
+            </div>
             <form on:submit=|e| e.prevent_default()>
                 <div>
                     <label>
@@ -126,16 +129,18 @@ mod name {
                     return;
                 }
 
-                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
-                let path = graph.path(&node).unwrap();
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+                    let path = graph.path(&node).unwrap();
+                    let messages = messages.clone();
 
-                let project = project.rid().get_untracked();
-                let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) = rename_container(project, path, name).await {
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                    async move {
+                        if let Err(err) = rename_container(project, path, name).await {
+                            let mut msg = Message::error("Could not save container");
+                            msg.body(format!("{err:?}"));
+                            messages.update(|messages| messages.push(msg.build()));
+                        }
                     }
                 });
             }
@@ -181,11 +186,7 @@ mod name {
 
 mod kind {
     use super::{super::common::kind::Editor as KindEditor, update_properties, INPUT_DEBOUNCE};
-    use crate::{
-        components::{form::debounced::InputText, message::Builder as Message},
-        pages::project::state,
-        types::Messages,
-    };
+    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
     use leptos::*;
     use syre_core::types::ResourceId;
     use syre_local_database as db;
@@ -213,15 +214,18 @@ mod kind {
             });
             properties.kind = value;
 
-            let project = project.rid().get_untracked();
-            let path = graph.path(&node).unwrap();
-            // let messages = messages.clone();
-            spawn_local(async move {
-                if let Err(err) = update_properties(project, path, properties).await {
-                    tracing::error!(?err);
-                    let mut msg = Message::error("Could not save container");
-                    msg.body(format!("{err:?}"));
-                    // messages.update(|messages| messages.push(msg.build()));
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let path = graph.path(&node).unwrap();
+                // let messages = messages.clone();
+
+                async move {
+                    if let Err(err) = update_properties(project, path, properties).await {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not save container");
+                        msg.body(format!("{err:?}"));
+                        // messages.update(|messages| messages.push(msg.build()));
+                    }
                 }
             });
         };
@@ -264,15 +268,18 @@ mod description {
                 });
                 properties.description = value;
 
-                let project = project.rid().get_untracked();
-                let path = graph.path(&node).unwrap();
-                // let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) = update_properties(project, path, properties).await {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let path = graph.path(&node).unwrap();
+                    // let messages = messages.clone();
+
+                    async move {
+                        if let Err(err) = update_properties(project, path, properties).await {
+                            tracing::error!(?err);
+                            let mut msg = Message::error("Could not save container");
+                            msg.body(format!("{err:?}"));
+                            // messages.update(|messages| messages.push(msg.build()));
+                        }
                     }
                 });
             }
@@ -312,17 +319,20 @@ mod tags {
 
                     properties.as_properties()
                 });
-
                 properties.tags = value;
-                let project = project.rid().get_untracked();
-                let path = graph.path(&node).unwrap();
-                // let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) = update_properties(project, path, properties).await {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let path = graph.path(&node).unwrap();
+                    // let messages = messages.clone();
+
+                    async move {
+                        if let Err(err) = update_properties(project, path, properties).await {
+                            tracing::error!(?err);
+                            let mut msg = Message::error("Could not save container");
+                            msg.body(format!("{err:?}"));
+                            // messages.update(|messages| messages.push(msg.build()));
+                        }
                     }
                 });
             }
@@ -364,15 +374,18 @@ mod metadata {
                 });
                 properties.metadata.retain(|k, _| k != &key);
 
-                let project = project.rid().get_untracked();
-                let path = graph.path(&node).unwrap();
-                // let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) = update_properties(project, path, properties).await {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let path = graph.path(&node).unwrap();
+                    // let messages = messages.clone();
+
+                    async move {
+                        if let Err(err) = update_properties(project, path, properties).await {
+                            tracing::error!(?err);
+                            let mut msg = Message::error("Could not save container");
+                            msg.body(format!("{err:?}"));
+                            // messages.update(|messages| messages.push(msg.build()));
+                        }
                     }
                 });
             }
@@ -445,19 +458,21 @@ mod metadata {
                 | Value::Array(_)
                 | Value::Map(_) => value.clone(),
             });
-
             metadata.insert(key, value);
             properties.metadata = metadata;
 
-            let project = project.rid().get_untracked();
-            spawn_local(async move {
-                if let Err(err) = update_properties(project, path, properties).await {
-                    tracing::error!(?err);
-                    todo!()
-                }
+            spawn_local({
+                let project = project.rid().get_untracked();
 
-                set_key.update(|key| key.clear());
-                set_value(Value::String(String::new()));
+                async move {
+                    if let Err(err) = update_properties(project, path, properties).await {
+                        tracing::error!(?err);
+                        todo!()
+                    }
+
+                    set_key.update(|key| key.clear());
+                    set_value(Value::String(String::new()));
+                }
             });
         };
 
@@ -530,16 +545,19 @@ mod metadata {
                     | Value::Array(_)
                     | Value::Map(_) => value.clone(),
                 });
-
                 properties.metadata.insert(key.clone(), value);
-                let project = project.rid().get_untracked();
-                // let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) = update_properties(project, path, properties).await {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    // let messages = messages.clone();
+
+                    async move {
+                        if let Err(err) = update_properties(project, path, properties).await {
+                            tracing::error!(?err);
+                            let mut msg = Message::error("Could not save container");
+                            msg.body(format!("{err:?}"));
+                            // messages.update(|messages| messages.push(msg.build()));
+                        }
                     }
                 });
 
@@ -561,7 +579,7 @@ async fn update_properties(
     project: ResourceId,
     container: impl Into<PathBuf>,
     properties: syre_core::project::ContainerProperties,
-) -> Result<(), ()> {
+) -> Result<(), lib::command::container::error::Update> {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,

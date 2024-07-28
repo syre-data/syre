@@ -32,6 +32,7 @@ fn main() {
             container::container_rename,
             container::container_properties_update,
             container::asset_properties_update,
+            container::container_properties_update_bulk,
             fs::pick_folder,
             fs::pick_folder_with_location,
         ])

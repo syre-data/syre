@@ -19,7 +19,9 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
 
     view! {
         <div>
-            <h3>"Asset"</h3>
+            <div>
+                <h3>"Asset"</h3>
+            </div>
             <form on:submit=|e| e.prevent_default()>
                 <div>
                     <label>"Name" <Name/></label>

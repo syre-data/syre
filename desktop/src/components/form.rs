@@ -51,20 +51,20 @@ pub mod debounced {
         #[prop(into)] value: MaybeSignal<String>,
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: MaybeSignal<f64>,
+        #[prop(into, optional)] placeholder: MaybeSignal<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
 
-        create_effect(move |_| {
-            value.with(|value| {
-                let value = value.clone();
+        let _ = watch(
+            value,
+            move |value, _, _| {
                 input_value.with_untracked(|input_value| {
-                    if value != *input_value.value() {
-                        set_input_value(value::State::set_from_state(value));
-                    }
+                    set_input_value(value::State::set_from_state(value.clone()));
                 })
-            })
-        });
+            },
+            false,
+        );
 
         create_effect(move |_| {
             input_value.with(|value| {
@@ -82,6 +82,8 @@ pub mod debounced {
                     let v = event_target_value(&e);
                     set_input_value(value::State::set_from_input(v))
                 }
+
+                placeholder=placeholder
             />
         }
     }
@@ -91,6 +93,7 @@ pub mod debounced {
         #[prop(into)] value: MaybeSignal<String>,
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: MaybeSignal<f64>,
+        #[prop(into, optional)] placeholder: MaybeSignal<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
@@ -116,10 +119,14 @@ pub mod debounced {
 
         // TODO: Update from source does not update value.
         view! {
-            <textarea on:input=move |e| {
-                let v = event_target_value(&e);
-                set_input_value(value::State::set_from_input(v))
-            }>
+            <textarea
+                on:input=move |e| {
+                    let v = event_target_value(&e);
+                    set_input_value(value::State::set_from_input(v))
+                }
+
+                placeholder=placeholder
+            >
 
                 {input_value.with(|value| value.value().clone())}
             </textarea>

@@ -114,6 +114,7 @@ pub mod tags {
         view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce/> }
     }
 }
+
 /// Common components for editing metadata
 pub mod metadata {
     use super::super::INPUT_DEBOUNCE;
@@ -563,6 +564,183 @@ pub mod metadata {
                         false => Ok(Value::from(val)),
                     }
                 }
+            }
+        }
+    }
+}
+
+pub mod bulk {
+    //! Types for bulk editing.
+
+    #[derive(Clone, PartialEq, Debug)]
+    pub enum Value<T> {
+        Equal(T),
+        Mixed,
+    }
+
+    impl<T> Value<T> {
+        pub fn is_equal(&self) -> bool {
+            match self {
+                Self::Equal(_) => true,
+                Self::Mixed => false,
+            }
+        }
+
+        pub fn is_mixed(&self) -> bool {
+            !self.is_equal()
+        }
+
+        pub fn unwrap(self) -> T {
+            match self {
+                Value::Equal(value) => value,
+                Value::Mixed => panic!("unwrapped `Mixed` value"),
+            }
+        }
+
+        pub fn unwrap_or(self, or: T) -> T {
+            match self {
+                Value::Equal(value) => value,
+                Value::Mixed => or,
+            }
+        }
+    }
+
+    pub mod kind {
+        use super::Value;
+        use crate::components::form::debounced::InputText;
+        use leptos::*;
+
+        #[component]
+        pub fn Editor(
+            #[prop(into)] value: MaybeSignal<Value<Option<String>>>,
+            #[prop(into)] oninput: Callback<Option<String>>,
+            #[prop(into)] debounce: MaybeSignal<f64>,
+        ) -> impl IntoView {
+            let (processed_value, set_processed_value) = create_signal({
+                value.with_untracked(|value| match value {
+                    Value::Mixed | Value::Equal(None) => None,
+                    Value::Equal(Some(value)) => Some(value.clone()),
+                })
+            });
+
+            let input_value = {
+                let value = value.clone();
+                move || {
+                    value.with(|value| match value {
+                        Value::Mixed | Value::Equal(None) => String::new(),
+                        Value::Equal(Some(value)) => value.clone(),
+                    })
+                }
+            };
+
+            let oninput_text = {
+                move |value: String| {
+                    let value = value.trim();
+                    let value = if value.is_empty() {
+                        None
+                    } else {
+                        Some(value.to_string())
+                    };
+
+                    set_processed_value(value);
+                }
+            };
+
+            let placeholder = {
+                let value = value.clone();
+                move || {
+                    value.with(|value| match value {
+                        Value::Mixed => "(mixed)".to_string(),
+                        Value::Equal(_) => "(empty)".to_string(),
+                    })
+                }
+            };
+
+            let _ = watch(
+                processed_value,
+                move |processed_value, _, _| {
+                    oninput(processed_value.clone());
+                },
+                false,
+            );
+
+            view! {
+                <InputText
+                    value=Signal::derive(input_value)
+                    oninput=oninput_text
+                    debounce
+                    placeholder=Signal::derive(placeholder)
+                />
+            }
+        }
+    }
+
+    pub mod description {
+        use super::Value;
+        use crate::components::form::debounced::TextArea;
+        use leptos::*;
+
+        #[component]
+        pub fn Editor(
+            #[prop(into)] value: MaybeSignal<Value<Option<String>>>,
+            #[prop(into)] oninput: Callback<Option<String>>,
+            #[prop(into)] debounce: MaybeSignal<f64>,
+        ) -> impl IntoView {
+            let (processed_value, set_processed_value) = create_signal({
+                value.with_untracked(|value| match value {
+                    Value::Mixed | Value::Equal(None) => None,
+                    Value::Equal(Some(value)) => Some(value.clone()),
+                })
+            });
+
+            let input_value = {
+                let value = value.clone();
+                move || {
+                    value.with(|value| match value {
+                        Value::Mixed | Value::Equal(None) => String::new(),
+                        Value::Equal(Some(value)) => value.clone(),
+                    })
+                }
+            };
+
+            let oninput_text = {
+                move |value: String| {
+                    let value = value.trim();
+                    let value = if value.is_empty() {
+                        None
+                    } else {
+                        Some(value.to_string())
+                    };
+
+                    set_processed_value(value);
+                }
+            };
+
+            let placeholder = {
+                let value = value.clone();
+                move || {
+                    value.with(|value| match value {
+                        Value::Mixed => "(mixed)".to_string(),
+                        Value::Equal(_) => "(empty)".to_string(),
+                    })
+                }
+            };
+
+            let _ = watch(
+                processed_value,
+                move |processed_value, _, _| {
+                    oninput(processed_value.clone());
+                },
+                false,
+            );
+
+            view! {
+                <TextArea
+                    value=Signal::derive(input_value)
+                    oninput=oninput_text
+                    debounce
+                    placeholder=Signal::derive(placeholder)
+                />
             }
         }
     }

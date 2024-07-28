@@ -4,9 +4,11 @@ use leptos::*;
 mod asset;
 mod common;
 mod container;
+mod container_bulk;
 
 use asset::Editor as Asset;
 use container::Editor as Container;
+use container_bulk::Editor as ContainerBulk;
 
 /// Debounce time in milliseconds for editor input.
 pub const INPUT_DEBOUNCE: f64 = 200.0;
@@ -45,7 +47,20 @@ pub fn PropertiesBar() -> impl IntoView {
                     match kinds[..] {
                         [] => panic!("invalid state"),
                         [kind] => match kind {
-                            ResourceKind::Container => view! { "Bulk container" }.into_view(),
+                            ResourceKind::Container => {
+                                let selection = selection.clone();
+                                let containers = {
+                                    move || {
+                                        selection
+                                            .iter()
+                                            .map(|resource| resource.rid().clone())
+                                            .collect()
+                                    }
+                                };
+
+                                view! { <ContainerBulk containers=Signal::derive(containers)/> }
+                                    .into_view()
+                            }
                             ResourceKind::Asset => view! { "Bulk asset" }.into_view(),
                         },
                         _ => view! { "Bulk mixed" }.into_view(),

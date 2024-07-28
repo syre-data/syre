@@ -1,9 +1,15 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use syre_core::{
     project::{AssetProperties, ContainerProperties},
     types::ResourceId,
 };
-use syre_desktop_lib::command::container::error;
+use syre_desktop_lib::command::container::{
+    bulk::{self, PropertiesUpdate},
+    error,
+};
 use syre_local as local;
 use syre_local_database as db;
 
@@ -109,6 +115,63 @@ pub fn asset_properties_update(
     asset.properties = properties;
     if let Err(err) = assets.save() {
         return Err(error::Update::Save(err.kind()));
+    }
+
+    Ok(())
+}
+
+/// Update multiple containers' properties.
+#[tauri::command]
+pub fn container_properties_update_bulk(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    containers: Vec<PathBuf>,
+    // update: bulk::PropertiesUpdate,
+    update: String, // TODO: Issue with serializing enum with Option. perform manually.
+                    // See: https://github.com/tauri-apps/tauri/issues/5993
+) -> Result<Vec<Result<(), bulk::error::Update>>, bulk::error::ProjectNotFound> {
+    let update = serde_json::from_str::<PropertiesUpdate>(&update).unwrap();
+    tracing::debug!(?update);
+    let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
+    else {
+        return Err(bulk::error::ProjectNotFound);
+    };
+
+    let db::state::DataResource::Ok(project_properties) = project_data.properties() else {
+        panic!("invalid state");
+    };
+    assert_eq!(project_properties.rid(), &project);
+
+    let data_root = project_path.join(&project_properties.data_root);
+    Ok(containers
+        .iter()
+        .map(|container| {
+            let path = db::common::container_system_path(&data_root, container);
+            container_properties_update_bulk_perform(&path, &update)
+        })
+        .collect())
+}
+
+fn container_properties_update_bulk_perform(
+    path: impl AsRef<Path>,
+    update: &bulk::PropertiesUpdate,
+) -> Result<(), bulk::error::Update> {
+    let mut container =
+        match local::loader::container::Loader::load_from_only_properties(path.as_ref()) {
+            Ok(container) => container,
+            Err(err) => return Err(bulk::error::Update::Load(err)),
+        };
+
+    if let Some(kind) = &update.kind {
+        container.properties.kind = kind.clone();
+    }
+
+    if let Some(description) = &update.description {
+        container.properties.description = description.clone();
+    }
+
+    if let Err(err) = container.save(&path) {
+        return Err(bulk::error::Update::Save(err.kind()));
     }
 
     Ok(())

@@ -52,6 +52,7 @@ pub mod debounced {
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: MaybeSignal<f64>,
         #[prop(into, optional)] placeholder: MaybeSignal<String>,
+        #[prop(into, optional)] minlength: MaybeSignal<usize>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
@@ -84,6 +85,7 @@ pub mod debounced {
                 }
 
                 placeholder=placeholder
+                minlength=minlength
             />
         }
     }

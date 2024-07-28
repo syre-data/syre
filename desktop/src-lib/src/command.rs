@@ -34,11 +34,20 @@ pub mod container {
 
         pub mod error {
             use serde::{Deserialize, Serialize};
-            use std::io;
+            use std::{io, path::PathBuf};
             use syre_local::error::{IoErrorKind, IoSerde};
 
             #[derive(Serialize, Deserialize, Debug)]
             pub struct ProjectNotFound;
+
+            /// Error renaming container.
+            #[derive(Serialize, Deserialize, Debug)]
+            pub enum Rename {
+                ProjectNotFound,
+
+                /// Renaming would cause a name collision.
+                NameCollision(Vec<PathBuf>),
+            }
 
             /// Error updating containers.
             #[derive(Serialize, Deserialize, Debug)]
@@ -140,6 +149,6 @@ pub mod error {
     use std::io;
 
     /// Wrapper to allow for serialization
-    #[derive(Serialize, Deserialize, derive_more::From)]
+    #[derive(Serialize, Deserialize, derive_more::From, Debug)]
     pub struct IoErrorKind(#[serde(with = "syre_local::error::IoErrorKind")] pub io::ErrorKind);
 }

@@ -6,9 +6,12 @@ use syre_core::{
     project::{AssetProperties, ContainerProperties},
     types::ResourceId,
 };
-use syre_desktop_lib::command::container::{
-    bulk::{self, PropertiesUpdate},
-    error,
+use syre_desktop_lib::{
+    self as lib,
+    command::container::{
+        bulk::{self, PropertiesUpdate},
+        error,
+    },
 };
 use syre_local as local;
 use syre_local_database as db;
@@ -118,6 +121,74 @@ pub fn asset_properties_update(
     }
 
     Ok(())
+}
+
+/// Rename multiple container folders.
+///
+/// # Arguments
+/// 1. `project`
+/// 2. `containers`: Current container path.
+/// Path should be absolute from graph root.
+/// 3. `name`: New name.
+#[tauri::command]
+pub fn container_rename_bulk(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    containers: Vec<PathBuf>,
+    name: String, // TODO: Should be an `OsString` but need to specify custom deserializer
+                  // `syre_local_database::serde_os_string`.
+) -> Result<Vec<Result<(), lib::command::error::IoErrorKind>>, bulk::error::Rename> {
+    let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
+    else {
+        return Err(bulk::error::Rename::ProjectNotFound);
+    };
+
+    let db::state::DataResource::Ok(properties) = project_data.properties() else {
+        panic!("invalid state");
+    };
+    assert_eq!(properties.rid(), &project);
+
+    let data_root = project_path.join(&properties.data_root);
+    let (rename_paths, rename_errors) = containers
+        .into_iter()
+        .map(|container| {
+            let path = db::common::container_system_path(&data_root, &container);
+            let mut path_new = path.clone();
+            path_new.set_file_name(&name);
+            if path_new.exists() {
+                Err(container)
+            } else {
+                Ok((path, path_new))
+            }
+        })
+        .partition::<Vec<_>, _>(|rename| rename.is_ok());
+
+    if rename_errors.len() > 0 {
+        let paths = rename_errors
+            .into_iter()
+            .map(|err| {
+                let Err(path) = err else {
+                    unreachable!("invalid result");
+                };
+                path
+            })
+            .collect();
+
+        return Err(bulk::error::Rename::NameCollision(paths));
+    }
+
+    let rename_results = rename_paths
+        .into_iter()
+        .map(|result| {
+            let Ok((from, to)) = result else {
+                unreachable!("invalid result");
+            };
+
+            fs::rename(from, to).map_err(|err| lib::command::error::IoErrorKind(err.kind()))
+        })
+        .collect();
+
+    Ok(rename_results)
 }
 
 /// Update multiple containers' properties.

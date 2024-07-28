@@ -165,7 +165,7 @@ mod name {
         name: impl Into<OsString>,
     ) -> Result<(), lib::command::container::error::Rename> {
         #[derive(Serialize)]
-        struct RenameContainerArgs {
+        struct Args {
             project: ResourceId,
             container: PathBuf,
             #[serde(with = "db::serde_os_string")]
@@ -174,7 +174,7 @@ mod name {
 
         tauri_sys::core::invoke_result(
             "container_rename",
-            RenameContainerArgs {
+            Args {
                 project,
                 container: container.into(),
                 name: name.into(),

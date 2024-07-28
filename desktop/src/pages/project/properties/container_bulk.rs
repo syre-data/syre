@@ -3,6 +3,7 @@ use crate::pages::project::state;
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::*;
+use name::Editor as Name;
 use serde::Serialize;
 use std::{collections::HashMap, path::PathBuf};
 use syre_core::types::{ResourceId, Value};
@@ -138,11 +139,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
             </div>
             <form on:submit=move |e| e.prevent_default()>
                 <div>
-                    // <Name
-                    // value=properties.name().read_only()
-                    // container=properties.rid().read_only()
-                    // />
-                    <label>"Name"</label>
+                    <label>"Name" <Name/></label>
                 </div>
                 <div>
                     <label>"Type" <Kind/></label>
@@ -152,6 +149,203 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                 </div>
             </form>
         </div>
+    }
+}
+
+mod name {
+    use super::{super::common::bulk::Value, ActiveResources, State, INPUT_DEBOUNCE};
+    use crate::{
+        components::{form::debounced::InputText, message},
+        pages::project::state,
+        types::Messages,
+    };
+    use leptos::*;
+    use serde::Serialize;
+    use std::{ffi::OsString, path::PathBuf};
+    use syre_core::types::ResourceId;
+    use syre_desktop_lib as lib;
+    use syre_local_database as db;
+
+    #[component]
+    pub fn Editor() -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+        let containers = expect_context::<ActiveResources>();
+        let state = expect_context::<Signal<State>>();
+        // TODO: This signal with the watch is a work around to allow
+        // `containers` signal in the callback function.
+        // See https://github.com/leptos-rs/leptos/issues/2041.
+        let (input_value, set_input_value) = create_signal({
+            state.with(|state| match &state.name {
+                Value::Mixed => String::new(),
+                Value::Equal(value) => value.clone(),
+            })
+        });
+
+        let _ = watch(
+            input_value,
+            move |input_value, _, _| {
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let containers = containers.with_untracked(|containers| {
+                        containers
+                            .iter()
+                            .map(|container| {
+                                let node = graph.find_by_id(container).unwrap();
+                                graph.path(&node).unwrap()
+                            })
+                            .collect::<Vec<_>>()
+                    });
+
+                    let messages = messages.clone();
+                    let input_value = input_value.clone();
+                    async move {
+                        match rename_containers(project, containers.clone(), input_value.clone())
+                            .await
+                        {
+                            Ok(rename_results) => {
+                                assert_eq!(containers.len(), rename_results.len());
+                                let rename_errors = rename_results
+                                    .into_iter()
+                                    .enumerate()
+                                    .filter_map(|(idx, result)| {
+                                        if let Err(err) = result {
+                                            Some((containers[idx].clone(), err))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                if rename_errors.len() > 0 {
+                                    messages.update(|messages| {
+                                        let mut msg = message::Builder::error(
+                                            "An error ocurred when renaming container folders.",
+                                        );
+                                        msg.body(
+                                            view! { <ErrRenameIoMessage errors=rename_errors/> },
+                                        );
+                                        messages.push(msg.build());
+                                    });
+                                }
+                            }
+                            Err(err) => match err {
+                                lib::command::container::bulk::error::Rename::ProjectNotFound => {
+                                    todo!()
+                                }
+                                lib::command::container::bulk::error::Rename::NameCollision(
+                                    paths,
+                                ) => {
+                                    messages.update(|messages| {
+                                        let mut msg =
+                                            message::Builder::error("Could not rename containers");
+                                        msg.body(view! { <ErrNameCollisionMessage paths/> });
+                                        messages.push(msg.build());
+                                    });
+                                }
+                            },
+                        }
+                    }
+                });
+            },
+            false,
+        );
+
+        let placeholder = move || {
+            state.with(|state| match state.name {
+                Value::Mixed => "(mixed)".to_string(),
+                Value::Equal(_) => "(empty)".to_string(),
+            })
+        };
+
+        view! {
+            <InputText
+                value=Signal::derive(input_value)
+                oninput=move |value| {
+                    set_input_value(value);
+                }
+
+                debounce=INPUT_DEBOUNCE
+                placeholder=Signal::derive(placeholder)
+                minlength=1
+            />
+        }
+    }
+
+    async fn rename_containers(
+        project: ResourceId,
+        containers: Vec<PathBuf>,
+        name: impl Into<OsString>,
+    ) -> Result<
+        Vec<Result<(), lib::command::error::IoErrorKind>>,
+        lib::command::container::bulk::error::Rename,
+    > {
+        #[derive(Serialize)]
+        struct RenameContainerArgs {
+            project: ResourceId,
+            containers: Vec<PathBuf>,
+            #[serde(with = "db::serde_os_string")]
+            name: OsString,
+        }
+
+        tauri_sys::core::invoke_result(
+            "container_rename_bulk",
+            RenameContainerArgs {
+                project,
+                containers,
+                name: name.into(),
+            },
+        )
+        .await
+    }
+
+    #[component]
+    fn ErrNameCollisionMessage(paths: Vec<PathBuf>) -> impl IntoView {
+        view! {
+            <div>
+                <p>
+                    "The paths"
+                    <ul>
+                        {paths
+                            .iter()
+                            .map(|path| {
+                                view! { <li>{path.to_string_lossy().to_string()}</li> }
+                            })
+                            .collect::<Vec<_>>()}
+
+                    </ul> "resulted in a name collistion."
+                </p>
+                <p>"No containers were renamed."</p>
+            </div>
+        }
+    }
+
+    #[component]
+    fn ErrRenameIoMessage(
+        errors: Vec<(PathBuf, lib::command::error::IoErrorKind)>,
+    ) -> impl IntoView {
+        view! {
+            <div>
+                <p>
+                    <ul>
+                        {errors
+                            .iter()
+                            .map(|(path, err)| {
+                                view! {
+                                    <li>
+                                        <strong>{path.to_string_lossy().to_string()} :</strong>
+                                        {format!("{err:?}")}
+                                    </li>
+                                }
+                            })
+                            .collect::<Vec<_>>()}
+
+                    </ul>
+                </p>
+                <p>"All other containers were renamed."</p>
+            </div>
+        }
     }
 }
 
@@ -171,7 +365,7 @@ mod kind {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: This signal with the create effect is a work around to allow
+        // TODO: This signal with the watch is a work around to allow
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
@@ -250,7 +444,7 @@ mod description {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: This signal with the create effect is a work around to allow
+        // TODO: This signal with the watch is a work around to allow
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
@@ -328,7 +522,8 @@ async fn update_properties(
         project: ResourceId,
         containers: Vec<PathBuf>,
         // update: lib::command::container::bulk::PropertiesUpdate,
-        update: String,
+        update: String, // TODO: Issue with serializing enum with Option. perform manually.
+                        // See: https://github.com/tauri-apps/tauri/issues/5993
     }
 
     tauri_sys::core::invoke_result(

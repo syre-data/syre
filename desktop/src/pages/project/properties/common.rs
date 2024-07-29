@@ -744,4 +744,89 @@ pub mod bulk {
             }
         }
     }
+
+    pub mod tags {
+        use leptos::*;
+
+        #[component]
+        pub fn Editor(
+            #[prop(into)] value: MaybeSignal<Vec<String>>,
+            #[prop(into)] onadd: Callback<Vec<String>>,
+            #[prop(into)] onremove: Callback<String>,
+        ) -> impl IntoView {
+            let input_ref = create_node_ref::<html::Input>();
+            let add_tags = move |e| {
+                let input = input_ref.get_untracked().unwrap();
+                let input_value = input.value();
+                if input_value.trim().is_empty() {
+                    return;
+                }
+
+                input.set_value("");
+                let mut tags = input_value
+                    .split(",")
+                    .filter_map(|tag| {
+                        let tag = tag.trim();
+                        if tag.is_empty() {
+                            None
+                        } else {
+                            Some(tag.to_string())
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                tags.sort();
+                tags.dedup();
+
+                onadd(tags);
+            };
+
+            view! {
+                <div>
+                    <div>
+                        <input ref=input_ref type="text" placeholder="Add tags"/>
+                        <button type="button" on:mousedown=add_tags>
+                            "+"
+                        </button>
+                    </div>
+                    <TagsList value onremove/>
+                </div>
+            }
+        }
+
+        #[component]
+        fn TagsList(value: MaybeSignal<Vec<String>>, onremove: Callback<String>) -> impl IntoView {
+            view! {
+                <div>
+                    <ul>
+                        {move || {
+                            value
+                                .with(|tags| {
+                                    tags.iter()
+                                        .map(|tag| {
+                                            view! {
+                                                <li>
+                                                    {tag.clone()}
+                                                    <button
+                                                        type="button"
+                                                        on:mousedown={
+                                                            let tag = tag.clone();
+                                                            move |_| onremove(tag.clone())
+                                                        }
+                                                    >
+
+                                                        "-"
+                                                    </button>
+                                                </li>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                        }}
+
+                    </ul>
+                </div>
+            }
+        }
+    }
 }

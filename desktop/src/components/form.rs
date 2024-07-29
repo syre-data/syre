@@ -60,9 +60,7 @@ pub mod debounced {
         let _ = watch(
             value,
             move |value, _, _| {
-                input_value.with_untracked(|input_value| {
-                    set_input_value(value::State::set_from_state(value.clone()));
-                })
+                set_input_value(value::State::set_from_state(value.clone()));
             },
             false,
         );
@@ -100,16 +98,13 @@ pub mod debounced {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
 
-        create_effect(move |_| {
-            value.with(|value| {
-                let value = value.clone();
-                input_value.with_untracked(|input_value| {
-                    if value != *input_value.value() {
-                        set_input_value(value::State::set_from_state(value));
-                    }
-                })
-            })
-        });
+        let _ = watch(
+            value,
+            move |value, _, _| {
+                set_input_value(value::State::set_from_state(value.clone()));
+            },
+            false,
+        );
 
         create_effect(move |_| {
             input_value.with(|value| {

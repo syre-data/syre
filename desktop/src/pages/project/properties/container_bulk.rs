@@ -9,6 +9,7 @@ use std::{collections::HashMap, path::PathBuf};
 use syre_core::types::{ResourceId, Value};
 use syre_desktop_lib as lib;
 use syre_local_database as db;
+use tags::Editor as Tags;
 
 type Metadatum = (String, bulk::Value<Value>);
 
@@ -17,7 +18,11 @@ struct State {
     name: bulk::Value<String>,
     kind: bulk::Value<Option<String>>,
     description: bulk::Value<Option<String>>,
+
+    /// Union of all tags.
     tags: Vec<String>,
+
+    /// Union of all metadata.
     metadata: Vec<Metadatum>,
 }
 
@@ -55,6 +60,7 @@ impl State {
                     let md = metadata
                         .entry(key)
                         .or_insert(Vec::with_capacity(states.len()));
+
                     if !value.with_untracked(|value| md.contains(value)) {
                         md.push(value.get_untracked());
                     }
@@ -147,6 +153,9 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                 <div>
                     <label>"Description" <Description/></label>
                 </div>
+                <div>
+                    <label>"Tags" <Tags/></label>
+                </div>
             </form>
         </div>
     }
@@ -173,6 +182,7 @@ mod name {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let (input_error, set_input_error) = create_signal(false);
         // TODO: This signal with the watch is a work around to allow
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
@@ -182,10 +192,12 @@ mod name {
                 Value::Equal(value) => value.clone(),
             })
         });
+        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
 
         let _ = watch(
             input_value,
             move |input_value, _, _| {
+                set_input_error(false);
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let containers = containers.with_untracked(|containers| {
@@ -237,6 +249,7 @@ mod name {
                                 lib::command::container::bulk::error::Rename::NameCollision(
                                     paths,
                                 ) => {
+                                    set_input_error(true);
                                     messages.update(|messages| {
                                         let mut msg =
                                             message::Builder::error("Could not rename containers");
@@ -260,15 +273,17 @@ mod name {
         };
 
         view! {
-            <InputText
-                value=Signal::derive(input_value)
-                oninput=move |value| {
-                    set_input_value(value);
+            <input
+                type="text"
+                prop:value=Signal::derive(input_value)
+                on:input=move |e| {
+                    set_input_value(event_target_value(&e));
                 }
 
                 debounce=INPUT_DEBOUNCE
-                placeholder=Signal::derive(placeholder)
-                minlength=1
+                placeholder=placeholder
+                minlength="1"
+                class=(["border-red-600", "border-solid", "border-2"], input_error)
             />
         }
     }
@@ -496,12 +511,144 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=Signal::derive(move || state.with(|state| state.kind.clone()))
+                value=Signal::derive(move || state.with(|state| state.description.clone()))
                 oninput=move |value| {
                     set_input_value(value);
                 }
 
                 debounce=INPUT_DEBOUNCE
+            />
+        }
+    }
+}
+
+mod tags {
+    use super::{
+        super::common::bulk::tags::Editor as TagsEditor, update_properties, ActiveResources, State,
+    };
+    use crate::{pages::project::state, types::Messages};
+    use leptos::*;
+    use syre_desktop_lib::command::container::bulk::{PropertiesUpdate, TagsAction};
+
+    #[component]
+    pub fn Editor() -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+        let containers = expect_context::<ActiveResources>();
+        let state = expect_context::<Signal<State>>();
+        let (add_tags_value, set_add_tags_value) = create_signal(vec![]);
+        let (remove_tag_value, set_remove_tag_value) = create_signal("".to_string());
+
+        let _ = watch(
+            add_tags_value,
+            {
+                let graph = graph.clone();
+                let project = project.clone();
+                let containers = containers.clone();
+                move |value, _, _| {
+                    if value.is_empty() {
+                        return;
+                    };
+
+                    let containers_len = containers.with_untracked(|containers| containers.len());
+                    let mut update = PropertiesUpdate::default();
+                    update.tags = TagsAction {
+                        insert: value.clone(),
+                        remove: vec![],
+                    };
+                    spawn_local({
+                        let project = project.rid().get_untracked();
+                        let containers = containers.with_untracked(|containers| {
+                            containers
+                                .iter()
+                                .map(|container| {
+                                    let node = graph.find_by_id(container).unwrap();
+                                    graph.path(&node).unwrap()
+                                })
+                                .collect::<Vec<_>>()
+                        });
+
+                        async move {
+                            match update_properties(project, containers, update).await {
+                                Err(err) => {
+                                    tracing::error!(?err);
+                                    todo!();
+                                }
+
+                                Ok(container_results) => {
+                                    assert_eq!(container_results.len(), containers_len);
+                                    for result in container_results {
+                                        if let Err(err) = result {
+                                            todo!();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            },
+            false,
+        );
+
+        let _ = watch(
+            remove_tag_value,
+            {
+                let graph = graph.clone();
+                let project = project.clone();
+                let containers = containers.clone();
+                move |value, _, _| {
+                    if value.is_empty() {
+                        return;
+                    };
+
+                    let containers_len = containers.with_untracked(|containers| containers.len());
+                    let mut update = PropertiesUpdate::default();
+                    update.tags = TagsAction {
+                        insert: vec![],
+                        remove: vec![value.clone()],
+                    };
+                    spawn_local({
+                        let project = project.rid().get_untracked();
+                        let containers = containers.with_untracked(|containers| {
+                            containers
+                                .iter()
+                                .map(|container| {
+                                    let node = graph.find_by_id(container).unwrap();
+                                    graph.path(&node).unwrap()
+                                })
+                                .collect::<Vec<_>>()
+                        });
+
+                        async move {
+                            match update_properties(project, containers, update).await {
+                                Err(err) => {
+                                    tracing::error!(?err);
+                                    todo!();
+                                }
+
+                                Ok(container_results) => {
+                                    assert_eq!(container_results.len(), containers_len);
+                                    for result in container_results {
+                                        if let Err(err) = result {
+                                            todo!();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            },
+            false,
+        );
+
+        view! {
+            <TagsEditor
+                value=Signal::derive(move || { state.with(|state| { state.tags.clone() }) })
+                onadd=move |value| set_add_tags_value(value)
+                onremove=move |value| set_remove_tag_value(value)
             />
         }
     }

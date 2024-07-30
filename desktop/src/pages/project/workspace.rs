@@ -1,4 +1,4 @@
-use super::{state, Canvas, ProjectBar, PropertiesBar};
+use super::{state, Canvas, LayersNav, ProjectBar, PropertiesBar};
 use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::use_params_map;
@@ -105,7 +105,9 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 
     view! {
         <div class="flex">
-            <div class="w-1/6 border-r-1">"left"</div>
+            <div class="w-1/6 border-r-1">
+                <LayersNav/>
+            </div>
             <div class="flex-grow">
                 <Canvas/>
 

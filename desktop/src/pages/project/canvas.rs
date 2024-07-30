@@ -1,4 +1,7 @@
-use super::state;
+use super::{
+    common::{interpret_resource_selection_action, SelectionAction},
+    state,
+};
 use crate::{commands, common, components::ModalDialog, types};
 use futures::StreamExt;
 use leptos::{
@@ -80,7 +83,6 @@ pub fn Canvas() -> impl IntoView {
         let project = project.clone();
         let graph = graph.clone();
         spawn_local(async move {
-            let document = document();
             let window = tauri_sys::window::get_current();
             let mut listener = window.on_drag_drop_event().await.unwrap();
             while let Some(event) = listener.next().await {
@@ -585,48 +587,30 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         move |e: MouseEvent| {
             if e.button() == types::MouseButton::Primary as i16 {
                 e.stop_propagation();
-                if e.shift_key() {
-                    container.properties().with(|properties| {
-                        if let db::state::DataResource::Ok(properties) = properties {
-                            let rid = properties.rid().get();
-                            let is_selected = workspace_graph_state.selection().with(|selection| {
-                                selection.iter().any(|resource| resource.rid() == &rid)
+                container.properties().with(|properties| {
+                    if let db::state::DataResource::Ok(properties) = properties {
+                        properties.rid().with(|rid| {
+                            let action = workspace_graph_state.selection().with(|selection| {
+                                interpret_resource_selection_action(rid, &e, selection)
                             });
-
-                            if is_selected {
-                                workspace_graph_state.select_remove(&rid)
-                            } else {
-                                workspace_graph_state.select_add(
-                                    rid,
+                            match action {
+                                SelectionAction::Remove => {
+                                    workspace_graph_state.select_remove(&rid)
+                                }
+                                SelectionAction::Add => workspace_graph_state.select_add(
+                                    rid.clone(),
                                     state::workspace_graph::ResourceKind::Container,
-                                );
-                            }
-                        }
-                    })
-                } else {
-                    container.properties().with(|properties| {
-                        if let db::state::DataResource::Ok(properties) = properties {
-                            let rid = properties.rid().get();
-                            let is_only_selected =
-                                workspace_graph_state.selection().with(|selection| {
-                                    if let [resource] = &selection[..] {
-                                        resource.rid() == &rid
-                                    } else {
-                                        false
-                                    }
-                                });
-
-                            if is_only_selected {
-                                workspace_graph_state.select_clear();
-                            } else {
-                                workspace_graph_state.select_only(
-                                    rid,
+                                ),
+                                SelectionAction::SelectOnly => workspace_graph_state.select_only(
+                                    rid.clone(),
                                     state::workspace_graph::ResourceKind::Container,
-                                );
+                                ),
+
+                                SelectionAction::Clear => workspace_graph_state.select_clear(),
                             }
-                        }
-                    })
-                }
+                        });
+                    }
+                });
             }
         }
     };
@@ -681,7 +665,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
             )
 
             class=(
-                ["border-4", "border-blue"],
+                ["border-4", "border-blue-400"],
                 {
                     let highlight = highlight.clone();
                     move || highlight()
@@ -834,42 +818,20 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         move |e: MouseEvent| {
             if e.button() == types::MouseButton::Primary as i16 {
                 e.stop_propagation();
-                if e.shift_key() {
-                    rid.with(|rid| {
-                        let is_selected = workspace_graph_state.selection().with(|selection| {
-                            selection.iter().any(|resource| resource.rid() == rid)
-                        });
+                rid.with(|rid| {
+                    let action = workspace_graph_state
+                        .selection()
+                        .with(|selection| interpret_resource_selection_action(rid, &e, selection));
+                    match action {
+                        SelectionAction::Remove => workspace_graph_state.select_remove(&rid),
+                        SelectionAction::Add => workspace_graph_state
+                            .select_add(rid.clone(), state::workspace_graph::ResourceKind::Asset),
+                        SelectionAction::SelectOnly => workspace_graph_state
+                            .select_only(rid.clone(), state::workspace_graph::ResourceKind::Asset),
 
-                        if is_selected {
-                            workspace_graph_state.select_remove(&rid)
-                        } else {
-                            workspace_graph_state.select_add(
-                                rid.clone(),
-                                state::workspace_graph::ResourceKind::Asset,
-                            );
-                        }
-                    })
-                } else {
-                    rid.with(|rid| {
-                        let is_only_selected =
-                            workspace_graph_state.selection().with(|selection| {
-                                if let [resource] = &selection[..] {
-                                    resource.rid() == rid
-                                } else {
-                                    false
-                                }
-                            });
-
-                        if is_only_selected {
-                            workspace_graph_state.select_clear();
-                        } else {
-                            workspace_graph_state.select_only(
-                                rid.clone(),
-                                state::workspace_graph::ResourceKind::Asset,
-                            );
-                        }
-                    })
-                }
+                        SelectionAction::Clear => workspace_graph_state.select_clear(),
+                    }
+                });
             }
         }
     };

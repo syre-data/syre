@@ -695,8 +695,8 @@ mod tags {
 
 mod metadata {
     use super::{
-        super::common::bulk::metadata::Editor as MetadataEditor, update_properties,
-        ActiveResources, State,
+        super::common::{bulk::metadata::Editor as MetadataEditor, metadata::AddDatum},
+        update_properties, ActiveResources, State,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -814,7 +814,18 @@ mod metadata {
             false,
         );
 
+        let keys = move || {
+            state.with(|state| {
+                state
+                    .metadata()
+                    .iter()
+                    .map(|(key, _)| key.clone())
+                    .collect::<Vec<_>>()
+            })
+        };
+
         view! {
+            <AddDatum keys=Signal::derive(keys) onadd=move |value| set_modify_value(value)/>
             <MetadataEditor
                 value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
                 onremove=move |value| set_remove_key(value)

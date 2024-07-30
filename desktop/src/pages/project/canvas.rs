@@ -1,5 +1,5 @@
 use super::{
-    common::{interpret_resource_selection_action, SelectionAction},
+    common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
     state,
 };
 use crate::{commands, common, components::ModalDialog, types};
@@ -780,37 +780,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         move || rid.with(|rid| rid.to_string())
     };
 
-    let title = {
-        let name = asset.name();
-        let path = asset.path();
-        move || {
-            if let Some(name) = name.with(|name| {
-                if let Some(name) = name {
-                    if name.is_empty() {
-                        None
-                    } else {
-                        Some(name.clone())
-                    }
-                } else {
-                    None
-                }
-            }) {
-                name
-            } else if let Some(path) = path.with(|path| {
-                let path = path.to_string_lossy().trim().to_string();
-                if path.is_empty() {
-                    None
-                } else {
-                    Some(path)
-                }
-            }) {
-                path
-            } else {
-                tracing::error!("invalid asset: no name or path");
-                "(invalid asset)".to_string()
-            }
-        }
-    };
+    let title = asset_title_closure(&asset);
 
     let mousedown = {
         let workspace_graph_state = workspace_graph_state.clone();
@@ -836,8 +806,26 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
     };
 
+    let selected = {
+        let asset = asset.clone();
+        let workspace_graph_state = workspace_graph_state.clone();
+        move || {
+            workspace_graph_state.selection().with(|selection| {
+                asset
+                    .rid()
+                    .with(|rid| selection.iter().any(|resource| resource.rid() == rid))
+            })
+        }
+    };
+
     view! {
-        <div on:mousedown=mousedown data-resource=DATA_KEY_ASSET data-rid=rid>
+        <div
+            on:mousedown=mousedown
+            class=(["bg-slate-400"], selected)
+            class="border-y-2 border-transparent hover:border-blue-400"
+            data-resource=DATA_KEY_ASSET
+            data-rid=rid
+        >
             {title}
         </div>
     }

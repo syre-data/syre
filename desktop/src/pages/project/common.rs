@@ -1,5 +1,6 @@
 use super::state::workspace_graph::SelectedResource;
-use leptos::ev::MouseEvent;
+use crate::pages::project::state;
+use leptos::{ev::MouseEvent, *};
 use syre_core::types::ResourceId;
 
 pub fn interpret_resource_selection_action(
@@ -44,4 +45,36 @@ pub enum SelectionAction {
 
     /// Selection should be cleared.
     Clear,
+}
+
+pub fn asset_title_closure(asset: &state::Asset) -> impl Fn() -> String {
+    let name = asset.name();
+    let path = asset.path();
+    move || {
+        if let Some(name) = name.with(|name| {
+            if let Some(name) = name {
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(name.clone())
+                }
+            } else {
+                None
+            }
+        }) {
+            name
+        } else if let Some(path) = path.with(|path| {
+            let path = path.to_string_lossy().trim().to_string();
+            if path.is_empty() {
+                None
+            } else {
+                Some(path)
+            }
+        }) {
+            path
+        } else {
+            tracing::error!("invalid asset: no name or path");
+            "(invalid asset)".to_string()
+        }
+    }
 }

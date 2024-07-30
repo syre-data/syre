@@ -115,12 +115,80 @@ pub mod tags {
     }
 }
 
-/// Common components for editing metadata
 pub mod metadata {
+    //! Common components for editing metadata
     use super::super::INPUT_DEBOUNCE;
     use crate::components::form::InputNumber;
     use leptos::*;
     use syre_core::types::{data::ValueKind, Value};
+
+    #[component]
+    pub fn AddDatum(
+        #[prop(into)] keys: MaybeSignal<Vec<String>>,
+        #[prop(into)] onadd: Callback<(String, Value)>,
+    ) -> impl IntoView {
+        let (key, set_key) = create_signal("".to_string());
+        let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
+        let (value, set_value) = create_signal(Value::String("".to_string()));
+
+        let invalid_key = {
+            let keys = keys.clone();
+            move || {
+                key.with(|key| {
+                    let key = key.trim();
+                    keys.with(|keys| keys.iter().any(|k| k == key))
+                })
+            }
+        };
+
+        let onadd_datum = {
+            let keys = keys.clone();
+            move |_| {
+                if keys
+                    .with_untracked(|keys| key.with_untracked(|key| keys.iter().any(|k| k == key)))
+                {
+                    return;
+                }
+
+                let key = key.with_untracked(|key| key.trim().to_string());
+                if key.is_empty() {
+                    return;
+                }
+
+                let value = value.with_untracked(|value| match value {
+                    Value::String(value) => Value::String(value.trim().to_string()),
+                    Value::Quantity { magnitude, unit } => Value::Quantity {
+                        magnitude: magnitude.clone(),
+                        unit: unit.trim().to_string(),
+                    },
+                    Value::Bool(_) | Value::Number(_) | Value::Array(_) | Value::Map(_) => {
+                        value.clone()
+                    }
+                    Value::Null => unreachable!(),
+                });
+
+                set_key.update(|key| key.clear());
+                set_value(Value::String(String::new()));
+                onadd((key, value));
+            }
+        };
+
+        view! {
+            <div>
+                <input
+                    name="key"
+                    class=(["border-red-600", "border-solid", "border-2"], invalid_key.clone())
+                    prop:value=key
+                    minlength="1"
+                    on:input=move |e| set_key(event_target_value(&e))
+                />
+                <ValueEditor value set_value/>
+                <button type="button" on:mousedown=onadd_datum>
+                    "+"
+                </button>
+            </div>
+        }
+    }
 
     #[component]
     pub fn ValueEditor(
@@ -394,7 +462,7 @@ pub mod metadata {
         view! {}
     }
 
-    fn value_to_kind(value: &Value) -> Option<ValueKind> {
+    pub(super) fn value_to_kind(value: &Value) -> Option<ValueKind> {
         match value {
             Value::Null => None,
             Value::Bool(_) => Some(ValueKind::Bool),
@@ -406,11 +474,11 @@ pub mod metadata {
         }
     }
 
-    fn value_to_kind_str(value: &Value) -> Option<&'static str> {
+    pub(super) fn value_to_kind_str(value: &Value) -> Option<&'static str> {
         value_to_kind(value).map(|kind| kind_to_str(&kind))
     }
 
-    fn kind_to_str(kind: &ValueKind) -> &'static str {
+    pub(super) fn kind_to_str(kind: &ValueKind) -> &'static str {
         match kind {
             ValueKind::Bool => "bool",
             ValueKind::String => "string",
@@ -421,7 +489,7 @@ pub mod metadata {
         }
     }
 
-    fn string_to_kind(s: impl AsRef<str>) -> Option<ValueKind> {
+    pub(super) fn string_to_kind(s: impl AsRef<str>) -> Option<ValueKind> {
         let s = s.as_ref();
         match s {
             "bool" => Some(ValueKind::Bool),
@@ -436,7 +504,7 @@ pub mod metadata {
 
     /// Converts [`Value`]s between types.
     /// If a reasonable conversion can not be made, the default value for that type is returned.
-    fn convert_value_kind(value: Value, target: &ValueKind) -> Value {
+    pub(super) fn convert_value_kind(value: Value, target: &ValueKind) -> Value {
         let v = (value, target);
         match v {
             (Value::String(_), ValueKind::String)
@@ -571,6 +639,7 @@ pub mod metadata {
 
 pub mod bulk {
     //! Types for bulk editing.
+    pub use metadata::{Metadata, Metadatum};
 
     #[derive(Clone, PartialEq, Debug)]
     pub enum Value<T> {
@@ -777,7 +846,6 @@ pub mod bulk {
 
                 tags.sort();
                 tags.dedup();
-
                 onadd(tags);
             };
 
@@ -827,6 +895,402 @@ pub mod bulk {
                     </ul>
                 </div>
             }
+        }
+    }
+
+    pub mod metadata {
+        use super::super::{
+            super::INPUT_DEBOUNCE,
+            metadata::{convert_value_kind, kind_to_str, string_to_kind, value_to_kind_str},
+        };
+        use crate::components::form::InputNumber;
+        use leptos::*;
+        use syre_core::types::data;
+
+        #[derive(Clone, Debug)]
+        pub enum Value {
+            /// Values have mixed kinds.
+            MixedKind,
+
+            /// Values have equal kinds but mixed values.
+            EqualKind(data::ValueKind),
+
+            /// Equal kind and value.
+            Equal(data::Value),
+        }
+
+        impl Value {
+            pub fn is_mixed_kind(&self) -> bool {
+                matches!(self, Self::MixedKind)
+            }
+        }
+
+        pub type Metadata = Vec<Metadatum>;
+        pub type Metadatum = (String, Value);
+
+        #[component]
+        pub fn Editor(
+            #[prop(into)] value: MaybeSignal<Metadata>,
+            #[prop(into)] onremove: Callback<String>,
+            #[prop(into)] onmodify: Callback<(String, data::Value)>,
+        ) -> impl IntoView {
+            // TODO: This signal with the watch is a work around to allow
+            // `containers` signal in the callback function.
+            // See https://github.com/leptos-rs/leptos/issues/2041.
+            let (modified, set_modified) = create_signal(("".to_string(), data::Value::Null));
+            let _ = watch(
+                modified,
+                move |modified, _, _| {
+                    onmodify(modified.clone());
+                },
+                false,
+            );
+
+            view! {
+                <div>
+                    {move || {
+                        value
+                            .with(|value| {
+                                value
+                                    .iter()
+                                    .map(|(key, value)| {
+                                        view! {
+                                            <DatumEditor
+                                                key=key.clone()
+                                                value=value.clone()
+                                                oninput={
+                                                    let key = key.clone();
+                                                    move |value| set_modified((key.clone(), value))
+                                                }
+                                            />
+
+                                            <button
+                                                type="button"
+                                                on:mousedown={
+                                                    let key = key.clone();
+                                                    move |_| onremove(key.clone())
+                                                }
+                                            >
+
+                                                "-"
+                                            </button>
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                    }}
+
+                </div>
+            }
+        }
+
+        #[component]
+        fn DatumEditor(
+            key: String,
+            value: Value,
+            #[prop(into)] oninput: Callback<data::Value>,
+        ) -> impl IntoView {
+            view! {
+                <div>
+                    <span>{key}</span>
+                    <ValueEditor value oninput/>
+                </div>
+            }
+        }
+
+        #[component]
+        pub fn ValueEditor(
+            value: Value,
+            #[prop(into)] oninput: Callback<data::Value>,
+        ) -> impl IntoView {
+            let value_editor = {
+                let value = value.clone();
+                let oninput = oninput.clone();
+                move || match value {
+                    Value::MixedKind => view! {}.into_view(),
+                    Value::EqualKind(data::ValueKind::Bool)
+                    | Value::Equal(data::Value::Bool(_)) => {
+                        view! { <BoolEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::EqualKind(data::ValueKind::String)
+                    | Value::Equal(data::Value::String(_)) => {
+                        view! { <StringEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::EqualKind(data::ValueKind::Number)
+                    | Value::Equal(data::Value::Number(_)) => {
+                        view! { <NumberEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::EqualKind(data::ValueKind::Quantity)
+                    | Value::Equal(data::Value::Quantity { .. }) => {
+                        view! { <QuantityEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::EqualKind(data::ValueKind::Array)
+                    | Value::Equal(data::Value::Array(_)) => {
+                        view! { <ArrayEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::EqualKind(data::ValueKind::Map) | Value::Equal(data::Value::Map(_)) => {
+                        view! { <MapEditor value=value.clone() oninput/> }.into_view()
+                    }
+                    Value::Equal(data::Value::Null) => unreachable!(),
+                }
+            };
+
+            view! {
+                <KindSelect value onchange=oninput/>
+                {value_editor}
+            }
+        }
+
+        #[component]
+        fn KindSelect(
+            /// Read signal.
+            value: Value,
+            onchange: Callback<data::Value>,
+        ) -> impl IntoView {
+            let change = {
+                let value = value.clone();
+                move |e| {
+                    let kind = string_to_kind(event_target_value(&e)).unwrap();
+                    if let Value::Equal(ref value) = value {
+                        onchange(convert_value_kind(value.clone(), &kind));
+                    } else {
+                        onchange(convert_value_kind(data::Value::Null, &kind));
+                    }
+                }
+            };
+
+            view! {
+                <select
+                    prop:value={
+                        let value = value.clone();
+                        move || match value {
+                            Value::Equal(ref value) => {
+                                value_to_kind_str(&value)
+                                    .unwrap_or(kind_to_str(&data::ValueKind::String))
+                            }
+                            Value::EqualKind(ref kind) => kind_to_str(&kind),
+                            Value::MixedKind => "",
+                        }
+                    }
+
+                    on:change=change
+                >
+                    {move || {
+                        if value.is_mixed_kind() {
+                            view! {
+                                <option value="" disabled=true selected>
+                                    "(mixed)"
+                                </option>
+                            }
+                                .into_view()
+                        } else {
+                            view! {}.into_view()
+                        }
+                    }}
+
+                    <option value=kind_to_str(&data::ValueKind::String)>"String"</option>
+                    <option value=kind_to_str(&data::ValueKind::Number)>"Number"</option>
+                    <option value=kind_to_str(&data::ValueKind::Quantity)>"Quantity"</option>
+                    <option value=kind_to_str(&data::ValueKind::Bool)>"Boolean"</option>
+                    <option value=kind_to_str(&data::ValueKind::Array)>"Array"</option>
+                    <option value=kind_to_str(&data::ValueKind::Map)>"Map"</option>
+                </select>
+            }
+        }
+
+        #[component]
+        fn BoolEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            let checked = move || match value {
+                Value::EqualKind(_) => false,
+                Value::Equal(data::Value::Bool(value)) => value,
+                Value::MixedKind | Value::Equal(_) => unreachable!(),
+            };
+
+            view! {
+                <input
+                    type="checkbox"
+                    on:input=move |e| oninput(data::Value::Bool(event_target_checked(&e)))
+                    checked=checked
+                />
+            }
+        }
+
+        #[component]
+        fn StringEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            let input_value = {
+                let value = value.clone();
+                move || match value {
+                    Value::EqualKind(_) => "".to_string(),
+                    Value::Equal(data::Value::String(ref value)) => value.clone(),
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            };
+
+            let placeholder = {
+                let value = value.clone();
+                move || match value {
+                    Value::EqualKind(_) => "(mixed)",
+                    Value::Equal(data::Value::String(_)) => "",
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            };
+
+            view! {
+                <input
+                    type="text"
+                    prop:value=input_value
+                    on:input=move |e| oninput(data::Value::String(event_target_value(&e)))
+                    placeholder=placeholder
+                />
+            }
+        }
+
+        #[component]
+        fn NumberEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            let input_value = {
+                let value = value.clone();
+                move || match value {
+                    Value::EqualKind(_) => "".to_string(),
+                    Value::Equal(data::Value::Number(ref value)) => value.to_string(),
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            };
+
+            let placeholder = {
+                let value = value.clone();
+                move || match value {
+                    Value::EqualKind(_) => "(mixed)".to_string(),
+                    Value::Equal(data::Value::Number(_)) => "".to_string(),
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            };
+
+            let oninput_text = move |value: String| {
+                let Ok(value) = serde_json::from_str(&value) else {
+                    return;
+                };
+
+                // oninput(data::Value::Number(value));
+                tracing::debug!("{:?}", data::Value::Number(value));
+            };
+
+            view! {
+                <InputNumber
+                    value=Signal::derive(input_value)
+                    oninput=oninput_text
+                    placeholder=Signal::derive(placeholder)
+                />
+            }
+        }
+
+        #[component]
+        fn QuantityEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            let (magnitude, set_magnitude) = create_signal({
+                match value {
+                    Value::EqualKind(_) => "".to_string(),
+                    Value::Equal(data::Value::Quantity { ref magnitude, .. }) => {
+                        magnitude.to_string()
+                    }
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            });
+
+            let (unit, set_unit) = create_signal({
+                match value {
+                    Value::EqualKind(_) => "".to_string(),
+                    Value::Equal(data::Value::Quantity { ref unit, .. }) => unit.clone(),
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            });
+
+            let oninput_magnitude = move |magnitude: String| {
+                set_magnitude(magnitude);
+            };
+
+            let oninput_unit = move |e| {
+                set_unit(event_target_value(&e));
+            };
+
+            let _ = watch(
+                move || (magnitude, unit),
+                move |(magnitude, unit), _, _| {
+                    let Ok(magnitude) = magnitude.with(|magnitude| magnitude.parse::<f64>()) else {
+                        return;
+                    };
+
+                    if unit.with(|unit| unit.is_empty()) {
+                        return;
+                    }
+
+                    oninput(data::Value::Quantity {
+                        magnitude,
+                        unit: unit(),
+                    });
+                },
+                false,
+            );
+
+            view! {
+                <div>
+                    <InputNumber value=magnitude oninput=oninput_magnitude/>
+                    <input prop:value=unit minlength="1" on:input=oninput_unit/>
+                </div>
+            }
+        }
+
+        #[component]
+        fn ArrayEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            let (input_value, set_input_value) = create_signal(match value {
+                Value::EqualKind(_) => "".to_string(),
+                Value::Equal(data::Value::Array(ref value)) => value
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",\n"),
+                Value::MixedKind | Value::Equal(_) => unreachable!(),
+            });
+            let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+
+            let placeholder = {
+                let value = value.clone();
+                move || match value {
+                    Value::EqualKind(_) => "(mixed)",
+                    Value::Equal(data::Value::Array(_)) => "",
+                    Value::MixedKind | Value::Equal(_) => unreachable!(),
+                }
+            };
+
+            create_effect(move |_| {
+                let val = input_value.with(|value| {
+                    value
+                        .split([',', '\n', ';'])
+                        .filter_map(|elm| {
+                            let value = elm.trim();
+                            if value.is_empty() {
+                                None
+                            } else {
+                                todo!();
+                            }
+                        })
+                        .collect::<Vec<data::Value>>()
+                });
+
+                oninput(data::Value::Array(val));
+            });
+
+            view! {
+                <textarea
+                    on:input=move |e| set_input_value(event_target_value(&e))
+                    placeholder=placeholder
+                >
+                    {input_value}
+                </textarea>
+            }
+        }
+
+        #[component]
+        fn MapEditor(value: Value, oninput: Callback<data::Value>) -> impl IntoView {
+            view! {}
         }
     }
 }

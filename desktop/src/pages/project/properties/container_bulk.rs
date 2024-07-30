@@ -1,126 +1,163 @@
-use super::{common::bulk, INPUT_DEBOUNCE};
-use crate::pages::project::state;
+use super::INPUT_DEBOUNCE;
+use crate::pages::project;
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::*;
+use metadata::Editor as Metadata;
 use name::Editor as Name;
 use serde::Serialize;
-use std::{collections::HashMap, path::PathBuf};
-use syre_core::types::{ResourceId, Value};
+use state::{ActiveResources, State};
+use std::path::PathBuf;
+use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
-use syre_local_database as db;
 use tags::Editor as Tags;
 
-type Metadatum = (String, bulk::Value<Value>);
+mod state {
+    use super::super::common::bulk;
+    use crate::pages::project::state;
+    use leptos::*;
+    use std::collections::HashMap;
+    use syre_core::types::ResourceId;
+    use syre_local_database as db;
 
-#[derive(Clone, Debug)]
-struct State {
-    name: bulk::Value<String>,
-    kind: bulk::Value<Option<String>>,
-    description: bulk::Value<Option<String>>,
+    #[derive(Clone, Debug)]
+    pub struct State {
+        name: bulk::Value<String>,
+        kind: bulk::Value<Option<String>>,
+        description: bulk::Value<Option<String>>,
 
-    /// Union of all tags.
-    tags: Vec<String>,
+        /// Union of all tags.
+        tags: Vec<String>,
 
-    /// Union of all metadata.
-    metadata: Vec<Metadatum>,
-}
+        /// Union of all metadata.
+        metadata: bulk::Metadata,
+    }
 
-impl State {
-    pub fn from_states(states: Vec<state::graph::Node>) -> Self {
-        let mut names = Vec::with_capacity(states.len());
-        let mut kinds = Vec::with_capacity(states.len());
-        let mut descriptions = Vec::with_capacity(states.len());
-        let mut tags = Vec::with_capacity(states.len());
-        let mut metadata = HashMap::with_capacity(states.len());
-        states
-            .iter()
-            .map(|state| {
-                state.properties().with(|properties| {
-                    let db::state::DataResource::Ok(properties) = properties else {
-                        panic!("invalid state");
+    impl State {
+        pub fn from_states(states: Vec<state::graph::Node>) -> Self {
+            let mut names = Vec::with_capacity(states.len());
+            let mut kinds = Vec::with_capacity(states.len());
+            let mut descriptions = Vec::with_capacity(states.len());
+            let mut tags = Vec::with_capacity(states.len());
+            let mut metadata = HashMap::with_capacity(states.len());
+            states
+                .iter()
+                .map(|state| {
+                    state.properties().with(|properties| {
+                        let db::state::DataResource::Ok(properties) = properties else {
+                            panic!("invalid state");
+                        };
+
+                        (
+                            properties.name().get_untracked(),
+                            properties.kind().get_untracked(),
+                            properties.description().get_untracked(),
+                            properties.tags().get_untracked(),
+                            properties.metadata().get_untracked(),
+                        )
+                    })
+                })
+                .fold((), |(), (name, kind, description, tag, metadatum)| {
+                    names.push(name);
+                    kinds.push(kind);
+                    descriptions.push(description);
+                    tags.extend(tag);
+
+                    for (key, value) in metadatum {
+                        let md = metadata
+                            .entry(key)
+                            .or_insert(Vec::with_capacity(states.len()));
+
+                        if !value.with_untracked(|value| md.contains(value)) {
+                            md.push(value.get_untracked());
+                        }
+                    }
+                });
+
+            names.sort();
+            names.dedup();
+            kinds.sort();
+            kinds.dedup();
+            descriptions.sort();
+            descriptions.dedup();
+            tags.sort();
+            tags.dedup();
+
+            let name = match &names[..] {
+                [name] => bulk::Value::Equal(name.clone()),
+                _ => bulk::Value::Mixed,
+            };
+
+            let kind = match &kinds[..] {
+                [kind] => bulk::Value::Equal(kind.clone()),
+                _ => bulk::Value::Mixed,
+            };
+
+            let description = match &descriptions[..] {
+                [description] => bulk::Value::Equal(description.clone()),
+                _ => bulk::Value::Mixed,
+            };
+
+            let metadata = metadata
+                .into_iter()
+                .map(|(key, values)| {
+                    let value = if values.iter().all(|value| *value == values[0]) {
+                        bulk::metadata::Value::Equal(values[0].clone())
+                    } else if values.iter().all(|value| value.kind() == values[0].kind()) {
+                        bulk::metadata::Value::EqualKind(values[0].kind())
+                    } else {
+                        bulk::metadata::Value::MixedKind
                     };
 
-                    (
-                        properties.name().get_untracked(),
-                        properties.kind().get_untracked(),
-                        properties.description().get_untracked(),
-                        properties.tags().get_untracked(),
-                        properties.metadata().get_untracked(),
-                    )
+                    (key, value)
                 })
-            })
-            .fold((), |(), (name, kind, description, tag, metadatum)| {
-                names.push(name);
-                kinds.push(kind);
-                descriptions.push(description);
-                tags.extend(tag);
+                .collect();
 
-                for (key, value) in metadatum {
-                    let md = metadata
-                        .entry(key)
-                        .or_insert(Vec::with_capacity(states.len()));
+            Self {
+                name,
+                kind,
+                description,
+                tags,
+                metadata,
+            }
+        }
+    }
 
-                    if !value.with_untracked(|value| md.contains(value)) {
-                        md.push(value.get_untracked());
-                    }
-                }
-            });
+    impl State {
+        pub fn name(&self) -> &bulk::Value<String> {
+            &self.name
+        }
 
-        names.sort();
-        names.dedup();
-        kinds.sort();
-        kinds.dedup();
-        descriptions.sort();
-        descriptions.dedup();
-        tags.sort();
-        tags.dedup();
+        pub fn kind(&self) -> &bulk::Value<Option<String>> {
+            &self.kind
+        }
 
-        let name = match &names[..] {
-            [name] => bulk::Value::Equal(name.clone()),
-            _ => bulk::Value::Mixed,
-        };
+        pub fn description(&self) -> &bulk::Value<Option<String>> {
+            &self.description
+        }
 
-        let kind = match &kinds[..] {
-            [kind] => bulk::Value::Equal(kind.clone()),
-            _ => bulk::Value::Mixed,
-        };
+        pub fn tags(&self) -> &Vec<String> {
+            &self.tags
+        }
 
-        let description = match &descriptions[..] {
-            [description] => bulk::Value::Equal(description.clone()),
-            _ => bulk::Value::Mixed,
-        };
+        pub fn metadata(&self) -> &bulk::Metadata {
+            &self.metadata
+        }
+    }
 
-        let metadata = metadata
-            .into_iter()
-            .map(|(key, values)| {
-                let value = if values.iter().all(|value| *value == values[0]) {
-                    bulk::Value::Equal(values[0].clone())
-                } else {
-                    bulk::Value::Mixed
-                };
-
-                (key, value)
-            })
-            .collect();
-
-        Self {
-            name,
-            kind,
-            description,
-            tags,
-            metadata,
+    #[derive(derive_more::Deref, Clone)]
+    pub struct ActiveResources(Signal<Vec<ResourceId>>);
+    impl ActiveResources {
+        pub fn new(resources: Signal<Vec<ResourceId>>) -> Self {
+            Self(resources)
         }
     }
 }
 
-#[derive(derive_more::Deref, Clone)]
-struct ActiveResources(Signal<Vec<ResourceId>>);
-
 #[component]
 pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(containers.with(|containers| containers.len()) > 1);
-    let graph = expect_context::<state::Graph>();
+    let graph = expect_context::<project::state::Graph>();
     provide_context(Signal::derive(move || {
         let states = containers.with(|containers| {
             containers
@@ -132,7 +169,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
         State::from_states(states)
     }));
 
-    provide_context(ActiveResources(containers.clone()));
+    provide_context(ActiveResources::new(containers.clone()));
 
     view! {
         <div>
@@ -156,6 +193,9 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                 <div>
                     <label>"Tags" <Tags/></label>
                 </div>
+                <div>
+                    <label>"Metadata" <Metadata/></label>
+                </div>
             </form>
         </div>
     }
@@ -163,11 +203,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
 mod name {
     use super::{super::common::bulk::Value, ActiveResources, State, INPUT_DEBOUNCE};
-    use crate::{
-        components::{form::debounced::InputText, message},
-        pages::project::state,
-        types::Messages,
-    };
+    use crate::{components::message, pages::project::state, types::Messages};
     use leptos::*;
     use serde::Serialize;
     use std::{ffi::OsString, path::PathBuf};
@@ -187,7 +223,7 @@ mod name {
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
-            state.with(|state| match &state.name {
+            state.with(|state| match state.name() {
                 Value::Mixed => String::new(),
                 Value::Equal(value) => value.clone(),
             })
@@ -266,7 +302,7 @@ mod name {
         );
 
         let placeholder = move || {
-            state.with(|state| match state.name {
+            state.with(|state| match state.name() {
                 Value::Mixed => "(mixed)".to_string(),
                 Value::Equal(_) => "(empty)".to_string(),
             })
@@ -384,7 +420,7 @@ mod kind {
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
-            state.with(|state| match &state.kind {
+            state.with(|state| match state.kind() {
                 Value::Mixed | Value::Equal(None) => None,
                 Value::Equal(Some(value)) => Some(value.clone()),
             })
@@ -432,7 +468,7 @@ mod kind {
 
         view! {
             <KindEditor
-                value=Signal::derive(move || { state.with(|state| { state.kind.clone() }) })
+                value=Signal::derive(move || { state.with(|state| { state.kind().clone() }) })
                 oninput=move |value| {
                     set_input_value(value);
                 }
@@ -463,7 +499,7 @@ mod description {
         // `containers` signal in the callback function.
         // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
-            state.with(|state| match &state.kind {
+            state.with(|state| match state.description() {
                 Value::Mixed | Value::Equal(None) => None,
                 Value::Equal(Some(value)) => Some(value.clone()),
             })
@@ -511,7 +547,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=Signal::derive(move || state.with(|state| state.description.clone()))
+                value=Signal::derive(move || state.with(|state| state.description().clone()))
                 oninput=move |value| {
                     set_input_value(value);
                 }
@@ -537,6 +573,9 @@ mod tags {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        // TODO: These signals with their `watch`s is a work around to allow
+        // `containers` signal in the callback function.
+        // See https://github.com/leptos-rs/leptos/issues/2041.
         let (add_tags_value, set_add_tags_value) = create_signal(vec![]);
         let (remove_tag_value, set_remove_tag_value) = create_signal("".to_string());
 
@@ -646,9 +685,140 @@ mod tags {
 
         view! {
             <TagsEditor
-                value=Signal::derive(move || { state.with(|state| { state.tags.clone() }) })
+                value=Signal::derive(move || { state.with(|state| { state.tags().clone() }) })
                 onadd=move |value| set_add_tags_value(value)
                 onremove=move |value| set_remove_tag_value(value)
+            />
+        }
+    }
+}
+
+mod metadata {
+    use super::{
+        super::common::bulk::metadata::Editor as MetadataEditor, update_properties,
+        ActiveResources, State,
+    };
+    use crate::{pages::project::state, types::Messages};
+    use leptos::*;
+    use syre_core::types::data;
+    use syre_desktop_lib::command::container::bulk::{MetadataAction, PropertiesUpdate};
+
+    #[component]
+    pub fn Editor() -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+        let containers = expect_context::<ActiveResources>();
+        let state = expect_context::<Signal<State>>();
+        // TODO: These signals with their `watch`s is a work around to allow
+        // `containers` signal in the callback function.
+        // See https://github.com/leptos-rs/leptos/issues/2041.
+        let (remove_key, set_remove_key) = create_signal("".to_string());
+        let (modify_value, set_modify_value) = create_signal(("".to_string(), data::Value::Null));
+
+        let _ = watch(
+            move || remove_key(),
+            {
+                let project = project.clone();
+                let graph = graph.clone();
+                let containers = containers.clone();
+                move |value: &String, _, _| {
+                    let containers_len = containers.with_untracked(|containers| containers.len());
+                    let mut update = PropertiesUpdate::default();
+                    update.metadata = MetadataAction {
+                        insert: vec![],
+                        remove: vec![value.clone()],
+                    };
+
+                    spawn_local({
+                        let project = project.rid().get_untracked();
+                        let containers = containers.with_untracked(|containers| {
+                            containers
+                                .iter()
+                                .map(|container| {
+                                    let node = graph.find_by_id(container).unwrap();
+                                    graph.path(&node).unwrap()
+                                })
+                                .collect::<Vec<_>>()
+                        });
+
+                        async move {
+                            match update_properties(project, containers, update).await {
+                                Err(err) => {
+                                    tracing::error!(?err);
+                                    todo!();
+                                }
+
+                                Ok(container_results) => {
+                                    assert_eq!(container_results.len(), containers_len);
+                                    for result in container_results {
+                                        if let Err(err) = result {
+                                            todo!();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            },
+            false,
+        );
+
+        let _ = watch(
+            move || modify_value(),
+            {
+                let project = project.clone();
+                let graph = graph.clone();
+                let containers = containers.clone();
+                move |value: &(String, data::Value), _, _| {
+                    let containers_len = containers.with_untracked(|containers| containers.len());
+                    let mut update = PropertiesUpdate::default();
+                    update.metadata = MetadataAction {
+                        insert: vec![value.clone()],
+                        remove: vec![],
+                    };
+
+                    spawn_local({
+                        let project = project.rid().get_untracked();
+                        let containers = containers.with_untracked(|containers| {
+                            containers
+                                .iter()
+                                .map(|container| {
+                                    let node = graph.find_by_id(container).unwrap();
+                                    graph.path(&node).unwrap()
+                                })
+                                .collect::<Vec<_>>()
+                        });
+
+                        async move {
+                            match update_properties(project, containers, update).await {
+                                Err(err) => {
+                                    tracing::error!(?err);
+                                    todo!();
+                                }
+
+                                Ok(container_results) => {
+                                    assert_eq!(container_results.len(), containers_len);
+                                    for result in container_results {
+                                        if let Err(err) = result {
+                                            todo!();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            },
+            false,
+        );
+
+        view! {
+            <MetadataEditor
+                value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
+                onremove=move |value| set_remove_key(value)
+                onmodify=move |value| set_modify_value(value)
             />
         }
     }

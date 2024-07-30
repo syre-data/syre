@@ -11,9 +11,9 @@ pub fn InputNumber(
     value: Signal<String>,
 
     #[prop(into)] oninput: Callback<String>,
-
     #[prop(optional)] min: Option<f64>,
     #[prop(optional)] max: Option<f64>,
+    #[prop(optional, into)] placeholder: MaybeSignal<String>,
     #[prop(default = false)] required: bool,
 ) -> impl IntoView {
     let step = move || {
@@ -34,10 +34,11 @@ pub fn InputNumber(
             type="number"
             class=("error", is_invalid)
             prop:value=value
+            on:input=move |e| oninput(event_target_value(&e))
             min=min
             max=max
             step=step
-            on:input=move |e| oninput(event_target_value(&e))
+            placeholder=placeholder
             required=required
         />
     }

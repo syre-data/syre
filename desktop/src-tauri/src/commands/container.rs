@@ -247,6 +247,15 @@ fn container_properties_update_bulk_perform(
         .retain(|tag| !update.tags.remove.contains(tag));
     container.properties.tags.extend(update.tags.insert.clone());
 
+    container
+        .properties
+        .metadata
+        .retain(|key, _| !update.metadata.remove.contains(key));
+    container
+        .properties
+        .metadata
+        .extend(update.metadata.insert.clone());
+
     if let Err(err) = container.save(&path) {
         return Err(bulk::error::Update::Save(err.kind()));
     }

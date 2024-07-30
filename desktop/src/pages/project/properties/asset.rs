@@ -246,7 +246,8 @@ mod tags {
 
 mod metadata {
     use super::{
-        super::common::metadata::ValueEditor, update_properties, ActiveAsset, INPUT_DEBOUNCE,
+        super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
+        update_properties, ActiveAsset, INPUT_DEBOUNCE,
     };
     use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
     use leptos::*;
@@ -309,45 +310,31 @@ mod metadata {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
-        let (key, set_key) = create_signal("".to_string());
-        let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
-        let (value, set_value) = create_signal(Value::String("".to_string()));
 
-        let invalid_key = {
-            let metadata = asset.metadata().read_only();
-            move || key.with(|key| metadata.with(|metadata| metadata.iter().any(|(k, _)| k == key)))
+        let keys = {
+            let asset = asset.clone();
+            move || {
+                asset.metadata().with(|metadata| {
+                    metadata
+                        .iter()
+                        .map(|(key, _)| key.clone())
+                        .collect::<Vec<_>>()
+                })
+            }
         };
 
-        let add_metadatum = {
-            move |_| {
-                if asset
+        let onadd = {
+            let asset = asset.clone();
+            move |(key, value): (String, Value)| {
+                assert!(!key.is_empty());
+                assert!(!asset
                     .metadata()
-                    .with(|metadata| key.with(|key| metadata.iter().any(|(k, _)| k == key)))
-                {
-                    return;
-                }
+                    .with(|metadata| metadata.iter().any(|(k, _)| *k == key)));
 
                 let mut properties = asset.as_properties();
                 let mut metadata = asset
                     .metadata()
                     .with_untracked(|metadata| metadata.as_properties());
-                let key = key.with(|key| key.trim().to_string());
-                if key.is_empty() {
-                    todo!();
-                }
-                let value = value.with(|value| match value {
-                    Value::String(value) => Value::String(value.trim().to_string()),
-                    Value::Quantity { magnitude, unit } => Value::Quantity {
-                        magnitude: magnitude.clone(),
-                        unit: unit.trim().to_string(),
-                    },
-                    Value::Null
-                    | Value::Bool(_)
-                    | Value::Number(_)
-                    | Value::Array(_)
-                    | Value::Map(_) => value.clone(),
-                });
-
                 metadata.insert(key, value);
                 properties.metadata = metadata;
 
@@ -364,28 +351,11 @@ mod metadata {
                         tracing::error!(?err);
                         todo!()
                     }
-
-                    set_key.update(|key| key.clear());
-                    set_value(Value::String(String::new()));
                 });
             }
         };
 
-        view! {
-            <div>
-                <input
-                    name="key"
-                    class=("error", invalid_key)
-                    prop:value=key
-                    minlength="1"
-                    on:input=move |e| set_key(event_target_value(&e))
-                />
-                <ValueEditor value set_value/>
-                <button type="button" on:click=add_metadatum>
-                    "Add"
-                </button>
-            </div>
-        }
+        view! { <AddDatumEditor keys=Signal::derive(keys) onadd/> }
     }
 
     #[component]

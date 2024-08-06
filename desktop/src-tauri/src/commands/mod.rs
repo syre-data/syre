@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod common;
 pub mod container;
 pub mod fs;
 pub mod graph;

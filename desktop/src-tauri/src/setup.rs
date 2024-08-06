@@ -3,7 +3,9 @@ use syre_local_database::state::ConfigState;
 use tauri::{Listener, Manager};
 
 /// Runs setup tasks:
-/// 1. Launches the update listener.
+/// 1. Launches the local database if needed.
+/// 2. Launches the update listener.
+/// 3. Creates the inital app state.
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Some((_rx, _child)) = crate::db::start_database_if_needed(app.handle()) {
         tracing::debug!("initialized local database");

@@ -2,27 +2,29 @@ use super::{
     common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
     state,
 };
-use crate::{commands, common, components::ModalDialog, types};
+use crate::{
+    commands, common,
+    components::{message::Builder as Message, ModalDialog},
+    types,
+};
 use futures::StreamExt;
 use leptos::{
     ev::{MouseEvent, WheelEvent},
     *,
 };
-use leptos_icons::*;
 use serde::Serialize;
-use std::{cmp, io, ops::Deref, path::PathBuf, str::FromStr};
+use std::{cmp, io, ops::Deref, path::PathBuf, rc::Rc, str::FromStr};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local as local;
 use syre_local_database as db;
+use tauri_sys::menu;
 use wasm_bindgen::JsCast;
 
 const CONTAINER_WIDTH: usize = 100;
 const CONTAINER_HEIGHT: usize = 60;
 const PADDING_X_SIBLING: usize = 20;
 const PADDING_Y_CHILDREN: usize = 20;
-const PADDING_X_KEBAB: usize = 10;
-const PADDING_Y_KEBAB: usize = 5;
 const RADIUS_ADD_CHILD: usize = 10;
 const ZOOM_FACTOR_IN: f32 = 0.9; // zoom in should reduce viewport.
 const ZOOM_FACTOR_OUT: f32 = 1.1;
@@ -34,7 +36,7 @@ const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
 const DATA_KEY_CONTAINER: &str = "container";
 const DATA_KEY_ASSET: &str = "asset";
 
-#[derive(derive_more::Deref, Clone)]
+#[derive(derive_more::Deref, derive_more::From, Clone)]
 struct DragOverContainer(Option<ResourceId>);
 impl DragOverContainer {
     pub fn new() -> Self {
@@ -42,9 +44,19 @@ impl DragOverContainer {
     }
 }
 
-impl From<Option<ResourceId>> for DragOverContainer {
-    fn from(value: Option<ResourceId>) -> Self {
-        Self(value)
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuContainerOk(Rc<menu::Menu>);
+impl ContextMenuContainerOk {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveContainer(state::graph::Node);
+impl ContextMenuActiveContainer {
+    pub fn new(container: state::graph::Node) -> Self {
+        Self(container)
     }
 }
 
@@ -63,19 +75,16 @@ pub fn Canvas() -> impl IntoView {
 
     let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
-    let portal_ref = create_node_ref();
-    provide_context(PortalRef(portal_ref.clone()));
-    let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
-    let (vb_x, set_vb_x) = create_signal(0);
-    let (vb_y, set_vb_y) = create_signal(0);
-    let (vb_width, set_vb_width) = create_signal(1000);
-    let (vb_height, set_vb_height) = create_signal(1000);
-    let (pan_drag, set_pan_drag) = create_signal(None);
-    let (was_dragged, set_was_dragged) = create_signal(false);
+    let messages = expect_context::<types::Messages>();
+
     let (drag_over_container, set_drag_over_container) = create_signal(DragOverContainer::new());
     let drag_over_container =
         leptos_use::signal_throttled(drag_over_container, THROTTLE_DRAG_EVENT);
     provide_context(drag_over_container);
+
+    let context_menu_active_container =
+        create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
+    provide_context(context_menu_active_container);
 
     {
         // TODO: only for linux.
@@ -130,6 +139,96 @@ pub fn Canvas() -> impl IntoView {
             }
         });
     }
+
+    let context_menu_container_ok = create_local_resource(|| (), {
+        move |_| {
+            let project = project.clone();
+            let graph = graph.clone();
+            let messages = messages.clone();
+            async move {
+                let mut container_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
+                container_open.set_id("container-open");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "container-context_menu",
+                    vec![container_open.into()],
+                )
+                .await;
+
+                spawn_local({
+                    let container_open = listeners.pop().unwrap();
+                    let mut container_open = container_open.unwrap().fuse();
+
+                    async move {
+                        loop {
+                            futures::select! {
+                                event = container_open.next() => match event {
+                                    None => continue,
+                                    Some(_id) => {
+                                        let data_root = project
+                                            .path()
+                                            .get_untracked()
+                                            .join(project.properties().data_root().get_untracked());
+
+                                        let container = context_menu_active_container.get_untracked().unwrap();
+                                        let container_path = graph.path(&container).unwrap();
+                                        let path = common::container_system_path(data_root, container_path);
+
+                                        if let Err(err) = commands::fs::open_file(path)
+                                            .await {
+                                                messages.update(|messages|{
+                                                    let mut msg = Message::error("Could not open container folder.");
+                                                    msg.body(format!("{err:?}"));
+                                                messages.push(msg.build());
+                                            });
+                                        }
+                                }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
+
+    view! {
+        <Suspense fallback=move || {
+            view! { <CanvasLoading/> }
+        }>
+
+            {move || {
+                context_menu_container_ok
+                    .get()
+                    .map(|context_menu_container_ok| {
+                        view! { <CanvasView context_menu_container_ok/> }
+                    })
+            }}
+
+        </Suspense>
+    }
+}
+
+#[component]
+fn CanvasLoading() -> impl IntoView {
+    view! { <div>"Setting up canvas"</div> }
+}
+
+#[component]
+fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
+    let graph = expect_context::<state::Graph>();
+    let portal_ref = create_node_ref();
+    provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
+    provide_context(PortalRef(portal_ref.clone()));
+    let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let (vb_x, set_vb_x) = create_signal(0);
+    let (vb_y, set_vb_y) = create_signal(0);
+    let (vb_width, set_vb_width) = create_signal(1000);
+    let (vb_height, set_vb_height) = create_signal(1000);
+    let (pan_drag, set_pan_drag) = create_signal(None);
+    let (was_dragged, set_was_dragged) = create_signal(false);
 
     let mousedown = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 {
@@ -345,9 +444,6 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         })
     };
 
-    // NB [ RE: kebab menu]: It must currently be wrapped in an out `svg`
-    // for placement.
-    // See https://github.com/carloskiki/leptos-icons/issues/49.
     view! {
         <svg width=width height=height x=x y=y>
             <g class="group">
@@ -355,17 +451,6 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                     <Container container=root.clone()/>
                 </foreignObject>
                 <g class="group-[:not(:hover)]:hidden hover:cursor-pointer">
-                    <svg
-                        x={
-                            let x_node = x_node.clone();
-                            move || { x_node() + CONTAINER_WIDTH - PADDING_X_KEBAB }
-                        }
-
-                        y=PADDING_Y_KEBAB
-                    >
-                        <Icon icon=icondata::ChMenuKebab/>
-                    </svg>
-
                     <circle
                         cx={
                             let x_node = x_node.clone();
@@ -555,6 +640,9 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         .properties()
         .with_untracked(|properties| properties.is_ok()));
 
+    let context_menu = expect_context::<ContextMenuContainerOk>();
+    let context_menu_active_container =
+        expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_container = expect_context::<Signal<DragOverContainer>>();
     let node_ref = create_node_ref();
@@ -585,7 +673,8 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         let container = container.clone();
         let workspace_graph_state = workspace_graph_state.clone();
         move |e: MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
+            let button = e.button();
+            if button == types::MouseButton::Primary as i16 {
                 e.stop_propagation();
                 container.properties().with(|properties| {
                     if let db::state::DataResource::Ok(properties) = properties {
@@ -652,6 +741,22 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let contextmenu = {
+        let container = container.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
+
+            context_menu_active_container.update(|active_container| {
+                let _ = active_container.insert(container.clone().into());
+            });
+
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
+    };
+
     view! {
         <div
             ref=node_ref
@@ -673,6 +778,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
             )
 
             on:mousedown=mousedown
+            on:contextmenu=contextmenu
             data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >

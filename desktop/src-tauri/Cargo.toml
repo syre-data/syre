@@ -13,11 +13,11 @@ categories = ["gui", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta", features = [] }
+tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-beta", features = [] }
-tauri-plugin-shell = "2.0.0-beta"
+tauri = { version = "2.0.0-rc", features = ["unstable"] }
+tauri-plugin-shell = "2.0.0-rc"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 syre-core = { workspace = true, features = ["serde"] }
@@ -30,3 +30,5 @@ tracing-subscriber = { workspace = true, features = ["json", "time"] }
 tracing-appender.workspace = true
 tauri-plugin-devtools = { git = "https://github.com/crabnebula-dev/devtools" }
 zmq.workspace = true
+derive_more.workspace = true
+open = "5.3.0"

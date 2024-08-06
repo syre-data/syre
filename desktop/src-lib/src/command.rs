@@ -151,4 +151,14 @@ pub mod error {
     /// Wrapper to allow for serialization
     #[derive(Serialize, Deserialize, derive_more::From, Debug)]
     pub struct IoErrorKind(#[serde(with = "syre_local::error::IoErrorKind")] pub io::ErrorKind);
+    impl Into<io::ErrorKind> for IoErrorKind {
+        fn into(self) -> io::ErrorKind {
+            self.0
+        }
+    }
+    impl From<io::Error> for IoErrorKind {
+        fn from(value: io::Error) -> Self {
+            Self(value.kind())
+        }
+    }
 }

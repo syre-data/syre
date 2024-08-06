@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use syre_desktop::{
-    commands::{auth, container, fs, graph, project, user},
+    commands::{auth, common, container, fs, graph, project, user},
     setup,
 };
 
@@ -36,6 +36,7 @@ fn main() {
             container::asset_properties_update,
             fs::pick_folder,
             fs::pick_folder_with_location,
+            common::open_file,
         ])
         .setup(setup)
         .run(tauri::generate_context!())

@@ -317,7 +317,7 @@ pub enum AnalysisFile {
     /// # Notes
     /// + The `Analysis` remains in the same project.
     Moved {
-        script: ResourceId,
+        analysis: ResourceId,
         path: PathBuf,
     },
 }

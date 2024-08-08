@@ -651,6 +651,23 @@ pub mod config {
             })
         }
 
+        /// # Notes
+        /// + `handle_fs_resource_changes` defaults to `true`.
+        pub fn new(
+            user_manifest: impl Into<PathBuf>,
+            project_manifest: impl Into<PathBuf>,
+            local_config: impl Into<PathBuf>,
+            update_port: PortNumber,
+        ) -> Self {
+            Self {
+                user_manifest: user_manifest.into(),
+                project_manifest: project_manifest.into(),
+                local_config: local_config.into(),
+                update_port,
+                handle_fs_resource_changes: true,
+            }
+        }
+
         pub fn build(self) -> Config {
             Config {
                 user_manifest: self.user_manifest,

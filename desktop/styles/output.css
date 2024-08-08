@@ -620,6 +620,10 @@ video {
   height: 16.666667%;
 }
 
+.h-full {
+  height: 100%;
+}
+
 .w-1\/6 {
   width: 16.666667%;
 }
@@ -712,4 +716,16 @@ video {
 
 .group:not(:hover) .group-\[\:not\(\:hover\)\]\:hidden {
   display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dark\:bg-slate-800 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(30 41 59 / var(--tw-bg-opacity));
+  }
+
+  .dark\:text-white {
+    --tw-text-opacity: 1;
+    color: rgb(255 255 255 / var(--tw-text-opacity));
+  }
 }

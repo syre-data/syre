@@ -64,6 +64,10 @@ impl Analysis {
         &self.properties
     }
 
+    pub fn fs_resource(&self) -> &FileResource {
+        &self.fs_resource
+    }
+
     pub fn is_present(&self) -> bool {
         matches!(self.fs_resource, FileResource::Present)
     }

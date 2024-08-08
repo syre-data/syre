@@ -971,7 +971,15 @@ impl Database {
 
         match Analyses::load_from(base_path) {
             Ok(analyses) => {
-                let analyses = analyses::from_analyses(analyses);
+                let state::DataResource::Ok(properties) = project.properties() else {
+                    todo!();
+                };
+
+                let analysis_root = project_state
+                    .path()
+                    .join(properties.analysis_root.clone().unwrap());
+
+                let analyses = analyses::from_resources(analyses.to_vec(), analysis_root);
                 self.state
                     .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
@@ -1097,7 +1105,14 @@ impl Database {
 
         match (Analyses::load_from(base_path), state) {
             (Ok(analyses), Ok(state)) => {
-                let analyses = analyses::from_analyses(analyses);
+                let state::DataResource::Ok(properties) = project.properties() else {
+                    todo!();
+                };
+
+                let analysis_root = project_state
+                    .path()
+                    .join(properties.analysis_root.clone().unwrap());
+                let analyses = analyses::from_resources(analyses.to_vec(), &analysis_root);
                 if analyses.len() == state.len() {
                     let mut equal = true;
                     for analysis in analyses.iter() {
@@ -1130,7 +1145,14 @@ impl Database {
             }
 
             (Ok(analyses), Err(_)) => {
-                let analyses = analyses::from_analyses(analyses);
+                let state::DataResource::Ok(properties) = project.properties() else {
+                    todo!();
+                };
+
+                let analysis_root = project_state
+                    .path()
+                    .join(properties.analysis_root.clone().unwrap());
+                let analyses = analyses::from_resources(analyses.to_vec(), analysis_root);
                 self.state
                     .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
@@ -1172,43 +1194,30 @@ impl Database {
 
 mod analyses {
     use crate::state;
-    use std::path::PathBuf;
+    use std::path::Path;
     use syre_local::{
         file_resource::LocalResource, project::resources::Analyses, types::AnalysisKind,
     };
 
     /// Create analysis states from list of analyses by checking if paths
     /// are present in the file system.
-    ///
-    /// # Arguments
-    /// + `analyses`: List of analysis properties.
-    pub fn from_analyses(analyses: Analyses) -> Vec<state::Analysis> {
-        from_resources(analyses.path(), analyses.to_vec())
-    }
-
-    /// Create analysis states from list of analyses by checking if paths
-    /// are present in the file system.
-    ///
-    /// # Arguments
-    /// + `path`: Path to the analysis root.
-    /// + `analyses`: List of analysis properties.
     pub fn from_resources(
-        path: impl Into<PathBuf>,
         analyses: Vec<AnalysisKind>,
+        analysis_root: impl AsRef<Path>,
     ) -> Vec<state::Analysis> {
-        let path = path.into();
+        let analysis_root = analysis_root.as_ref();
         analyses
             .into_iter()
             .map(|analysis| match analysis {
                 syre_local::types::AnalysisKind::Script(ref script) => {
-                    if path.join(&script.path).is_file() {
+                    if analysis_root.join(&script.path).is_file() {
                         state::Analysis::present(analysis)
                     } else {
                         state::Analysis::absent(analysis)
                     }
                 }
                 syre_local::types::AnalysisKind::ExcelTemplate(ref template) => {
-                    if path.join(&template.template.path).is_file() {
+                    if analysis_root.join(&template.template.path).is_file() {
                         state::Analysis::present(analysis)
                     } else {
                         state::Analysis::absent(analysis)

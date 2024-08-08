@@ -16,7 +16,7 @@ use syre_local::{
     },
     types::AnalysisKind,
 };
-use syre_local_database::{event, server::Config, state, types::PortNumber, Update};
+use syre_local_database::{event, server::config, state, types::PortNumber, Update};
 
 const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
@@ -28,12 +28,14 @@ fn test_server_state_and_updates_basics() {
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let local_config = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
-    let config = Config::new(
+    let mut config = config::Builder::new(
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
         rng.gen_range(1024..PortNumber::max_value()),
     );
+    config.set_handle_fs_resource_changes(false);
+    let config = config.build();
 
     let (update_tx, update_rx) = crossbeam::channel::unbounded();
     let update_listener = UpdateListener::new(update_tx, config.update_port());
@@ -636,8 +638,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -682,8 +684,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -728,8 +730,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -773,8 +775,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -880,8 +882,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container_state = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -982,8 +984,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container_state = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -1026,8 +1028,8 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container_state = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -1156,12 +1158,14 @@ fn test_server_state_and_updates_graph() {
     fs::write(user_manifest.path(), "[]").unwrap();
     fs::write(project_manifest.path(), "[]").unwrap();
     fs::write(local_config.path(), "{}").unwrap();
-    let config = Config::new(
+    let mut config = config::Builder::new(
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
         rng.gen_range(1024..PortNumber::max_value()),
     );
+    config.set_handle_fs_resource_changes(false);
+    let config = config.build();
 
     let (update_tx, update_rx) = crossbeam::channel::unbounded();
     let update_listener = UpdateListener::new(update_tx, config.update_port());
@@ -1258,8 +1262,8 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let container_state = db
-        .state()
-        .container(project.base_path(), "/")
+        .container()
+        .get(project.rid().clone(), "/")
         .unwrap()
         .unwrap();
 
@@ -1297,8 +1301,8 @@ fn test_server_state_and_updates_graph() {
         syre_local_database::common::container_graph_path(project.data_root_path(), c1.base_path())
             .unwrap();
     let container_state = db
-        .state()
-        .container(project.base_path(), &c1_graph_path)
+        .container()
+        .get(project.rid().clone(), &c1_graph_path)
         .unwrap()
         .unwrap();
 
@@ -1340,8 +1344,8 @@ fn test_server_state_and_updates_graph() {
         syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
             .unwrap();
     let container_state = db
-        .state()
-        .container(project.base_path(), &c2_graph_path)
+        .container()
+        .get(project.rid().clone(), &c2_graph_path)
         .unwrap()
         .unwrap();
 
@@ -1388,14 +1392,14 @@ fn test_server_state_and_updates_graph() {
             .unwrap();
 
     assert!(db
-        .state()
-        .container(project.base_path(), &c2_graph_path)
+        .container()
+        .get(project.rid().clone(), &c2_graph_path)
         .unwrap()
         .is_none());
 
     let container_state = db
-        .state()
-        .container(project.base_path(), &c2_new_graph_path)
+        .container()
+        .get(project.rid().clone(), &c2_new_graph_path)
         .unwrap()
         .unwrap();
 
@@ -1434,8 +1438,8 @@ fn test_server_state_and_updates_graph() {
         syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
             .unwrap();
     let container_state = db
-        .state()
-        .container(project.base_path(), &c2_graph_path)
+        .container()
+        .get(project.rid().clone(), &c2_graph_path)
         .unwrap()
         .unwrap();
 
@@ -1475,8 +1479,8 @@ fn test_server_state_and_updates_graph() {
         syre_local_database::common::container_graph_path(project.data_root_path(), &c2_path)
             .unwrap();
     let container_state = db
-        .state()
-        .container(project.base_path(), &c2_graph_path)
+        .container()
+        .get(project.rid().clone(), &c2_graph_path)
         .unwrap()
         .unwrap();
 

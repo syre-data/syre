@@ -1,7 +1,6 @@
 //! Events for the desktop.
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use syre_core::system::User;
 use syre_local_database as db;
 use uuid::Uuid;

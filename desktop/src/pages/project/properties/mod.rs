@@ -1,17 +1,22 @@
 use super::state;
 use leptos::*;
 
+mod analyses;
 mod asset;
 mod common;
 mod container;
 mod container_bulk;
 
+use analyses::Editor as Analyses;
 use asset::Editor as Asset;
 use container::Editor as Container;
 use container_bulk::Editor as ContainerBulk;
 
 /// Debounce time in milliseconds for editor input.
 pub const INPUT_DEBOUNCE: f64 = 200.0;
+
+/// Id for the analyses properties bar.
+pub const ANALYSES_ID: &'static str = "analyses";
 
 #[component]
 pub fn PropertiesBar() -> impl IntoView {
@@ -24,7 +29,12 @@ pub fn PropertiesBar() -> impl IntoView {
         workspace_graph_state
             .selection()
             .with(|selection| match &selection[..] {
-                [] => view! { "Project properties" }.into_view(),
+                [] => view! {
+                    <div id=ANALYSES_ID class="h-full">
+                        <Analyses/>
+                    </div>
+                }
+                .into_view(),
                 [resource] => match resource.kind() {
                     ResourceKind::Container => {
                         let container = graph.find_by_id(resource.rid()).unwrap();

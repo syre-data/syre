@@ -7,6 +7,7 @@ target_file=syre-local-database-${target}
 target_out=${releases}/${target_file}
 
 cargo build --release -F server
+mkdir -p ${releases}
 # mv ${releases}/syre-local-database ${target_out}
 mv target/release/syre-local-database ${target_out}
 

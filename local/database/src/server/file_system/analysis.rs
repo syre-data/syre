@@ -1,7 +1,8 @@
 use crate::{event as update, server, state, Database, Update};
 use std::assert_matches::assert_matches;
+use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::TryReducible;
+use syre_local::{self as local, TryReducible};
 
 impl Database {
     pub(super) fn handle_fs_event_analysis_file(
@@ -80,12 +81,39 @@ impl Database {
 
             vec![]
         } else {
-            vec![Update::project_with_id(
-                properties.rid().clone(),
-                project.path().clone(),
-                update::AnalysisFile::Created(path.clone()).into(),
-                event.id().clone(),
-            )]
+            if self.config.handle_fs_resource_changes() {
+                let analysis_root = project
+                    .path()
+                    .join(properties.analysis_root.clone().unwrap());
+
+                let mut analyses =
+                    local::project::resources::Analyses::load_from(project.path()).unwrap();
+
+                let analysis_path = path.strip_prefix(&analysis_root).unwrap();
+                let Some(ext) = analysis_path.extension() else {
+                    return vec![];
+                };
+                let ext = ext.to_str().unwrap();
+
+                if core::project::ScriptLang::supported_extensions().contains(&ext) {
+                    let analysis = core::project::Script::from_path(analysis_path).unwrap();
+                    analyses.insert(analysis.rid().clone(), analysis.into());
+                    analyses.save().unwrap();
+
+                    vec![]
+                } else if core::project::ExcelTemplate::supported_extensions().contains(&ext) {
+                    todo!();
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![Update::project_with_id(
+                    properties.rid().clone(),
+                    project.path().clone(),
+                    update::AnalysisFile::Created(path.clone()).into(),
+                    event.id().clone(),
+                )]
+            }
         }
     }
 
@@ -133,6 +161,7 @@ impl Database {
 
             let project_path = project.path().clone();
             let project_id = properties.rid().clone();
+            let analysis_root = properties.analysis_root.clone();
             self.state
                 .try_reduce(server::state::Action::Project {
                     path: project_path.clone(),
@@ -142,12 +171,29 @@ impl Database {
                 })
                 .unwrap();
 
-            vec![Update::project_with_id(
-                project_id,
-                project_path,
-                update::AnalysisFile::Removed(path.clone()).into(),
-                event.id().clone(),
-            )]
+            if self.config.handle_fs_resource_changes() {
+                let analysis_root = project_path.join(analysis_root.unwrap());
+                let mut analyses =
+                    local::project::resources::Analyses::load_from(project_path).unwrap();
+
+                let analysis_path = path.strip_prefix(&analysis_root).unwrap();
+                analyses.retain(|_, analysis| match analysis {
+                    local::types::AnalysisKind::Script(script) => script.path != analysis_path,
+                    local::types::AnalysisKind::ExcelTemplate(template) => {
+                        template.template.path != analysis_path
+                    }
+                });
+                analyses.save().unwrap();
+
+                vec![]
+            } else {
+                vec![Update::project_with_id(
+                    project_id,
+                    project_path,
+                    update::AnalysisFile::Removed(path.clone()).into(),
+                    event.id().clone(),
+                )]
+            }
         } else {
             vec![]
         }

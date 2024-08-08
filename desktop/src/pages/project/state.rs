@@ -1,7 +1,7 @@
 pub use container::{AnalysisAssociation, Asset, State as Container};
 pub use graph::State as Graph;
 pub use metadata::Metadata;
-pub use project::State as Project;
+pub use project::{Analysis, State as Project};
 pub use workspace::State as Workspace;
 pub use workspace_graph::State as WorkspaceGraph;
 
@@ -139,11 +139,14 @@ pub mod project {
     use syre_local::types::{AnalysisKind, ProjectSettings};
     use syre_local_database as db;
 
+    pub type AnalysesState = db::state::DataResource<RwSignal<Vec<Analysis>>>;
+
     #[derive(Clone)]
     pub struct State {
         path: RwSignal<PathBuf>,
         rid: RwSignal<ResourceId>,
         properties: Properties,
+        analyses: RwSignal<AnalysesState>,
         settings: RwSignal<db::state::DataResource<Settings>>,
     }
 
@@ -155,10 +158,20 @@ pub mod project {
                 panic!("expected `properties` to be `Ok`");
             };
 
+            let analyses = data.analyses().map(|analyses| {
+                let analyses = analyses
+                    .iter()
+                    .map(|analysis| Analysis::from_state(analysis))
+                    .collect();
+
+                RwSignal::new(analyses)
+            });
+
             Self {
                 path: RwSignal::new(path.into()),
                 rid: RwSignal::new(properties.rid().clone()),
                 properties: Properties::new(properties.clone()),
+                analyses: RwSignal::new(analyses),
                 settings: RwSignal::new(
                     data.settings()
                         .map(|settings| Settings::new(settings.clone())),
@@ -176,6 +189,10 @@ pub mod project {
 
         pub fn properties(&self) -> &Properties {
             &self.properties
+        }
+
+        pub fn analyses(&self) -> RwSignal<AnalysesState> {
+            self.analyses.clone()
         }
     }
 
@@ -255,8 +272,29 @@ pub mod project {
 
     #[derive(Clone)]
     pub struct Analysis {
-        properties: AnalysisKind,
-        fs_resource: db::state::FileResource,
+        properties: RwSignal<AnalysisKind>,
+        fs_resource: RwSignal<db::state::FileResource>,
+    }
+
+    impl Analysis {
+        pub fn from_state(analysis: &db::state::Analysis) -> Self {
+            Self {
+                properties: RwSignal::new(analysis.properties().clone()),
+                fs_resource: RwSignal::new(analysis.fs_resource().clone()),
+            }
+        }
+
+        pub fn properties(&self) -> RwSignal<AnalysisKind> {
+            self.properties.clone()
+        }
+
+        pub fn fs_resource(&self) -> RwSignal<db::state::FileResource> {
+            self.fs_resource.clone()
+        }
+
+        pub fn is_present(&self) -> bool {
+            self.fs_resource.with(|resource| resource.is_present())
+        }
     }
 }
 

@@ -12,14 +12,9 @@ use leptos::{
     ev::{MouseEvent, WheelEvent},
     *,
 };
-use serde::Serialize;
-use std::{cmp, io, ops::Deref, path::PathBuf, rc::Rc, str::FromStr};
-use syre_core::types::ResourceId;
-use syre_desktop_lib as lib;
-use syre_local as local;
+use std::{cmp, ops::Deref, rc::Rc};
 use syre_local_database as db;
 use tauri_sys::menu;
-use wasm_bindgen::JsCast;
 
 const CONTAINER_WIDTH: usize = 100;
 const CONTAINER_HEIGHT: usize = 60;
@@ -32,18 +27,10 @@ const VB_WIDTH_MIN: usize = 500;
 const VB_WIDTH_MAX: usize = 10_000;
 const VB_HEIGHT_MIN: usize = 500;
 const VB_HEIGHT_MAX: usize = 10_000;
-const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
-const DATA_KEY_CONTAINER: &str = "container";
-const DATA_KEY_ASSET: &str = "asset";
+pub const DATA_KEY_CONTAINER: &str = "container";
+pub const DATA_KEY_ASSET: &str = "asset";
 
-#[derive(derive_more::Deref, derive_more::From, Clone)]
-struct DragOverContainer(Option<ResourceId>);
-impl DragOverContainer {
-    pub fn new() -> Self {
-        Self(None)
-    }
-}
-
+/// Context menu for containers that are `Ok`.
 #[derive(derive_more::Deref, Clone)]
 struct ContextMenuContainerOk(Rc<menu::Menu>);
 impl ContextMenuContainerOk {
@@ -52,6 +39,7 @@ impl ContextMenuContainerOk {
     }
 }
 
+/// Active continer for the container context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveContainer(state::graph::Node);
 impl ContextMenuActiveContainer {
@@ -60,6 +48,7 @@ impl ContextMenuActiveContainer {
     }
 }
 
+/// Node ref to the modal portal.
 #[derive(Clone)]
 pub struct PortalRef(NodeRef<html::Div>);
 impl Deref for PortalRef {
@@ -71,74 +60,13 @@ impl Deref for PortalRef {
 
 #[component]
 pub fn Canvas() -> impl IntoView {
-    use tauri_sys::window::DragDropEvent;
-
     let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
     let messages = expect_context::<types::Messages>();
 
-    let (drag_over_container, set_drag_over_container) = create_signal(DragOverContainer::new());
-    let drag_over_container =
-        leptos_use::signal_throttled(drag_over_container, THROTTLE_DRAG_EVENT);
-    provide_context(drag_over_container);
-
     let context_menu_active_container =
         create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
     provide_context(context_menu_active_container);
-
-    {
-        // TODO: only for linux.
-        // Create Windows and Mac equivalents
-        let project = project.clone();
-        let graph = graph.clone();
-        spawn_local(async move {
-            let window = tauri_sys::window::get_current();
-            let mut listener = window.on_drag_drop_event().await.unwrap();
-            while let Some(event) = listener.next().await {
-                match event.payload {
-                    DragDropEvent::Enter(payload) => {
-                        set_drag_over_container(
-                            container_from_point(payload.position().x(), payload.position().y())
-                                .into(),
-                        );
-                    }
-                    DragDropEvent::Over(payload) => {
-                        set_drag_over_container(
-                            container_from_point(payload.position().x(), payload.position().y())
-                                .into(),
-                        );
-                    }
-                    DragDropEvent::Drop(payload) => {
-                        let over = drag_over_container.get_untracked();
-                        let Some(container) = over.as_ref() else {
-                            continue;
-                        };
-                        set_drag_over_container(None.into());
-
-                        let data_root = project
-                            .path()
-                            .get_untracked()
-                            .join(project.properties().data_root().get_untracked());
-                        let container_node = graph.find_by_id(&container).unwrap();
-                        let container_path = graph.path(&container_node).unwrap();
-                        let container_path =
-                            common::container_system_path(data_root, container_path);
-                        for res in
-                            add_file_system_resources(container_path, payload.paths().clone()).await
-                        {
-                            if let Err(err) = res {
-                                tracing::error!(?err);
-                                todo!();
-                            }
-                        }
-                    }
-                    DragDropEvent::Leave => {
-                        set_drag_over_container(None.into());
-                    }
-                }
-            }
-        });
-    }
 
     let context_menu_container_ok = create_local_resource(|| (), {
         move |_| {
@@ -636,6 +564,8 @@ fn Container(container: state::graph::Node) -> impl IntoView {
 
 #[component]
 fn ContainerOk(container: state::graph::Node) -> impl IntoView {
+    use super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
+
     assert!(container
         .properties()
         .with_untracked(|properties| properties.is_ok()));
@@ -644,7 +574,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
     let context_menu_active_container =
         expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
-    let drag_over_container = expect_context::<Signal<DragOverContainer>>();
+    let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let node_ref = create_node_ref();
 
     let title = {
@@ -725,12 +655,14 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
     let highlight = {
         let container = container.clone();
         move || {
-            let drag_over = drag_over_container.with(|over_id| {
+            let drag_over = drag_over_workspace_resource.with(|resource| {
+                let Some(WorkspaceResource::Container(over_id)) = resource.as_ref() else {
+                    return false;
+                };
+
                 container.properties().with(|properties| {
                     if let db::state::DataResource::Ok(properties) = properties {
-                        if let Some(over_id) = over_id.as_ref() {
-                            return properties.rid().with(|rid| over_id == rid);
-                        }
+                        return properties.rid().with(|rid| over_id == rid);
                     }
 
                     false
@@ -1009,52 +941,4 @@ where
     } else {
         value
     }
-}
-
-fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
-    document()
-        .elements_from_point(x as f32, y as f32)
-        .iter()
-        .find_map(|elm| {
-            let elm = elm.dyn_ref::<web_sys::Element>().unwrap();
-            if let Some(kind) = elm.get_attribute("data-resource") {
-                if kind == DATA_KEY_CONTAINER {
-                    if let Some(rid) = elm.get_attribute("data-rid") {
-                        let rid = ResourceId::from_str(&rid).unwrap();
-                        return Some(rid);
-                    }
-                }
-
-                None
-            } else {
-                None
-            }
-        })
-}
-
-async fn add_file_system_resources(
-    parent: PathBuf,
-    paths: Vec<PathBuf>,
-) -> Vec<Result<(), io::ErrorKind>> {
-    #[derive(Serialize)]
-    struct AddFsResourcesArgs {
-        resources: Vec<lib::types::AddFsResourceData>,
-    }
-    let resources = paths
-        .into_iter()
-        .map(|path| lib::types::AddFsResourceData {
-            path,
-            parent: parent.clone(),
-            action: local::types::FsResourceAction::Copy, // TODO: Get from user preferences.
-        })
-        .collect();
-
-    tauri_sys::core::invoke::<Vec<Result<(), lib::command::error::IoErrorKind>>>(
-        "add_file_system_resources",
-        AddFsResourcesArgs { resources },
-    )
-    .await
-    .into_iter()
-    .map(|res| res.map_err(|err| err.0))
-    .collect()
 }

@@ -75,6 +75,7 @@ impl Database {
             .unwrap();
 
             if self.config.handle_fs_resource_changes() {
+                // TODO: Set creator for all handled resources.
                 let mut assets =
                     local::project::resources::Assets::load_from(&container_path).unwrap();
                 let asset_path = path.strip_prefix(&container_graph_path).unwrap();

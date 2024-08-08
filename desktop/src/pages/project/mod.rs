@@ -1,4 +1,4 @@
-mod canvas;
+pub(self) mod canvas;
 pub(self) mod common;
 mod layers;
 mod project_bar;

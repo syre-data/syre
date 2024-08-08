@@ -225,6 +225,24 @@ impl FsWatcher {
                 let maybe_folder_kind = resources::dir_kind(path);
 
                 let event = match (maybe_file_kind, maybe_folder_kind) {
+                    (
+                        Ok(Some(resources::ResourceEvent::Analysis {
+                            project: project_file,
+                        })),
+                        Ok(resources::DirKind::None {
+                            project: project_dir,
+                        }),
+                    ) => {
+                        assert_eq!(project_file, project_dir);
+
+                        Event::with_time(
+                            app::EventKind::AnalysisFile(app::ResourceEvent::Removed),
+                            event.time,
+                            event.id().clone(),
+                        )
+                        .add_path(path.clone())
+                    }
+
                     (Ok(_), Ok(_)) => Event::with_time(
                         app::GraphResource::Removed.into(),
                         event.time,

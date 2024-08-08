@@ -16,7 +16,7 @@ categories = ["gui", "science"]
 tauri-build = { version = "2.0.0-rc", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-rc", features = ["unstable"] }
+tauri = { version = "2.0.0-rc", features = [] }
 tauri-plugin-shell = "2.0.0-rc"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -24,7 +24,7 @@ syre-core = { workspace = true, features = ["serde"] }
 syre-local = { workspace = true, features = ["fs"] }
 syre-local-database = { workspace = true, features = ["client"] }
 syre-desktop-lib = { path = "../src-lib" }
-tauri-plugin-dialog = "2.0.0-beta"
+tauri-plugin-dialog = "2.0.0-rc"
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["json", "time"] }
 tracing-appender.workspace = true

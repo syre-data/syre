@@ -1,12 +1,30 @@
-use super::{state, Canvas, LayersNav, ProjectBar, PropertiesBar};
+use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
+use crate::common;
 use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::use_params_map;
 use serde::Serialize;
-use std::{assert_matches::assert_matches, path::PathBuf, str::FromStr};
+use std::{assert_matches::assert_matches, io, path::PathBuf, str::FromStr};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
+use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
+use tauri_sys::window::DragDropPayload;
+use wasm_bindgen::JsCast;
+
+const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
+
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+pub struct DragOverWorkspaceResource(Option<WorkspaceResource>);
+impl DragOverWorkspaceResource {
+    pub fn new() -> Self {
+        Self(None)
+    }
+
+    pub fn into_inner(self) -> Option<WorkspaceResource> {
+        self.0
+    }
+}
 
 #[component]
 pub fn Workspace() -> impl IntoView {
@@ -50,8 +68,49 @@ fn WorkspaceView(
 ) -> impl IntoView {
     assert!(project_data.properties().is_ok());
 
+    let project = state::Project::new(project_path, project_data);
     provide_context(state::Workspace::new());
-    provide_context(state::Project::new(project_path, project_data));
+    provide_context(project.clone());
+    provide_context(DragOverWorkspaceResource::new());
+
+    spawn_local({
+        let project = project.clone();
+        async move {
+            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(
+                &project
+                    .rid()
+                    .with_untracked(|rid| lib::event::topic::graph(rid)),
+            )
+            .await
+            .unwrap();
+
+            while let Some(events) = listener.next().await {
+                tracing::debug!(?events);
+                for event in events.payload {
+                    let lib::EventKind::Project(update) = event.kind() else {
+                        panic!("invalid event kind");
+                    };
+
+                    match update {
+                        db::event::Project::Removed
+                        | db::event::Project::Moved(_)
+                        | db::event::Project::Properties(_)
+                        | db::event::Project::Settings(_)
+                        | db::event::Project::Analyses(_)
+                        | db::event::Project::AnalysisFile(_) => {
+                            handle_event_project(event, project.clone())
+                        }
+
+                        db::event::Project::Graph(_)
+                        | db::event::Project::Container { .. }
+                        | db::event::Project::Asset { .. }
+                        | db::event::Project::AssetFile(_)
+                        | db::event::Project::Flag { .. } => continue, // handled elsewhere
+                    }
+                }
+            }
+        }
+    });
 
     view! {
         <div class="select-none">
@@ -79,29 +138,95 @@ fn NoGraph() -> impl IntoView {
 
 #[component]
 fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
+    let project = expect_context::<state::Project>();
     let graph = state::Graph::new(graph);
     provide_context(graph.clone());
     provide_context(state::WorkspaceGraph::new());
-    let project = expect_context::<state::Project>();
 
-    spawn_local(async move {
-        let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(
-            &project
-                .rid()
-                .with_untracked(|rid| lib::event::topic::graph(rid)),
-        )
-        .await
-        .unwrap();
+    let (drag_over_workspace_resource, set_drag_over_workspace_resource) =
+        create_signal(DragOverWorkspaceResource::new());
+    let drag_over_workspace_resource =
+        leptos_use::signal_throttled(drag_over_workspace_resource, THROTTLE_DRAG_EVENT);
+    provide_context(drag_over_workspace_resource);
 
-        while let Some(events) = listener.next().await {
-            tracing::debug!(?events);
-            for event in events.payload {
-                tracing::trace!(?event);
-                assert_matches!(event.kind(), lib::EventKind::Project(_));
-                handle_event_graph(event, graph.clone());
+    spawn_local({
+        let project = project.clone();
+        let graph = graph.clone();
+        async move {
+            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(
+                &project
+                    .rid()
+                    .with_untracked(|rid| lib::event::topic::graph(rid)),
+            )
+            .await
+            .unwrap();
+
+            while let Some(events) = listener.next().await {
+                for event in events.payload {
+                    let lib::EventKind::Project(update) = event.kind() else {
+                        panic!("invalid event kind");
+                    };
+
+                    match update {
+                        db::event::Project::Removed
+                        | db::event::Project::Moved(_)
+                        | db::event::Project::Properties(_)
+                        | db::event::Project::Settings(_)
+                        | db::event::Project::Analyses(_)
+                        | db::event::Project::AnalysisFile(_) => continue, // handled elsewhere
+
+                        db::event::Project::Graph(_)
+                        | db::event::Project::Container { .. }
+                        | db::event::Project::Asset { .. }
+                        | db::event::Project::AssetFile(_)
+                        | db::event::Project::Flag { .. } => {
+                            handle_event_graph(event, graph.clone())
+                        }
+                    }
+                }
             }
         }
     });
+
+    {
+        // TODO: Only tested on Linux.
+        // Need to test on Windows and Mac.
+        let project = project.clone();
+        let graph = graph.clone();
+        spawn_local(async move {
+            use tauri_sys::window::DragDropEvent;
+
+            let window = tauri_sys::window::get_current();
+            let mut listener = window.on_drag_drop_event().await.unwrap();
+            while let Some(event) = listener.next().await {
+                match event.payload {
+                    DragDropEvent::Enter(payload) => {
+                        set_drag_over_workspace_resource(
+                            resource_from_point(payload.position().x(), payload.position().y())
+                                .into(),
+                        );
+                    }
+                    DragDropEvent::Over(payload) => {
+                        set_drag_over_workspace_resource(
+                            resource_from_point(payload.position().x(), payload.position().y())
+                                .into(),
+                        );
+                    }
+                    DragDropEvent::Drop(payload) => {
+                        if let Some(resource) =
+                            drag_over_workspace_resource.get_untracked().into_inner()
+                        {
+                            set_drag_over_workspace_resource(None.into());
+                            handle_drop_event(resource, payload, &project, &graph).await;
+                        }
+                    }
+                    DragDropEvent::Leave => {
+                        set_drag_over_workspace_resource(None.into());
+                    }
+                }
+            }
+        });
+    }
 
     view! {
         <div class="flex">
@@ -119,6 +244,129 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     }
 }
 
+#[derive(Clone)]
+pub enum WorkspaceResource {
+    /// Analyses properties bar.
+    Analyses,
+
+    /// Container canvas ui.
+    Container(ResourceId),
+
+    /// Asset canvas ui.
+    Asset(ResourceId),
+}
+
+fn resource_from_point(x: isize, y: isize) -> Option<WorkspaceResource> {
+    if analyses_from_point(x, y) {
+        Some(WorkspaceResource::Analyses)
+    } else if let Some(id) = container_from_point(x, y) {
+        Some(WorkspaceResource::Container(id))
+    } else {
+        None
+    }
+}
+
+/// Is the point within the analyses properties bar.
+fn analyses_from_point(x: isize, y: isize) -> bool {
+    document()
+        .elements_from_point(x as f32, y as f32)
+        .iter()
+        .find(|elm| {
+            let elm = elm.dyn_ref::<web_sys::Element>().unwrap();
+            elm.id() == properties::ANALYSES_ID
+        })
+        .is_some()
+}
+
+/// Container the point is over.
+fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
+    document()
+        .elements_from_point(x as f32, y as f32)
+        .iter()
+        .find_map(|elm| {
+            let elm = elm.dyn_ref::<web_sys::Element>().unwrap();
+            if let Some(kind) = elm.get_attribute("data-resource") {
+                if kind == canvas::DATA_KEY_CONTAINER {
+                    if let Some(rid) = elm.get_attribute("data-rid") {
+                        let rid = ResourceId::from_str(&rid).unwrap();
+                        return Some(rid);
+                    }
+                }
+
+                None
+            } else {
+                None
+            }
+        })
+}
+
+async fn handle_drop_event(
+    resource: WorkspaceResource,
+    payload: DragDropPayload,
+    project: &state::Project,
+    graph: &state::Graph,
+) {
+    match resource {
+        WorkspaceResource::Analyses => handle_drop_event_analyses(payload, project).await,
+        WorkspaceResource::Container(container) => {
+            handle_drop_event_container(container, payload, project, graph).await
+        }
+        WorkspaceResource::Asset(_) => todo!(),
+    }
+}
+
+async fn handle_drop_event_container(
+    container: ResourceId,
+    payload: DragDropPayload,
+    project: &state::Project,
+    graph: &state::Graph,
+) {
+    let data_root = project
+        .path()
+        .get_untracked()
+        .join(project.properties().data_root().get_untracked());
+    let container_node = graph.find_by_id(&container).unwrap();
+    let container_path = graph.path(&container_node).unwrap();
+    let container_path = common::container_system_path(data_root, container_path);
+    for res in add_file_system_resources(container_path, payload.paths().clone()).await {
+        if let Err(err) = res {
+            tracing::error!(?err);
+            todo!();
+        }
+    }
+}
+
+async fn handle_drop_event_analyses(payload: DragDropPayload, project: &state::Project) {
+    todo!()
+}
+
+async fn add_file_system_resources(
+    parent: PathBuf,
+    paths: Vec<PathBuf>,
+) -> Vec<Result<(), io::ErrorKind>> {
+    #[derive(Serialize)]
+    struct AddFsResourcesArgs {
+        resources: Vec<lib::types::AddFsResourceData>,
+    }
+    let resources = paths
+        .into_iter()
+        .map(|path| lib::types::AddFsResourceData {
+            path,
+            parent: parent.clone(),
+            action: local::types::FsResourceAction::Copy, // TODO: Get from user preferences.
+        })
+        .collect();
+
+    tauri_sys::core::invoke::<Vec<Result<(), lib::command::error::IoErrorKind>>>(
+        "add_file_system_resources",
+        AddFsResourcesArgs { resources },
+    )
+    .await
+    .into_iter()
+    .map(|res| res.map_err(|err| err.0))
+    .collect()
+}
+
 /// # Returns
 /// Project's path, data, and graph.
 async fn fetch_project_resources(
@@ -128,13 +376,18 @@ async fn fetch_project_resources(
     db::state::ProjectData,
     db::state::FolderResource<db::state::Graph>,
 )> {
+    #[derive(Serialize)]
+    struct Args {
+        project: ResourceId,
+    }
+
     let resources = tauri_sys::core::invoke::<
         Option<(
             PathBuf,
             db::state::ProjectData,
             db::state::FolderResource<db::state::Graph>,
         )>,
-    >("project_resources", ProjectArgs { project })
+    >("project_resources", Args { project })
     .await;
 
     assert!(if let Some((_, data, _)) = resources.as_ref() {
@@ -146,9 +399,126 @@ async fn fetch_project_resources(
     resources
 }
 
-#[derive(Serialize)]
-struct ProjectArgs {
-    project: ResourceId,
+fn handle_event_project(event: lib::Event, project: state::Project) {
+    let lib::EventKind::Project(update) = event.kind() else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::Project::Graph(_)
+        | db::event::Project::Container { .. }
+        | db::event::Project::Asset { .. }
+        | db::event::Project::AssetFile(_)
+        | db::event::Project::Flag { .. } => unreachable!("handled elsewhere"),
+
+        db::event::Project::Removed => todo!(),
+        db::event::Project::Moved(_) => todo!(),
+        db::event::Project::Properties(_) => todo!(),
+        db::event::Project::Settings(_) => todo!(),
+        db::event::Project::Analyses(_) => handle_event_project_analyses(event, project),
+        db::event::Project::AnalysisFile(_) => todo!(),
+    }
+}
+
+fn handle_event_project_analyses(event: lib::Event, project: state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(update)) = event.kind() else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::DataResource::Created(_) => todo!(),
+        db::event::DataResource::Removed => todo!(),
+        db::event::DataResource::Corrupted(_) => todo!(),
+        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Modified(_) => {
+            handle_event_project_analyses_modified(event, project)
+        }
+    }
+}
+
+fn handle_event_project_analyses_modified(event: lib::Event, project: state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Modified(
+        update,
+    ))) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    let analyses = project.analyses().with_untracked(|analyses| {
+        let db::state::DataResource::Ok(analyses) = analyses else {
+            panic!("invalid state");
+        };
+
+        analyses.clone()
+    });
+
+    analyses.update(|analyses| {
+        analyses.retain(|analysis| {
+            if let Some(update_analysis) = update.iter().find(|update_analysis| {
+                analysis.properties().with_untracked(|properties| {
+                    match (properties, update_analysis.properties()) {
+                        (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
+                            properties.rid() == update.rid()
+                        }
+
+                        (
+                            AnalysisKind::ExcelTemplate(properties),
+                            AnalysisKind::ExcelTemplate(update),
+                        ) => properties.rid() == update.rid(),
+
+                        _ => false,
+                    }
+                })
+            }) {
+                analysis.properties().update(|properties| {
+                    match (properties, update_analysis.properties()) {
+                        (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
+                            *properties = update.clone();
+                        }
+
+                        (
+                            AnalysisKind::ExcelTemplate(properties),
+                            AnalysisKind::ExcelTemplate(update),
+                        ) => {
+                            *properties = update.clone();
+                        }
+
+                        _ => panic!("analysis kinds do not match"),
+                    }
+                });
+
+                analysis
+                    .fs_resource()
+                    .update(|present| *present = update_analysis.fs_resource().clone());
+
+                true
+            } else {
+                false
+            }
+        });
+
+        for update_analysis in update.iter() {
+            let update_properties = update_analysis.properties();
+            if !analyses.iter().any(|analysis| {
+                analysis.properties().with_untracked(|properties| {
+                    match (properties, update_properties) {
+                        (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
+                            properties.rid() == update.rid()
+                        }
+
+                        (
+                            AnalysisKind::ExcelTemplate(properties),
+                            AnalysisKind::ExcelTemplate(update),
+                        ) => properties.rid() == update.rid(),
+
+                        _ => false,
+                    }
+                })
+            }) {
+                analyses.push(state::Analysis::from_state(update_analysis));
+            }
+        }
+    });
 }
 
 fn handle_event_graph(event: lib::Event, graph: state::Graph) {
@@ -161,7 +531,9 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
         | db::event::Project::Moved(_)
         | db::event::Project::Properties(_)
         | db::event::Project::Settings(_)
-        | db::event::Project::Analyses(_) => unreachable!("handled elsewhere"),
+        | db::event::Project::Analyses(_)
+        | db::event::Project::AnalysisFile(_) => unreachable!("handled elsewhere"),
+
         db::event::Project::Graph(_) => handle_event_graph_graph(event, graph),
         db::event::Project::Container { path, update } => {
             handle_event_graph_container(event, graph)
@@ -172,7 +544,6 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
             update,
         } => todo!(),
         db::event::Project::AssetFile(_) => handle_event_graph_asset(event, graph),
-        db::event::Project::AnalysisFile(_) => todo!(),
         db::event::Project::Flag { resource, message } => todo!(),
     }
 }
@@ -490,6 +861,15 @@ fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
             }
         }
     });
+}
+
+/// Workspace resource that is currently dragged over.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct DragOverCanvasResource(Option<WorkspaceResource>);
+impl DragOverCanvasResource {
+    pub fn new() -> Self {
+        Self(None)
+    }
 }
 
 fn handle_event_graph_container_assets_corrupted(event: lib::Event, graph: state::Graph) {

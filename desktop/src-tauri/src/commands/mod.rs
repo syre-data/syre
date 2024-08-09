@@ -1,3 +1,4 @@
+pub mod analyses;
 pub mod auth;
 pub mod common;
 pub mod container;

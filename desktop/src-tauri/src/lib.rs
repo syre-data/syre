@@ -1,3 +1,5 @@
+#![feature(io_error_more)]
+
 pub mod commands;
 pub(crate) mod db;
 mod setup;

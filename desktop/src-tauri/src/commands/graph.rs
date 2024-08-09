@@ -36,7 +36,7 @@ pub fn create_child_container(
 /// `Vec` of `Result`s corresponding to each resource.
 #[tauri::command]
 pub fn add_file_system_resources(
-    resources: Vec<lib::types::AddFsResourceData>,
+    resources: Vec<lib::types::AddFsGraphResourceData>,
 ) -> Vec<Result<(), lib::command::error::IoErrorKind>> {
     use syre_local::types::FsResourceAction;
 

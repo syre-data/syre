@@ -307,7 +307,9 @@ async fn handle_drop_event(
     graph: &state::Graph,
 ) {
     match resource {
-        WorkspaceResource::Analyses => handle_drop_event_analyses(payload, project).await,
+        WorkspaceResource::Analyses => {
+            handle_drop_event_analyses(payload, project.rid().get_untracked()).await
+        }
         WorkspaceResource::Container(container) => {
             handle_drop_event_container(container, payload, project, graph).await
         }
@@ -315,6 +317,7 @@ async fn handle_drop_event(
     }
 }
 
+/// Handle drop event on a container.
 async fn handle_drop_event_container(
     container: ResourceId,
     payload: DragDropPayload,
@@ -325,10 +328,11 @@ async fn handle_drop_event_container(
         .path()
         .get_untracked()
         .join(project.properties().data_root().get_untracked());
+
     let container_node = graph.find_by_id(&container).unwrap();
     let container_path = graph.path(&container_node).unwrap();
     let container_path = common::container_system_path(data_root, container_path);
-    for res in add_file_system_resources(container_path, payload.paths().clone()).await {
+    for res in add_fs_resources_to_graph(container_path, payload.paths().clone()).await {
         if let Err(err) = res {
             tracing::error!(?err);
             todo!();
@@ -336,21 +340,19 @@ async fn handle_drop_event_container(
     }
 }
 
-async fn handle_drop_event_analyses(payload: DragDropPayload, project: &state::Project) {
-    todo!()
-}
-
-async fn add_file_system_resources(
+/// Adds file system resources (file or folder) to the project's data graph.
+async fn add_fs_resources_to_graph(
     parent: PathBuf,
     paths: Vec<PathBuf>,
 ) -> Vec<Result<(), io::ErrorKind>> {
     #[derive(Serialize)]
-    struct AddFsResourcesArgs {
-        resources: Vec<lib::types::AddFsResourceData>,
+    struct Args {
+        resources: Vec<lib::types::AddFsGraphResourceData>,
     }
+
     let resources = paths
         .into_iter()
-        .map(|path| lib::types::AddFsResourceData {
+        .map(|path| lib::types::AddFsGraphResourceData {
             path,
             parent: parent.clone(),
             action: local::types::FsResourceAction::Copy, // TODO: Get from user preferences.
@@ -359,12 +361,44 @@ async fn add_file_system_resources(
 
     tauri_sys::core::invoke::<Vec<Result<(), lib::command::error::IoErrorKind>>>(
         "add_file_system_resources",
-        AddFsResourcesArgs { resources },
+        Args { resources },
     )
     .await
     .into_iter()
     .map(|res| res.map_err(|err| err.0))
     .collect()
+}
+
+/// Handle a drop event on the project analyses bar.
+async fn handle_drop_event_analyses(payload: DragDropPayload, project: ResourceId) {
+    for res in add_fs_resources_to_analyses(payload.paths().clone(), project).await {
+        if let Err(err) = res {
+            tracing::error!(?err);
+            todo!();
+        }
+    }
+}
+
+async fn add_fs_resources_to_analyses(
+    paths: Vec<PathBuf>,
+    project: ResourceId,
+) -> Vec<Result<(), local::error::IoSerde>> {
+    #[derive(Serialize)]
+    struct Args {
+        project: ResourceId,
+        resources: Vec<lib::types::AddFsAnalysisResourceData>,
+    }
+
+    let resources = paths
+        .into_iter()
+        .map(|path| lib::types::AddFsAnalysisResourceData {
+            path: path.clone(),
+            parent: PathBuf::from("/"),
+            action: local::types::FsResourceAction::Copy,
+        })
+        .collect();
+
+    tauri_sys::core::invoke("add_scripts", Args { project, resources }).await
 }
 
 /// # Returns

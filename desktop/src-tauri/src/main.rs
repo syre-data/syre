@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use syre_desktop::{
-    commands::{auth, common, container, fs, graph, project, user},
+    commands::{analyses, auth, common, container, fs, graph, project, user},
     setup,
 };
 
@@ -27,6 +27,7 @@ fn main() {
             user::user_projects,
             project::create_project,
             project::project_resources,
+            analyses::add_scripts,
             graph::create_child_container,
             graph::add_file_system_resources,
             container::container_rename,

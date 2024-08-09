@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use syre_desktop_lib as lib;
 
+pub const APPLICATION_JSON: &'static str = "application/json";
+
 /// Creates the absolute path from the file system root to the container.
 ///
 /// # Arguments

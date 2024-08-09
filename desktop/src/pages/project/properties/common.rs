@@ -637,9 +637,126 @@ pub mod metadata {
     }
 }
 
+pub mod analysis_associations {
+    use super::super::state;
+    use leptos::*;
+    use std::str::FromStr;
+    use syre_core::{self as core, types::ResourceId};
+
+    /// Indicates the kind of the analysis.
+    /// Represents a stripped version of [`syre_local::types::analysis::AnalysisKind`].
+    #[derive(Clone, Debug)]
+    pub enum AnalysisKind {
+        Script,
+        ExcelTemplate,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct AnalysisInfo {
+        rid: ResourceId,
+        title: String,
+        kind: AnalysisKind,
+    }
+
+    impl AnalysisInfo {
+        pub fn script(rid: ResourceId, title: impl Into<String>) -> Self {
+            Self {
+                rid,
+                title: title.into(),
+                kind: AnalysisKind::Script,
+            }
+        }
+
+        pub fn excel_template(rid: ResourceId, title: impl Into<String>) -> Self {
+            Self {
+                rid,
+                title: title.into(),
+                kind: AnalysisKind::ExcelTemplate,
+            }
+        }
+    }
+
+    #[component]
+    pub fn AddAssociation(
+        #[prop(into)] available_analyses: Signal<Vec<AnalysisInfo>>,
+        #[prop(into)] onadd: Callback<core::project::AnalysisAssociation>,
+        #[prop(into)] oncancel: Callback<()>,
+    ) -> impl IntoView {
+        let analysis_node = create_node_ref::<html::Select>();
+        let priority_node = create_node_ref::<html::Input>();
+        let autorun_node = create_node_ref::<html::Input>();
+
+        let add = move |_| {
+            let analysis = analysis_node.get().unwrap();
+            let analysis = ResourceId::from_str(&analysis.value()).unwrap();
+
+            let priority = priority_node.get().unwrap();
+            let priority =
+                priority.value_as_number() as core::project::analysis_association::Priority;
+
+            let autorun = autorun_node.get().unwrap();
+            let autorun = autorun.checked();
+
+            let association =
+                core::project::AnalysisAssociation::with_params(analysis, autorun, priority);
+
+            onadd(association);
+        };
+
+        let cancel = move |_| {
+            oncancel(());
+        };
+
+        view! {
+            <div>
+                <div>
+                    <select ref=analysis_node>
+                        <Show
+                            when=move || available_analyses.with(|analyses| !analyses.is_empty())
+                            fallback=move || {
+                                view! {
+                                    <option value="" disabled=true>
+                                        "(no analyses available)"
+                                    </option>
+                                }
+                            }
+                        >
+
+                            <For
+                                each=available_analyses
+                                key=|analysis| analysis.rid.clone()
+                                let:analysis
+                            >
+                                <option value=analysis.rid.to_string()>{analysis.title}</option>
+                            </For>
+                        </Show>
+                    </select>
+                    <input ref=priority_node type="number" name="priority"/>
+                    <input ref=autorun_node type="checkbox" name="autorun"/>
+                </div>
+                <div>
+                    <button type="button" on:mousedown=add>
+                        "+"
+                    </button>
+                    <button type="button" on:mousedown=cancel>
+                        "Cancel"
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    #[component]
+    pub fn Editor(
+        #[prop(into)] associations: Signal<Vec<state::AnalysisAssociation>>,
+    ) -> impl IntoView {
+        view! { <div>"Ananlysis Associaiton"</div> }
+    }
+}
+
 pub mod bulk {
     //! Types for bulk editing.
-    pub use metadata::{Metadata, Metadatum};
+    pub use metadata::Metadata;
 
     #[derive(Clone, PartialEq, Debug)]
     pub enum Value<T> {

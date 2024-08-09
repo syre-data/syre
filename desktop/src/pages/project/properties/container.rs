@@ -1,6 +1,8 @@
-use super::INPUT_DEBOUNCE;
+use super::{common, INPUT_DEBOUNCE};
 use crate::pages::project::state;
+use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
+use has_id::HasId;
 use kind::Editor as Kind;
 use leptos::*;
 use metadata::{AddDatum, Editor as Metadata};
@@ -9,13 +11,72 @@ use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
+use syre_local as local;
 use syre_local_database as db;
 use tags::Editor as Tags;
 
 #[component]
 pub fn Editor(container: state::Container) -> impl IntoView {
+    let project = expect_context::<state::Project>();
+
     let db::state::DataResource::Ok(properties) = container.properties().get_untracked() else {
         panic!("invalid state");
+    };
+
+    let db::state::DataResource::Ok(analysis_associations) = container.analyses().get_untracked()
+    else {
+        panic!("invalid state");
+    };
+
+    let available_analyses = move || {
+        let db::state::DataResource::Ok(analyses) = project.analyses().get() else {
+            return vec![];
+        };
+
+        analyses.with(|analyses| {
+            analyses
+                .iter()
+                .filter_map(move |analysis| {
+                    if analysis_associations.with(|associations| {
+                        !associations.iter().any(|association| {
+                            analysis
+                                .properties()
+                                .with(|properties| association.analysis() == properties.id())
+                        })
+                    }) {
+                        analysis.properties().with(|properties| match properties {
+                            local::types::AnalysisKind::Script(script) => {
+                                let title = if let Some(name) = script.name.as_ref() {
+                                    name.clone()
+                                } else {
+                                    script.path.to_string_lossy().to_string()
+                                };
+
+                                Some(common::analysis_associations::AnalysisInfo::script(
+                                    script.rid().clone(),
+                                    title,
+                                ))
+                            }
+
+                            local::types::AnalysisKind::ExcelTemplate(template) => {
+                                let title = if let Some(name) = template.name.as_ref() {
+                                    name.clone()
+                                } else {
+                                    template.template.path.to_string_lossy().to_string()
+                                };
+
+                                Some(common::analysis_associations::AnalysisInfo::excel_template(
+                                    template.rid().clone(),
+                                    title,
+                                ))
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
     };
 
     view! {
@@ -64,13 +125,22 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                     <label>
                         "Metadata"
                         <AddDatum
-                            container=properties.rid().read_only()
                             metadata=properties.metadata().read_only()
+                            container=properties.rid().read_only()
                         />
                         <Metadata
                             value=properties.metadata().read_only()
                             container=properties.rid().read_only()
                         />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        "Analyses"
+                        <AddAssociation
+                            available_analyses=Signal::derive(available_analyses)
+                            container=properties.rid().read_only()
+                        /> <AnalysisAssociations associations=analysis_associations.read_only()/>
                     </label>
                 </div>
             </form>
@@ -540,6 +610,103 @@ mod metadata {
             <div>
                 <span>{key}</span>
                 <ValueEditor value=input_value set_value=set_input_value/>
+            </div>
+        }
+    }
+}
+
+mod analysis_associations {
+    use super::super::{
+        common::analysis_associations::{
+            AddAssociation as AddAssociationEditor, AnalysisInfo, Editor as AssociationsEditor,
+        },
+        state,
+    };
+    use crate::{components::message::Builder as Message, types::Messages};
+    use leptos::*;
+    use serde::Serialize;
+    use std::path::PathBuf;
+    use syre_core::{project::AnalysisAssociation, types::ResourceId};
+    use syre_desktop_lib as lib;
+    use syre_local_database as db;
+
+    #[component]
+    pub fn AddAssociation(
+        available_analyses: Signal<Vec<AnalysisInfo>>,
+        container: ReadSignal<ResourceId>,
+    ) -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+
+        let onadd = move |association| {
+            #[derive(Serialize)]
+            struct Args {
+                project: ResourceId,
+                container: PathBuf,
+                associations: Vec<AnalysisAssociation>,
+            }
+
+            let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+            let mut associations = node.analyses().with_untracked(|associations| {
+                let db::state::DataResource::Ok(associations) = associations else {
+                    panic!("invalid state");
+                };
+
+                associations.with_untracked(|associations| {
+                    associations
+                        .iter()
+                        .map(|association| association.as_association())
+                        .collect::<Vec<_>>()
+                })
+            });
+            associations.push(association);
+
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let container_path = graph.path(&node).unwrap();
+
+                async move {
+                    if let Err(err) = tauri_sys::core::invoke_result::<
+                        (),
+                        lib::command::container::error::Update,
+                    >(
+                        "container_analysis_associations_update",
+                        Args {
+                            project,
+                            container: container_path,
+                            associations,
+                        },
+                    )
+                    .await
+                    {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not save container");
+                        msg.body(format!("{err:?}"));
+                        // messages.update(|messages| messages.push(msg.build()));
+                    };
+                }
+            });
+        };
+
+        let oncancel = move |_| {
+            tracing::debug!("cancel");
+        };
+
+        view! {
+            <div>
+                <AddAssociationEditor available_analyses onadd oncancel/>
+            </div>
+        }
+    }
+
+    #[component]
+    pub fn Editor(
+        #[prop(into)] associations: Signal<Vec<state::AnalysisAssociation>>,
+    ) -> impl IntoView {
+        view! {
+            <div>
+                <AssociationsEditor associations/>
             </div>
         }
     }

@@ -23,6 +23,7 @@ console_error_panic_hook = "0.1.7"
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["time"] }
 tracing-web = "0.1.3"
+has_id.workspace = true
 syre-core = { workspace = true, features = ["serde"] }
 syre-local = { workspace = true }
 syre-local-database.workspace = true
@@ -36,7 +37,7 @@ leptos_router = { version = "0.6", features = ["nightly", "csr"] }
 leptos_meta = { version = "0.6", features = ["nightly", "csr"] }
 chrono = { workspace = true, features = ["serde"] }
 leptos_icons = "0.3.1"
-icondata = "0.3.1"
+icondata = "0.4.0"
 leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", rev = "85376f8" }
 derive_more.workspace = true
 
@@ -47,4 +48,5 @@ features = [
 	"HtmlDialogElement",
 	"HtmlDivElement",
 	"HtmlInputElement",
+	"HtmlSelectElement",
 ]

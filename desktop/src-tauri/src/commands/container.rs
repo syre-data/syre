@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use syre_core::{
-    project::{AssetProperties, ContainerProperties},
+    project::{AnalysisAssociation, AssetProperties, ContainerProperties},
     types::ResourceId,
 };
 use syre_desktop_lib::{
@@ -78,6 +78,35 @@ pub fn container_properties_update(
     let path = db::common::container_system_path(data_root, container);
     let mut container = local::loader::container::Loader::load_from_only_properties(&path).unwrap();
     container.properties = properties;
+    if let Err(err) = container.save(&path) {
+        return Err(error::Update::Save(err.kind()));
+    }
+
+    Ok(())
+}
+
+/// Update a container's analysis associations.
+#[tauri::command]
+pub fn container_analysis_associations_update(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    container: PathBuf,
+    associations: Vec<AnalysisAssociation>,
+) -> Result<(), error::Update> {
+    let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
+    else {
+        return Err(error::Update::ProjectNotFound);
+    };
+
+    let db::state::DataResource::Ok(project_properties) = project_data.properties() else {
+        panic!("invalid state");
+    };
+    assert_eq!(project_properties.rid(), &project);
+
+    let data_root = project_path.join(&project_properties.data_root);
+    let path = db::common::container_system_path(data_root, container);
+    let mut container = local::loader::container::Loader::load_from_only_properties(&path).unwrap();
+    container.analyses = associations;
     if let Err(err) = container.save(&path) {
         return Err(error::Update::Save(err.kind()));
     }

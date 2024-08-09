@@ -1,6 +1,8 @@
 use crate::types::ResourceId;
 use std::cmp::{Eq, Ordering, PartialEq};
 
+pub type Priority = i32;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub struct AnalysisAssociation {
     analysis: ResourceId,
     pub autorun: bool,
-    pub priority: i32,
+    pub priority: Priority,
 }
 
 impl AnalysisAssociation {
@@ -27,7 +29,7 @@ impl AnalysisAssociation {
         }
     }
 
-    pub fn with_params(analysis: ResourceId, autorun: bool, priority: i32) -> Self {
+    pub fn with_params(analysis: ResourceId, autorun: bool, priority: Priority) -> Self {
         AnalysisAssociation {
             analysis,
             autorun,

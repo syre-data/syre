@@ -1,6 +1,9 @@
 use super::super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
-use crate::pages::project::state;
-use leptos::*;
+use crate::{
+    common,
+    pages::project::{actions, state},
+};
+use leptos::{ev::DragEvent, *};
 use syre_core as core;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
@@ -85,15 +88,39 @@ fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
 
 #[component]
 fn ScriptView(script: core::project::Script) -> impl IntoView {
-    let title = move || {
-        if let Some(ref name) = script.name {
-            name.clone()
-        } else {
-            script.path.to_string_lossy().to_string()
+    let title = {
+        let script = script.clone();
+        move || {
+            if let Some(ref name) = script.name {
+                name.clone()
+            } else {
+                script.path.to_string_lossy().to_string()
+            }
         }
     };
 
-    view! { <div>{title}</div> }
+    let dragstart = {
+        let script = script.rid().clone();
+        move |e: DragEvent| {
+            let data_transfer = e.data_transfer().unwrap();
+            data_transfer.clear_data().unwrap();
+            data_transfer
+                .set_data(
+                    common::APPLICATION_JSON,
+                    &serde_json::to_string(&actions::container::Action::AddAnalysisAssociation(
+                        script.clone(),
+                    ))
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+    };
+
+    view! {
+        <div class="cursor-pointer" on:dragstart=dragstart draggable="true">
+            {title}
+        </div>
+    }
 }
 
 #[component]

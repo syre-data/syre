@@ -9,7 +9,7 @@ use crate::{
 };
 use futures::StreamExt;
 use leptos::{
-    ev::{MouseEvent, WheelEvent},
+    ev::{DragEvent, MouseEvent, WheelEvent},
     *,
 };
 use std::{cmp, ops::Deref, rc::Rc};
@@ -42,11 +42,6 @@ impl ContextMenuContainerOk {
 /// Active continer for the container context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveContainer(state::graph::Node);
-impl ContextMenuActiveContainer {
-    pub fn new(container: state::graph::Node) -> Self {
-        Self(container)
-    }
-}
 
 /// Node ref to the modal portal.
 #[derive(Clone)]
@@ -575,6 +570,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
+    let (drag_over, set_drag_over) = create_signal(false);
     let node_ref = create_node_ref();
 
     let title = {
@@ -655,7 +651,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
     let highlight = {
         let container = container.clone();
         move || {
-            let drag_over = drag_over_workspace_resource.with(|resource| {
+            let drag_over_workspace = drag_over_workspace_resource.with(|resource| {
                 let Some(WorkspaceResource::Container(over_id)) = resource.as_ref() else {
                     return false;
                 };
@@ -669,7 +665,7 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
                 })
             });
 
-            selected() || drag_over
+            selected() || drag_over() || drag_over_workspace
         }
     };
 
@@ -687,6 +683,15 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
                 menu.popup().await.unwrap();
             });
         }
+    };
+
+    let drop = move |e: DragEvent| {
+        e.prevent_default();
+        set_drag_over(false);
+
+        let data = e.data_transfer().unwrap();
+        let data = data.get_data(common::APPLICATION_JSON).unwrap();
+        spawn_local(async move {});
     };
 
     view! {
@@ -711,6 +716,10 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
 
             on:mousedown=mousedown
             on:contextmenu=contextmenu
+            on:dragenter=move |_| set_drag_over(true)
+            on:dragover=move |e| e.prevent_default()
+            on:dragleave=move |_| set_drag_over(false)
+            on:drop=drop
             data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >
@@ -836,7 +845,6 @@ fn Asset(asset: state::Asset) -> impl IntoView {
                             .select_add(rid.clone(), state::workspace_graph::ResourceKind::Asset),
                         SelectionAction::SelectOnly => workspace_graph_state
                             .select_only(rid.clone(), state::workspace_graph::ResourceKind::Asset),
-
                         SelectionAction::Clear => workspace_graph_state.select_clear(),
                     }
                 });

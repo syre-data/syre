@@ -967,6 +967,7 @@ pub mod container {
     use leptos::*;
     use std::{ffi::OsString, path::PathBuf};
     use syre_core::{
+        self as core,
         project::ContainerProperties,
         types::{Creator, ResourceId, ResourceMap, UserId, UserPermissions},
     };
@@ -1128,7 +1129,7 @@ pub mod container {
     }
 
     impl AnalysisAssociation {
-        pub fn new(association: syre_core::project::AnalysisAssociation) -> Self {
+        pub fn new(association: core::project::AnalysisAssociation) -> Self {
             let analysis = association.analysis().clone();
             let syre_core::project::AnalysisAssociation {
                 autorun, priority, ..
@@ -1151,6 +1152,15 @@ pub mod container {
 
         pub fn priority(&self) -> RwSignal<i32> {
             self.priority.clone()
+        }
+
+        /// Crates an [`syre_core::project::AnalysisAssociation`] from the current values.
+        pub fn as_association(&self) -> core::project::AnalysisAssociation {
+            core::project::AnalysisAssociation::with_params(
+                self.analysis.clone(),
+                self.autorun.get_untracked(),
+                self.priority.get_untracked(),
+            )
         }
     }
 

@@ -8,11 +8,14 @@ use crate::{
     types,
 };
 use futures::StreamExt;
+use has_id::HasId;
 use leptos::{
     ev::{DragEvent, MouseEvent, WheelEvent},
     *,
 };
+use leptos_icons::*;
 use std::{cmp, ops::Deref, rc::Rc};
+use syre_local as local;
 use syre_local_database as db;
 use tauri_sys::menu;
 
@@ -880,6 +883,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
 #[component]
 fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
+
     view! {
         <div class:hidden=move || workspace_state.preview.with(|preview| !preview.analyses)>
             <Show
@@ -887,13 +891,77 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
                 fallback=|| view! { "(no analyses)" }
             >
                 <For each=analyses key=|association| association.analysis().clone() let:association>
-                    <div>
-                        <span>{association.analysis().to_string()}</span>
-                        <span>{association.autorun()}</span>
-                        <span>{association.priority()}</span>
-                    </div>
+                    <AnalysisAssociation association/>
                 </For>
             </Show>
+        </div>
+    }
+}
+
+#[component]
+fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView {
+    let project = expect_context::<state::Project>();
+
+    let title = {
+        let association = association.clone();
+
+        move || {
+            project.analyses().with(|analyses| {
+                let db::state::DataResource::Ok(analyses) = analyses else {
+                    return association.analysis().to_string();
+                };
+
+                analyses
+                    .with(|analyses| {
+                        analyses.iter().find_map(|analysis| {
+                            analysis.properties().with(|properties| {
+                                if properties.id() != association.analysis() {
+                                    return None;
+                                }
+
+                                let title = match properties {
+                                    local::types::AnalysisKind::Script(script) => {
+                                        if let Some(name) = script.name.as_ref() {
+                                            name.clone()
+                                        } else {
+                                            script.path.to_string_lossy().to_string()
+                                        }
+                                    }
+
+                                    local::types::AnalysisKind::ExcelTemplate(template) => {
+                                        if let Some(name) = template.name.as_ref() {
+                                            name.clone()
+                                        } else {
+                                            template.template.path.to_string_lossy().to_string()
+                                        }
+                                    }
+                                };
+
+                                Some(title)
+                            })
+                        })
+                    })
+                    .unwrap()
+            })
+        }
+    };
+
+    view! {
+        <div class="flex">
+            <div class="grow">{title}</div>
+            <div>
+                <span>"(" {association.priority()} ")"</span>
+                <span>
+                    {move || {
+                        if association.autorun().get() {
+                            view! { <Icon icon=icondata::BsStarFill/> }
+                        } else {
+                            view! { <Icon icon=icondata::BsStar/> }
+                        }
+                    }}
+
+                </span>
+            </div>
         </div>
     }
 }

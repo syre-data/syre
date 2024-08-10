@@ -140,7 +140,11 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                         <AddAssociation
                             available_analyses=Signal::derive(available_analyses)
                             container=properties.rid().read_only()
-                        /> <AnalysisAssociations associations=analysis_associations.read_only()/>
+                        />
+                        <AnalysisAssociations
+                            associations=analysis_associations.read_only()
+                            container=properties.rid().read_only()
+                        />
                     </label>
                 </div>
             </form>
@@ -617,17 +621,20 @@ mod metadata {
 
 mod analysis_associations {
     use super::super::{
-        common::analysis_associations::{
-            AddAssociation as AddAssociationEditor, AnalysisInfo, Editor as AssociationsEditor,
-        },
+        common::analysis_associations::{AddAssociation as AddAssociationEditor, AnalysisInfo},
         state,
     };
-    use crate::{components::message::Builder as Message, types::Messages};
+    use crate::{
+        components::message::Builder as Message, pages::project::properties::INPUT_DEBOUNCE,
+        types::Messages,
+    };
+    use has_id::HasId;
     use leptos::*;
     use serde::Serialize;
     use std::path::PathBuf;
     use syre_core::{project::AnalysisAssociation, types::ResourceId};
     use syre_desktop_lib as lib;
+    use syre_local as local;
     use syre_local_database as db;
 
     #[component]
@@ -639,14 +646,7 @@ mod analysis_associations {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
 
-        let onadd = move |association| {
-            #[derive(Serialize)]
-            struct Args {
-                project: ResourceId,
-                container: PathBuf,
-                associations: Vec<AnalysisAssociation>,
-            }
-
+        let add_association = create_action(move |association: &AnalysisAssociation| {
             let node = container.with(|rid| graph.find_by_id(rid).unwrap());
             let mut associations = node.analyses().with_untracked(|associations| {
                 let db::state::DataResource::Ok(associations) = associations else {
@@ -660,33 +660,27 @@ mod analysis_associations {
                         .collect::<Vec<_>>()
                 })
             });
-            associations.push(association);
+            assert!(!associations
+                .iter()
+                .any(|assoc| assoc.analysis() == association.analysis()));
+            associations.push(association.clone());
 
-            spawn_local({
-                let project = project.rid().get_untracked();
-                let container_path = graph.path(&node).unwrap();
+            let project = project.rid().get_untracked();
+            let container_path = graph.path(&node).unwrap();
+            async move {
+                if let Err(err) =
+                    update_analysis_associations(project, container_path, associations).await
+                {
+                    tracing::error!(?err);
+                    let mut msg = Message::error("Could not save container");
+                    msg.body(format!("{err:?}"));
+                    // messages.update(|messages| messages.push(msg.build()));
+                };
+            }
+        });
 
-                async move {
-                    if let Err(err) = tauri_sys::core::invoke_result::<
-                        (),
-                        lib::command::container::error::Update,
-                    >(
-                        "container_analysis_associations_update",
-                        Args {
-                            project,
-                            container: container_path,
-                            associations,
-                        },
-                    )
-                    .await
-                    {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
-                    };
-                }
-            });
+        let onadd = move |association: AnalysisAssociation| {
+            add_association.dispatch(association);
         };
 
         let oncancel = move |_| {
@@ -695,7 +689,7 @@ mod analysis_associations {
 
         view! {
             <div>
-                <AddAssociationEditor available_analyses onadd oncancel/>
+                <AddAssociationEditor available_analyses onadd=Callback::new(onadd) oncancel/>
             </div>
         }
     }
@@ -703,12 +697,177 @@ mod analysis_associations {
     #[component]
     pub fn Editor(
         #[prop(into)] associations: Signal<Vec<state::AnalysisAssociation>>,
+        container: ReadSignal<ResourceId>,
     ) -> impl IntoView {
         view! {
             <div>
-                <AssociationsEditor associations/>
+                <Show
+                    when=move || associations.with(|associations| !associations.is_empty())
+                    fallback=|| view! { "(no analyses)" }
+                >
+                    <For
+                        each=associations
+                        key=|association| association.analysis().clone()
+                        let:association
+                    >
+                        <AnalysisAssociationEditor association container/>
+                    </For>
+                </Show>
             </div>
         }
+    }
+
+    #[component]
+    pub fn AnalysisAssociationEditor(
+        association: state::AnalysisAssociation,
+        container: ReadSignal<ResourceId>,
+    ) -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+
+        let (value, set_value) = create_signal(AnalysisAssociation::with_params(
+            association.analysis().clone(),
+            association.autorun().get_untracked(),
+            association.priority().get_untracked(),
+        ));
+        let value = leptos_use::signal_debounced(value, INPUT_DEBOUNCE);
+
+        let update_association = create_action({
+            let graph = graph.clone();
+            let project = project.rid();
+            move |association: &AnalysisAssociation| {
+                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+                let mut associations = node.analyses().with_untracked(|associations| {
+                    let db::state::DataResource::Ok(associations) = associations else {
+                        panic!("invalid state");
+                    };
+
+                    associations.with_untracked(|associations| {
+                        associations
+                            .iter()
+                            .map(|association| association.as_association())
+                            .collect::<Vec<_>>()
+                    })
+                });
+                let association = associations
+                    .iter_mut()
+                    .find(|assoc| assoc.analysis() == association.analysis())
+                    .unwrap();
+                *association = value.get();
+
+                let project = project.get_untracked();
+                let container_path = graph.path(&node).unwrap();
+                async move {
+                    if let Err(err) =
+                        update_analysis_associations(project, container_path, associations).await
+                    {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not save container");
+                        msg.body(format!("{err:?}"));
+                        // messages.update(|messages| messages.push(msg.build()));
+                    };
+                }
+            }
+        });
+
+        create_effect(move |_| {
+            update_association.dispatch(value.get());
+        });
+
+        let title = {
+            let association = association.clone();
+            let analyses = project.analyses();
+            move || {
+                analyses.with(|analyses| {
+                    let db::state::DataResource::Ok(analyses) = analyses else {
+                        return association.analysis().to_string();
+                    };
+
+                    analyses
+                        .with(|analyses| {
+                            analyses.iter().find_map(|analysis| {
+                                analysis.properties().with(|properties| {
+                                    if properties.id() != association.analysis() {
+                                        return None;
+                                    }
+
+                                    let title = match properties {
+                                        local::types::AnalysisKind::Script(script) => {
+                                            if let Some(name) = script.name.as_ref() {
+                                                name.clone()
+                                            } else {
+                                                script.path.to_string_lossy().to_string()
+                                            }
+                                        }
+
+                                        local::types::AnalysisKind::ExcelTemplate(template) => {
+                                            if let Some(name) = template.name.as_ref() {
+                                                name.clone()
+                                            } else {
+                                                template.template.path.to_string_lossy().to_string()
+                                            }
+                                        }
+                                    };
+
+                                    Some(title)
+                                })
+                            })
+                        })
+                        .unwrap()
+                })
+            }
+        };
+
+        view! {
+            <div class="flex">
+                <div class="grow">{title}</div>
+                <input
+                    type="number"
+                    name="priority"
+                    prop:value=move || value.with(|value| value.priority.clone())
+                    on:input=move |e| {
+                        set_value
+                            .update(|value| {
+                                let priority = event_target_value(&e).parse::<i32>().unwrap();
+                                value.priority = priority;
+                            })
+                    }
+                />
+
+                <input
+                    type="checkbox"
+                    name="autorun"
+                    checked=move || value.with(|value| value.autorun.clone())
+                    on:input=move |e| {
+                        set_value.update(|value| value.autorun = event_target_checked(&e))
+                    }
+                />
+
+            </div>
+        }
+    }
+
+    async fn update_analysis_associations(
+        project: ResourceId,
+        container: impl Into<PathBuf>,
+        associations: Vec<AnalysisAssociation>,
+    ) -> Result<(), lib::command::container::error::Update> {
+        #[derive(Serialize)]
+        struct Args {
+            project: ResourceId,
+            container: PathBuf,
+            associations: Vec<AnalysisAssociation>,
+        }
+
+        tauri_sys::core::invoke_result::<(), lib::command::container::error::Update>(
+            "container_analysis_associations_update",
+            Args {
+                project,
+                container: container.into(),
+                associations,
+            },
+        )
+        .await
     }
 }
 

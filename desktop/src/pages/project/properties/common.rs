@@ -638,7 +638,6 @@ pub mod metadata {
 }
 
 pub mod analysis_associations {
-    use super::super::state;
     use leptos::*;
     use std::str::FromStr;
     use syre_core::{self as core, types::ResourceId};
@@ -681,7 +680,10 @@ pub mod analysis_associations {
         #[prop(into)] available_analyses: Signal<Vec<AnalysisInfo>>,
         #[prop(into)] onadd: Callback<core::project::AnalysisAssociation>,
         #[prop(into)] oncancel: Callback<()>,
-    ) -> impl IntoView {
+    ) -> impl IntoView
+// where
+    //     A: Fn(core::project::AnalysisAssociation) + 'static,
+    {
         let analysis_node = create_node_ref::<html::Select>();
         let priority_node = create_node_ref::<html::Input>();
         let autorun_node = create_node_ref::<html::Input>();
@@ -731,8 +733,8 @@ pub mod analysis_associations {
                             </For>
                         </Show>
                     </select>
-                    <input ref=priority_node type="number" name="priority"/>
-                    <input ref=autorun_node type="checkbox" name="autorun"/>
+                    <input ref=priority_node type="number" name="priority" value="0"/>
+                    <input ref=autorun_node type="checkbox" name="autorun" checked=true/>
                 </div>
                 <div>
                     <button type="button" on:mousedown=add>
@@ -744,13 +746,6 @@ pub mod analysis_associations {
                 </div>
             </div>
         }
-    }
-
-    #[component]
-    pub fn Editor(
-        #[prop(into)] associations: Signal<Vec<state::AnalysisAssociation>>,
-    ) -> impl IntoView {
-        view! { <div>"Ananlysis Associaiton"</div> }
     }
 }
 

@@ -5,6 +5,7 @@ use super::{
 use crate::{
     commands, common,
     components::{message::Builder as Message, ModalDialog},
+    pages::project::actions,
     types,
 };
 use futures::StreamExt;
@@ -15,6 +16,7 @@ use leptos::{
 };
 use leptos_icons::*;
 use std::{cmp, ops::Deref, rc::Rc};
+use syre_core::{project::AnalysisAssociation, types::ResourceId};
 use syre_local as local;
 use syre_local_database as db;
 use tauri_sys::menu;
@@ -568,6 +570,9 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         .properties()
         .with_untracked(|properties| properties.is_ok()));
 
+    let project = expect_context::<state::Project>();
+    let graph = expect_context::<state::Graph>();
+    let messages = expect_context::<types::Messages>();
     let context_menu = expect_context::<ContextMenuContainerOk>();
     let context_menu_active_container =
         expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
@@ -688,13 +693,30 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
         }
     };
 
-    let drop = move |e: DragEvent| {
-        e.prevent_default();
-        set_drag_over(false);
+    let drop = {
+        let project = project.rid().read_only();
+        let graph = graph.clone();
+        let container = container.clone();
+        let messages = messages.clone();
+        move |e: DragEvent| {
+            e.prevent_default();
+            set_drag_over(false);
 
-        let data = e.data_transfer().unwrap();
-        let data = data.get_data(common::APPLICATION_JSON).unwrap();
-        spawn_local(async move {});
+            let data = e.data_transfer().unwrap();
+            let data = data.get_data(common::APPLICATION_JSON).unwrap();
+            let action = serde_json::from_str::<actions::container::Action>(&data).unwrap();
+            match action {
+                actions::container::Action::AddAnalysisAssociation(analysis) => {
+                    handle_container_action_add_analysis_accociation(
+                        analysis,
+                        container.clone(),
+                        &graph,
+                        project.get_untracked(),
+                        messages.clone(),
+                    )
+                }
+            }
+        }
     };
 
     view! {
@@ -1003,6 +1025,54 @@ fn ContainerErr(container: state::graph::Node) -> impl IntoView {
             </div>
         </div>
     }
+}
+
+fn handle_container_action_add_analysis_accociation(
+    analysis: ResourceId,
+    container: state::graph::Node,
+    graph: &state::Graph,
+    project: ResourceId,
+    messages: types::Messages,
+) {
+    let associations = container.analyses().read_only();
+    let Some(mut associations) = associations.with_untracked(|associations| {
+        let db::state::DataResource::Ok(associations) = associations else {
+            panic!("invalid state");
+        };
+
+        if associations.with(|associations| {
+            associations
+                .iter()
+                .any(|association| *association.analysis() == analysis)
+        }) {
+            None
+        } else {
+            Some(
+                associations
+                    .get_untracked()
+                    .into_iter()
+                    .map(|assoc| assoc.as_association())
+                    .collect::<Vec<_>>(),
+            )
+        }
+    }) else {
+        return;
+    };
+    associations.push(AnalysisAssociation::new(analysis));
+
+    let project = project.clone();
+    let container = graph.path(&container).unwrap();
+    spawn_local(async move {
+        if let Err(err) =
+            commands::container::update_analysis_associations(project, container, associations)
+                .await
+        {
+            tracing::error!(?err);
+            let mut msg = Message::error("Could not save container.");
+            msg.body(format!("{err:?}"));
+            messages.update(|messages| messages.push(msg.build()));
+        }
+    });
 }
 
 fn clamp<T>(value: T, min: T, max: T) -> T

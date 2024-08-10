@@ -698,19 +698,16 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
                 };
 
                 analyses.update(|analyses| {
-                    tracing::debug!("--- analyses");
                     analyses.retain(|association| {
                         if let Some(association_update) = update
                             .analyses
                             .iter()
                             .find(|assoc| assoc.analysis() == association.analysis())
                         {
-                            tracing::debug!("--- association");
                             if association
                                 .autorun()
                                 .with_untracked(|autorun| association_update.autorun != *autorun)
                             {
-                                tracing::debug!("--- autorun");
                                 association.autorun().set(association_update.autorun);
                             }
 
@@ -718,7 +715,6 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
                                 .priority()
                                 .with_untracked(|priority| association_update.priority != *priority)
                             {
-                                tracing::debug!("--- priority");
                                 association.priority().set(association_update.priority);
                             }
 

@@ -211,7 +211,7 @@ mod name {
 
                     async move {
                         if let Err(err) = rename_container(project, path, name).await {
-                            let mut msg = Message::error("Could not save container");
+                            let mut msg = Message::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -274,10 +274,8 @@ mod kind {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
         let oninput = move |value: Option<String>| {
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             let node = container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
             let mut properties = node.properties().with_untracked(|properties| {
                 let db::state::DataResource::Ok(properties) = properties else {
@@ -291,20 +289,20 @@ mod kind {
             spawn_local({
                 let project = project.rid().get_untracked();
                 let path = graph.path(&node).unwrap();
-                // let messages = messages.clone();
+                let messages = messages.clone();
 
                 async move {
                     if let Err(err) = update_properties(project, path, properties).await {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
+                        let mut msg = Message::error("Could not save container.");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 }
             });
         };
 
-        view! { <KindEditor value oninput debounce=INPUT_DEBOUNCE/> }
+        view! { <KindEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
     }
 }
 
@@ -327,10 +325,8 @@ mod description {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
         let oninput = {
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             move |value: Option<String>| {
                 let node = container.with(|rid| graph.find_by_id(rid).unwrap());
                 let mut properties = node.properties().with_untracked(|properties| {
@@ -345,21 +341,21 @@ mod description {
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let path = graph.path(&node).unwrap();
-                    // let messages = messages.clone();
+                    let messages = messages.clone();
 
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container");
+                            let mut msg = Message::error("Could not save container.");
                             msg.body(format!("{err:?}"));
-                            // messages.update(|messages| messages.push(msg.build()));
+                            messages.update(|messages| messages.push(msg.build()));
                         }
                     }
                 });
             }
         };
 
-        view! { <DescriptionEditor value oninput debounce=INPUT_DEBOUNCE/> }
+        view! { <DescriptionEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
     }
 }
 
@@ -380,10 +376,8 @@ mod tags {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
         let oninput = {
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             move |value: Vec<String>| {
                 let node = container.with(|rid| graph.find_by_id(rid).unwrap());
                 let mut properties = node.properties().with_untracked(|properties| {
@@ -398,21 +392,21 @@ mod tags {
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let path = graph.path(&node).unwrap();
-                    // let messages = messages.clone();
+                    let messages = messages.clone();
 
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container");
+                            let mut msg = Message::error("Could not save container.");
                             msg.body(format!("{err:?}"));
-                            // messages.update(|messages| messages.push(msg.build()));
+                            messages.update(|messages| messages.push(msg.build()));
                         }
                     }
                 });
             }
         };
 
-        view! { <TagsEditor value oninput debounce=INPUT_DEBOUNCE/> }
+        view! { <TagsEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
     }
 }
 
@@ -437,6 +431,7 @@ mod metadata {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
         provide_context(ActiveResource(container));
 
         let remove_datum = {
@@ -454,14 +449,14 @@ mod metadata {
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let path = graph.path(&node).unwrap();
-                    // let messages = messages.clone();
+                    let messages = messages.clone();
 
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container");
+                            let mut msg = Message::error("Could not save container.");
                             msg.body(format!("{err:?}"));
-                            // messages.update(|messages| messages.push(msg.build()));
+                            messages.update(|messages| messages.push(msg.build()));
                         }
                     }
                 });
@@ -551,12 +546,10 @@ mod metadata {
             set_input_value(value());
         });
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
         create_effect({
             let key = key.clone();
             move |container_id| -> ResourceId {
-                // let messages = messages.write_only();
+                let messages = messages.write_only();
                 if container.with(|rid| {
                     if let Some(container_id) = container_id {
                         *rid != container_id
@@ -593,14 +586,14 @@ mod metadata {
 
                 spawn_local({
                     let project = project.rid().get_untracked();
-                    // let messages = messages.clone();
+                    let messages = messages.clone();
 
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container");
+                            let mut msg = Message::error("Could not save container.");
                             msg.body(format!("{err:?}"));
-                            // messages.update(|messages| messages.push(msg.build()));
+                            messages.update(|messages| messages.push(msg.build()));
                         }
                     }
                 });
@@ -625,8 +618,8 @@ mod analysis_associations {
         state,
     };
     use crate::{
-        components::message::Builder as Message, pages::project::properties::INPUT_DEBOUNCE,
-        types::Messages,
+        commands, components::message::Builder as Message,
+        pages::project::properties::INPUT_DEBOUNCE, types::Messages,
     };
     use has_id::HasId;
     use leptos::*;
@@ -667,14 +660,19 @@ mod analysis_associations {
 
             let project = project.rid().get_untracked();
             let container_path = graph.path(&node).unwrap();
+            let messages = messages.clone();
             async move {
-                if let Err(err) =
-                    update_analysis_associations(project, container_path, associations).await
+                if let Err(err) = commands::container::update_analysis_associations(
+                    project,
+                    container_path,
+                    associations,
+                )
+                .await
                 {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not save container");
+                    let mut msg = Message::error("Could not save container.");
                     msg.body(format!("{err:?}"));
-                    // messages.update(|messages| messages.push(msg.build()));
+                    messages.update(|messages| messages.push(msg.build()));
                 };
             }
         });
@@ -724,6 +722,7 @@ mod analysis_associations {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
 
         let (value, set_value) = create_signal(AnalysisAssociation::with_params(
             association.analysis().clone(),
@@ -757,14 +756,19 @@ mod analysis_associations {
 
                 let project = project.get_untracked();
                 let container_path = graph.path(&node).unwrap();
+                let messages = messages.write_only();
                 async move {
-                    if let Err(err) =
-                        update_analysis_associations(project, container_path, associations).await
+                    if let Err(err) = commands::container::update_analysis_associations(
+                        project,
+                        container_path,
+                        associations,
+                    )
+                    .await
                     {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
+                        let mut msg = Message::error("Could not save container.");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     };
                 }
             }
@@ -845,29 +849,6 @@ mod analysis_associations {
 
             </div>
         }
-    }
-
-    async fn update_analysis_associations(
-        project: ResourceId,
-        container: impl Into<PathBuf>,
-        associations: Vec<AnalysisAssociation>,
-    ) -> Result<(), lib::command::container::error::Update> {
-        #[derive(Serialize)]
-        struct Args {
-            project: ResourceId,
-            container: PathBuf,
-            associations: Vec<AnalysisAssociation>,
-        }
-
-        tauri_sys::core::invoke_result::<(), lib::command::container::error::Update>(
-            "container_analysis_associations_update",
-            Args {
-                project,
-                container: container.into(),
-                associations,
-            },
-        )
-        .await
     }
 }
 

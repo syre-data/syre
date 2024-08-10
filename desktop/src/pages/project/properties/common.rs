@@ -680,10 +680,7 @@ pub mod analysis_associations {
         #[prop(into)] available_analyses: Signal<Vec<AnalysisInfo>>,
         #[prop(into)] onadd: Callback<core::project::AnalysisAssociation>,
         #[prop(into)] oncancel: Callback<()>,
-    ) -> impl IntoView
-// where
-    //     A: Fn(core::project::AnalysisAssociation) + 'static,
-    {
+    ) -> impl IntoView {
         let analysis_node = create_node_ref::<html::Select>();
         let priority_node = create_node_ref::<html::Input>();
         let autorun_node = create_node_ref::<html::Input>();

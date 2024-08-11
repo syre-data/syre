@@ -446,6 +446,14 @@ video {
   display: none;
 }
 
+@font-face {
+  font-family: "Oddity";
+
+  font-weight: 400;
+
+  src: url("/public/fonts/oddity/Oddity-Regular.woff2") format("woff");
+}
+
 *, ::before, ::after {
   --tw-border-spacing-x: 0;
   --tw-border-spacing-y: 0;
@@ -620,6 +628,10 @@ video {
   height: 16.666667%;
 }
 
+.h-4 {
+  height: 1rem;
+}
+
 .h-full {
   height: 100%;
 }
@@ -648,6 +660,14 @@ video {
   -webkit-user-select: none;
      -moz-user-select: none;
           user-select: none;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.border {
+  border-width: 1px;
 }
 
 .border-2 {

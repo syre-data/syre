@@ -5,7 +5,7 @@ use crate::{
 };
 use futures::stream::StreamExt;
 use leptos::*;
-use leptos_router::use_navigate;
+use leptos_router::*;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::{project::Project, system::User, types::ResourceId};
@@ -148,36 +148,49 @@ fn ProjectDeck(
 
 #[component]
 fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl IntoView {
-    let navigate = use_navigate();
     move || {
         project.with(|(path, project)| {
             if let db::state::DataResource::Ok(project) = project.properties() {
-                let goto_project = {
-                    let navigate = navigate.clone();
-                    let project = project.rid().to_string();
-                    move |e: MouseEvent| {
-                        if e.button() == MouseButton::Primary as i16 {
-                            navigate(&project, Default::default());
-                        }
-                    }
-                };
-
-                view! {
-                    <div class="cursor-pointer" on:mousedown=goto_project>
-                        <h3>{project.name.clone()}</h3>
-                        <div>{project.description.clone()}</div>
-                        <div>{path.to_string_lossy().to_string()}</div>
-                    </div>
-                }
-                .into_view()
+                view! { <ProjectCardOk project=project.clone() path=path.clone()/> }
             } else {
-                view! {
-                    <div>{path.to_string_lossy().to_string()}</div>
-                    <div>"is broken"</div>
-                }
-                .into_view()
+                view! { <ProjectCardErr path=path.clone()/> }
             }
         })
+    }
+}
+
+#[component]
+fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
+    let navigate = use_navigate();
+    let goto_project = {
+        let navigate = navigate.clone();
+        let project = project.rid().to_string();
+        move |e: MouseEvent| {
+            if e.button() == MouseButton::Primary as i16 {
+                navigate(&project, Default::default());
+            }
+        }
+    };
+
+    view! {
+        <A href={
+            let project = project.rid().clone();
+            move || project.to_string()
+        }>
+            <div class="border-2 rounded border">
+                <h3>{project.name.clone()}</h3>
+                <div>{project.description.clone()}</div>
+                <div>{path.to_string_lossy().to_string()}</div>
+            </div>
+        </A>
+    }
+}
+
+#[component]
+fn ProjectCardErr(path: PathBuf) -> impl IntoView {
+    view! {
+        <div>{path.to_string_lossy().to_string()}</div>
+        <div>"is broken"</div>
     }
 }
 

@@ -16,14 +16,22 @@ pub fn Home(user: User) -> impl IntoView {
 
 #[component]
 fn MainNav() -> impl IntoView {
+    let prefers_dark = leptos_use::use_preferred_dark();
+    let home_icon_src = move || {
+        if prefers_dark() {
+            "/public/logos/logo-white-icon.svg"
+        } else {
+            "/public/logos/logo-black-icon.svg"
+        }
+    };
+
     view! {
         <nav>
             <ol class="flex">
                 <li>
-                    <A href="">"Home"</A>
-                </li>
-                <li>
-                    <A href="/logout">"Log out"</A>
+                    <A href="/">
+                        <img src=home_icon_src class="h-4"/>
+                    </A>
                 </li>
             </ol>
         </nav>

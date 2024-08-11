@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+	@font-face {
+		font-family: "Oddity";
+		font-weight: 400;
+		src: url("/public/fonts/oddity/Oddity-Regular.woff2") format("woff");
+	}
+}
+
 @layer components {
 	.border-1 {
 		border-width: 1px;

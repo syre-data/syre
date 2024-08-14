@@ -19,7 +19,7 @@ use std::{cmp, ops::Deref, rc::Rc};
 use syre_core::{project::AnalysisAssociation, types::ResourceId};
 use syre_local as local;
 use syre_local_database as db;
-use tauri_sys::menu;
+use tauri_sys::{core::Channel, menu};
 
 const CONTAINER_WIDTH: usize = 100;
 const CONTAINER_HEIGHT: usize = 60;
@@ -44,7 +44,7 @@ impl ContextMenuContainerOk {
     }
 }
 
-/// Active continer for the container context menu.
+/// Active container for the container context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveContainer(state::graph::Node);
 
@@ -66,7 +66,7 @@ pub fn Canvas() -> impl IntoView {
 
     let context_menu_active_container =
         create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
-    provide_context(context_menu_active_container);
+    provide_context(context_menu_active_container.clone());
 
     let context_menu_container_ok = create_local_resource(|| (), {
         move |_| {
@@ -78,43 +78,20 @@ pub fn Canvas() -> impl IntoView {
                 container_open.set_id("container-open");
 
                 let (menu, mut listeners) = menu::Menu::with_id_and_items(
-                    "container-context_menu",
+                    "canvas:container-context_menu",
                     vec![container_open.into()],
                 )
                 .await;
 
                 spawn_local({
-                    let container_open = listeners.pop().unwrap();
-                    let mut container_open = container_open.unwrap().fuse();
-
-                    async move {
-                        loop {
-                            futures::select! {
-                                event = container_open.next() => match event {
-                                    None => continue,
-                                    Some(_id) => {
-                                        let data_root = project
-                                            .path()
-                                            .get_untracked()
-                                            .join(project.properties().data_root().get_untracked());
-
-                                        let container = context_menu_active_container.get_untracked().unwrap();
-                                        let container_path = graph.path(&container).unwrap();
-                                        let path = common::container_system_path(data_root, container_path);
-
-                                        if let Err(err) = commands::fs::open_file(path)
-                                            .await {
-                                                messages.update(|messages|{
-                                                    let mut msg = Message::error("Could not open container folder.");
-                                                    msg.body(format!("{err:?}"));
-                                                messages.push(msg.build());
-                                            });
-                                        }
-                                }
-                                }
-                            }
-                        }
-                    }
+                    let container_open = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_container_events(
+                        project,
+                        graph,
+                        messages,
+                        context_menu_active_container.read_only(),
+                        container_open,
+                    )
                 });
 
                 Rc::new(menu)
@@ -141,7 +118,7 @@ pub fn Canvas() -> impl IntoView {
 
 #[component]
 fn CanvasLoading() -> impl IntoView {
-    view! { <div>"Setting up canvas"</div> }
+    view! { <div class="text-center pt-4">"Setting up canvas"</div> }
 }
 
 #[component]
@@ -248,18 +225,18 @@ fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
     };
 
     view! {
-        <div>
+        <div id="canvas">
             <svg
-                viewBox=move || {
-                    format!("{} {} {} {}", vb_x.get(), vb_y.get(), vb_width.get(), vb_height.get())
-                }
-
-                class=("cursor-grabbing", move || pan_drag.with(|c| c.is_some()))
                 on:mousedown=mousedown
                 on:mouseup=mouseup
                 on:mousemove=mousemove
                 on:mouseleave=mouseleave
                 on:wheel=wheel
+                viewBox=move || {
+                    format!("{} {} {} {}", vb_x.get(), vb_y.get(), vb_width.get(), vb_height.get())
+                }
+
+                class=("cursor-grabbing", move || pan_drag.with(|c| c.is_some()))
             >
                 <Graph root=graph.root().clone()/>
             </svg>
@@ -772,6 +749,7 @@ fn ContainerPreview(
     assert!(properties.with_untracked(|properties| properties.is_ok()));
     assert!(analyses.with_untracked(|analyses| analyses.is_ok()));
     let workspace_state = expect_context::<state::Workspace>();
+    let state = workspace_state.preview().clone();
 
     let kind =
         properties.with_untracked(|properties| properties.as_ref().unwrap().kind().read_only());
@@ -793,15 +771,15 @@ fn ContainerPreview(
                 .with_untracked(|analyses| analyses.as_ref().unwrap().read_only())/>
 
             <div class:hidden=move || {
-                workspace_state.preview.with(|preview| !preview.kind)
+                state.with(|preview| !preview.kind)
             }>{move || kind().unwrap_or("(no type)".to_string())}</div>
 
             <div class:hidden=move || {
-                workspace_state.preview.with(|preview| !preview.description)
+                state.with(|preview| !preview.description)
             }>{move || description().unwrap_or("(no description)".to_string())}</div>
 
             <div class:hidden=move || {
-                workspace_state.preview.with(|preview| !preview.tags)
+                state.with(|preview| !preview.tags)
             }>
                 {move || {
                     tags.with(|tags| {
@@ -830,7 +808,7 @@ fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
 fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
     view! {
-        <div class:hidden=move || workspace_state.preview.with(|preview| !preview.assets)>
+        <div class:hidden=move || workspace_state.preview().with(|preview| !preview.assets)>
             <Show
                 when=move || assets.with(|assets| !assets.is_empty())
                 fallback=|| view! { "(no data)" }
@@ -907,7 +885,7 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
     let workspace_state = expect_context::<state::Workspace>();
 
     view! {
-        <div class:hidden=move || workspace_state.preview.with(|preview| !preview.analyses)>
+        <div class:hidden=move || workspace_state.preview().with(|preview| !preview.analyses)>
             <Show
                 when=move || analyses.with(|analyses| !analyses.is_empty())
                 fallback=|| view! { "(no analyses)" }
@@ -992,7 +970,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
 fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
     view! {
-        <div class:hidden=move || { workspace_state.preview.with(|preview| !preview.metadata) }>
+        <div class:hidden=move || { workspace_state.preview().with(|preview| !preview.metadata) }>
             <Show
                 when=move || metadata.with(|metadata| !metadata.is_empty())
                 fallback=|| view! { "(no metadata)" }
@@ -1086,5 +1064,41 @@ where
         max
     } else {
         value
+    }
+}
+
+async fn handle_context_menu_container_events(
+    project: state::Project,
+    graph: state::Graph,
+    messages: types::Messages,
+    context_menu_active_container: ReadSignal<Option<ContextMenuActiveContainer>>,
+    container_open: Channel<String>,
+) {
+    let mut container_open = container_open.fuse();
+    loop {
+        futures::select! {
+            event = container_open.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let data_root = project
+                        .path()
+                        .get_untracked()
+                        .join(project.properties().data_root().get_untracked());
+
+                    let container = context_menu_active_container.get_untracked().unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let path = common::container_system_path(data_root, container_path);
+
+                    if let Err(err) = commands::fs::open_file(path)
+                        .await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not open container folder.");
+                                msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+            }
+            }
+        }
     }
 }

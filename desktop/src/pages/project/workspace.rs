@@ -1,10 +1,10 @@
 use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
-use crate::common;
+use crate::{common, components::Logo};
 use futures::stream::StreamExt;
 use leptos::*;
-use leptos_router::use_params_map;
+use leptos_router::*;
 use serde::Serialize;
-use std::{assert_matches::assert_matches, io, path::PathBuf, str::FromStr};
+use std::{io, path::PathBuf, str::FromStr};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
@@ -52,12 +52,12 @@ pub fn Workspace() -> impl IntoView {
 
 #[component]
 fn Loading() -> impl IntoView {
-    view! { <div>"Loading..."</div> }
+    view! { <div class="pt-4 text-center">"Loading..."</div> }
 }
 
 #[component]
 fn NoProject() -> impl IntoView {
-    view! { <div>"Project state was not found."</div> }
+    view! { <div class="pt-4 text-center">"Project state was not found."</div> }
 }
 
 #[component]
@@ -114,8 +114,8 @@ fn WorkspaceView(
 
     view! {
         <div class="select-none">
-            <div class="h-1/8 border-b-1">"tab bar"</div>
-            <div class="h-1/6 border-b-1">
+            <ProjectNav/>
+            <div class="h-1/6 border-b">
                 <ProjectBar/>
             </div>
             {move || {
@@ -230,17 +230,31 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 
     view! {
         <div class="flex">
-            <div class="w-1/6 border-r-1">
+            <div class="w-1/6 border-r">
                 <LayersNav/>
             </div>
             <div class="flex-grow">
                 <Canvas/>
-
             </div>
-            <div class="w-1/6 border-l-1">
+            <div class="w-1/6 border-l">
                 <PropertiesBar/>
             </div>
         </div>
+    }
+}
+
+#[component]
+fn ProjectNav() -> impl IntoView {
+    view! {
+        <nav class="h-1/8 p-2 border-b dark:bg-secondary-900">
+            <ol class="flex">
+                <li>
+                    <A href="/">
+                        <Logo class="h-4"/>
+                    </A>
+                </li>
+            </ol>
+        </nav>
     }
 }
 

@@ -38,15 +38,24 @@ leptos_meta = { version = "0.6", features = ["nightly", "csr"] }
 chrono = { workspace = true, features = ["serde"] }
 leptos_icons = "0.3.1"
 icondata = "0.4.0"
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", rev = "85376f8" }
+leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git" }
+# leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", rev = "85376f8" }
 derive_more.workspace = true
 
 [dependencies.web-sys]  
-version = "0.3.69"
+version = "0.3.70"
 features = [
 	"Element",
+	"HtmlElement",
 	"HtmlDialogElement",
 	"HtmlDivElement",
 	"HtmlInputElement",
 	"HtmlSelectElement",
+	"HtmlCollection",
+	"HtmlOptionElement",
+	"AbortController",
+	"AbortSignal",
+	"AddEventListenerOptions",
+	"EventTarget",
+	"SvgElement",
 ]

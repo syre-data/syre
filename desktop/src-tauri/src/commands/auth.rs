@@ -31,5 +31,5 @@ pub fn login(email: String) -> syre_local::Result<User> {
 
 #[tauri::command]
 pub fn logout() -> Result<(), IoSerde> {
-    Ok(())
+    user_manifest::unset_active_user()
 }

@@ -1,3 +1,4 @@
+use crate::components::{Autofocus, Logo};
 use leptos::*;
 use leptos_router::{use_navigate, *};
 use serde::Serialize;
@@ -5,11 +6,12 @@ use syre_core::system::User;
 use web_sys::{FormData, SubmitEvent};
 
 #[component]
-pub fn Register(#[prop(default = true)] login_link: bool) -> impl IntoView {
+pub fn Register() -> impl IntoView {
     let navigate = use_navigate();
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None);
     let form_ref = NodeRef::new();
+
     let register_user = {
         let navigate = navigate.clone();
         move |e: SubmitEvent| {
@@ -50,32 +52,56 @@ pub fn Register(#[prop(default = true)] login_link: bool) -> impl IntoView {
     };
 
     view! {
-        <h1>"Sign up"</h1>
-        <form node_ref=form_ref on:submit=register_user>
-            <div>
-                <label>"Email"</label>
-                <input name="email" type="email" required autofocus/>
+        <div class="h-screen w-screen flex flex-col justify-center items-center gap-y-4">
+            <div class="flex flex-col items-center w-20">
+                <Logo class="w-full"/>
+                <h1 class="font-primary text-4xl">"Syre"</h1>
             </div>
-            <div>
-                <label>"Name"</label>
-                <input name="name"/>
+            <div class="w-1/2">
+                <form node_ref=form_ref on:submit=register_user>
+                    <div>
+                        <label>
+                            <span class="block">"Email"</span>
+                            <Autofocus>
+                                <input
+                                    name="email"
+                                    type="email"
+                                    class="input-simple"
+                                    required
+                                    autofocus
+                                />
+                            </Autofocus>
+                        </label>
+                    </div>
+                    <div class="pt-4">
+                        <label>
+                            <span class="block">"Name"</span>
+                            <input name="name" class="input-simple"/>
+                        </label>
+                    </div>
+                    <div class="pt-4 flex justify-center gap-x-4">
+                        <button disabled=move || loading() class="btn btn-primary">
+                            "Sign up"
+                        </button>
+                        <A href="/login" class="btn btn-secondary">
+                            "Log in"
+                        </A>
+                    </div>
+                    <div>{error}</div>
+                </form>
             </div>
-            <div>
-                <button disabled=move || loading()>"Sign up"</button>
-                {if login_link {
-                    view! { <A href="/login">"Log in"</A> }.into_view()
-                } else {
-                    view! {}.into_view()
-                }}
-
-            </div>
-            <div>{error}</div>
-        </form>
+        </div>
     }
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
-    tauri_sys::core::invoke_result("register_user", RegisterArgs { email, name })
+    #[derive(Serialize)]
+    struct Args {
+        email: String,
+        name: Option<String>,
+    }
+
+    tauri_sys::core::invoke_result("register_user", Args { email, name })
         .await
         .map_err(|err| match err {
             syre_local::Error::IoSerde(err) => {
@@ -93,10 +119,4 @@ async fn register(email: String, name: Option<String>) -> Result<User, String> {
                 "Could not create user.".to_string()
             }
         })
-}
-
-#[derive(Serialize)]
-struct RegisterArgs {
-    email: String,
-    name: Option<String>,
 }

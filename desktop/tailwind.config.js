@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-import { colors, fonts } from "./styles/theme.js";
+import { colors, fontFamily, } from "./styles/theme.js";
 
 module.exports = {
 	content: {
@@ -8,8 +8,10 @@ module.exports = {
 	theme: {
 		extend: {
 			colors,
-			fonts,
+			fontFamily,
 		},
 	},
-	plugins: [],
+	plugins: [
+		require('@tailwindcss/forms'),
+	],
 }

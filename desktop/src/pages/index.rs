@@ -11,7 +11,7 @@ pub fn Index() -> impl IntoView {
     let active_user = create_resource(|| (), |_| async move { fetch_user().await });
     let fallback = |errors| {
         tracing::debug!(?errors);
-        view! { <div>"An error occurred"</div> }
+        view! { <div>"An error occurred."</div> }
     };
 
     view! {

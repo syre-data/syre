@@ -10,7 +10,7 @@ pub mod workspace {
 
     #[derive(Clone)]
     pub struct State {
-        pub preview: RwSignal<Preview>,
+        preview: RwSignal<Preview>,
     }
 
     impl State {
@@ -18,6 +18,10 @@ pub mod workspace {
             Self {
                 preview: RwSignal::new(Preview::default()),
             }
+        }
+
+        pub fn preview(&self) -> &RwSignal<Preview> {
+            &self.preview
         }
     }
 
@@ -29,6 +33,43 @@ pub mod workspace {
         pub description: bool,
         pub tags: bool,
         pub metadata: bool,
+    }
+
+    impl Preview {
+        /// Set all previews to `false`.
+        pub fn clear(&mut self) {
+            self.assets = false;
+            self.analyses = false;
+            self.kind = false;
+            self.description = false;
+            self.tags = false;
+            self.metadata = false;
+        }
+
+        /// How many previews are active.
+        pub fn length(&self) -> usize {
+            let mut length = 0;
+            if self.assets {
+                length += 1;
+            }
+            if self.analyses {
+                length += 1;
+            }
+            if self.kind {
+                length += 1;
+            }
+            if self.description {
+                length += 1;
+            }
+            if self.tags {
+                length += 1;
+            }
+            if self.metadata {
+                length += 1;
+            }
+
+            length
+        }
     }
 
     impl Default for Preview {

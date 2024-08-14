@@ -2,16 +2,108 @@ use super::{
     common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
     state,
 };
-use crate::types;
+use crate::{commands, common, components::message::Builder as Message, types};
+use futures::StreamExt;
 use leptos::{ev::MouseEvent, *};
+use std::rc::Rc;
+use syre_desktop_lib as lib;
 use syre_local_database as db;
+use tauri_sys::{core::Channel, menu};
+
+const CLASS_LAYER: &str =
+    "truncate-rtl cursor-pointer border-y border-transparent hover:border-secondary-400";
+
+/// Context menu for containers that are `Ok`.
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuContainerOk(Rc<menu::Menu>);
+impl ContextMenuContainerOk {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
+/// Active container for the container context menu.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveContainer(state::graph::Node);
+
+/// Active asset for the asset context menu.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveAsset(state::graph::Node);
 
 #[component]
 pub fn LayersNav() -> impl IntoView {
+    let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
+    let messages = expect_context::<types::Messages>();
+
+    let context_menu_active_container =
+        create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
+
+    let context_menu_active_asset = create_rw_signal::<Option<ContextMenuActiveAsset>>(None);
+
+    provide_context(context_menu_active_container);
+    provide_context(context_menu_active_asset);
+
+    let context_menu_container_ok = create_local_resource(|| (), {
+        move |_| {
+            let project = project.clone();
+            let graph = graph.clone();
+            let messages = messages.clone();
+            async move {
+                let mut container_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
+                container_open.set_id("container-open");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "layers_nav:container-context_menu",
+                    vec![container_open.into()],
+                )
+                .await;
+
+                spawn_local({
+                    let container_open = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_container_events(
+                        project,
+                        graph,
+                        messages,
+                        context_menu_active_container.read_only(),
+                        container_open,
+                    )
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
 
     view! {
-        <div>
+        <Suspense fallback=move || {
+            view! { <LayersNavLoading/> }
+        }>
+
+            {move || {
+                context_menu_container_ok
+                    .get()
+                    .map(|context_menu_container_ok| {
+                        view! { <LayersNavView context_menu_container_ok/> }
+                    })
+            }}
+
+        </Suspense>
+    }
+}
+
+#[component]
+fn LayersNavLoading() -> impl IntoView {
+    view! { <div class="text-center pt-4">"Setting up layers navigation"</div> }
+}
+
+#[component]
+pub fn LayersNavView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
+    let graph = expect_context::<state::Graph>();
+    provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
+
+    view! {
+        <div class="px-1">
             <ContainerLayer root=graph.root().clone()/>
         </div>
     }
@@ -36,7 +128,6 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
             }
             <div>
                 <AssetsLayer container=root.clone() depth/>
-
                 <div>
                     <For
                         each={
@@ -62,7 +153,16 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
 
 #[component]
 fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl IntoView {
+    const CLICK_DEBOUNCE: f64 = 250.0;
+
+    let graph = expect_context::<state::Graph>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let context_menu = expect_context::<ContextMenuContainerOk>();
+    let context_menu_active_container =
+        expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
+    let (click_event, set_click_event) = create_signal::<Option<MouseEvent>>(None);
+    let click_event = leptos_use::signal_debounced(click_event, CLICK_DEBOUNCE);
+
     let properties = {
         let container = container.clone();
         move || {
@@ -99,15 +199,25 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         move || properties().name().get()
     };
 
-    let mousedown = {
+    let tooltip = {
+        let container = container.clone();
+        move || {
+            let path = graph.path(&container).unwrap();
+
+            let path = lib::utils::remove_root_path(path);
+            path.to_string_lossy().to_string()
+        }
+    };
+
+    let click = {
         let properties = properties.clone();
-        move |e: MouseEvent| {
+        move |e: &MouseEvent| {
             if e.button() == types::MouseButton::Primary as i16 {
                 e.stop_propagation();
                 properties().rid().with(|rid| {
                     let action = workspace_graph_state
                         .selection()
-                        .with(|selection| interpret_resource_selection_action(rid, &e, selection));
+                        .with(|selection| interpret_resource_selection_action(rid, e, selection));
                     match action {
                         SelectionAction::Remove => workspace_graph_state.select_remove(&rid),
                         SelectionAction::Add => workspace_graph_state.select_add(
@@ -126,13 +236,100 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         }
     };
 
+    let dblclick = {
+        let rid = container.properties().with_untracked(|properties| {
+            let db::state::DataResource::Ok(properties) = properties else {
+                panic!("invalid state");
+            };
+
+            properties.rid().read_only()
+        });
+
+        move |e: &MouseEvent| {
+            if e.button() == types::MouseButton::Primary as i16 {
+                e.stop_propagation();
+                let window = web_sys::window().unwrap();
+                let document = window.document().unwrap();
+                let canvas = document.query_selector("#canvas > svg").unwrap().unwrap();
+                let node = document
+                    .query_selector(&format!(
+                        "[data-resource=\"container\"][data-rid=\"{}\"]",
+                        rid.get_untracked()
+                    ))
+                    .unwrap()
+                    .unwrap();
+                let object = node.closest("foreignObject").unwrap().unwrap();
+                let container = node.closest("svg").unwrap().unwrap();
+
+                let object_x = object.get_attribute("x").unwrap().parse::<isize>().unwrap();
+                let container_x = container
+                    .get_attribute("x")
+                    .unwrap()
+                    .parse::<isize>()
+                    .unwrap();
+                let y = container
+                    .get_attribute("y")
+                    .unwrap()
+                    .parse::<isize>()
+                    .unwrap();
+
+                let viewbox = canvas.get_attribute("viewBox").unwrap();
+                let [_x0, _y0, width, height] = viewbox.split(" ").collect::<Vec<_>>()[..] else {
+                    panic!("invalid value");
+                };
+                let width = width.parse::<usize>().unwrap();
+                let height = height.parse::<usize>().unwrap();
+
+                let x0 = container_x + object_x - width as isize / 2;
+                let y0 = y - height as isize / 2;
+                canvas
+                    .set_attribute("viewBox", &format!("{x0} {y0} {width} {height}"))
+                    .unwrap();
+            }
+        }
+    };
+
+    let _ = watch(
+        move || click_event.get(),
+        move |e, _, _| {
+            let Some(e) = e else {
+                return;
+            };
+
+            match e.detail() {
+                1 => click(e),
+                2 => dblclick(e),
+                _ => {}
+            }
+        },
+        false,
+    );
+
+    let contextmenu = {
+        let container = container.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
+
+            context_menu_active_container.update(|active_container| {
+                let _ = active_container.insert(container.clone().into());
+            });
+
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
+    };
+
     view! {
         <div
-            on:mousedown=mousedown
+            on:mousedown=move |e| set_click_event(Some(e))
+            on:contextmenu=contextmenu
+            prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
-            class="cursor-pointer border-y-2 border-transparent hover:border-y-2 hover:border-solid hover:border-slate-300"
+            class=CLASS_LAYER
             class=(
-                ["bg-slate-300"],
+                ["bg-primary-200", "dark:bg-secondary-900"],
                 {
                     let selected = selected.clone();
                     move || selected()
@@ -156,14 +353,7 @@ fn ContainerLayerTitleErr(container: state::graph::Node, depth: usize) -> impl I
         }
     };
 
-    view! {
-        <div style:padding-left=move || {
-            depth_to_padding(depth)
-        }>
-
-            {title}
-        </div>
-    }
+    view! { <div style:padding-left=move || { depth_to_padding(depth) }>{title}</div> }
 }
 
 #[component]
@@ -241,10 +431,11 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
     view! {
         <div
             on:mousedown=mousedown
+            title=asset_title_closure(&asset)
             style:padding-left=move || { depth_to_padding(depth + 2) }
-            class="cursor-pointer border-y-2 border-transparent hover:border-y-2 hover:border-solid hover:border-slate-300"
+            class=CLASS_LAYER
             class=(
-                ["bg-slate-300"],
+                ["bg-secondary-200", "dark:bg-secondary-900"],
                 {
                     let selected = selected.clone();
                     move || selected()
@@ -263,7 +454,43 @@ fn AssetsLayerErr(depth: usize) -> impl IntoView {
 }
 
 fn depth_to_padding(depth: usize) -> String {
-    const LAYER_PADDING_SCALE: usize = 8;
+    const LAYER_PADDING_SCALE: usize = 1;
 
-    format!("{}px", depth * LAYER_PADDING_SCALE)
+    format!("{}ch", depth * LAYER_PADDING_SCALE)
+}
+
+async fn handle_context_menu_container_events(
+    project: state::Project,
+    graph: state::Graph,
+    messages: types::Messages,
+    context_menu_active_container: ReadSignal<Option<ContextMenuActiveContainer>>,
+    container_open: Channel<String>,
+) {
+    let mut container_open = container_open.fuse();
+    loop {
+        futures::select! {
+            event = container_open.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let data_root = project
+                        .path()
+                        .get_untracked()
+                        .join(project.properties().data_root().get_untracked());
+
+                    let container = context_menu_active_container.get_untracked().unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let path = common::container_system_path(data_root, container_path);
+
+                    if let Err(err) = commands::fs::open_file(path)
+                        .await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not open container folder.");
+                                msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+            }
+            }
+        }
+    }
 }

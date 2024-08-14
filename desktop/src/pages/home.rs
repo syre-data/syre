@@ -1,5 +1,6 @@
-use crate::pages::Dashboard;
+use crate::{components::Logo, pages::Dashboard};
 use leptos::*;
+use leptos_icons::Icon;
 use leptos_router::*;
 use syre_core::system::User;
 
@@ -16,21 +17,20 @@ pub fn Home(user: User) -> impl IntoView {
 
 #[component]
 fn MainNav() -> impl IntoView {
-    let prefers_dark = leptos_use::use_preferred_dark();
-    let home_icon_src = move || {
-        if prefers_dark() {
-            "/public/logos/logo-white-icon.svg"
-        } else {
-            "/public/logos/logo-black-icon.svg"
-        }
-    };
-
     view! {
-        <nav>
+        <nav class="p-2 border-b dark:bg-secondary-900 flex justify-between">
             <ol class="flex">
                 <li>
                     <A href="/">
-                        <img src=home_icon_src class="h-4"/>
+                        <Logo class="h-4"/>
+                    </A>
+                </li>
+            </ol>
+
+            <ol class="flex">
+                <li>
+                    <A href="/logout">
+                        <Icon icon=icondata::IoLogOutOutline class="[&_*]:dark:!stroke-white h-4"/>
                     </A>
                 </li>
             </ol>

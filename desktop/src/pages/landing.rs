@@ -1,3 +1,4 @@
+use crate::components::{Autofocus, Logo};
 use leptos::*;
 use leptos_router::*;
 use serde::Serialize;
@@ -41,32 +42,43 @@ pub fn Landing() -> impl IntoView {
     };
 
     view! {
-        <h1>Syre</h1>
-        <Suspense fallback=Loading>
-            <ErrorBoundary fallback>
-                {move || {
-                    user_count
-                        .get()
-                        .map(|count| {
-                            count
+        <div class="h-screen w-screen flex flex-col justify-center items-center gap-y-4">
+            <div class="flex flex-col items-center w-20">
+                <Logo class="w-full"/>
+                <h1 class="font-primary text-4xl">"Syre"</h1>
+            </div>
+            <div>
+                <Suspense fallback=Loading>
+                    <ErrorBoundary fallback>
+                        {move || {
+                            user_count
+                                .get()
                                 .map(|count| {
-                                    view! {
-                                        <Show
-                                            when=move || { count > 0 }
-                                            fallback=|| view! { <Register/> }
-                                        >
-                                            <div>
-                                                <A href="/register">"Sign up"</A>
-                                                <A href="/login">"Log in"</A>
-                                            </div>
-                                        </Show>
-                                    }
+                                    count
+                                        .map(|count| {
+                                            view! {
+                                                <Show
+                                                    when=move || { count > 0 }
+                                                    fallback=|| view! { <Register/> }
+                                                >
+                                                    <div class="flex gap-x-4">
+                                                        <A href="/register" class="btn btn-primary">
+                                                            "Sign up"
+                                                        </A>
+                                                        <A href="/login" class="btn btn-secondary">
+                                                            "Log in"
+                                                        </A>
+                                                    </div>
+                                                </Show>
+                                            }
+                                        })
                                 })
-                        })
-                }}
+                        }}
 
-            </ErrorBoundary>
-        </Suspense>
+                    </ErrorBoundary>
+                </Suspense>
+            </div>
+        </div>
     }
 }
 
@@ -75,12 +87,12 @@ fn Loading() -> impl IntoView {
     view! { <div>"Loading users..."</div> }
 }
 
-// TODO: Use `auth/register`, but currently running into issue with use navigate.
 #[component]
 pub fn Register() -> impl IntoView {
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None);
     let form_ref = NodeRef::new();
+
     let register_user = {
         move |e: SubmitEvent| {
             e.prevent_default();
@@ -117,26 +129,47 @@ pub fn Register() -> impl IntoView {
     };
 
     view! {
-        <h1>"Sign up"</h1>
-        <form node_ref=form_ref on:submit=register_user>
-            <div>
-                <label>"Email"</label>
-                <input name="email" type="email" required autofocus/>
-            </div>
-            <div>
-                <label>"Name"</label>
-                <input name="name"/>
-            </div>
-            <div>
-                <button disabled=move || loading()>"Sign up"</button>
-            </div>
-            <div>{error}</div>
-        </form>
+        <div>
+            <form node_ref=form_ref on:submit=register_user>
+                <div>
+                    <label>
+                        <span class="block">"Email"</span>
+                        <Autofocus>
+                            <input
+                                name="email"
+                                type="email"
+                                class="input-simple"
+                                required
+                                autofocus
+                            />
+                        </Autofocus>
+                    </label>
+                </div>
+                <div class="pt-4">
+                    <label>
+                        <span class="block">"Name"</span>
+                        <input name="name" class="input-simple"/>
+                    </label>
+                </div>
+                <div class="pt-4 text-center">
+                    <button disabled=move || loading() class="btn btn-primary">
+                        "Sign up"
+                    </button>
+                </div>
+                <div>{error}</div>
+            </form>
+        </div>
     }
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
-    tauri_sys::core::invoke_result("register_user", RegisterArgs { email, name })
+    #[derive(Serialize)]
+    struct Args {
+        email: String,
+        name: Option<String>,
+    }
+
+    tauri_sys::core::invoke_result("register_user", Args { email, name })
         .await
         .map_err(|err| match err {
             syre_local::Error::IoSerde(err) => {
@@ -154,12 +187,6 @@ async fn register(email: String, name: Option<String>) -> Result<User, String> {
                 "Could not create user.".to_string()
             }
         })
-}
-
-#[derive(Serialize)]
-struct RegisterArgs {
-    email: String,
-    name: Option<String>,
 }
 
 async fn fetch_user_count() -> Result<usize, IoSerde> {

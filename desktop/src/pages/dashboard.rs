@@ -1,7 +1,7 @@
 use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
     components::ModalDialog,
-    types::MouseButton,
+    types,
 };
 use futures::stream::StreamExt;
 use leptos::*;
@@ -33,7 +33,7 @@ pub fn Dashboard() -> impl IntoView {
 
 #[component]
 fn Loading() -> impl IntoView {
-    view! { <div>"Loading projects..."</div> }
+    view! { <div class="text-center pt-4">"Loading projects..."</div> }
 }
 
 #[component]
@@ -93,6 +93,10 @@ fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoV
     });
 
     let show_create_project_dialog = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
         spawn_local(async move {
             if let Some(p) = pick_folder("Create a new project").await {
                 create_project_path.update(|path| {
@@ -104,10 +108,39 @@ fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoV
         })
     };
 
+    let show_initialize_project_dialog = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
+        todo!();
+    };
+
+    let show_import_project_dialog = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
+        todo!();
+    };
+
     view! {
-        <div>
-            <div>
-                <button on:mousedown=show_create_project_dialog>"New project"</button>
+        <div class="p-4">
+            <div class="pb-4">
+                <span class="font-primary text-3xl pr-4">"Dashboard"</span>
+                <div class="inline-flex gap-x-2 align-bottom">
+                    <button on:mousedown=show_create_project_dialog class="btn btn-primary">
+                        "New"
+                    </button>
+
+                    <button on:mousedown=show_initialize_project_dialog class="btn btn-secondary">
+                        "Initialize"
+                    </button>
+
+                    <button on:mousedown=show_import_project_dialog class="btn btn-secondary">
+                        "Import"
+                    </button>
+                </div>
             </div>
 
             <ProjectDeck projects/>
@@ -166,21 +199,25 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
         let navigate = navigate.clone();
         let project = project.rid().to_string();
         move |e: MouseEvent| {
-            if e.button() == MouseButton::Primary as i16 {
+            if e.button() == types::MouseButton::Primary as i16 {
                 navigate(&project, Default::default());
             }
         }
     };
 
     view! {
-        <A href={
-            let project = project.rid().clone();
-            move || project.to_string()
-        }>
-            <div class="border-2 rounded border">
-                <h3>{project.name.clone()}</h3>
+        <A
+            href={
+                let project = project.rid().clone();
+                move || project.to_string()
+            }
+
+            class="w-1/4 rounded border border-secondary-900 dark:bg-secondary-700 dark:border-secondary-50"
+        >
+            <div class="px-4 py-2">
+                <h3 class="text-2xl font-primary">{project.name.clone()}</h3>
                 <div>{project.description.clone()}</div>
-                <div>{path.to_string_lossy().to_string()}</div>
+                <div class="text-sm truncate-rtl">{path.to_string_lossy().to_string()}</div>
             </div>
         </A>
     }

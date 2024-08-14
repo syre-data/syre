@@ -1,3 +1,4 @@
+use crate::components::{Autofocus, Logo};
 use leptos::*;
 use leptos_router::{use_navigate, *};
 use serde::Serialize;
@@ -10,6 +11,7 @@ pub fn Login() -> impl IntoView {
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None);
     let form_ref = NodeRef::new();
+
     let login_user = {
         let navigate = navigate.clone();
         move |e: SubmitEvent| {
@@ -43,19 +45,40 @@ pub fn Login() -> impl IntoView {
     };
 
     view! {
-        <h1>"Log in"</h1>
-        <form node_ref=form_ref on:submit=login_user>
-            <div>
-                <label>"Email"</label>
-                <input name="email" type="email" required/>
+        <div class="h-screen w-screen flex flex-col justify-center items-center gap-y-4">
+            <div class="flex flex-col items-center w-20">
+                <Logo class="w-full"/>
+                <h1 class="font-primary text-4xl">"Syre"</h1>
             </div>
+            <div class="w-1/2">
+                <form node_ref=form_ref on:submit=login_user>
+                    <div>
+                        <label>
+                            "Email"
+                            <Autofocus>
+                            <input
+                                name="email"
+                                type="email"
+                                class="input-simple"
+                                required
+                                autofocus
+                            />
+                            </Autofocus>
+                        </label>
+                    </div>
 
-            <div>
-                <button disabled=move || loading()>"Login"</button>
-                <A href="/register">"Sign up"</A>
+                    <div class="pt-4 flex gap-x-4 justify-center">
+                        <button disabled=loading class="btn btn-primary">
+                            "Login"
+                        </button>
+                        <A href="/register" class="btn btn-secondary">
+                            "Sign up"
+                        </A>
+                    </div>
+                </form>
+                <div>{error}</div>
             </div>
-        </form>
-        <div>{error}</div>
+        </div>
     }
 }
 

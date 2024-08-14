@@ -8,6 +8,7 @@ pub fn interpret_resource_selection_action(
     event: &MouseEvent,
     selection: &Vec<SelectedResource>,
 ) -> SelectionAction {
+    tracing::debug!("selection Action");
     if event.shift_key() {
         let is_selected = selection
             .iter()

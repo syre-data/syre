@@ -13,8 +13,9 @@ pub fn InputNumber(
     #[prop(into)] oninput: Callback<String>,
     #[prop(optional)] min: Option<f64>,
     #[prop(optional)] max: Option<f64>,
-    #[prop(optional, into)] placeholder: MaybeSignal<String>,
+    #[prop(optional, into)] placeholder: MaybeProp<String>,
     #[prop(default = false)] required: bool,
+    #[prop(optional, into)] class: MaybeProp<String>,
 ) -> impl IntoView {
     let step = move || {
         value.with(|value| match value.split_once('.') {
@@ -39,6 +40,7 @@ pub fn InputNumber(
             max=max
             step=step
             placeholder=placeholder
+            class=class
             required=required
         />
     }
@@ -52,8 +54,9 @@ pub mod debounced {
         #[prop(into)] value: MaybeSignal<String>,
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: MaybeSignal<f64>,
-        #[prop(into, optional)] placeholder: MaybeSignal<String>,
-        #[prop(into, optional)] minlength: MaybeSignal<usize>,
+        #[prop(into, optional)] placeholder: MaybeProp<String>,
+        #[prop(into, optional)] minlength: MaybeProp<usize>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
@@ -85,6 +88,7 @@ pub mod debounced {
 
                 placeholder=placeholder
                 minlength=minlength
+                class=class
             />
         }
     }
@@ -94,7 +98,8 @@ pub mod debounced {
         #[prop(into)] value: MaybeSignal<String>,
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: MaybeSignal<f64>,
-        #[prop(into, optional)] placeholder: MaybeSignal<String>,
+        #[prop(into, optional)] placeholder: MaybeProp<String>,
+        #[prop(into, optional)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, debounce);
@@ -124,6 +129,7 @@ pub mod debounced {
                 }
 
                 placeholder=placeholder
+                class=class
             >
 
                 {input_value.with(|value| value.value().clone())}

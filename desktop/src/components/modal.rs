@@ -22,7 +22,7 @@ pub fn ModalDialog(
     };
 
     view! {
-        <dialog node_ref=node_ref on:mousedown=close_dialog>
+        <dialog node_ref=node_ref on:mousedown=close_dialog class="bg-transparent">
             {children()}
         </dialog>
     }

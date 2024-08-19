@@ -7,11 +7,10 @@ pub mod kind {
         #[prop(into)] value: MaybeSignal<Option<String>>,
         #[prop(into)] oninput: Callback<Option<String>>,
         #[prop(into)] debounce: MaybeSignal<f64>,
+        #[prop(into, optional)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = create_signal(value());
-
         let input_value = move || value.with(|value| value.clone().unwrap_or(String::new()));
-
         let oninput_text = {
             move |value: String| {
                 let value = value.trim();
@@ -29,7 +28,7 @@ pub mod kind {
             oninput(processed_value());
         });
 
-        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce/> }
+        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
     }
 }
 
@@ -42,6 +41,7 @@ pub mod description {
         #[prop(into)] value: MaybeSignal<Option<String>>,
         #[prop(into)] oninput: Callback<Option<String>>,
         #[prop(into)] debounce: MaybeSignal<f64>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = create_signal(value());
 
@@ -64,7 +64,7 @@ pub mod description {
             oninput(processed_value());
         });
 
-        view! { <TextArea value=Signal::derive(input_value) oninput=oninput_text debounce/> }
+        view! { <TextArea value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
     }
 }
 
@@ -77,6 +77,7 @@ pub mod tags {
         #[prop(into)] value: MaybeSignal<Vec<String>>,
         #[prop(into)] oninput: Callback<Vec<String>>,
         #[prop(into)] debounce: MaybeSignal<f64>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = create_signal(value());
 
@@ -111,7 +112,7 @@ pub mod tags {
             oninput(processed_value());
         });
 
-        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce/> }
+        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
     }
 }
 
@@ -120,16 +121,30 @@ pub mod metadata {
     use super::super::INPUT_DEBOUNCE;
     use crate::components::form::InputNumber;
     use leptos::*;
+    use leptos_icons::Icon;
     use syre_core::types::{data::ValueKind, Value};
 
     #[component]
     pub fn AddDatum(
         #[prop(into)] keys: MaybeSignal<Vec<String>>,
         #[prop(into)] onadd: Callback<(String, Value)>,
+        /// Reset the state of the form.
+        #[prop(optional, into)]
+        reset: Option<ReadSignal<()>>,
+        #[prop(optional, into)] id: MaybeProp<String>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (key, set_key) = create_signal("".to_string());
         let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
         let (value, set_value) = create_signal(Value::String("".to_string()));
+
+        if let Some(reset) = reset {
+            let _ = watch(
+                reset,
+                move |_, _, _| set_value(Value::String("".to_string())),
+                false,
+            );
+        }
 
         let invalid_key = {
             let keys = keys.clone();
@@ -174,18 +189,28 @@ pub mod metadata {
         };
 
         view! {
-            <div>
-                <input
-                    name="key"
-                    class=(["border-red-600", "border-solid", "border-2"], invalid_key.clone())
-                    prop:value=key
-                    minlength="1"
-                    on:input=move |e| set_key(event_target_value(&e))
-                />
+            <div id=id class=class>
+                <div class="pb-1">
+                    <input
+                        name="key"
+                        on:input=move |e| set_key(event_target_value(&e))
+                        prop:value=key
+                        placeholder="Name"
+                        minlength="1"
+                        class=(["border-red-600", "border-solid", "border-2"], invalid_key.clone())
+                        class="input-compact w-full"
+                    />
+                </div>
                 <ValueEditor value set_value/>
-                <button type="button" on:mousedown=onadd_datum>
-                    "+"
-                </button>
+                <div class="py-1 flex gap-x-1">
+                    <button
+                        type="button"
+                        on:mousedown=onadd_datum
+                        class="hover:bg-primary-400 dark:hover:bg-primary-700"
+                    >
+                        <Icon icon=icondata::AiPlusOutlined/>
+                    </button>
+                </div>
             </div>
         }
     }
@@ -194,9 +219,9 @@ pub mod metadata {
     pub fn ValueEditor(
         #[prop(into)] value: Signal<Value>,
         set_value: WriteSignal<Value>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let value_kind = create_memo(move |_| value.with(|value| value.kind()));
-
         let value_editor = move || {
             value_kind.with(|kind| match kind {
                 ValueKind::Bool => {
@@ -220,9 +245,17 @@ pub mod metadata {
             })
         };
 
+        let class = move || {
+            let mut class = class.get().unwrap_or("".to_string());
+            class.push_str("flex flex-wrap gap-2");
+            class
+        };
+
         view! {
-            <KindSelect value set_value/>
-            {value_editor}
+            <div class=class>
+                <KindSelect value set_value/>
+                {value_editor}
+            </div>
         }
     }
 
@@ -247,6 +280,7 @@ pub mod metadata {
                 }
 
                 on:change=change
+                class="input-compact pr-4"
             >
                 <option value=kind_to_str(&ValueKind::String)>"String"</option>
                 <option value=kind_to_str(&ValueKind::Number)>"Number"</option>
@@ -304,6 +338,8 @@ pub mod metadata {
                 type="text"
                 prop:value=input_value
                 on:input=move |e| set_value(Value::String(event_target_value(&e)))
+                placeholder="Value"
+                class="input-compact"
             />
         }
     }
@@ -332,7 +368,14 @@ pub mod metadata {
             set_value(Value::Number(value));
         };
 
-        view! { <InputNumber value=Signal::derive(input_value) oninput/> }
+        view! {
+            <InputNumber
+                value=Signal::derive(input_value)
+                oninput
+                placeholder="Value"
+                class="input-compact"
+            />
+        }
     }
 
     #[component]
@@ -386,9 +429,21 @@ pub mod metadata {
         };
 
         view! {
-            <div>
-                <InputNumber value=Signal::derive(value_magnitude) oninput=oninput_magnitude/>
-                <input prop:value=value_unit minlength=1 on:input=oninput_unit/>
+            <div class="flex">
+                <InputNumber
+                    value=Signal::derive(value_magnitude)
+                    oninput=oninput_magnitude
+                    placeholder="Magnitude"
+                    class="input-compact"
+                />
+
+                <input
+                    prop:value=value_unit
+                    minlength=1
+                    on:input=oninput_unit
+                    placeholder="Units"
+                    class="input-compact"
+                />
             </div>
         }
     }
@@ -447,9 +502,13 @@ pub mod metadata {
         });
 
         view! {
-            <textarea on:input=move |e| set_input_value(
-                event_target_value(&e),
-            )>{input_value}</textarea>
+            <textarea
+                on:input=move |e| set_input_value(event_target_value(&e))
+                placeholder="Value"
+                class="input-compact align-top"
+            >
+                {input_value}
+            </textarea>
         }
     }
 
@@ -639,6 +698,7 @@ pub mod metadata {
 
 pub mod analysis_associations {
     use leptos::*;
+    use leptos_icons::Icon;
     use std::str::FromStr;
     use syre_core::{self as core, types::ResourceId};
 
@@ -679,7 +739,7 @@ pub mod analysis_associations {
     pub fn AddAssociation(
         #[prop(into)] available_analyses: Signal<Vec<AnalysisInfo>>,
         #[prop(into)] onadd: Callback<core::project::AnalysisAssociation>,
-        #[prop(into)] oncancel: Callback<()>,
+        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let analysis_node = create_node_ref::<html::Select>();
         let priority_node = create_node_ref::<html::Input>();
@@ -702,43 +762,60 @@ pub mod analysis_associations {
             onadd(association);
         };
 
-        let cancel = move |_| {
-            oncancel(());
-        };
-
         view! {
-            <div>
+            <div class=class>
                 <div>
-                    <select ref=analysis_node>
-                        <Show
-                            when=move || available_analyses.with(|analyses| !analyses.is_empty())
-                            fallback=move || {
-                                view! {
-                                    <option value="" disabled=true>
-                                        "(no analyses available)"
-                                    </option>
+                    <div class="pb-1">
+                        <select ref=analysis_node class="input-compact w-full">
+                            <Show
+                                when=move || {
+                                    available_analyses.with(|analyses| !analyses.is_empty())
                                 }
-                            }
-                        >
 
-                            <For
-                                each=available_analyses
-                                key=|analysis| analysis.rid.clone()
-                                let:analysis
+                                fallback=move || {
+                                    view! {
+                                        <option value="" disabled=true>
+                                            "(no analyses available)"
+                                        </option>
+                                    }
+                                }
                             >
-                                <option value=analysis.rid.to_string()>{analysis.title}</option>
-                            </For>
-                        </Show>
-                    </select>
-                    <input ref=priority_node type="number" name="priority" value="0"/>
-                    <input ref=autorun_node type="checkbox" name="autorun" checked=true/>
+
+                                <For
+                                    each=available_analyses
+                                    key=|analysis| analysis.rid.clone()
+                                    let:analysis
+                                >
+                                    <option value=analysis.rid.to_string()>{analysis.title}</option>
+                                </For>
+                            </Show>
+                        </select>
+                    </div>
+                    <div class="flex gap-1">
+                        <input
+                            ref=priority_node
+                            type="number"
+                            name="priority"
+                            value="0"
+                            // TODO: May not want to use hard coded width
+                            class="input-compact min-w-14"
+                        />
+                        <input
+                            ref=autorun_node
+                            type="checkbox"
+                            name="autorun"
+                            checked=true
+                            class="input-compact"
+                        />
+                    </div>
                 </div>
-                <div>
-                    <button type="button" on:mousedown=add>
-                        "+"
-                    </button>
-                    <button type="button" on:mousedown=cancel>
-                        "Cancel"
+                <div class="py-1">
+                    <button
+                        type="button"
+                        on:mousedown=add
+                        class="hover:bg-primary-400 dark:hover:bg-primary-700"
+                    >
+                        <Icon icon=icondata::AiPlusOutlined/>
                     </button>
                 </div>
             </div>
@@ -828,8 +905,8 @@ pub mod bulk {
                 let value = value.clone();
                 move || {
                     value.with(|value| match value {
-                        Value::Mixed => "(mixed)".to_string(),
-                        Value::Equal(_) => "(empty)".to_string(),
+                        Value::Mixed => Some("(mixed)".to_string()),
+                        Value::Equal(_) => Some("(empty)".to_string()),
                     })
                 }
             };
@@ -847,7 +924,7 @@ pub mod bulk {
                     value=Signal::derive(input_value)
                     oninput=oninput_text
                     debounce
-                    placeholder=Signal::derive(placeholder)
+                    placeholder=MaybeProp::derive(placeholder)
                 />
             }
         }
@@ -898,8 +975,8 @@ pub mod bulk {
                 let value = value.clone();
                 move || {
                     value.with(|value| match value {
-                        Value::Mixed => "(mixed)".to_string(),
-                        Value::Equal(_) => "(empty)".to_string(),
+                        Value::Mixed => Some("(mixed)".to_string()),
+                        Value::Equal(_) => Some("(empty)".to_string()),
                     })
                 }
             };
@@ -917,7 +994,7 @@ pub mod bulk {
                     value=Signal::derive(input_value)
                     oninput=oninput_text
                     debounce
-                    placeholder=Signal::derive(placeholder)
+                    placeholder=MaybeProp::derive(placeholder)
                 />
             }
         }
@@ -931,6 +1008,14 @@ pub mod bulk {
             #[prop(into)] value: MaybeSignal<Vec<String>>,
             #[prop(into)] onadd: Callback<Vec<String>>,
             #[prop(into)] onremove: Callback<String>,
+
+            /// Classes applied to outer container.
+            #[prop(optional, into)]
+            class: MaybeProp<String>,
+
+            /// Classes applied to individual tags.
+            #[prop(optional, into)]
+            tag_class: MaybeProp<String>,
         ) -> impl IntoView {
             let input_ref = create_node_ref::<html::Input>();
             let add_tags = move |e| {
@@ -959,20 +1044,26 @@ pub mod bulk {
             };
 
             view! {
-                <div>
+                <div class=class>
                     <div>
                         <input ref=input_ref type="text" placeholder="Add tags"/>
                         <button type="button" on:mousedown=add_tags>
                             "+"
                         </button>
                     </div>
-                    <TagsList value onremove/>
+                    <TagsList value onremove tag_class/>
                 </div>
             }
         }
 
         #[component]
-        fn TagsList(value: MaybeSignal<Vec<String>>, onremove: Callback<String>) -> impl IntoView {
+        fn TagsList(
+            value: MaybeSignal<Vec<String>>,
+            onremove: Callback<String>,
+
+            /// Class applied to each tag list item.
+            tag_class: MaybeProp<String>,
+        ) -> impl IntoView {
             view! {
                 <div>
                     <ul>
@@ -982,7 +1073,8 @@ pub mod bulk {
                                     tags.iter()
                                         .map(|tag| {
                                             view! {
-                                                <li>
+                                                <li class=tag_class
+                                                    .clone()>
                                                     {tag.clone()}
                                                     <button
                                                         type="button"
@@ -1145,8 +1237,10 @@ pub mod bulk {
             };
 
             view! {
-                <KindSelect value onchange=oninput/>
-                {value_editor}
+                <div class="flex flex-wrap">
+                    <KindSelect value onchange=oninput/>
+                    {value_editor}
+                </div>
             }
         }
 
@@ -1268,8 +1362,8 @@ pub mod bulk {
             let placeholder = {
                 let value = value.clone();
                 move || match value {
-                    Value::EqualKind(_) => "(mixed)".to_string(),
-                    Value::Equal(data::Value::Number(_)) => "".to_string(),
+                    Value::EqualKind(_) => Some("(mixed)".to_string()),
+                    Value::Equal(data::Value::Number(_)) => None,
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 }
             };
@@ -1287,7 +1381,7 @@ pub mod bulk {
                 <InputNumber
                     value=Signal::derive(input_value)
                     oninput=oninput_text
-                    placeholder=Signal::derive(placeholder)
+                    placeholder=MaybeProp::derive(placeholder)
                 />
             }
         }
@@ -1391,6 +1485,7 @@ pub mod bulk {
                 <textarea
                     on:input=move |e| set_input_value(event_target_value(&e))
                     placeholder=placeholder
+                    class="align-top"
                 >
                     {input_value}
                 </textarea>

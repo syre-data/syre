@@ -1,6 +1,6 @@
 use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
-    components::ModalDialog,
+    components::{ModalDialog, TruncateLeft},
     types,
 };
 use futures::stream::StreamExt;
@@ -194,16 +194,7 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
 
 #[component]
 fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
-    let navigate = use_navigate();
-    let goto_project = {
-        let navigate = navigate.clone();
-        let project = project.rid().to_string();
-        move |e: MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
-                navigate(&project, Default::default());
-            }
-        }
-    };
+    let path_str = move || path.to_string_lossy().to_string();
 
     view! {
         <A
@@ -217,7 +208,9 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
             <div class="px-4 py-2">
                 <h3 class="text-2xl font-primary">{project.name.clone()}</h3>
                 <div>{project.description.clone()}</div>
-                <div class="text-sm truncate-rtl">{path.to_string_lossy().to_string()}</div>
+                <div title=path_str.clone() class="text-sm">
+                    <TruncateLeft>{path_str.clone()}</TruncateLeft>
+                </div>
             </div>
         </A>
     }

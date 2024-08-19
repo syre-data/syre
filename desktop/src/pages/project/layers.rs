@@ -2,21 +2,35 @@ use super::{
     common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
     state,
 };
-use crate::{commands, common, components::message::Builder as Message, types};
+use crate::{
+    commands, common,
+    components::{message::Builder as Message, TruncateLeft},
+    types,
+};
 use futures::StreamExt;
 use leptos::{ev::MouseEvent, *};
+use leptos_icons::Icon;
 use std::rc::Rc;
+use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local_database as db;
 use tauri_sys::{core::Channel, menu};
 
-const CLASS_LAYER: &str =
-    "truncate-rtl cursor-pointer border-y border-transparent hover:border-secondary-400";
+const CLASS_LAYER: &str = "cursor-pointer border-y border-transparent hover:border-secondary-400";
 
 /// Context menu for containers that are `Ok`.
 #[derive(derive_more::Deref, Clone)]
 struct ContextMenuContainerOk(Rc<menu::Menu>);
 impl ContextMenuContainerOk {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
+/// Context menu for assets.
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuAsset(Rc<menu::Menu>);
+impl ContextMenuAsset {
     pub fn new(menu: Rc<menu::Menu>) -> Self {
         Self(menu)
     }
@@ -28,7 +42,7 @@ struct ContextMenuActiveContainer(state::graph::Node);
 
 /// Active asset for the asset context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
-struct ContextMenuActiveAsset(state::graph::Node);
+struct ContextMenuActiveAsset(ResourceId);
 
 #[component]
 pub fn LayersNav() -> impl IntoView {
@@ -38,20 +52,22 @@ pub fn LayersNav() -> impl IntoView {
 
     let context_menu_active_container =
         create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
-
     let context_menu_active_asset = create_rw_signal::<Option<ContextMenuActiveAsset>>(None);
 
     provide_context(context_menu_active_container);
     provide_context(context_menu_active_asset);
 
     let context_menu_container_ok = create_local_resource(|| (), {
+        let project = project.clone();
+        let graph = graph.clone();
+        let messages = messages.clone();
         move |_| {
             let project = project.clone();
             let graph = graph.clone();
             let messages = messages.clone();
             async move {
                 let mut container_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
-                container_open.set_id("container-open");
+                container_open.set_id("layers_nav:container-open");
 
                 let (menu, mut listeners) = menu::Menu::with_id_and_items(
                     "layers_nav:container-context_menu",
@@ -75,17 +91,52 @@ pub fn LayersNav() -> impl IntoView {
         }
     });
 
+    let context_menu_asset = create_local_resource(|| (), {
+        let project = project.clone();
+        let graph = graph.clone();
+        let messages = messages.clone();
+        move |_| {
+            let project = project.clone();
+            let graph = graph.clone();
+            let messages = messages.clone();
+            async move {
+                let mut asset_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
+                asset_open.set_id("layers_nav:asset-open");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "layers_nav:asset-context_menu",
+                    vec![asset_open.into()],
+                )
+                .await;
+
+                spawn_local({
+                    let asset_open = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_asset_events(
+                        project,
+                        graph,
+                        messages,
+                        context_menu_active_asset.read_only(),
+                        asset_open,
+                    )
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
+
     view! {
         <Suspense fallback=move || {
             view! { <LayersNavLoading/> }
         }>
-
             {move || {
-                context_menu_container_ok
-                    .get()
-                    .map(|context_menu_container_ok| {
-                        view! { <LayersNavView context_menu_container_ok/> }
-                    })
+                let Some(context_menu_container_ok) = context_menu_container_ok.get() else {
+                    return None;
+                };
+                let Some(context_menu_asset) = context_menu_asset.get() else {
+                    return None;
+                };
+                Some(view! { <LayersNavView context_menu_container_ok context_menu_asset/> })
             }}
 
         </Suspense>
@@ -98,12 +149,16 @@ fn LayersNavLoading() -> impl IntoView {
 }
 
 #[component]
-pub fn LayersNavView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
+pub fn LayersNavView(
+    context_menu_container_ok: Rc<menu::Menu>,
+    context_menu_asset: Rc<menu::Menu>,
+) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
+    provide_context(ContextMenuAsset::new(context_menu_asset));
 
     view! {
-        <div class="px-1">
+        <div class="pt-2 px-1 overflow-auto">
             <ContainerLayer root=graph.root().clone()/>
         </div>
     }
@@ -258,20 +313,38 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
                     ))
                     .unwrap()
                     .unwrap();
-                let object = node.closest("foreignObject").unwrap().unwrap();
-                let container = node.closest("svg").unwrap().unwrap();
 
+                let object = node.closest("foreignObject").unwrap().unwrap();
                 let object_x = object.get_attribute("x").unwrap().parse::<isize>().unwrap();
-                let container_x = container
+
+                let container = node.closest("svg").unwrap().unwrap();
+                let mut x = container
                     .get_attribute("x")
                     .unwrap()
                     .parse::<isize>()
                     .unwrap();
-                let y = container
+                let mut y = container
                     .get_attribute("y")
                     .unwrap()
                     .parse::<isize>()
                     .unwrap();
+
+                let mut current_container = container;
+                while let Some(parent) = current_container.parent_element() {
+                    let Some(container) = parent.closest("svg").unwrap() else {
+                        break;
+                    };
+                    let Some(container_x) = container.get_attribute("x") else {
+                        break;
+                    };
+                    let Some(container_y) = container.get_attribute("y") else {
+                        break;
+                    };
+
+                    x += container_x.parse::<isize>().unwrap();
+                    y += container_y.parse::<isize>().unwrap();
+                    current_container = container;
+                }
 
                 let viewbox = canvas.get_attribute("viewBox").unwrap();
                 let [_x0, _y0, width, height] = viewbox.split(" ").collect::<Vec<_>>()[..] else {
@@ -280,7 +353,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
                 let width = width.parse::<usize>().unwrap();
                 let height = height.parse::<usize>().unwrap();
 
-                let x0 = container_x + object_x - width as isize / 2;
+                let x0 = x + object_x - width as isize / 2;
                 let y0 = y - height as isize / 2;
                 canvas
                     .set_attribute("viewBox", &format!("{x0} {y0} {width} {height}"))
@@ -328,6 +401,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
             prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
             class=CLASS_LAYER
+            class="flex"
             class=(
                 ["bg-primary-200", "dark:bg-secondary-900"],
                 {
@@ -337,7 +411,10 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
             )
         >
 
-            {title}
+            <span class="pr-1">
+                <Icon icon=icondata::FaFolderRegular/>
+            </span>
+            <TruncateLeft>{title}</TruncateLeft>
         </div>
     }
 }
@@ -376,7 +453,12 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
     view! {
         <div>
             <Show when=move || assets.with(|assets| !assets.is_empty()) fallback=no_data>
-                <div style:padding-left=move || { depth_to_padding(depth + 1) }>"Assets"</div>
+                <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
+                    <span class="pr-1">
+                        <Icon icon=icondata::BsFiles/>
+                    </span>
+                    <span>"Assets"</span>
+                </div>
                 <div>
                     <For each=assets key=move |asset| asset.rid().get() let:asset>
                         <AssetLayer asset depth/>
@@ -390,6 +472,8 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
 #[component]
 fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let context_menu = expect_context::<ContextMenuAsset>();
+    let context_menu_active_asset = expect_context::<RwSignal<Option<ContextMenuActiveAsset>>>();
 
     let title = asset_title_closure(&asset);
 
@@ -428,14 +512,31 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
         }
     };
 
+    let contextmenu = {
+        let asset = asset.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
+
+            context_menu_active_asset.update(|active_asset| {
+                let _ = active_asset.insert(asset.rid().get_untracked().into());
+            });
+
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
+    };
+
     view! {
         <div
             on:mousedown=mousedown
+            on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             style:padding-left=move || { depth_to_padding(depth + 2) }
             class=CLASS_LAYER
             class=(
-                ["bg-secondary-200", "dark:bg-secondary-900"],
+                ["bg-primary-200", "dark:bg-secondary-900"],
                 {
                     let selected = selected.clone();
                     move || selected()
@@ -443,7 +544,7 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
             )
         >
 
-            {title}
+            <TruncateLeft>{title}</TruncateLeft>
         </div>
     }
 }
@@ -485,6 +586,54 @@ async fn handle_context_menu_container_events(
                         .await {
                             messages.update(|messages|{
                                 let mut msg = Message::error("Could not open container folder.");
+                                msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+            }
+            }
+        }
+    }
+}
+
+async fn handle_context_menu_asset_events(
+    project: state::Project,
+    graph: state::Graph,
+    messages: types::Messages,
+    context_menu_active_asset: ReadSignal<Option<ContextMenuActiveAsset>>,
+    asset_open: Channel<String>,
+) {
+    let mut asset_open = asset_open.fuse();
+    loop {
+        futures::select! {
+            event = asset_open.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let data_root = project
+                        .path()
+                        .get_untracked()
+                        .join(project.properties().data_root().get_untracked());
+
+                    let asset = context_menu_active_asset.get_untracked().unwrap();
+                    let container = graph.find_by_asset_id(&*asset).unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let container_path = common::container_system_path(data_root, container_path);
+                    let db::state::DataResource::Ok(assets) = container.assets().get_untracked() else {
+                        panic!("invalid state");
+                    };
+                    let asset_path = assets.with_untracked(|assets| assets.iter().find_map(|container_asset| {
+                         container_asset.rid().with_untracked(|rid| if *rid == *asset {
+                            Some(container_asset.path().get_untracked())
+                        } else {
+                            None
+                        })
+                    })).unwrap();
+                    let path = container_path.join(asset_path);
+
+                    if let Err(err) = commands::fs::open_file(path)
+                        .await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not open asset file.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

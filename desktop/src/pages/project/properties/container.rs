@@ -1,10 +1,11 @@
 use super::{common, INPUT_DEBOUNCE};
-use crate::pages::project::state;
+use crate::{pages::project::state, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
 use has_id::HasId;
 use kind::Editor as Kind;
-use leptos::*;
+use leptos::{ev::MouseEvent, *};
+use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
 use serde::Serialize;
@@ -18,6 +19,28 @@ use tags::Editor as Tags;
 #[component]
 pub fn Editor(container: state::Container) -> impl IntoView {
     let project = expect_context::<state::Project>();
+    let add_metadatum_visible = create_rw_signal(false);
+    let add_analysis_visible = create_rw_signal(false);
+
+    let _ = watch(
+        move || add_metadatum_visible(),
+        move |add_metadatum_visible, _, _| {
+            if *add_metadatum_visible && add_analysis_visible() {
+                add_analysis_visible.set(false);
+            }
+        },
+        false,
+    );
+
+    let _ = watch(
+        move || add_analysis_visible(),
+        move |add_analysis_visible, _, _| {
+            if add_metadatum_visible() && *add_analysis_visible {
+                add_metadatum_visible.set(false);
+            }
+        },
+        false,
+    );
 
     let db::state::DataResource::Ok(properties) = container.properties().get_untracked() else {
         panic!("invalid state");
@@ -78,55 +101,91 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                 .collect()
         })
     };
+    let available_analyses = Signal::derive(available_analyses);
+
+    let show_add_metadatum = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            add_metadatum_visible.set(true);
+        }
+    };
+
+    let show_add_analysis = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            add_analysis_visible.set(true);
+        }
+    };
 
     view! {
         <div>
-            <div>
+            <div class="text-center pt-4 pb-2">
                 <h3>"Container"</h3>
             </div>
             <form on:submit=|e| e.prevent_default()>
-                <div>
+                <div class="pb-1 px-1">
                     <label>
-                        "Name"
+                        <span class="block">"Name"</span>
                         <Name
                             value=properties.name().read_only()
                             container=properties.rid().read_only()
                         />
                     </label>
                 </div>
-                <div>
+                <div class="pb-1 px-1">
                     <label>
-                        "Type"
+                        <span class="block">"Type"</span>
                         <Kind
                             value=properties.kind().read_only()
                             container=properties.rid().read_only()
                         />
                     </label>
                 </div>
-                <div>
+                <div class="pb-1 px-1">
                     <label>
-                        "Description"
+                        <span class="block">"Description"</span>
                         <Description
                             value=properties.description().read_only()
                             container=properties.rid().read_only()
                         />
                     </label>
                 </div>
-                <div>
+                <div class="pb-4 px-1">
                     <label>
-                        "Tags"
+                        <span class="block">"Tags"</span>
                         <Tags
                             value=properties.tags().read_only()
                             container=properties.rid().read_only()
                         />
                     </label>
                 </div>
-                <div>
-                    <label>
-                        "Metadata"
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="px-1 block">
+                        <div class="flex">
+                            <span class="grow">"Metadata"</span>
+                            <span>
+                                // TODO: Button hover state seems to be triggered by hovering over
+                                // parent section.
+                                <button
+                                    on:mousedown=show_add_metadatum
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_metadatum_visible,
+                                    )
+
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_metadatum_visible(),
+                                    )
+
+                                    class="aspect-square w-full rounded-sm"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
                         <AddDatum
                             metadata=properties.metadata().read_only()
                             container=properties.rid().read_only()
+                            visibility=add_metadatum_visible
                         />
                         <Metadata
                             value=properties.metadata().read_only()
@@ -134,12 +193,42 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                         />
                     </label>
                 </div>
-                <div>
-                    <label>
-                        "Analyses"
+                <div class="relative pt-4 pb-1 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="px-1 block">
+                        <div class="flex">
+                            <span class="grow">"Analyses"</span>
+                            <span>
+                                // TODO: Button hover state seems to be triggered by hovering over
+                                // parent section.
+                                <button
+                                    on:mousedown=show_add_analysis
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_analysis_visible,
+                                    )
+
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || {
+                                            available_analyses.with(|analyses| !analyses.is_empty())
+                                                && !add_analysis_visible()
+                                        },
+                                    )
+
+                                    class="aspect-square w-full rounded-sm disabled:opacity-50 "
+                                    disabled=move || {
+                                        available_analyses.with(|analyses| analyses.is_empty())
+                                    }
+                                >
+
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
                         <AddAssociation
-                            available_analyses=Signal::derive(available_analyses)
+                            available_analyses
                             container=properties.rid().read_only()
+                            visibility=add_analysis_visible
                         />
                         <AnalysisAssociations
                             associations=analysis_associations.read_only()
@@ -148,7 +237,6 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                     </label>
                 </div>
             </form>
-
         </div>
     }
 }
@@ -223,12 +311,14 @@ mod name {
         view! {
             <input
                 name="name"
-                class=("border-red", error)
-                prop:value=move || input_value.with(|value| value.value().clone())
-                minlength="1"
                 on:input=move |e| {
                     set_input_value(value::State::set_from_input(event_target_value(&e)));
                 }
+
+                prop:value=move || input_value.with(|value| value.value().clone())
+                class=("border-red", error)
+                class="input-compact w-full"
+                minlength="1"
             />
         }
     }
@@ -302,7 +392,14 @@ mod kind {
             });
         };
 
-        view! { <KindEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <KindEditor
+                value
+                oninput=Callback::new(oninput)
+                debounce=INPUT_DEBOUNCE
+                class="input-compact w-full"
+            />
+        }
     }
 }
 
@@ -355,7 +452,14 @@ mod description {
             }
         };
 
-        view! { <DescriptionEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <DescriptionEditor
+                value
+                oninput=Callback::new(oninput)
+                debounce=INPUT_DEBOUNCE
+                class="input-compact w-full align-top"
+            />
+        }
     }
 }
 
@@ -406,7 +510,14 @@ mod tags {
             }
         };
 
-        view! { <TagsEditor value oninput=Callback::new(oninput) debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <TagsEditor
+                value
+                oninput=Callback::new(oninput)
+                debounce=INPUT_DEBOUNCE
+                class="input-compact w-full"
+            />
+        }
     }
 }
 
@@ -415,8 +526,13 @@ mod metadata {
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
         update_properties, INPUT_DEBOUNCE,
     };
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
-    use leptos::*;
+    use crate::{
+        components::{message::Builder as Message, DetailPopout},
+        pages::project::state,
+        types,
+    };
+    use leptos::{ev::MouseEvent, *};
+    use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
     use syre_local_database as db;
 
@@ -429,57 +545,14 @@ mod metadata {
         value: ReadSignal<state::Metadata>,
         container: ReadSignal<ResourceId>,
     ) -> impl IntoView {
-        let project = expect_context::<state::Project>();
-        let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
         provide_context(ActiveResource(container));
 
-        let remove_datum = {
-            move |key| {
-                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
-                let mut properties = node.properties().with_untracked(|properties| {
-                    let db::state::DataResource::Ok(properties) = properties else {
-                        panic!("invalid state");
-                    };
-
-                    properties.as_properties()
-                });
-                properties.metadata.retain(|k, _| k != &key);
-
-                spawn_local({
-                    let project = project.rid().get_untracked();
-                    let path = graph.path(&node).unwrap();
-                    let messages = messages.clone();
-
-                    async move {
-                        if let Err(err) = update_properties(project, path, properties).await {
-                            tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
-                        }
-                    }
-                });
-            }
-        };
-
         view! {
-            <For each=value key=|(key, _)| key.clone() let:datum>
-                <div>
+            <div class="pt-0.5">
+                <For each=value key=|(key, _)| key.clone() let:datum>
                     <DatumEditor key=datum.0.clone() value=datum.1.read_only()/>
-                    <button
-                        type="button"
-                        on:mousedown={
-                            let key = datum.0.clone();
-                            let remove_datum = remove_datum.clone();
-                            move |_| remove_datum(key.clone())
-                        }
-                    >
-
-                        "X"
-                    </button>
-                </div>
-            </For>
+                </For>
+            </div>
         }
     }
 
@@ -487,9 +560,11 @@ mod metadata {
     pub fn AddDatum(
         container: ReadSignal<ResourceId>,
         metadata: ReadSignal<state::Metadata>,
+        visibility: RwSignal<bool>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
+        let (reset_form, set_reset_form) = create_signal(());
         let keys = move || {
             metadata.with(|metadata| {
                 metadata
@@ -519,17 +594,29 @@ mod metadata {
 
             spawn_local({
                 let project = project.rid().get_untracked();
-
                 async move {
                     if let Err(err) = update_properties(project, path, properties).await {
                         tracing::error!(?err);
                         todo!()
+                    } else {
+                        visibility.set(false);
+                        set_reset_form(());
                     }
                 }
             });
         };
 
-        view! { <AddDatumEditor keys=Signal::derive(keys) onadd/> }
+        view! {
+            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+                <AddDatumEditor
+                    keys=Signal::derive(keys)
+                    onadd
+                    reset=reset_form
+                    id="container-add_metadatum"
+                    class="w-full px-1"
+                />
+            </DetailPopout>
+        }
     }
 
     #[component]
@@ -538,7 +625,7 @@ mod metadata {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let container = expect_context::<ActiveResource>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let (input_value, set_input_value) = create_signal(value.get_untracked());
         let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
 
@@ -548,6 +635,10 @@ mod metadata {
 
         create_effect({
             let key = key.clone();
+            let project = project.clone();
+            let graph = graph.clone();
+            let container = container.clone();
+            let messages = messages.clone();
             move |container_id| -> ResourceId {
                 let messages = messages.write_only();
                 if container.with(|rid| {
@@ -603,9 +694,55 @@ mod metadata {
             }
         });
 
+        let remove_datum = {
+            let project = project.clone();
+            let graph = graph.clone();
+            let messages = messages.clone();
+            let key = key.clone();
+            move |e: MouseEvent| {
+                if e.button() != types::MouseButton::Primary as i16 {
+                    return;
+                }
+
+                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+                let mut properties = node.properties().with_untracked(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+
+                    properties.as_properties()
+                });
+                properties.metadata.retain(|k, _| k != &key);
+
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let path = graph.path(&node).unwrap();
+                    let messages = messages.clone();
+
+                    async move {
+                        if let Err(err) = update_properties(project, path, properties).await {
+                            tracing::error!(?err);
+                            let mut msg = Message::error("Could not save container.");
+                            msg.body(format!("{err:?}"));
+                            messages.update(|messages| messages.push(msg.build()));
+                        }
+                    }
+                });
+            }
+        };
+
         view! {
             <div>
-                <span>{key}</span>
+                <div class="flex">
+                    <span class="grow">{key}</span>
+                    <button
+                        type="button"
+                        on:mousedown=remove_datum
+                        class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                    >
+                        <Icon icon=icondata::AiMinusOutlined/>
+                    </button>
+                </div>
                 <ValueEditor value=input_value set_value=set_input_value/>
             </div>
         }
@@ -618,15 +755,14 @@ mod analysis_associations {
         state,
     };
     use crate::{
-        commands, components::message::Builder as Message,
-        pages::project::properties::INPUT_DEBOUNCE, types::Messages,
+        commands,
+        components::{message::Builder as Message, DetailPopout},
+        pages::project::properties::INPUT_DEBOUNCE,
+        types::Messages,
     };
     use has_id::HasId;
     use leptos::*;
-    use serde::Serialize;
-    use std::path::PathBuf;
     use syre_core::{project::AnalysisAssociation, types::ResourceId};
-    use syre_desktop_lib as lib;
     use syre_local as local;
     use syre_local_database as db;
 
@@ -634,6 +770,7 @@ mod analysis_associations {
     pub fn AddAssociation(
         available_analyses: Signal<Vec<AnalysisInfo>>,
         container: ReadSignal<ResourceId>,
+        visibility: RwSignal<bool>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
@@ -679,16 +816,13 @@ mod analysis_associations {
 
         let onadd = move |association: AnalysisAssociation| {
             add_association.dispatch(association);
-        };
-
-        let oncancel = move |_| {
-            tracing::debug!("cancel");
+            visibility.set(false);
         };
 
         view! {
-            <div>
-                <AddAssociationEditor available_analyses onadd=Callback::new(onadd) oncancel/>
-            </div>
+            <DetailPopout title="Add analysis" visibility>
+                <AddAssociationEditor available_analyses onadd=Callback::new(onadd) class="px-1"/>
+            </DetailPopout>
         }
     }
 
@@ -823,30 +957,38 @@ mod analysis_associations {
         };
 
         view! {
-            <div class="flex">
-                <div class="grow">{title}</div>
-                <input
-                    type="number"
-                    name="priority"
-                    prop:value=move || value.with(|value| value.priority.clone())
-                    on:input=move |e| {
-                        set_value
-                            .update(|value| {
-                                let priority = event_target_value(&e).parse::<i32>().unwrap();
-                                value.priority = priority;
-                            })
-                    }
-                />
+            <div class="flex flex-wrap">
+                <div title=title.clone() class="grow">
+                    {title}
+                </div>
+                <div class="inline-flex gap-2">
+                    <input
+                        type="number"
+                        name="priority"
+                        prop:value=move || value.with(|value| value.priority.clone())
+                        on:input=move |e| {
+                            set_value
+                                .update(|value| {
+                                    let priority = event_target_value(&e).parse::<i32>().unwrap();
+                                    value.priority = priority;
+                                })
+                        }
 
-                <input
-                    type="checkbox"
-                    name="autorun"
-                    checked=move || value.with(|value| value.autorun.clone())
-                    on:input=move |e| {
-                        set_value.update(|value| value.autorun = event_target_checked(&e))
-                    }
-                />
+                        // TODO: May not want to use hard coded width
+                        class="input-compact w-14"
+                    />
 
+                    <input
+                        type="checkbox"
+                        name="autorun"
+                        checked=move || value.with(|value| value.autorun.clone())
+                        on:input=move |e| {
+                            set_value.update(|value| value.autorun = event_target_checked(&e))
+                        }
+
+                        class="input-compact"
+                    />
+                </div>
             </div>
         }
     }

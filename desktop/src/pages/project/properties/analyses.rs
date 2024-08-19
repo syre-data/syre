@@ -46,8 +46,8 @@ fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoV
     };
 
     view! {
-        <div class="h-full" class=(["border-4", "border-blue-400"], highlight)>
-            <h3>"Analyses"</h3>
+        <div class=(["border-4", "border-blue-400"], highlight) class="h-full px-1 py-2">
+            <h3 class="text-center pb-2">"Analyses"</h3>
             <Show
                 when=move || analyses.with(|analyses| !analyses.is_empty())
                 fallback=move || view! { <div>"(no analyses)"</div> }

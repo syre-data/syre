@@ -58,4 +58,9 @@ features = [
 	"AddEventListenerOptions",
 	"EventTarget",
 	"SvgElement",
+	"ResizeObserver",
+	"ResizeObserverSize",
+	"ResizeObserverOptions",
+	"ResizeObserverBoxOptions",
+	"ResizeObserverEntry",
 ]

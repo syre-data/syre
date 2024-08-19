@@ -13,7 +13,7 @@ use leptos_router::*;
 /// For Tailwind to include classes
 /// they must appear as string literals in at least one place.
 /// This array is used to include them when needed.
-static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden"];
+static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden", "invisible"];
 
 #[component]
 pub fn App() -> impl IntoView {

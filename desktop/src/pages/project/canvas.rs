@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{message::Builder as Message, ModalDialog},
+    components::{message::Builder as Message, ModalDialog, TruncateLeft},
     pages::project::actions,
     types,
 };
@@ -20,11 +20,12 @@ use syre_core::{project::AnalysisAssociation, types::ResourceId};
 use syre_local as local;
 use syre_local_database as db;
 use tauri_sys::{core::Channel, menu};
+use wasm_bindgen::{prelude::Closure, JsCast};
 
-const CONTAINER_WIDTH: usize = 100;
-const CONTAINER_HEIGHT: usize = 60;
+const CONTAINER_WIDTH: usize = 250;
+const MAX_CONTAINER_HEIGHT: usize = 300;
 const PADDING_X_SIBLING: usize = 20;
-const PADDING_Y_CHILDREN: usize = 20;
+const PADDING_Y_CHILDREN: usize = 30;
 const RADIUS_ADD_CHILD: usize = 10;
 const ZOOM_FACTOR_IN: f32 = 0.9; // zoom in should reduce viewport.
 const ZOOM_FACTOR_OUT: f32 = 1.1;
@@ -44,9 +45,29 @@ impl ContextMenuContainerOk {
     }
 }
 
+/// Context menu for assets.
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuAsset(Rc<menu::Menu>);
+impl ContextMenuAsset {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
 /// Active container for the container context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveContainer(state::graph::Node);
+
+/// Active asset for the asset context menu.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveAsset(ResourceId);
+
+/// Resize observer run when container nodes change size.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContainerResizeObserver(web_sys::ResizeObserver);
+
+#[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
+struct ContainerHeight(ReadSignal<usize>);
 
 /// Node ref to the modal portal.
 #[derive(Clone)]
@@ -66,16 +87,21 @@ pub fn Canvas() -> impl IntoView {
 
     let context_menu_active_container =
         create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
+    let context_menu_active_asset = create_rw_signal::<Option<ContextMenuActiveAsset>>(None);
     provide_context(context_menu_active_container.clone());
+    provide_context(context_menu_active_asset);
 
     let context_menu_container_ok = create_local_resource(|| (), {
+        let project = project.clone();
+        let graph = graph.clone();
+        let messages = messages.clone();
         move |_| {
             let project = project.clone();
             let graph = graph.clone();
             let messages = messages.clone();
             async move {
                 let mut container_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
-                container_open.set_id("container-open");
+                container_open.set_id("canvas:container-open");
 
                 let (menu, mut listeners) = menu::Menu::with_id_and_items(
                     "canvas:container-context_menu",
@@ -99,17 +125,53 @@ pub fn Canvas() -> impl IntoView {
         }
     });
 
+    let context_menu_asset = create_local_resource(|| (), {
+        let project = project.clone();
+        let graph = graph.clone();
+        let messages = messages.clone();
+        move |_| {
+            let project = project.clone();
+            let graph = graph.clone();
+            let messages = messages.clone();
+            async move {
+                let mut asset_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
+                asset_open.set_id("canvas:asset-open");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "canvas:asset-context_menu",
+                    vec![asset_open.into()],
+                )
+                .await;
+
+                spawn_local({
+                    let asset_open = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_asset_events(
+                        project,
+                        graph,
+                        messages,
+                        context_menu_active_asset.read_only(),
+                        asset_open,
+                    )
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
+
     view! {
         <Suspense fallback=move || {
             view! { <CanvasLoading/> }
         }>
 
             {move || {
-                context_menu_container_ok
-                    .get()
-                    .map(|context_menu_container_ok| {
-                        view! { <CanvasView context_menu_container_ok/> }
-                    })
+                let Some(context_menu_container_ok) = context_menu_container_ok.get() else {
+                    return None;
+                };
+                let Some(context_menu_asset) = context_menu_asset.get() else {
+                    return None;
+                };
+                Some(view! { <CanvasView context_menu_container_ok context_menu_asset/> })
             }}
 
         </Suspense>
@@ -122,12 +184,42 @@ fn CanvasLoading() -> impl IntoView {
 }
 
 #[component]
-fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
+fn CanvasView(
+    context_menu_container_ok: Rc<menu::Menu>,
+    context_menu_asset: Rc<menu::Menu>,
+) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
-    let portal_ref = create_node_ref();
-    provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
-    provide_context(PortalRef(portal_ref.clone()));
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+
+    let portal_ref = create_node_ref();
+    let (container_height, set_container_height) = create_signal(0);
+    let container_resize_observer =
+        Closure::<dyn Fn(wasm_bindgen::JsValue)>::new(move |entries: wasm_bindgen::JsValue| {
+            assert!(entries.is_array());
+            let entries = entries.dyn_ref::<js_sys::Array>().unwrap();
+            let height = entries
+                .iter()
+                .map(|entry| {
+                    let entry = entry.dyn_ref::<web_sys::ResizeObserverEntry>().unwrap();
+                    let border_box = entry.border_box_size().get(0); //.dyn_ref::<web_sys>();
+                    let border_box = border_box.dyn_ref::<web_sys::ResizeObserverSize>().unwrap();
+                    border_box.block_size() as usize
+                })
+                .max()
+                .unwrap();
+
+            let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
+            set_container_height(height);
+        });
+    provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
+    provide_context(ContextMenuAsset::new(context_menu_asset));
+    provide_context(PortalRef(portal_ref.clone()));
+    provide_context(ContainerHeight(container_height));
+    provide_context(ContainerResizeObserver(
+        web_sys::ResizeObserver::new(container_resize_observer.as_ref().unchecked_ref()).unwrap(),
+    ));
+    container_resize_observer.forget();
+
     let (vb_x, set_vb_x) = create_signal(0);
     let (vb_y, set_vb_y) = create_signal(0);
     let (vb_width, set_vb_width) = create_signal(1000);
@@ -172,8 +264,8 @@ fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
                     * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as i32
                     - vb_width() / 2;
                 let y_max = cmp::max(
-                    (graph.root().subtree_height().get() * (CONTAINER_HEIGHT + PADDING_Y_CHILDREN))
-                        as i32
+                    (graph.root().subtree_height().get()
+                        * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as i32
                         - vb_height() / 2,
                     0,
                 );
@@ -200,7 +292,6 @@ fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
     };
 
     let wheel = move |e: WheelEvent| {
-        // TODO: Stop scrolling if not fully zoomed.
         let dy = e.delta_y();
         let zoom = if dy < 0.0 {
             ZOOM_FACTOR_IN
@@ -249,8 +340,11 @@ fn CanvasView(context_menu_container_ok: Rc<menu::Menu>) -> impl IntoView {
 #[component]
 fn Graph(root: state::graph::Node) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
+    let container_height = expect_context::<ContainerHeight>();
+    let container_resize_observer = expect_context::<ContainerResizeObserver>();
     let portal_ref = expect_context::<PortalRef>();
     let create_child_ref = NodeRef::<html::Dialog>::new();
+    let container_node = NodeRef::<html::Div>::new();
     let create_child_dialog_show = move |e: MouseEvent| {
         if e.button() != types::MouseButton::Primary as i16 {
             return;
@@ -282,9 +376,12 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     let height = {
         let root = root.clone();
         move || {
-            root.subtree_height().with(|height| {
-                height * (CONTAINER_HEIGHT + PADDING_Y_CHILDREN) - PADDING_Y_CHILDREN
-            })
+            let tree_height = root.subtree_height().get();
+            let height = tree_height * (container_height() + PADDING_Y_CHILDREN)
+                - PADDING_Y_CHILDREN
+                + RADIUS_ADD_CHILD;
+
+            cmp::max(height, 0)
         }
     };
 
@@ -315,7 +412,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
             if state::graph::Node::ptr_eq(&root, graph.root()) {
                 0
             } else {
-                CONTAINER_HEIGHT + PADDING_Y_CHILDREN
+                container_height.with(|height| *height + PADDING_Y_CHILDREN)
             }
         }
     };
@@ -325,16 +422,39 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         move || (width() - CONTAINER_WIDTH) / 2
     };
 
-    let x_child_offset = {
+    fn x_child_offset(index: usize, children: &Vec<state::graph::Node>) -> usize {
+        children
+            .iter()
+            .take(index)
+            .map(|child| child.subtree_width().get())
+            .sum::<usize>()
+    }
+
+    let line_points = {
+        let x_node = x_node.clone();
         let children = children.clone();
-        move |index: usize| -> usize {
-            children.with(|children| {
-                children
-                    .iter()
-                    .take(index)
-                    .map(|child| child.subtree_width().get())
-                    .sum::<usize>()
-            })
+        move |sibling_index: ReadSignal<usize>,
+              subtree_width: ReadSignal<usize>,
+              container_height: ReadSignal<usize>| {
+            let x_node = x_node.clone();
+            move || {
+                let parent_x = x_node() + CONTAINER_WIDTH / 2;
+                let parent_y = container_height();
+                let midway_y = cmp::max(
+                    container_height() as i32 + (PADDING_Y_CHILDREN / 2) as i32,
+                    0,
+                );
+                let child_y = container_height() + PADDING_Y_CHILDREN;
+                let child_x_offset =
+                    children.with(|children| x_child_offset(sibling_index.get(), children));
+                let child_x = (child_x_offset + subtree_width.get() / 2)
+                    * (CONTAINER_WIDTH + PADDING_X_SIBLING)
+                    + CONTAINER_WIDTH / 2;
+                format!(
+                    "{},{} {},{} {},{} {},{}",
+                    parent_x, parent_y, parent_x, midway_y, child_x, midway_y, child_x, child_y,
+                )
+            }
         }
     };
 
@@ -349,60 +469,90 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         })
     };
 
+    let _ = watch(
+        move || container_node.get(),
+        move |container_node, _, _| {
+            if let Some(container_node) = container_node {
+                let options = web_sys::ResizeObserverOptions::new();
+                options.set_box(web_sys::ResizeObserverBoxOptions::BorderBox);
+                container_resize_observer
+                    .observe_with_options(container_node.dyn_ref().unwrap(), &options)
+            }
+        },
+        true,
+    );
+
+    const PLUS_SCALE: f32 = 0.7;
     view! {
         <svg width=width height=height x=x y=y>
+            <g>
+                <For each=children key=child_key let:child>
+                    <polyline
+                        fill="none"
+                        class="stroke-secondary-400 dark:stroke-secondary-500"
+                        points=line_points(
+                            child.sibling_index(),
+                            child.subtree_width(),
+                            *container_height,
+                        )
+                    >
+                    </polyline>
+                </For>
+
+            </g>
             <g class="group">
-                <foreignObject width=CONTAINER_WIDTH height=CONTAINER_HEIGHT x=x_node.clone() y=0>
-                    <Container container=root.clone()/>
+                <foreignObject width=CONTAINER_WIDTH height=*container_height x=x_node.clone() y=0>
+                    <Container node_ref=container_node container=root.clone()/>
                 </foreignObject>
                 <g class="group-[:not(:hover)]:hidden hover:cursor-pointer">
                     <circle
+                        on:mousedown=create_child_dialog_show
                         cx={
                             let x_node = x_node.clone();
                             move || { x_node() + CONTAINER_WIDTH / 2 }
                         }
 
-                        cy=CONTAINER_HEIGHT - RADIUS_ADD_CHILD
+                        cy=move || container_height()
                         r=RADIUS_ADD_CHILD
-                        on:mousedown=create_child_dialog_show
+                        class="stroke-black dark:stroke-white fill-white dark:fill-secondary-700 stroke-2"
                     ></circle>
-                </g>
-            </g>
-            <g>
-                <For each=children key=child_key let:child>
-                    <polyline
-                        fill="none"
-                        stroke="black"
-                        // TODO: Extract points function for aesthetics.
-                        points={
+                    <line
+                        x1={
                             let x_node = x_node.clone();
-                            let x_child_offset = x_child_offset.clone();
                             move || {
-                                let parent_x = x_node() + CONTAINER_WIDTH / 2;
-                                let parent_y = CONTAINER_HEIGHT - RADIUS_ADD_CHILD;
-                                let midway_y = CONTAINER_HEIGHT - RADIUS_ADD_CHILD
-                                    + PADDING_Y_CHILDREN / 2;
-                                let child_y = CONTAINER_HEIGHT + PADDING_Y_CHILDREN;
-                                let child_x_offset = x_child_offset(child.sibling_index().get());
-                                let child_x = (child_x_offset + child.subtree_width().get() / 2)
-                                    * (CONTAINER_WIDTH + PADDING_X_SIBLING) + CONTAINER_WIDTH / 2;
-                                format!(
-                                    "{},{} {},{} {},{} {},{}",
-                                    parent_x,
-                                    parent_y,
-                                    parent_x,
-                                    midway_y,
-                                    child_x,
-                                    midway_y,
-                                    child_x,
-                                    child_y,
-                                )
+                                (x_node() + CONTAINER_WIDTH / 2) as f32
+                                    - RADIUS_ADD_CHILD as f32 * PLUS_SCALE
                             }
                         }
-                    >
-                    </polyline>
-                </For>
 
+                        x2={
+                            let x_node = x_node.clone();
+                            move || {
+                                (x_node() + CONTAINER_WIDTH / 2) as f32
+                                    + RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                            }
+                        }
+
+                        y1=move || container_height()
+                        y2=move || container_height()
+                        class="stroke-black dark:stroke-white stroke-2 linecap-round"
+                    ></line>
+                    <line
+                        x1={
+                            let x_node = x_node.clone();
+                            move || { x_node() + CONTAINER_WIDTH / 2 }
+                        }
+
+                        x2={
+                            let x_node = x_node.clone();
+                            move || { x_node() + CONTAINER_WIDTH / 2 }
+                        }
+
+                        y1=move || container_height() as f32 - RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                        y2=move || container_height() as f32 + RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                        class="stroke-black dark:stroke-white stroke-2 linecap-round"
+                    ></line>
+                </g>
             </g>
             <g>
                 <For each=children key=child_key let:child>
@@ -485,17 +635,18 @@ fn CreateChildContainer(
     };
 
     view! {
-        <div>
-            <h1>"Create a new child"</h1>
+        <div class="px-4 py-2 rounded bg-white dark:bg-secondary-900">
+            <h1 class="text-center text-lg pb-2 dark:text-white">"Create a new child"</h1>
             <form on:submit=move |e| {
                 e.prevent_default();
                 create_child.dispatch(name())
             }>
-                <div>
+                <div class="pb-2">
                     <input
                         placeholder="Name"
                         on:input=move |e| set_name(event_target_value(&e))
                         prop:value=name
+                        class="input-simple"
                         minlength="1"
                         autofocus
                         required
@@ -515,9 +666,16 @@ fn CreateChildContainer(
                     }}
 
                 </div>
-                <div>
-                    <button disabled=create_child.pending()>"Create"</button>
-                    <button type="button" on:mousedown=close disabled=create_child.pending()>
+                <div class="flex gap-2">
+                    <button disabled=create_child.pending() class="btn btn-primary">
+                        "Create"
+                    </button>
+                    <button
+                        type="button"
+                        on:mousedown=close
+                        disabled=create_child.pending()
+                        class="btn btn-secondary"
+                    >
                         "Cancel"
                     </button>
                 </div>
@@ -527,20 +685,26 @@ fn CreateChildContainer(
 }
 
 #[component]
-fn Container(container: state::graph::Node) -> impl IntoView {
+fn Container(
+    #[prop(optional)] node_ref: NodeRef<html::Div>,
+    container: state::graph::Node,
+) -> impl IntoView {
     move || {
         container.properties().with(|properties| {
             if properties.is_ok() {
-                view! { <ContainerOk container=container.clone()/> }
+                view! { <ContainerOk node_ref container=container.clone()/> }
             } else {
-                view! { <ContainerErr container=container.clone()/> }
+                view! { <ContainerErr node_ref container=container.clone()/> }
             }
         })
     }
 }
 
 #[component]
-fn ContainerOk(container: state::graph::Node) -> impl IntoView {
+fn ContainerOk(
+    #[prop(optional)] node_ref: NodeRef<html::Div>,
+    container: state::graph::Node,
+) -> impl IntoView {
     use super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
 
     assert!(container
@@ -556,7 +720,6 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let (drag_over, set_drag_over) = create_signal(false);
-    let node_ref = create_node_ref();
 
     let title = {
         let container = container.clone();
@@ -698,8 +861,13 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
 
     view! {
         <div
-            ref=node_ref
-            class="cursor-pointer"
+            on:mousedown=mousedown
+            on:contextmenu=contextmenu
+            on:dragenter=move |_| set_drag_over(true)
+            on:dragover=move |e| e.prevent_default()
+            on:dragleave=move |_| set_drag_over(false)
+            on:drop=drop
+            class="h-full cursor-pointer rounded px-4 pt-2 pb-4 border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
             class=(
                 "border-2",
                 {
@@ -709,32 +877,29 @@ fn ContainerOk(container: state::graph::Node) -> impl IntoView {
             )
 
             class=(
-                ["border-4", "border-blue-400"],
+                ["border-4", "border-primary-400", "dark:border-primary-700"],
                 {
                     let highlight = highlight.clone();
                     move || highlight()
                 },
             )
 
-            on:mousedown=mousedown
-            on:contextmenu=contextmenu
-            on:dragenter=move |_| set_drag_over(true)
-            on:dragover=move |e| e.prevent_default()
-            on:dragleave=move |_| set_drag_over(false)
-            on:drop=drop
             data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >
-            <div>
-                <span>{title}</span>
-            </div>
+            // NB: inner div with node ref is used for resizing observer to obtain content height.
+            <div ref=node_ref>
+                <div class="pb-2 text-center text-lg">
+                    <span class="font-primary">{title}</span>
+                </div>
 
-            <div>
-                <ContainerPreview
-                    properties=container.properties().read_only()
-                    assets=container.assets().read_only()
-                    analyses=container.analyses().read_only()
-                />
+                <div>
+                    <ContainerPreview
+                        properties=container.properties().read_only()
+                        assets=container.assets().read_only()
+                        analyses=container.analyses().read_only()
+                    />
+                </div>
             </div>
         </div>
     }
@@ -764,7 +929,7 @@ fn ContainerPreview(
         properties.with_untracked(|properties| properties.as_ref().unwrap().metadata().read_only());
 
     view! {
-        <div>
+        <div class="overflow-y-auto">
             <Assets assets/>
 
             <Analyses analyses=analyses
@@ -808,7 +973,10 @@ fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
 fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
     view! {
-        <div class:hidden=move || workspace_state.preview().with(|preview| !preview.assets)>
+        <div
+            class:hidden=move || workspace_state.preview().with(|preview| !preview.assets)
+            class="overflow-y-auto"
+        >
             <Show
                 when=move || assets.with(|assets| !assets.is_empty())
                 fallback=|| view! { "(no data)" }
@@ -824,6 +992,8 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
 #[component]
 fn Asset(asset: state::Asset) -> impl IntoView {
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let context_menu = expect_context::<ContextMenuAsset>();
+    let context_menu_active_asset = expect_context::<RwSignal<Option<ContextMenuActiveAsset>>>();
 
     let rid = {
         let rid = asset.rid();
@@ -867,15 +1037,34 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
     };
 
+    let contextmenu = {
+        let asset = asset.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
+            e.stop_propagation();
+
+            context_menu_active_asset.update(|active_asset| {
+                let _ = active_asset.insert(asset.rid().get_untracked().into());
+            });
+
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
+    };
+
     view! {
         <div
             on:mousedown=mousedown
-            class=(["bg-slate-400"], selected)
-            class="border-y-2 border-transparent hover:border-blue-400"
+            on:contextmenu=contextmenu
+            title=asset_title_closure(&asset)
+            class=("bg-secondary-400", selected)
+            class="cursor-pointer px-1 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
             data-resource=DATA_KEY_ASSET
             data-rid=rid
         >
-            {title}
+            <TruncateLeft>{title}</TruncateLeft>
         </div>
     }
 }
@@ -885,7 +1074,10 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
     let workspace_state = expect_context::<state::Workspace>();
 
     view! {
-        <div class:hidden=move || workspace_state.preview().with(|preview| !preview.analyses)>
+        <div
+            class:hidden=move || workspace_state.preview().with(|preview| !preview.analyses)
+            class="overflow-y-auto"
+        >
             <Show
                 when=move || analyses.with(|analyses| !analyses.is_empty())
                 fallback=|| view! { "(no analyses)" }
@@ -951,7 +1143,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
             <div class="grow">{title}</div>
             <div>
                 <span>"(" {association.priority()} ")"</span>
-                <span>
+                <span class="inline-flex">
                     {move || {
                         if association.autorun().get() {
                             view! { <Icon icon=icondata::BsStarFill/> }
@@ -987,13 +1179,16 @@ fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
 }
 
 #[component]
-fn ContainerErr(container: state::graph::Node) -> impl IntoView {
+fn ContainerErr(
+    #[prop(optional)] node_ref: NodeRef<html::Div>,
+    container: state::graph::Node,
+) -> impl IntoView {
     assert!(container
         .properties()
         .with_untracked(|properties| properties.is_err()));
 
     view! {
-        <div data-resource=DATA_KEY_CONTAINER>
+        <div ref=node_ref data-resource=DATA_KEY_CONTAINER>
             <div>
                 <span>{container.name().with(|name| name.to_string_lossy().to_string())}</span>
             </div>
@@ -1093,6 +1288,54 @@ async fn handle_context_menu_container_events(
                         .await {
                             messages.update(|messages|{
                                 let mut msg = Message::error("Could not open container folder.");
+                                msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+            }
+            }
+        }
+    }
+}
+
+async fn handle_context_menu_asset_events(
+    project: state::Project,
+    graph: state::Graph,
+    messages: types::Messages,
+    context_menu_active_asset: ReadSignal<Option<ContextMenuActiveAsset>>,
+    asset_open: Channel<String>,
+) {
+    let mut asset_open = asset_open.fuse();
+    loop {
+        futures::select! {
+            event = asset_open.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let data_root = project
+                        .path()
+                        .get_untracked()
+                        .join(project.properties().data_root().get_untracked());
+
+                    let asset = context_menu_active_asset.get_untracked().unwrap();
+                    let container = graph.find_by_asset_id(&*asset).unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let container_path = common::container_system_path(data_root, container_path);
+                    let db::state::DataResource::Ok(assets) = container.assets().get_untracked() else {
+                        panic!("invalid state");
+                    };
+                    let asset_path = assets.with_untracked(|assets| assets.iter().find_map(|container_asset| {
+                         container_asset.rid().with_untracked(|rid| if *rid == *asset {
+                            Some(container_asset.path().get_untracked())
+                        } else {
+                            None
+                        })
+                    })).unwrap();
+                    let path = container_path.join(asset_path);
+
+                    if let Err(err) = commands::fs::open_file(path)
+                        .await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not open asset file.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

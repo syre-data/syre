@@ -1,8 +1,9 @@
 use super::INPUT_DEBOUNCE;
-use crate::pages::project;
+use crate::{pages::project, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
-use leptos::*;
+use leptos::{ev::MouseEvent, *};
+use leptos_icons::Icon;
 use metadata::Editor as Metadata;
 use name::Editor as Name;
 use serde::Serialize;
@@ -158,6 +159,8 @@ mod state {
 pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(containers.with(|containers| containers.len()) > 1);
     let graph = expect_context::<project::state::Graph>();
+    let (add_metadatum_visible, set_add_metadatum_visible) = create_signal(false);
+
     provide_context(Signal::derive(move || {
         let states = containers.with(|containers| {
             containers
@@ -170,6 +173,20 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     }));
 
     provide_context(ActiveResources::new(containers.clone()));
+
+    let show_add_metadatum = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            set_add_metadatum_visible(true);
+        }
+    };
+
+    let add_metadatum_class = move || {
+        if add_metadatum_visible() {
+            None
+        } else {
+            Some("hidden".to_string())
+        }
+    };
 
     view! {
         <div>
@@ -194,7 +211,21 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                     <label>"Tags" <Tags/></label>
                 </div>
                 <div>
-                    <label>"Metadata" <Metadata/></label>
+                    <label>
+                        <div class="flex">
+                            <span class="grow">"Metadata"</span>
+                            <span>
+                                <button
+                                    on:mousedown=show_add_metadatum
+                                    class:invisible=add_metadatum_visible
+                                    class="aspect-square h-full"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
+                        <Metadata oncancel_adddatum=move |_| set_add_metadatum_visible(false)/>
+                    </label>
                 </div>
             </form>
         </div>
@@ -704,7 +735,7 @@ mod metadata {
     use syre_desktop_lib::command::container::bulk::{MetadataAction, PropertiesUpdate};
 
     #[component]
-    pub fn Editor() -> impl IntoView {
+    pub fn Editor(#[prop(into)] oncancel_adddatum: Callback<()>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();

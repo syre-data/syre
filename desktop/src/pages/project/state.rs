@@ -710,7 +710,7 @@ pub mod graph {
                                 assets.with_untracked(|assets| {
                                     assets
                                         .iter()
-                                        .any(|asset| asset.rid().with(|aid| aid == rid))
+                                        .any(|asset| asset.rid().with_untracked(|aid| aid == rid))
                                 })
                             } else {
                                 false

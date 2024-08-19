@@ -113,9 +113,9 @@ fn WorkspaceView(
     });
 
     view! {
-        <div class="select-none">
+        <div class="select-none h-full">
             <ProjectNav/>
-            <div class="h-1/6 border-b">
+            <div class="border-b">
                 <ProjectBar/>
             </div>
             {move || {
@@ -229,7 +229,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     }
 
     view! {
-        <div class="flex">
+        <div class="h-full flex">
             <div class="w-1/6 border-r">
                 <LayersNav/>
             </div>

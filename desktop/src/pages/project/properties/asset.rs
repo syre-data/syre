@@ -1,8 +1,9 @@
 use super::INPUT_DEBOUNCE;
-use crate::pages::project::state;
+use crate::{pages::project::state, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
-use leptos::*;
+use leptos::{ev::MouseEvent, *};
+use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
 use serde::Serialize;
@@ -16,6 +17,21 @@ struct ActiveAsset(state::Asset);
 #[component]
 pub fn Editor(asset: state::Asset) -> impl IntoView {
     provide_context(ActiveAsset(asset.clone()));
+    let (add_metadatum_visible, set_add_metadatum_visible) = create_signal(false);
+
+    let show_add_metadatum = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            set_add_metadatum_visible(true);
+        }
+    };
+
+    let add_metadatum_class = move || {
+        if add_metadatum_visible() {
+            None
+        } else {
+            Some("hidden".to_string())
+        }
+    };
 
     view! {
         <div>
@@ -36,7 +52,26 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
                     <label>"Tags" <Tags/></label>
                 </div>
                 <div>
-                    <label>"Metadata" <AddDatum/> <Metadata/></label>
+                    <label>
+                        <div class="flex">
+                            <span class="grow">"Metadata"</span>
+                            <span>
+                                <button
+                                    on:mousedown=show_add_metadatum
+                                    class:invisible=add_metadatum_visible
+                                    class="aspect-square h-full"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+
+                            </span>
+                        </div>
+                        <AddDatum
+                            oncancel=move |_| set_add_metadatum_visible(false)
+                            class=MaybeProp::derive(add_metadatum_class)
+                        />
+                        <Metadata/>
+                    </label>
                 </div>
             </form>
             <div>{move || asset.path().with(|path| path.to_string_lossy().to_string())}</div>
@@ -306,7 +341,10 @@ mod metadata {
     }
 
     #[component]
-    pub fn AddDatum() -> impl IntoView {
+    pub fn AddDatum(
+        #[prop(into)] oncancel: Callback<()>,
+        #[prop(optional, into)] class: MaybeProp<String>,
+    ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
@@ -355,7 +393,7 @@ mod metadata {
             }
         };
 
-        view! { <AddDatumEditor keys=Signal::derive(keys) onadd/> }
+        view! { <AddDatumEditor keys=Signal::derive(keys) onadd class/> }
     }
 
     #[component]

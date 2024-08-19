@@ -117,8 +117,8 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
     view! {
         <div>
-            <div class="text-center pt-4 pb-2">
-                <h3>"Container"</h3>
+            <div class="text-center pt-1 pb-2">
+                <h3 class="font-primary">"Container"</h3>
             </div>
             <form on:submit=|e| e.prevent_default()>
                 <div class="pb-1 px-1">
@@ -612,7 +612,6 @@ mod metadata {
                     keys=Signal::derive(keys)
                     onadd
                     reset=reset_form
-                    id="container-add_metadatum"
                     class="w-full px-1"
                 />
             </DetailPopout>
@@ -732,7 +731,7 @@ mod metadata {
         };
 
         view! {
-            <div>
+            <div class="pb-2">
                 <div class="flex">
                     <span class="grow">{key}</span>
                     <button

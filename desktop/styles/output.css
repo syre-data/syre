@@ -1148,6 +1148,10 @@ select {
   border-radius: 0.25rem;
 }
 
+.rounded-full {
+  border-radius: 9999px;
+}
+
 .rounded-sm {
   border-radius: 0.125rem;
 }
@@ -1354,6 +1358,10 @@ select {
   padding-right: 0.25rem;
 }
 
+.pr-2 {
+  padding-right: 0.5rem;
+}
+
 .pr-4 {
   padding-right: 1rem;
 }
@@ -1421,6 +1429,11 @@ select {
 .text-sm {
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+
+.text-secondary-500 {
+  --tw-text-opacity: 1;
+  color: rgb(107 114 128 / var(--tw-text-opacity));
 }
 
 .hover\:cursor-pointer:hover {
@@ -1516,6 +1529,11 @@ select {
 
   .dark\:stroke-white {
     stroke: #fff;
+  }
+
+  .dark\:text-secondary-400 {
+    --tw-text-opacity: 1;
+    color: rgb(137 142 153 / var(--tw-text-opacity));
   }
 
   .dark\:text-white {

@@ -100,10 +100,8 @@ mod name {
             move || value.with(|value| value.clone().unwrap_or(String::new()))
         };
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
-        let oninput = {
-            // let messages = messages.write_only();
+        let oninput = Callback::new({
+            let messages = messages.write_only();
             move |value: String| {
                 let mut properties = asset.as_properties();
                 let value = value.trim();
@@ -119,7 +117,7 @@ mod name {
                     .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                 let container_path = graph.path(&node).unwrap();
                 let asset_path = asset.path().get_untracked();
-                // let messages = messages.clone();
+                let messages = messages.clone();
                 spawn_local(async move {
                     if let Err(err) =
                         update_properties(project, container_path, asset_path, properties).await
@@ -127,11 +125,11 @@ mod name {
                         tracing::error!(?err);
                         let mut msg = Message::error("Could not save container");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 });
             }
-        };
+        });
 
         view! { <InputText value=Signal::derive(input_value) oninput debounce=INPUT_DEBOUNCE/> }
     }
@@ -151,11 +149,9 @@ mod kind {
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
-        let oninput = {
+        let oninput = Callback::new({
             let asset = asset.clone();
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             move |value: Option<String>| {
                 let mut properties = asset.as_properties();
                 properties.kind = value;
@@ -166,7 +162,7 @@ mod kind {
                     .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                 let container_path = graph.path(&node).unwrap();
                 let asset_path = asset.path().get_untracked();
-                // let messages = messages.clone();
+                let messages = messages.clone();
                 spawn_local(async move {
                     if let Err(err) =
                         update_properties(project, container_path, asset_path, properties).await
@@ -174,11 +170,11 @@ mod kind {
                         tracing::error!(?err);
                         let mut msg = Message::error("Could not save container");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 });
             }
-        };
+        });
 
         view! { <KindEditor value=asset.kind().read_only() oninput debounce=INPUT_DEBOUNCE/> }
     }
@@ -199,11 +195,9 @@ mod description {
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
-        let oninput = {
+        let oninput = Callback::new({
             let asset = asset.clone();
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             move |value: Option<String>| {
                 let mut properties = asset.as_properties();
                 properties.description = value;
@@ -214,7 +208,7 @@ mod description {
                     .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                 let container_path = graph.path(&node).unwrap();
                 let asset_path = asset.path().get_untracked();
-                // let messages = messages.clone();
+                let messages = messages.clone();
                 spawn_local(async move {
                     if let Err(err) =
                         update_properties(project, container_path, asset_path, properties).await
@@ -222,11 +216,11 @@ mod description {
                         tracing::error!(?err);
                         let mut msg = Message::error("Could not save container");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 });
             }
-        };
+        });
 
         view! { <DescriptionEditor value=asset.description().read_only() oninput debounce=INPUT_DEBOUNCE/> }
     }
@@ -246,11 +240,9 @@ mod tags {
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<Messages>();
 
-        // TODO: Handle errors with messages.
-        // See https://github.com/leptos-rs/leptos/issues/2041
-        let oninput = {
+        let oninput = Callback::new({
             let asset = asset.clone();
-            // let messages = messages.write_only();
+            let messages = messages.write_only();
             move |value: Vec<String>| {
                 let mut properties = asset.as_properties();
                 properties.tags = value;
@@ -261,7 +253,7 @@ mod tags {
                     .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                 let container_path = graph.path(&node).unwrap();
                 let asset_path = asset.path().get_untracked();
-                // let messages = messages.clone();
+                let messages = messages.clone();
                 spawn_local(async move {
                     if let Err(err) =
                         update_properties(project, container_path, asset_path, properties).await
@@ -269,11 +261,11 @@ mod tags {
                         tracing::error!(?err);
                         let mut msg = Message::error("Could not save container");
                         msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 });
             }
-        };
+        });
 
         view! { <TagsEditor value=asset.tags().read_only() oninput debounce=INPUT_DEBOUNCE/> }
     }

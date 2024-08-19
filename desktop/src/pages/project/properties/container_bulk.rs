@@ -4,14 +4,14 @@ use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
-use metadata::Editor as Metadata;
+use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
 use serde::Serialize;
 use state::{ActiveResources, State};
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
-use tags::Editor as Tags;
+use tags::{AddTags, Editor as Tags};
 
 mod state {
     use super::super::common::bulk;
@@ -159,7 +159,9 @@ mod state {
 pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(containers.with(|containers| containers.len()) > 1);
     let graph = expect_context::<project::state::Graph>();
-    let (add_metadatum_visible, set_add_metadatum_visible) = create_signal(false);
+    let add_tags_visible = create_rw_signal(false);
+    let add_metadatum_visible = create_rw_signal(false);
+    let add_analysis_visible = create_rw_signal(false);
 
     provide_context(Signal::derive(move || {
         let states = containers.with(|containers| {
@@ -174,57 +176,139 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
     provide_context(ActiveResources::new(containers.clone()));
 
-    let show_add_metadatum = move |e: MouseEvent| {
+    let _ = watch(
+        move || add_tags_visible(),
+        move |add_tags_visible, _, _| {
+            if *add_tags_visible {
+                add_metadatum_visible.set(false);
+                add_analysis_visible.set(false);
+            }
+        },
+        false,
+    );
+
+    let _ = watch(
+        move || add_metadatum_visible(),
+        move |add_metadatum_visible, _, _| {
+            if *add_metadatum_visible {
+                add_tags_visible.set(false);
+                add_analysis_visible.set(false);
+            }
+        },
+        false,
+    );
+
+    let _ = watch(
+        move || add_analysis_visible(),
+        move |add_analysis_visible, _, _| {
+            if *add_analysis_visible {
+                add_tags_visible.set(false);
+                add_metadatum_visible.set(false);
+            }
+        },
+        false,
+    );
+
+    let show_add_tags = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 {
-            set_add_metadatum_visible(true);
+            add_tags_visible.set(true);
         }
     };
 
-    let add_metadatum_class = move || {
-        if add_metadatum_visible() {
-            None
-        } else {
-            Some("hidden".to_string())
+    let show_add_metadatum = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            add_metadatum_visible.set(true);
+        }
+    };
+
+    let show_add_analyses = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            add_analysis_visible.set(true);
         }
     };
 
     view! {
         <div>
-            <div>
-                <h3>"Bulk containers"</h3>
-                <small>
+            <div class="text-center pt-1 pb-2">
+                <h3 class="font-primary">"Bulk containers"</h3>
+                <span class="text-sm text-secondary-500 dark:text-secondary-400">
                     "Editing " {move || containers.with(|containers| containers.len())}
                     " containers"
-                </small>
+                </span>
             </div>
             <form on:submit=move |e| e.prevent_default()>
-                <div>
-                    <label>"Name" <Name/></label>
-                </div>
-                <div>
-                    <label>"Type" <Kind/></label>
-                </div>
-                <div>
-                    <label>"Description" <Description/></label>
-                </div>
-                <div>
-                    <label>"Tags" <Tags/></label>
-                </div>
-                <div>
+                <div class="px-1 pb-1">
                     <label>
+                        <span class="block">"Name"</span>
+                        <Name/>
+                    </label>
+                </div>
+                <div class="px-1 pb-1">
+                    <label>
+                        <span class="block">"Type"</span>
+                        <Kind/>
+                    </label>
+                </div>
+                <div class="px-1 pb-1">
+                    <label>
+                        <span class="block">"Description"</span>
+                        <Description/>
+                    </label>
+                </div>
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="block px-1">
                         <div class="flex">
-                            <span class="grow">"Metadata"</span>
+                            <span class="grow">"Tags"</span>
                             <span>
+                                // TODO: Button hover state seems to be triggered by hovering over
+                                // parent section.
                                 <button
-                                    on:mousedown=show_add_metadatum
-                                    class:invisible=add_metadatum_visible
-                                    class="aspect-square h-full"
+                                    on:mousedown=show_add_tags
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_tags_visible,
+                                    )
+
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_tags_visible(),
+                                    )
+
+                                    class="aspect-square w-full rounded-sm"
                                 >
                                     <Icon icon=icondata::AiPlusOutlined/>
                                 </button>
                             </span>
                         </div>
-                        <Metadata oncancel_adddatum=move |_| set_add_metadatum_visible(false)/>
+                        <AddTags visibility=add_tags_visible/>
+                        <Tags/>
+                    </label>
+                </div>
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="px-1 block">
+                        <div class="flex">
+                            <span class="grow">"Metadata"</span>
+                            <span>
+                                <button
+                                    on:mousedown=show_add_metadatum
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_metadatum_visible,
+                                    )
+
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_metadatum_visible(),
+                                    )
+
+                                    class="aspect-square w-full rounded-sm"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
+                        <AddDatum visibility=add_metadatum_visible/>
+                        <Metadata oncancel_adddatum=move |_| add_metadatum_visible.set(false)/>
                     </label>
                 </div>
             </form>
@@ -250,9 +334,6 @@ mod name {
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let (input_error, set_input_error) = create_signal(false);
-        // TODO: This signal with the watch is a work around to allow
-        // `containers` signal in the callback function.
-        // See https://github.com/leptos-rs/leptos/issues/2041.
         let (input_value, set_input_value) = create_signal({
             state.with(|state| match state.name() {
                 Value::Mixed => String::new(),
@@ -351,6 +432,7 @@ mod name {
                 placeholder=placeholder
                 minlength="1"
                 class=(["border-red-600", "border-solid", "border-2"], input_error)
+                class="input-compact w-full"
             />
         }
     }
@@ -447,63 +529,47 @@ mod kind {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: This signal with the watch is a work around to allow
-        // `containers` signal in the callback function.
-        // See https://github.com/leptos-rs/leptos/issues/2041.
-        let (input_value, set_input_value) = create_signal({
-            state.with(|state| match state.kind() {
-                Value::Mixed | Value::Equal(None) => None,
-                Value::Equal(Some(value)) => Some(value.clone()),
-            })
-        });
 
-        let _ = watch(
-            input_value,
-            move |input_value, _, _| {
-                let containers_len = containers.with_untracked(|containers| containers.len());
-                let mut update = PropertiesUpdate::default();
-                let _ = update.kind.insert(input_value.clone());
-                spawn_local({
-                    let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
+        let oninput = Callback::new(move |input_value: Option<String>| {
+            let containers_len = containers.with_untracked(|containers| containers.len());
+            let mut update = PropertiesUpdate::default();
+            let _ = update.kind.insert(input_value.clone());
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let containers = containers.with_untracked(|containers| {
+                    containers
+                        .iter()
+                        .map(|container| {
+                            let node = graph.find_by_id(container).unwrap();
+                            graph.path(&node).unwrap()
+                        })
+                        .collect::<Vec<_>>()
+                });
 
-                    async move {
-                        match update_properties(project, containers, update).await {
-                            Err(err) => {
-                                tracing::error!(?err);
-                                todo!();
-                            }
+                async move {
+                    match update_properties(project, containers, update).await {
+                        Err(err) => {
+                            tracing::error!(?err);
+                            todo!();
+                        }
 
-                            Ok(container_results) => {
-                                assert_eq!(container_results.len(), containers_len);
-                                for result in container_results {
-                                    if let Err(err) = result {
-                                        todo!();
-                                    }
+                        Ok(container_results) => {
+                            assert_eq!(container_results.len(), containers_len);
+                            for result in container_results {
+                                if let Err(err) = result {
+                                    todo!();
                                 }
                             }
                         }
                     }
-                });
-            },
-            false,
-        );
+                }
+            });
+        });
 
         view! {
             <KindEditor
                 value=Signal::derive(move || { state.with(|state| { state.kind().clone() }) })
-                oninput=move |value| {
-                    set_input_value(value);
-                }
-
+                oninput
                 debounce=INPUT_DEBOUNCE
             />
         }
@@ -526,22 +592,84 @@ mod description {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: This signal with the watch is a work around to allow
-        // `containers` signal in the callback function.
-        // See https://github.com/leptos-rs/leptos/issues/2041.
-        let (input_value, set_input_value) = create_signal({
-            state.with(|state| match state.description() {
-                Value::Mixed | Value::Equal(None) => None,
-                Value::Equal(Some(value)) => Some(value.clone()),
-            })
+        let oninput = Callback::new(move |input_value: Option<String>| {
+            let containers_len = containers.with_untracked(|containers| containers.len());
+            let mut update = PropertiesUpdate::default();
+            let _ = update.description.insert(input_value.clone());
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let containers = containers.with_untracked(|containers| {
+                    containers
+                        .iter()
+                        .map(|container| {
+                            let node = graph.find_by_id(container).unwrap();
+                            graph.path(&node).unwrap()
+                        })
+                        .collect::<Vec<_>>()
+                });
+
+                async move {
+                    match update_properties(project, containers, update).await {
+                        Err(err) => {
+                            tracing::error!(?err);
+                            todo!();
+                        }
+
+                        Ok(container_results) => {
+                            assert_eq!(container_results.len(), containers_len);
+                            for result in container_results {
+                                if let Err(err) = result {
+                                    todo!();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         });
 
-        let _ = watch(
-            input_value,
-            move |input_value, _, _| {
+        view! {
+            <DescriptionEditor
+                value=Signal::derive(move || state.with(|state| state.description().clone()))
+                oninput
+                debounce=INPUT_DEBOUNCE
+                class="input-compact w-full align-top"
+            />
+        }
+    }
+}
+
+mod tags {
+    use super::{
+        super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
+        update_properties, ActiveResources, State,
+    };
+    use crate::{components::DetailPopout, pages::project::state, types::Messages};
+    use leptos::*;
+    use syre_desktop_lib::command::container::bulk::{PropertiesUpdate, TagsAction};
+
+    #[component]
+    pub fn Editor() -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+        let containers = expect_context::<ActiveResources>();
+        let state = expect_context::<Signal<State>>();
+        let onremove = Callback::new({
+            let graph = graph.clone();
+            let project = project.clone();
+            let containers = containers.clone();
+            move |value: String| {
+                if value.is_empty() {
+                    return;
+                };
+
                 let containers_len = containers.with_untracked(|containers| containers.len());
                 let mut update = PropertiesUpdate::default();
-                let _ = update.description.insert(input_value.clone());
+                update.tags = TagsAction {
+                    insert: vec![],
+                    remove: vec![value.clone()],
+                };
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let containers = containers.with_untracked(|containers| {
@@ -572,164 +700,91 @@ mod description {
                         }
                     }
                 });
-            },
-            false,
-        );
+            }
+        });
 
         view! {
-            <DescriptionEditor
-                value=Signal::derive(move || state.with(|state| state.description().clone()))
-                oninput=move |value| {
-                    set_input_value(value);
-                }
-
-                debounce=INPUT_DEBOUNCE
+            <TagsEditor
+                value=Signal::derive(move || { state.with(|state| { state.tags().clone() }) })
+                onremove
             />
         }
     }
-}
-
-mod tags {
-    use super::{
-        super::common::bulk::tags::Editor as TagsEditor, update_properties, ActiveResources, State,
-    };
-    use crate::{pages::project::state, types::Messages};
-    use leptos::*;
-    use syre_desktop_lib::command::container::bulk::{PropertiesUpdate, TagsAction};
 
     #[component]
-    pub fn Editor() -> impl IntoView {
+    pub fn AddTags(visibility: RwSignal<bool>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: These signals with their `watch`s is a work around to allow
-        // `containers` signal in the callback function.
-        // See https://github.com/leptos-rs/leptos/issues/2041.
-        let (add_tags_value, set_add_tags_value) = create_signal(vec![]);
-        let (remove_tag_value, set_remove_tag_value) = create_signal("".to_string());
+        let (reset_form, set_reset_form) = create_signal(());
+        let onadd = Callback::new(move |tags: Vec<String>| {
+            if tags.is_empty() {
+                return;
+            };
 
-        let _ = watch(
-            add_tags_value,
-            {
-                let graph = graph.clone();
-                let project = project.clone();
-                let containers = containers.clone();
-                move |value, _, _| {
-                    if value.is_empty() {
-                        return;
-                    };
+            let containers_len = containers.with_untracked(|containers| containers.len());
+            let mut update = PropertiesUpdate::default();
+            update.tags = TagsAction {
+                insert: tags.clone(),
+                remove: vec![],
+            };
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let containers = containers.with_untracked(|containers| {
+                    containers
+                        .iter()
+                        .map(|container| {
+                            let node = graph.find_by_id(container).unwrap();
+                            graph.path(&node).unwrap()
+                        })
+                        .collect::<Vec<_>>()
+                });
 
-                    let containers_len = containers.with_untracked(|containers| containers.len());
-                    let mut update = PropertiesUpdate::default();
-                    update.tags = TagsAction {
-                        insert: value.clone(),
-                        remove: vec![],
-                    };
-                    spawn_local({
-                        let project = project.rid().get_untracked();
-                        let containers = containers.with_untracked(|containers| {
-                            containers
-                                .iter()
-                                .map(|container| {
-                                    let node = graph.find_by_id(container).unwrap();
-                                    graph.path(&node).unwrap()
-                                })
-                                .collect::<Vec<_>>()
-                        });
+                async move {
+                    match update_properties(project, containers, update).await {
+                        Err(err) => {
+                            tracing::error!(?err);
+                            todo!();
+                        }
 
-                        async move {
-                            match update_properties(project, containers, update).await {
-                                Err(err) => {
-                                    tracing::error!(?err);
+                        Ok(container_results) => {
+                            assert_eq!(container_results.len(), containers_len);
+                            let mut all_ok = true;
+                            for result in container_results {
+                                if let Err(err) = result {
+                                    all_ok = false;
                                     todo!();
                                 }
+                            }
 
-                                Ok(container_results) => {
-                                    assert_eq!(container_results.len(), containers_len);
-                                    for result in container_results {
-                                        if let Err(err) = result {
-                                            todo!();
-                                        }
-                                    }
-                                }
+                            if all_ok {
+                                visibility.set(false);
+                                set_reset_form(());
                             }
                         }
-                    });
+                    }
                 }
-            },
-            false,
-        );
-
-        let _ = watch(
-            remove_tag_value,
-            {
-                let graph = graph.clone();
-                let project = project.clone();
-                let containers = containers.clone();
-                move |value, _, _| {
-                    if value.is_empty() {
-                        return;
-                    };
-
-                    let containers_len = containers.with_untracked(|containers| containers.len());
-                    let mut update = PropertiesUpdate::default();
-                    update.tags = TagsAction {
-                        insert: vec![],
-                        remove: vec![value.clone()],
-                    };
-                    spawn_local({
-                        let project = project.rid().get_untracked();
-                        let containers = containers.with_untracked(|containers| {
-                            containers
-                                .iter()
-                                .map(|container| {
-                                    let node = graph.find_by_id(container).unwrap();
-                                    graph.path(&node).unwrap()
-                                })
-                                .collect::<Vec<_>>()
-                        });
-
-                        async move {
-                            match update_properties(project, containers, update).await {
-                                Err(err) => {
-                                    tracing::error!(?err);
-                                    todo!();
-                                }
-
-                                Ok(container_results) => {
-                                    assert_eq!(container_results.len(), containers_len);
-                                    for result in container_results {
-                                        if let Err(err) = result {
-                                            todo!();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            },
-            false,
-        );
+            });
+        });
 
         view! {
-            <TagsEditor
-                value=Signal::derive(move || { state.with(|state| { state.tags().clone() }) })
-                onadd=move |value| set_add_tags_value(value)
-                onremove=move |value| set_remove_tag_value(value)
-            />
+            <DetailPopout title="Add tags" visibility onclose=move |_| set_reset_form(())>
+                <AddTagsEditor onadd reset=reset_form class="w-full px-1"/>
+            </DetailPopout>
         }
     }
 }
 
 mod metadata {
     use super::{
-        super::common::{bulk::metadata::Editor as MetadataEditor, metadata::AddDatum},
+        super::common::{
+            bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
+        },
         update_properties, ActiveResources, State,
     };
-    use crate::{pages::project::state, types::Messages};
+    use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
     use syre_core::types::data;
     use syre_desktop_lib::command::container::bulk::{MetadataAction, PropertiesUpdate};
@@ -741,109 +796,164 @@ mod metadata {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        // TODO: These signals with their `watch`s is a work around to allow
-        // `containers` signal in the callback function.
-        // See https://github.com/leptos-rs/leptos/issues/2041.
-        let (remove_key, set_remove_key) = create_signal("".to_string());
-        let (modify_value, set_modify_value) = create_signal(("".to_string(), data::Value::Null));
+        let onremove = Callback::new({
+            let project = project.clone();
+            let graph = graph.clone();
+            let containers = containers.clone();
+            move |value: String| {
+                let containers_len = containers.with_untracked(|containers| containers.len());
+                let mut update = PropertiesUpdate::default();
+                update.metadata = MetadataAction {
+                    insert: vec![],
+                    remove: vec![value.clone()],
+                };
 
-        let _ = watch(
-            move || remove_key(),
-            {
-                let project = project.clone();
-                let graph = graph.clone();
-                let containers = containers.clone();
-                move |value: &String, _, _| {
-                    let containers_len = containers.with_untracked(|containers| containers.len());
-                    let mut update = PropertiesUpdate::default();
-                    update.metadata = MetadataAction {
-                        insert: vec![],
-                        remove: vec![value.clone()],
-                    };
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let containers = containers.with_untracked(|containers| {
+                        containers
+                            .iter()
+                            .map(|container| {
+                                let node = graph.find_by_id(container).unwrap();
+                                graph.path(&node).unwrap()
+                            })
+                            .collect::<Vec<_>>()
+                    });
 
-                    spawn_local({
-                        let project = project.rid().get_untracked();
-                        let containers = containers.with_untracked(|containers| {
-                            containers
-                                .iter()
-                                .map(|container| {
-                                    let node = graph.find_by_id(container).unwrap();
-                                    graph.path(&node).unwrap()
-                                })
-                                .collect::<Vec<_>>()
-                        });
+                    async move {
+                        match update_properties(project, containers, update).await {
+                            Err(err) => {
+                                tracing::error!(?err);
+                                todo!();
+                            }
 
-                        async move {
-                            match update_properties(project, containers, update).await {
-                                Err(err) => {
-                                    tracing::error!(?err);
-                                    todo!();
-                                }
-
-                                Ok(container_results) => {
-                                    assert_eq!(container_results.len(), containers_len);
-                                    for result in container_results {
-                                        if let Err(err) = result {
-                                            todo!();
-                                        }
+                            Ok(container_results) => {
+                                assert_eq!(container_results.len(), containers_len);
+                                for result in container_results {
+                                    if let Err(err) = result {
+                                        todo!();
                                     }
                                 }
                             }
                         }
+                    }
+                });
+            }
+        });
+
+        let onmodify = Callback::new({
+            let project = project.clone();
+            let graph = graph.clone();
+            let containers = containers.clone();
+            move |value: (String, data::Value)| {
+                let containers_len = containers.with_untracked(|containers| containers.len());
+                let mut update = PropertiesUpdate::default();
+                update.metadata = MetadataAction {
+                    insert: vec![value.clone()],
+                    remove: vec![],
+                };
+
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let containers = containers.with_untracked(|containers| {
+                        containers
+                            .iter()
+                            .map(|container| {
+                                let node = graph.find_by_id(container).unwrap();
+                                graph.path(&node).unwrap()
+                            })
+                            .collect::<Vec<_>>()
                     });
-                }
-            },
-            false,
-        );
 
-        let _ = watch(
-            move || modify_value(),
-            {
-                let project = project.clone();
-                let graph = graph.clone();
-                let containers = containers.clone();
-                move |value: &(String, data::Value), _, _| {
-                    let containers_len = containers.with_untracked(|containers| containers.len());
-                    let mut update = PropertiesUpdate::default();
-                    update.metadata = MetadataAction {
-                        insert: vec![value.clone()],
-                        remove: vec![],
-                    };
+                    async move {
+                        match update_properties(project, containers, update).await {
+                            Err(err) => {
+                                tracing::error!(?err);
+                                todo!();
+                            }
 
-                    spawn_local({
-                        let project = project.rid().get_untracked();
-                        let containers = containers.with_untracked(|containers| {
-                            containers
-                                .iter()
-                                .map(|container| {
-                                    let node = graph.find_by_id(container).unwrap();
-                                    graph.path(&node).unwrap()
-                                })
-                                .collect::<Vec<_>>()
-                        });
-
-                        async move {
-                            match update_properties(project, containers, update).await {
-                                Err(err) => {
-                                    tracing::error!(?err);
-                                    todo!();
-                                }
-
-                                Ok(container_results) => {
-                                    assert_eq!(container_results.len(), containers_len);
-                                    for result in container_results {
-                                        if let Err(err) = result {
-                                            todo!();
-                                        }
+                            Ok(container_results) => {
+                                assert_eq!(container_results.len(), containers_len);
+                                for result in container_results {
+                                    if let Err(err) = result {
+                                        todo!();
                                     }
                                 }
                             }
                         }
+                    }
+                });
+            }
+        });
+
+        view! {
+            <MetadataEditor
+                value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
+                onremove
+                onmodify
+            />
+        }
+    }
+
+    #[component]
+    pub fn AddDatum(visibility: RwSignal<bool>) -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<Messages>();
+        let containers = expect_context::<ActiveResources>();
+        let state = expect_context::<Signal<State>>();
+        let (reset_form, set_reset_form) = create_signal(());
+        let onadd = Callback::new({
+            let project = project.clone();
+            let graph = graph.clone();
+            let containers = containers.clone();
+            move |value: (String, data::Value)| {
+                let containers_len = containers.with_untracked(|containers| containers.len());
+                let mut update = PropertiesUpdate::default();
+                update.metadata = MetadataAction {
+                    insert: vec![value.clone()],
+                    remove: vec![],
+                };
+
+                spawn_local({
+                    let project = project.rid().get_untracked();
+                    let containers = containers.with_untracked(|containers| {
+                        containers
+                            .iter()
+                            .map(|container| {
+                                let node = graph.find_by_id(container).unwrap();
+                                graph.path(&node).unwrap()
+                            })
+                            .collect::<Vec<_>>()
                     });
-                }
-            },
-            false,
-        );
+
+                    async move {
+                        match update_properties(project, containers, update).await {
+                            Err(err) => {
+                                tracing::error!(?err);
+                                todo!();
+                            }
+
+                            Ok(container_results) => {
+                                assert_eq!(container_results.len(), containers_len);
+                                let mut all_ok = true;
+                                for result in container_results {
+                                    if let Err(err) = result {
+                                        all_ok = false;
+                                        todo!();
+                                    }
+                                }
+
+                                if all_ok {
+                                    visibility.set(false);
+                                    set_reset_form(());
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
 
         let keys = move || {
             state.with(|state| {
@@ -856,12 +966,14 @@ mod metadata {
         };
 
         view! {
-            <AddDatum keys=Signal::derive(keys) onadd=move |value| set_modify_value(value)/>
-            <MetadataEditor
-                value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
-                onremove=move |value| set_remove_key(value)
-                onmodify=move |value| set_modify_value(value)
-            />
+            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+                <AddDatumEditor
+                    keys=Signal::derive(keys)
+                    onadd
+                    reset=reset_form
+                    class="w-full px-1"
+                />
+            </DetailPopout>
         }
     }
 }

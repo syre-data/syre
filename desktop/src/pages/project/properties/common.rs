@@ -925,6 +925,7 @@ pub mod bulk {
                     oninput=oninput_text
                     debounce
                     placeholder=MaybeProp::derive(placeholder)
+                    class="input-compact"
                 />
             }
         }
@@ -940,6 +941,7 @@ pub mod bulk {
             #[prop(into)] value: MaybeSignal<Value<Option<String>>>,
             #[prop(into)] oninput: Callback<Option<String>>,
             #[prop(into)] debounce: MaybeSignal<f64>,
+            #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             let (processed_value, set_processed_value) = create_signal({
                 value.with_untracked(|value| match value {
@@ -995,18 +997,21 @@ pub mod bulk {
                     oninput=oninput_text
                     debounce
                     placeholder=MaybeProp::derive(placeholder)
+                    class
                 />
             }
         }
     }
 
     pub mod tags {
-        use leptos::*;
+        use crate::types;
+        use leptos::{ev::MouseEvent, *};
+        use leptos_icons::Icon;
+        use wasm_bindgen::JsCast;
 
         #[component]
         pub fn Editor(
             #[prop(into)] value: MaybeSignal<Vec<String>>,
-            #[prop(into)] onadd: Callback<Vec<String>>,
             #[prop(into)] onremove: Callback<String>,
 
             /// Classes applied to outer container.
@@ -1017,7 +1022,73 @@ pub mod bulk {
             #[prop(optional, into)]
             tag_class: MaybeProp<String>,
         ) -> impl IntoView {
+            let tag_class = move || {
+                let mut class = tag_class.get().unwrap_or("".to_string());
+                class.push_str(" flex pr-2 rounded-full border border-secondary-900 dark:border-secondary-200 dark:bg-secondary-700");
+                class
+            };
+
+            let remove = move |tag: String| {
+                move |e: MouseEvent| {
+                    if e.button() == types::MouseButton::Primary as i16 {
+                        onremove(tag.clone());
+                    }
+                }
+            };
+
+            view! {
+                <div class>
+                    <ul class="flex gap-2 flex-wrap">
+                        {move || {
+                            value
+                                .with(|tags| {
+                                    tags.iter()
+                                        .map(|tag| {
+                                            view! {
+                                                <li class=tag_class.clone()>
+                                                    <span class="px-2">{tag.clone()}</span>
+                                                    <button
+                                                        type="button"
+                                                        on:mousedown=remove(tag.clone())
+                                                        class="aspect-square h-full rounded-full hover:bg-secondary-200 dark:hover:bg-secondary-600"
+                                                    >
+
+                                                        <Icon icon=icondata::AiMinusOutlined class="inline-block"/>
+                                                    </button>
+                                                </li>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                        }}
+
+                    </ul>
+                </div>
+            }
+        }
+
+        #[component]
+        pub fn AddTags(
+            #[prop(into)] onadd: Callback<Vec<String>>,
+            /// Reset the state of the form.
+            #[prop(optional, into)]
+            reset: Option<ReadSignal<()>>,
+            #[prop(optional, into)] class: MaybeProp<String>,
+        ) -> impl IntoView {
             let input_ref = create_node_ref::<html::Input>();
+
+            if let Some(reset) = reset {
+                let _ = watch(
+                    reset,
+                    move |_, _, _| {
+                        let input = input_ref.get_untracked().unwrap();
+                        let input = input.dyn_ref::<web_sys::HtmlInputElement>().unwrap();
+                        input.set_value("");
+                    },
+                    false,
+                );
+            }
+
             let add_tags = move |e| {
                 let input = input_ref.get_untracked().unwrap();
                 let input_value = input.value();
@@ -1045,55 +1116,15 @@ pub mod bulk {
 
             view! {
                 <div class=class>
-                    <div>
-                        <input ref=input_ref type="text" placeholder="Add tags"/>
-                        <button type="button" on:mousedown=add_tags>
-                            "+"
-                        </button>
-                    </div>
-                    <TagsList value onremove tag_class/>
-                </div>
-            }
-        }
-
-        #[component]
-        fn TagsList(
-            value: MaybeSignal<Vec<String>>,
-            onremove: Callback<String>,
-
-            /// Class applied to each tag list item.
-            tag_class: MaybeProp<String>,
-        ) -> impl IntoView {
-            view! {
-                <div>
-                    <ul>
-                        {move || {
-                            value
-                                .with(|tags| {
-                                    tags.iter()
-                                        .map(|tag| {
-                                            view! {
-                                                <li class=tag_class
-                                                    .clone()>
-                                                    {tag.clone()}
-                                                    <button
-                                                        type="button"
-                                                        on:mousedown={
-                                                            let tag = tag.clone();
-                                                            move |_| onremove(tag.clone())
-                                                        }
-                                                    >
-
-                                                        "-"
-                                                    </button>
-                                                </li>
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()
-                                })
-                        }}
-
-                    </ul>
+                    <input
+                        ref=input_ref
+                        type="text"
+                        placeholder="Add tags"
+                        class="input-compact w-full"
+                    />
+                    <button type="button" on:mousedown=add_tags>
+                        <Icon icon=icondata::AiPlusOutlined/>
+                    </button>
                 </div>
             }
         }
@@ -1106,6 +1137,7 @@ pub mod bulk {
         };
         use crate::components::form::InputNumber;
         use leptos::*;
+        use leptos_icons::Icon;
         use syre_core::types::data;
 
         #[derive(Clone, Debug)]
@@ -1135,18 +1167,6 @@ pub mod bulk {
             #[prop(into)] onremove: Callback<String>,
             #[prop(into)] onmodify: Callback<(String, data::Value)>,
         ) -> impl IntoView {
-            // TODO: This signal with the watch is a work around to allow
-            // `containers` signal in the callback function.
-            // See https://github.com/leptos-rs/leptos/issues/2041.
-            let (modified, set_modified) = create_signal(("".to_string(), data::Value::Null));
-            let _ = watch(
-                modified,
-                move |modified, _, _| {
-                    onmodify(modified.clone());
-                },
-                false,
-            );
-
             view! {
                 <div>
                     {move || {
@@ -1161,20 +1181,16 @@ pub mod bulk {
                                                 value=value.clone()
                                                 oninput={
                                                     let key = key.clone();
-                                                    move |value| set_modified((key.clone(), value))
+                                                    Callback::new(move |value| onmodify((key.clone(), value)))
                                                 }
-                                            />
 
-                                            <button
-                                                type="button"
-                                                on:mousedown={
+                                                onremove=Callback::new({
                                                     let key = key.clone();
                                                     move |_| onremove(key.clone())
-                                                }
-                                            >
+                                                })
 
-                                                "-"
-                                            </button>
+                                                class="pb-2"
+                                            />
                                         }
                                     })
                                     .collect::<Vec<_>>()
@@ -1190,10 +1206,23 @@ pub mod bulk {
             key: String,
             value: Value,
             #[prop(into)] oninput: Callback<data::Value>,
+            #[prop(into)] onremove: Callback<()>,
+            #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             view! {
-                <div>
-                    <span>{key}</span>
+                <div class=class>
+                    <div class="flex">
+                        <span class="grow">{key}</span>
+
+                        <button
+                            type="button"
+                            on:mousedown=move |_| onremove(())
+                            class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                        >
+
+                            <Icon icon=icondata::AiMinusOutlined/>
+                        </button>
+                    </div>
                     <ValueEditor value oninput/>
                 </div>
             }
@@ -1277,6 +1306,7 @@ pub mod bulk {
                     }
 
                     on:change=change
+                    class="input-compact pr-4"
                 >
                     {move || {
                         if value.is_mixed_kind() {
@@ -1344,6 +1374,7 @@ pub mod bulk {
                     prop:value=input_value
                     on:input=move |e| oninput(data::Value::String(event_target_value(&e)))
                     placeholder=placeholder
+                    class="input-compact"
                 />
             }
         }
@@ -1382,6 +1413,7 @@ pub mod bulk {
                     value=Signal::derive(input_value)
                     oninput=oninput_text
                     placeholder=MaybeProp::derive(placeholder)
+                    class="input-compact"
                 />
             }
         }
@@ -1434,9 +1466,20 @@ pub mod bulk {
             );
 
             view! {
-                <div>
-                    <InputNumber value=magnitude oninput=oninput_magnitude/>
-                    <input prop:value=unit minlength="1" on:input=oninput_unit/>
+                <div class="flex">
+                    <InputNumber
+                        value=magnitude
+                        oninput=oninput_magnitude
+                        placeholder="Magnitude"
+                        class="input-compact"
+                    />
+                    <input
+                        prop:value=unit
+                        minlength="1"
+                        on:input=oninput_unit
+                        placeholder="Unit"
+                        class="input-compact"
+                    />
                 </div>
             }
         }
@@ -1485,7 +1528,7 @@ pub mod bulk {
                 <textarea
                     on:input=move |e| set_input_value(event_target_value(&e))
                     placeholder=placeholder
-                    class="align-top"
+                    class="input-compact align-top"
                 >
                     {input_value}
                 </textarea>

@@ -2,7 +2,7 @@ use crate::{
     error::IoSerde,
     file_resource::LocalResource,
     project::resources::container::Container,
-    types::{ContainerSettings, StoredContainerProperties},
+    types::{Assets, ContainerSettings, StoredContainerProperties},
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -77,10 +77,10 @@ impl Loader {
         Ok(Self::load_json::<ContainerSettings>(path)?)
     }
 
-    pub fn load_from_only_assets(base_path: impl AsRef<Path>) -> Result<Vec<Asset>, IoSerde> {
+    pub fn load_from_only_assets(base_path: impl AsRef<Path>) -> Result<Assets, IoSerde> {
         let base_path = base_path.as_ref();
         let path = base_path.join(<Container as LocalResource<Vec<Asset>>>::rel_path());
-        Ok(Self::load_json::<Vec<Asset>>(path)?)
+        Ok(Self::load_json::<Vec<Asset>>(path)?.into())
     }
 
     /// Convenience function for loading data from a JSON file.

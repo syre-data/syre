@@ -3,12 +3,14 @@ use leptos::*;
 
 mod analyses;
 mod asset;
+mod asset_bulk;
 mod common;
 mod container;
 mod container_bulk;
 
 use analyses::Editor as Analyses;
 use asset::Editor as Asset;
+use asset_bulk::Editor as AssetBulk;
 use container::Editor as Container;
 use container_bulk::Editor as ContainerBulk;
 
@@ -71,7 +73,19 @@ pub fn PropertiesBar() -> impl IntoView {
                                 view! { <ContainerBulk containers=Signal::derive(containers)/> }
                                     .into_view()
                             }
-                            ResourceKind::Asset => view! { "Bulk asset" }.into_view(),
+                            ResourceKind::Asset => {
+                                let selection = selection.clone();
+                                let assets = {
+                                    move || {
+                                        selection
+                                            .iter()
+                                            .map(|resource| resource.rid().clone())
+                                            .collect()
+                                    }
+                                };
+
+                                view! { <AssetBulk assets=Signal::derive(assets)/> }.into_view()
+                            }
                         },
                         _ => view! { "Bulk mixed" }.into_view(),
                     }

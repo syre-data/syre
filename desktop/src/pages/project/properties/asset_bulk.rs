@@ -23,7 +23,7 @@ mod state {
 
     #[derive(Clone, Debug)]
     pub struct State {
-        name: bulk::Value<String>,
+        name: bulk::Value<Option<String>>,
         kind: bulk::Value<Option<String>>,
         description: bulk::Value<Option<String>>,
 
@@ -35,7 +35,7 @@ mod state {
     }
 
     impl State {
-        pub fn from_states(states: Vec<state::graph::Node>) -> Self {
+        pub fn from_states(states: Vec<state::Asset>) -> Self {
             let mut names = Vec::with_capacity(states.len());
             let mut kinds = Vec::with_capacity(states.len());
             let mut descriptions = Vec::with_capacity(states.len());
@@ -43,20 +43,14 @@ mod state {
             let mut metadata = HashMap::with_capacity(states.len());
             states
                 .iter()
-                .map(|state| {
-                    state.properties().with(|properties| {
-                        let db::state::DataResource::Ok(properties) = properties else {
-                            panic!("invalid state");
-                        };
-
-                        (
-                            properties.name().get_untracked(),
-                            properties.kind().get_untracked(),
-                            properties.description().get_untracked(),
-                            properties.tags().get_untracked(),
-                            properties.metadata().get_untracked(),
-                        )
-                    })
+                .map(|asset| {
+                    (
+                        asset.name().get_untracked(),
+                        asset.kind().get_untracked(),
+                        asset.description().get_untracked(),
+                        asset.tags().get_untracked(),
+                        asset.metadata().get_untracked(),
+                    )
                 })
                 .fold((), |(), (name, kind, description, tag, metadatum)| {
                     names.push(name);
@@ -125,7 +119,7 @@ mod state {
     }
 
     impl State {
-        pub fn name(&self) -> &bulk::Value<String> {
+        pub fn name(&self) -> &bulk::Value<Option<String>> {
             &self.name
         }
 
@@ -156,25 +150,25 @@ mod state {
 }
 
 #[component]
-pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
-    assert!(containers.with(|containers| containers.len()) > 1);
+pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
+    assert!(assets.with(|assets| assets.len()) > 1);
     let graph = expect_context::<project::state::Graph>();
     let add_tags_visible = create_rw_signal(false);
     let add_metadatum_visible = create_rw_signal(false);
     let add_analysis_visible = create_rw_signal(false);
 
     provide_context(Signal::derive(move || {
-        let states = containers.with(|containers| {
-            containers
+        let states = assets.with(|assets| {
+            assets
                 .iter()
-                .map(|rid| graph.find_by_id(rid).unwrap())
+                .map(|rid| graph.find_asset_by_id(rid).unwrap())
                 .collect::<Vec<_>>()
         });
 
         State::from_states(states)
     }));
 
-    provide_context(ActiveResources::new(containers.clone()));
+    provide_context(ActiveResources::new(assets.clone()));
 
     let _ = watch(
         move || add_tags_visible(),
@@ -230,10 +224,9 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     view! {
         <div>
             <div class="text-center pt-1 pb-2">
-                <h3 class="font-primary">"Bulk containers"</h3>
+                <h3 class="font-primary">"Bulk assets"</h3>
                 <span class="text-sm text-secondary-500 dark:text-secondary-400">
-                    "Editing " {move || containers.with(|containers| containers.len())}
-                    " containers"
+                    "Editing " {move || assets.with(|assets| assets.len())} " assets"
                 </span>
             </div>
             <form on:submit=move |e| e.prevent_default()>
@@ -317,198 +310,122 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 }
 
 mod name {
-    use super::{super::common::bulk::Value, ActiveResources, State, INPUT_DEBOUNCE};
-    use crate::{components::message, pages::project::state, types::Messages};
+    use super::{
+        super::common::bulk::{kind::Editor as KindEditor, Value},
+        container_assets, update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+    };
+    use crate::{components::form::debounced::InputText, pages::project::state, types::Messages};
     use leptos::*;
-    use serde::Serialize;
-    use std::{ffi::OsString, path::PathBuf};
-    use syre_core::types::ResourceId;
-    use syre_desktop_lib as lib;
-    use syre_local_database as db;
+    use std::path::PathBuf;
+    use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        let (input_error, set_input_error) = create_signal(false);
-        let (input_value, set_input_value) = create_signal({
-            state.with(|state| match state.name() {
-                Value::Mixed => String::new(),
-                Value::Equal(value) => value.clone(),
-            })
-        });
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
 
-        let _ = watch(
-            input_value,
-            move |input_value, _, _| {
-                set_input_error(false);
-                spawn_local({
-                    let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
+        let oninput = Callback::new(move |input_value: Option<String>| {
+            let mut update = PropertiesUpdate::default();
+            let _ = update.name.insert(input_value.clone());
+            spawn_local({
+                let project = project.rid().get_untracked();
+                let asset_ids = assets.with_untracked(|assets| container_assets(assets, &graph));
+                let expected_results_len = asset_ids.len();
+                async move {
+                    match update_properties(project, asset_ids, update).await {
+                        Err(err) => {
+                            tracing::error!(?err);
+                            todo!();
+                        }
 
-                    let messages = messages.clone();
-                    let input_value = input_value.clone();
-                    async move {
-                        match rename_containers(project, containers.clone(), input_value.clone())
-                            .await
-                        {
-                            Ok(rename_results) => {
-                                assert_eq!(containers.len(), rename_results.len());
-                                let rename_errors = rename_results
-                                    .into_iter()
-                                    .enumerate()
-                                    .filter_map(|(idx, result)| {
-                                        if let Err(err) = result {
-                                            Some((containers[idx].clone(), err))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect::<Vec<_>>();
-
-                                if rename_errors.len() > 0 {
-                                    messages.update(|messages| {
-                                        let mut msg = message::Builder::error(
-                                            "An error ocurred when renaming container folders.",
-                                        );
-                                        msg.body(
-                                            view! { <ErrRenameIoMessage errors=rename_errors/> },
-                                        );
-                                        messages.push(msg.build());
-                                    });
+                        Ok(asset_results) => {
+                            assert_eq!(asset_results.len(), expected_results_len);
+                            for result in asset_results {
+                                if let Err(err) = result {
+                                    tracing::error!(?err);
+                                    todo!();
                                 }
                             }
-                            Err(err) => match err {
-                                lib::command::container::bulk::error::Rename::ProjectNotFound => {
-                                    todo!()
-                                }
-                                lib::command::container::bulk::error::Rename::NameCollision(
-                                    paths,
-                                ) => {
-                                    set_input_error(true);
-                                    messages.update(|messages| {
-                                        let mut msg =
-                                            message::Builder::error("Could not rename containers");
-                                        msg.body(view! { <ErrNameCollisionMessage paths/> });
-                                        messages.push(msg.build());
-                                    });
-                                }
-                            },
                         }
                     }
-                });
-            },
-            false,
-        );
-
-        let placeholder = move || {
-            state.with(|state| match state.name() {
-                Value::Mixed => "(mixed)".to_string(),
-                Value::Equal(_) => "(empty)".to_string(),
+                }
             })
-        };
+        });
 
         view! {
-            <input
-                type="text"
-                prop:value=Signal::derive(input_value)
-                on:input=move |e| {
-                    set_input_value(event_target_value(&e));
-                }
-
+            <NameEditor
+                value=Signal::derive(move || { state.with(|state| { state.name().clone() }) })
+                oninput
                 debounce=INPUT_DEBOUNCE
-                placeholder=placeholder
-                minlength="1"
-                class=(["border-red-600", "border-solid", "border-2"], input_error)
-                class="input-compact w-full"
             />
         }
     }
 
-    async fn rename_containers(
-        project: ResourceId,
-        containers: Vec<PathBuf>,
-        name: impl Into<OsString>,
-    ) -> Result<
-        Vec<Result<(), lib::command::error::IoErrorKind>>,
-        lib::command::container::bulk::error::Rename,
-    > {
-        #[derive(Serialize)]
-        struct RenameContainerArgs {
-            project: ResourceId,
-            containers: Vec<PathBuf>,
-            #[serde(with = "db::serde_os_string")]
-            name: OsString,
-        }
-
-        tauri_sys::core::invoke_result(
-            "container_rename_bulk",
-            RenameContainerArgs {
-                project,
-                containers,
-                name: name.into(),
-            },
-        )
-        .await
-    }
-
     #[component]
-    fn ErrNameCollisionMessage(paths: Vec<PathBuf>) -> impl IntoView {
-        view! {
-            <div>
-                <p>
-                    "The paths"
-                    <ul>
-                        {paths
-                            .iter()
-                            .map(|path| {
-                                view! { <li>{path.to_string_lossy().to_string()}</li> }
-                            })
-                            .collect::<Vec<_>>()}
-
-                    </ul> "resulted in a name collistion."
-                </p>
-                <p>"No containers were renamed."</p>
-            </div>
-        }
-    }
-
-    #[component]
-    fn ErrRenameIoMessage(
-        errors: Vec<(PathBuf, lib::command::error::IoErrorKind)>,
+    fn NameEditor(
+        #[prop(into)] value: MaybeSignal<Value<Option<String>>>,
+        #[prop(into)] oninput: Callback<Option<String>>,
+        #[prop(into)] debounce: MaybeSignal<f64>,
     ) -> impl IntoView {
-        view! {
-            <div>
-                <p>
-                    <ul>
-                        {errors
-                            .iter()
-                            .map(|(path, err)| {
-                                view! {
-                                    <li>
-                                        <strong>{path.to_string_lossy().to_string()} :</strong>
-                                        {format!("{err:?}")}
-                                    </li>
-                                }
-                            })
-                            .collect::<Vec<_>>()}
+        let (processed_value, set_processed_value) = create_signal({
+            value.with_untracked(|value| match value {
+                Value::Mixed | Value::Equal(None) => None,
+                Value::Equal(Some(value)) => Some(value.clone()),
+            })
+        });
 
-                    </ul>
-                </p>
-                <p>"All other containers were renamed."</p>
-            </div>
+        let input_value = {
+            let value = value.clone();
+            move || {
+                value.with(|value| match value {
+                    Value::Mixed | Value::Equal(None) => String::new(),
+                    Value::Equal(Some(value)) => value.clone(),
+                })
+            }
+        };
+
+        let oninput_text = {
+            move |value: String| {
+                let value = value.trim();
+                let value = if value.is_empty() {
+                    None
+                } else {
+                    Some(value.to_string())
+                };
+
+                set_processed_value(value);
+            }
+        };
+
+        let placeholder = {
+            let value = value.clone();
+            move || {
+                value.with(|value| match value {
+                    Value::Mixed => Some("(mixed)".to_string()),
+                    Value::Equal(_) => Some("(empty)".to_string()),
+                })
+            }
+        };
+
+        let _ = watch(
+            processed_value,
+            move |processed_value, _, _| {
+                oninput(processed_value.clone());
+            },
+            false,
+        );
+
+        view! {
+            <InputText
+                value=Signal::derive(input_value)
+                oninput=oninput_text
+                debounce
+                placeholder=MaybeProp::derive(placeholder)
+                class="input-compact"
+            />
         }
     }
 }
@@ -516,46 +433,37 @@ mod name {
 mod kind {
     use super::{
         super::common::bulk::{kind::Editor as KindEditor, Value},
-        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        container_assets, update_properties, ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
-    use syre_desktop_lib::command::container::bulk::PropertiesUpdate;
+    use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
 
         let oninput = Callback::new(move |input_value: Option<String>| {
-            let containers_len = containers.with_untracked(|containers| containers.len());
             let mut update = PropertiesUpdate::default();
             let _ = update.kind.insert(input_value.clone());
             spawn_local({
                 let project = project.rid().get_untracked();
-                let containers = containers.with_untracked(|containers| {
-                    containers
-                        .iter()
-                        .map(|container| {
-                            let node = graph.find_by_id(container).unwrap();
-                            graph.path(&node).unwrap()
-                        })
-                        .collect::<Vec<_>>()
-                });
-
+                let asset_ids = assets.with_untracked(|assets| container_assets(assets, &graph));
+                let expected_results_len = asset_ids.len();
                 async move {
-                    match update_properties(project, containers, update).await {
+                    match update_properties(project, asset_ids, update).await {
                         Err(err) => {
                             tracing::error!(?err);
                             todo!();
                         }
 
-                        Ok(container_results) => {
-                            assert_eq!(container_results.len(), containers_len);
-                            for result in container_results {
+                        Ok(asset_results) => {
+                            assert_eq!(asset_results.len(), expected_results_len);
+                            for result in asset_results {
                                 if let Err(err) = result {
                                     todo!();
                                 }
@@ -579,46 +487,38 @@ mod kind {
 mod description {
     use super::{
         super::common::bulk::{description::Editor as DescriptionEditor, Value},
-        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        container_assets, update_properties, ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
-    use syre_desktop_lib::command::container::bulk::PropertiesUpdate;
+    use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let oninput = Callback::new(move |input_value: Option<String>| {
-            let containers_len = containers.with_untracked(|containers| containers.len());
             let mut update = PropertiesUpdate::default();
             let _ = update.description.insert(input_value.clone());
             spawn_local({
                 let project = project.rid().get_untracked();
-                let containers = containers.with_untracked(|containers| {
-                    containers
-                        .iter()
-                        .map(|container| {
-                            let node = graph.find_by_id(container).unwrap();
-                            graph.path(&node).unwrap()
-                        })
-                        .collect::<Vec<_>>()
-                });
-
+                let asset_ids = assets.with_untracked(|assets| container_assets(assets, &graph));
+                let expected_results_len = asset_ids.len();
                 async move {
-                    match update_properties(project, containers, update).await {
+                    match update_properties(project, asset_ids, update).await {
                         Err(err) => {
                             tracing::error!(?err);
                             todo!();
                         }
 
-                        Ok(container_results) => {
-                            assert_eq!(container_results.len(), containers_len);
-                            for result in container_results {
+                        Ok(asset_results) => {
+                            assert_eq!(asset_results.len(), expected_results_len);
+                            for result in asset_results {
                                 if let Err(err) = result {
+                                    tracing::error!(?err);
                                     todo!();
                                 }
                             }
@@ -642,29 +542,28 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        update_properties, ActiveResources, State,
+        container_assets, update_properties, ActiveResources, State,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
-    use syre_desktop_lib::command::{bulk::TagsAction, container::bulk::PropertiesUpdate};
+    use syre_desktop_lib::command::{asset::bulk::PropertiesUpdate, bulk::TagsAction};
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let onremove = Callback::new({
             let graph = graph.clone();
             let project = project.clone();
-            let containers = containers.clone();
+            let assets = assets.clone();
             move |value: String| {
                 if value.is_empty() {
                     return;
                 };
 
-                let containers_len = containers.with_untracked(|containers| containers.len());
                 let mut update = PropertiesUpdate::default();
                 update.tags = TagsAction {
                     insert: vec![],
@@ -672,26 +571,19 @@ mod tags {
                 };
                 spawn_local({
                     let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
-
+                    let asset_ids =
+                        assets.with_untracked(|assets| container_assets(assets, &graph));
+                    let expected_results_len = asset_ids.len();
                     async move {
-                        match update_properties(project, containers, update).await {
+                        match update_properties(project, asset_ids, update).await {
                             Err(err) => {
                                 tracing::error!(?err);
                                 todo!();
                             }
 
-                            Ok(container_results) => {
-                                assert_eq!(container_results.len(), containers_len);
-                                for result in container_results {
+                            Ok(asset_results) => {
+                                assert_eq!(asset_results.len(), expected_results_len);
+                                for result in asset_results {
                                     if let Err(err) = result {
                                         todo!();
                                     }
@@ -716,7 +608,7 @@ mod tags {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let (reset_form, set_reset_form) = create_signal(());
         let onadd = Callback::new(move |tags: Vec<String>| {
@@ -724,7 +616,6 @@ mod tags {
                 return;
             };
 
-            let containers_len = containers.with_untracked(|containers| containers.len());
             let mut update = PropertiesUpdate::default();
             update.tags = TagsAction {
                 insert: tags.clone(),
@@ -732,27 +623,19 @@ mod tags {
             };
             spawn_local({
                 let project = project.rid().get_untracked();
-                let containers = containers.with_untracked(|containers| {
-                    containers
-                        .iter()
-                        .map(|container| {
-                            let node = graph.find_by_id(container).unwrap();
-                            graph.path(&node).unwrap()
-                        })
-                        .collect::<Vec<_>>()
-                });
-
+                let asset_ids = assets.with_untracked(|assets| container_assets(assets, &graph));
+                let expected_results_len = asset_ids.len();
                 async move {
-                    match update_properties(project, containers, update).await {
+                    match update_properties(project, asset_ids, update).await {
                         Err(err) => {
                             tracing::error!(?err);
                             todo!();
                         }
 
-                        Ok(container_results) => {
-                            assert_eq!(container_results.len(), containers_len);
+                        Ok(asset_results) => {
+                            assert_eq!(asset_results.len(), expected_results_len);
                             let mut all_ok = true;
-                            for result in container_results {
+                            for result in asset_results {
                                 if let Err(err) = result {
                                     all_ok = false;
                                     todo!();
@@ -782,26 +665,25 @@ mod metadata {
         super::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        update_properties, ActiveResources, State,
+        container_assets, update_properties, ActiveResources, State,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
     use syre_core::types::data;
-    use syre_desktop_lib::command::{bulk::MetadataAction, container::bulk::PropertiesUpdate};
+    use syre_desktop_lib::command::{asset::bulk::PropertiesUpdate, bulk::MetadataAction};
 
     #[component]
     pub fn Editor(#[prop(into)] oncancel_adddatum: Callback<()>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let onremove = Callback::new({
             let project = project.clone();
             let graph = graph.clone();
-            let containers = containers.clone();
+            let assets = assets.clone();
             move |value: String| {
-                let containers_len = containers.with_untracked(|containers| containers.len());
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
                     insert: vec![],
@@ -810,26 +692,19 @@ mod metadata {
 
                 spawn_local({
                     let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
-
+                    let asset_ids =
+                        assets.with_untracked(|assets| container_assets(assets, &graph));
+                    let expected_results_len = asset_ids.len();
                     async move {
-                        match update_properties(project, containers, update).await {
+                        match update_properties(project, asset_ids, update).await {
                             Err(err) => {
                                 tracing::error!(?err);
                                 todo!();
                             }
 
-                            Ok(container_results) => {
-                                assert_eq!(container_results.len(), containers_len);
-                                for result in container_results {
+                            Ok(asset_results) => {
+                                assert_eq!(asset_results.len(), expected_results_len);
+                                for result in asset_results {
                                     if let Err(err) = result {
                                         todo!();
                                     }
@@ -844,9 +719,8 @@ mod metadata {
         let onmodify = Callback::new({
             let project = project.clone();
             let graph = graph.clone();
-            let containers = containers.clone();
+            let assets = assets.clone();
             move |value: (String, data::Value)| {
-                let containers_len = containers.with_untracked(|containers| containers.len());
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
                     insert: vec![value.clone()],
@@ -855,26 +729,19 @@ mod metadata {
 
                 spawn_local({
                     let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
-
+                    let asset_ids =
+                        assets.with_untracked(|assets| container_assets(assets, &graph));
+                    let expected_results_len = asset_ids.len();
                     async move {
-                        match update_properties(project, containers, update).await {
+                        match update_properties(project, asset_ids, update).await {
                             Err(err) => {
                                 tracing::error!(?err);
                                 todo!();
                             }
 
-                            Ok(container_results) => {
-                                assert_eq!(container_results.len(), containers_len);
-                                for result in container_results {
+                            Ok(asset_results) => {
+                                assert_eq!(asset_results.len(), expected_results_len);
+                                for result in asset_results {
                                     if let Err(err) = result {
                                         todo!();
                                     }
@@ -900,15 +767,14 @@ mod metadata {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-        let containers = expect_context::<ActiveResources>();
+        let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let (reset_form, set_reset_form) = create_signal(());
         let onadd = Callback::new({
             let project = project.clone();
             let graph = graph.clone();
-            let containers = containers.clone();
+            let assets = assets.clone();
             move |value: (String, data::Value)| {
-                let containers_len = containers.with_untracked(|containers| containers.len());
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
                     insert: vec![value.clone()],
@@ -917,27 +783,20 @@ mod metadata {
 
                 spawn_local({
                     let project = project.rid().get_untracked();
-                    let containers = containers.with_untracked(|containers| {
-                        containers
-                            .iter()
-                            .map(|container| {
-                                let node = graph.find_by_id(container).unwrap();
-                                graph.path(&node).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    });
-
+                    let asset_ids =
+                        assets.with_untracked(|assets| container_assets(assets, &graph));
+                    let expected_results_len = asset_ids.len();
                     async move {
-                        match update_properties(project, containers, update).await {
+                        match update_properties(project, asset_ids, update).await {
                             Err(err) => {
                                 tracing::error!(?err);
                                 todo!();
                             }
 
-                            Ok(container_results) => {
-                                assert_eq!(container_results.len(), containers_len);
+                            Ok(asset_results) => {
+                                assert_eq!(asset_results.len(), expected_results_len);
                                 let mut all_ok = true;
-                                for result in container_results {
+                                for result in asset_results {
                                     if let Err(err) = result {
                                         all_ok = false;
                                         todo!();
@@ -979,31 +838,54 @@ mod metadata {
 }
 
 /// # Returns
-/// Result of each Container's update.
+/// Result of each Asset's update.
 async fn update_properties(
     project: ResourceId,
-    containers: Vec<PathBuf>,
-    update: lib::command::container::bulk::PropertiesUpdate,
+    assets: Vec<lib::command::asset::bulk::ContainerAssets>,
+    update: lib::command::asset::bulk::PropertiesUpdate,
 ) -> Result<
-    Vec<Result<(), lib::command::container::bulk::error::Update>>,
-    lib::command::container::bulk::error::ProjectNotFound,
+    Vec<Result<(), lib::command::asset::bulk::error::Update>>,
+    lib::command::asset::bulk::error::ProjectNotFound,
 > {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,
-        containers: Vec<PathBuf>,
-        // update: lib::command::container::bulk::PropertiesUpdate,
+        assets: Vec<lib::command::asset::bulk::ContainerAssets>,
+        // update: lib::command::asset::bulk::PropertiesUpdate,
         update: String, // TODO: Issue with serializing enum with Option. perform manually.
                         // See: https://github.com/tauri-apps/tauri/issues/5993
     }
 
     tauri_sys::core::invoke_result(
-        "container_properties_update_bulk",
+        "asset_properties_update_bulk",
         Args {
             project,
-            containers,
+            assets,
             update: serde_json::to_string(&update).unwrap(),
         },
     )
     .await
+}
+
+/// Transforms a list of asset [`ResourceId`]s into
+/// [`ContainerAssets`](lib::command::asset::bulk::ContainerAssets).
+fn container_assets(
+    assets: &Vec<ResourceId>,
+    graph: &project::state::Graph,
+) -> Vec<lib::command::asset::bulk::ContainerAssets> {
+    let mut asset_ids = Vec::<(PathBuf, Vec<ResourceId>)>::new();
+    for asset in assets {
+        let node = graph.find_by_asset_id(asset).unwrap();
+        let container = graph.path(&node).unwrap();
+        if let Some((container_id, ref mut container_assets)) = asset_ids
+            .iter_mut()
+            .find(|(container_id, _)| *container_id == container)
+        {
+            container_assets.push(asset.clone());
+        } else {
+            asset_ids.push((container, vec![asset.clone()]));
+        }
+    }
+
+    asset_ids.into_iter().map(|ids| ids.into()).collect()
 }

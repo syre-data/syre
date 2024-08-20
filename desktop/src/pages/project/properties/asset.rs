@@ -17,64 +17,78 @@ struct ActiveAsset(state::Asset);
 #[component]
 pub fn Editor(asset: state::Asset) -> impl IntoView {
     provide_context(ActiveAsset(asset.clone()));
-    let (add_metadatum_visible, set_add_metadatum_visible) = create_signal(false);
+    let add_metadatum_visible = create_rw_signal(false);
 
     let show_add_metadatum = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary as i16 {
-            set_add_metadatum_visible(true);
-        }
-    };
-
-    let add_metadatum_class = move || {
-        if add_metadatum_visible() {
-            None
-        } else {
-            Some("hidden".to_string())
+            add_metadatum_visible.set(true);
         }
     };
 
     view! {
         <div>
-            <div>
-                <h3>"Asset"</h3>
+            <div class="text-center pt-1 pb-2">
+                <h3 class="font-primary">"Asset"</h3>
             </div>
             <form on:submit=|e| e.prevent_default()>
-                <div>
-                    <label>"Name" <Name/></label>
-                </div>
-                <div>
-                    <label>"Type" <Kind/></label>
-                </div>
-                <div>
-                    <label>"Description" <Description/></label>
-                </div>
-                <div>
-                    <label>"Tags" <Tags/></label>
-                </div>
-                <div>
+                <div class="pb-1 px-1">
                     <label>
+                        <span class="block">"Name"</span>
+                        <Name/>
+                    </label>
+                </div>
+                <div class="pb-1 px-1">
+                    <label>
+                        <span class="block">"Type"</span>
+                        <Kind/>
+                    </label>
+                </div>
+                <div class="pb-1 px-1">
+                    <label>
+                        <span class="block">"Description"</span>
+                        <Description/>
+                    </label>
+                </div>
+                <div class="pb-4 px-1">
+                    <label>
+                        <span class="block">"Tags"</span>
+                        <Tags/>
+                    </label>
+                </div>
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="px-1 block">
                         <div class="flex">
                             <span class="grow">"Metadata"</span>
                             <span>
+                                // TODO: Button hover state seems to be triggered by hovering over
+                                // parent section.
                                 <button
                                     on:mousedown=show_add_metadatum
-                                    class:invisible=add_metadatum_visible
-                                    class="aspect-square h-full"
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_metadatum_visible,
+                                    )
+
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_metadatum_visible(),
+                                    )
+
+                                    class="aspect-square w-full rounded-sm"
                                 >
                                     <Icon icon=icondata::AiPlusOutlined/>
                                 </button>
 
                             </span>
                         </div>
-                        <AddDatum
-                            oncancel=move |_| set_add_metadatum_visible(false)
-                            class=MaybeProp::derive(add_metadatum_class)
-                        />
+                        <AddDatum visibility=add_metadatum_visible/>
                         <Metadata/>
                     </label>
                 </div>
             </form>
-            <div>{move || asset.path().with(|path| path.to_string_lossy().to_string())}</div>
+            <div class="px-1 py-2 border-t dark:border-t-secondary-700 overflow-x-auto select-all text-nowrap">
+                {move || asset.path().with(|path| path.to_string_lossy().to_string())}
+            </div>
         </div>
     }
 }
@@ -131,7 +145,14 @@ mod name {
             }
         });
 
-        view! { <InputText value=Signal::derive(input_value) oninput debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <InputText
+                value=Signal::derive(input_value)
+                oninput
+                debounce=INPUT_DEBOUNCE
+                class="input-compact"
+            />
+        }
     }
 }
 
@@ -176,7 +197,14 @@ mod kind {
             }
         });
 
-        view! { <KindEditor value=asset.kind().read_only() oninput debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <KindEditor
+                value=asset.kind().read_only()
+                oninput
+                debounce=INPUT_DEBOUNCE
+                class="input-compact"
+            />
+        }
     }
 }
 
@@ -222,7 +250,14 @@ mod description {
             }
         });
 
-        view! { <DescriptionEditor value=asset.description().read_only() oninput debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <DescriptionEditor
+                value=asset.description().read_only()
+                oninput
+                debounce=INPUT_DEBOUNCE
+                class="input-compact w-full align-top"
+            />
+        }
     }
 }
 
@@ -267,7 +302,14 @@ mod tags {
             }
         });
 
-        view! { <TagsEditor value=asset.tags().read_only() oninput debounce=INPUT_DEBOUNCE/> }
+        view! {
+            <TagsEditor
+                value=asset.tags().read_only()
+                oninput
+                debounce=INPUT_DEBOUNCE
+                class="input-compact"
+            />
+        }
     }
 }
 
@@ -276,8 +318,13 @@ mod metadata {
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
         update_properties, ActiveAsset, INPUT_DEBOUNCE,
     };
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
-    use leptos::*;
+    use crate::{
+        components::{message::Builder as Message, DetailPopout},
+        pages::project::state,
+        types,
+    };
+    use leptos::{ev::MouseEvent, *};
+    use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
 
     #[component]
@@ -286,61 +333,21 @@ mod metadata {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
 
-        let remove_datum = {
-            let asset = asset.clone();
-            move |key| {
-                let mut properties = asset.as_properties();
-                properties.metadata.retain(|k, _| k != &key);
-
-                let project = project.rid().get_untracked();
-                let node = asset
-                    .rid()
-                    .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
-                let container_path = graph.path(&node).unwrap();
-                let asset_path = asset.path().get_untracked();
-                // let messages = messages.clone();
-                spawn_local(async move {
-                    if let Err(err) =
-                        update_properties(project, container_path, asset_path, properties).await
-                    {
-                        tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container");
-                        msg.body(format!("{err:?}"));
-                        // messages.update(|messages| messages.push(msg.build()));
-                    }
-                });
-            }
-        };
-
         view! {
             <For each=asset.metadata().read_only() key=|(key, _)| key.clone() let:datum>
                 <div>
                     <DatumEditor key=datum.0.clone() value=datum.1.read_only()/>
-                    <button
-                        type="button"
-                        on:mousedown={
-                            let key = datum.0.clone();
-                            let remove_datum = remove_datum.clone();
-                            move |_| remove_datum(key.clone())
-                        }
-                    >
-
-                        "X"
-                    </button>
                 </div>
             </For>
         }
     }
 
     #[component]
-    pub fn AddDatum(
-        #[prop(into)] oncancel: Callback<()>,
-        #[prop(optional, into)] class: MaybeProp<String>,
-    ) -> impl IntoView {
+    pub fn AddDatum(visibility: RwSignal<bool>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
-
+        let (reset_form, set_reset_form) = create_signal(());
         let keys = {
             let asset = asset.clone();
             move || {
@@ -380,12 +387,24 @@ mod metadata {
                     {
                         tracing::error!(?err);
                         todo!()
+                    } else {
+                        visibility.set(false);
+                        set_reset_form(());
                     }
                 });
             }
         };
 
-        view! { <AddDatumEditor keys=Signal::derive(keys) onadd class/> }
+        view! {
+            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+                <AddDatumEditor
+                    keys=Signal::derive(keys)
+                    onadd
+                    reset=reset_form
+                    class="w-full px-1"
+                />
+            </DetailPopout>
+        }
     }
 
     #[component]
@@ -394,17 +413,23 @@ mod metadata {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let (input_value, set_input_value) = create_signal(value.get_untracked());
         let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
-
-        create_effect(move |_| {
-            set_input_value(value());
-        });
+        let _ = watch(
+            input_value,
+            move |value, _, _| {
+                set_input_value(value.clone());
+            },
+            false,
+        );
 
         // TODO: Handle errors with messages.
         // See https://github.com/leptos-rs/leptos/issues/2041
         create_effect({
+            let project = project.clone();
+            let graph = graph.clone();
+            let asset = asset.clone();
             let key = key.clone();
             move |asset_id| -> ResourceId {
                 // let messages = messages.write_only();
@@ -456,9 +481,52 @@ mod metadata {
             }
         });
 
+        let remove_datum = Callback::new({
+            let project = project.clone();
+            let graph = graph.clone();
+            let asset = asset.clone();
+            let messages = messages.clone();
+            let key = key.clone();
+            move |e: MouseEvent| {
+                if e.button() != types::MouseButton::Primary as i16 {
+                    return;
+                }
+
+                let mut properties = asset.as_properties();
+                properties.metadata.retain(|k, _| k != &key);
+
+                let project = project.rid().get_untracked();
+                let node = asset
+                    .rid()
+                    .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
+                let container_path = graph.path(&node).unwrap();
+                let asset_path = asset.path().get_untracked();
+                let messages = messages.clone();
+                spawn_local(async move {
+                    if let Err(err) =
+                        update_properties(project, container_path, asset_path, properties).await
+                    {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not save container");
+                        msg.body(format!("{err:?}"));
+                        messages.update(|messages| messages.push(msg.build()));
+                    }
+                });
+            }
+        });
+
         view! {
-            <div>
-                <span>{key}</span>
+            <div class="pb-2">
+                <div class="flex">
+                    <span class="grow">{key}</span>
+                    <button
+                        type="button"
+                        on:mousedown=remove_datum
+                        class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                    >
+                        <Icon icon=icondata::AiMinusOutlined/>
+                    </button>
+                </div>
                 <ValueEditor value=input_value set_value=set_input_value/>
             </div>
         }

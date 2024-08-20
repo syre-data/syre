@@ -46,30 +46,39 @@ fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoV
     };
 
     view! {
-        <div class=(["border-4", "border-blue-400"], highlight) class="h-full px-1 py-2">
-            <h3 class="text-center pb-2">"Analyses"</h3>
-            <Show
-                when=move || analyses.with(|analyses| !analyses.is_empty())
-                fallback=move || view! { <div>"(no analyses)"</div> }
-            >
-                <For
-                    each=analyses
-                    key=|analysis| {
-                        analysis
-                            .properties()
-                            .with_untracked(|properties| match properties {
-                                AnalysisKind::Script(script) => script.rid().clone(),
-                                AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
-                            })
-                    }
-
-                    let:analysis
+        <div class=(["border-4", "border-blue-400"], highlight) class="h-full">
+            <div class="text-center pt-1 pb-2">
+                <h3 class="font-primary">"Analyses"</h3>
+            </div>
+            <div class="px-1">
+                <Show
+                    when=move || analyses.with(|analyses| !analyses.is_empty())
+                    fallback=move || view! { <NoAnalyses/> }
                 >
-                    <Analysis analysis/>
-                </For>
-            </Show>
+                    <For
+                        each=analyses
+                        key=|analysis| {
+                            analysis
+                                .properties()
+                                .with_untracked(|properties| match properties {
+                                    AnalysisKind::Script(script) => script.rid().clone(),
+                                    AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
+                                })
+                        }
+
+                        let:analysis
+                    >
+                        <Analysis analysis/>
+                    </For>
+                </Show>
+            </div>
         </div>
     }
+}
+
+#[component]
+fn NoAnalyses() -> impl IntoView {
+    view! { <div class="text-center">"(no analyses)"</div> }
 }
 
 #[component]

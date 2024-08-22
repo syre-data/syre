@@ -138,7 +138,7 @@ pub mod workspace_graph {
         }
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct SelectedResource {
         rid: ResourceId,
         kind: ResourceKind,
@@ -686,9 +686,7 @@ pub mod graph {
                 nodes
                     .iter()
                     .find(|node| {
-                        tracing::debug!("gf 2");
                         node.state.properties().with_untracked(|properties| {
-                            tracing::debug!("gf 3");
                             if let db::state::DataResource::Ok(properties) = properties {
                                 properties.rid().with_untracked(|id| id == rid)
                             } else {

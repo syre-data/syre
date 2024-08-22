@@ -89,8 +89,13 @@ pub fn PropertiesBar() -> impl IntoView {
                                 view! { <AssetBulk assets=Signal::derive(assets)/> }.into_view()
                             }
                         },
-                        _ => view! { <MixedBulk resources=workspace_graph_state.selection()/> }
-                            .into_view(),
+                        _ => {
+                            let resources = create_memo({
+                                let workspace_graph_state = workspace_graph_state.clone();
+                                move |_| workspace_graph_state.selection().get()
+                            });
+                            view! { <MixedBulk resources/> }.into_view()
+                        }
                     }
                 }
             })

@@ -1140,7 +1140,7 @@ pub mod bulk {
         use leptos_icons::Icon;
         use syre_core::types::data;
 
-        #[derive(Clone, Debug)]
+        #[derive(PartialEq, Clone, Debug)]
         pub enum Value {
             /// Values have mixed kinds.
             MixedKind,

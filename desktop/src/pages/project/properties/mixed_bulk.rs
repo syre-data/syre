@@ -12,8 +12,8 @@ use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use serde::Serialize;
-use state::{ActiveResources, State};
-use std::path::PathBuf;
+use state::ActiveResources;
+use std::{collections::HashMap, path::PathBuf};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use tags::{AddTags, Editor as Tags};
@@ -25,137 +25,17 @@ mod state {
     use std::collections::HashMap;
     use syre_local_database as db;
 
-    #[derive(Clone, Debug)]
-    pub struct State {
-        kind: bulk::Value<Option<String>>,
-        description: bulk::Value<Option<String>>,
-
-        /// Union of all tags.
-        tags: Vec<String>,
-
-        /// Union of all metadata.
-        metadata: bulk::Metadata,
-    }
-
-    //     impl State {
-    //         pub fn from_states(containers: Vec<state::graph::Node>, assets: Vec<state::Asset>) -> Self {
-    //             let resources_len = containers.len() + assets.len();
-    //             let mut kinds = Vec::with_capacity(resources_len);
-    //             let mut descriptions = Vec::with_capacity(resources_len);
-    //             let mut tags = Vec::with_capacity(resources_len);
-    //             let mut metadata = HashMap::with_capacity(resources_len);
-    //             let container_properties = containers.iter().map(|state| {
-    //                 state.properties().with(|properties| {
-    //                     let db::state::DataResource::Ok(properties) = properties else {
-    //                         panic!("invalid state");
-    //                     };
-
-    //                     (
-    //                         properties.kind().get_untracked(),
-    //                         properties.description().get_untracked(),
-    //                         properties.tags().get_untracked(),
-    //                         properties.metadata().get_untracked(),
-    //                     )
-    //                 })
-    //             });
-    //             let asset_properties = assets.iter().map(|state| {
-    //                 (
-    //                     state.kind().get_untracked(),
-    //                     state.description().get_untracked(),
-    //                     state.tags().get_untracked(),
-    //                     state.metadata().get_untracked(),
-    //                 )
-    //             });
-
-    //             container_properties.chain(asset_properties).fold(
-    //                 (),
-    //                 |(), (kind, description, tag, metadatum)| {
-    //                     kinds.push(kind);
-    //                     descriptions.push(description);
-    //                     tags.extend(tag);
-
-    //                     for (key, value) in metadatum {
-    //                         let md = metadata
-    //                             .entry(key)
-    //                             .or_insert(Vec::with_capacity(assets.len()));
-
-    //                         if !value.with_untracked(|value| md.contains(value)) {
-    //                             md.push(value.get_untracked());
-    //                         }
-    //                     }
-    //                 },
-    //             );
-
-    //             kinds.sort();
-    //             kinds.dedup();
-    //             descriptions.sort();
-    //             descriptions.dedup();
-    //             tags.sort();
-    //             tags.dedup();
-
-    //             let kind = match &kinds[..] {
-    //                 [kind] => bulk::Value::Equal(kind.clone()),
-    //                 _ => bulk::Value::Mixed,
-    //             };
-
-    //             let description = match &descriptions[..] {
-    //                 [description] => bulk::Value::Equal(description.clone()),
-    //                 _ => bulk::Value::Mixed,
-    //             };
-
-    //             let metadata = metadata
-    //                 .into_iter()
-    //                 .map(|(key, values)| {
-    //                     let value = if values.iter().all(|value| *value == values[0]) {
-    //                         bulk::metadata::Value::Equal(values[0].clone())
-    //                     } else if values.iter().all(|value| value.kind() == values[0].kind()) {
-    //                         bulk::metadata::Value::EqualKind(values[0].kind())
-    //                     } else {
-    //                         bulk::metadata::Value::MixedKind
-    //                     };
-
-    //                     (key, value)
-    //                 })
-    //                 .collect();
-
-    //             Self {
-    //                 kind,
-    //                 description,
-    //                 tags,
-    //                 metadata,
-    //             }
-    //         }
-    //     }
-
-    impl State {
-        pub fn kind(&self) -> &bulk::Value<Option<String>> {
-            &self.kind
-        }
-
-        pub fn description(&self) -> &bulk::Value<Option<String>> {
-            &self.description
-        }
-
-        pub fn tags(&self) -> &Vec<String> {
-            &self.tags
-        }
-
-        pub fn metadata(&self) -> &bulk::Metadata {
-            &self.metadata
-        }
-    }
-
     #[derive(derive_more::Deref, Clone)]
-    pub struct ActiveResources(ReadSignal<Vec<SelectedResource>>);
+    pub struct ActiveResources(Memo<Vec<SelectedResource>>);
     impl ActiveResources {
-        pub fn new(resources: ReadSignal<Vec<SelectedResource>>) -> Self {
+        pub fn new(resources: Memo<Vec<SelectedResource>>) -> Self {
             Self(resources)
         }
     }
 }
 
 #[component]
-pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
+pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
     use super::common::bulk;
     use syre_local_database as db;
 
@@ -164,32 +44,6 @@ pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
     let add_tags_visible = create_rw_signal(false);
     let add_metadatum_visible = create_rw_signal(false);
     let add_analysis_visible = create_rw_signal(false);
-
-    //     provide_context(Signal::derive({
-    //         let graph = graph.clone();
-    //         move || {
-    //             let (containers, assets) = resources.with(|resources| {
-    //                 let (containers, assets) = partition_resources(resources);
-    //                 assert!(containers.len() > 0);
-    //                 assert!(assets.len() > 0);
-
-    //                 let containers = containers
-    //                     .iter()
-    //                     .map(|rid| graph.find_by_id(rid).unwrap())
-    //                     .collect::<Vec<_>>();
-
-    //                 let assets = assets
-    //                     .iter()
-    //                     .map(|rid| graph.find_asset_by_id(rid).unwrap())
-    //                     .collect::<Vec<_>>();
-
-    //                 (containers, assets)
-    //             });
-
-    //             State::from_states(containers, assets)
-    //         }
-    //     }));
-
     provide_context(ActiveResources::new(resources.clone()));
 
     let _ = watch(
@@ -234,11 +88,8 @@ pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
     };
 
     let resources = move || {
-        tracing::debug!("r 0");
         resources.with(|resources| {
-            tracing::debug!("r 1");
             let (containers, assets) = partition_resources(resources);
-            tracing::debug!("r 2");
             assert!(containers.len() > 0);
             assert!(assets.len() > 0);
 
@@ -246,42 +97,217 @@ pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
                 .iter()
                 .map(|rid| graph.find_by_id(rid).unwrap())
                 .collect::<Vec<_>>();
-            tracing::debug!("r 3");
 
             let assets = assets
                 .iter()
                 .map(|rid| graph.find_asset_by_id(rid).unwrap())
                 .collect::<Vec<_>>();
-            tracing::debug!("r 4");
 
             (containers, assets)
         })
     };
 
-    let state_kind = create_memo(move |_| {
-        let (containers, assets) = resources();
-        let resources_len = containers.len() + assets.len();
-        let mut kinds = Vec::<Option<String>>::with_capacity(resources_len);
-        let container_properties = containers.iter().map(|state| {
-            state.properties().with(|properties| {
-                let db::state::DataResource::Ok(properties) = properties else {
-                    panic!("invalid state");
-                };
-                properties.kind().read_only()
-            })
-        });
-        let asset_properties = assets.iter().map(|state| state.kind().read_only());
-        container_properties
-            .chain(asset_properties)
-            .fold((), |(), kind| {
-                kind.with(|kind| kinds.push(kind.clone()));
+    let state_kind = create_memo({
+        let resources = resources.clone();
+        move |_| {
+            let (containers, assets) = resources();
+            let resources_len = containers.len() + assets.len();
+            let mut kinds = Vec::with_capacity(resources_len);
+            let container_properties = containers.iter().map(|state| {
+                state.properties().with(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+                    properties.kind().read_only()
+                })
             });
+            let asset_properties = assets.iter().map(|state| state.kind().read_only());
+            // BUG: Using `kind.with` here causes an `Already mutably borowed` error.
+            // This occurs becuase the event listener in `workspace` (`handle_event_graph_container_properties`)
+            // `set`s the property, which triggering this signal.
+            // In the `resources` call above `graph.find_by_id` then needs this same property
+            // while it is still borrowed.
+            // This causes the editor to be in the wrong state.
+            // See also: https://discord.com/channels/1031524867910148188/1031524868883218474/1276132083080626227
+            container_properties
+                .chain(asset_properties)
+                .fold((), |(), kind| {
+                    kind.with_untracked(|kind| kinds.push(kind.clone()));
+                });
 
-        kinds.sort();
-        kinds.dedup();
-        match &kinds[..] {
-            [kind] => bulk::Value::Equal(kind.clone()),
-            _ => bulk::Value::Mixed,
+            kinds.sort();
+            kinds.dedup();
+            match &kinds[..] {
+                [kind] => bulk::Value::Equal(kind.clone()),
+                _ => bulk::Value::Mixed,
+            }
+        }
+    });
+
+    let state_description = create_memo({
+        let resources = resources.clone();
+        move |_| {
+            let (containers, assets) = resources();
+            let resources_len = containers.len() + assets.len();
+            let mut descriptions = Vec::with_capacity(resources_len);
+            let container_properties = containers.iter().map(|state| {
+                state.properties().with(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+                    properties.description().read_only()
+                })
+            });
+            let asset_properties = assets.iter().map(|state| state.description().read_only());
+            // BUG: Using `description.with` here causes an `Already mutably borowed` error.
+            // This occurs becuase the event listener in `workspace` (`handle_event_graph_container_properties`)
+            // `set`s the property, which triggering this signal.
+            // In the `resources` call above `graph.find_by_id` then needs this same property
+            // while it is still borrowed.
+            // This causes the editor to be in the wrong state.
+            // See also: https://discord.com/channels/1031524867910148188/1031524868883218474/1276132083080626227
+            container_properties
+                .chain(asset_properties)
+                .fold((), |(), description| {
+                    description
+                        .with_untracked(|description| descriptions.push(description.clone()));
+                });
+
+            descriptions.sort();
+            descriptions.dedup();
+            match &descriptions[..] {
+                [kind] => bulk::Value::Equal(kind.clone()),
+                _ => bulk::Value::Mixed,
+            }
+        }
+    });
+
+    let state_tags = create_memo({
+        let resources = resources.clone();
+        move |_| {
+            let (containers, assets) = resources();
+            let resources_len = containers.len() + assets.len();
+            let mut tags = Vec::with_capacity(resources_len);
+            let container_properties = containers.iter().map(|state| {
+                state.properties().with(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+                    properties.tags().read_only()
+                })
+            });
+            let asset_properties = assets.iter().map(|state| state.tags().read_only());
+            // BUG: Using `tags.with` here causes an `Already mutably borowed` error.
+            // This occurs becuase the event listener in `workspace` (`handle_event_graph_container_properties`)
+            // `set`s the property, which triggering this signal.
+            // In the `resources` call above `graph.find_by_id` then needs this same property
+            // while it is still borrowed.
+            // This causes the editor to be in the wrong state.
+            // See also: https://discord.com/channels/1031524867910148188/1031524868883218474/1276132083080626227
+            container_properties
+                .chain(asset_properties)
+                .fold((), |(), tag| {
+                    tag.with_untracked(|tag| tags.extend(tag.clone()));
+                });
+
+            tags.sort();
+            tags.dedup();
+            tags
+        }
+    });
+
+    let state_metadata = create_memo({
+        let resources = resources.clone();
+        move |_| {
+            let (containers, assets) = resources();
+            let resources_len = containers.len() + assets.len();
+            let mut metadata = HashMap::with_capacity(resources_len);
+            let container_properties = containers.iter().map(|state| {
+                state.properties().with(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+                    properties.metadata().read_only()
+                })
+            });
+            let asset_properties = assets.iter().map(|state| state.metadata().read_only());
+            // BUG: Using `metadata.with` here causes an `Already mutably borowed` error.
+            // This occurs becuase the event listener in `workspace` (`handle_event_graph_container_properties`)
+            // `set`s the property, which triggering this signal.
+            // In the `resources` call above `graph.find_by_id` then needs this same property
+            // while it is still borrowed.
+            // This causes the editor to be in the wrong state.
+            // See also: https://discord.com/channels/1031524867910148188/1031524868883218474/1276132083080626227
+            container_properties
+                .chain(asset_properties)
+                .fold((), |(), data| {
+                    data.with_untracked(|data| {
+                        for (key, value) in data.iter() {
+                            let md = metadata
+                                .entry(key.clone())
+                                .or_insert(Vec::with_capacity(assets.len()));
+
+                            if !value.with_untracked(|value| md.contains(value)) {
+                                md.push(value.get_untracked());
+                            }
+                        }
+                    });
+                });
+
+            let mut metadata = metadata
+                .into_iter()
+                .map(|(key, values)| {
+                    let value = if values.iter().all(|value| *value == values[0]) {
+                        bulk::metadata::Value::Equal(values[0].clone())
+                    } else if values.iter().all(|value| value.kind() == values[0].kind()) {
+                        bulk::metadata::Value::EqualKind(values[0].kind())
+                    } else {
+                        bulk::metadata::Value::MixedKind
+                    };
+
+                    (key, value)
+                })
+                .collect::<Vec<_>>();
+
+            metadata.sort_by_key(|(key, _)| key.clone());
+            metadata
+        }
+    });
+
+    let metadata_keys = create_memo({
+        let resources = resources.clone();
+        move |_| {
+            let (containers, assets) = resources();
+            let resources_len = containers.len() + assets.len();
+            let mut keys = Vec::new();
+            let container_properties = containers.iter().map(|state| {
+                state.properties().with(|properties| {
+                    let db::state::DataResource::Ok(properties) = properties else {
+                        panic!("invalid state");
+                    };
+                    properties.metadata().read_only()
+                })
+            });
+            let asset_properties = assets.iter().map(|state| state.metadata().read_only());
+            // BUG: Using `metadata.with` here causes an `Already mutably borowed` error.
+            // This occurs becuase the event listener in `workspace` (`handle_event_graph_container_properties`)
+            // `set`s the property, which triggering this signal.
+            // In the `resources` call above `graph.find_by_id` then needs this same property
+            // while it is still borrowed.
+            // This causes the editor to be in the wrong state.
+            // See also: https://discord.com/channels/1031524867910148188/1031524868883218474/1276132083080626227
+            container_properties
+                .chain(asset_properties)
+                .fold((), |(), data| {
+                    data.with_untracked(|data| {
+                        let data_keys = data.iter().map(|(key, _)| key.clone());
+                        keys.extend(data_keys);
+                    });
+                });
+
+            keys.sort();
+            keys.dedup();
+            keys
         }
     });
 
@@ -315,68 +341,71 @@ pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
                         <Kind state=state_kind/>
                     </label>
                 </div>
-            // <div class="px-1 pb-1">
-            // <label>
-            // <span class="block">"Description"</span>
-            // <Description/>
-            // </label>
-            // </div>
-            // <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
-            // <label class="block px-1">
-            // <div class="flex">
-            // <span class="grow">"Tags"</span>
-            // <span>
-            // // TODO: Button hover state seems to be triggered by hovering over
-            // // parent section.
-            // <button
-            // on:mousedown=show_add_tags
-            // class=(
-            // ["bg-primary-400", "dark:bg-primary-700"],
-            // add_tags_visible,
-            // )
+                <div class="px-1 pb-1">
+                    <label>
+                        <span class="block">"Description"</span>
+                        <Description state=state_description/>
+                    </label>
+                </div>
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="block px-1">
+                        <div class="flex">
+                            <span class="grow">"Tags"</span>
+                            <span>
+                                // TODO: Button hover state seems to be triggered by hovering over
+                                // parent section.
+                                <button
+                                    on:mousedown=show_add_tags
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_tags_visible,
+                                    )
 
-            // class=(
-            // ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
-            // move || !add_tags_visible(),
-            // )
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_tags_visible(),
+                                    )
 
-            // class="aspect-square w-full rounded-sm"
-            // >
-            // <Icon icon=icondata::AiPlusOutlined/>
-            // </button>
-            // </span>
-            // </div>
-            // <AddTags visibility=add_tags_visible/>
-            // <Tags/>
-            // </label>
-            // </div>
-            // <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
-            // <label class="px-1 block">
-            // <div class="flex">
-            // <span class="grow">"Metadata"</span>
-            // <span>
-            // <button
-            // on:mousedown=show_add_metadatum
-            // class=(
-            // ["bg-primary-400", "dark:bg-primary-700"],
-            // add_metadatum_visible,
-            // )
+                                    class="aspect-square w-full rounded-sm"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
+                        <AddTags visibility=add_tags_visible/>
+                        <Tags state=state_tags/>
+                    </label>
+                </div>
+                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                    <label class="px-1 block">
+                        <div class="flex">
+                            <span class="grow">"Metadata"</span>
+                            <span>
+                                <button
+                                    on:mousedown=show_add_metadatum
+                                    class=(
+                                        ["bg-primary-400", "dark:bg-primary-700"],
+                                        add_metadatum_visible,
+                                    )
 
-            // class=(
-            // ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
-            // move || !add_metadatum_visible(),
-            // )
+                                    class=(
+                                        ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
+                                        move || !add_metadatum_visible(),
+                                    )
 
-            // class="aspect-square w-full rounded-sm"
-            // >
-            // <Icon icon=icondata::AiPlusOutlined/>
-            // </button>
-            // </span>
-            // </div>
-            // <AddDatum visibility=add_metadatum_visible/>
-            // <Metadata oncancel_adddatum=move |_| add_metadatum_visible.set(false)/>
-            // </label>
-            // </div>
+                                    class="aspect-square w-full rounded-sm"
+                                >
+                                    <Icon icon=icondata::AiPlusOutlined/>
+                                </button>
+                            </span>
+                        </div>
+                        <AddDatum keys=metadata_keys visibility=add_metadatum_visible/>
+                        <Metadata
+                            state=state_metadata
+                            oncancel_adddatum=move |_| add_metadatum_visible.set(false)
+                        />
+                    </label>
+                </div>
             </form>
         </div>
     }
@@ -385,8 +414,7 @@ pub fn Editor(resources: ReadSignal<Vec<SelectedResource>>) -> impl IntoView {
 mod kind {
     use super::{
         super::common::bulk::{kind::Editor as KindEditor, Value},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        container_assets, partition_resources, update_properties, ActiveResources, INPUT_DEBOUNCE,
     };
     use crate::{
         pages::project::{properties::mixed_bulk::resources_to_update_args, state},
@@ -423,20 +451,18 @@ mod kind {
 mod description {
     use super::{
         super::common::bulk::{description::Editor as DescriptionEditor, Value},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        container_assets, partition_resources, update_properties, ActiveResources, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
     use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
 
     #[component]
-    pub fn Editor() -> impl IntoView {
+    pub fn Editor(state: Memo<Value<Option<String>>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
             let _ = update.description.insert(input_value.clone());
@@ -451,7 +477,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=Signal::derive(move || state.with(|state| state.description().clone()))
+                value=state
                 oninput
                 debounce=INPUT_DEBOUNCE
                 class="input-compact w-full align-top"
@@ -463,19 +489,18 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
+        container_assets, partition_resources, update_properties, ActiveResources,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
     use syre_desktop_lib::command::{asset::bulk::PropertiesUpdate, bulk::TagsAction};
 
     #[component]
-    pub fn Editor() -> impl IntoView {
+    pub fn Editor(state: Memo<Vec<String>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let onremove = Callback::new({
             let graph = graph.clone();
             let project = project.clone();
@@ -500,12 +525,7 @@ mod tags {
             }
         });
 
-        view! {
-            <TagsEditor
-                value=Signal::derive(move || { state.with(|state| { state.tags().clone() }) })
-                onremove
-            />
-        }
+        view! { <TagsEditor value=state onremove/> }
     }
 
     #[component]
@@ -514,7 +534,6 @@ mod tags {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let (reset_form, set_reset_form) = create_signal(());
         let onadd = Callback::new(move |tags: Vec<String>| {
             if tags.is_empty() {
@@ -546,9 +565,10 @@ mod tags {
 mod metadata {
     use super::{
         super::common::{
-            bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
+            bulk::{self, metadata::Editor as MetadataEditor},
+            metadata::AddDatum as AddDatumEditor,
         },
-        container_assets, partition_resources, update_properties, ActiveResources, State,
+        container_assets, partition_resources, update_properties, ActiveResources,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
@@ -556,12 +576,14 @@ mod metadata {
     use syre_desktop_lib::command::{asset::bulk::PropertiesUpdate, bulk::MetadataAction};
 
     #[component]
-    pub fn Editor(#[prop(into)] oncancel_adddatum: Callback<()>) -> impl IntoView {
+    pub fn Editor(
+        state: Memo<bulk::Metadata>,
+        #[prop(into)] oncancel_adddatum: Callback<()>,
+    ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let onremove = Callback::new({
             let project = project.clone();
             let graph = graph.clone();
@@ -606,22 +628,15 @@ mod metadata {
             }
         });
 
-        view! {
-            <MetadataEditor
-                value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
-                onremove
-                onmodify
-            />
-        }
+        view! { <MetadataEditor value=state onremove onmodify/> }
     }
 
     #[component]
-    pub fn AddDatum(visibility: RwSignal<bool>) -> impl IntoView {
+    pub fn AddDatum(keys: Memo<Vec<String>>, visibility: RwSignal<bool>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let (reset_form, set_reset_form) = create_signal(());
         let onadd = Callback::new({
             let project = project.clone();
@@ -643,16 +658,6 @@ mod metadata {
                 });
             }
         });
-
-        let keys = move || {
-            state.with(|state| {
-                state
-                    .metadata()
-                    .iter()
-                    .map(|(key, _)| key.clone())
-                    .collect::<Vec<_>>()
-            })
-        };
 
         view! {
             <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>

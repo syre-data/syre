@@ -662,17 +662,13 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
                     properties.name().set(update.properties.name.clone());
                 }
 
-                tracing::debug!("cp 2a");
                 if properties
                     .kind()
                     .with_untracked(|kind| update.properties.kind != *kind)
                 {
-                    tracing::debug!("cp 2a1");
                     properties.kind().set(update.properties.kind.clone());
-                    tracing::debug!("cp 2a2");
                 }
 
-                tracing::debug!("cp 2b");
                 if properties
                     .description()
                     .with_untracked(|description| update.properties.description != *description)

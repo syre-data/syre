@@ -116,7 +116,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
     };
 
     view! {
-        <div>
+        <div class="overflow-y-auto pr-2 pb-4 h-full">
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Container"</h3>
             </div>

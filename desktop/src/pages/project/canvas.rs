@@ -69,6 +69,9 @@ struct ContainerResizeObserver(web_sys::ResizeObserver);
 #[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
 struct ContainerHeight(ReadSignal<usize>);
 
+#[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
+struct ContainerId(ReadSignal<ResourceId>);
+
 /// Node ref to the modal portal.
 #[derive(Clone)]
 pub struct PortalRef(NodeRef<html::Div>);
@@ -700,6 +703,8 @@ fn Container(
     }
 }
 
+/// A container whose properties are valid.
+/// The state of analyses and assets is unknown.
 #[component]
 fn ContainerOk(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
@@ -720,6 +725,9 @@ fn ContainerOk(
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let (drag_over, set_drag_over) = create_signal(0);
+    provide_context(ContainerId(container.properties().with_untracked(
+        |properties| properties.as_ref().unwrap().rid().read_only(),
+    )));
 
     let title = {
         let container = container.clone();
@@ -867,7 +875,7 @@ fn ContainerOk(
             on:dragover=move |e| e.prevent_default()
             on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
             on:drop=drop
-            class="h-full cursor-pointer rounded px-4 pt-2 pb-4 border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
+            class="h-full cursor-pointer rounded pt-2 pb-4 border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
             class=(
                 "border-2",
                 {
@@ -929,7 +937,7 @@ fn ContainerPreview(
         properties.with_untracked(|properties| properties.as_ref().unwrap().metadata().read_only());
 
     view! {
-        <div class="overflow-y-auto">
+        <div>
             <Assets assets/>
 
             <Analyses analyses=analyses
@@ -1060,7 +1068,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             class=("bg-secondary-400", selected)
-            class="cursor-pointer px-1 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
+            class="cursor-pointer px-2 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
             data-resource=DATA_KEY_ASSET
             data-rid=rid
         >
@@ -1093,10 +1101,13 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
 #[component]
 fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView {
     let project = expect_context::<state::Project>();
+    let graph = expect_context::<state::Graph>();
+    let container = expect_context::<ContainerId>();
+    let messages = expect_context::<types::Messages>();
 
     let title = {
         let association = association.clone();
-
+        let project = project.clone();
         move || {
             project.analyses().with(|analyses| {
                 let db::state::DataResource::Ok(analyses) = analyses else {
@@ -1138,12 +1149,60 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
         }
     };
 
+    let update_associations = create_action({
+        let association = association.clone();
+        let project = project.clone();
+        let container = container.clone();
+        let messages = messages.clone();
+        move |_| {
+            let container_state =
+                container.with_untracked(|container| graph.find_by_id(container).unwrap());
+            let mut associations = container_state.analyses().with_untracked(|analyses| {
+                analyses.as_ref().unwrap().with_untracked(|associations| {
+                    associations
+                        .iter()
+                        .map(|association| association.as_association())
+                        .collect::<Vec<_>>()
+                })
+            });
+            let assoc = associations
+                .iter_mut()
+                .find(|analysis| analysis.analysis() == association.analysis())
+                .unwrap();
+            assoc.autorun = !assoc.autorun;
+            let project = project.rid().get_untracked();
+            let container_path = graph.path(&container_state).unwrap();
+            let messages = messages.clone();
+            async move {
+                if let Err(err) = commands::container::update_analysis_associations(
+                    project,
+                    container_path,
+                    associations,
+                )
+                .await
+                {
+                    tracing::error!(?err);
+                    let mut msg = Message::error("Could not update container.");
+                    msg.body(format!("{err:?}"));
+                    messages.update(|messages| messages.push(msg.build()));
+                }
+            }
+        }
+    });
+
+    let autorun_toggle = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary as i16 {
+            e.stop_propagation();
+            update_associations.dispatch(());
+        }
+    };
+
     view! {
-        <div class="flex">
+        <div class="flex px-2">
             <div class="grow">{title}</div>
-            <div>
+            <div class="inline-flex gap-1">
                 <span>"(" {association.priority()} ")"</span>
-                <span class="inline-flex">
+                <span on:mousedown=autorun_toggle class="inline-flex">
                     {move || {
                         if association.autorun().get() {
                             view! { <Icon icon=icondata::BsStarFill/> }

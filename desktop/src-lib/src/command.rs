@@ -26,9 +26,6 @@ pub mod container {
             use std::{io, path::PathBuf};
             use syre_local::error::{IoErrorKind, IoSerde};
 
-            #[derive(Serialize, Deserialize, Debug)]
-            pub struct ProjectNotFound;
-
             /// Error renaming container.
             #[derive(Serialize, Deserialize, Debug)]
             pub enum Rename {
@@ -113,9 +110,6 @@ pub mod asset {
             use syre_core::types::ResourceId;
             use syre_local::error::{IoErrorKind, IoSerde};
 
-            #[derive(Serialize, Deserialize, Debug)]
-            pub struct ProjectNotFound;
-
             /// Error updating containers.
             #[derive(Serialize, Deserialize, Debug)]
             pub enum Update {
@@ -142,6 +136,7 @@ pub mod asset {
 }
 
 pub mod bulk {
+    use super::serde_opt_opt_str;
     use serde::{Deserialize, Serialize};
     use syre_core::types::Value;
 
@@ -159,11 +154,25 @@ pub mod bulk {
         /// Keys to remove.
         pub remove: Vec<String>,
     }
+
+    #[derive(Serialize, Deserialize, Default, Debug)]
+    pub struct PropertiesUpdate {
+        #[serde(with = "serde_opt_opt_str")]
+        pub kind: Option<Option<String>>,
+
+        #[serde(with = "serde_opt_opt_str")]
+        pub description: Option<Option<String>>,
+        pub tags: TagsAction,
+        pub metadata: MetadataAction,
+    }
 }
 
 pub mod error {
     use serde::{Deserialize, Serialize};
     use std::io;
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct ProjectNotFound;
 
     /// Wrapper to allow for serialization
     #[derive(Serialize, Deserialize, derive_more::From, Debug)]

@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use syre_desktop::{
-    commands::{analyses, asset, auth, common, container, fs, graph, project, user},
+    commands::{analyses, asset, auth, bulk, common, container, fs, graph, project, user},
     setup,
 };
 
@@ -37,6 +37,7 @@ fn main() {
             container::container_analysis_associations_update,
             asset::asset_properties_update,
             asset::asset_properties_update_bulk,
+            bulk::properties_update_bulk,
             fs::pick_folder,
             fs::pick_folder_with_location,
             common::open_file,

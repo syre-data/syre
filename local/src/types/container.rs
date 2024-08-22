@@ -58,6 +58,10 @@ impl Settings {
 pub struct Assets(Vec<Asset>);
 
 impl Assets {
+    pub fn into_inner(self) -> Vec<Asset> {
+        self.0
+    }
+
     /// Save the container properties.
     ///
     /// # Arguments

@@ -474,7 +474,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         move |container_node, _, _| {
             if let Some(container_node) = container_node {
                 let options = web_sys::ResizeObserverOptions::new();
-                options.set_box(web_sys::ResizeObserverBoxOptions::BorderBox);
+                options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
                 container_resize_observer
                     .observe_with_options(container_node.dyn_ref().unwrap(), &options)
             }
@@ -719,7 +719,7 @@ fn ContainerOk(
         expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
-    let (drag_over, set_drag_over) = create_signal(false);
+    let (drag_over, set_drag_over) = create_signal(0);
 
     let title = {
         let container = container.clone();
@@ -813,7 +813,7 @@ fn ContainerOk(
                 })
             });
 
-            selected() || drag_over() || drag_over_workspace
+            selected() || drag_over() > 0 || drag_over_workspace
         }
     };
 
@@ -840,7 +840,7 @@ fn ContainerOk(
         let messages = messages.clone();
         move |e: DragEvent| {
             e.prevent_default();
-            set_drag_over(false);
+            set_drag_over(0);
 
             let data = e.data_transfer().unwrap();
             let data = data.get_data(common::APPLICATION_JSON).unwrap();
@@ -863,9 +863,9 @@ fn ContainerOk(
         <div
             on:mousedown=mousedown
             on:contextmenu=contextmenu
-            on:dragenter=move |_| set_drag_over(true)
+            on:dragenter=move |_| set_drag_over.update(|count| *count += 1)
             on:dragover=move |e| e.prevent_default()
-            on:dragleave=move |_| set_drag_over(false)
+            on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
             on:drop=drop
             class="h-full cursor-pointer rounded px-4 pt-2 pb-4 border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
             class=(

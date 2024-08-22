@@ -1001,7 +1001,7 @@ impl Database {
         let project_id = project_properties.rid().clone();
         match assets {
             Ok(assets) => {
-                let assets = assets::from_assets(base_path, assets);
+                let assets = assets::from_assets(base_path, assets.into_inner());
                 self.state
                     .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
@@ -1172,7 +1172,7 @@ impl Database {
         let project_id = project_properties.rid().clone();
         let (assets, update) = match (&container_state.assets, assets.clone()) {
             (Ok(state), Ok(assets)) => {
-                let assets = assets::from_assets(base_path, assets);
+                let assets = assets::from_assets(base_path, assets.into_inner());
                 if assets == *state {
                     // TODO: Ignore order for comparison.
                     return vec![];
@@ -1193,7 +1193,7 @@ impl Database {
                 (state::DataResource::Ok(assets), update)
             }
             (Err(_state), Ok(assets)) => {
-                let assets = assets::from_assets(base_path, assets);
+                let assets = assets::from_assets(base_path, assets.into_inner());
                 let update = Update::project_with_id(
                     project_id,
                     project_path.clone(),

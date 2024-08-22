@@ -1,6 +1,7 @@
 pub mod analyses;
 pub mod asset;
 pub mod auth;
+pub mod bulk;
 pub mod common;
 pub mod container;
 pub mod fs;

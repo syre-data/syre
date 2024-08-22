@@ -87,9 +87,8 @@ pub mod workspace {
 }
 
 pub mod workspace_graph {
-    use std::ops::Deref;
-
     use leptos::*;
+    use std::ops::Deref;
     use syre_core::types::ResourceId;
 
     #[derive(Clone, Debug)]
@@ -687,7 +686,9 @@ pub mod graph {
                 nodes
                     .iter()
                     .find(|node| {
+                        tracing::debug!("gf 2");
                         node.state.properties().with_untracked(|properties| {
+                            tracing::debug!("gf 3");
                             if let db::state::DataResource::Ok(properties) = properties {
                                 properties.rid().with_untracked(|id| id == rid)
                             } else {

@@ -986,7 +986,7 @@ async fn update_properties(
     update: lib::command::container::bulk::PropertiesUpdate,
 ) -> Result<
     Vec<Result<(), lib::command::container::bulk::error::Update>>,
-    lib::command::container::bulk::error::ProjectNotFound,
+    lib::command::error::ProjectNotFound,
 > {
     #[derive(Serialize)]
     struct Args {

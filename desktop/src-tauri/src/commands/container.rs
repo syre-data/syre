@@ -188,11 +188,11 @@ pub fn container_properties_update_bulk(
     // update: bulk::PropertiesUpdate,
     update: String, // TODO: Issue with serializing enum with Option. perform manually.
                     // See: https://github.com/tauri-apps/tauri/issues/5993
-) -> Result<Vec<Result<(), bulk::error::Update>>, bulk::error::ProjectNotFound> {
+) -> Result<Vec<Result<(), bulk::error::Update>>, lib::command::error::ProjectNotFound> {
     let update = serde_json::from_str::<bulk::PropertiesUpdate>(&update).unwrap();
     let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
     else {
-        return Err(bulk::error::ProjectNotFound);
+        return Err(lib::command::error::ProjectNotFound);
     };
 
     let db::state::DataResource::Ok(project_properties) = project_data.properties() else {

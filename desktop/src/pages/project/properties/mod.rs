@@ -7,12 +7,14 @@ mod asset_bulk;
 mod common;
 mod container;
 mod container_bulk;
+mod mixed_bulk;
 
 use analyses::Editor as Analyses;
 use asset::Editor as Asset;
 use asset_bulk::Editor as AssetBulk;
 use container::Editor as Container;
 use container_bulk::Editor as ContainerBulk;
+use mixed_bulk::Editor as MixedBulk;
 
 /// Debounce time in milliseconds for editor input.
 pub const INPUT_DEBOUNCE: f64 = 200.0;
@@ -60,8 +62,8 @@ pub fn PropertiesBar() -> impl IntoView {
                         [] => panic!("invalid state"),
                         [kind] => match kind {
                             ResourceKind::Container => {
-                                let selection = selection.clone();
                                 let containers = {
+                                    let selection = selection.clone();
                                     move || {
                                         selection
                                             .iter()
@@ -74,8 +76,8 @@ pub fn PropertiesBar() -> impl IntoView {
                                     .into_view()
                             }
                             ResourceKind::Asset => {
-                                let selection = selection.clone();
                                 let assets = {
+                                    let selection = selection.clone();
                                     move || {
                                         selection
                                             .iter()
@@ -87,7 +89,8 @@ pub fn PropertiesBar() -> impl IntoView {
                                 view! { <AssetBulk assets=Signal::derive(assets)/> }.into_view()
                             }
                         },
-                        _ => view! { "Bulk mixed" }.into_view(),
+                        _ => view! { <MixedBulk resources=workspace_graph_state.selection()/> }
+                            .into_view(),
                     }
                 }
             })

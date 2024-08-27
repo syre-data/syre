@@ -27,6 +27,7 @@ fn main() {
             user::user_projects,
             project::create_project,
             project::project_resources,
+            project::project_analysis_remove_file,
             analyses::add_scripts,
             graph::create_child_container,
             graph::add_file_system_resources,

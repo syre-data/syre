@@ -950,7 +950,7 @@ mod analysis_associations {
                                 })
                             })
                         })
-                        .unwrap()
+                        .unwrap_or_else(|| return association.analysis().to_string())
                 })
             }
         };

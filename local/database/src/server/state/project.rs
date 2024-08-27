@@ -567,7 +567,7 @@ pub mod graph {
     use rayon::prelude::*;
     use std::{
         fs, io,
-        path::Path,
+        path::{Path, PathBuf},
         sync::{Arc, Mutex},
     };
 
@@ -650,8 +650,36 @@ pub mod graph {
     }
 
     impl State {
+        pub fn nodes(&self) -> &Vec<Node> {
+            &self.nodes
+        }
+
         pub fn root(&self) -> &Node {
             &self.root
+        }
+
+        /// Get the absolute path to the container from the root node.
+        /// i.e. The root node has path `/`.
+        pub fn path(&self, target: &Node) -> Option<PathBuf> {
+            const SEPARATOR: &str = "/";
+
+            let ancestors = self.ancestors(target);
+            if ancestors.is_empty() {
+                return None;
+            }
+
+            let path = ancestors
+                .iter()
+                .rev()
+                .skip(1)
+                .map(|ancestor| {
+                    let ancestor = ancestor.lock().unwrap();
+                    ancestor.name().to_string_lossy().to_string()
+                })
+                .collect::<Vec<_>>()
+                .join(SEPARATOR);
+
+            Some(PathBuf::from(SEPARATOR).join(path))
         }
 
         /// Insert a subtree into the graph as a child of the given parent.
@@ -743,6 +771,23 @@ pub mod graph {
                     None
                 }
             })
+        }
+
+        /// # Returns
+        /// List of ancestors, in order, starting with the given node until the root.
+        /// If the given node is not in the graph, an empty `Vec` is returned.
+        pub fn ancestors(&self, root: &Node) -> Vec<Node> {
+            if Arc::ptr_eq(&self.root, root) {
+                return vec![root.clone()];
+            }
+
+            let Some(parent) = self.parent(root) else {
+                return vec![];
+            };
+
+            let mut ancestors = self.ancestors(parent);
+            ancestors.insert(0, root.clone());
+            ancestors
         }
 
         /// Find a container by its path.

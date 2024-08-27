@@ -1111,41 +1111,51 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
         move || {
             project.analyses().with(|analyses| {
                 let db::state::DataResource::Ok(analyses) = analyses else {
-                    return association.analysis().to_string();
+                    return None;
                 };
 
-                analyses
-                    .with(|analyses| {
-                        analyses.iter().find_map(|analysis| {
-                            analysis.properties().with(|properties| {
-                                if properties.id() != association.analysis() {
-                                    return None;
+                analyses.with(|analyses| {
+                    analyses.iter().find_map(|analysis| {
+                        analysis.properties().with(|properties| {
+                            if properties.id() != association.analysis() {
+                                return None;
+                            }
+
+                            let title = match properties {
+                                local::types::AnalysisKind::Script(script) => {
+                                    if let Some(name) = script.name.as_ref() {
+                                        name.clone()
+                                    } else {
+                                        script.path.to_string_lossy().to_string()
+                                    }
                                 }
 
-                                let title = match properties {
-                                    local::types::AnalysisKind::Script(script) => {
-                                        if let Some(name) = script.name.as_ref() {
-                                            name.clone()
-                                        } else {
-                                            script.path.to_string_lossy().to_string()
-                                        }
+                                local::types::AnalysisKind::ExcelTemplate(template) => {
+                                    if let Some(name) = template.name.as_ref() {
+                                        name.clone()
+                                    } else {
+                                        template.template.path.to_string_lossy().to_string()
                                     }
+                                }
+                            };
 
-                                    local::types::AnalysisKind::ExcelTemplate(template) => {
-                                        if let Some(name) = template.name.as_ref() {
-                                            name.clone()
-                                        } else {
-                                            template.template.path.to_string_lossy().to_string()
-                                        }
-                                    }
-                                };
-
-                                Some(title)
-                            })
+                            Some(title)
                         })
                     })
-                    .unwrap()
+                })
             })
+        }
+    };
+
+    let hover_title = {
+        let association = association.clone();
+        let title = title.clone();
+        move || {
+            if title().is_none() {
+                Some(association.analysis().to_string())
+            } else {
+                None
+            }
         }
     };
 
@@ -1199,7 +1209,9 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
 
     view! {
         <div class="flex px-2">
-            <div class="grow">{title}</div>
+            <div title=hover_title class="grow">
+                {move || title().unwrap_or("(no title)".to_string())}
+            </div>
             <div class="inline-flex gap-1">
                 <span>"(" {association.priority()} ")"</span>
                 <span on:mousedown=autorun_toggle class="inline-flex">

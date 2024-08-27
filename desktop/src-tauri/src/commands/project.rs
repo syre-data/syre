@@ -1,8 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 use syre_core::{
     project::Project,
     types::{ResourceId, UserId, UserPermissions},
 };
+use syre_desktop_lib as lib;
 use syre_local::project::{
     project,
     resources::{Container as LocalContainer, Project as LocalProject},
@@ -54,4 +55,22 @@ pub fn project_resources(
     });
 
     resources
+}
+
+/// # Arguments
+/// + `path`: Relative path from the analysis root.
+#[tauri::command]
+pub fn project_analysis_remove_file(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    path: PathBuf,
+) -> Result<(), lib::command::error::IoErrorKind> {
+    let (project_path, project) = db.project().get_by_id(project).unwrap().unwrap();
+    let properties = project.properties().unwrap();
+    let path = project_path
+        .join(properties.analysis_root.as_ref().unwrap())
+        .join(path);
+
+    fs::remove_file(&path).map_err(|err| err.kind())?;
+    Ok(())
 }

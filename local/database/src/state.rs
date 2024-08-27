@@ -186,6 +186,15 @@ impl<T> FolderResource<T> {
         }
     }
 
+    #[track_caller]
+    pub fn unwrap(self) -> T {
+        if let Self::Present(x) = self {
+            x
+        } else {
+            panic!("called `FolderResource::unwrap` on an `Absent` value");
+        }
+    }
+
     pub fn map<U, F>(&self, f: F) -> FolderResource<U>
     where
         F: FnOnce(&T) -> U,

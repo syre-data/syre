@@ -502,7 +502,7 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: state::Pro
 
     analyses.update(|analyses| {
         analyses.retain(|analysis| {
-            if let Some(update_analysis) = update.iter().find(|update_analysis| {
+            update.iter().any(|update_analysis| {
                 analysis.properties().with_untracked(|properties| {
                     match (properties, update_analysis.properties()) {
                         (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
@@ -517,39 +517,13 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: state::Pro
                         _ => false,
                     }
                 })
-            }) {
-                analysis.properties().update(|properties| {
-                    match (properties, update_analysis.properties()) {
-                        (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
-                            *properties = update.clone();
-                        }
-
-                        (
-                            AnalysisKind::ExcelTemplate(properties),
-                            AnalysisKind::ExcelTemplate(update),
-                        ) => {
-                            *properties = update.clone();
-                        }
-
-                        _ => panic!("analysis kinds do not match"),
-                    }
-                });
-
-                analysis
-                    .fs_resource()
-                    .update(|present| *present = update_analysis.fs_resource().clone());
-
-                true
-            } else {
-                false
-            }
+            })
         });
 
         for update_analysis in update.iter() {
-            let update_properties = update_analysis.properties();
             if !analyses.iter().any(|analysis| {
                 analysis.properties().with_untracked(|properties| {
-                    match (properties, update_properties) {
+                    match (properties, update_analysis.properties()) {
                         (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
                             properties.rid() == update.rid()
                         }
@@ -565,6 +539,52 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: state::Pro
             }) {
                 analyses.push(state::Analysis::from_state(update_analysis));
             }
+        }
+    });
+
+    analyses.with_untracked(|analyses| {
+        for update_analysis in update.iter() {
+            let update_properties = update_analysis.properties();
+            let analysis = analyses
+                .iter()
+                .find(|analysis| {
+                    analysis.properties().with_untracked(|properties| {
+                        match (properties, update_properties) {
+                            (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
+                                properties.rid() == update.rid()
+                            }
+
+                            (
+                                AnalysisKind::ExcelTemplate(properties),
+                                AnalysisKind::ExcelTemplate(update),
+                            ) => properties.rid() == update.rid(),
+
+                            _ => false,
+                        }
+                    })
+                })
+                .unwrap();
+
+            analysis.properties().update(|properties| {
+                match (properties, update_analysis.properties()) {
+                    (AnalysisKind::Script(properties), AnalysisKind::Script(update)) => {
+                        *properties = update.clone();
+                    }
+
+                    (
+                        AnalysisKind::ExcelTemplate(properties),
+                        AnalysisKind::ExcelTemplate(update),
+                    ) => {
+                        *properties = update.clone();
+                    }
+
+                    _ => panic!("analysis kinds do not match"),
+                }
+            });
+
+            analysis
+                .fs_resource()
+                .update(|present| *present = update_analysis.fs_resource().clone());
         }
     });
 }

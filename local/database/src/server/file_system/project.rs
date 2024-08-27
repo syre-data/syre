@@ -6,7 +6,9 @@ use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{
     error::IoSerde,
+    loader,
     project::resources::{project::LoadError, Analyses, Project},
+    types::AnalysisKind,
     TryReducible,
 };
 
@@ -1103,8 +1105,8 @@ impl Database {
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         ));
 
-        match (Analyses::load_from(base_path), state) {
-            (Ok(analyses), Ok(state)) => {
+        match (state, Analyses::load_from(base_path)) {
+            (Ok(state), Ok(analyses)) => {
                 let state::DataResource::Ok(properties) = project.properties() else {
                     todo!();
                 };
@@ -1127,6 +1129,76 @@ impl Database {
                     }
                 }
 
+                'handle: {
+                    if self.config.handle_fs_resource_changes() {
+                        let crate::state::FolderResource::Present(graph) = project.graph() else {
+                            break 'handle;
+                        };
+
+                        let crate::state::DataResource::Ok(project_properties) =
+                            project.properties()
+                        else {
+                            break 'handle;
+                        };
+
+                        let data_root = project_state.path().join(&project_properties.data_root);
+                        let removed = state
+                            .iter()
+                            .filter_map(|state_analysis| {
+                                let rid = match state_analysis.properties() {
+                                    AnalysisKind::Script(script) => script.rid(),
+                                    AnalysisKind::ExcelTemplate(template) => template.rid(),
+                                };
+
+                                if !analyses.iter().any(|analysis| match analysis.properties() {
+                                    AnalysisKind::Script(script) => rid == script.rid(),
+                                    AnalysisKind::ExcelTemplate(template) => rid == template.rid(),
+                                }) {
+                                    Some(rid)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>();
+
+                        for node in graph.nodes().iter() {
+                            let container = node.lock().unwrap();
+                            let crate::state::DataResource::Ok(container_analyses) =
+                                container.analyses()
+                            else {
+                                continue;
+                            };
+
+                            let mut container_removed = Vec::with_capacity(removed.len());
+                            for association in container_analyses {
+                                if removed.contains(&association.analysis()) {
+                                    container_removed.push(association.analysis().clone());
+                                }
+                            }
+                            drop(container); // prevent deadlock when getting graph path
+
+                            if !container_removed.is_empty() {
+                                let container_path = crate::common::container_system_path(
+                                    &data_root,
+                                    graph.path(node).unwrap(),
+                                );
+
+                                let mut container_fs =
+                                    loader::container::Loader::load_from_only_properties(
+                                        &container_path,
+                                    )
+                                    .unwrap();
+
+                                container_fs.analyses.retain(|association| {
+                                    !container_removed.contains(&association.analysis())
+                                });
+
+                                container_fs.save(&container_path).unwrap();
+                            }
+                        }
+                    }
+                }
+
                 self.state
                     .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),
@@ -1144,7 +1216,7 @@ impl Database {
                 )]
             }
 
-            (Ok(analyses), Err(_)) => {
+            (Err(_), Ok(analyses)) => {
                 let state::DataResource::Ok(properties) = project.properties() else {
                     todo!();
                 };
@@ -1162,16 +1234,24 @@ impl Database {
                     })
                     .unwrap();
 
-                vec![Update::project(
+                let update = Update::project(
                     project_id,
                     base_path,
                     update::Project::Analyses(update::DataResource::Repaired(analyses)),
                     event.id().clone(),
-                )]
+                );
+
+                if self.config.handle_fs_resource_changes() {
+                    let mut updates = vec![update];
+
+                    updates
+                } else {
+                    vec![update]
+                }
             }
 
-            (Err(IoSerde::Io(io::ErrorKind::NotFound)), _) => todo!(),
-            (Err(err), _) => {
+            (_, Err(IoSerde::Io(io::ErrorKind::NotFound))) => todo!(),
+            (_, Err(err)) => {
                 self.state
                     .try_reduce(server::state::Action::Project {
                         path: base_path.to_path_buf(),

@@ -1,4 +1,4 @@
-//! Database for storing resources.syre_local::system::collections::
+//! Database for storing resources.
 #[path = "query/mod.rs"]
 pub(super) mod query;
 
@@ -404,30 +404,42 @@ impl Database {
 #[cfg(target_os = "windows")]
 mod windows {
     use super::*;
+    use std::path::Path;
 
     impl Database {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
-        pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
+        pub fn handle_file_system_events(
+            &mut self,
+            events: syre_fs_watcher::EventResult,
+        ) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
-                Err(errs) => {
-                    tracing::error!("watch error: {errs:?}");
-                    return Err(crate::Error::Database(format!("{errs:?}")));
-                }
+                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
             };
 
-            let events = self.rectify_event_paths(events);
-            let mut events = FileSystemEventProcessor::process(events);
-            events.sort_by(|a, b| a.time.cmp(&b.time));
             let updates = self.process_file_system_events(events);
+            tracing::debug!(?updates);
             if let Err(err) = self.publish_updates(&updates) {
                 tracing::error!(?err);
             }
 
+            tracing::debug!(?self.state);
             Ok(())
         }
+
+        fn handle_file_system_watcher_errors(
+            &self,
+            errors: Vec<syre_fs_watcher::Error>,
+        ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
+            tracing::error!(?errors);
+            todo!();
+        }
+    }
+
+    fn path_in_trash(path: impl AsRef<Path>) -> bool {
+        todo!()
     }
 }
 

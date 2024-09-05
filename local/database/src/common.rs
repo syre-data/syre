@@ -32,6 +32,16 @@ pub fn datastore_url() -> String {
     format!("{LOCALHOST}:{DATASTORE_PORT}")
 }
 
+/// # Returns
+/// `true` if the path starts from root (`/`), `false` otherwise.
+/// `false` if path is empty.
+pub fn is_root_path(path: impl AsRef<Path>) -> bool {
+    let Some(first) = path.as_ref().components().next() else {
+        return false;
+    };
+    matches!(first, std::path::Component::RootDir)
+}
+
 /// Creates the absolute path from the data root to the container.
 ///
 /// # Arguments

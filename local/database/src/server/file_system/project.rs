@@ -1079,6 +1079,7 @@ impl Database {
             panic!("invalid event kind");
         };
 
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         if matches!(kind, event::ModifiedKind::Other) {
             todo!();
         }

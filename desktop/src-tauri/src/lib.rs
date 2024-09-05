@@ -1,4 +1,5 @@
 #![feature(io_error_more)]
+#![feature(assert_matches)]
 
 pub mod commands;
 pub(crate) mod db;

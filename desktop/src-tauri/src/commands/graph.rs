@@ -36,15 +36,47 @@ pub fn create_child_container(
 /// `Vec` of `Result`s corresponding to each resource.
 #[tauri::command]
 pub fn add_file_system_resources(
+    db: tauri::State<db::Client>,
     resources: Vec<lib::types::AddFsGraphResourceData>,
 ) -> Vec<Result<(), lib::command::error::IoErrorKind>> {
     use syre_local::types::FsResourceAction;
 
+    let mut projects = resources
+        .iter()
+        .map(|resource| &resource.project)
+        .collect::<Vec<_>>();
+    projects.sort();
+    projects.dedup();
+
+    let project_paths = projects
+        .into_iter()
+        .cloned()
+        .map(|project| {
+            let (path, state) = db.project().get_by_id(project.clone()).unwrap().unwrap();
+            let db::state::DataResource::Ok(properties) = state.properties() else {
+                todo!();
+            };
+
+            (project, path.join(&properties.data_root))
+        })
+        .collect::<Vec<_>>();
+
     resources
         .into_iter()
         .map(|resource| {
-            let to_path = resource.parent.join(resource.path.file_name().unwrap());
+            let project_path = project_paths
+                .iter()
+                .find_map(|(project, path)| {
+                    if *project == resource.project {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
 
+            let to_path = lib::utils::join_path_absolute(project_path, &resource.parent);
+            let to_path = to_path.join(resource.path.file_name().unwrap());
             match resource.action {
                 FsResourceAction::Move => {
                     if to_path == resource.path {

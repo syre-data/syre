@@ -120,12 +120,20 @@ impl FsWatcher {
                 vec![event]
             }
 
-            fs_event::EventKind::File(fs_event::File::Other(path)) => vec![Event::with_time(
-                EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Other)),
-                event.time,
-                event.id().clone(),
-            )
-            .add_path(path.clone())],
+            fs_event::EventKind::File(fs_event::File::Other(path)) => {
+                let event = match Self::handle_file_other(&path, &self.app_config) {
+                    Ok(kind) => Event::with_time(kind, event.time, event.id().clone())
+                        .add_path(path.clone()),
+                    Err(err) => Event::with_time(
+                        EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Other)),
+                        event.time,
+                        event.id().clone(),
+                    )
+                    .add_path(path.clone()),
+                };
+
+                vec![event]
+            }
 
             fs_event::EventKind::Folder(fs_event::Folder::Created(path)) => {
                 let event = match self.handle_folder_created(&path) {
@@ -544,6 +552,18 @@ impl FsWatcher {
         let kind = match resources::resource_kind(path, app_config)? {
             Some(kind) => Self::convert_resource_to_event_kind_data_modified(kind),
             None => app::EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Data)),
+        };
+
+        Ok(kind)
+    }
+
+    fn handle_file_other(
+        path: &PathBuf,
+        app_config: &config::Config,
+    ) -> StdResult<EventKind, resources::Error> {
+        let kind = match resources::resource_kind(path, app_config)? {
+            Some(kind) => Self::convert_resource_to_event_kind_other(kind),
+            None => app::EventKind::File(app::ResourceEvent::Modified(app::ModifiedKind::Other)),
         };
 
         Ok(kind)
@@ -1443,6 +1463,69 @@ impl FsWatcher {
 
             resources::ResourceEvent::Asset { .. } => {
                 app::EventKind::AssetFile(app::ResourceEvent::Modified(app::ModifiedKind::Data))
+            }
+        }
+    }
+
+    fn convert_resource_to_event_kind_other(kind: resources::ResourceEvent) -> EventKind {
+        match kind {
+            resources::ResourceEvent::Config(kind) => match kind {
+                resources::Config::ProjectManifest => app::Config::ProjectManifest(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Config::UserManifest => app::Config::UserManifest(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Config::LocalConfig => app::Config::LocalConfig(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+            },
+
+            resources::ResourceEvent::Project { kind, .. } => match kind {
+                resources::Project::Properties => app::Project::Properties(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Project::Settings => app::Project::Settings(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Project::Analyses => app::Project::Analyses(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+            },
+
+            resources::ResourceEvent::Container { kind, .. } => match kind {
+                resources::Container::Properties => app::Container::Properties(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Container::Settings => app::Container::Settings(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+
+                resources::Container::Assets => app::Container::Assets(
+                    app::StaticResourceEvent::Modified(app::ModifiedKind::Other),
+                )
+                .into(),
+            },
+
+            resources::ResourceEvent::Analysis { .. } => {
+                app::EventKind::AnalysisFile(app::ResourceEvent::Modified(app::ModifiedKind::Other))
+            }
+
+            resources::ResourceEvent::Asset { .. } => {
+                app::EventKind::AssetFile(app::ResourceEvent::Modified(app::ModifiedKind::Other))
             }
         }
     }

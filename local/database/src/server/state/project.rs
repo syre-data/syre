@@ -68,23 +68,39 @@ impl State {
         };
 
         let analyses = Analyses::load_from(state.path()).map(|analyses| {
-            let path = analyses.path();
+            let analysis_root = if let DataResource::Ok(ref project) = project.properties() {
+                project
+                    .analysis_root
+                    .as_ref()
+                    .map(|analysis_root| analyses.base_path().join(analysis_root))
+            } else {
+                None
+            };
+
             analyses
                 .to_vec()
                 .into_iter()
                 .map(|analysis| match analysis {
-                    syre_local::types::AnalysisKind::Script(ref script) => {
-                        if path.join(&script.path).is_file() {
-                            state::Analysis::present(analysis)
-                        } else {
-                            state::Analysis::absent(analysis)
+                    syre_local::types::AnalysisKind::Script(ref script) => match &analysis_root {
+                        Some(analysis_root) => {
+                            if analysis_root.join(&script.path).is_file() {
+                                state::Analysis::present(analysis)
+                            } else {
+                                state::Analysis::absent(analysis)
+                            }
                         }
-                    }
+                        None => state::Analysis::absent(analysis),
+                    },
                     syre_local::types::AnalysisKind::ExcelTemplate(ref template) => {
-                        if path.join(&template.template.path).is_file() {
-                            state::Analysis::present(analysis)
-                        } else {
-                            state::Analysis::absent(analysis)
+                        match &analysis_root {
+                            Some(analysis_root) => {
+                                if analysis_root.join(&template.template.path).is_file() {
+                                    state::Analysis::present(analysis)
+                                } else {
+                                    state::Analysis::absent(analysis)
+                                }
+                            }
+                            None => state::Analysis::absent(analysis),
                         }
                     }
                 })
@@ -563,7 +579,10 @@ mod container {
 }
 
 pub mod graph {
-    use crate::state::{Container, Graph};
+    use crate::{
+        common,
+        state::{Container, Graph},
+    };
     use rayon::prelude::*;
     use std::{
         fs, io,
@@ -801,7 +820,7 @@ pub mod graph {
         /// This includes path prefixes, current dir, and parent dir.
         pub fn find(&self, path: impl AsRef<Path>) -> Result<Option<&Node>, error::InvalidPath> {
             let path = path.as_ref();
-            if !path.is_absolute() {
+            if !common::is_root_path(path) {
                 return Err(error::InvalidPath);
             }
 

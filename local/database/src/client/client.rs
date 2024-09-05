@@ -394,8 +394,7 @@ mod project {
         }
 
         /// # Returns
-        /// Base path and state of the project at the given path.
-        /// `None` if no state is associated with the path.
+        /// Path of the project with the given id.
         pub fn path(&self, project: ResourceId) -> zmq::Result<Option<PathBuf>> {
             let path = self.send(query::Project::Path(project).into())?;
             let path = serde_json::from_value::<Option<PathBuf>>(path).unwrap();

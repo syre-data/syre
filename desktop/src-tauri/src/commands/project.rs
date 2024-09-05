@@ -4,9 +4,14 @@ use syre_core::{
     types::{ResourceId, UserId, UserPermissions},
 };
 use syre_desktop_lib as lib;
-use syre_local::project::{
-    project,
-    resources::{Container as LocalContainer, Project as LocalProject},
+use syre_local::{
+    project::{
+        project,
+        resources::{
+            Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject,
+        },
+    },
+    types::AnalysisKind,
 };
 use syre_local_database as db;
 
@@ -60,17 +65,36 @@ pub fn project_resources(
 /// # Arguments
 /// + `path`: Relative path from the analysis root.
 #[tauri::command]
-pub fn project_analysis_remove_file(
+pub fn project_analysis_remove(
     db: tauri::State<db::Client>,
     project: ResourceId,
     path: PathBuf,
-) -> Result<(), lib::command::error::IoErrorKind> {
-    let (project_path, project) = db.project().get_by_id(project).unwrap().unwrap();
-    let properties = project.properties().unwrap();
-    let path = project_path
-        .join(properties.analysis_root.as_ref().unwrap())
-        .join(path);
+) -> Result<(), lib::command::project::error::AnalysesUpdate> {
+    use lib::command::project::error::AnalysesUpdate;
 
-    fs::remove_file(&path).map_err(|err| err.kind())?;
+    let (project_path, project) = db.project().get_by_id(project).unwrap().unwrap();
+    let mut analyses = match LocalAnalyses::load_from(&project_path) {
+        Ok(analyses) => analyses,
+        Err(err) => return Err(AnalysesUpdate::AnalysesFile(err)),
+    };
+
+    analyses.retain(|_, analysis| match analysis {
+        AnalysisKind::Script(script) => script.path != path,
+        AnalysisKind::ExcelTemplate(template) => template.template.path != path,
+    });
+
+    if let Err(err) = analyses.save() {
+        return Err(AnalysesUpdate::AnalysesFile(err.kind().into()));
+    }
+
+    if let db::state::DataResource::Ok(properties) = project.properties() {
+        let path = project_path
+            .join(properties.analysis_root.as_ref().unwrap())
+            .join(path);
+
+        if let Err(err) = fs::remove_file(&path) {
+            return Err(AnalysesUpdate::RemoveFile(err.kind()));
+        };
+    }
     Ok(())
 }

@@ -94,8 +94,8 @@ fn NoAnalyses() -> impl IntoView {
 fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
     move || {
         analysis.properties().with(|properties| match properties {
-            AnalysisKind::Script(script) => {
-                view! { <ScriptView script=script.clone()/> }
+            AnalysisKind::Script(_) => {
+                view! { <ScriptView analysis=analysis.clone()/> }
             }
             AnalysisKind::ExcelTemplate(template) => {
                 view! { <ExcelTemplateView template=template.clone()/> }
@@ -105,13 +105,26 @@ fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
 }
 
 #[component]
-fn ScriptView(script: core::project::Script) -> impl IntoView {
+fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();
+
+    let script = {
+        let properties = analysis.properties().clone();
+        move || {
+            properties.with(|properties| {
+                let AnalysisKind::Script(script) = properties else {
+                    panic!("invalid analysis kind");
+                };
+                script.clone()
+            })
+        }
+    };
 
     let title = {
         let script = script.clone();
         move || {
+            let script = script();
             if let Some(ref name) = script.name {
                 name.clone()
             } else {
@@ -121,7 +134,7 @@ fn ScriptView(script: core::project::Script) -> impl IntoView {
     };
 
     let dragstart = {
-        let script = script.rid().clone();
+        let script = script().rid().clone();
         move |e: DragEvent| {
             let data_transfer = e.data_transfer().unwrap();
             data_transfer.clear_data().unwrap();
@@ -138,7 +151,8 @@ fn ScriptView(script: core::project::Script) -> impl IntoView {
     };
 
     let remove_analysis = {
-        let script_id = script.rid().clone();
+        let fs_resource = analysis.fs_resource().clone();
+        let script_id = script().rid().clone();
         let project = project.clone();
         let messages = messages.clone();
         move |e: MouseEvent| {
@@ -170,25 +184,55 @@ fn ScriptView(script: core::project::Script) -> impl IntoView {
             let project = project.rid().get_untracked();
             let messages = messages.clone();
             spawn_local(async move {
-                if let Err(err) = remove_analysis_file(project, path).await {
+                use lib::command::project::error::AnalysesUpdate;
+
+                if let Err(err) = remove_analysis(project, path).await {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not save container.");
-                    msg.body(format!("{err:?}"));
+                    let msg = match err {
+                        AnalysesUpdate::AnalysesFile(err) => {
+                            let mut msg = Message::error("Could not save container.");
+                            msg.body(format!("{err:?}"));
+                            msg
+                        }
+                        AnalysesUpdate::RemoveFile(err) => {
+                            let mut msg = Message::error("Could not remove analysis file.");
+                            msg.body(format!("{err:?}"));
+                            msg
+                        }
+                    };
                     messages.update(|messages| messages.push(msg.build()));
                 }
             });
         }
     };
 
+    let is_present = {
+        let fs_resource = analysis.fs_resource().clone();
+        move || fs_resource.with(|fs_resource| fs_resource.is_present())
+    };
+
+    let absent_title = {
+        let is_present = is_present.clone();
+        move || {
+            if !is_present() {
+                "Analysis file does not exist."
+            } else {
+                ""
+            }
+        }
+    };
+
+    // TODO: Indicate file presence.
     view! {
         <div class="flex cursor-pointer" on:dragstart=dragstart draggable="true">
             <span class="grow">{title}</span>
             <span>
                 <button
                     type="button"
+                    title=absent_title
                     on:mousedown=remove_analysis
                     class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
-                >
+                    >
                     <Icon icon=icondata::AiMinusOutlined/>
                 </button>
             </span>
@@ -203,15 +247,15 @@ fn ExcelTemplateView(template: core::project::ExcelTemplate) -> impl IntoView {
 
 /// # Arguments
 /// + `path`: Relative path from the analysis root.
-async fn remove_analysis_file(
+async fn remove_analysis(
     project: core::types::ResourceId,
     path: PathBuf,
-) -> Result<(), lib::command::error::IoErrorKind> {
+) -> Result<(), lib::command::project::error::AnalysesUpdate> {
     #[derive(Serialize)]
     struct Args {
         project: core::types::ResourceId,
         path: PathBuf,
     }
 
-    tauri_sys::core::invoke_result("project_analysis_remove_file", Args { project, path }).await
+    tauri_sys::core::invoke_result("project_analysis_remove", Args { project, path }).await
 }

@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
-set root=..\..
+@REM set root=..\..
+set root=.
 set dir=%root%\target\release
 
 :: get target

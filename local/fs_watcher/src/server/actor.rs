@@ -20,7 +20,6 @@ mod windows {
     use std::path::{Path, PathBuf};
 
     type FileSystemWatcher = notify::RecommendedWatcher;
-
     pub struct FileSystemActor {
         command_rx: Receiver<Command>,
         watcher: Debouncer<FileSystemWatcher, FileIdMap>,
@@ -30,14 +29,8 @@ mod windows {
         /// Create a new actor to watch the file system.
         /// Begins watching upon creation.
         pub fn new(event_tx: Sender<DebounceEventResult>, command_rx: Receiver<Command>) -> Self {
-            let watcher = notify_debouncer_full::new_debouncer(
-                DEBOUNCE_TIMEOUT,
-                None,
-                move |event: DebounceEventResult| {
-                    event_tx.send(event).unwrap();
-                },
-            )
-            .unwrap();
+            let watcher =
+                notify_debouncer_full::new_debouncer(DEBOUNCE_TIMEOUT, None, event_tx).unwrap();
 
             Self {
                 command_rx,
@@ -47,29 +40,62 @@ mod windows {
 
         pub fn run(&mut self) {
             loop {
-                match self.command_rx.recv().unwrap() {
-                    Command::Watch(path) => self.watch(path),
-                    Command::Unwatch(path) => self.unwatch(path),
+                let cmd = match self.command_rx.recv() {
+                    Ok(cmd) => cmd,
+                    Err(err) => break,
+                };
+
+                match cmd {
+                    Command::Watch { path, tx } => self.watch(path, tx),
+                    Command::Unwatch { path, tx } => self.unwatch(path, tx),
+                    Command::FileId { path, tx } => {
+                        if let Err(err) =
+                            tx.send(self.watcher.cache().cached_file_id(&path).cloned())
+                        {
+                            tracing::error!(?err);
+                        };
+                    }
                 }
             }
+
+            tracing::debug!("command channel closed, shutting down");
         }
 
-        fn watch(&mut self, path: impl AsRef<Path>) {
+        fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher
-                .watcher()
-                .watch(path, RecursiveMode::Recursive)
-                .unwrap();
+            if let Err(err) = self.watcher.watcher().watch(path, RecursiveMode::Recursive) {
+                if let Err(err) = tx.send(Err(err)) {
+                    tracing::error!(?err);
+                }
+
+                return;
+            }
 
             self.watcher
                 .cache()
                 .add_root(path, RecursiveMode::Recursive);
+
+            tracing::debug!("watching {path:?}");
+            if let Err(err) = tx.send(Ok(())) {
+                tracing::error!(?err);
+            }
         }
 
-        fn unwatch(&mut self, path: impl AsRef<Path>) {
+        fn unwatch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher.watcher().unwatch(path).unwrap();
+            if let Err(err) = self.watcher.watcher().unwatch(path) {
+                if let Err(err) = tx.send(Err(err)) {
+                    tracing::error!(?err);
+                }
+
+                return;
+            }
+
             self.watcher.cache().remove_root(path);
+            tracing::debug!("unwatching {path:?}");
+            if let Err(err) = tx.send(Ok(())) {
+                tracing::error!(?err);
+            }
         }
 
         /// Gets the final path of a file.
@@ -82,7 +108,7 @@ mod windows {
         fn final_path(
             &mut self,
             path: impl AsRef<Path>,
-            tx: mpsc::Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
+            tx: Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
         ) {
             let path = path.as_ref();
             let cache = self.watcher.cache();

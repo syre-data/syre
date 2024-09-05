@@ -2,6 +2,8 @@ mod analysis;
 mod app;
 mod asset;
 mod container;
+mod file;
+mod folder;
 mod graph;
 mod project;
 
@@ -11,8 +13,9 @@ use syre_fs_watcher::EventKind;
 impl Database {
     pub fn process_file_system_events(
         &mut self,
-        events: Vec<syre_fs_watcher::Event>,
+        mut events: Vec<syre_fs_watcher::Event>,
     ) -> Vec<Update> {
+        events.sort_by_key(|event| event.time().clone());
         events
             .into_iter()
             .flat_map(|event| self.process_event(event))
@@ -28,8 +31,8 @@ impl Database {
             EventKind::Container(_) => self.handle_fs_event_container(event),
             EventKind::AssetFile(_) => self.handle_fs_event_asset_file(event),
             EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),
-            EventKind::File(_) => todo!(),
-            EventKind::Folder(_) => todo!(),
+            EventKind::File(_) => self.handle_fs_event_file(event),
+            EventKind::Folder(_) => self.handle_fs_event_folder(event),
             EventKind::Any(_) => todo!(),
             EventKind::OutOfSync => todo!(),
         }

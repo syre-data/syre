@@ -6,7 +6,7 @@ use crate::{
 };
 use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::TryReducible;
+use syre_local::{self as local, TryReducible};
 
 impl Database {
     pub(super) fn handle_fs_event_graph(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
@@ -184,11 +184,14 @@ impl Database {
 
         // TODO: When using buckets, must get the nearest container.
         // At the time this is written, buckets are not yet implemented though.
-        let parent_container_path =
-            common::container_graph_path(&data_root_path, path.parent().unwrap()).unwrap();
-        let rel_path = graph_path.strip_prefix(&parent_container_path).unwrap();
+        let parent_container_path = path.parent().unwrap();
+        let parent_container_graph_path =
+            common::container_graph_path(&data_root_path, parent_container_path).unwrap();
+        let rel_path = graph_path
+            .strip_prefix(&parent_container_graph_path)
+            .unwrap();
 
-        let parent_node = graph.find(&parent_container_path).unwrap().unwrap();
+        let parent_node = graph.find(&parent_container_graph_path).unwrap().unwrap();
         let parent_state = parent_node.lock().unwrap();
         if let state::DataResource::Ok(assets) = parent_state.assets().clone() {
             if let Some(asset) = assets.iter().find(|asset| asset.path == rel_path) {
@@ -199,7 +202,7 @@ impl Database {
                     .try_reduce(server::state::Action::Project {
                         path: project_path.clone(),
                         action: server::state::project::action::Action::Container {
-                            path: parent_container_path.clone(),
+                            path: parent_container_graph_path.clone(),
                             action: server::state::project::action::Container::Asset {
                                 rid: asset.clone(),
                                 action: server::state::project::action::Asset::SetAbsent,
@@ -208,16 +211,26 @@ impl Database {
                     })
                     .unwrap();
 
-                return vec![Update::project_with_id(
-                    project_id.clone(),
-                    project_path.clone(),
-                    update::Project::Asset {
-                        container: parent_container_path,
-                        asset: asset.clone(),
-                        update: update::Asset::FileRemoved,
-                    },
-                    event.id().clone(),
-                )];
+                if self.config.handle_fs_resource_changes() {
+                    tracing::debug!(?parent_container_path);
+                    let mut local_assets =
+                        local::project::resources::Assets::load_from(parent_container_path)
+                            .unwrap();
+                    local_assets.retain(|local_asset| *local_asset.rid() != asset);
+                    local_assets.save().unwrap();
+                    return vec![];
+                } else {
+                    return vec![Update::project_with_id(
+                        project_id.clone(),
+                        project_path.clone(),
+                        update::Project::Asset {
+                            container: parent_container_graph_path,
+                            asset: asset.clone(),
+                            update: update::Asset::FileRemoved,
+                        },
+                        event.id().clone(),
+                    )];
+                }
             }
         }
 

@@ -10,7 +10,14 @@ port = 1420
 open = false
 ws_protocol = "ws"
 
+# *nix
+# [[hooks]]
+# stage = "pre_build"
+# command = "sh"
+# command_arguments = ["-c", "npx tailwindcss -i styles/main.css -o styles/output.css"]
+
+# Windows
 [[hooks]]
 stage = "pre_build"
-command = "sh"
-command_arguments = ["-c", "npx tailwindcss -i styles/main.css -o styles/output.css"]
+command = "cmd"
+command_arguments = ["/c npx tailwindcss -i styles/main.css -o styles/output.css"]

@@ -54,12 +54,10 @@ If you haven't already, go back to the root path `cd ../../`.
 
 ## FAQ
 
-### General errors
+### Apple
 
 `Error:error running bundle_dmg.sh`
 > Make sure no `Syre` process is running and that Syre is not mounted as a volume.
-
-### Apple
 
 `Error failed to bundle project: failed to upload app to Apple's notarization servers.`
 > Check in the apple developer account that no terms of service are pending for approval.

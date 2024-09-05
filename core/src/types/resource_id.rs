@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// Holds a unique id for a resource.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ResourceId(Uuid);
 
 impl ResourceId {

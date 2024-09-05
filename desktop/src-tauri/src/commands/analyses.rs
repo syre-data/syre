@@ -1,4 +1,4 @@
-use std::{fs, io, path::PathBuf};
+use std::{assert_matches::assert_matches, fs, io, path::PathBuf};
 use syre_core::{project::ScriptLang, types::ResourceId};
 use syre_desktop_lib::{self as lib, command::error::IoErrorKind};
 use syre_local_database::Client as DbClient;
@@ -10,7 +10,6 @@ pub fn add_scripts(
     resources: Vec<lib::types::AddFsAnalysisResourceData>,
 ) -> Vec<Result<(), IoErrorKind>> {
     use syre_local::types::FsResourceAction;
-
     let (project_path, project) = db.project().get_by_id(project).unwrap().unwrap();
     let analysis_root = project_path.join(
         project
@@ -25,7 +24,10 @@ pub fn add_scripts(
         .iter()
         .map(|resource| {
             assert!(resource.path.is_absolute());
-            assert!(resource.parent.is_absolute());
+            assert_matches!(
+                resource.parent.components().next().unwrap(),
+                std::path::Component::RootDir
+            );
 
             let Some(ext) = resource.path.extension() else {
                 return Err(io::ErrorKind::InvalidFilename.into());

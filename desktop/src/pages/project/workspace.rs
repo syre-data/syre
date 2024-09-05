@@ -201,16 +201,12 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
             while let Some(event) = listener.next().await {
                 match event.payload {
                     DragDropEvent::Enter(payload) => {
-                        set_drag_over_workspace_resource(
-                            resource_from_point(payload.position().x(), payload.position().y())
-                                .into(),
-                        );
+                        let resource = resource_from_position(payload.position()).await;
+                        set_drag_over_workspace_resource(resource.into());
                     }
                     DragDropEvent::Over(payload) => {
-                        set_drag_over_workspace_resource(
-                            resource_from_point(payload.position().x(), payload.position().y())
-                                .into(),
-                        );
+                        let resource = resource_from_position(payload.position()).await;
+                        set_drag_over_workspace_resource(resource.into());
                     }
                     DragDropEvent::Drop(payload) => {
                         if let Some(resource) =
@@ -270,7 +266,12 @@ pub enum WorkspaceResource {
     Asset(ResourceId),
 }
 
-fn resource_from_point(x: isize, y: isize) -> Option<WorkspaceResource> {
+async fn resource_from_position(
+    position: &tauri_sys::dpi::PhysicalPosition,
+) -> Option<WorkspaceResource> {
+    let monitor = tauri_sys::window::current_monitor().await.unwrap();
+    let position = position.as_logical(monitor.scale_factor());
+    let (x, y) = (position.x(), position.y());
     if analyses_from_point(x, y) {
         Some(WorkspaceResource::Analyses)
     } else if let Some(id) = container_from_point(x, y) {
@@ -281,6 +282,9 @@ fn resource_from_point(x: isize, y: isize) -> Option<WorkspaceResource> {
 }
 
 /// Is the point within the analyses properties bar.
+///
+/// # Arguments
+/// `x`, `y`: Logical size.
 fn analyses_from_point(x: isize, y: isize) -> bool {
     document()
         .elements_from_point(x as f32, y as f32)
@@ -293,6 +297,9 @@ fn analyses_from_point(x: isize, y: isize) -> bool {
 }
 
 /// Container the point is over.
+///
+/// # Arguments
+/// `x`, `y`: Logical size.
 fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
     document()
         .elements_from_point(x as f32, y as f32)
@@ -325,7 +332,8 @@ async fn handle_drop_event(
             handle_drop_event_analyses(payload, project.rid().get_untracked()).await
         }
         WorkspaceResource::Container(container) => {
-            handle_drop_event_container(container, payload, project, graph).await
+            handle_drop_event_container(container, payload, project.rid().get_untracked(), graph)
+                .await
         }
         WorkspaceResource::Asset(_) => todo!(),
     }
@@ -335,18 +343,12 @@ async fn handle_drop_event(
 async fn handle_drop_event_container(
     container: ResourceId,
     payload: DragDropPayload,
-    project: &state::Project,
+    project: ResourceId,
     graph: &state::Graph,
 ) {
-    let data_root = project
-        .path()
-        .get_untracked()
-        .join(project.properties().data_root().get_untracked());
-
     let container_node = graph.find_by_id(&container).unwrap();
     let container_path = graph.path(&container_node).unwrap();
-    let container_path = common::container_system_path(data_root, container_path);
-    for res in add_fs_resources_to_graph(container_path, payload.paths().clone()).await {
+    for res in add_fs_resources_to_graph(project, container_path, payload.paths().clone()).await {
         if let Err(err) = res {
             tracing::error!(?err);
             todo!();
@@ -356,6 +358,7 @@ async fn handle_drop_event_container(
 
 /// Adds file system resources (file or folder) to the project's data graph.
 async fn add_fs_resources_to_graph(
+    project: ResourceId,
     parent: PathBuf,
     paths: Vec<PathBuf>,
 ) -> Vec<Result<(), io::ErrorKind>> {
@@ -367,6 +370,7 @@ async fn add_fs_resources_to_graph(
     let resources = paths
         .into_iter()
         .map(|path| lib::types::AddFsGraphResourceData {
+            project: project.clone(),
             path,
             parent: parent.clone(),
             action: local::types::FsResourceAction::Copy, // TODO: Get from user preferences.
@@ -610,8 +614,8 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
             container,
             asset,
             update,
-        } => todo!(),
-        db::event::Project::AssetFile(_) => handle_event_graph_asset(event, graph),
+        } => handle_event_graph_asset(event, graph),
+        db::event::Project::AssetFile(_) => handle_event_graph_asset_file(event, graph),
         db::event::Project::Flag { resource, message } => todo!(),
     }
 }
@@ -985,8 +989,37 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
         panic!("invalid event kind");
     };
 
-    match update {
-        syre_local_database::event::Asset::FileCreated => todo!(),
-        syre_local_database::event::Asset::FileRemoved => todo!(),
+    let container = graph.find(container).unwrap().unwrap();
+    let fs_resource = container.assets().with_untracked(|assets| {
+        let db::state::DataResource::Ok(assets) = assets else {
+            todo!();
+        };
+        assets.with_untracked(|assets| {
+            assets
+                .iter()
+                .find(|asset_state| asset_state.rid().with(|rid| rid == asset))
+                .unwrap()
+                .fs_resource()
+        })
+    });
+
+    let state = match update {
+        db::event::Asset::FileCreated => db::state::FileResource::Present,
+        db::event::Asset::FileRemoved => db::state::FileResource::Absent,
+    };
+
+    fs_resource.set(state);
+}
+
+fn handle_event_graph_asset_file(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::AssetFile(kind)) = event.kind() else {
+        panic!("invalid event kind");
+    };
+
+    match kind {
+        db::event::AssetFile::Created(path) => todo!(),
+        db::event::AssetFile::Removed(path) => todo!(),
+        db::event::AssetFile::Renamed { from, to } => todo!(),
+        db::event::AssetFile::Moved { from, to } => todo!(),
     }
 }

@@ -23,7 +23,9 @@ impl Database {
             syre_fs_watcher::event::ResourceEvent::Renamed => todo!(),
             syre_fs_watcher::event::ResourceEvent::Moved => todo!(),
             syre_fs_watcher::event::ResourceEvent::MovedProject => todo!(),
-            syre_fs_watcher::event::ResourceEvent::Modified(_) => todo!(),
+            syre_fs_watcher::event::ResourceEvent::Modified(_) => {
+                self.handle_fs_event_asset_file_modified(event)
+            }
         }
     }
 }
@@ -200,6 +202,23 @@ impl Database {
             })
             .unwrap();
 
+        if self.config.handle_fs_resource_changes() {
+            match local::project::resources::Assets::load_from(&base_path) {
+                Ok(mut assets) => {
+                    assets.retain(|asset| *asset.rid() != asset_id);
+                    match assets.save() {
+                        Ok(_) => return vec![],
+                        Err(err) => {
+                            tracing::error!(?err);
+                        }
+                    }
+                }
+                Err(err) => {
+                    tracing::error!(?err);
+                }
+            }
+        }
+
         vec![Update::project_with_id(
             project_id.clone(),
             project_path.clone(),
@@ -210,5 +229,25 @@ impl Database {
             },
             event.id().clone(),
         )]
+    }
+
+    fn handle_fs_event_asset_file_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use event::ModifiedKind;
+
+        let EventKind::AssetFile(event::ResourceEvent::Modified(kind)) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        match kind {
+            event::ModifiedKind::Other => vec![],
+            event::ModifiedKind::Data => todo!(),
+        }
     }
 }

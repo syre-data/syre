@@ -1,4 +1,18 @@
 //! Shared types between the desktop ui and tauri commands.
+pub mod project {
+    pub mod error {
+        use serde::{Deserialize, Serialize};
+        use std::io;
+        use syre_local::error::{IoErrorKind, IoSerde};
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum AnalysesUpdate {
+            AnalysesFile(IoSerde),
+            RemoveFile(#[serde(with = "IoErrorKind")] io::ErrorKind),
+        }
+    }
+}
+
 pub mod container {
     pub mod bulk {
         use super::super::{

@@ -9,9 +9,9 @@ use syre_desktop::{
 fn main() {
     let builder = tauri::Builder::default();
 
-    #[cfg(debug_assertions)] // only enable instrumentation in development builds
-    let builder = builder.plugin(tauri_plugin_devtools::init());
-    #[cfg(not(debug_assertions))]
+    // #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    // let builder = builder.plugin(tauri_plugin_devtools::init());
+    // #[cfg(not(debug_assertions))]
     logging::enable();
 
     builder
@@ -27,7 +27,7 @@ fn main() {
             user::user_projects,
             project::create_project,
             project::project_resources,
-            project::project_analysis_remove_file,
+            project::project_analysis_remove,
             analyses::add_scripts,
             graph::create_child_container,
             graph::add_file_system_resources,

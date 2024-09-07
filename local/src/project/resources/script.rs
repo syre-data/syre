@@ -14,7 +14,7 @@ impl Script {
 
         let mut script = match CoreScript::from_path(path) {
             Ok(script) => script,
-            Err(err) => return Err(CoreError::Script(err).into()),
+            Err(err) => return Err(CoreError::Analysis(err).into()),
         };
 
         script.creator = creator;

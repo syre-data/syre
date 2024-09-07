@@ -321,7 +321,11 @@ mod user {
 
 mod project {
     use super::Config;
-    use crate::{common, query, state, Query};
+    use crate::{
+        common, query,
+        state::{self, Analysis},
+        Query,
+    };
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::types::ResourceId;

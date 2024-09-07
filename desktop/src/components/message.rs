@@ -32,7 +32,7 @@ impl Builder {
     }
 
     pub fn body(&mut self, body: impl IntoView) -> &mut Self {
-        self.body.insert(body.into_view());
+        let _ = self.body.insert(body.into_view());
         self
     }
 

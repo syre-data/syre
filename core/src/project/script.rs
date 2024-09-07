@@ -1,4 +1,4 @@
-use crate::error::ScriptError;
+use crate::error::AnalysisError;
 use crate::types::ResourceId;
 use chrono::prelude::*;
 use has_id::HasId;
@@ -45,10 +45,10 @@ impl Script {
         }
     }
 
-    pub fn from_path(path: impl Into<PathBuf>) -> StdResult<Script, ScriptError> {
+    pub fn from_path(path: impl Into<PathBuf>) -> StdResult<Script, AnalysisError> {
         let path = path.into();
         let Some(file_name) = path.file_name() else {
-            return Err(ScriptError::UnknownLanguage(None));
+            return Err(AnalysisError::UnknownLanguage(None));
         };
 
         let env = ScriptEnv::from_path(Path::new(file_name))?;
@@ -127,17 +127,17 @@ impl ScriptEnv {
     }
 
     /// Creates a new script environment for the given script.
-    pub fn from_path(script: &Path) -> StdResult<Self, ScriptError> {
+    pub fn from_path(script: &Path) -> StdResult<Self, AnalysisError> {
         let path_ext = script.extension();
         if path_ext.is_none() {
-            return Err(ScriptError::UnknownLanguage(None));
+            return Err(AnalysisError::UnknownLanguage(None));
         }
 
         // lang
         let path_ext = path_ext.unwrap();
         let language = ScriptLang::from_extension(path_ext);
         if language.is_none() {
-            return Err(ScriptError::UnknownLanguage(Some(
+            return Err(AnalysisError::UnknownLanguage(Some(
                 path_ext.to_str().unwrap().to_string(),
             )));
         }

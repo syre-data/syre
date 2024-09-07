@@ -1,7 +1,10 @@
+use std::path::PathBuf;
+
 use super::state;
 use crate::types;
 use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
+use syre_core::types::ResourceId;
 use wasm_bindgen::{closure::Closure, JsCast};
 
 #[component]
@@ -10,8 +13,9 @@ pub fn ProjectBar() -> impl IntoView {
 
     view! {
         <div class="flex px-2 py-1">
-            <div class="grow">
+            <div class="grow inline-flex gap-2">
                 <PreviewSelector/>
+                <Analyze />
             </div>
             <div class="grow text-center font-primary">{project.properties().name()}</div>
             <div class="grow"></div>
@@ -244,4 +248,67 @@ fn PreviewSelector() -> impl IntoView {
             </div>
         </div>
     }
+}
+
+#[component]
+fn Analyze() -> impl IntoView {
+    let project = expect_context::<state::Project>();
+    let messages = expect_context::<types::Messages>();
+
+    let trigger_analysis = create_action(move |_| analyze(project.rid().get_untracked(), "/"));
+
+    let mousedown = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
+        trigger_analysis.dispatch(());
+    };
+
+    let _ = watch(
+        move || trigger_analysis.value().get(),
+        move |value, _, _| {
+            let Some(value) = value else {
+                return;
+            };
+            if let Err(err) = value {
+                let mut msg =
+                    crate::components::message::Builder::error("Could not complete analysis.");
+                msg.body(err);
+                messages.update(|messages| messages.push(msg.build()));
+            }
+        },
+        false,
+    );
+
+    view! {
+        <button
+            on:mousedown=mousedown
+            class="btn-primary rounded px-4"
+            disabled={let pending = trigger_analysis.pending();
+                move || pending.get()
+            }
+            >
+            "Analyze"
+            </button>
+    }
+}
+
+async fn analyze(project: ResourceId, root: impl Into<PathBuf>) -> Result<(), String> {
+    #[derive(serde::Serialize)]
+    struct Args {
+        project: ResourceId,
+        root: PathBuf,
+        max_tasks: Option<usize>,
+    }
+
+    tauri_sys::core::invoke_result(
+        "analyze_project",
+        Args {
+            project,
+            root: root.into(),
+            max_tasks: None,
+        },
+    )
+    .await
 }

@@ -1,14 +1,22 @@
 //! A tree graph
 use super::ResourceNode;
-use crate::error::{Graph as GraphError, Resource as ResourceError};
-use crate::types::{ResourceId, ResourceMap};
-use crate::Result;
+use crate::{
+    error::{Graph as GraphError, Resource as ResourceError},
+    project::Container,
+    types::{ResourceId, ResourceMap},
+    Result,
+};
 use has_id::HasId;
 use indexmap::IndexSet;
-use std::collections::hash_map::{Iter, IterMut};
-use std::collections::HashSet;
-use std::fmt;
-use std::result::Result as StdResult;
+use std::{
+    collections::{
+        hash_map::{Iter, IterMut},
+        HashSet,
+    },
+    fmt,
+    path::{Component, Path},
+    result::Result as StdResult,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -453,6 +461,45 @@ where
         write!(f, "{:?}\n{:?}", self.nodes(), self.edges())
     }
 }
+
+impl ResourceTree<Container> {
+    /// Get a node by its path.
+    /// The path is dictated by the container's name.
+    pub fn get_path(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> StdResult<Option<&ResourceNode<Container>>, InvalidPath> {
+        let mut components = path.as_ref().components();
+        let Some(component) = components.next() else {
+            return Err(InvalidPath);
+        };
+
+        if !matches!(component, Component::RootDir) {
+            return Err(InvalidPath);
+        }
+
+        let mut node_id = &self.root;
+        while let Some(component) = components.next() {
+            let Component::Normal(name) = component else {
+                return Err(InvalidPath);
+            };
+
+            let Some(child) = self.children(node_id).unwrap().iter().find(|child| {
+                let node = self.get(child).unwrap();
+                node.properties.name == name.to_str().unwrap()
+            }) else {
+                return Ok(None);
+            };
+
+            node_id = child;
+        }
+
+        Ok(Some(self.get(node_id).unwrap()))
+    }
+}
+
+#[derive(Debug)]
+pub struct InvalidPath;
 
 #[cfg(test)]
 #[path = "./tree_test.rs"]

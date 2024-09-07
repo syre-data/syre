@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, ops::Deref, path::PathBuf};
 use syre_core::{
     project::{
-        AnalysisAssociation, Asset as CoreAsset, ContainerProperties, Project as CoreProject,
+        AnalysisAssociation, Asset as CoreAsset, Container as CoreContainer, ContainerProperties,
+        Project as CoreProject,
     },
     types::ResourceId,
 };
@@ -128,6 +129,37 @@ impl Container {
             .as_ref()
             .map(|props| &props.analyses)
             .map_err(|err| err.clone())
+    }
+
+    /// Creates a `[syre_core::project::Container]`.
+    ///
+    /// # Returns
+    /// `Some` if all states are valid, `None` otherwise.
+    pub fn as_container(&self) -> Option<CoreContainer> {
+        let DataResource::Ok(rid) = self.rid() else {
+            return None;
+        };
+        let DataResource::Ok(properties) = self.properties() else {
+            return None;
+        };
+        let DataResource::Ok(assets) = self.assets() else {
+            return None;
+        };
+        let DataResource::Ok(analyses) = self.analyses() else {
+            return None;
+        };
+
+        let assets = assets
+            .into_iter()
+            .map(|asset| asset.properties.clone())
+            .collect();
+        
+        Some(CoreContainer::from_parts(
+            rid.clone(),
+            properties.clone(),
+            assets,
+            analyses.clone(),
+        ))
     }
 }
 

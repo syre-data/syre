@@ -3,7 +3,6 @@
   "version": "0.11.0",
   "identifier": "ai.syre.desktop",
   "build": {
-    "beforeDevCommand": "trunk serve",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "trunk build",
     "frontendDist": "../dist"

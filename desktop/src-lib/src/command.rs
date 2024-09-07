@@ -3,12 +3,22 @@ pub mod project {
     pub mod error {
         use serde::{Deserialize, Serialize};
         use std::io;
+        use syre_core as core;
         use syre_local::error::{IoErrorKind, IoSerde};
+        use syre_local_runner as runner;
 
         #[derive(Serialize, Deserialize, Debug)]
         pub enum AnalysesUpdate {
             AnalysesFile(IoSerde),
             RemoveFile(#[serde(with = "IoErrorKind")] io::ErrorKind),
+        }
+
+        #[derive(Serialize, Deserialize, derive_more::From, Debug)]
+        pub enum Analyze {
+            GraphAbsent,
+            InvalidGraph,
+            RunnerCreation(runner::error::From),
+            Analysis(core::runner::Error),
         }
     }
 }

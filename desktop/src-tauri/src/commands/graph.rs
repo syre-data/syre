@@ -2,7 +2,7 @@ use std::{fs, io, path::PathBuf};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local as local;
-use syre_local_database as db;
+use syre_local_database::{self as db, common::is_root_path};
 
 #[tauri::command]
 pub fn create_child_container(
@@ -10,7 +10,7 @@ pub fn create_child_container(
     project: ResourceId,
     path: PathBuf,
 ) -> Result<ResourceId, local::project::container::error::Build> {
-    assert!(path.is_absolute());
+    assert!(is_root_path(&path));
     let (project_path, project_state) = db.project().get_by_id(project).unwrap().unwrap();
     let db::state::DataResource::Ok(properties) = project_state.properties() else {
         panic!("invalid state");

@@ -95,7 +95,11 @@ impl Database {
             }
         };
 
-        assert!(!asset_state.is_present());
+        if cfg!(target_os = "windows") {
+            tracing::warn!("asset already present")
+        } else {
+            assert!(!asset_state.is_present());
+        }
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
         let asset_id = asset_state.rid().clone();

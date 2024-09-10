@@ -589,6 +589,7 @@ pub mod graph {
         path::{Path, PathBuf},
         sync::{Arc, Mutex},
     };
+    use syre_core::types::ResourceId;
 
     pub type Node = Arc<Mutex<Container>>;
     pub type EdgeMap = Vec<(Node, Vec<Node>)>;
@@ -818,10 +819,13 @@ pub mod graph {
         /// # Returns
         /// `Err` if path is not absolute or if any special path components are used.
         /// This includes path prefixes, current dir, and parent dir.
-        pub fn find(&self, path: impl AsRef<Path>) -> Result<Option<&Node>, error::InvalidPath> {
+        pub fn find(
+            &self,
+            path: impl AsRef<Path>,
+        ) -> Result<Option<&Node>, crate::error::InvalidPath> {
             let path = path.as_ref();
             if !common::is_root_path(path) {
-                return Err(error::InvalidPath);
+                return Err(crate::error::InvalidPath);
             }
 
             let mut node = &self.root;
@@ -831,7 +835,7 @@ pub mod graph {
                     | std::path::Component::RootDir
                     | std::path::Component::CurDir
                     | std::path::Component::ParentDir => {
-                        return Err(error::InvalidPath);
+                        return Err(crate::error::InvalidPath);
                     }
 
                     std::path::Component::Normal(name) => {
@@ -848,6 +852,18 @@ pub mod graph {
             }
 
             Ok(Some(node))
+        }
+
+        /// Find a container by its id.
+        pub fn find_by_id(&self, container: &ResourceId) -> Option<&Node> {
+            self.nodes.iter().find(|node| {
+                let container_state = node.lock().unwrap();
+                let crate::state::DataResource::Ok(rid) = container_state.rid() else {
+                    return false;
+                };
+
+                rid == container
+            })
         }
 
         /// Remove a subgraph.
@@ -1042,9 +1058,6 @@ pub mod graph {
 
         #[derive(Debug)]
         pub struct NotFound;
-
-        #[derive(Debug)]
-        pub struct InvalidPath;
     }
 }
 

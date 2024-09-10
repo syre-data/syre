@@ -14,7 +14,7 @@ use std::{
         HashSet,
     },
     fmt,
-    path::{Component, Path},
+    path::{Component, Path, PathBuf},
     result::Result as StdResult,
 };
 
@@ -242,7 +242,7 @@ where
         )
     }
 
-    /// Returns the path of ancesetors to the tree root.
+    /// Returns the path of ancestors to the tree root.
     /// Begins with self.
     ///
     /// # Returns
@@ -495,6 +495,33 @@ impl ResourceTree<Container> {
         }
 
         Ok(Some(self.get(node_id).unwrap()))
+    }
+
+    /// Get the path of a node.
+    pub fn path(&self, node: &ResourceId) -> Option<PathBuf> {
+        let ancestors = self.ancestors(node);
+        if ancestors.is_empty() {
+            return None;
+        }
+        if let [ancestor] = &ancestors[..] {
+            let root = self.get(ancestor).unwrap();
+            assert_eq!(root.rid(), &self.root);
+            return Some(PathBuf::from(Component::RootDir.as_os_str()));
+        }
+
+        let path = ancestors
+            .iter()
+            .take(ancestors.len() - 1)
+            .map(|node| {
+                let node = self.get(node).unwrap();
+                let container = node.data();
+                Component::Normal(std::ffi::OsStr::new(&container.properties.name))
+            })
+            .chain(std::iter::once(Component::RootDir))
+            .rev()
+            .collect();
+
+        Some(path)
     }
 }
 

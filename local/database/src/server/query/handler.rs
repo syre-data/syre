@@ -1,7 +1,11 @@
-use crate::{constants, query, server, state, Database};
+use crate::{constants, error, query, server, state, Database};
 use serde_json::Value as JsValue;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use syre_core::{system::User, types::ResourceId};
+use syre_local::error::IoSerde;
 
 impl Database {
     pub fn handle_query_config(&self, query: query::Config) -> JsValue {
@@ -305,10 +309,35 @@ impl Database {
                 let state = self
                     .handle_query_container_get(&project, container)
                     .map(|state| {
+                        state.map(|state| {
+                            let container: std::sync::MutexGuard<'_, state::Container> =
+                                state.lock().unwrap();
+                            (*container).clone()
+                        })
+                    });
+
+                serde_json::to_value(state).unwrap()
+            }
+
+            query::Container::GetById { project, container } => {
+                let state = self
+                    .handle_query_container_get_by_id(&project, &container)
+                    .map(|state| {
                         let container = state.lock().unwrap();
                         (*container).clone()
                     });
 
+                serde_json::to_value(state).unwrap()
+            }
+
+            query::Container::GetForAnalysis { project, container } => {
+                let state = self.handle_query_container_get_for_analysis(&project, &container);
+                serde_json::to_value(state).unwrap()
+            }
+
+            query::Container::GetByIdForAnalysis { project, container } => {
+                let state =
+                    self.handle_query_container_get_by_id_for_analysis(&project, &container);
                 serde_json::to_value(state).unwrap()
             }
         }
@@ -322,7 +351,95 @@ impl Database {
         &self,
         project: &ResourceId,
         container: PathBuf,
+    ) -> Result<Option<&server::state::project::graph::Node>, error::InvalidPath> {
+        let Some(project) = self.state.find_project_by_id(&project) else {
+            return Ok(None);
+        };
+
+        let state::FolderResource::Present(project) = project.fs_resource() else {
+            return Ok(None);
+        };
+
+        let state::FolderResource::Present(graph) = project.graph() else {
+            return Ok(None);
+        };
+
+        graph.find(container)
+    }
+
+    fn handle_query_container_get_by_id(
+        &self,
+        project: &ResourceId,
+        container: &ResourceId,
     ) -> Option<&server::state::project::graph::Node> {
+        let Some(project) = self.state.find_project_by_id(&project) else {
+            return None;
+        };
+
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            return None;
+        };
+
+        let state::FolderResource::Present(graph) = project_state.graph() else {
+            return None;
+        };
+
+        graph.nodes().iter().find(|node| {
+            let container_state = node.lock().unwrap();
+            let state::DataResource::Ok(rid) = container_state.rid() else {
+                return false;
+            };
+
+            rid == container
+        })
+    }
+
+    /// # Arguments
+    /// 1. `project`: Project id.
+    /// 2. `container`: Absolute path to the container from the graph root.
+    /// The root container has the root path.
+    ///
+    /// # Returns
+    /// Container shaped for use in an analysis script with folded metadata.
+    /// Error is a tuple of (container, ancestors) where container is the state of the container,
+    /// and ancestors is a list of ancestor property states.
+    fn handle_query_container_get_for_analysis(
+        &self,
+        project: &ResourceId,
+        container: impl AsRef<Path>,
+    ) -> Result<
+        Option<Result<ContainerForAnalysis, (error::ContainerState, Vec<Option<IoSerde>>)>>,
+        error::InvalidPath,
+    > {
+        let Some(project) = self.state.find_project_by_id(&project) else {
+            return Ok(None);
+        };
+
+        let state::FolderResource::Present(project) = project.fs_resource() else {
+            return Ok(None);
+        };
+
+        let state::FolderResource::Present(graph) = project.graph() else {
+            return Ok(None);
+        };
+
+        graph.find(container).map(|container| {
+            container.map(|container| {
+                self.container_for_analysis(graph.ancestors(container))
+                    .unwrap()
+            })
+        })
+    }
+
+    /// # Returns
+    /// Container shaped for use in an analysis script with folded metadata.
+    /// Error is a tuple of (container, ancestors) where container is the state of the container,
+    /// and ancestors is a list of ancestor property states.
+    fn handle_query_container_get_by_id_for_analysis(
+        &self,
+        project: &ResourceId,
+        container: &ResourceId,
+    ) -> Option<Result<ContainerForAnalysis, (error::ContainerState, Vec<Option<IoSerde>>)>> {
         let Some(project) = self.state.find_project_by_id(&project) else {
             return None;
         };
@@ -335,6 +452,129 @@ impl Database {
             return None;
         };
 
-        graph.find(container).unwrap()
+        graph.find_by_id(container).map(|container| {
+            self.container_for_analysis(graph.ancestors(container))
+                .unwrap()
+        })
     }
+
+    /// # Returns
+    /// Container shaped for use in an analysis script with folded metadata.
+    /// `None` if `ancestors` is empty.
+    /// Error is a tuple of (container, ancestors) where container is the state of the container,
+    /// and ancestors is a list of ancestor property states.
+    fn container_for_analysis(
+        &self,
+        ancestors: Vec<server::state::project::graph::Node>,
+    ) -> Option<Result<ContainerForAnalysis, (error::ContainerState, Vec<Option<IoSerde>>)>> {
+        if ancestors.is_empty() {
+            return None;
+        }
+
+        let container = ancestors[0].lock().unwrap();
+        let container = (*container).clone();
+        let container_props = match (
+            container.properties(),
+            container.settings(),
+            container.assets(),
+        ) {
+            (
+                state::DataResource::Ok(properties),
+                state::DataResource::Ok(_settings),
+                state::DataResource::Ok(assets),
+            ) => Ok((properties, assets)),
+
+            (properties, settings, assets) => {
+                let properties = match properties {
+                    Ok(_) => None,
+                    Err(err) => Some(err),
+                };
+
+                let settings = match settings {
+                    Ok(_) => None,
+                    Err(err) => Some(err),
+                };
+
+                let assets = match assets {
+                    Ok(_) => None,
+                    Err(err) => Some(err),
+                };
+                Err(error::ContainerState {
+                    properties,
+                    settings,
+                    assets,
+                })
+            }
+        };
+
+        let metadata = ancestors
+            .iter()
+            .skip(1)
+            .map(|node| {
+                let container = node.lock().unwrap();
+                container
+                    .properties()
+                    .map(|properties| properties.metadata.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let metadata = if metadata.iter().any(|md| md.is_err()) {
+            Err(metadata
+                .into_iter()
+                .map(|md| match md {
+                    Ok(_) => None,
+                    Err(err) => Some(err),
+                })
+                .collect::<Vec<_>>())
+        } else {
+            let mut md = HashMap::new();
+            metadata
+                .into_iter()
+                .rev()
+                .map(|md| md.unwrap())
+                .fold((), |_, metadata| {
+                    md.extend(metadata);
+                });
+
+            Ok(md)
+        };
+
+        let container = match (container_props, metadata) {
+            (Ok((container_props, assets)), Ok(mut metadata)) => {
+                let mut properties = container_props.clone();
+                metadata.extend(properties.metadata.clone());
+                properties.metadata = metadata;
+
+                let assets = assets
+                    .iter()
+                    .map(|asset| asset.properties.clone())
+                    .collect();
+
+                Ok(ContainerForAnalysis {
+                    rid: container.rid().unwrap().clone(),
+                    properties,
+                    assets,
+                })
+            }
+            (Ok(_), Err(metadata)) => Err((
+                error::ContainerState {
+                    properties: None,
+                    settings: None,
+                    assets: None,
+                },
+                metadata,
+            )),
+            (Err(container), Ok(_)) => Err((container, vec![])),
+            (Err(container), Err(metadata)) => Err((container, metadata)),
+        };
+
+        Some(container)
+    }
+}
+
+#[derive(serde::Serialize, Debug)]
+struct ContainerForAnalysis {
+    rid: ResourceId,
+    properties: syre_core::project::ContainerProperties,
+    assets: Vec<syre_core::project::Asset>,
 }

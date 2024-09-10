@@ -344,6 +344,7 @@ pub mod graph {
     use std::{
         cell::RefCell,
         ffi::OsString,
+        num::NonZeroUsize,
         ops::Deref,
         path::{Component, Path, PathBuf},
         rc::Rc,
@@ -367,8 +368,8 @@ pub mod graph {
         /// 4. `sibling_index`: Index amongst siblings.
         pub fn new(
             container: db::state::Container,
-            subtree_width: usize,
-            subtree_height: usize,
+            subtree_width: NonZeroUsize,
+            subtree_height: NonZeroUsize,
             sibling_index: usize,
         ) -> Self {
             Self {
@@ -381,11 +382,11 @@ pub mod graph {
             &self.state
         }
 
-        pub fn subtree_height(&self) -> ReadSignal<usize> {
+        pub fn subtree_height(&self) -> ReadSignal<NonZeroUsize> {
             self.graph.subtree_height.read_only()
         }
 
-        pub fn subtree_width(&self) -> ReadSignal<usize> {
+        pub fn subtree_width(&self) -> ReadSignal<NonZeroUsize> {
             self.graph.subtree_width.read_only()
         }
 
@@ -403,15 +404,19 @@ pub mod graph {
 
     #[derive(Clone, Debug)]
     pub struct GraphData {
-        subtree_width: RwSignal<usize>,
-        subtree_height: RwSignal<usize>,
+        subtree_width: RwSignal<NonZeroUsize>,
+        subtree_height: RwSignal<NonZeroUsize>,
 
         /// Index amongst siblings.
         sibling_index: RwSignal<usize>,
     }
 
     impl GraphData {
-        pub fn new(subtree_width: usize, subtree_height: usize, sibling_index: usize) -> Self {
+        pub fn new(
+            subtree_width: NonZeroUsize,
+            subtree_height: NonZeroUsize,
+            sibling_index: usize,
+        ) -> Self {
             Self {
                 subtree_width: create_rw_signal(subtree_width),
                 subtree_height: create_rw_signal(subtree_height),
@@ -419,11 +424,11 @@ pub mod graph {
             }
         }
 
-        pub(self) fn set_subtree_width(&self, width: usize) {
+        pub(self) fn set_subtree_width(&self, width: NonZeroUsize) {
             self.subtree_width.set(width);
         }
 
-        pub(self) fn set_subtree_height(&self, height: usize) {
+        pub(self) fn set_subtree_height(&self, height: NonZeroUsize) {
             self.subtree_height.set(height);
         }
 
@@ -516,9 +521,13 @@ pub mod graph {
             }
         }
 
+        /// # Arguments
+        /// `root`: Index of the subtree's root.
+        /// `graph`: Graph edges as indices.
+        ///
         /// # Returns
-        /// Tuple of (subgraph width, subgraph height) for the given node.
-        fn graph_data(root: usize, graph: &Vec<Vec<usize>>) -> (usize, usize) {
+        /// Tuple of `(subgraph width, subgraph height)` for the given node.
+        fn graph_data(root: usize, graph: &Vec<Vec<usize>>) -> (NonZeroUsize, NonZeroUsize) {
             use std::cmp;
 
             let children_data = graph[root]
@@ -526,8 +535,18 @@ pub mod graph {
                 .map(|child| Self::graph_data(*child, graph))
                 .collect::<Vec<_>>();
 
-            let width = cmp::max(children_data.iter().map(|data| data.0).sum(), 1);
-            let height = children_data.iter().map(|data| data.1).max().unwrap_or(0) + 1;
+            let width = children_data
+                .iter()
+                .map(|data| data.0)
+                .reduce(|total, width| total.checked_add(width.get()).unwrap())
+                .unwrap_or(NonZeroUsize::new(1).unwrap());
+
+            let height = children_data
+                .iter()
+                .map(|data| data.1)
+                .max()
+                .map(|height| height.checked_add(1).unwrap())
+                .unwrap_or(NonZeroUsize::new(1).unwrap());
 
             (width, height)
         }
@@ -772,7 +791,13 @@ pub mod graph {
             };
 
             parent.graph.subtree_height.update(|height| {
-                *height = cmp::max(height.clone(), root.subtree_height().get_untracked() + 1)
+                *height = cmp::max(
+                    height.clone(),
+                    root.subtree_height()
+                        .get_untracked()
+                        .checked_add(1)
+                        .unwrap(),
+                )
             });
             for ancestor in self.ancestors(&parent).iter().skip(1) {
                 let height = ancestor.subtree_height().get_untracked();
@@ -788,7 +813,8 @@ pub mod graph {
                     .into_iter()
                     .max()
                     .unwrap()
-                    + 1;
+                    .checked_add(1)
+                    .unwrap();
 
                 if height_new > height {
                     ancestor.graph.set_subtree_height(height_new);
@@ -805,7 +831,7 @@ pub mod graph {
                 if siblings.with_untracked(|siblings| siblings.is_empty()) {
                     *width = root_width;
                 } else {
-                    *width = *width + root_width;
+                    *width = width.checked_add(root_width.get()).unwrap();
                 }
             });
             for ancestor in self.ancestors(&parent).iter().skip(1) {
@@ -814,7 +840,7 @@ pub mod graph {
                     children
                         .iter()
                         .map(|child| child.subtree_width().get_untracked())
-                        .reduce(|sum, width| sum + width)
+                        .reduce(|total, width| total.checked_add(width.get()).unwrap())
                         .unwrap()
                 });
 
@@ -869,27 +895,47 @@ pub mod graph {
             let descendants = self.descendants(&root);
             assert!(!descendants.is_empty());
 
-            let root_width = root.graph.subtree_width.get_untracked();
-            let delta_height = cmp::min(
+            let root_width = root.graph.subtree_width.get_untracked().get();
+            let parent_width = parent
+                .with_untracked(|parent| parent.subtree_width().get_untracked())
+                .get();
+            let delta_width = if root_width == 1 && parent_width == 1 {
+                0
+            } else if root_width == parent_width {
+                root_width - 1
+            } else {
+                root_width
+            };
+
+            let delta_height = cmp::max(
                 root.graph.subtree_height.with_untracked(|height| {
-                    parent.with_untracked(|parent| {
-                        self.children(parent).unwrap().with_untracked(|children| {
-                            children
+                    let sibling_height_max = parent.with_untracked(|parent| {
+                        self.children(parent).unwrap().with_untracked(|siblings| {
+                            siblings
                                 .iter()
-                                .map(|child| child.graph.subtree_height.get_untracked())
+                                .filter_map(|sibling| {
+                                    if Node::ptr_eq(sibling, &root) {
+                                        None
+                                    } else {
+                                        Some(sibling.graph.subtree_height.get_untracked())
+                                    }
+                                })
                                 .max()
-                                .unwrap()
+                                .map(|sibling_max_height| sibling_max_height.get())
+                                .unwrap_or(0)
                         })
-                    }) - height
+                    });
+
+                    height.get() as isize - sibling_height_max as isize
                 }),
                 0,
-            );
+            ) as usize;
 
             parent.with_untracked(|parent| {
-                self.children(parent).unwrap().with_untracked(|children| {
+                self.children(parent).unwrap().with_untracked(|siblings| {
                     root.graph.sibling_index.with_untracked(|root_index| {
-                        for child in children.iter().skip(root_index + 1) {
-                            child.graph.sibling_index.update(|index| {
+                        for sibling in siblings.iter().skip(root_index + 1) {
+                            sibling.graph.sibling_index.update(|index| {
                                 *index -= 1;
                             })
                         }
@@ -897,19 +943,25 @@ pub mod graph {
                 })
             });
 
-            for ancestor in self.ancestors(&root).iter().skip(1) {
-                ancestor
-                    .graph
-                    .subtree_width
-                    .update(|width| *width -= root_width);
-
-                ancestor
-                    .graph
-                    .subtree_height
-                    .update(|height| *height += delta_height);
+            if delta_width > 0 {
+                for ancestor in self.ancestors(&root).iter().skip(1) {
+                    ancestor.graph.subtree_width.update(|width| {
+                        let val = width.get() - delta_width;
+                        *width = NonZeroUsize::new(val).unwrap();
+                    });
+                }
             }
 
-            // NB: Parents do not update signal when removed.
+            if delta_height > 0 {
+                for ancestor in self.ancestors(&root).iter().skip(1) {
+                    ancestor.graph.subtree_height.update(|height| {
+                        let val = height.get() - delta_height;
+                        *height = NonZeroUsize::new(val).unwrap()
+                    });
+                }
+            }
+
+            // NB: Parents do not update signal when child is removed.
             self.parents.borrow_mut().retain(|(child, _)| {
                 !descendants
                     .iter()
@@ -932,7 +984,7 @@ pub mod graph {
 
             self.nodes.update(|nodes| {
                 nodes.retain(|node| {
-                    descendants
+                    !descendants
                         .iter()
                         .any(|descendant| Node::ptr_eq(node, descendant))
                 })

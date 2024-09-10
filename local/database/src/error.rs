@@ -8,6 +8,16 @@ use thiserror::Error;
 #[cfg(feature = "server")]
 use crate::types::SocketType;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InvalidPath;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ContainerState {
+    pub properties: Option<IoSerde>,
+    pub settings: Option<IoSerde>,
+    pub assets: Option<IoSerde>,
+}
+
 /// [`Database`](crate::db) related errors.
 #[derive(Serialize, Deserialize, Error, Debug)]
 pub enum Error {

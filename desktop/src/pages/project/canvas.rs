@@ -15,7 +15,7 @@ use leptos::{
     *,
 };
 use leptos_icons::*;
-use std::{cmp, ops::Deref, rc::Rc};
+use std::{cmp, num::NonZeroUsize, ops::Deref, rc::Rc};
 use syre_core::{project::AnalysisAssociation, types::ResourceId};
 use syre_local as local;
 use syre_local_database as db;
@@ -263,11 +263,11 @@ fn CanvasView(
 
                 let x = vb_x() - dx;
                 let y = vb_y() - dy;
-                let x_max = (graph.root().subtree_width().get()
+                let x_max = (graph.root().subtree_width().get().get()
                     * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as i32
                     - vb_width() / 2;
                 let y_max = cmp::max(
-                    (graph.root().subtree_height().get()
+                    (graph.root().subtree_height().get().get()
                         * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as i32
                         - vb_height() / 2,
                     0,
@@ -371,8 +371,9 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     let width = {
         let root = root.clone();
         move || {
-            root.subtree_width()
-                .with(|width| width * (CONTAINER_WIDTH + PADDING_X_SIBLING) - PADDING_X_SIBLING)
+            root.subtree_width().with(|width| {
+                width.get() * (CONTAINER_WIDTH + PADDING_X_SIBLING) - PADDING_X_SIBLING
+            })
         }
     };
 
@@ -380,7 +381,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         let root = root.clone();
         move || {
             let tree_height = root.subtree_height().get();
-            let height = tree_height * (container_height() + PADDING_Y_CHILDREN)
+            let height = tree_height.get() * (container_height() + PADDING_Y_CHILDREN)
                 - PADDING_Y_CHILDREN
                 + RADIUS_ADD_CHILD;
 
@@ -399,7 +400,9 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                                 .iter()
                                 .take(*index)
                                 .map(|sibling| sibling.subtree_width().get())
-                                .sum::<usize>()
+                                .reduce(|total, width| total.checked_add(width.get()).unwrap())
+                                .map(|width| width.get())
+                                .unwrap_or(0)
                         })
                     })
                 })
@@ -430,14 +433,16 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
             .iter()
             .take(index)
             .map(|child| child.subtree_width().get())
-            .sum::<usize>()
+            .reduce(|total, width| total.checked_add(width.get()).unwrap())
+            .map(|width| width.get())
+            .unwrap_or(0)
     }
 
     let line_points = {
         let x_node = x_node.clone();
         let children = children.clone();
         move |sibling_index: ReadSignal<usize>,
-              subtree_width: ReadSignal<usize>,
+              subtree_width: ReadSignal<NonZeroUsize>,
               container_height: ReadSignal<usize>| {
             let x_node = x_node.clone();
             move || {
@@ -447,10 +452,10 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                     container_height() as i32 + (PADDING_Y_CHILDREN / 2) as i32,
                     0,
                 );
-                let child_y = container_height() + PADDING_Y_CHILDREN;
+                let child_y = container_height().checked_add(PADDING_Y_CHILDREN).unwrap();
                 let child_x_offset =
                     children.with(|children| x_child_offset(sibling_index.get(), children));
-                let child_x = (child_x_offset + subtree_width.get() / 2)
+                let child_x = (child_x_offset + subtree_width.get().get() / 2)
                     * (CONTAINER_WIDTH + PADDING_X_SIBLING)
                     + CONTAINER_WIDTH / 2;
                 format!(
@@ -852,6 +857,7 @@ fn ContainerOk(
 
             let data = e.data_transfer().unwrap();
             let data = data.get_data(common::APPLICATION_JSON).unwrap();
+            tracing::debug!(?data);
             let action = serde_json::from_str::<actions::container::Action>(&data).unwrap();
             match action {
                 actions::container::Action::AddAnalysisAssociation(analysis) => {

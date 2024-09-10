@@ -162,6 +162,8 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
             .unwrap();
 
             while let Some(events) = listener.next().await {
+                tracing::debug!(?events);
+
                 for event in events.payload {
                     let lib::EventKind::Project(update) = event.kind() else {
                         panic!("invalid event kind");
@@ -631,11 +633,14 @@ fn handle_event_graph_graph(event: lib::Event, graph: state::Graph) {
             parent,
             graph: subgraph,
         } => graph
-            .insert(parent, state::Graph::new(subgraph.clone()))
+            .insert(
+                common::normalize_path_sep(parent),
+                state::Graph::new(subgraph.clone()),
+            )
             .unwrap(),
         db::event::Graph::Renamed { from, to } => graph.rename(from, to).unwrap(),
         db::event::Graph::Moved { from, to } => todo!(),
-        db::event::Graph::Removed(path) => graph.remove(path).unwrap(),
+        db::event::Graph::Removed(path) => graph.remove(common::normalize_path_sep(path)).unwrap(),
     }
 }
 
@@ -663,7 +668,11 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
         panic!("invalid event kind");
     };
 
-    let container = graph.find(path).unwrap().unwrap();
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
     match update {
         db::event::DataResource::Created(_) => todo!(),
         db::event::DataResource::Removed => todo!(),
@@ -809,7 +818,11 @@ fn handle_event_graph_container_assets_modified(event: lib::Event, graph: state:
         panic!("invalid event kind");
     };
 
-    let container = graph.find(path).unwrap().unwrap();
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
     container.assets().update(|assets| {
         let db::state::DataResource::Ok(assets) = assets else {
             panic!("invalid state");

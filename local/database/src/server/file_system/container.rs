@@ -164,18 +164,39 @@ impl Database {
         .unwrap();
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
-        assert_matches!(
-            container_state.properties(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
-        assert_matches!(
-            container_state.settings(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
-        assert_matches!(
-            container_state.assets(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
+        if cfg!(target_os = "windows") {
+            if !matches!(
+                container_state.properties(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("container properties already exists");
+            }
+            if !matches!(
+                container_state.settings(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("container settings already exists");
+            }
+            if !matches!(
+                container_state.assets(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("container assets already exists");
+            }
+        } else {
+            assert_matches!(
+                container_state.properties(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+            assert_matches!(
+                container_state.settings(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+            assert_matches!(
+                container_state.assets(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+        }
         drop(container_state);
 
         let loader::container::State {
@@ -559,9 +580,71 @@ impl Database {
             panic!("invalid event kind");
         };
 
-        if matches!(kind, event::ModifiedKind::Other) {
+        match kind {
+            event::ModifiedKind::Data => {
+                self.handle_fs_event_container_properties_modified_data(event)
+            }
+            event::ModifiedKind::Other => {
+                self.handle_fs_event_container_properties_modified_other(event)
+            }
+        }
+    }
+
+    fn handle_fs_event_container_properties_modified_data(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Container(event::Container::Properties(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
+            )),
+        );
+
+        self.handle_container_properties_modified(event)
+    }
+
+    fn handle_fs_event_container_properties_modified_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Container(event::Container::Properties(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
+            )),
+        );
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        #[cfg(target_os = "windows")]
+        {
+            self.handle_container_properties_modified(event)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
             todo!();
         }
+
+        #[cfg(target_os = "linux")]
+        {
+            todo!();
+        }
+    }
+
+    fn handle_container_properties_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Container(event::Container::Properties(
+            event::StaticResourceEvent::Modified(kind),
+        )) = event.kind()
+        else {
+            panic!("invalid event kind");
+        };
 
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
@@ -832,10 +915,62 @@ impl Database {
             panic!("invalid event kind");
         };
 
-        if matches!(kind, event::ModifiedKind::Other) {
+        match kind {
+            event::ModifiedKind::Data => {
+                self.handle_fs_event_container_settings_modified_data(event)
+            }
+            event::ModifiedKind::Other => {
+                self.handle_fs_event_container_settings_modified_other(event)
+            }
+        }
+    }
+
+    fn handle_fs_event_container_settings_modified_data(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Container(event::Container::Settings(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
+            ))
+        );
+
+        self.handle_container_settings_modified(event)
+    }
+
+    fn handle_fs_event_container_settings_modified_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Container(event::Container::Settings(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Other)
+            ))
+        );
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        #[cfg(target_os = "windows")]
+        {
+            self.handle_container_settings_modified(event)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
             todo!();
         }
 
+        #[cfg(target_os = "linux")]
+        {
+            todo!();
+        }
+    }
+
+    fn handle_container_settings_modified(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -990,10 +1125,19 @@ impl Database {
         let container_graph_path = Path::new("/").join(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
-        assert_matches!(
-            container_state.assets(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
+        if cfg!(target_os = "windows") {
+            if !matches!(
+                container_state.assets(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("asset created event occurred late");
+            }
+        } else {
+            assert_matches!(
+                container_state.assets(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+        }
         drop(container_state);
 
         let assets = loader::container::Loader::load_from_only_assets(base_path);

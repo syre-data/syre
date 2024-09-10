@@ -83,10 +83,49 @@ pub enum Project {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Container {
     /// Retrieve the state of a container.
+    ///
+    /// # Returns
+    /// `Option<[Container](crate::state::Container)>`
     Get {
         project: ResourceId,
 
         /// Relative path to the container from the data root.
         container: PathBuf,
+    },
+
+    /// Retrieve the state of the container.
+    ///
+    /// # Returns
+    /// `Option<[Container](crate::state::Container)>`
+    GetById {
+        project: ResourceId,
+        container: ResourceId,
+    },
+
+    /// Retrieve a container with its ancestor's metadata shaped for use in an analysis script.
+    ///
+    /// # Returns
+    /// Result<
+    ///   Option<Result<
+    ///     ContainerForAnalysis,
+    ///     (error::ContainerState, Vec<Option<IoSerde>>)
+    ///   >>,
+    ///   error::InvalidPath,
+    /// >
+    GetForAnalysis {
+        project: ResourceId,
+        container: PathBuf,
+    },
+
+    /// Retrieve a container with its ancestor's metadata shaped for use in an analysis script.
+    ///
+    /// # Returns
+    /// Option<Result<
+    ///   ContainerForAnalysis,
+    ///   (error::ContainerState, Vec<Option<IoSerde>>)
+    /// >>
+    GetByIdForAnalysis {
+        project: ResourceId,
+        container: ResourceId,
     },
 }

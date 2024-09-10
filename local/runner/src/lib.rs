@@ -10,7 +10,7 @@ use syre_local::{
     system::config::{runner_settings, RunnerSettings},
     types::analysis::AnalysisKind,
 };
-use syre_local_database::{self as db, state};
+use syre_local_database::state;
 
 pub struct Runner {
     analyses: Vec<(ResourceId, AnalysisKind)>,
@@ -24,6 +24,8 @@ impl Runner {
         Ok(Self { analyses })
     }
 
+    /// # Returns
+    /// List of `(id, analysis)`.
     fn create_analyses(
         path: impl AsRef<Path>,
         project_data: &state::ProjectData,
@@ -133,7 +135,11 @@ impl Runner {
 
 impl RunnerHooks for Runner {
     /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
-    fn get_analysis(&self, analysis: ResourceId) -> Result<Box<dyn Runnable>, String> {
+    fn get_analysis(
+        &self,
+        project: ResourceId,
+        analysis: ResourceId,
+    ) -> Result<Box<dyn Runnable>, String> {
         self.analyses
             .iter()
             .find_map(|(id, runner_analysis)| {

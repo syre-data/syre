@@ -381,24 +381,6 @@ impl Database {
             Query::Container(query) => self.handle_query_container(query),
         }
     }
-    // // TODO Handle errors.
-    // /// Handles a given command, returning the correct data.
-    // fn handle_command(&mut self, command: crate::Command) -> JsValue {
-    //     use crate::Command;
-
-    //     tracing::debug!(?command);
-    //     match command {
-    //         Command::Asset(cmd) => self.handle_command_asset(cmd),
-    //         Command::Container(cmd) => self.handle_command_container(cmd),
-    //         Command::Database(cmd) => self.handle_command_database(cmd),
-    //         Command::Project(cmd) => self.handle_command_project(cmd),
-    //         Command::Graph(cmd) => self.handle_command_graph(cmd),
-    //         Command::Analysis(cmd) => self.handle_command_analysis(cmd),
-    //         Command::User(cmd) => self.handle_command_user(cmd),
-    //         Command::Runner(cmd) => self.handle_command_runner(cmd),
-    //         Command::Search(cmd) => self.handle_command_search(cmd),
-    //     }
-    // }
 }
 
 #[cfg(target_os = "windows")]
@@ -414,7 +396,7 @@ mod windows {
             &mut self,
             events: syre_fs_watcher::EventResult,
         ) -> crate::Result {
-            let events = match events {
+            let mut events = match events {
                 Ok(events) => events,
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
             };

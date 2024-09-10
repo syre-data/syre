@@ -112,7 +112,8 @@ pub fn analyze_project(
 ) -> Result<(), lib::command::project::error::Analyze> {
     use lib::command::project::error;
 
-    let (project_path, project_data, graph) = db.project().resources(project).unwrap().unwrap();
+    let (project_path, project_data, graph) =
+        db.project().resources(project.clone()).unwrap().unwrap();
     let db::state::FolderResource::Present(graph) = graph else {
         return Err(error::Analyze::GraphAbsent);
     };
@@ -128,8 +129,8 @@ pub fn analyze_project(
     };
     let root = graph.get_path(&root).unwrap().unwrap().rid().clone();
     match max_tasks {
-        None => runner.from(&mut graph, &root)?,
-        Some(max_tasks) => runner.with_tasks(&mut graph, max_tasks)?,
+        None => runner.from(&project, &mut graph, &root)?,
+        Some(max_tasks) => runner.with_tasks(&project, &mut graph, max_tasks)?,
     }
 
     Ok(())

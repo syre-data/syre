@@ -21,4 +21,4 @@ tracing.workspace = true
 
 syre-core = { workspace = true }
 syre-local = { workspace = true, features = ["fs"] }
-syre-local-database = { workspace = true, features = ["client"] }
+syre-local-database = { workspace = true }

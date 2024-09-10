@@ -1,5 +1,5 @@
 //! Common functions.
-use std::path::{Path, PathBuf, StripPrefixError};
+use std::path::{Component, Path, PathBuf, StripPrefixError};
 
 #[cfg(any(feature = "client", feature = "server"))]
 use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
@@ -70,7 +70,7 @@ pub fn container_graph_path(
     assert!(container.as_ref().is_absolute());
 
     let path = container.as_ref().strip_prefix(data_root.as_ref())?;
-    Ok(Path::new("/").join(path))
+    Ok(Path::new(Component::RootDir.as_os_str()).join(path))
 }
 
 /// Creates the absolute path from the file system root to the container.
@@ -95,7 +95,7 @@ pub fn container_graph_path(
 /// + [`container_graph_path`]
 pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<Path>) -> PathBuf {
     assert!(data_root.as_ref().is_absolute());
-    assert!(container.as_ref().is_absolute());
+    assert!(is_root_path(&container));
 
     data_root
         .as_ref()

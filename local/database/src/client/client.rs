@@ -434,7 +434,7 @@ mod project {
 
 mod container {
     use super::Config;
-    use crate::{common, query, state, Query};
+    use crate::{common, error, query, state, Query};
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::types::ResourceId;
@@ -482,7 +482,7 @@ mod container {
         /// Retrieve the state of a container.
         ///
         /// # Arguments
-        /// 1. `project`: Base path of the project.
+        /// 1. `project`: Project id.
         /// 2. `container`: Absolute path to the container from the data root.
         ///
         /// # Returns
@@ -491,7 +491,7 @@ mod container {
             &self,
             project: ResourceId,
             container: impl Into<PathBuf>,
-        ) -> zmq::Result<Option<state::Container>> {
+        ) -> zmq::Result<Result<Option<state::Container>, error::InvalidPath>> {
             let state = self.send(
                 query::Container::Get {
                     project,
@@ -500,6 +500,23 @@ mod container {
                 .into(),
             )?;
 
+            Ok(serde_json::from_value(state).unwrap())
+        }
+
+        /// Retrieve the state of a container.
+        ///
+        /// # Arguments
+        /// 1. `project`: Project id.
+        /// 2. `container`: Container id.
+        ///
+        /// # Returns
+        /// `None` if the container project or does not exist.
+        pub fn get_by_id(
+            &self,
+            project: ResourceId,
+            container: ResourceId,
+        ) -> zmq::Result<Option<state::Container>> {
+            let state = self.send(query::Container::GetById { project, container }.into())?;
             Ok(serde_json::from_value(state).unwrap())
         }
     }

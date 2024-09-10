@@ -134,15 +134,16 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
     };
 
     let dragstart = {
-        let script = script().rid().clone();
+        let script = script.clone();
         move |e: DragEvent| {
+            let script_id = script().rid().clone();
             let data_transfer = e.data_transfer().unwrap();
             data_transfer.clear_data().unwrap();
             data_transfer
                 .set_data(
                     common::APPLICATION_JSON,
                     &serde_json::to_string(&actions::container::Action::AddAnalysisAssociation(
-                        script.clone(),
+                        script_id,
                     ))
                     .unwrap(),
                 )
@@ -152,7 +153,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
 
     let remove_analysis = {
         let fs_resource = analysis.fs_resource().clone();
-        let script_id = script().rid().clone();
+        let script = script.clone();
         let project = project.clone();
         let messages = messages.clone();
         move |e: MouseEvent| {
@@ -160,6 +161,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                 return;
             }
 
+            let script_id = script().rid().clone();
             let path = project.analyses().with_untracked(|analyses_state| {
                 analyses_state.as_ref().unwrap().with_untracked(|analyses| {
                     analyses

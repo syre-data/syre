@@ -857,8 +857,10 @@ fn ContainerOk(
 
             let data = e.data_transfer().unwrap();
             let data = data.get_data(common::APPLICATION_JSON).unwrap();
-            tracing::debug!(?data);
-            let action = serde_json::from_str::<actions::container::Action>(&data).unwrap();
+            let Ok(action) = serde_json::from_str::<actions::container::Action>(&data) else {
+                tracing::warn!("invalid action: `{}`", data);
+                return;
+            };
             match action {
                 actions::container::Action::AddAnalysisAssociation(analysis) => {
                     handle_container_action_add_analysis_accociation(

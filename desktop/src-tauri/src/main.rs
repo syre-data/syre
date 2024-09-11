@@ -43,6 +43,7 @@ fn main() {
             fs::pick_folder,
             fs::pick_folder_with_location,
             common::open_file,
+            common::target_os,
         ])
         .setup(setup)
         .run(tauri::generate_context!())

@@ -45,11 +45,15 @@ derive_more.workspace = true
 version = "0.3.70"
 features = [
 	"Element",
+	"Event",
+	"EventInit",
+	"EventTarget",
 	"HtmlElement",
 	"HtmlDialogElement",
 	"HtmlDivElement",
 	"HtmlInputElement",
 	"HtmlSelectElement",
+	"HtmlSpanElement",
 	"HtmlCollection",
 	"HtmlOptionElement",
 	"AbortController",

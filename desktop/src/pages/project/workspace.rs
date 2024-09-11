@@ -201,8 +201,13 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
             let window = tauri_sys::window::get_current();
             let mut listener = window.on_drag_drop_event().await.unwrap();
             while let Some(event) = listener.next().await {
+                tracing::debug!(?event);
                 match event.payload {
                     DragDropEvent::Enter(payload) => {
+                        if payload.paths().is_empty() {
+                            return;
+                        }
+
                         let resource = resource_from_position(payload.position()).await;
                         set_drag_over_workspace_resource(resource.into());
                     }
@@ -1002,7 +1007,10 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
         panic!("invalid event kind");
     };
 
-    let container = graph.find(container).unwrap().unwrap();
+    let container = graph
+        .find(common::normalize_path_sep(container))
+        .unwrap()
+        .unwrap();
     let fs_resource = container.assets().with_untracked(|assets| {
         let db::state::DataResource::Ok(assets) = assets else {
             todo!();

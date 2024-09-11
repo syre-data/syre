@@ -6,6 +6,18 @@
     <link data-trunk rel="css" href="styles/output.css" />
     <link data-trunk rel="copy-dir" href="public" />
     <link data-trunk rel="rust" data-wasm-opt="z" data-keep-debug />
+
+    <script>
+      (function() {
+        let platform = navigator.platform.toLowerCase();
+        if (platform.startsWith("win")) {
+          const DRAG_DROP_POLYFILL_SRC = "public/scripts/dragdrop.webview2.polyfill.js";
+          let dragDropPolyfill = document.createElement("script");
+          dragDropPolyfill.setAttribute("src", DRAG_DROP_POLYFILL_SRC);
+          document.head.appendChild(dragDropPolyfill);
+        }
+      })();
+    </script>
   </head>
   <body class="h-screen font-secondary overflow-hidden dark:bg-secondary-800 dark:text-white">
   </body>

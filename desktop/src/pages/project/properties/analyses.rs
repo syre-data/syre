@@ -224,17 +224,57 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
         }
     };
 
+    // // --- for windows drag drop ---
+    // // based on `https://gist.github.com/iain-fraser/01d35885477f4e29a5a638364040d4f2`.
+    // let node_ref = create_node_ref();
+    // let drag_drop_windows = move || {
+    //     let node = node_ref.get().unwrap();
+    //     let node = node.downcast_ref::<web_sys::HtmlSpanElement>();
+    //     let event_init = web_sys::EventInit::new();
+    //     event_init.set_bubbles(true);
+    //     event_init.set_cancelable(true);
+    //     let event = web_sys::Event::new_with_event_init_dict("dragstart", &event_init).unwrap();
+
+    //     node.dispatch_event(event).unwrap();
+    // };
+
+    // let init_drag_drop_windows = move |e: MouseEvent| {
+    //     if e.button() != types::MouseButton::Primary as i16 {
+    //         return;
+    //     }
+
+    //     let drag_drop_windows = drag_drop_windows.clone();
+    //     spawn_local(async move {
+    //         let target_os = tauri_sys::core::invoke::<String>("target_os", ()).await;
+    //         if target_os == "windows" {
+    //             drag_drop_windows();
+    //         }
+    //     });
+    // };
+    // // --- end for windows drag drop ---
+
     // TODO: Indicate file presence.
     view! {
-        <div class="flex cursor-pointer" on:dragstart=dragstart draggable="true">
-            <span class="grow">{title}</span>
+        <div
+            class="flex cursor-pointer"
+            on:dragstart=dragstart
+            draggable="true"
+            // for windows drag drop
+            // on:mousedown=init_drag_drop_windows
+            // end for windows drag drop
+        >
+            <span
+            // for windows drag drop
+            // ref=node_ref
+            // end for windows drag drop
+            class="grow">{title}</span>
             <span>
                 <button
                     type="button"
                     title=absent_title
                     on:mousedown=remove_analysis
                     class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
-                    >
+                >
                     <Icon icon=icondata::AiMinusOutlined/>
                 </button>
             </span>

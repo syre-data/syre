@@ -1,7 +1,7 @@
 use leptos::*;
 
 #[component]
-pub fn TruncateLeft(children: Children, #[prop(optional)] class: TextProp) -> impl IntoView {
+pub fn TruncateLeft(children: Children, #[prop(optional, into)] class: TextProp) -> impl IntoView {
     let classes = {
         let class = class.clone();
         move || format!("truncate-rtl {}", class.get())

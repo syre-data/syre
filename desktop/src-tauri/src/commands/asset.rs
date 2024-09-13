@@ -4,7 +4,7 @@ use std::{
 };
 use syre_core::{
     project::{Asset, AssetProperties},
-    types::ResourceId,
+    types::{data, ResourceId},
 };
 use syre_desktop_lib::{
     self as lib,
@@ -149,4 +149,26 @@ fn update_asset(asset: &mut Asset, update: &bulk::PropertiesUpdate) {
         .properties
         .metadata
         .extend(update.metadata.insert.clone());
+}
+
+/// Remove an asset's file.
+///
+/// # Arguments
+/// `project`: Project id.
+/// `container`: Container path.
+/// `asset`: Asset path.
+#[tauri::command]
+pub fn asset_remove_file(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    container: PathBuf,
+    asset: PathBuf,
+) -> Result<(), lib::command::error::IoErrorKind> {
+    let (project_path, project_data) = db.project().get_by_id(project).unwrap().unwrap();
+    let data_root = &project_data.properties().as_ref().unwrap().data_root;
+    let data_root = project_path.join(data_root);
+    let asset_path = container.join(asset);
+    let path = lib::utils::join_path_absolute(data_root, asset_path);
+
+    fs::remove_file(path).map_err(|err| err.into())
 }

@@ -39,6 +39,7 @@ fn main() {
             container::container_analysis_associations_update,
             asset::asset_properties_update,
             asset::asset_properties_update_bulk,
+            asset::asset_remove_file,
             bulk::properties_update_bulk,
             fs::pick_folder,
             fs::pick_folder_with_location,
@@ -50,16 +51,15 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+#[cfg(not(debug_assertions))]
 mod logging {
     use tracing_subscriber::{
-        filter::LevelFilter,
         fmt::{self, time::UtcTime},
         prelude::*,
         Layer, Registry,
     };
 
     const LOG_PREFIX: &str = "desktop.log";
-    const MAX_LOG_LEVEL: LevelFilter = LevelFilter::DEBUG;
 
     pub fn enable() {
         let config_dir = syre_local::system::common::config_dir_path().unwrap();

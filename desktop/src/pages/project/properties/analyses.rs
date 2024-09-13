@@ -1,21 +1,36 @@
 use super::super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
 use crate::{
-    common,
+    commands, common,
     components::message::Builder as Message,
     pages::project::{actions, state},
     types,
 };
+use futures::StreamExt;
 use leptos::{
     ev::{DragEvent, MouseEvent},
     *,
 };
 use leptos_icons::Icon;
 use serde::Serialize;
-use std::path::PathBuf;
-use syre_core as core;
+use std::{path::PathBuf, rc::Rc};
+use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
+use tauri_sys::{core::Channel, menu};
+
+/// Context menu for analyses that are `Ok`.
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuAnalysesOk(Rc<menu::Menu>);
+impl ContextMenuAnalysesOk {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
+/// Active analysis for the analysis context menu.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveAnalysis(ResourceId);
 
 #[component]
 pub fn Editor() -> impl IntoView {
@@ -24,10 +39,10 @@ pub fn Editor() -> impl IntoView {
     move || {
         project.analyses().with(|analyses| match analyses {
             db::state::DataResource::Ok(analyses) => {
-                view! { <AnalysesOk analyses=analyses.read_only()/> }
+                view! { <AnalysesOk analyses=analyses.read_only() /> }
             }
 
-            db::state::DataResource::Err(err) => view! { <AnalysesErr error=err.clone()/> },
+            db::state::DataResource::Err(err) => view! { <AnalysesErr error=err.clone() /> },
         })
     }
 }
@@ -48,11 +63,49 @@ fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
 
 #[component]
 fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoView {
+    let project = expect_context::<state::Project>();
+    let messages = expect_context::<types::Messages>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
+
+    let context_menu_active_analysis = create_rw_signal::<Option<ContextMenuActiveAnalysis>>(None);
+    provide_context(context_menu_active_analysis.clone());
+
     let highlight = move || {
         drag_over_workspace_resource
             .with(|resource| matches!(resource.as_ref(), Some(WorkspaceResource::Analyses)))
     };
+
+    let context_menu_analyses_ok = create_local_resource(|| (), {
+        let project = project.clone();
+        let messages = messages.clone();
+
+        move |_| {
+            let project = project.clone();
+            let messages = messages.clone();
+            async move {
+                let mut analysis_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
+                analysis_open.set_id("analyses:open");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "analyses:context_menu",
+                    vec![analysis_open.into()],
+                )
+                .await;
+
+                spawn_local({
+                    let analysis_open = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_analyses_events(
+                        project,
+                        messages,
+                        context_menu_active_analysis.read_only(),
+                        analysis_open,
+                    )
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
 
     view! {
         <div class=(["border-4", "border-blue-400"], highlight) class="h-full">
@@ -60,28 +113,54 @@ fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoV
                 <h3 class="font-primary">"Analyses"</h3>
             </div>
             <div class="px-1">
-                <Show
-                    when=move || analyses.with(|analyses| !analyses.is_empty())
-                    fallback=move || view! { <NoAnalyses/> }
-                >
-                    <For
-                        each=analyses
-                        key=|analysis| {
-                            analysis
-                                .properties()
-                                .with_untracked(|properties| match properties {
-                                    AnalysisKind::Script(script) => script.rid().clone(),
-                                    AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
-                                })
-                        }
-
-                        let:analysis
-                    >
-                        <Analysis analysis/>
-                    </For>
-                </Show>
+                <Suspense fallback=move || {
+                    view! { <AnalysesLoading /> }
+                }>
+                    {move || {
+                        let Some(context_menu_analyses_ok) = context_menu_analyses_ok.get() else {
+                            return None;
+                        };
+                        Some(view! { <AnalysesOkView analyses context_menu_analyses_ok /> })
+                    }}
+                </Suspense>
             </div>
         </div>
+    }
+}
+
+#[component]
+fn AnalysesLoading() -> impl IntoView {
+    view! { <div class="text-center">"Loading analyses"</div> }
+}
+
+#[component]
+fn AnalysesOkView(
+    analyses: ReadSignal<Vec<state::project::Analysis>>,
+    context_menu_analyses_ok: Rc<menu::Menu>,
+) -> impl IntoView {
+    provide_context(ContextMenuAnalysesOk::new(context_menu_analyses_ok));
+
+    view! {
+        <Show
+            when=move || analyses.with(|analyses| !analyses.is_empty())
+            fallback=move || view! { <NoAnalyses /> }
+        >
+            <For
+                each=analyses
+                key=|analysis| {
+                    analysis
+                        .properties()
+                        .with_untracked(|properties| match properties {
+                            AnalysisKind::Script(script) => script.rid().clone(),
+                            AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
+                        })
+                }
+
+                let:analysis
+            >
+                <Analysis analysis />
+            </For>
+        </Show>
     }
 }
 
@@ -95,10 +174,10 @@ fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
     move || {
         analysis.properties().with(|properties| match properties {
             AnalysisKind::Script(_) => {
-                view! { <ScriptView analysis=analysis.clone()/> }
+                view! { <ScriptView analysis=analysis.clone() /> }
             }
             AnalysisKind::ExcelTemplate(template) => {
-                view! { <ExcelTemplateView template=template.clone()/> }
+                view! { <ExcelTemplateView template=template.clone() /> }
             }
         })
     }
@@ -108,6 +187,9 @@ fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
 fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();
+    let context_menu = expect_context::<ContextMenuAnalysesOk>();
+    let context_menu_active_analysis =
+        expect_context::<RwSignal<Option<ContextMenuActiveAnalysis>>>();
 
     let script = {
         let properties = analysis.properties().clone();
@@ -224,50 +306,32 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
         }
     };
 
-    // // --- for windows drag drop ---
-    // // based on `https://gist.github.com/iain-fraser/01d35885477f4e29a5a638364040d4f2`.
-    // let node_ref = create_node_ref();
-    // let drag_drop_windows = move || {
-    //     let node = node_ref.get().unwrap();
-    //     let node = node.downcast_ref::<web_sys::HtmlSpanElement>();
-    //     let event_init = web_sys::EventInit::new();
-    //     event_init.set_bubbles(true);
-    //     event_init.set_cancelable(true);
-    //     let event = web_sys::Event::new_with_event_init_dict("dragstart", &event_init).unwrap();
+    let contextmenu = {
+        let script = script.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
 
-    //     node.dispatch_event(event).unwrap();
-    // };
+            context_menu_active_analysis.update(|active_analysis| {
+                let id = script().rid().clone();
+                let _ = active_analysis.insert(id.into());
+            });
 
-    // let init_drag_drop_windows = move |e: MouseEvent| {
-    //     if e.button() != types::MouseButton::Primary as i16 {
-    //         return;
-    //     }
-
-    //     let drag_drop_windows = drag_drop_windows.clone();
-    //     spawn_local(async move {
-    //         let target_os = tauri_sys::core::invoke::<String>("target_os", ()).await;
-    //         if target_os == "windows" {
-    //             drag_drop_windows();
-    //         }
-    //     });
-    // };
-    // // --- end for windows drag drop ---
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
+    };
 
     // TODO: Indicate file presence.
     view! {
         <div
             class="flex cursor-pointer"
             on:dragstart=dragstart
+            on:contextmenu=contextmenu
             draggable="true"
-            // for windows drag drop
-            // on:mousedown=init_drag_drop_windows
-            // end for windows drag drop
         >
-            <span
-            // for windows drag drop
-            // ref=node_ref
-            // end for windows drag drop
-            class="grow">{title}</span>
+            <span class="grow">{title}</span>
             <span>
                 <button
                     type="button"
@@ -275,7 +339,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                     on:mousedown=remove_analysis
                     class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                 >
-                    <Icon icon=icondata::AiMinusOutlined/>
+                    <Icon icon=icondata::AiMinusOutlined />
                 </button>
             </span>
         </div>
@@ -300,4 +364,65 @@ async fn remove_analysis(
     }
 
     tauri_sys::core::invoke_result("project_analysis_remove", Args { project, path }).await
+}
+
+async fn handle_context_menu_analyses_events(
+    project: state::Project,
+    messages: types::Messages,
+    context_menu_active_analysis: ReadSignal<Option<ContextMenuActiveAnalysis>>,
+    analysis_open: Channel<String>,
+) {
+    let mut analysis_open = analysis_open.fuse();
+    loop {
+        futures::select! {
+            event = analysis_open.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let analysis_root = project
+                        .path()
+                        .get_untracked()
+                        .join(project.properties().analysis_root().get_untracked().unwrap());
+
+                    let analysis = context_menu_active_analysis.get_untracked().unwrap();
+                    let analysis_path = project.analyses().with_untracked(|analyses| {
+                        let db::state::DataResource::Ok(analyses) = analyses else {
+                            panic!("invalid state");
+                        };
+
+                        analyses.with_untracked(|analyses| {
+                            analyses.iter().find_map(|analysis_state| {
+                                analysis_state.properties().with_untracked(|analysis_kind| match analysis_kind {
+                                 AnalysisKind::Script(script) => {
+                                    if script.rid() == &*analysis {
+                                        Some(script.path.clone())
+                                    } else {
+                                        None
+                                    }
+                                 },
+                                 AnalysisKind::ExcelTemplate(template) => {
+                                    if template.rid() == &*analysis {
+                                        Some(template.template.path.clone())
+                                    } else {
+                                        None
+                                    }
+                                 },
+                                })
+
+                            }).unwrap()
+                        })
+                    });
+                    let path = analysis_root.join(analysis_path);
+
+                    if let Err(err) = commands::fs::open_file(path)
+                        .await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not open analysis file.");
+                                msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+            }
+            }
+        }
+    }
 }

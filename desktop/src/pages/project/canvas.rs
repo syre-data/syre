@@ -15,12 +15,13 @@ use leptos::{
     *,
 };
 use leptos_icons::*;
-use std::{cmp, num::NonZeroUsize, ops::Deref, rc::Rc};
+use serde::Serialize;
+use std::{cmp, io, num::NonZeroUsize, ops::Deref, path::PathBuf, rc::Rc};
 use syre_core::{project::AnalysisAssociation, types::ResourceId};
+use syre_desktop_lib as lib;
 use syre_local as local;
 use syre_local_database as db;
 use tauri_sys::{core::Channel, menu};
-use wasm_bindgen::{prelude::Closure, JsCast};
 
 const CONTAINER_WIDTH: usize = 250;
 const MAX_CONTAINER_HEIGHT: usize = 300;
@@ -62,15 +63,15 @@ struct ContextMenuActiveContainer(state::graph::Node);
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveAsset(ResourceId);
 
-/// Resize observer run when container nodes change size.
-#[derive(derive_more::Deref, derive_more::From, Clone)]
-struct ContainerResizeObserver(web_sys::ResizeObserver);
+// /// Resize observer run when container nodes change size.
+// #[derive(derive_more::Deref, derive_more::From, Clone)]
+// struct ContainerResizeObserver(web_sys::ResizeObserver);
 
 #[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
 struct ContainerHeight(ReadSignal<usize>);
 
-#[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
-struct ContainerId(ReadSignal<ResourceId>);
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct Container(state::graph::Node);
 
 /// Node ref to the modal portal.
 #[derive(Clone)]
@@ -164,7 +165,7 @@ pub fn Canvas() -> impl IntoView {
 
     view! {
         <Suspense fallback=move || {
-            view! { <CanvasLoading/> }
+            view! { <CanvasLoading /> }
         }>
 
             {move || {
@@ -174,7 +175,7 @@ pub fn Canvas() -> impl IntoView {
                 let Some(context_menu_asset) = context_menu_asset.get() else {
                     return None;
                 };
-                Some(view! { <CanvasView context_menu_container_ok context_menu_asset/> })
+                Some(view! { <CanvasView context_menu_container_ok context_menu_asset /> })
             }}
 
         </Suspense>
@@ -193,35 +194,65 @@ fn CanvasView(
 ) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+    let workspace_state = expect_context::<state::Workspace>();
 
     let portal_ref = create_node_ref();
     let (container_height, set_container_height) = create_signal(0);
-    let container_resize_observer =
-        Closure::<dyn Fn(wasm_bindgen::JsValue)>::new(move |entries: wasm_bindgen::JsValue| {
-            assert!(entries.is_array());
-            let entries = entries.dyn_ref::<js_sys::Array>().unwrap();
-            let height = entries
-                .iter()
-                .map(|entry| {
-                    let entry = entry.dyn_ref::<web_sys::ResizeObserverEntry>().unwrap();
-                    let border_box = entry.border_box_size().get(0); //.dyn_ref::<web_sys>();
-                    let border_box = border_box.dyn_ref::<web_sys::ResizeObserverSize>().unwrap();
-                    border_box.block_size() as usize
-                })
-                .max()
-                .unwrap();
+    // let container_resize_observer =
+    //     Closure::<dyn Fn(wasm_bindgen::JsValue)>::new(move |entries: wasm_bindgen::JsValue| {
+    //         assert!(entries.is_array());
+    //         let entries = entries.dyn_ref::<js_sys::Array>().unwrap();
+    //         let height = entries
+    //             .iter()
+    //             .map(|entry| {
+    //                 let entry = entry.dyn_ref::<web_sys::ResizeObserverEntry>().unwrap();
+    //                 let border_box = entry.border_box_size().get(0); //.dyn_ref::<web_sys>();
+    //                 let border_box = border_box.dyn_ref::<web_sys::ResizeObserverSize>().unwrap();
+    //                 border_box.block_size() as usize
+    //             })
+    //             .max()
+    //             .unwrap();
 
-            let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
-            set_container_height(height);
-        });
+    //         let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
+    //         set_container_height(height);
+    //     });
     provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
     provide_context(ContextMenuAsset::new(context_menu_asset));
     provide_context(PortalRef(portal_ref.clone()));
     provide_context(ContainerHeight(container_height));
-    provide_context(ContainerResizeObserver(
-        web_sys::ResizeObserver::new(container_resize_observer.as_ref().unchecked_ref()).unwrap(),
-    ));
-    container_resize_observer.forget();
+    // provide_context(ContainerResizeObserver(
+    //     web_sys::ResizeObserver::new(container_resize_observer.as_ref().unchecked_ref()).unwrap(),
+    // ));
+    // container_resize_observer.forget();
+
+    create_effect(move |_| {
+        let height = workspace_state.preview().with(|preview| {
+            let mut height: usize = 0;
+            if preview.assets {
+                height += 3;
+            }
+            if preview.analyses {
+                height += 3;
+            }
+            if preview.kind {
+                height += 1;
+            }
+            if preview.description {
+                height += 3;
+            }
+            if preview.tags {
+                height += 1;
+            }
+            if preview.metadata {
+                height += 5;
+            }
+
+            height * 24
+        });
+
+        let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
+        set_container_height(height);
+    });
 
     let (vb_x, set_vb_x) = create_signal(0);
     let (vb_y, set_vb_y) = create_signal(0);
@@ -332,7 +363,7 @@ fn CanvasView(
 
                 class=("cursor-grabbing", move || pan_drag.with(|c| c.is_some()))
             >
-                <Graph root=graph.root().clone()/>
+                <Graph root=graph.root().clone() />
             </svg>
 
             <div ref=portal_ref></div>
@@ -344,7 +375,7 @@ fn CanvasView(
 fn Graph(root: state::graph::Node) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let container_height = expect_context::<ContainerHeight>();
-    let container_resize_observer = expect_context::<ContainerResizeObserver>();
+    // let container_resize_observer = expect_context::<ContainerResizeObserver>();
     let portal_ref = expect_context::<PortalRef>();
     let create_child_ref = NodeRef::<html::Dialog>::new();
     let container_node = NodeRef::<html::Div>::new();
@@ -477,18 +508,18 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         })
     };
 
-    let _ = watch(
-        move || container_node.get(),
-        move |container_node, _, _| {
-            if let Some(container_node) = container_node {
-                let options = web_sys::ResizeObserverOptions::new();
-                options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
-                container_resize_observer
-                    .observe_with_options(container_node.dyn_ref().unwrap(), &options)
-            }
-        },
-        true,
-    );
+    // let _ = watch(
+    //     move || container_node.get(),
+    //     move |container_node, _, _| {
+    //         if let Some(container_node) = container_node {
+    //             let options = web_sys::ResizeObserverOptions::new();
+    //             options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
+    //             container_resize_observer
+    //                 .observe_with_options(container_node.dyn_ref().unwrap(), &options)
+    //         }
+    //     },
+    //     true,
+    // );
 
     const PLUS_SCALE: f32 = 0.7;
     view! {
@@ -503,14 +534,13 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                             child.subtree_width(),
                             *container_height,
                         )
-                    >
-                    </polyline>
+                    ></polyline>
                 </For>
 
             </g>
             <g class="group">
                 <foreignObject width=CONTAINER_WIDTH height=*container_height x=x_node.clone() y=0>
-                    <Container node_ref=container_node container=root.clone()/>
+                    <ContainerView node_ref=container_node container=root.clone() />
                 </foreignObject>
                 <g class="group-[:not(:hover)]:hidden hover:cursor-pointer">
                     <circle
@@ -564,7 +594,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
             </g>
             <g>
                 <For each=children key=child_key let:child>
-                    <Graph root=child/>
+                    <Graph root=child />
                 </For>
 
             </g>
@@ -693,16 +723,16 @@ fn CreateChildContainer(
 }
 
 #[component]
-fn Container(
+fn ContainerView(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
     container: state::graph::Node,
 ) -> impl IntoView {
     move || {
         container.properties().with(|properties| {
             if properties.is_ok() {
-                view! { <ContainerOk node_ref container=container.clone()/> }
+                view! { <ContainerOk node_ref container=container.clone() /> }
             } else {
-                view! { <ContainerErr node_ref container=container.clone()/> }
+                view! { <ContainerErr node_ref container=container.clone() /> }
             }
         })
     }
@@ -730,9 +760,7 @@ fn ContainerOk(
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let (drag_over, set_drag_over) = create_signal(0);
-    provide_context(ContainerId(container.properties().with_untracked(
-        |properties| properties.as_ref().unwrap().rid().read_only(),
-    )));
+    provide_context(Container(container.clone()));
 
     let title = {
         let container = container.clone();
@@ -945,32 +973,35 @@ fn ContainerPreview(
         properties.with_untracked(|properties| properties.as_ref().unwrap().metadata().read_only());
 
     view! {
-        <div>
-            <Assets assets/>
+        <div class="overflow-y-auto scrollbar">
+            <Assets assets />
 
             <Analyses analyses=analyses
-                .with_untracked(|analyses| analyses.as_ref().unwrap().read_only())/>
+                .with_untracked(|analyses| analyses.as_ref().unwrap().read_only()) />
 
-            <div class:hidden=move || {
-                state.with(|preview| !preview.kind)
-            }>{move || kind().unwrap_or("(no type)".to_string())}</div>
+            <div>
+                <div class:hidden=move || { state.with(|preview| !preview.kind) } class="px-2">
+                    {move || kind().unwrap_or("(no type)".to_string())}
+                </div>
 
-            <div class:hidden=move || {
-                state.with(|preview| !preview.description)
-            }>{move || description().unwrap_or("(no description)".to_string())}</div>
+                <div
+                    class:hidden=move || { state.with(|preview| !preview.description) }
+                    class="px-2"
+                >
+                    {move || description().unwrap_or("(no description)".to_string())}
+                </div>
 
-            <div class:hidden=move || {
-                state.with(|preview| !preview.tags)
-            }>
-                {move || {
-                    tags.with(|tags| {
-                        if tags.is_empty() { "(no tags)".to_string() } else { tags.join(", ") }
-                    })
-                }}
+                <div class:hidden=move || { state.with(|preview| !preview.tags) } class="px-2">
+                    {move || {
+                        tags.with(|tags| {
+                            if tags.is_empty() { "(no tags)".to_string() } else { tags.join(", ") }
+                        })
+                    }}
 
+                </div>
+
+                <Metadata metadata />
             </div>
-
-            <Metadata metadata/>
         </div>
     }
 }
@@ -979,7 +1010,7 @@ fn ContainerPreview(
 fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
     move || {
         assets.with(|assets| match assets {
-            Ok(assets) => view! { <AssetsPreview assets=assets.read_only()/> }.into_view(),
+            Ok(assets) => view! { <AssetsPreview assets=assets.read_only() /> }.into_view(),
             Err(err) => "(error)".into_view(),
         })
     }
@@ -991,14 +1022,14 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
     view! {
         <div
             class:hidden=move || workspace_state.preview().with(|preview| !preview.assets)
-            class="overflow-y-auto"
+            class="pb"
         >
             <Show
                 when=move || assets.with(|assets| !assets.is_empty())
                 fallback=|| view! { "(no data)" }
             >
                 <For each=assets key=|asset| asset.rid().get() let:asset>
-                    <Asset asset/>
+                    <Asset asset />
                 </For>
             </Show>
         </div>
@@ -1007,9 +1038,13 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
 
 #[component]
 fn Asset(asset: state::Asset) -> impl IntoView {
+    let project = expect_context::<state::Project>();
+    let graph = expect_context::<state::Graph>();
+    let container = expect_context::<Container>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let context_menu = expect_context::<ContextMenuAsset>();
     let context_menu_active_asset = expect_context::<RwSignal<Option<ContextMenuActiveAsset>>>();
+    let messages = expect_context::<types::Messages>();
 
     let rid = {
         let rid = asset.rid();
@@ -1070,17 +1105,64 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
     };
 
+    let remove = create_action({
+        let asset = asset.clone();
+        let container = container.clone();
+        let graph = graph.clone();
+        let project = project.rid().read_only();
+        let messages = messages.clone();
+
+        move |_| {
+            let asset = asset.clone();
+            let container = container.clone();
+            let graph = graph.clone();
+            let project = project.clone();
+            let messages = messages.clone();
+
+            async move {
+                let container_path = graph.path(&container).unwrap();
+                if let Err(err) = remove_asset(
+                    project.get_untracked(),
+                    container_path,
+                    asset.path().get_untracked(),
+                )
+                .await
+                {
+                    tracing::error!(?err);
+                    let mut msg = Message::error("Could not remove asset file");
+                    msg.body(format!("{err:?}"));
+                    messages.update(|messages| messages.push(msg.build()));
+                };
+            }
+        }
+    });
+
+    let remove_asset = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary as i16 {
+            return;
+        }
+
+        e.stop_propagation();
+        remove.dispatch(())
+    };
+
     view! {
         <div
             on:mousedown=mousedown
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             class=("bg-secondary-400", selected)
-            class="cursor-pointer px-2 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
+            class="flex cursor-pointer px-2 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
             data-resource=DATA_KEY_ASSET
             data-rid=rid
         >
-            <TruncateLeft>{title}</TruncateLeft>
+            <TruncateLeft class="grow">{title}</TruncateLeft>
+            <button
+                on:mousedown=remove_asset
+                class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+            >
+                <Icon icon=icondata::AiMinusOutlined />
+            </button>
         </div>
     }
 }
@@ -1092,14 +1174,14 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
     view! {
         <div
             class:hidden=move || workspace_state.preview().with(|preview| !preview.analyses)
-            class="overflow-y-auto"
+            class="pb"
         >
             <Show
                 when=move || analyses.with(|analyses| !analyses.is_empty())
                 fallback=|| view! { "(no analyses)" }
             >
                 <For each=analyses key=|association| association.analysis().clone() let:association>
-                    <AnalysisAssociation association/>
+                    <AnalysisAssociation association />
                 </For>
             </Show>
         </div>
@@ -1110,7 +1192,7 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
 fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
-    let container = expect_context::<ContainerId>();
+    let container = expect_context::<Container>();
     let messages = expect_context::<types::Messages>();
 
     let title = {
@@ -1168,14 +1250,42 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
     };
 
     let update_associations = create_action({
-        let association = association.clone();
         let project = project.clone();
         let container = container.clone();
         let messages = messages.clone();
-        move |_| {
-            let container_state =
-                container.with_untracked(|container| graph.find_by_id(container).unwrap());
-            let mut associations = container_state.analyses().with_untracked(|analyses| {
+        move |associations: &Vec<AnalysisAssociation>| {
+            let project = project.rid().get_untracked();
+            let container_path = graph.path(&container).unwrap();
+            let messages = messages.clone();
+            let associations = associations.clone();
+            async move {
+                if let Err(err) = commands::container::update_analysis_associations(
+                    project,
+                    container_path,
+                    associations,
+                )
+                .await
+                {
+                    tracing::error!(?err);
+                    let mut msg = Message::error("Could not update analysis association.");
+                    msg.body(format!("{err:?}"));
+                    messages.update(|messages| messages.push(msg.build()));
+                }
+            }
+        }
+    });
+
+    let autorun_toggle = {
+        let association = association.clone();
+        let container = container.clone();
+
+        move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary as i16 {
+                return;
+            }
+            e.stop_propagation();
+
+            let mut associations = container.analyses().with_untracked(|analyses| {
                 analyses.as_ref().unwrap().with_untracked(|associations| {
                     associations
                         .iter()
@@ -1188,30 +1298,32 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                 .find(|analysis| analysis.analysis() == association.analysis())
                 .unwrap();
             assoc.autorun = !assoc.autorun;
-            let project = project.rid().get_untracked();
-            let container_path = graph.path(&container_state).unwrap();
-            let messages = messages.clone();
-            async move {
-                if let Err(err) = commands::container::update_analysis_associations(
-                    project,
-                    container_path,
-                    associations,
-                )
-                .await
-                {
-                    tracing::error!(?err);
-                    let mut msg = Message::error("Could not update container.");
-                    msg.body(format!("{err:?}"));
-                    messages.update(|messages| messages.push(msg.build()));
-                }
-            }
-        }
-    });
 
-    let autorun_toggle = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+            update_associations.dispatch(associations);
+        }
+    };
+
+    let remove_association = {
+        let association = association.clone();
+        let container = container.clone();
+
+        move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary as i16 {
+                return;
+            }
             e.stop_propagation();
-            update_associations.dispatch(());
+
+            let mut associations = container.analyses().with_untracked(|analyses| {
+                analyses.as_ref().unwrap().with_untracked(|associations| {
+                    associations
+                        .iter()
+                        .map(|association| association.as_association())
+                        .collect::<Vec<_>>()
+                })
+            });
+            associations.retain(|assoc| assoc.analysis() != association.analysis());
+
+            update_associations.dispatch(associations);
         }
     };
 
@@ -1225,13 +1337,21 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                 <span on:mousedown=autorun_toggle class="inline-flex">
                     {move || {
                         if association.autorun().get() {
-                            view! { <Icon icon=icondata::BsStarFill/> }
+                            view! { <Icon icon=icondata::BsStarFill /> }
                         } else {
-                            view! { <Icon icon=icondata::BsStar/> }
+                            view! { <Icon icon=icondata::BsStar /> }
                         }
                     }}
 
                 </span>
+            </div>
+            <div>
+                <button
+                    on:mousedown=remove_association
+                    class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                >
+                    <Icon icon=icondata::AiMinusOutlined />
+                </button>
             </div>
         </div>
     }
@@ -1244,11 +1364,11 @@ fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
         <div class:hidden=move || { workspace_state.preview().with(|preview| !preview.metadata) }>
             <Show
                 when=move || metadata.with(|metadata| !metadata.is_empty())
-                fallback=|| view! { "(no metadata)" }
+                fallback=|| view! { <div class="px-2">"(no metadata)"</div> }
             >
                 <For each=metadata key=|(key, _)| key.clone() let:datum>
-                    <div>
-                        <span>{datum.0} ":"</span>
+                    <div class="px-2">
+                        <span>{datum.0} ": "</span>
                         <span>{move || datum.1.with(|value| serde_json::to_string(value))}</span>
                     </div>
                 </For>
@@ -1423,4 +1543,28 @@ async fn handle_context_menu_asset_events(
             }
         }
     }
+}
+
+async fn remove_asset(
+    project: ResourceId,
+    container: PathBuf,
+    asset: PathBuf,
+) -> Result<(), io::ErrorKind> {
+    #[derive(Serialize)]
+    struct Args {
+        project: ResourceId,
+        container: PathBuf,
+        asset: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result::<(), lib::command::error::IoErrorKind>(
+        "asset_remove_file",
+        Args {
+            project,
+            container,
+            asset,
+        },
+    )
+    .await
+    .map_err(|err| err.into())
 }

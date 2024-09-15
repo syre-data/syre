@@ -1587,6 +1587,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+ "unicode-xid",
+]
+
+[[package]]
 name = "deunicode"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6190,7 +6212,7 @@ checksum = "df320f1889ac4ba6bc0cdc9c9af7af4bd64bb927bccdf32d81140dc1f9be12fe"
 dependencies = [
  "bitflags 1.3.2",
  "cssparser",
- "derive_more",
+ "derive_more 0.99.18",
  "fxhash",
  "log",
  "matches",
@@ -7043,7 +7065,7 @@ dependencies = [
 name = "syre-desktop"
 version = "0.11.0"
 dependencies = [
- "derive_more",
+ "derive_more 1.0.0",
  "open",
  "serde",
  "serde_json",
@@ -7060,6 +7082,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "walkdir",
  "zmq",
 ]
 
@@ -7067,7 +7090,7 @@ dependencies = [
 name = "syre-desktop-lib"
 version = "0.11.0"
 dependencies = [
- "derive_more",
+ "derive_more 1.0.0",
  "serde",
  "syre-core",
  "syre-local",
@@ -7082,7 +7105,7 @@ version = "0.11.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
- "derive_more",
+ "derive_more 1.0.0",
  "futures",
  "getrandom 0.2.15",
  "has_id",
@@ -7115,7 +7138,7 @@ name = "syre-fs-watcher"
 version = "0.0.1"
 dependencies = [
  "crossbeam",
- "derive_more",
+ "derive_more 1.0.0",
  "file-id",
  "file_path_from_id",
  "has_id",
@@ -7139,7 +7162,7 @@ name = "syre-fs-watcher-simulator"
 version = "0.0.1"
 dependencies = [
  "crossbeam",
- "derive_more",
+ "derive_more 1.0.0",
  "has_id",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -7164,7 +7187,7 @@ dependencies = [
  "chrono",
  "csv",
  "derivative",
- "derive_more",
+ "derive_more 1.0.0",
  "directories",
  "fake",
  "glob",
@@ -7190,7 +7213,7 @@ version = "0.0.3"
 dependencies = [
  "chrono",
  "crossbeam",
- "derive_more",
+ "derive_more 1.0.0",
  "fake",
  "file-id",
  "file_path_from_id",
@@ -7589,7 +7612,7 @@ name = "tauri-sys"
 version = "0.2.0"
 source = "git+https://github.com/JonasKruckenberg/tauri-sys?branch=v2#ae49310ee16ffdf34ff24e27cea22d7cff8287d9"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "futures",
  "js-sys",
  "log",

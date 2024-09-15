@@ -76,7 +76,7 @@ fn unique_file_name_should_work() {
 #[cfg(target_os = "windows")]
 #[test]
 fn ensure_windows_unc_should_work() {
-    let dir = TempDir::new().unwrap();
+    let dir = tempfile::TempDir::new().unwrap();
     let base_path = dir.path().to_path_buf();
     let canon_path = fs::canonicalize(&base_path).unwrap();
 

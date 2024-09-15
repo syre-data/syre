@@ -390,10 +390,12 @@ impl FsWatcher {
         let (fs_events, mut errors) = self.process_events_notify_to_fs(&events);
 
         tracing::debug!(?fs_events, ?errors);
-        let (app_events, app_errors) = self.process_events_fs_to_app(fs_events);
+        let (mut app_events, app_errors) = self.process_events_fs_to_app(fs_events);
+        app_events.sort_by_key(|event| event.time().clone());
 
         tracing::debug!(?app_events, ?app_errors);
         errors.extend(app_errors);
+
         (app_events, errors)
     }
 }

@@ -1,4 +1,7 @@
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_local as local;
@@ -38,7 +41,7 @@ pub fn create_child_container(
 pub fn add_file_system_resources(
     db: tauri::State<db::Client>,
     resources: Vec<lib::types::AddFsGraphResourceData>,
-) -> Vec<Result<(), lib::command::error::IoErrorKind>> {
+) -> Vec<Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>>> {
     use syre_local::types::FsResourceAction;
 
     let mut projects = resources
@@ -80,27 +83,29 @@ pub fn add_file_system_resources(
             match resource.action {
                 FsResourceAction::Move => {
                     if to_path == resource.path {
-                        return Err(io::ErrorKind::AlreadyExists.into());
+                        return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
                     }
 
-                    fs::rename(&resource.path, &resource.parent).map_err(|err| err.kind().into())
+                    fs::rename(&resource.path, &resource.parent)
+                        .map_err(|err| vec![(resource.path.clone(), err.kind())])
                 }
                 FsResourceAction::Copy => {
                     if to_path == resource.path {
-                        return Err(io::ErrorKind::AlreadyExists.into());
+                        return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
                     }
 
-                    let to_name = local::common::unique_file_name(&to_path)?;
+                    let to_name = local::common::unique_file_name(&to_path)
+                        .map_err(|err| vec![(resource.path.clone(), err)])?;
                     let to_path = resource.parent.join(to_name);
                     if resource.path.is_file() {
                         fs::copy(&resource.path, &to_path)
                             .map(|_| ())
-                            .map_err(|err| err.kind().into())
+                            .map_err(|err| vec![(resource.path.clone(), err.kind())])
 
-                        // TODO: Set creator.
+                        // TODO: Set creator. What if already a resource and current creator differs from original?
                         // TODO: If file is already a resource, copy info.
                     } else if resource.path.is_dir() {
-                        todo!();
+                        copy_dir(&resource.path, &to_path)
                     } else {
                         todo!();
                     }
@@ -108,5 +113,57 @@ pub fn add_file_system_resources(
                 FsResourceAction::Reference => todo!(),
             }
         })
+        .map(|result| {
+            result.map_err(|errors| {
+                errors
+                    .into_iter()
+                    .map(|(path, err)| (path, err.into()))
+                    .collect()
+            })
+        })
         .collect()
+}
+
+pub fn copy_dir(
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+    let src: &Path = src.as_ref();
+    let dst: &Path = dst.as_ref();
+    let results = walkdir::WalkDir::new(src)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .map(|entry| {
+            let rel_path = entry.path().strip_prefix(src).unwrap();
+            let dst = dst.join(rel_path);
+
+            if entry.file_type().is_file() {
+                match fs::copy(entry.path(), dst) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err((entry.path().to_path_buf(), err.kind())),
+                }
+            } else if entry.file_type().is_dir() {
+                match fs::create_dir(dst) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err((entry.path().to_path_buf(), err.kind())),
+                }
+            } else {
+                todo!();
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let errors = results
+        .into_iter()
+        .filter_map(|result| match result {
+            Ok(_) => None,
+            Err(err) => Some(err),
+        })
+        .collect::<Vec<_>>();
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

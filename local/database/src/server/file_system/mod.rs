@@ -15,7 +15,6 @@ impl Database {
         &mut self,
         mut events: Vec<syre_fs_watcher::Event>,
     ) -> Vec<Update> {
-        events.sort_by_key(|event| event.time().clone());
         events
             .into_iter()
             .flat_map(|event| self.process_event(event))

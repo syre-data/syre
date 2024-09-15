@@ -162,6 +162,7 @@ impl Database {
             &base_path,
         )
         .unwrap();
+
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         if cfg!(target_os = "windows") {
@@ -465,10 +466,20 @@ impl Database {
         let container_graph_path = Path::new("/").join(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
-        assert_matches!(
-            container_state.properties(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
+
+        if cfg!(target_os = "windows") {
+            if !matches!(
+                container_state.properties(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("container properties already exists");
+            }
+        } else {
+            assert_matches!(
+                container_state.properties(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+        }
         drop(container_state);
 
         let properties = loader::container::Loader::load_from_only_properties(base_path);

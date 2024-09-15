@@ -17,7 +17,7 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 crossbeam = { workspace = true, optional = true }
-derive_more = { workspace = true }
+derive_more = { workspace = true, features = ["full"] }
 file-id = { version = "0.2", optional = true }
 futures  = { workspace = true, optional = true }
 notify = { workspace = true, default-features = false, optional = true }

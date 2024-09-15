@@ -340,6 +340,7 @@ pub mod project {
 
 pub mod graph {
     use super::Container;
+    use crate::common;
     use leptos::*;
     use std::{
         cell::RefCell,
@@ -998,7 +999,7 @@ pub mod graph {
             from: impl AsRef<Path>,
             to: impl Into<OsString>,
         ) -> Result<(), error::Move> {
-            let Some(node) = self.find(from)? else {
+            let Some(node) = self.find(common::normalize_path_sep(from))? else {
                 return Err(error::Move::NotFound);
             };
 
@@ -1391,6 +1392,18 @@ pub mod container {
                 created: RwSignal::new(created),
                 permissions: RwSignal::new(permissions),
             }
+        }
+
+        pub fn creator(&self) -> RwSignal<Option<UserId>> {
+            self.creator.clone()
+        }
+
+        pub fn created(&self) -> RwSignal<DateTime<Utc>> {
+            self.created.clone()
+        }
+
+        pub fn permissions(&self) -> RwSignal<ResourceMap<UserPermissions>> {
+            self.permissions.clone()
         }
     }
 }

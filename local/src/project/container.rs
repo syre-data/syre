@@ -4,11 +4,10 @@ pub use functions::*;
 
 #[cfg(feature = "fs")]
 pub mod functions {
-    use syre_core::types::ResourceId;
-
     use super::{builder, error};
     use crate::common::container_file_of;
     use std::path::Path;
+    use syre_core::types::ResourceId;
 
     /// Convenience function to create a new folder as a `Container`.
     ///
@@ -35,6 +34,7 @@ pub mod builder {
     //! Build containers.
     use super::super::{project, resources::Container};
     use super::error;
+    use crate::project::asset;
     use crate::{common::app_dir, loader::container::Loader as ContainerLoader};
     use std::{
         fs,
@@ -45,6 +45,7 @@ pub mod builder {
         types::ResourceId,
     };
 
+    /// Initialize a new folder.
     #[derive(Default)]
     pub struct InitNew {
         properties: Option<ContainerProperties>,
@@ -64,9 +65,13 @@ pub mod builder {
         }
     }
 
+    /// Initialize an existing folder.
     #[derive(Default)]
     pub struct InitExisting {
         recursive: bool,
+
+        /// Create new ids for resources.
+        new_ids: bool,
 
         /// glob patterns to ignore.
         ignore: Vec<String>,
@@ -75,6 +80,10 @@ pub mod builder {
     impl InitExisting {
         pub fn set_recursive(&mut self, recursive: bool) {
             self.recursive = recursive;
+        }
+
+        pub fn with_new_ids(&mut self, new_ids: bool) {
+            self.new_ids = new_ids;
         }
 
         pub fn ignored(&self) -> &Vec<String> {
@@ -105,7 +114,7 @@ pub mod builder {
     }
 
     impl InitOptions<InitNew> {
-        /// Create a new folder as a `Container``.
+        /// Create a new folder as a `Container`.
         pub fn new() -> Self {
             InitOptions::default()
         }
@@ -176,6 +185,11 @@ pub mod builder {
             self.init.set_recursive(recursive);
         }
 
+        /// Set whether new ids should be assigned to resources.
+        pub fn with_new_ids(&mut self, new_ids: bool) {
+            self.init.with_new_ids(new_ids);
+        }
+
         /// Ignore a path and it's subfolders when recursing.
         /// Ignored if `recurse` is `false`.
         ///
@@ -212,20 +226,40 @@ pub mod builder {
             /// # Notes
             /// + Hidden files are ignored as `Asset`s.
             fn init_container(
-                path: impl AsRef<Path>,
+                path: impl Into<PathBuf>,
                 init_assets: bool,
+                new_ids: bool,
                 recurse: bool,
                 ignore: &Vec<PathBuf>,
             ) -> Result<ResourceId, error::Build> {
-                let path = path.as_ref();
+                let path: PathBuf = path.into();
                 // TODO: What if path is a project?
-                let mut container = if super::path_is_container(path) {
-                    match ContainerLoader::load(path) {
+                let mut container = if super::path_is_container(&path) {
+                    let container_state = match ContainerLoader::load(&path) {
                         Ok(container) => container,
                         Err(_state) => return Err(error::Build::Load),
+                    };
+
+                    if new_ids {
+                        let mut container = Container::new(&path);
+                        container.container.properties = container_state.properties.clone();
+                        container.container.assets = container_state
+                            .assets
+                            .clone()
+                            .into_iter()
+                            .map(|asset_state| {
+                                let mut asset = Asset::new(asset_state.path.clone());
+                                asset.properties = asset_state.properties;
+                                asset
+                            })
+                            .collect();
+
+                        container
+                    } else {
+                        container_state
                     }
                 } else {
-                    Container::new(path)
+                    Container::new(&path)
                 };
 
                 container.properties.name = container
@@ -297,7 +331,7 @@ pub mod builder {
 
                 if recurse {
                     for dir_path in dirs.into_iter().filter(|path| !ignore.contains(path)) {
-                        init_container(dir_path, init_assets, recurse, ignore)?;
+                        init_container(dir_path, init_assets, new_ids, recurse, ignore)?;
                     }
                 }
 
@@ -327,7 +361,13 @@ pub mod builder {
                 .flatten()
                 .collect();
 
-            init_container(path, self.init_assets, self.init.recursive, &ignore)
+            init_container(
+                path,
+                self.init_assets,
+                self.init.new_ids,
+                self.init.recursive,
+                &ignore,
+            )
         }
     }
 }

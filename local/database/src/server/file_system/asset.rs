@@ -60,6 +60,7 @@ impl Database {
             container_path,
         )
         .unwrap();
+
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         let state::DataResource::Ok(assets) = container_state.assets() else {

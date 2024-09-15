@@ -10,6 +10,7 @@ use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
 use tauri_sys::window::DragDropPayload;
+use tracing::instrument::WithSubscriber;
 use wasm_bindgen::JsCast;
 
 const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
@@ -1203,25 +1204,119 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
         .find(common::normalize_path_sep(container))
         .unwrap()
         .unwrap();
-    let fs_resource = container.assets().with_untracked(|assets| {
-        let db::state::DataResource::Ok(assets) = assets else {
-            todo!();
-        };
-        assets.with_untracked(|assets| {
-            assets
-                .iter()
-                .find(|asset_state| asset_state.rid().with_untracked(|rid| rid == asset))
-                .unwrap()
-                .fs_resource()
-        })
-    });
 
-    let state = match update {
-        db::event::Asset::FileCreated => db::state::FileResource::Present,
-        db::event::Asset::FileRemoved => db::state::FileResource::Absent,
-    };
+    match update {
+        db::event::Asset::FileCreated | db::event::Asset::FileRemoved => {
+            let fs_resource = container.assets().with_untracked(|assets| {
+                let db::state::DataResource::Ok(assets) = assets else {
+                    todo!();
+                };
+                assets.with_untracked(|assets| {
+                    assets
+                        .iter()
+                        .find(|asset_state| asset_state.rid().with_untracked(|rid| rid == asset))
+                        .unwrap()
+                        .fs_resource()
+                })
+            });
 
-    fs_resource.set(state);
+            match update {
+                db::event::Asset::FileCreated => fs_resource.set(db::state::FileResource::Present),
+                db::event::Asset::FileRemoved => fs_resource.set(db::state::FileResource::Absent),
+                _ => unreachable!(),
+            };
+        }
+        db::event::Asset::Properties(update) => {
+            container.assets().with_untracked(|assets| {
+                let db::state::DataResource::Ok(assets) = assets else {
+                    todo!();
+                };
+
+                let asset = assets.with_untracked(|assets| {
+                    assets
+                        .iter()
+                        .find(|asset_state| asset_state.rid().with_untracked(|rid| rid == asset))
+                        .unwrap()
+                        .clone()
+                });
+
+                if asset
+                    .fs_resource()
+                    .with_untracked(|fs_resource| fs_resource.is_present() != update.is_present())
+                {
+                    let fs_resource = if update.is_present() {
+                        db::state::FileResource::Present
+                    } else {
+                        db::state::FileResource::Absent
+                    };
+                    asset.fs_resource().set(fs_resource);
+                }
+
+                if asset
+                    .name()
+                    .with_untracked(|name| *name != update.properties.name)
+                {
+                    asset.name().set(update.properties.name.clone());
+                }
+
+                if asset
+                    .kind()
+                    .with_untracked(|kind| *kind != update.properties.kind)
+                {
+                    asset.kind().set(update.properties.kind.clone());
+                }
+
+                if asset
+                    .description()
+                    .with_untracked(|description| *description != update.properties.description)
+                {
+                    asset
+                        .description()
+                        .set(update.properties.description.clone());
+                }
+
+                if asset
+                    .tags()
+                    .with_untracked(|tags| *tags != update.properties.tags)
+                {
+                    asset.tags().set(update.properties.tags.clone());
+                }
+
+                asset.metadata().update(|metadata| {
+                    metadata.retain(|(key, _)| {
+                        update
+                            .properties
+                            .metadata
+                            .iter()
+                            .any(|(update_key, _)| key == update_key)
+                    });
+
+                    update
+                        .properties
+                        .metadata
+                        .iter()
+                        .for_each(|(update_key, update_value)| {
+                            if let Some(value) = metadata.iter().find_map(|(key, value)| {
+                                if update_key == key {
+                                    Some(value)
+                                } else {
+                                    None
+                                }
+                            }) {
+                                if value.with_untracked(|value| value != update_value) {
+                                    value.set(update_value.clone())
+                                }
+                            } else {
+                                metadata.push((
+                                    update_key.clone(),
+                                    create_rw_signal(update_value.clone()),
+                                ));
+                            }
+                        });
+                });
+            });
+        }
+    }
 }
 
 fn handle_event_graph_asset_file(event: lib::Event, graph: state::Graph) {

@@ -428,6 +428,7 @@ pub mod project {
                     match action {
                         action::Asset::SetPresent => asset.fs_resource = FileResource::Present,
                         action::Asset::SetAbsent => asset.fs_resource = FileResource::Absent,
+                        action::Asset::SetState(state) => *asset = state,
                     }
                 }
             }
@@ -1152,6 +1153,7 @@ pub(crate) mod action {
     pub enum Asset {
         SetPresent,
         SetAbsent,
+        SetState(state::Asset),
     }
 }
 

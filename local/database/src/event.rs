@@ -271,6 +271,7 @@ pub enum Container {
 pub enum Asset {
     FileCreated,
     FileRemoved,
+    Properties(state::Asset),
 }
 
 /// Asset file updates.

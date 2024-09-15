@@ -1,5 +1,5 @@
 use crate::{common, event as update, server, state, Database, Update};
-use std::assert_matches::assert_matches;
+use std::{assert_matches::assert_matches, path::PathBuf};
 use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{self as local, TryReducible};
@@ -20,7 +20,9 @@ impl Database {
             syre_fs_watcher::event::ResourceEvent::Removed => {
                 self.handle_fs_event_asset_file_removed(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Renamed => todo!(),
+            syre_fs_watcher::event::ResourceEvent::Renamed => {
+                self.handle_fs_event_asset_file_renamed(event)
+            }
             syre_fs_watcher::event::ResourceEvent::Moved => todo!(),
             syre_fs_watcher::event::ResourceEvent::MovedProject => todo!(),
             syre_fs_watcher::event::ResourceEvent::Modified(_) => {
@@ -234,6 +236,112 @@ impl Database {
             },
             event.id().clone(),
         )]
+    }
+
+    fn handle_fs_event_asset_file_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::AssetFile(event::ResourceEvent::Renamed)
+        );
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+        let from_path = PathBuf::from(from.file_name().unwrap());
+        let to_path = PathBuf::from(to.file_name().unwrap());
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::FolderResource::Present(graph) = project_state.graph() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(project_properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let container_path = from.parent().unwrap();
+        let container_graph_path = common::container_graph_path(
+            project.path().join(&project_properties.data_root),
+            container_path,
+        )
+        .unwrap();
+
+        let container_state = graph.find(&container_graph_path).unwrap().unwrap();
+        let container_state = container_state.lock().unwrap();
+        let state::DataResource::Ok(assets) = container_state.assets() else {
+            panic!("invalid state");
+        };
+
+        let mut asset_state = assets
+            .iter()
+            .find(|asset| asset.path == from_path)
+            .unwrap()
+            .clone();
+
+        asset_state.properties.path = to_path.clone();
+        if asset_state.path.is_file() {
+            asset_state.fs_resource = state::FileResource::Present;
+        } else {
+            asset_state.fs_resource = state::FileResource::Absent;
+        }
+
+        let project_path = project.path().clone();
+        let project_id = project_properties.rid().clone();
+        let asset_id = asset_state.rid().clone();
+        drop(container_state);
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::Action::Container {
+                    path: container_graph_path.clone(),
+                    action: server::state::project::action::Container::Asset {
+                        rid: asset_id.clone(),
+                        action: server::state::project::action::Asset::SetState(
+                            asset_state.clone(),
+                        ),
+                    },
+                },
+            })
+            .unwrap();
+
+        if self.config.handle_fs_resource_changes() {
+            match local::project::resources::Assets::load_from(&container_path) {
+                Ok(mut assets) => {
+                    let asset = assets
+                        .iter_mut()
+                        .find(|asset| *asset.rid() == asset_id)
+                        .unwrap();
+                    asset.path = to_path;
+
+                    match assets.save() {
+                        Ok(_) => return vec![],
+                        Err(err) => {
+                            tracing::error!(?err);
+                            todo!();
+                        }
+                    }
+                }
+                Err(err) => {
+                    tracing::error!(?err);
+                    todo!();
+                }
+            }
+        } else {
+            vec![Update::project_with_id(
+                project_id.clone(),
+                project_path.clone(),
+                update::Project::Asset {
+                    container: container_graph_path,
+                    asset: asset_id,
+                    update: update::Asset::Properties(asset_state),
+                },
+                event.id().clone(),
+            )]
+        }
     }
 
     fn handle_fs_event_asset_file_modified(

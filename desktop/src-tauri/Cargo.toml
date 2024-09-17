@@ -32,5 +32,6 @@ tauri-plugin-shell = "2.0.0-rc"
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["json", "time"] }
 tracing-appender.workspace = true
+trash.workspace = true
 walkdir.workspace = true
 zmq.workspace = true

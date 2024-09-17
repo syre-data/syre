@@ -3,6 +3,7 @@ use crate::common;
 use crate::error::Result;
 use crate::project::resources::Container;
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use syre_core::error::{Error as CoreError, Resource as ResourceError};
 use syre_core::graph::tree::{EdgeMap, NodeMap};
@@ -116,7 +117,6 @@ impl ContainerTreeDuplicator {
             )));
         };
 
-        // duplicate container to new location
         let mut container = Container::new(node.base_path());
         container.properties = node.properties.clone();
         container.analyses = node.analyses.clone();
@@ -152,53 +152,78 @@ impl ContainerTreeDuplicator {
     ///
     /// # Notes
     /// + `Asset`s are not copied.
-    #[tracing::instrument(skip(graph))]
     pub fn duplicate_without_assets_to(
-        path: &Path,
+        path: impl AsRef<Path>,
         graph: &ContainerTree,
         root: &ResourceId,
     ) -> Result<ContainerTree> {
-        // ensure root exists
-        let Some(node) = graph.get(root) else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Container` does not exist in graph",
-            ))
-            .into());
-        };
-
-        // duplicate container to new location
-        let mut container = Container::new(path);
-        container.properties = node.properties.clone();
-        container.analyses = node.analyses.clone();
-        container.save()?;
-
-        let dup_root = container.rid().clone();
-        let mut dup_graph = ResourceTree::new(container);
-        let Some(children) = graph.children(&root).cloned() else {
-            return Err(CoreError::Resource(ResourceError::does_not_exist(
-                "`Container` does not exist in graph",
-            ))
-            .into());
-        };
-
-        for child in children {
-            let rel_path = graph
-                .get(&child)
-                .expect("could not get child node")
-                .base_path()
-                .file_name()
-                .expect("could not get name of `Container`");
-
-            let mut c_path = path.to_path_buf();
-            c_path.push(rel_path);
-            let c_path = common::normalize_path_separators(c_path);
-
-            let c_tree = Self::duplicate_without_assets_to(&c_path, graph, &child)?;
-            dup_graph.insert_tree(&dup_root, c_tree)?;
-        }
-
-        Ok(dup_graph)
+        let path = path.as_ref();
+        let tmp = tempfile::TempDir::new().unwrap();
+        let mut dup = duplicate_without_assets_to(tmp.path(), graph, root)?;
+        dup.iter_nodes_mut().for_each(|(_, node)| {
+            let rel_path = node.base_path().strip_prefix(tmp.path()).unwrap();
+            let abs_path = path.join(rel_path);
+            node.set_base_path(abs_path);
+        });
+        fs::rename(tmp.path(), path).map_err(|err| crate::Error::Io(err.kind()))?;
+        Ok(dup)
     }
+}
+
+/// Duplicates a subtree to a new file path.
+/// Base paths of the [`Containers`] are updated.
+///
+/// # Arguments
+/// 1. Path to duplicate the tree to.
+/// 2. Graph.
+/// 3. Id of the root of the subtree to duplicate.
+///
+/// # Notes
+/// + `Asset`s are not copied.
+fn duplicate_without_assets_to(
+    path: &Path,
+    graph: &ContainerTree,
+    root: &ResourceId,
+) -> Result<ContainerTree> {
+    // ensure root exists
+    let Some(node) = graph.get(root) else {
+        return Err(CoreError::Resource(ResourceError::does_not_exist(
+            "`Container` does not exist in graph",
+        ))
+        .into());
+    };
+
+    // duplicate container to new location
+    // first create entire tree in temp folder, then move to desired location
+    let mut container = Container::new(path);
+    container.properties = node.properties.clone();
+    container.analyses = node.analyses.clone();
+    container.save()?;
+
+    let dup_root = container.rid().clone();
+    let mut dup_graph = ResourceTree::new(container);
+    let Some(children) = graph.children(&root).cloned() else {
+        return Err(CoreError::Resource(ResourceError::does_not_exist(
+            "`Container` does not exist in graph",
+        ))
+        .into());
+    };
+
+    for child in children {
+        let rel_path = graph
+            .get(&child)
+            .expect("could not get child node")
+            .base_path()
+            .file_name()
+            .expect("could not get name of `Container`");
+
+        let c_path = path.join(rel_path);
+        let c_path = common::normalize_path_separators(c_path);
+        let c_tree = duplicate_without_assets_to(&c_path, graph, &child)?;
+        dup_graph.insert_tree(&dup_root, c_tree)?;
+    }
+
+    Ok(dup_graph)
 }
 
 #[cfg(test)]

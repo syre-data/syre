@@ -1,4 +1,4 @@
-use crate::project::resources::Container;
+use crate::{common, project::resources::Container};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -31,7 +31,7 @@ impl Loader {
             .install(move || Self::load_tree(path));
 
         if state.is_ok() {
-            let (nodes, edges, _root) = state.to_parts();
+            let (nodes, edges, _) = state.to_parts();
             let edges = edges
                 .into_iter()
                 .map(|(parent, children)| {
@@ -75,12 +75,24 @@ impl Loader {
         let path = path.as_ref();
         let root = state::Container::load(path);
         let mut graph = state::Tree::new(root);
-        let children = fs::read_dir(path)
-            .unwrap()
+        let children = walkdir::WalkDir::new(path)
             .into_iter()
+            .skip(1)
+            .filter_map(|entry| {
+                let Ok(entry) = entry else {
+                    return None;
+                };
+
+                if entry.file_type().is_dir() {
+                    if entry.file_name() != common::app_dir() {
+                        return Some(entry);
+                    }
+                }
+                None
+            })
             .collect::<Vec<_>>()
             .into_par_iter()
-            .map(|entry| Self::load_tree(entry.unwrap().path()))
+            .map(|entry| Self::load_tree(entry.path()))
             .collect::<Vec<_>>();
 
         let root = graph.root().clone();

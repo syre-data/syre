@@ -26,11 +26,9 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind
     let Some(ext) = path.file_name() else {
         return Err(io::ErrorKind::InvalidFilename);
     };
-
     let Some(ext) = ext.to_str() else {
         return Err(io::ErrorKind::InvalidFilename);
     };
-
     let ext = &ext[file_prefix.len()..];
 
     let Some(parent) = path.parent() else {
@@ -38,17 +36,19 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind
     };
 
     // get highest counter
-    let name_pattern = Regex::new(&format!(r" \((\d+)\){ext}$")).unwrap();
+    let name_pattern = Regex::new(&format!(r"{file_prefix} \((\d+)\){ext}$")).unwrap();
     let mut highest = None;
     for entry in fs::read_dir(parent).map_err(|err| err.kind())? {
-        let entry = entry.map_err(|err| err.kind())?;
-        let entry_path = entry.path();
-
-        let Some(entry_path_str) = entry_path.to_str() else {
+        let entry_path = entry.map(|entry| entry.path()).map_err(|err| err.kind())?;
+        let Some(entry_file_name) = entry_path
+            .file_name()
+            .map(|filename| filename.to_str())
+            .flatten()
+        else {
             continue;
         };
 
-        let Some(captures) = name_pattern.captures(entry_path_str) else {
+        let Some(captures) = name_pattern.captures(entry_file_name) else {
             continue;
         };
 
@@ -75,9 +75,6 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind
     match highest {
         None => file_name.push_str(" (1)"),
         Some(n) => {
-            // let match_len = &format!("({n})").len();
-            // let replace_range = (file_prefix.len() - match_len)..;
-            // file_name.replace_range(replace_range, &format!("({})", n + 1));
             file_name.push_str(&format!(" ({})", n + 1));
         }
     };

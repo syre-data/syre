@@ -124,6 +124,54 @@ pub fn add_file_system_resources(
         .collect()
 }
 
+#[tauri::command]
+pub fn container_duplicate(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    container: PathBuf,
+) -> Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>> {
+    assert!(is_root_path(&container));
+    let (project_path, project_state) = db.project().get_by_id(project).unwrap().unwrap();
+    let db::state::DataResource::Ok(properties) = project_state.properties() else {
+        panic!("invalid state");
+    };
+
+    let root_path =
+        db::common::container_system_path(project_path.join(&properties.data_root), &container);
+
+    let name = local::common::unique_file_name(&root_path).unwrap();
+    let mut dup_path = root_path.clone();
+    dup_path.set_file_name(name);
+    duplicate_subgraph(root_path, dup_path).map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|(path, err)| (path, err.into()))
+            .collect()
+    })
+}
+
+#[tauri::command]
+pub fn container_trash(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    container: PathBuf,
+) -> Result<(), lib::command::error::IoErrorKind> {
+    assert!(is_root_path(&container));
+    let (project_path, project_state) = db.project().get_by_id(project).unwrap().unwrap();
+    let db::state::DataResource::Ok(properties) = project_state.properties() else {
+        panic!("invalid state");
+    };
+
+    let container_path =
+        db::common::container_system_path(project_path.join(&properties.data_root), container);
+
+    trash::delete(container_path).map_err(|err| match err {
+        _ => todo!("{err:?}"),
+    })
+}
+
+/// # Returns
+/// `Err` if any path fails to be copied.
 pub fn copy_dir(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
@@ -166,4 +214,36 @@ pub fn copy_dir(
     } else {
         Err(errors)
     }
+}
+
+/// Duplicates a subgraph.
+/// Removes all assets from containers.
+///
+/// # Returns
+/// `Err` if any path fails to be copied.
+pub fn duplicate_subgraph(
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+    let src: &Path = src.as_ref();
+    let dst: &Path = dst.as_ref();
+    let Ok(graph) = local::loader::tree::Loader::load(src) else {
+        todo!();
+    };
+
+    if let Err(err) = local::graph::ContainerTreeDuplicator::duplicate_without_assets_to(
+        dst,
+        &graph,
+        graph.root(),
+    ) {
+        todo!("{err:?}");
+    }
+
+    let mut root = local::loader::container::Loader::load_from_only_properties(dst).unwrap();
+    root.properties.name = dst.file_name().unwrap().to_string_lossy().to_string();
+    if let Err(err) = root.save(dst) {
+        todo!("{err:?}");
+    }
+
+    Ok(())
 }

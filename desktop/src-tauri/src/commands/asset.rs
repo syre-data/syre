@@ -170,5 +170,6 @@ pub fn asset_remove_file(
     let asset_path = container.join(asset);
     let path = lib::utils::join_path_absolute(data_root, asset_path);
 
+    // TODO: Change to `trash`.
     fs::remove_file(path).map_err(|err| err.into())
 }

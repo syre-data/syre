@@ -107,13 +107,27 @@ pub fn Canvas() -> impl IntoView {
                 let mut container_open = tauri_sys::menu::item::MenuItemOptions::new("Open");
                 container_open.set_id("canvas:container-open");
 
+                let mut container_duplicate =
+                    tauri_sys::menu::item::MenuItemOptions::new("Duplicate");
+                container_duplicate.set_id("canvas:container-duplicate");
+
+                let mut container_trash = tauri_sys::menu::item::MenuItemOptions::new("Trash");
+                container_trash.set_id("canvas:container-trash");
+
                 let (menu, mut listeners) = menu::Menu::with_id_and_items(
-                    "canvas:container-context_menu",
-                    vec![container_open.into()],
+                    "canvas:container-ok-context_menu",
+                    vec![
+                        container_open.into(),
+                        container_duplicate.into(),
+                        container_trash.into(),
+                    ],
                 )
                 .await;
 
                 spawn_local({
+                    // pop from end to beginning
+                    let container_trash = listeners.pop().unwrap().unwrap();
+                    let container_duplicate = listeners.pop().unwrap().unwrap();
                     let container_open = listeners.pop().unwrap().unwrap();
                     handle_context_menu_container_events(
                         project,
@@ -121,6 +135,8 @@ pub fn Canvas() -> impl IntoView {
                         messages,
                         context_menu_active_container.read_only(),
                         container_open,
+                        container_duplicate,
+                        container_trash,
                     )
                 });
 
@@ -1467,8 +1483,12 @@ async fn handle_context_menu_container_events(
     messages: types::Messages,
     context_menu_active_container: ReadSignal<Option<ContextMenuActiveContainer>>,
     container_open: Channel<String>,
+    container_duplicate: Channel<String>,
+    container_trash: Channel<String>,
 ) {
     let mut container_open = container_open.fuse();
+    let mut container_duplicate = container_duplicate.fuse();
+    let mut container_trash = container_trash.fuse();
     loop {
         futures::select! {
             event = container_open.next() => match event {
@@ -1488,10 +1508,44 @@ async fn handle_context_menu_container_events(
                             messages.update(|messages|{
                                 let mut msg = Message::error("Could not open container folder.");
                                 msg.body(format!("{err:?}"));
+                                messages.push(msg.build());
+                        });
+                    }
+                }
+            },
+
+            event = container_duplicate.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let container = context_menu_active_container.get_untracked().unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let path = common::normalize_path_sep(container_path);
+                    let project_id = project.rid().get_untracked();
+                    if let Err(err) =  duplicate_container(project_id, path).await {
+                        messages.update(|messages|{
+                            let mut msg = Message::error("Could not duplicate container.");
+                            msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });
                     }
-            }
+                }
+            },
+
+            event = container_trash.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let container = context_menu_active_container.get_untracked().unwrap();
+                    let container_path = graph.path(&container).unwrap();
+                    let path = common::normalize_path_sep(container_path);
+                    let project_id = project.rid().get_untracked();
+                    if let Err(err) =  trash_container(project_id, path).await {
+                            messages.update(|messages|{
+                                let mut msg = Message::error("Could not trash container.");
+                                msg.body(format!("{err:?}"));
+                                messages.push(msg.build());
+                            });
+                        }
+                }
             }
         }
     }
@@ -1543,6 +1597,36 @@ async fn handle_context_menu_asset_events(
             }
         }
     }
+}
+
+async fn duplicate_container(project: ResourceId, container: PathBuf) -> Result<(), io::ErrorKind> {
+    #[derive(Serialize)]
+    struct Args {
+        project: ResourceId,
+        container: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result::<(), lib::command::error::IoErrorKind>(
+        "container_duplicate",
+        Args { project, container },
+    )
+    .await
+    .map_err(|err| err.into())
+}
+
+async fn trash_container(project: ResourceId, container: PathBuf) -> Result<(), io::ErrorKind> {
+    #[derive(Serialize)]
+    struct Args {
+        project: ResourceId,
+        container: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result::<(), lib::command::error::IoErrorKind>(
+        "container_trash",
+        Args { project, container },
+    )
+    .await
+    .map_err(|err| err.into())
 }
 
 async fn remove_asset(

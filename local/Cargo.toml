@@ -15,31 +15,34 @@ categories = [ "science", "data-structures" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aquamarine = { workspace = true }  # TODO Only needed for documentation.
-calamine = { workspace = true }
-csv = { workspace = true }
+aquamarine.workspace = true  # TODO Only needed for documentation.
+calamine.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+csv.workspace = true
 derivative = "2.2"
+derive_more.workspace = true
 directories = { workspace = true, optional = true }
 glob = { version = "0.3.1", optional = true }
+has_id = { workspace = true, features = ["derive", "serde"] }
+rayon.workspace = true
+regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
-rayon = { workspace = true }
-regex = { workspace = true }
+tempfile.workspace = true
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
-validator = "0.17"
-has_id = { workspace = true, features = ["derive", "serde"] }
+validator = "0.18"
+walkdir.workspace = true
+
 syre-core = { workspace = true, features = ["serde"] }
-chrono = { workspace = true, features = ["serde"] }
-derive_more.workspace = true
 
 [dev-dependencies]
 fake = { workspace = true }
 lazy_static = "1.4.0"
 rand = { workspace = true }
-tempfile = { workspace = true }
+tempfile.workspace = true
 
 [features]
 fs = ["dep:directories", "dep:glob"]

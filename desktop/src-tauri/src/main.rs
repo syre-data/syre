@@ -32,6 +32,8 @@ fn main() {
             analyses::add_scripts,
             graph::create_child_container,
             graph::add_file_system_resources,
+            graph::container_duplicate,
+            graph::container_trash,
             container::container_rename,
             container::container_rename_bulk,
             container::container_properties_update,

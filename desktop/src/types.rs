@@ -5,10 +5,10 @@ use leptos::*;
 /// See https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button#value.
 pub enum MouseButton {
     Primary = 0,
-    Auxillary = 1,
-    Secondary = 2,
-    Fourth = 3,
-    Fifth = 4,
+    // Auxillary = 1,
+    // Secondary = 2,
+    // Fourth = 3,
+    // Fifth = 4,
 }
 
 /// App wide messages.

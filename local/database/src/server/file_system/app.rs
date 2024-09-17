@@ -42,9 +42,11 @@ impl Database {
             }
             event::StaticResourceEvent::Modified(kind) => match kind {
                 event::ModifiedKind::Data => {
-                    self.handle_fs_event_app_project_manifest_modified(event)
+                    self.handle_fs_event_app_project_manifest_modified_data(event)
                 }
-                event::ModifiedKind::Other => todo!(),
+                event::ModifiedKind::Other => {
+                    self.handle_fs_event_app_project_manifest_modified_other(event)
+                }
             },
         }
     }
@@ -143,18 +145,44 @@ impl Database {
         }
     }
 
-    fn handle_fs_event_app_project_manifest_modified(
+    fn handle_fs_event_app_project_manifest_modified_data(
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
-
         assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
             ))
         );
+
+        self.handle_app_project_manifest_modified_data(event)
+    }
+
+    fn handle_fs_event_app_project_manifest_modified_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::ProjectManifest(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
+            ))
+        );
+
+        if cfg!(target_os = "windows") {
+            self.handle_app_project_manifest_modified_data(event)
+        } else {
+            todo!();
+        }
+    }
+
+    fn handle_app_project_manifest_modified_data(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+
         assert_eq!(event.paths().len(), 1);
         assert_eq!(event.paths()[0], *self.config.project_manifest());
 

@@ -581,6 +581,7 @@ impl FsWatcher {
 pub mod config {
     use std::{io, path::PathBuf};
     use syre_local::{
+        common,
         error::IoSerde,
         file_resource::SystemResource,
         system::{
@@ -589,7 +590,7 @@ pub mod config {
         },
     };
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Config {
         /// Path to the local user manifest file.
         /// Should be absolute.
@@ -605,15 +606,25 @@ pub mod config {
     }
 
     impl Config {
+        /// # Notes
+        /// + On Windows paths are converted to UNC.
         pub fn new(
             user_manifest: impl Into<PathBuf>,
             project_manifest: impl Into<PathBuf>,
             local_config: impl Into<PathBuf>,
         ) -> Self {
-            Self {
-                user_manifest: user_manifest.into(),
-                project_manifest: project_manifest.into(),
-                local_config: local_config.into(),
+            if cfg!(target_os = "windows") {
+                Self {
+                    user_manifest: common::ensure_windows_unc(user_manifest),
+                    project_manifest: common::ensure_windows_unc(project_manifest),
+                    local_config: common::ensure_windows_unc(local_config),
+                }
+            } else {
+                Self {
+                    user_manifest: user_manifest.into(),
+                    project_manifest: project_manifest.into(),
+                    local_config: local_config.into(),
+                }
             }
         }
 

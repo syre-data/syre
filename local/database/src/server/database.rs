@@ -618,6 +618,7 @@ pub mod config {
     use crate::constants::{PortNumber, PUB_SUB_PORT};
     use std::{io, path::PathBuf};
     use syre_local::{
+        common,
         file_resource::SystemResource,
         system::{
             collections::{ProjectManifest, UserManifest},
@@ -662,13 +663,25 @@ pub mod config {
             }
         }
 
+        /// # Notes
+        /// + On Windows paths are converted to UNC.
         pub fn build(self) -> Config {
-            Config {
-                user_manifest: self.user_manifest,
-                project_manifest: self.project_manifest,
-                local_config: self.local_config,
-                update_port: self.update_port,
-                handle_fs_resource_changes: self.handle_fs_resource_changes,
+            if cfg!(target_os = "windows") {
+                Config {
+                    user_manifest: common::ensure_windows_unc(self.user_manifest),
+                    project_manifest: common::ensure_windows_unc(self.project_manifest),
+                    local_config: common::ensure_windows_unc(self.local_config),
+                    update_port: self.update_port,
+                    handle_fs_resource_changes: self.handle_fs_resource_changes,
+                }
+            } else {
+                Config {
+                    user_manifest: self.user_manifest,
+                    project_manifest: self.project_manifest,
+                    local_config: self.local_config,
+                    update_port: self.update_port,
+                    handle_fs_resource_changes: self.handle_fs_resource_changes,
+                }
             }
         }
 

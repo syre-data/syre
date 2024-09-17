@@ -1,7 +1,7 @@
 use super::{config, FsWatcher};
 use crate::{error, event as app, server::event as fs_event, Error, Event, EventKind};
 use std::{path::PathBuf, result::Result as StdResult, time::Instant};
-use syre_local::common as local_common;
+use syre_local as local;
 use uuid::Uuid;
 
 impl FsWatcher {
@@ -173,7 +173,7 @@ impl FsWatcher {
                                     let parent = parent.to_path_buf();
                                     if manifest.contains(&parent) {
                                         if let Some(file_name) = path.file_name() {
-                                            if file_name == local_common::app_dir() {
+                                            if file_name == local::common::app_dir() {
                                                 return Ok(vec![Event::with_time(
                                                     app::Project::ConfigDir(
                                                         app::StaticResourceEvent::Removed,
@@ -310,12 +310,12 @@ impl FsWatcher {
 
                     assert_ne!(
                         *path,
-                        local_common::project_file_of(&project),
+                        local::common::project_file_of(&project),
                         "NotInProject error indicates project file does not exist"
                     );
-                    if *path == local_common::project_settings_file_of(&project) {
+                    if *path == local::common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Created).into()
-                    } else if *path == local_common::analyses_file_of(&project) {
+                    } else if *path == local::common::analyses_file_of(&project) {
                         app::Project::Analyses(app::StaticResourceEvent::Created).into()
                     } else {
                         return Err(err);
@@ -325,11 +325,11 @@ impl FsWatcher {
                     let project = syre_local::project::project::project_root_path(path)
                         .expect("LoadProject error indicates we are in a project");
 
-                    if *path == local_common::project_file_of(&project) {
+                    if *path == local::common::project_file_of(&project) {
                         app::Project::Properties(app::StaticResourceEvent::Created).into()
-                    } else if *path == local_common::project_settings_file_of(&project) {
+                    } else if *path == local::common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Created).into()
-                    } else if *path == local_common::analyses_file_of(&project) {
+                    } else if *path == local::common::analyses_file_of(&project) {
                         app::Project::Analyses(app::StaticResourceEvent::Created).into()
                     } else {
                         return Err(err);
@@ -366,11 +366,11 @@ impl FsWatcher {
                         .find(|project| path.starts_with(project))
                         .expect("event should not be triggered if not in a root");
 
-                    if *path == local_common::project_file_of(&project) {
+                    if *path == local::common::project_file_of(&project) {
                         app::Project::Properties(app::StaticResourceEvent::Removed).into()
-                    } else if *path == local_common::project_settings_file_of(&project) {
+                    } else if *path == local::common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Removed).into()
-                    } else if *path == local_common::analyses_file_of(&project) {
+                    } else if *path == local::common::analyses_file_of(&project) {
                         app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                     } else {
                         return Err(err);
@@ -382,12 +382,12 @@ impl FsWatcher {
 
                     assert_ne!(
                         *path,
-                        local_common::project_file_of(&project),
+                        local::common::project_file_of(&project),
                         "LoadProject error indicates the path is in a project, requiring a project file to be present."
                     );
-                    if *path == local_common::project_settings_file_of(&project) {
+                    if *path == local::common::project_settings_file_of(&project) {
                         app::Project::Settings(app::StaticResourceEvent::Removed).into()
-                    } else if *path == local_common::analyses_file_of(&project) {
+                    } else if *path == local::common::analyses_file_of(&project) {
                         app::Project::Analyses(app::StaticResourceEvent::Removed).into()
                     } else {
                         return Err(err);
@@ -578,7 +578,7 @@ impl FsWatcher {
                 app::EventKind::Folder(app::ResourceEvent::Created)
             }
             Ok(resources::DirKind::ContainerLike { .. }) => {
-                if local_common::container_file_of(path).exists() {
+                if local::common::container_file_of(path).exists() {
                     app::Graph::Created.into()
                 } else {
                     app::EventKind::Folder(app::ResourceEvent::Created)

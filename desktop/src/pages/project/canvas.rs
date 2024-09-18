@@ -57,7 +57,7 @@ impl ContextMenuAsset {
 
 /// Active container for the container context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
-struct ContextMenuActiveContainer(state::graph::Node);
+struct ContextMenuActiveContainerOk(state::graph::Node);
 
 /// Active asset for the asset context menu.
 #[derive(derive_more::Deref, derive_more::From, Clone)]
@@ -89,10 +89,10 @@ pub fn Canvas() -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let messages = expect_context::<types::Messages>();
 
-    let context_menu_active_container =
-        create_rw_signal::<Option<ContextMenuActiveContainer>>(None);
+    let context_menu_active_container_ok =
+        create_rw_signal::<Option<ContextMenuActiveContainerOk>>(None);
     let context_menu_active_asset = create_rw_signal::<Option<ContextMenuActiveAsset>>(None);
-    provide_context(context_menu_active_container.clone());
+    provide_context(context_menu_active_container_ok.clone());
     provide_context(context_menu_active_asset);
 
     let context_menu_container_ok = create_local_resource(|| (), {
@@ -129,11 +129,11 @@ pub fn Canvas() -> impl IntoView {
                     let container_trash = listeners.pop().unwrap().unwrap();
                     let container_duplicate = listeners.pop().unwrap().unwrap();
                     let container_open = listeners.pop().unwrap().unwrap();
-                    handle_context_menu_container_events(
+                    handle_context_menu_container_ok_events(
                         project,
                         graph,
                         messages,
-                        context_menu_active_container.read_only(),
+                        context_menu_active_container_ok.read_only(),
                         container_open,
                         container_duplicate,
                         container_trash,
@@ -185,12 +185,8 @@ pub fn Canvas() -> impl IntoView {
         }>
 
             {move || {
-                let Some(context_menu_container_ok) = context_menu_container_ok.get() else {
-                    return None;
-                };
-                let Some(context_menu_asset) = context_menu_asset.get() else {
-                    return None;
-                };
+                let context_menu_container_ok = context_menu_container_ok.get()?;
+                let context_menu_asset = context_menu_asset.get()?;
                 Some(view! { <CanvasView context_menu_container_ok context_menu_asset /> })
             }}
 
@@ -772,7 +768,7 @@ fn ContainerOk(
     let messages = expect_context::<types::Messages>();
     let context_menu = expect_context::<ContextMenuContainerOk>();
     let context_menu_active_container =
-        expect_context::<RwSignal<Option<ContextMenuActiveContainer>>>();
+        expect_context::<RwSignal<Option<ContextMenuActiveContainerOk>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let (drag_over, set_drag_over) = create_signal(0);
@@ -1477,11 +1473,11 @@ where
     }
 }
 
-async fn handle_context_menu_container_events(
+async fn handle_context_menu_container_ok_events(
     project: state::Project,
     graph: state::Graph,
     messages: types::Messages,
-    context_menu_active_container: ReadSignal<Option<ContextMenuActiveContainer>>,
+    context_menu_active_container: ReadSignal<Option<ContextMenuActiveContainerOk>>,
     container_open: Channel<String>,
     container_duplicate: Channel<String>,
     container_trash: Channel<String>,

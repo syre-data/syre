@@ -128,6 +128,11 @@ pub fn import_project(
     Ok(())
 }
 
+#[tauri::command]
+pub fn deregister_project(project: PathBuf) -> Result<(), local::error::IoSerde> {
+    local::system::project_manifest::deregister_project(&project)
+}
+
 /// # Returns
 /// Tuple of (project path, project data, project graph).
 #[tauri::command]

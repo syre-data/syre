@@ -28,6 +28,7 @@ fn main() {
             project::create_project,
             project::initialize_project,
             project::import_project,
+            project::deregister_project,
             project::project_resources,
             project::project_analysis_remove,
             project::analyze_project,

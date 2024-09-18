@@ -7,15 +7,34 @@ use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::*;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc};
 use syre_core::{project::Project, system::User, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_local as local;
 use syre_local_database as db;
+use tauri_sys::{core::Channel, menu};
 use web_sys::{MouseEvent, SubmitEvent};
+
+/// Context menu for containers that are `Ok`.
+#[derive(derive_more::Deref, Clone)]
+struct ContextMenuProjectOk(Rc<menu::Menu>);
+impl ContextMenuProjectOk {
+    pub fn new(menu: Rc<menu::Menu>) -> Self {
+        Self(menu)
+    }
+}
+
+/// Active project for the project context menu.
+#[derive(derive_more::Deref, derive_more::From, Clone)]
+struct ContextMenuActiveProject(PathBuf);
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
     let user = expect_context::<User>();
+    let messages = expect_context::<types::Messages>();
+    let context_menu_active_project_ok = create_rw_signal::<Option<ContextMenuActiveProject>>(None);
+    provide_context(context_menu_active_project_ok.clone());
+
     let projects = create_resource(|| (), {
         let user = user.rid().clone();
         move |_| {
@@ -23,9 +42,43 @@ pub fn Dashboard() -> impl IntoView {
             async move { fetch_user_projects(user).await }
         }
     });
+
+    let context_menu_project_ok = create_local_resource(|| (), {
+        let messages = messages.clone();
+        move |_| {
+            let messages = messages.clone();
+            async move {
+                let mut project_remove = tauri_sys::menu::item::MenuItemOptions::new("Remove");
+                project_remove.set_id("dashboard:project-remove");
+
+                let (menu, mut listeners) = menu::Menu::with_id_and_items(
+                    "dashboard:project-ok-context_menu",
+                    vec![project_remove.into()],
+                )
+                .await;
+
+                spawn_local({
+                    // pop from end to beginning
+                    let project_remove = listeners.pop().unwrap().unwrap();
+                    handle_context_menu_project_ok_events(
+                        messages,
+                        context_menu_active_project_ok.read_only(),
+                        project_remove,
+                    )
+                });
+
+                Rc::new(menu)
+            }
+        }
+    });
+
     view! {
         <Suspense fallback=Loading>
-            {move || projects.map(|projects| view! { <DashboardView projects=projects.clone() /> })}
+            {move || {
+                let context_menu_project_ok = context_menu_project_ok.get()?;
+                let projects = projects.get()?;
+                Some(view! { <DashboardView projects context_menu_project_ok /> })
+            }}
         </Suspense>
     }
 }
@@ -36,7 +89,12 @@ fn Loading() -> impl IntoView {
 }
 
 #[component]
-fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoView {
+fn DashboardView(
+    projects: Vec<(PathBuf, db::state::ProjectData)>,
+    context_menu_project_ok: Rc<menu::Menu>,
+) -> impl IntoView {
+    provide_context(ContextMenuProjectOk::new(context_menu_project_ok));
+
     let (projects, set_projects) = create_signal(
         projects
             .into_iter()
@@ -189,9 +247,29 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
 
 #[component]
 fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
-    let path_str = move || path.to_string_lossy().to_string();
-    let contextmenu = move |e: MouseEvent| {
-        tracing::debug!("ctx");
+    let context_menu = expect_context::<ContextMenuProjectOk>();
+    let context_menu_active_project =
+        expect_context::<RwSignal<Option<ContextMenuActiveProject>>>();
+
+    let path_str = {
+        let path = path.clone();
+        move || path.to_string_lossy().to_string()
+    };
+
+    let contextmenu = {
+        let path = path.clone();
+        move |e: MouseEvent| {
+            e.prevent_default();
+
+            context_menu_active_project.update(|active_project| {
+                let _ = active_project.insert(path.clone().into());
+            });
+
+            let menu = context_menu.clone();
+            spawn_local(async move {
+                menu.popup().await.unwrap();
+            });
+        }
     };
 
     view! {
@@ -470,4 +548,38 @@ async fn import_project(
     }
 
     tauri_sys::core::invoke_result("import_project", Args { user, path }).await
+}
+
+async fn handle_context_menu_project_ok_events(
+    messages: types::Messages,
+    context_menu_active_project: ReadSignal<Option<ContextMenuActiveProject>>,
+    project_remove: Channel<String>,
+) {
+    let mut project_remove = project_remove.fuse();
+    loop {
+        futures::select! {
+            event = project_remove.next() => match event {
+                None => continue,
+                Some(_id) => {
+                    let project = context_menu_active_project.get_untracked().unwrap();
+                    if let Err(err) =  remove_project((*project).clone()).await {
+                        messages.update(|messages|{
+                            let mut msg = Message::error("Could not remove project.");
+                            msg.body(format!("{err:?}"));
+                            messages.push(msg.build());
+                        });
+                    }
+                }
+            },
+        }
+    }
+}
+
+async fn remove_project(project: PathBuf) -> Result<(), local::error::IoSerde> {
+    #[derive(Serialize)]
+    struct Args {
+        project: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result("deregister_project", Args { project }).await
 }

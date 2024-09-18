@@ -8,6 +8,28 @@ pub mod project {
         use syre_local_runner as runner;
 
         #[derive(Serialize, Deserialize, Debug)]
+        pub enum Initialize {
+            /// The path is not a valid project root path.
+            /// This is likely because it contains other or is contained within another project root path(s).
+            InvalidRootPath,
+
+            /// Could not register the project in the project manifest.
+            ProjectManifest(IoSerde),
+
+            /// Could not intialize the folder as a project.
+            Init(String),
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum Import {
+            /// Could not update the project's settings.
+            Settings(IoSerde),
+
+            /// Could not register the project in the project manifest.
+            ProjectManifest(IoSerde),
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
         pub enum AnalysesUpdate {
             AnalysesFile(IoSerde),
             RemoveFile(#[serde(with = "IoErrorKind")] io::ErrorKind),

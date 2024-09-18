@@ -239,7 +239,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
         let project = project.clone();
         let messages = messages.clone();
         move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary as i16 {
+            if e.button() != types::MouseButton::Primary {
                 return;
             }
 

@@ -14,7 +14,7 @@ pub fn ProjectBar() -> impl IntoView {
     view! {
         <div class="flex px-2 py-1">
             <div class="grow inline-flex gap-2">
-                <PreviewSelector/>
+                <PreviewSelector />
                 <Analyze />
             </div>
             <div class="grow text-center font-primary">{project.properties().name()}</div>
@@ -62,7 +62,7 @@ fn PreviewSelector() -> impl IntoView {
     };
 
     let activate = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
         if active.with(|active| active.is_some()) {
@@ -70,7 +70,7 @@ fn PreviewSelector() -> impl IntoView {
         }
 
         let cb = Closure::new(move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary as i16 {
+            if e.button() != types::MouseButton::Primary {
                 return;
             }
 
@@ -109,7 +109,7 @@ fn PreviewSelector() -> impl IntoView {
     };
 
     let clear = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
 
@@ -130,7 +130,7 @@ fn PreviewSelector() -> impl IntoView {
             >
                 <span class="grow truncate">{preview_list}</span>
                 <span class="pl-2 inline-flex items-center">
-                    <Icon icon=icondata::FaChevronDownSolid/>
+                    <Icon icon=icondata::FaChevronDownSolid />
                 </span>
             </div>
             <div
@@ -238,7 +238,7 @@ fn PreviewSelector() -> impl IntoView {
                             <span class=CLASS_LABEL>"Metadata"</span>
                         </label>
                     </div>
-                    <hr class="border-secondary-900 dark:border-secondary-200"/>
+                    <hr class="border-secondary-900 dark:border-secondary-200" />
                     <div class="px-2 text-center dark:border-secondary-200">
                         <button on:mousedown=clear class="w-full h-full">
                             "Clear"
@@ -258,7 +258,7 @@ fn Analyze() -> impl IntoView {
     let trigger_analysis = create_action(move |_| analyze(project.rid().get_untracked(), "/"));
 
     let mousedown = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
 
@@ -285,12 +285,13 @@ fn Analyze() -> impl IntoView {
         <button
             on:mousedown=mousedown
             class="btn-primary rounded px-4"
-            disabled={let pending = trigger_analysis.pending();
+            disabled={
+                let pending = trigger_analysis.pending();
                 move || pending.get()
             }
-            >
+        >
             "Analyze"
-            </button>
+        </button>
     }
 }
 

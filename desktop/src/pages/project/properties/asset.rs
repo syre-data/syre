@@ -20,7 +20,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
     let add_metadatum_visible = create_rw_signal(false);
 
     let show_add_metadatum = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_metadatum_visible.set(true);
         }
     };
@@ -34,25 +34,25 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
                 <div class="pb-1 px-1">
                     <label>
                         <span class="block">"Name"</span>
-                        <Name/>
+                        <Name />
                     </label>
                 </div>
                 <div class="pb-1 px-1">
                     <label>
                         <span class="block">"Type"</span>
-                        <Kind/>
+                        <Kind />
                     </label>
                 </div>
                 <div class="pb-1 px-1">
                     <label>
                         <span class="block">"Description"</span>
-                        <Description/>
+                        <Description />
                     </label>
                 </div>
                 <div class="pb-4 px-1">
                     <label>
                         <span class="block">"Tags"</span>
-                        <Tags/>
+                        <Tags />
                     </label>
                 </div>
                 <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
@@ -76,13 +76,13 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
 
                             </span>
                         </div>
-                        <AddDatum visibility=add_metadatum_visible/>
-                        <Metadata/>
+                        <AddDatum visibility=add_metadatum_visible />
+                        <Metadata />
                     </label>
                 </div>
             </form>
@@ -336,7 +336,7 @@ mod metadata {
         view! {
             <For each=asset.metadata().read_only() key=|(key, _)| key.clone() let:datum>
                 <div>
-                    <DatumEditor key=datum.0.clone() value=datum.1.read_only()/>
+                    <DatumEditor key=datum.0.clone() value=datum.1.read_only() />
                 </div>
             </For>
         }
@@ -488,7 +488,7 @@ mod metadata {
             let messages = messages.clone();
             let key = key.clone();
             move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary as i16 {
+                if e.button() != types::MouseButton::Primary {
                     return;
                 }
 
@@ -524,10 +524,10 @@ mod metadata {
                         on:mousedown=remove_datum
                         class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                     >
-                        <Icon icon=icondata::AiMinusOutlined/>
+                        <Icon icon=icondata::AiMinusOutlined />
                     </button>
                 </div>
-                <ValueEditor value=input_value set_value=set_input_value/>
+                <ValueEditor value=input_value set_value=set_input_value />
             </div>
         }
     }

@@ -5,7 +5,7 @@ use syre_core::{
     runner::RunnerHooks,
     types::{ResourceId, UserId, UserPermissions},
 };
-use syre_desktop_lib as lib;
+use syre_desktop_lib::{self as lib, command::project::error};
 use syre_local::{
     self as local,
     project::{
@@ -20,8 +20,24 @@ use syre_local_database as db;
 use syre_local_runner as runner;
 
 #[tauri::command]
-pub fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Project> {
-    project::init(&path)?;
+pub fn create_project(
+    user: ResourceId,
+    path: PathBuf,
+) -> Result<Project, lib::command::project::error::Initialize> {
+    use lib::command::project::error;
+    project::init(&path).map_err(|err| match err {
+        project::error::Init::InvalidRootPath => error::Initialize::InvalidRootPath,
+        project::error::Init::ProjectManifest(err) => error::Initialize::ProjectManifest(err),
+        project::error::Init::CreateAppDir(err) => {
+            error::Initialize::Init(format!("Could not create app directory: {err:?}"))
+        }
+        project::error::Init::Properties(err) => {
+            error::Initialize::Init(format!("Could not update properties: {err:?}"))
+        }
+        project::error::Init::Analyses(err) => {
+            error::Initialize::Init(format!("Could not update analyses: {err:?}"))
+        }
+    })?;
 
     // create analysis folder
     let analysis_root = "analysis";
@@ -29,20 +45,87 @@ pub fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Pro
     analysis.push(analysis_root);
     fs::create_dir(&analysis).unwrap();
 
-    let mut project = LocalProject::load_from(path)?;
+    let mut project = LocalProject::load_from(path)
+        .map_err(|err| error::Initialize::Init(format!("Could not update settings: {err:?}")))?;
     let settings = project.settings_mut();
     settings.creator = Some(UserId::Id(user.clone()));
     settings
         .permissions
         .insert(user.clone(), UserPermissions::all());
     project.analysis_root = Some(PathBuf::from(analysis_root));
-    project.save()?;
+    project
+        .save()
+        .map_err(|err| error::Initialize::Init(format!("Could not update settings: {err:?}")))?;
 
     let mut root = LocalContainer::new(project.data_root_path());
     root.settings_mut().creator = Some(UserId::Id(user.clone()));
-    root.save()?;
+    root.save()
+        .map_err(|err| error::Initialize::Init(format!("Could not update settings: {err:?}")))?;
 
     Ok(project.into())
+}
+
+#[tauri::command]
+pub fn initialize_project(
+    user: ResourceId,
+    path: PathBuf,
+) -> Result<(), lib::command::project::error::Initialize> {
+    use lib::command::project::error;
+    use project::converter;
+
+    if !local::project::project::is_valid_project_path(&path)
+        .map_err(|err| error::Initialize::ProjectManifest(err))?
+    {
+        tracing::error!("invalid project root path");
+        return Err(error::Initialize::InvalidRootPath);
+    }
+
+    let converter = local::project::project::converter::Converter::new();
+    converter.convert(&path).map_err(|err| match err {
+        converter::error::Convert::DoesNotExist => error::Initialize::InvalidRootPath,
+        converter::error::Convert::Init(err) => {
+            error::Initialize::Init(format!("Could not initialize the project: {err:?}"))
+        }
+        converter::error::Convert::Fs(err) => {
+            error::Initialize::Init(format!("Could not initialize the project: {err:?}"))
+        }
+        converter::error::Convert::Build(err) => {
+            error::Initialize::Init(format!("Could not convert the file to a project: {err:?}"))
+        }
+        converter::error::Convert::Analyses(err) => {
+            error::Initialize::Init(format!("Could not update analyses: {err:?}"))
+        }
+    })?;
+
+    local::system::project_manifest::register_project(path)
+        .map_err(|err| error::Initialize::ProjectManifest(err))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_project(
+    user: ResourceId,
+    path: PathBuf,
+) -> Result<(), lib::command::project::error::Import> {
+    use lib::command::project::error;
+
+    let mut settings = local::project::resources::Project::load_from_settings_only(&path)
+        .map_err(|err| error::Import::Settings(err))?;
+
+    settings
+        .permissions
+        .entry(user)
+        .or_insert(UserPermissions::all());
+
+    settings
+        .save(&path)
+        .map_err(|err| error::Import::Settings(err.into()))?;
+
+    local::system::project_manifest::register_project(&path)
+        .map_err(|err| error::Import::ProjectManifest(err))?;
+
+    Ok(())
 }
 
 /// # Returns

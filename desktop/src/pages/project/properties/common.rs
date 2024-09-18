@@ -28,7 +28,7 @@ pub mod kind {
             oninput(processed_value());
         });
 
-        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
+        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class /> }
     }
 }
 
@@ -64,7 +64,7 @@ pub mod description {
             oninput(processed_value());
         });
 
-        view! { <TextArea value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
+        view! { <TextArea value=Signal::derive(input_value) oninput=oninput_text debounce class /> }
     }
 }
 
@@ -112,7 +112,7 @@ pub mod tags {
             oninput(processed_value());
         });
 
-        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class/> }
+        view! { <InputText value=Signal::derive(input_value) oninput=oninput_text debounce class /> }
     }
 }
 
@@ -201,14 +201,14 @@ pub mod metadata {
                         class="input-compact w-full"
                     />
                 </div>
-                <ValueEditor value set_value/>
+                <ValueEditor value set_value />
                 <div class="py-1 flex gap-x-1">
                     <button
                         type="button"
                         on:mousedown=onadd_datum
                         class="hover:bg-primary-400 dark:hover:bg-primary-700"
                     >
-                        <Icon icon=icondata::AiPlusOutlined/>
+                        <Icon icon=icondata::AiPlusOutlined />
                     </button>
                 </div>
             </div>
@@ -225,22 +225,22 @@ pub mod metadata {
         let value_editor = move || {
             value_kind.with(|kind| match kind {
                 ValueKind::Bool => {
-                    view! { <BoolEditor value set_value/> }
+                    view! { <BoolEditor value set_value /> }
                 }
                 ValueKind::String => {
-                    view! { <StringEditor value set_value/> }
+                    view! { <StringEditor value set_value /> }
                 }
                 ValueKind::Number => {
-                    view! { <NumberEditor value set_value/> }
+                    view! { <NumberEditor value set_value /> }
                 }
                 ValueKind::Quantity => {
-                    view! { <QuantityEditor value set_value/> }
+                    view! { <QuantityEditor value set_value /> }
                 }
                 ValueKind::Array => {
-                    view! { <ArrayEditor value set_value/> }
+                    view! { <ArrayEditor value set_value /> }
                 }
                 ValueKind::Map => {
-                    view! { <MapEditor value set_value/> }
+                    view! { <MapEditor value set_value /> }
                 }
             })
         };
@@ -253,7 +253,7 @@ pub mod metadata {
 
         view! {
             <div class=class>
-                <KindSelect value set_value/>
+                <KindSelect value set_value />
                 {value_editor}
             </div>
         }
@@ -815,7 +815,7 @@ pub mod analysis_associations {
                         on:mousedown=add
                         class="hover:bg-primary-400 dark:hover:bg-primary-700"
                     >
-                        <Icon icon=icondata::AiPlusOutlined/>
+                        <Icon icon=icondata::AiPlusOutlined />
                     </button>
                 </div>
             </div>
@@ -1030,7 +1030,7 @@ pub mod bulk {
 
             let remove = move |tag: String| {
                 move |e: MouseEvent| {
-                    if e.button() == types::MouseButton::Primary as i16 {
+                    if e.button() == types::MouseButton::Primary {
                         onremove(tag.clone());
                     }
                 }
@@ -1053,7 +1053,7 @@ pub mod bulk {
                                                         class="aspect-square h-full rounded-full hover:bg-secondary-200 dark:hover:bg-secondary-600"
                                                     >
 
-                                                        <Icon icon=icondata::AiMinusOutlined class="inline-block"/>
+                                                        <Icon icon=icondata::AiMinusOutlined class="inline-block" />
                                                     </button>
                                                 </li>
                                             }
@@ -1123,7 +1123,7 @@ pub mod bulk {
                         class="input-compact w-full"
                     />
                     <button type="button" on:mousedown=add_tags>
-                        <Icon icon=icondata::AiPlusOutlined/>
+                        <Icon icon=icondata::AiPlusOutlined />
                     </button>
                 </div>
             }
@@ -1220,10 +1220,10 @@ pub mod bulk {
                             class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                         >
 
-                            <Icon icon=icondata::AiMinusOutlined/>
+                            <Icon icon=icondata::AiMinusOutlined />
                         </button>
                     </div>
-                    <ValueEditor value oninput/>
+                    <ValueEditor value oninput />
                 </div>
             }
         }
@@ -1240,26 +1240,26 @@ pub mod bulk {
                     Value::MixedKind => view! {}.into_view(),
                     Value::EqualKind(data::ValueKind::Bool)
                     | Value::Equal(data::Value::Bool(_)) => {
-                        view! { <BoolEditor value=value.clone() oninput/> }.into_view()
+                        view! { <BoolEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::EqualKind(data::ValueKind::String)
                     | Value::Equal(data::Value::String(_)) => {
-                        view! { <StringEditor value=value.clone() oninput/> }.into_view()
+                        view! { <StringEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::EqualKind(data::ValueKind::Number)
                     | Value::Equal(data::Value::Number(_)) => {
-                        view! { <NumberEditor value=value.clone() oninput/> }.into_view()
+                        view! { <NumberEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::EqualKind(data::ValueKind::Quantity)
                     | Value::Equal(data::Value::Quantity { .. }) => {
-                        view! { <QuantityEditor value=value.clone() oninput/> }.into_view()
+                        view! { <QuantityEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::EqualKind(data::ValueKind::Array)
                     | Value::Equal(data::Value::Array(_)) => {
-                        view! { <ArrayEditor value=value.clone() oninput/> }.into_view()
+                        view! { <ArrayEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::EqualKind(data::ValueKind::Map) | Value::Equal(data::Value::Map(_)) => {
-                        view! { <MapEditor value=value.clone() oninput/> }.into_view()
+                        view! { <MapEditor value=value.clone() oninput /> }.into_view()
                     }
                     Value::Equal(data::Value::Null) => unreachable!(),
                 }
@@ -1267,7 +1267,7 @@ pub mod bulk {
 
             view! {
                 <div class="flex flex-wrap">
-                    <KindSelect value onchange=oninput/>
+                    <KindSelect value onchange=oninput />
                     {value_editor}
                 </div>
             }

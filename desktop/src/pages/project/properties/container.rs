@@ -104,13 +104,13 @@ pub fn Editor(container: state::Container) -> impl IntoView {
     let available_analyses = Signal::derive(available_analyses);
 
     let show_add_metadatum = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_metadatum_visible.set(true);
         }
     };
 
     let show_add_analysis = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_analysis_visible.set(true);
         }
     };
@@ -178,7 +178,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
@@ -221,7 +221,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                     }
                                 >
 
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
@@ -550,7 +550,7 @@ mod metadata {
         view! {
             <div class="pt-0.5">
                 <For each=value key=|(key, _)| key.clone() let:datum>
-                    <DatumEditor key=datum.0.clone() value=datum.1.read_only()/>
+                    <DatumEditor key=datum.0.clone() value=datum.1.read_only() />
                 </For>
             </div>
         }
@@ -699,7 +699,7 @@ mod metadata {
             let messages = messages.clone();
             let key = key.clone();
             move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary as i16 {
+                if e.button() != types::MouseButton::Primary {
                     return;
                 }
 
@@ -739,10 +739,10 @@ mod metadata {
                         on:mousedown=remove_datum
                         class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                     >
-                        <Icon icon=icondata::AiMinusOutlined/>
+                        <Icon icon=icondata::AiMinusOutlined />
                     </button>
                 </div>
-                <ValueEditor value=input_value set_value=set_input_value/>
+                <ValueEditor value=input_value set_value=set_input_value />
             </div>
         }
     }
@@ -820,7 +820,7 @@ mod analysis_associations {
 
         view! {
             <DetailPopout title="Add analysis" visibility>
-                <AddAssociationEditor available_analyses onadd=Callback::new(onadd) class="px-1"/>
+                <AddAssociationEditor available_analyses onadd=Callback::new(onadd) class="px-1" />
             </DetailPopout>
         }
     }
@@ -841,7 +841,7 @@ mod analysis_associations {
                         key=|association| association.analysis().clone()
                         let:association
                     >
-                        <AnalysisAssociationEditor association container/>
+                        <AnalysisAssociationEditor association container />
                     </For>
                 </Show>
             </div>

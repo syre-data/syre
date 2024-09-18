@@ -69,13 +69,13 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
     );
 
     let show_add_tags = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_tags_visible.set(true);
         }
     };
 
     let show_add_metadatum = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_metadatum_visible.set(true);
         }
     };
@@ -338,13 +338,13 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
                 <div class="px-1 pb-1">
                     <label>
                         <span class="block">"Type"</span>
-                        <Kind state=state_kind/>
+                        <Kind state=state_kind />
                     </label>
                 </div>
                 <div class="px-1 pb-1">
                     <label>
                         <span class="block">"Description"</span>
-                        <Description state=state_description/>
+                        <Description state=state_description />
                     </label>
                 </div>
                 <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
@@ -368,12 +368,12 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
-                        <AddTags visibility=add_tags_visible/>
-                        <Tags state=state_tags/>
+                        <AddTags visibility=add_tags_visible />
+                        <Tags state=state_tags />
                     </label>
                 </div>
                 <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
@@ -395,11 +395,11 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
-                        <AddDatum keys=metadata_keys visibility=add_metadatum_visible/>
+                        <AddDatum keys=metadata_keys visibility=add_metadatum_visible />
                         <Metadata
                             state=state_metadata
                             oncancel_adddatum=move |_| add_metadatum_visible.set(false)
@@ -444,7 +444,7 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state oninput debounce=INPUT_DEBOUNCE/> }
+        view! { <KindEditor value=state oninput debounce=INPUT_DEBOUNCE /> }
     }
 }
 
@@ -525,7 +525,7 @@ mod tags {
             }
         });
 
-        view! { <TagsEditor value=state onremove/> }
+        view! { <TagsEditor value=state onremove /> }
     }
 
     #[component]
@@ -556,7 +556,7 @@ mod tags {
 
         view! {
             <DetailPopout title="Add tags" visibility onclose=move |_| set_reset_form(())>
-                <AddTagsEditor onadd reset=reset_form class="w-full px-1"/>
+                <AddTagsEditor onadd reset=reset_form class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -628,7 +628,7 @@ mod metadata {
             }
         });
 
-        view! { <MetadataEditor value=state onremove onmodify/> }
+        view! { <MetadataEditor value=state onremove onmodify /> }
     }
 
     #[component]

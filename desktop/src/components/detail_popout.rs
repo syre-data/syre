@@ -10,7 +10,7 @@ pub fn DetailPopout(
     #[prop(optional, into)] onclose: Option<Callback<MouseEvent>>,
 ) -> impl IntoView {
     let cancel = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             visibility.set(false);
             if let Some(onclose) = onclose {
                 onclose(e);

@@ -1,6 +1,6 @@
 use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
-    components::{ModalDialog, TruncateLeft},
+    components::{message::Builder as Message, ModalDialog, TruncateLeft},
     types,
 };
 use futures::stream::StreamExt;
@@ -25,8 +25,7 @@ pub fn Dashboard() -> impl IntoView {
     });
     view! {
         <Suspense fallback=Loading>
-            {move || projects.map(|projects| view! { <DashboardView projects=projects.clone()/> })}
-
+            {move || projects.map(|projects| view! { <DashboardView projects=projects.clone() /> })}
         </Suspense>
     }
 }
@@ -44,9 +43,6 @@ fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoV
             .map(|project| RwSignal::new(project))
             .collect::<Vec<_>>(),
     );
-
-    let create_project_path = RwSignal::new(None);
-    let create_project_ref = NodeRef::<html::Dialog>::new();
 
     spawn_local(async move {
         let mut listener =
@@ -85,70 +81,69 @@ fn DashboardView(projects: Vec<(PathBuf, db::state::ProjectData)>) -> impl IntoV
         }
     });
 
-    Effect::new(move |_| {
-        if create_project_path.with(|path| path.is_none()) {
-            let dialog = create_project_ref.get().unwrap();
-            dialog.close();
-        }
-    });
-
-    let show_create_project_dialog = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
-            return;
-        }
-
-        spawn_local(async move {
-            if let Some(p) = pick_folder("Create a new project").await {
-                create_project_path.update(|path| {
-                    let _ = path.insert(p);
-                });
-                let dialog = create_project_ref.get_untracked().unwrap();
-                dialog.show_modal().unwrap();
-            }
-        })
-    };
-
-    let show_initialize_project_dialog = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
-            return;
-        }
-
-        todo!();
-    };
-
-    let show_import_project_dialog = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
-            return;
-        }
-
-        todo!();
-    };
-
     view! {
         <div class="p-4">
-            <div class="pb-4">
-                <span class="font-primary text-3xl pr-4">"Dashboard"</span>
-                <div class="inline-flex gap-x-2 align-bottom">
-                    <button on:mousedown=show_create_project_dialog class="btn btn-primary">
-                        "New"
-                    </button>
+            <Show
+                when=move || projects.with(|projects| !projects.is_empty())
+                fallback=|| view! { <DashboardNoProjects /> }
+            >
+                <DashboardProjects projects />
+            </Show>
+        </div>
+    }
+}
 
-                    <button on:mousedown=show_initialize_project_dialog class="btn btn-secondary">
-                        "Initialize"
-                    </button>
+#[component]
+fn DashboardNoProjects() -> impl IntoView {
+    view! {
+        <div>
+            <div class="pb-2 font-primary text-3xl">"Dashboard"</div>
+            <div>
+                <div class="text-xl text-center pb-2">"Create your first project"</div>
+                <div class="flex gap-y-2 flex-col items-center">
+                    <CreateProject
+                        class="btn btn-primary w-1/2"
+                        title="Create a new Syre project from scratch."
+                    >
+                        <strong>"New"</strong>
+                    </CreateProject>
 
-                    <button on:mousedown=show_import_project_dialog class="btn btn-secondary">
-                        "Import"
-                    </button>
+                    <InitializeProject
+                        class="btn btn-secondary w-1/2"
+                        title="Initialize an existing folder as a Syre project."
+                    >
+                        <strong>"Initialize"</strong>
+                        " an existing directory"
+                    </InitializeProject>
+
+                    <ImportProject
+                        class="btn btn-secondary w-1/2"
+                        title="If you already have a Syre project, import it into your workspace."
+                    >
+                        <strong>"Import"</strong>
+                        " an existing project"
+                    </ImportProject>
                 </div>
             </div>
-
-            <ProjectDeck projects/>
-
-            <ModalDialog node_ref=create_project_ref>
-                <CreateProject path=create_project_path/>
-            </ModalDialog>
         </div>
+    }
+}
+
+#[component]
+fn DashboardProjects(
+    projects: ReadSignal<Vec<RwSignal<(PathBuf, db::state::ProjectData)>>>,
+) -> impl IntoView {
+    view! {
+        <div class="pb-4">
+            <span class="font-primary text-3xl pr-4">"Dashboard"</span>
+            <div class="inline-flex gap-x-2 align-bottom">
+                <CreateProject class="btn btn-primary">"New"</CreateProject>
+                <InitializeProject class="btn btn-secondary">"Initialize"</InitializeProject>
+                <ImportProject class="btn btn-secondary">"Import"</ImportProject>
+            </div>
+        </div>
+
+        <ProjectDeck projects />
     }
 }
 
@@ -157,7 +152,7 @@ fn ProjectDeck(
     projects: ReadSignal<Vec<RwSignal<(PathBuf, db::state::ProjectData)>>>,
 ) -> impl IntoView {
     view! {
-        <div class="flex">
+        <div class="flex gap-4">
             <For
                 each=projects
                 key=|state| {
@@ -173,7 +168,7 @@ fn ProjectDeck(
 
                 let:project
             >
-                <ProjectCard project=project.read_only()/>
+                <ProjectCard project=project.read_only() />
             </For>
         </div>
     }
@@ -184,9 +179,9 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
     move || {
         project.with(|(path, project)| {
             if let db::state::DataResource::Ok(project) = project.properties() {
-                view! { <ProjectCardOk project=project.clone() path=path.clone()/> }
+                view! { <ProjectCardOk project=project.clone() path=path.clone() /> }
             } else {
-                view! { <ProjectCardErr path=path.clone()/> }
+                view! { <ProjectCardErr path=path.clone() /> }
             }
         })
     }
@@ -195,6 +190,9 @@ fn ProjectCard(project: ReadSignal<(PathBuf, db::state::ProjectData)>) -> impl I
 #[component]
 fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
     let path_str = move || path.to_string_lossy().to_string();
+    let contextmenu = move |e: MouseEvent| {
+        tracing::debug!("ctx");
+    };
 
     view! {
         <A
@@ -202,7 +200,7 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
                 let project = project.rid().clone();
                 move || project.to_string()
             }
-
+            on:contextmenu=contextmenu
             class="w-1/4 rounded border border-secondary-900 dark:bg-secondary-700 dark:border-secondary-50"
         >
             <div class="px-4 py-2">
@@ -225,7 +223,50 @@ fn ProjectCardErr(path: PathBuf) -> impl IntoView {
 }
 
 #[component]
-fn CreateProject(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
+fn CreateProject(
+    children: Children,
+    #[prop(optional, into)] class: MaybeProp<String>,
+    #[prop(optional, into)] title: MaybeProp<String>,
+) -> impl IntoView {
+    let create_project_path = RwSignal::new(None);
+    let create_project_ref = NodeRef::<html::Dialog>::new();
+
+    let show_create_project_dialog = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        spawn_local(async move {
+            if let Some(p) = pick_folder("Create a new project").await {
+                create_project_path.update(|path| {
+                    let _ = path.insert(p);
+                });
+                let dialog = create_project_ref.get_untracked().unwrap();
+                dialog.show_modal().unwrap();
+            }
+        })
+    };
+
+    Effect::new(move |_| {
+        if create_project_path.with(|path| path.is_none()) {
+            let dialog = create_project_ref.get().unwrap();
+            dialog.close();
+        }
+    });
+
+    view! {
+        <button on:mousedown=show_create_project_dialog class=class title=title>
+            {children()}
+        </button>
+
+        <ModalDialog node_ref=create_project_ref>
+            <CreateProjectDialog path=create_project_path />
+        </ModalDialog>
+    }
+}
+
+#[component]
+fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     let user = expect_context::<User>();
     let (error, set_error) = create_signal(None);
     let create_project = {
@@ -310,6 +351,79 @@ fn CreateProject(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     }
 }
 
+#[component]
+fn InitializeProject(
+    children: Children,
+    #[prop(optional, into)] class: MaybeProp<String>,
+    #[prop(optional, into)] title: MaybeProp<String>,
+) -> impl IntoView {
+    let user = expect_context::<User>();
+    let initialize_project_action = create_action({
+        let user = user.rid().clone();
+        move |_| {
+            let user = user.clone();
+            async move {
+                if let Some(path) = pick_folder("Initialize an existing directory").await {
+                    if let Err(err) = initialize_project(user, path).await {
+                        todo!("{err:?}");
+                    }
+                }
+            }
+        }
+    });
+
+    let trigger_initialize_project = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary {
+            initialize_project_action.dispatch(());
+        }
+    };
+
+    view! {
+        <button on:mousedown=trigger_initialize_project class=class title=title>
+            {children()}
+        </button>
+    }
+}
+
+#[component]
+fn ImportProject(
+    children: Children,
+    #[prop(optional, into)] class: MaybeProp<String>,
+    #[prop(optional, into)] title: MaybeProp<String>,
+) -> impl IntoView {
+    let user = expect_context::<User>();
+    let messages = expect_context::<types::Messages>();
+
+    let import_project_action = create_action({
+        let user = user.rid().clone();
+        move |_| {
+            let user = user.clone();
+            let messages = messages.clone();
+            async move {
+                if let Some(path) = pick_folder("Import a project").await {
+                    if let Err(err) = import_project(user, path).await {
+                        let mut msg = Message::error("Could not import project");
+                        msg.body(format!("{err:?}"));
+                        messages.update(|messages| messages.push(msg.build()));
+                    }
+                }
+            }
+        }
+    });
+
+    let trigger_import_project = move |e: MouseEvent| {
+        if e.button() == types::MouseButton::Primary {
+            import_project_action.dispatch(());
+        }
+    };
+
+    view! {
+        <button on:mousedown=trigger_import_project class=class title=title>
+            {children()}
+        </button>
+    }
+}
+
 async fn fetch_user_projects(user: ResourceId) -> Vec<(PathBuf, db::state::ProjectData)> {
     tauri_sys::core::invoke("user_projects", UserProjectsArgs { user }).await
 }
@@ -319,12 +433,41 @@ struct UserProjectsArgs {
     user: ResourceId,
 }
 
-async fn create_project(user: ResourceId, path: PathBuf) -> syre_local::Result<Project> {
-    tauri_sys::core::invoke_result("create_project", CreateProjectArgs { user, path }).await
-}
-
-#[derive(Serialize)]
-struct CreateProjectArgs {
+async fn create_project(
     user: ResourceId,
     path: PathBuf,
+) -> Result<(), lib::command::project::error::Initialize> {
+    #[derive(Serialize)]
+    struct Args {
+        user: ResourceId,
+        path: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result("create_project", Args { user, path }).await
+}
+
+async fn initialize_project(
+    user: ResourceId,
+    path: PathBuf,
+) -> Result<(), lib::command::project::error::Initialize> {
+    #[derive(Serialize)]
+    struct Args {
+        user: ResourceId,
+        path: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result("initialize_project", Args { user, path }).await
+}
+
+async fn import_project(
+    user: ResourceId,
+    path: PathBuf,
+) -> Result<(), lib::command::project::error::Import> {
+    #[derive(Serialize)]
+    struct Args {
+        user: ResourceId,
+        path: PathBuf,
+    }
+
+    tauri_sys::core::invoke_result("import_project", Args { user, path }).await
 }

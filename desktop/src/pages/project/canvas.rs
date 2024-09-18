@@ -278,13 +278,13 @@ fn CanvasView(
     let (was_dragged, set_was_dragged) = create_signal(false);
 
     let mousedown = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             set_pan_drag(Some((e.client_x(), e.client_y())));
         }
     };
 
     let mouseup = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 && pan_drag.with(|c| c.is_some()) {
+        if e.button() == types::MouseButton::Primary && pan_drag.with(|c| c.is_some()) {
             if !was_dragged() {
                 workspace_graph_state.select_clear();
             }
@@ -396,7 +396,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     let create_child_ref = NodeRef::<html::Dialog>::new();
     let container_node = NodeRef::<html::Div>::new();
     let create_child_dialog_show = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
 
@@ -805,7 +805,7 @@ fn ContainerOk(
         let workspace_graph_state = workspace_graph_state.clone();
         move |e: MouseEvent| {
             let button = e.button();
-            if button == types::MouseButton::Primary as i16 {
+            if button == types::MouseButton::Primary {
                 e.stop_propagation();
                 container.properties().with(|properties| {
                     if let db::state::DataResource::Ok(properties) = properties {
@@ -1073,7 +1073,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         let workspace_graph_state = workspace_graph_state.clone();
         let rid = asset.rid();
         move |e: MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
+            if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
                 rid.with(|rid| {
                     let action = workspace_graph_state
@@ -1154,7 +1154,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
     });
 
     let remove_asset = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary as i16 {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
 
@@ -1296,7 +1296,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
         let container = container.clone();
 
         move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary as i16 {
+            if e.button() != types::MouseButton::Primary {
                 return;
             }
             e.stop_propagation();
@@ -1324,7 +1324,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
         let container = container.clone();
 
         move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary as i16 {
+            if e.button() != types::MouseButton::Primary {
                 return;
             }
             e.stop_propagation();

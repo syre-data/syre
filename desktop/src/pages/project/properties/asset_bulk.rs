@@ -204,19 +204,19 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
     );
 
     let show_add_tags = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_tags_visible.set(true);
         }
     };
 
     let show_add_metadatum = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_metadatum_visible.set(true);
         }
     };
 
     let show_add_analyses = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary as i16 {
+        if e.button() == types::MouseButton::Primary {
             add_analysis_visible.set(true);
         }
     };
@@ -233,19 +233,19 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                 <div class="px-1 pb-1">
                     <label>
                         <span class="block">"Name"</span>
-                        <Name/>
+                        <Name />
                     </label>
                 </div>
                 <div class="px-1 pb-1">
                     <label>
                         <span class="block">"Type"</span>
-                        <Kind/>
+                        <Kind />
                     </label>
                 </div>
                 <div class="px-1 pb-1">
                     <label>
                         <span class="block">"Description"</span>
-                        <Description/>
+                        <Description />
                     </label>
                 </div>
                 <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
@@ -269,12 +269,12 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
-                        <AddTags visibility=add_tags_visible/>
-                        <Tags/>
+                        <AddTags visibility=add_tags_visible />
+                        <Tags />
                     </label>
                 </div>
                 <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
@@ -296,12 +296,12 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined/>
+                                    <Icon icon=icondata::AiPlusOutlined />
                                 </button>
                             </span>
                         </div>
-                        <AddDatum visibility=add_metadatum_visible/>
-                        <Metadata oncancel_adddatum=move |_| add_metadatum_visible.set(false)/>
+                        <AddDatum visibility=add_metadatum_visible />
+                        <Metadata oncancel_adddatum=move |_| add_metadatum_visible.set(false) />
                     </label>
                 </div>
             </form>
@@ -654,7 +654,7 @@ mod tags {
 
         view! {
             <DetailPopout title="Add tags" visibility onclose=move |_| set_reset_form(())>
-                <AddTagsEditor onadd reset=reset_form class="w-full px-1"/>
+                <AddTagsEditor onadd reset=reset_form class="w-full px-1" />
             </DetailPopout>
         }
     }

@@ -58,7 +58,7 @@ pub fn main(args: InitFromArgs) -> Result {
     if args.no_scripts {
         converter.without_scripts();
     } else {
-        converter.with_scripts(&args.analysis_root)?;
+        converter.set_analysis_root(&args.analysis_root)?;
     }
 
     converter.convert(&root)?;

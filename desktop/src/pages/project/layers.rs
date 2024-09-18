@@ -127,7 +127,7 @@ pub fn LayersNav() -> impl IntoView {
 
     view! {
         <Suspense fallback=move || {
-            view! { <LayersNavLoading/> }
+            view! { <LayersNavLoading /> }
         }>
             {move || {
                 let Some(context_menu_container_ok) = context_menu_container_ok.get() else {
@@ -136,7 +136,7 @@ pub fn LayersNav() -> impl IntoView {
                 let Some(context_menu_asset) = context_menu_asset.get() else {
                     return None;
                 };
-                Some(view! { <LayersNavView context_menu_container_ok context_menu_asset/> })
+                Some(view! { <LayersNavView context_menu_container_ok context_menu_asset /> })
             }}
 
         </Suspense>
@@ -159,7 +159,7 @@ pub fn LayersNavView(
 
     view! {
         <div class="pt-2 px-1 overflow-auto">
-            <ContainerLayer root=graph.root().clone()/>
+            <ContainerLayer root=graph.root().clone() />
         </div>
     }
 }
@@ -175,14 +175,13 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
                 let root = root.clone();
                 move || {
                     if root.properties().with(|properties| properties.is_ok()) {
-                        view! { <ContainerLayerTitleOk container=root.clone() depth/> }
+                        view! { <ContainerLayerTitleOk container=root.clone() depth /> }
                     } else {
-                        view! { <ContainerLayerTitleErr container=root.clone() depth/> }
+                        view! { <ContainerLayerTitleErr container=root.clone() depth /> }
                     }
                 }
-            }
-            <div>
-                <AssetsLayer container=root.clone() depth/>
+            } <div>
+                <AssetsLayer container=root.clone() depth />
                 <div>
                     <For
                         each={
@@ -198,7 +197,7 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
 
                         let:child
                     >
-                        <ContainerLayer root=child depth=depth + 1/>
+                        <ContainerLayer root=child depth=depth + 1 />
                     </For>
                 </div>
             </div>
@@ -267,7 +266,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
     let click = {
         let properties = properties.clone();
         move |e: &MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
+            if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
                 properties().rid().with(|rid| {
                     let action = workspace_graph_state
@@ -301,7 +300,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         });
 
         move |e: &MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
+            if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
                 let window = web_sys::window().unwrap();
                 let document = window.document().unwrap();
@@ -412,7 +411,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         >
 
             <span class="pr-1">
-                <Icon icon=icondata::FaFolderRegular/>
+                <Icon icon=icondata::FaFolderRegular />
             </span>
             <TruncateLeft>{title}</TruncateLeft>
         </div>
@@ -438,9 +437,9 @@ fn AssetsLayer(container: state::graph::Node, depth: usize) -> impl IntoView {
     move || {
         container.assets().with(|assets| {
             if let db::state::DataResource::Ok(assets) = assets {
-                view! { <AssetsLayerOk assets=assets.read_only() depth=depth/> }
+                view! { <AssetsLayerOk assets=assets.read_only() depth=depth /> }
             } else {
-                view! { <AssetsLayerErr depth/> }
+                view! { <AssetsLayerErr depth /> }
             }
         })
     }
@@ -455,13 +454,13 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
             <Show when=move || assets.with(|assets| !assets.is_empty()) fallback=no_data>
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
                     <span class="pr-1">
-                        <Icon icon=icondata::BsFiles/>
+                        <Icon icon=icondata::BsFiles />
                     </span>
                     <span>"Assets"</span>
                 </div>
                 <div>
                     <For each=assets key=move |asset| asset.rid().get() let:asset>
-                        <AssetLayer asset depth/>
+                        <AssetLayer asset depth />
                     </For>
                 </div>
             </Show>
@@ -481,7 +480,7 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
         let rid = asset.rid().read_only();
         let workspace_graph_state = workspace_graph_state.clone();
         move |e: MouseEvent| {
-            if e.button() == types::MouseButton::Primary as i16 {
+            if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
                 rid.with(|rid| {
                     let action = workspace_graph_state

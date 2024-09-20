@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     server::{path_watcher, Config},
-    Command, Event,
+    Command, Error, Event,
 };
 use crossbeam::channel::{Receiver, Sender};
 use notify::{

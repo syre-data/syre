@@ -24,9 +24,8 @@ pub fn register_project(path: impl AsRef<Path>) -> Result<(), IoSerdeError> {
 
 /// Deregister a [`Project`].
 pub fn deregister_project(path: impl AsRef<Path>) -> Result<(), IoSerdeError> {
-    let path = fs::canonicalize(path.as_ref())?;
     let mut projects = ProjectManifest::load()?;
-    projects.remove(&path);
+    projects.remove(&path.as_ref());
     projects.save()?;
     Ok(())
 }

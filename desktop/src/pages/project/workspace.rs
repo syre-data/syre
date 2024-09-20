@@ -93,7 +93,7 @@ fn WorkspaceView(
                     };
 
                     match update {
-                        db::event::Project::Removed
+                        db::event::Project::FolderRemoved
                         | db::event::Project::Moved(_)
                         | db::event::Project::Properties(_)
                         | db::event::Project::Settings(_)
@@ -169,7 +169,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                     };
 
                     match update {
-                        db::event::Project::Removed
+                        db::event::Project::FolderRemoved
                         | db::event::Project::Moved(_)
                         | db::event::Project::Properties(_)
                         | db::event::Project::Settings(_)
@@ -468,7 +468,7 @@ fn handle_event_project(event: lib::Event, project: state::Project) {
         | db::event::Project::AssetFile(_)
         | db::event::Project::Flag { .. } => unreachable!("handled elsewhere"),
 
-        db::event::Project::Removed => todo!(),
+        db::event::Project::FolderRemoved => todo!(),
         db::event::Project::Moved(_) => todo!(),
         db::event::Project::Properties(_) => todo!(),
         db::event::Project::Settings(_) => todo!(),
@@ -604,7 +604,7 @@ fn handle_event_graph(event: lib::Event, graph: state::Graph) {
     };
 
     match update {
-        db::event::Project::Removed
+        db::event::Project::FolderRemoved
         | db::event::Project::Moved(_)
         | db::event::Project::Properties(_)
         | db::event::Project::Settings(_)

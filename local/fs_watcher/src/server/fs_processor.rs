@@ -1,5 +1,6 @@
-use super::{config, FsWatcher};
-use crate::{error, event as app, server::event as fs_event, Error, Event, EventKind};
+use super::{super::ConversionError, config, FsWatcher};
+use crate::{error, event as app, server::event as fs_event, Event, EventKind};
+use rayon::{iter::Either, prelude::*};
 use std::{path::PathBuf, result::Result as StdResult, time::Instant};
 use syre_local as local;
 use uuid::Uuid;
@@ -9,43 +10,37 @@ impl FsWatcher {
     ///
     /// # Returns
     /// Tuple of (events, errors).
-    pub fn process_events_fs_to_app(
+    pub fn process_events_fs_to_app<'a>(
         &self,
-        events: Vec<fs_event::Event>,
-    ) -> (Vec<Event>, Vec<Error>) {
-        let (converted, errors): (Vec<_>, Vec<_>) = events
-            .into_iter()
-            .map(|fs_event| {
-                self.process_event_fs_to_apps(&fs_event).map_err(|err| {
-                    let events = fs_event
-                        .parents()
-                        .into_iter()
-                        .map(|parent| parent.clone())
-                        .collect::<Vec<_>>();
+        events: Vec<fs_event::Event<'a>>,
+    ) -> (Vec<Event>, Vec<ConversionError<'a>>) {
+        let (converted, errors): (Vec<_>, Vec<_>) =
+            events.into_par_iter().partition_map(|fs_event| {
+                match self.process_event_fs_to_apps(&fs_event) {
+                    Ok(events) => Either::Left(events),
+                    Err(err) => {
+                        // let events = fs_event
+                        //     .parents()
+                        //     .into_iter()
+                        //     .map(|parent| parent.clone())
+                        //     .collect::<Vec<_>>();
 
-                    Error::Processing {
-                        events,
-                        kind: err.into(),
+                        Either::Right(ConversionError {
+                            events: fs_event.parents(),
+                            kind: err.into(),
+                        })
                     }
-                })
-            })
-            .partition(|event| event.is_ok());
+                }
+            });
 
-        let converted = converted
-            .into_iter()
-            .flat_map(|events| match events {
-                Ok(events) => events,
-                _ => unreachable!("elements have been partitioned"),
-            })
-            .collect();
-
-        let errors = errors
-            .into_iter()
-            .map(|error| match error {
-                Err(error) => error,
-                _ => unreachable!("elements have been partitioned"),
-            })
-            .collect();
+        // let converted = converted
+        //     .into_iter()
+        //     .flat_map(|events| match events {
+        //         Ok(events) => events,
+        //         _ => unreachable!("elements have been partitioned"),
+        //     })
+        //     .collect();
+        let converted = converted.into_iter().flatten().collect();
 
         (converted, errors)
     }
@@ -162,7 +157,7 @@ impl FsWatcher {
                             if let Ok(manifest) = self.app_config.load_project_manifest() {
                                 if manifest.contains(&path) {
                                     return Ok(vec![Event::with_time(
-                                        app::Project::Removed.into(),
+                                        app::Project::FolderRemoved.into(),
                                         event.time,
                                         event.id().clone(),
                                     )
@@ -1560,7 +1555,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Root => app::Project::Removed.into(),
+                resources::ProjectDir::Root => app::Project::FolderRemoved.into(),
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }
@@ -1644,7 +1639,7 @@ impl FsWatcher {
         match kind {
             resources::DirKind::AppConfig => app::Config::Removed.into(),
             resources::DirKind::Project { kind, .. } => match kind {
-                resources::ProjectDir::Root => app::Project::Removed.into(),
+                resources::ProjectDir::Root => app::Project::FolderRemoved.into(), // TODO: Maybe unreachable?
                 resources::ProjectDir::Config => {
                     app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
                 }

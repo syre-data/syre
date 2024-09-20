@@ -171,7 +171,8 @@ pub enum LocalConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, derive_more::From)]
 pub enum Project {
-    Removed,
+    /// The base folder of the project was removed.
+    FolderRemoved,
     Moved(PathBuf),
     Properties(DataResource<CoreProject>),
     Settings(DataResource<ProjectSettings>),

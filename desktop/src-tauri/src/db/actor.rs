@@ -425,7 +425,7 @@ impl Actor {
         };
 
         match update {
-            db::event::Project::Removed
+            db::event::Project::FolderRemoved
             | db::event::Project::Moved(_)
             | db::event::Project::Properties(_)
             | db::event::Project::Settings(_) => todo!(),

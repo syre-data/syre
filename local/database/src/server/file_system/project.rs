@@ -5,8 +5,8 @@ use crate::{
 use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{
+    self as local,
     error::IoSerde,
-    loader,
     project::resources::{project::LoadError, Analyses, Project},
     types::AnalysisKind,
     TryReducible,
@@ -20,7 +20,7 @@ impl Database {
 
         match kind {
             event::Project::Created => todo!(),
-            event::Project::Removed => todo!(),
+            event::Project::FolderRemoved => self.handle_fs_event_project_folder_removed(event),
             event::Project::Moved => todo!(),
             event::Project::ConfigDir(_) => self.handle_fs_event_project_config_dir(event),
             event::Project::AnalysisDir(_) => self.handle_fs_event_project_analysis_dir(event),
@@ -29,6 +29,51 @@ impl Database {
             event::Project::Settings(_) => self.handle_fs_event_project_settings(event),
             event::Project::Analyses(_) => self.handle_fs_event_project_analyses(event),
             event::Project::Modified => todo!(),
+        }
+    }
+}
+
+impl Database {
+    fn handle_fs_event_project_folder_removed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::FolderRemoved)
+        );
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project_state = self.state.find_project_by_path(path).unwrap();
+        let state::FolderResource::Present(project_state) = project_state.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let project_id = project_state
+            .properties()
+            .map(|properties| properties.rid().clone())
+            .ok();
+
+        if self.config.handle_fs_resource_changes() {
+            local::system::project_manifest::deregister_project(path).unwrap();
+            vec![]
+        } else {
+            self.state
+                .try_reduce(server::state::Action::Project {
+                    path: path.clone(),
+                    action: server::state::project::Action::RemoveFolder.into(),
+                })
+                .unwrap();
+
+            vec![Update::project(
+                project_id,
+                path.clone(),
+                update::Project::FolderRemoved,
+                event.id().clone(),
+            )]
         }
     }
 }
@@ -1185,7 +1230,7 @@ impl Database {
                                 );
 
                                 let mut container_fs =
-                                    loader::container::Loader::load_from_only_properties(
+                                    local::loader::container::Loader::load_from_only_properties(
                                         &container_path,
                                     )
                                     .unwrap();

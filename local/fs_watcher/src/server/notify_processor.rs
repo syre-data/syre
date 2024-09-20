@@ -1,9 +1,12 @@
-use super::{super::event as fs_event, FsWatcher};
-use crate::{command::WatcherCommand, error, Error};
+use super::{
+    super::{event as fs_event, ConversionError, ConversionResult},
+    FsWatcher,
+};
+use crate::{command::WatcherCommand, error};
 use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
 use notify_debouncer_full::{DebouncedEvent, FileIdCache};
 use std::{
-    assert_matches::assert_matches, collections::HashMap, ffi::OsStr, fs, io, path::PathBuf,
+    assert_matches::assert_matches, collections::HashMap, fs, io, path::PathBuf,
     result::Result as StdResult,
 };
 use syre_local::common as local_common;
@@ -19,7 +22,7 @@ impl FsWatcher {
     pub fn process_events_notify_to_fs<'a>(
         &'a self,
         events: &'a Vec<DebouncedEvent>,
-    ) -> (Vec<fs_event::Event>, Vec<Error>) {
+    ) -> (Vec<fs_event::Event>, Vec<ConversionError>) {
         let events = events.iter().collect::<Vec<_>>();
         let filtered_events = Self::filter_events(events.clone());
         let (grouped, remaining) = self.group_events(filtered_events);
@@ -63,90 +66,6 @@ impl FsWatcher {
             .collect::<Vec<_>>();
 
         let events = Self::filter_nested_events(events);
-        events
-    }
-
-    /// Filters out nested events.
-    ///
-    /// e.g. If a folder was created/removed with children, and both the parent folder and children
-    /// resources creation/removal events are present, the events of the children are filtered out.
-    fn filter_nested_events<'a>(events: Vec<&'a DebouncedEvent>) -> Vec<&'a DebouncedEvent> {
-        /// A group of events.
-        /// The map key is the common ancestor path of the group.
-        /// The stand alone event is the common ancestor event.
-        /// The events in the `Vec` are nested events.
-        type EventGroupMap<'a> = HashMap<PathBuf, (&'a DebouncedEvent, Vec<&'a DebouncedEvent>)>;
-
-        /// Group events based on path.
-        fn group_events<'a>(events: &Vec<&'a DebouncedEvent>) -> EventGroupMap<'a> {
-            let mut groups = EventGroupMap::new();
-            for event in events.iter() {
-                let [path] = &event.paths[..] else {
-                    panic!("invalid paths");
-                };
-
-                if let Some((_, events)) = groups.iter_mut().find_map(|(key, events)| {
-                    if path.starts_with(key) {
-                        Some(events)
-                    } else {
-                        None
-                    }
-                }) {
-                    events.push(event);
-                } else if let Some(key) = groups.keys().find(|key| key.starts_with(path)).cloned() {
-                    let (key_event, mut events) = groups.remove(&key).unwrap();
-                    events.push(key_event);
-                    groups.insert(path.clone(), (event, events));
-                } else {
-                    groups.insert(path.clone(), (event, vec![]));
-                }
-            }
-
-            groups
-        }
-
-        let create_events = events
-            .clone()
-            .into_iter()
-            .filter(|event| matches!(event.kind, NotifyEventKind::Create(_)))
-            .collect::<Vec<_>>();
-
-        let create_groups = group_events(&create_events);
-        let create_child_events = create_groups
-            .values()
-            .flat_map(|(_, children)| children)
-            .collect::<Vec<_>>();
-
-        let events = events
-            .into_iter()
-            .filter(|&event| {
-                !create_child_events
-                    .iter()
-                    .any(|&&child| std::ptr::eq(event, child))
-            })
-            .collect::<Vec<_>>();
-
-        let remove_events = events
-            .clone()
-            .into_iter()
-            .filter(|event| matches!(event.kind, NotifyEventKind::Remove(_)))
-            .collect::<Vec<_>>();
-
-        let remove_groups = group_events(&remove_events);
-        let remove_child_events = remove_groups
-            .values()
-            .flat_map(|(_, children)| children)
-            .collect::<Vec<_>>();
-
-        let events = events
-            .into_iter()
-            .filter(|&event| {
-                !remove_child_events
-                    .iter()
-                    .any(|&&child| std::ptr::eq(event, child))
-            })
-            .collect();
-
         events
     }
 
@@ -542,20 +461,15 @@ impl FsWatcher {
     fn convert_events<'a>(
         &'a self,
         events: Vec<&'a DebouncedEvent>,
-    ) -> (Vec<fs_event::Event>, Vec<Error>) {
-        enum ConversionResult<'a> {
-            Ok(fs_event::Event<'a>),
-            Err {
-                event: &'a DebouncedEvent,
-                kind: error::Process,
-            },
-        }
-
+    ) -> (Vec<fs_event::Event>, Vec<ConversionError>) {
         let (converted, errors): (Vec<_>, Vec<_>) = events
             .into_iter()
             .filter_map(|event| match self.convert_event(&event) {
                 Ok(event) => event.map(|event| ConversionResult::Ok(event)),
-                Err(kind) => Some(ConversionResult::Err { event, kind }),
+                Err(kind) => Some(ConversionResult::Err(ConversionError {
+                    events: vec![event],
+                    kind,
+                })),
             })
             .partition(|event| match event {
                 ConversionResult::Ok(_) => true,
@@ -573,13 +487,21 @@ impl FsWatcher {
         let errors = errors
             .into_iter()
             .map(|event| match event {
-                ConversionResult::Err { event, kind } => Error::Processing {
-                    events: vec![event.clone()],
-                    kind,
-                },
+                ConversionResult::Err(err) => err,
                 _ => unreachable!("events are partitioned"),
             })
             .collect();
+
+        // let errors = errors
+        //     .into_iter()
+        //     .map(|event| match event {
+        //         ConversionResult::Err(ConversionError { event, kind }) => Error::Processing {
+        //             events: vec![event.clone()],
+        //             kind,
+        //         },
+        //         _ => unreachable!("events are partitioned"),
+        //     })
+        //     .collect();
 
         (converted, errors)
     }

@@ -71,11 +71,17 @@ impl Watcher {
     }
 
     fn watch(&mut self, path: impl Into<PathBuf>) {
-        self.paths.push(path.into());
+        let path = path.into();
+        tracing::debug!("watching {path:?}");
+
+        self.paths.push(path);
     }
 
     fn unwatch(&mut self, path: impl AsRef<Path>) {
-        self.paths.retain(|p| p != path.as_ref());
+        let path = path.as_ref();
+        tracing::debug!("unwatching {path:?}");
+
+        self.paths.retain(|p| p != path);
     }
 
     fn poll(&mut self) {

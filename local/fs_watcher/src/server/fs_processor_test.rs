@@ -1,6 +1,6 @@
 // NB: Writes to manifests.
 use super::*;
-use crate::{event as app, server::event as fs_event, Command, Event};
+use crate::{event as app, server::event as fs_event, Command, Error, Event};
 use crossbeam::channel::{Receiver, Sender};
 use std::time::Instant;
 use std::{assert_matches::assert_matches, fs};
@@ -209,7 +209,10 @@ mod convert_fs {
         manifest.save().unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(*events[0].kind(), EventKind::Project(app::Project::Removed));
+        assert_matches!(
+            *events[0].kind(),
+            EventKind::Project(app::Project::FolderRemoved)
+        );
         // ---- remove end
 
         let events = watcher

@@ -203,8 +203,8 @@ pub enum Project {
     /// The project root directory was created.
     Created,
 
-    /// The project was deleted.
-    Removed,
+    /// The project's base folder was deleted.
+    FolderRemoved,
 
     /// The project folder was moved or renamed.
     Moved,

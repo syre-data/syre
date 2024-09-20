@@ -3,6 +3,9 @@ use notify_debouncer_full::DebouncedEvent;
 use std::{path::PathBuf, time::Instant};
 use uuid::Uuid;
 
+/// Internal server event.
+/// These are derived from [`notify_debouncer_full::DebouncedEvent`]s,
+/// and are further processed into [`crate::Event`]s.
 #[derive(Debug)]
 pub struct Event<'a> {
     /// Tracker id.

@@ -11,6 +11,14 @@ mod fs_processor;
 #[path = "notify_processor.rs"]
 mod notify_processor;
 
+#[cfg(target_os = "windows")]
+#[path = "windows.rs"]
+mod windows;
+
+#[cfg(target_os = "linux")]
+#[path = "linux.rs"]
+mod linux;
+
 use super::{actor::FileSystemActor, path_watcher};
 use crate::{command::WatcherCommand, event::EventResult, Command, Error, Event, EventKind};
 use crossbeam::channel::{Receiver, Sender};
@@ -86,6 +94,7 @@ impl Builder {
             .spawn(move || path_watcher.run())
             .unwrap();
 
+        let mut file_ids = FileIdMap::new();
         let mut errors = vec![];
         for path in std::iter::once(self.app_config.user_manifest())
             .chain(std::iter::once(self.app_config.project_manifest()))
@@ -115,6 +124,8 @@ impl Builder {
                 };
 
                 errors.push(err);
+            } else {
+                file_ids.add_root(path, notify::RecursiveMode::NonRecursive);
             }
         }
 
@@ -133,8 +144,8 @@ impl Builder {
             event_rx: fs_rx,
             path_watcher_rx,
             path_watcher_command_tx,
-            file_ids: Arc::new(Mutex::new(FileIdMap::new())),
-            roots: Mutex::new(vec![]),
+            file_ids: Arc::new(Mutex::new(file_ids)),
+            roots: Mutex::new(self.paths),
             app_config: self.app_config,
             shutdown: Mutex::new(false),
         };
@@ -225,7 +236,7 @@ impl FsWatcher {
         tracing::debug!(?command);
         match command {
             Command::Watch(path) => {
-                self.handle_command_watch(path);
+                self.watch_root_path(path);
             }
 
             Command::Unwatch(path) => {
@@ -273,6 +284,9 @@ impl FsWatcher {
     ///
     /// # Errors
     /// + If the final path could not be obtained.
+    ///
+    /// # Notes
+    /// Only config and project root paths are cached.
     fn final_path(
         &self,
         path: impl AsRef<Path>,
@@ -340,6 +354,7 @@ impl FsWatcher {
         }
 
         if !errors.is_empty() {
+            let errors = errors.into_iter().map(|err| err.into()).collect();
             self.event_tx.send(Err(errors)).unwrap();
         }
     }
@@ -379,15 +394,17 @@ impl FsWatcher {
     ///
     /// # Returns
     /// Tuple of (events, errors).
-    fn process_events(
-        &self,
-        events: Vec<notify_debouncer_full::DebouncedEvent>,
-    ) -> (Vec<Event>, Vec<Error>) {
+    fn process_events(&self, events: Vec<DebouncedEvent>) -> (Vec<Event>, Vec<Error>) {
+        tracing::debug!(?events);
+
         #[cfg(target_os = "linux")]
         let events = self.handle_remove_events(events);
 
-        tracing::debug!(?events);
+        #[allow(unused_mut)]
         let (fs_events, mut errors) = self.process_events_notify_to_fs(&events);
+
+        #[cfg(target_os = "windows")]
+        let (fs_events, mut errors) = self.windows_postprocess_fs_conversion(fs_events, errors);
 
         tracing::debug!(?fs_events, ?errors);
         let (mut app_events, app_errors) = self.process_events_fs_to_app(fs_events);
@@ -395,13 +412,14 @@ impl FsWatcher {
 
         tracing::debug!(?app_events, ?app_errors);
         errors.extend(app_errors);
+        let errors = errors.into_iter().map(|err| err.into()).collect();
 
         (app_events, errors)
     }
 }
 
 impl FsWatcher {
-    fn handle_command_watch(&self, path: PathBuf) {
+    fn watch_root_path(&self, path: PathBuf) {
         // Required due to match arm guard expression.
         // See https://github.com/rust-lang/rfcs/pull/3637
         fn watch_path(tx: &Sender<path_watcher::Command>, path: PathBuf) {
@@ -481,98 +499,90 @@ impl FsWatcher {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl FsWatcher {
-    /// Some text editors remove then replace a file when saving it.
-    /// We must manually check it the file exists to determine if this occured.
+    /// Filters out nested events.
     ///
-    /// If a config file is removed, it is added to the path watcher.
-    ///
-    /// # Returns
-    /// Events modified to account for false removals.
-    ///
-    /// # Notes
-    /// See https://docs.rs/notify/latest/notify/#editor-behaviour.
-    fn handle_remove_events(&self, mut events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
-        let mut remove_events = vec![];
-        for (index, event) in events.iter().enumerate() {
-            match &event.kind {
-                notify::EventKind::Remove(_) => {
-                    let [path] = &event.paths[..] else {
-                        panic!("invalid paths");
-                    };
+    /// e.g. If a folder was created/removed with children, and both the parent folder and children
+    /// resources creation/removal events are present, the events of the children are filtered out.
+    fn filter_nested_events<'a>(events: Vec<&'a DebouncedEvent>) -> Vec<&'a DebouncedEvent> {
+        use notify::EventKind;
+        use std::collections::HashMap;
 
-                    if !remove_events.iter().any(|&index| {
-                        let event: &DebouncedEvent = &events[index];
-                        if let Some(p) = event.paths.get(0) {
-                            p == path
-                        } else {
-                            false
-                        }
-                    }) {
-                        remove_events.push(index);
+        /// A group of events.
+        /// The map key is the common ancestor path of the group.
+        /// The stand alone event is the common ancestor event.
+        /// The events in the `Vec` are nested events.
+        type EventGroupMap<'a> = HashMap<PathBuf, (&'a DebouncedEvent, Vec<&'a DebouncedEvent>)>;
+
+        /// Group events based on path.
+        fn group_events<'a>(events: &Vec<&'a DebouncedEvent>) -> EventGroupMap<'a> {
+            let mut groups = EventGroupMap::new();
+            for event in events.iter() {
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
+                };
+
+                if let Some((_, events)) = groups.iter_mut().find_map(|(key, events)| {
+                    if path.starts_with(key) {
+                        Some(events)
+                    } else {
+                        None
                     }
-                }
-                notify::EventKind::Create(_) => {
-                    let [path] = &event.paths[..] else {
-                        panic!("invalid paths");
-                    };
-
-                    if let Some(index) = remove_events.iter().position(|&index| {
-                        let event = &events[index];
-                        &event.paths[0] == path
-                    }) {
-                        remove_events.swap_remove(index);
-                    }
-                }
-                notify::EventKind::Any
-                | notify::EventKind::Access(_)
-                | notify::EventKind::Modify(_)
-                | notify::EventKind::Other => {}
-            }
-        }
-
-        for index in remove_events {
-            let event = &events[index];
-            let [path] = &event.paths[..] else {
-                panic!("invalid paths");
-            };
-
-            if path == self.app_config.user_manifest()
-                || path == self.app_config.project_manifest()
-                || path == self.app_config.local_config()
-            {
-                if path.exists() {
-                    let (tx, rx) = crossbeam::channel::bounded(1);
-                    tracing::debug!("rewatching {path:?}");
-                    self.command_tx
-                        .send(WatcherCommand::Watch {
-                            path: path.clone(),
-                            tx,
-                        })
-                        .unwrap();
-
-                    match rx.recv().unwrap() {
-                        Ok(()) => {
-                            let event = event.event.clone().set_kind(notify::EventKind::Modify(
-                                notify::event::ModifyKind::Data(notify::event::DataChange::Any),
-                            ));
-
-                            *events[index] = event;
-                        }
-                        Err(err) => {
-                            panic!("UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}");
-                        }
-                    }
+                }) {
+                    events.push(event);
+                } else if let Some(key) = groups.keys().find(|key| key.starts_with(path)).cloned() {
+                    let (key_event, mut events) = groups.remove(&key).unwrap();
+                    events.push(key_event);
+                    groups.insert(path.clone(), (event, events));
                 } else {
-                    self.path_watcher_command_tx
-                        .send(path_watcher::Command::Watch(path.clone()))
-                        .unwrap();
+                    groups.insert(path.clone(), (event, vec![]));
                 }
-            } else {
-                tracing::debug!("UNUSUAL REMOVE EVENT: {event:?}");
             }
+
+            groups
         }
+
+        let create_events = events
+            .clone()
+            .into_iter()
+            .filter(|event| matches!(event.kind, EventKind::Create(_)))
+            .collect::<Vec<_>>();
+
+        let create_groups = group_events(&create_events);
+        let create_child_events = create_groups
+            .values()
+            .flat_map(|(_, children)| children)
+            .collect::<Vec<_>>();
+
+        let events = events
+            .into_iter()
+            .filter(|&event| {
+                !create_child_events
+                    .iter()
+                    .any(|&&child| std::ptr::eq(event, child))
+            })
+            .collect::<Vec<_>>();
+
+        let remove_events = events
+            .clone()
+            .into_iter()
+            .filter(|event| matches!(event.kind, EventKind::Remove(_)))
+            .collect::<Vec<_>>();
+
+        let remove_groups = group_events(&remove_events);
+        let remove_child_events = remove_groups
+            .values()
+            .flat_map(|(_, children)| children)
+            .collect::<Vec<_>>();
+
+        let events = events
+            .into_iter()
+            .filter(|&event| {
+                !remove_child_events
+                    .iter()
+                    .any(|&&child| std::ptr::eq(event, child))
+            })
+            .collect();
 
         events
     }
@@ -607,7 +617,7 @@ pub mod config {
 
     impl Config {
         /// # Notes
-        /// + On Windows paths are converted to UNC.
+        /// + On Windows, paths are converted to UNC.
         pub fn new(
             user_manifest: impl Into<PathBuf>,
             project_manifest: impl Into<PathBuf>,

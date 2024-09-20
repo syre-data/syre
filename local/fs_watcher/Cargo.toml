@@ -14,37 +14,39 @@ categories = []
 
 
 [dependencies]
-file_path_from_id = { workspace = true }
+crossbeam = { workspace = true, features = ["crossbeam-channel"] }
+derive_more.workspace = true
+file_path_from_id.workspace = true
+file-id = {version = "0.2.1", optional = true }
+has_id = { workspace = true, features = ["derive"], optional = true }
+in_trash.workspace = true
 notify = { workspace = true, default-features = false, features = ["macos_kqueue"], optional = true }
 notify-debouncer-full = { workspace = true, default-features = false, features = ["crossbeam"], optional = true }
+rayon.workspace = true
 syre-core = { workspace = true, optional = true }
 syre-local = { workspace = true, features = ["fs"], optional = true }
-uuid = { workspace = true, features = ["v7"], optional = true }
-tracing = { workspace = true }
 tracing-appender = { workspace = true, optional = true}
 tracing-subscriber = { workspace = true, features = ["time", "json"] }
-file-id = {version = "0.2.1", optional = true }
-crossbeam = { workspace = true, features = ["crossbeam-channel"] }
-derive_more = { workspace = true }
-has_id = { workspace = true, features = ["derive"], optional = true }
+tracing.workspace = true
+uuid = { workspace = true, features = ["v7"], optional = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
+serde_json.workspace = true
+serde.workspace = true
+tempfile.workspace = true
 test-log = { version = "0.2.15", features = ["trace"] }
 test-utils = { path = "test_utils", features = ["syre_core", "fs"] }
-serde = { workspace = true }
-serde_json = { workspace = true }
 
 [features]
 default = ["client", "server"]
 server = [
-	"dep:notify",
-	"dep:notify-debouncer-full",
-	"dep:uuid",
-	"dep:tracing-appender",
 	"dep:file-id",
 	"dep:has_id",
+	"dep:notify-debouncer-full",
+	"dep:notify",
 	"dep:syre-core",
 	"dep:syre-local",
+	"dep:tracing-appender",
+	"dep:uuid",
 ]
 client = []

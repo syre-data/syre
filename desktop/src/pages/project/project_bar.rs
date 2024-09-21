@@ -1,23 +1,22 @@
-use std::path::PathBuf;
-
-use super::state;
+use super::{properties, state, workspace::PropertiesEditor};
 use crate::types;
 use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
+use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use wasm_bindgen::{closure::Closure, JsCast};
 
 #[component]
 pub fn ProjectBar() -> impl IntoView {
-    let project = expect_context::<state::Project>();
-
     view! {
         <div class="flex px-2 py-1">
             <div class="grow inline-flex gap-2">
                 <PreviewSelector />
                 <Analyze />
             </div>
-            <div class="grow text-center font-primary">{project.properties().name()}</div>
+            <div>
+                <ProjectInfo />
+            </div>
             <div class="grow"></div>
         </div>
     }
@@ -312,4 +311,20 @@ async fn analyze(project: ResourceId, root: impl Into<PathBuf>) -> Result<(), St
         },
     )
     .await
+}
+
+#[component]
+fn ProjectInfo() -> impl IntoView {
+    let project = expect_context::<state::Project>();
+    let properties_editor = expect_context::<RwSignal<PropertiesEditor>>();
+
+    let mousedown = move |e: MouseEvent| {
+        properties_editor.set(properties::EditorKind::Project.into());
+    };
+
+    view! {
+        <div on:mousedown=mousedown class="grow text-center font-primary cursor-pointer">
+            {project.properties().name()}
+        </div>
+    }
 }

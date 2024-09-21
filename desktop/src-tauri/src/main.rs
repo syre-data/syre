@@ -31,6 +31,7 @@ fn main() {
             project::deregister_project,
             project::project_resources,
             project::project_analysis_remove,
+            project::project_properties_update,
             project::analyze_project,
             analyses::add_scripts,
             graph::create_child_container,

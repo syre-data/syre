@@ -33,6 +33,21 @@ impl Project {
         }
     }
 
+    /// Creates a project with the given id.
+    ///  
+    /// # Notes:
+    /// + `data_root` defaults to `data`.
+    pub fn with_id(id: ResourceId, name: impl Into<String>) -> Self {
+        Self {
+            rid: id,
+            name: name.into(),
+            description: None,
+            data_root: PathBuf::from("data"),
+            analysis_root: None,
+            meta_level: 0,
+        }
+    }
+
     pub fn rid(&self) -> &ResourceId {
         &self.rid
     }

@@ -1,10 +1,10 @@
 //! Project and project settings.
-use crate::common::{project_file, project_settings_file};
+use crate::common::{self, project_file, project_settings_file};
 use crate::error::IoSerde as IoSerdeError;
 use crate::file_resource::LocalResource;
 use crate::types::ProjectSettings;
 use std::fs;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, Write};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use syre_core::project::Project as CoreProject;
@@ -185,6 +185,16 @@ impl Project {
         let file = fs::File::open(path)?;
         let reader = BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
+    }
+
+    pub fn save_properties_only(
+        base_path: impl AsRef<Path>,
+        properties: &CoreProject,
+    ) -> Result<(), io::Error> {
+        let path = common::project_file_of(base_path);
+        let mut file = fs::File::options().write(true).truncate(true).open(path)?;
+        file.write(serde_json::to_string_pretty(properties).unwrap().as_bytes())?;
+        Ok(())
     }
 
     /// Only load the project's settings.

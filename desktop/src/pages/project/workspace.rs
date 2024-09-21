@@ -1,4 +1,8 @@
-use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
+use super::{
+    canvas,
+    properties::{self, EditorKind},
+    state, Canvas, LayersNav, ProjectBar, PropertiesBar,
+};
 use crate::{common, components::Logo};
 use futures::stream::StreamExt;
 use leptos::*;
@@ -26,6 +30,9 @@ impl DragOverWorkspaceResource {
         self.0
     }
 }
+
+#[derive(derive_more::Deref, derive_more::From, Clone, Default)]
+pub struct PropertiesEditor(properties::EditorKind);
 
 #[component]
 pub fn Workspace() -> impl IntoView {
@@ -73,6 +80,7 @@ fn WorkspaceView(
     provide_context(state::Workspace::new());
     provide_context(project.clone());
     provide_context(DragOverWorkspaceResource::new());
+    provide_context(create_rw_signal(PropertiesEditor::default()));
 
     spawn_local({
         let project = project.clone();

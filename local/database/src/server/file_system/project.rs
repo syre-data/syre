@@ -647,10 +647,58 @@ impl Database {
             panic!("invalid event kind");
         };
 
-        if matches!(kind, event::ModifiedKind::Other) {
+        match kind {
+            event::ModifiedKind::Data => {
+                self.handle_fs_event_project_properties_modified_data(event)
+            }
+            event::ModifiedKind::Other => {
+                self.handle_fs_event_project_properties_modified_other(event)
+            }
+        }
+    }
+
+    fn handle_fs_event_project_properties_modified_data(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::Properties(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
+            ))
+        );
+
+        self.handle_project_properties_modified(event)
+    }
+
+    fn handle_fs_event_project_properties_modified_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::Properties(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Other)
+            ))
+        );
+
+        #[cfg(target_os = "windows")]
+        {
+            self.handle_project_properties_modified(event)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
             todo!();
         }
 
+        #[cfg(target_os = "linux")]
+        {
+            todo!();
+        }
+    }
+
+    fn handle_project_properties_modified(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };

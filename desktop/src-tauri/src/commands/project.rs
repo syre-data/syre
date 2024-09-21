@@ -154,6 +154,39 @@ pub fn project_resources(
     resources
 }
 
+#[tauri::command]
+pub fn project_properties_update(
+    db: tauri::State<db::Client>,
+    update: core::project::Project,
+) -> Result<(), local::error::IoSerde> {
+    let path = db.project().path(update.rid().clone()).unwrap().unwrap();
+    let mut properties = local::project::resources::Project::load_from_properties_only(&path)?;
+    assert_eq!(properties.rid(), update.rid());
+    if properties == update {
+        return Ok(());
+    }
+
+    let core::project::Project {
+        name,
+        description,
+        data_root,
+        analysis_root,
+        meta_level,
+        ..
+    } = update;
+
+    properties.name = name;
+    properties.description = description;
+    properties.data_root = data_root;
+    properties.analysis_root = analysis_root;
+    properties.meta_level = meta_level;
+
+    local::project::resources::Project::save_properties_only(&path, &properties)
+        .map_err(|err| err.kind())?;
+
+    Ok(())
+}
+
 /// # Arguments
 /// + `path`: Relative path from the analysis root.
 #[tauri::command]

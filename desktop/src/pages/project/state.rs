@@ -172,6 +172,7 @@ pub mod project {
     use chrono::{DateTime, Utc};
     use leptos::*;
     use std::path::PathBuf;
+    use syre_core as core;
     use syre_core::{
         project::Project as CoreProject,
         types::{ResourceId, ResourceMap, UserId, UserPermissions},
@@ -233,6 +234,20 @@ pub mod project {
 
         pub fn analyses(&self) -> RwSignal<AnalysesState> {
             self.analyses.clone()
+        }
+    }
+
+    impl State {
+        pub fn as_properties(&self) -> core::project::Project {
+            let mut properties = core::project::Project::with_id(
+                self.rid.get_untracked(),
+                self.properties.name.get_untracked(),
+            );
+            properties.description = self.properties.description.get_untracked();
+            properties.data_root = self.properties.data_root.get_untracked();
+            properties.analysis_root = self.properties.analysis_root.get_untracked();
+
+            properties
         }
     }
 

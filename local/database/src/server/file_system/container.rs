@@ -1322,10 +1322,6 @@ impl Database {
             )),
         );
 
-        let [path] = &event.paths()[..] else {
-            panic!("invalid paths");
-        };
-
         #[cfg(target_os = "windows")]
         {
             self.handle_container_assets_modified(event)

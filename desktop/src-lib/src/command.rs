@@ -215,12 +215,12 @@ pub mod bulk {
 
 pub mod error {
     use serde::{Deserialize, Serialize};
-    use std::io;
+    use std::{ffi::OsString, io, path::PathBuf};
 
     #[derive(Serialize, Deserialize, Debug)]
     pub struct ProjectNotFound;
 
-    /// Wrapper to allow for serialization
+    /// [`std::io::ErrorKind`] wrapper to allow for serialization.
     #[derive(Serialize, Deserialize, derive_more::From, Debug)]
     pub struct IoErrorKind(#[serde(with = "syre_local::error::IoErrorKind")] pub io::ErrorKind);
     impl Into<io::ErrorKind> for IoErrorKind {
@@ -231,6 +231,57 @@ pub mod error {
     impl From<io::Error> for IoErrorKind {
         fn from(value: io::Error) -> Self {
             Self(value.kind())
+        }
+    }
+
+    /// `trash::Error` wrapper to allow for serialization.
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum Trash {
+        Unknown {
+            description: String,
+        },
+
+        Os {
+            code: i32,
+            description: String,
+        },
+
+        #[cfg(all(
+            unix,
+            not(target_os = "macos"),
+            not(target_os = "ios"),
+            not(target_os = "android")
+        ))]
+        FileSystem {
+            path: PathBuf,
+            // source: std::io::Error,
+        },
+
+        TargetedRoot,
+
+        CouldNotAccess {
+            target: String,
+        },
+
+        CanonicalizePath {
+            original: PathBuf,
+        },
+    }
+
+    #[cfg(feature = "server")]
+    impl From<trash::Error> for Trash {
+        fn from(value: trash::Error) -> Self {
+            match value {
+                trash::Error::Unknown { description } => Self::Unknown { description },
+                trash::Error::Os { code, description } => Self::Os { code, description },
+                trash::Error::TargetedRoot => Self::TargetedRoot,
+                trash::Error::CouldNotAccess { target } => Self::CouldNotAccess { target },
+                trash::Error::CanonicalizePath { original } => Self::CanonicalizePath { original },
+                trash::Error::ConvertOsString { .. } => todo!(),
+                trash::Error::RestoreCollision { .. } | trash::Error::RestoreTwins { .. } => {
+                    unreachable!("should not occur")
+                }
+            }
         }
     }
 }

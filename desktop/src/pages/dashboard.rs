@@ -7,7 +7,7 @@ use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::*;
 use serde::Serialize;
-use std::{path::PathBuf, rc::Rc};
+use std::{path::PathBuf, rc::Rc, str::FromStr};
 use syre_core::{project::Project, system::User, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local as local;
@@ -94,13 +94,13 @@ fn DashboardView(
     context_menu_project_ok: Rc<menu::Menu>,
 ) -> impl IntoView {
     provide_context(ContextMenuProjectOk::new(context_menu_project_ok));
-
     let (projects, set_projects) = create_signal(
         projects
             .into_iter()
             .map(|project| RwSignal::new(project))
             .collect::<Vec<_>>(),
     );
+    tracing::debug!(?projects);
 
     spawn_local(async move {
         let mut listener =
@@ -322,7 +322,7 @@ fn CreateProject(
                 let dialog = create_project_ref.get_untracked().unwrap();
                 dialog.show_modal().unwrap();
             }
-        })
+        });
     };
 
     Effect::new(move |_| {
@@ -436,14 +436,19 @@ fn InitializeProject(
     #[prop(optional, into)] title: MaybeProp<String>,
 ) -> impl IntoView {
     let user = expect_context::<User>();
+    let messages = expect_context::<types::Messages>();
     let initialize_project_action = create_action({
         let user = user.rid().clone();
+        let messages = messages.clone();
         move |_| {
             let user = user.clone();
+            let messages = messages.clone();
             async move {
                 if let Some(path) = pick_folder("Initialize an existing directory").await {
                     if let Err(err) = initialize_project(user, path).await {
-                        todo!("{err:?}");
+                        let mut msg = Message::error("Could not initialize project");
+                        msg.body(format!("{err:?}"));
+                        messages.update(|messages| messages.push(msg.build()));
                     }
                 }
             }

@@ -7140,6 +7140,7 @@ dependencies = [
  "syre-local",
  "syre-local-database",
  "syre-local-runner",
+ "trash",
  "uuid",
 ]
 

@@ -10,4 +10,8 @@ syre-core.workspace = true
 syre-local.workspace = true
 syre-local-database.workspace = true
 syre-local-runner.workspace = true
+trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v7"] }
+
+[features]
+server = ["dep:trash"]

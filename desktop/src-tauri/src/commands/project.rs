@@ -257,11 +257,16 @@ pub fn analyze_project(
     Ok(())
 }
 
+#[tauri::command]
+pub fn delete_project(project: PathBuf) -> Result<(), lib::command::error::Trash> {
+    trash::delete(&project).map_err(|err| err.into())
+}
+
 fn graph_state_to_container_tree(
     graph: db::state::Graph,
 ) -> Result<core::graph::ResourceTree<core::project::Container>, InvalidGraph> {
     let db::state::Graph { nodes, children } = graph;
-    let mut nodes = nodes
+    let nodes = nodes
         .into_iter()
         .map(|node| node.as_container())
         .collect::<Vec<_>>();

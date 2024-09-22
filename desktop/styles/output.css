@@ -1258,6 +1258,11 @@ select {
   border-style: solid;
 }
 
+.border-black {
+  --tw-border-opacity: 1;
+  border-color: rgb(0 0 0 / var(--tw-border-opacity));
+}
+
 .border-blue-400 {
   --tw-border-opacity: 1;
   border-color: rgb(96 165 250 / var(--tw-border-opacity));
@@ -1310,6 +1315,11 @@ select {
 .bg-secondary-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(137 142 153 / var(--tw-bg-opacity));
+}
+
+.bg-syre-red-700 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(135 19 25 / var(--tw-bg-opacity));
 }
 
 .bg-transparent {
@@ -1396,6 +1406,10 @@ select {
   padding-bottom: 1rem;
 }
 
+.pb-8 {
+  padding-bottom: 2rem;
+}
+
 .pl-2 {
   padding-left: 0.5rem;
 }
@@ -1478,6 +1492,11 @@ select {
   line-height: 1.75rem;
 }
 
+.text-black {
+  --tw-text-opacity: 1;
+  color: rgb(0 0 0 / var(--tw-text-opacity));
+}
+
 .text-secondary-500 {
   --tw-text-opacity: 1;
   color: rgb(107 114 128 / var(--tw-text-opacity));
@@ -1533,6 +1552,30 @@ select {
   height: var(--scrollbar-height, 16px);
 }
 
+.disabled\:btn-secondary:disabled {
+  --tw-border-opacity: 1;
+  border-color: rgb(24 26 30 / var(--tw-border-opacity));
+}
+
+.disabled\:btn-secondary:disabled:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(225 227 230 / var(--tw-bg-opacity));
+}
+
+@media (prefers-color-scheme: dark) {
+  .disabled\:btn-secondary:disabled {
+    --tw-border-opacity: 1;
+    border-color: rgb(86 91 102 / var(--tw-border-opacity));
+    --tw-bg-opacity: 1;
+    background-color: rgb(86 91 102 / var(--tw-bg-opacity));
+  }
+
+  .disabled\:btn-secondary:disabled:hover {
+    --tw-bg-opacity: 1;
+    background-color: rgb(107 114 128 / var(--tw-bg-opacity));
+  }
+}
+
 .group:not(:hover) .group-\[\:not\(\:hover\)\]\:hidden {
   display: none;
 }
@@ -1556,6 +1599,10 @@ select {
   background-color: rgb(196 199 204 / var(--tw-bg-opacity));
 }
 
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
 }
@@ -1574,6 +1621,11 @@ select {
   .dark\:border-secondary-200 {
     --tw-border-opacity: 1;
     border-color: rgb(196 199 204 / var(--tw-border-opacity));
+  }
+
+  .dark\:border-secondary-400 {
+    --tw-border-opacity: 1;
+    border-color: rgb(137 142 153 / var(--tw-border-opacity));
   }
 
   .dark\:border-secondary-50 {
@@ -1614,6 +1666,11 @@ select {
   .dark\:bg-secondary-900 {
     --tw-bg-opacity: 1;
     background-color: rgb(24 26 30 / var(--tw-bg-opacity));
+  }
+
+  .dark\:bg-syre-red-500 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(213 65 11 / var(--tw-bg-opacity));
   }
 
   .dark\:fill-secondary-700 {

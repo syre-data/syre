@@ -14,7 +14,6 @@ use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
 use tauri_sys::window::DragDropPayload;
-use tracing::instrument::WithSubscriber;
 use wasm_bindgen::JsCast;
 
 const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
@@ -65,7 +64,16 @@ fn Loading() -> impl IntoView {
 
 #[component]
 fn NoProject() -> impl IntoView {
-    view! { <div class="pt-4 text-center">"Project state was not found."</div> }
+    view! {
+        <div>
+            <div class="p-4 text-center">"Project state was not found."</div>
+            <div class="text-center">
+                <A href="/" class="btn btn-primary">
+                    "Dashboard"
+                </A>
+            </div>
+        </div>
+    }
 }
 
 #[component]

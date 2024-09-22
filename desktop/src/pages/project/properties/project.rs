@@ -73,7 +73,7 @@ pub fn Editor() -> impl IntoView {
                 >
                     "Delete"
                 </button>
-                <ModalDialog node_ref=delete_project_modal>
+                <ModalDialog node_ref=delete_project_modal >
                     <DeleteProjectConfirmation />
                 </ModalDialog>
             </div>

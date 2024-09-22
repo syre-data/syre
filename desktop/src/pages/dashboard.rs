@@ -100,7 +100,6 @@ fn DashboardView(
             .map(|project| RwSignal::new(project))
             .collect::<Vec<_>>(),
     );
-    tracing::debug!(?projects);
 
     spawn_local(async move {
         let mut listener =
@@ -400,32 +399,42 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     };
 
     view! {
-        <form on:submit=create_project>
-            <div>
-                <input
-                    name="path"
-                    prop:value=move || {
-                        path.with(|path| match path {
-                            None => "".to_string(),
-                            Some(path) => path.to_string_lossy().to_string(),
-                        })
-                    }
+        <div class="px-4 py-2 rounded border border-black bg-white dark:bg-secondary-800 dark:border-secondary-400">
+            <div class="text-center text-2xl pb-2 dark:text-white">"Create a new project"</div>
+            <form on:submit=create_project>
+                <div class="pb-4">
+                    <div class="flex gap-2">
+                        <input
+                            name="path"
+                            prop:value=move || {
+                                path.with(|path| match path {
+                                    None => "".to_string(),
+                                    Some(path) => path.to_string_lossy().to_string(),
+                                })
+                            }
+                            class="grow"
+                            readonly
+                        />
 
-                    readonly
-                />
-
-                <button type="button" on:mousedown=select_path>
-                    "Change"
-                </button>
-            </div>
-            <div>
-                <button disabled=move || path.with(|path| path.is_none())>"Create"</button>
-                <button type="button" on:mousedown=close>
-                    "Cancel"
-                </button>
-            </div>
-            <div>{error}</div>
-        </form>
+                        <button class="btn btn-secondary" type="button" on:mousedown=select_path>
+                            "Change"
+                        </button>
+                    </div>
+                </div>
+                <div class="flex gap-2 justify-center">
+                    <button
+                        disabled=move || path.with(|path| path.is_none())
+                        class="btn btn-primary"
+                    >
+                        "Create"
+                    </button>
+                    <button type="button" on:mousedown=close class="btn btn-secondary">
+                        "Cancel"
+                    </button>
+                </div>
+                <div>{error}</div>
+            </form>
+        </div>
     }
 }
 

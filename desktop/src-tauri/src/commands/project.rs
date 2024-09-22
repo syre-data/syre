@@ -23,7 +23,7 @@ use syre_local_runner as runner;
 pub fn create_project(
     user: ResourceId,
     path: PathBuf,
-) -> Result<Project, lib::command::project::error::Initialize> {
+) -> Result<(), lib::command::project::error::Initialize> {
     use lib::command::project::error;
     project::init(&path).map_err(|err| match err {
         project::error::Init::InvalidRootPath => error::Initialize::InvalidRootPath,
@@ -62,7 +62,7 @@ pub fn create_project(
     root.save()
         .map_err(|err| error::Initialize::Init(format!("Could not update settings: {err:?}")))?;
 
-    Ok(project.into())
+    Ok(())
 }
 
 #[tauri::command]

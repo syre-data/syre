@@ -1695,6 +1695,15 @@ select {
     color: rgb(255 255 255 / var(--tw-text-opacity));
   }
 
+  .dark\:backdrop\:bg-black::backdrop {
+    --tw-bg-opacity: 1;
+    background-color: rgb(0 0 0 / var(--tw-bg-opacity));
+  }
+
+  .dark\:backdrop\:opacity-50::backdrop {
+    opacity: 0.5;
+  }
+
   .dark\:hover\:bg-primary-700:hover {
     --tw-bg-opacity: 1;
     background-color: rgb(34 129 170 / var(--tw-bg-opacity));

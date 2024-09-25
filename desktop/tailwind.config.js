@@ -9,6 +9,9 @@ module.exports = {
 		extend: {
 			colors,
 			fontFamily,
+			transitionPropety: {
+				"width": "width"
+			}
 		},
 	},
 	plugins: [

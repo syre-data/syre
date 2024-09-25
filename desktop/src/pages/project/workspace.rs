@@ -1,9 +1,8 @@
-use super::{
-    canvas,
-    properties::{self, EditorKind},
-    state, Canvas, LayersNav, ProjectBar, PropertiesBar,
+use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
+use crate::{
+    common,
+    components::{drawer, Drawer, Logo},
 };
-use crate::{common, components::Logo};
 use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::*;
@@ -130,7 +129,7 @@ fn WorkspaceView(
     });
 
     view! {
-        <div class="select-none flex flex-col">
+        <div class="select-none flex flex-col h-full">
             <ProjectNav />
             <div class="border-b">
                 <ProjectBar />
@@ -245,16 +244,24 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     }
 
     view! {
-        <div class="grow flex">
-            <div class="w-1/6 border-r">
+        <div class="grow flex relative">
+            <Drawer
+                dock=drawer::Dock::East
+                absolute=true
+                class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-r"
+            >
                 <LayersNav />
-            </div>
-            <div class="flex-grow">
+            </Drawer>
+            <div class="grow">
                 <Canvas />
             </div>
-            <div class="w-1/6 border-l">
+            <Drawer
+                dock=drawer::Dock::West
+                absolute=true
+                class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-l"
+            >
                 <PropertiesBar />
-            </div>
+            </Drawer>
         </div>
     }
 }

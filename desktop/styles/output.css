@@ -998,12 +998,40 @@ select {
   position: relative;
 }
 
+.-left-0\.5 {
+  left: -0.125rem;
+}
+
 .-left-\[105\%\] {
   left: -105%;
 }
 
+.-right-0\.5 {
+  right: -0.125rem;
+}
+
+.bottom-0 {
+  bottom: 0px;
+}
+
+.left-0 {
+  left: 0px;
+}
+
+.left-full {
+  left: 100%;
+}
+
+.right-0 {
+  right: 0px;
+}
+
 .right-\[105\%\] {
   right: 105%;
+}
+
+.right-full {
+  right: 100%;
 }
 
 .top-0 {
@@ -1086,12 +1114,20 @@ select {
   min-width: 3.5rem;
 }
 
-.flex-grow {
-  flex-grow: 1;
+.min-w-28 {
+  min-width: 7rem;
+}
+
+.max-w-\[40\%\] {
+  max-width: 40%;
 }
 
 .grow {
   flex-grow: 1;
+}
+
+.cursor-ew-resize {
+  cursor: ew-resize;
 }
 
 .cursor-grabbing {
@@ -1189,6 +1225,10 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.text-clip {
+  text-overflow: clip;
 }
 
 .text-nowrap {
@@ -1580,6 +1620,14 @@ select {
   display: none;
 }
 
+.hover\:-left-1:hover {
+  left: -0.25rem;
+}
+
+.hover\:-right-1:hover {
+  right: -0.25rem;
+}
+
 .hover\:cursor-pointer:hover {
   cursor: pointer;
 }
@@ -1594,9 +1642,22 @@ select {
   background-color: rgb(149 209 217 / var(--tw-bg-opacity));
 }
 
+.hover\:bg-primary-700:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(34 129 170 / var(--tw-bg-opacity));
+}
+
 .hover\:bg-secondary-200:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(196 199 204 / var(--tw-bg-opacity));
+}
+
+.hover\:delay-150:hover {
+  transition-delay: 150ms;
+}
+
+.hover\:duration-200:hover {
+  transition-duration: 200ms;
 }
 
 .disabled\:cursor-not-allowed:disabled {

@@ -45,6 +45,7 @@ derive_more.workspace = true
 [dependencies.web-sys]  
 version = "0.3.70"
 features = [
+	"CssStyleDeclaration",
 	"Element",
 	"Event",
 	"EventInit",

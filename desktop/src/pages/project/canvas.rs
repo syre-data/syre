@@ -456,6 +456,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     };
 
     let y = {
+        let graph = graph.clone();
         let root = root.clone();
         move || {
             if state::graph::Node::ptr_eq(&root, graph.root()) {
@@ -509,15 +510,16 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         }
     };
 
-    let child_key = |child: &state::graph::Node| {
-        child.properties().with(|properties| {
-            properties
-                .as_ref()
-                .map(|properties| properties.rid().with(|rid| rid.to_string()))
-                .unwrap_or_else(|_| {
-                    todo!("use path as id");
-                })
-        })
+    let child_key = {
+        let graph = graph.clone();
+        move |child: &state::graph::Node| {
+            child.properties().with(|properties| {
+                properties
+                    .as_ref()
+                    .map(|properties| properties.rid().with(|rid| rid.to_string()))
+                    .unwrap_or_else(|_| graph.path(child).unwrap().to_string_lossy().to_string())
+            })
+        }
     };
 
     // let _ = watch(
@@ -537,7 +539,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     view! {
         <svg width=width height=height x=x y=y>
             <g>
-                <For each=children key=child_key let:child>
+                <For each=children key=child_key.clone() let:child>
                     <polyline
                         fill="none"
                         class="stroke-secondary-400 dark:stroke-secondary-500"
@@ -605,7 +607,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                 </g>
             </g>
             <g>
-                <For each=children key=child_key let:child>
+                <For each=children key=child_key.clone() let:child>
                     <Graph root=child />
                 </For>
 
@@ -1401,7 +1403,9 @@ fn ContainerErr(
     view! {
         <div ref=node_ref data-resource=DATA_KEY_CONTAINER>
             <div>
-                <span>{container.name().with(|name| name.to_string_lossy().to_string())}</span>
+                <span>
+                    {move || container.name().with(|name| name.to_string_lossy().to_string())}
+                </span>
             </div>
 
             <div>

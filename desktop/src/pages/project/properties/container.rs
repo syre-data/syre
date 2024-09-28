@@ -1,10 +1,13 @@
-use super::{common, INPUT_DEBOUNCE};
+use super::{common, PopoutPortal, INPUT_DEBOUNCE};
 use crate::{pages::project::state, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
 use has_id::HasId;
 use kind::Editor as Kind;
-use leptos::{ev::MouseEvent, *};
+use leptos::{
+    ev::{Event, MouseEvent},
+    *,
+};
 use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
@@ -16,31 +19,21 @@ use syre_local as local;
 use syre_local_database as db;
 use tags::Editor as Tags;
 
+#[derive(Clone, Copy)]
+enum Widget {
+    AddMetadatum,
+    AddAnalysisAssociation,
+}
+
+// TODO: Use enum for popout detail widget.
 #[component]
 pub fn Editor(container: state::Container) -> impl IntoView {
     let project = expect_context::<state::Project>();
-    let add_metadatum_visible = create_rw_signal(false);
-    let add_analysis_visible = create_rw_signal(false);
-
-    let _ = watch(
-        move || add_metadatum_visible(),
-        move |add_metadatum_visible, _, _| {
-            if *add_metadatum_visible && add_analysis_visible() {
-                add_analysis_visible.set(false);
-            }
-        },
-        false,
-    );
-
-    let _ = watch(
-        move || add_analysis_visible(),
-        move |add_analysis_visible, _, _| {
-            if add_metadatum_visible() && *add_analysis_visible {
-                add_metadatum_visible.set(false);
-            }
-        },
-        false,
-    );
+    let popout_portal = expect_context::<PopoutPortal>();
+    let (widget, set_widget) = create_signal(None);
+    let wrapper_node = NodeRef::<html::Div>::new();
+    let metadata_node = NodeRef::<html::Div>::new();
+    let analyses_node = NodeRef::<html::Div>::new();
 
     let db::state::DataResource::Ok(properties) = container.properties().get_untracked() else {
         panic!("invalid state");
@@ -105,18 +98,74 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
     let show_add_metadatum = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
-            add_metadatum_visible.set(true);
+            let wrapper = wrapper_node.get_untracked().unwrap();
+            let base = metadata_node.get_untracked().unwrap();
+            let portal = popout_portal.get_untracked().unwrap();
+
+            let top = super::detail_popout_top(&portal, &base, &wrapper);
+            (*portal)
+                .style()
+                .set_property("top", &format!("{top}px"))
+                .unwrap();
+
+            set_widget.update(|widget| {
+                #[allow(unused_must_use)]
+                widget.insert(Widget::AddMetadatum);
+            });
         }
     };
 
     let show_add_analysis = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
-            add_analysis_visible.set(true);
+            let wrapper = wrapper_node.get_untracked().unwrap();
+            let base = analyses_node.get_untracked().unwrap();
+            let portal = popout_portal.get_untracked().unwrap();
+
+            let top = super::detail_popout_top(&portal, &base, &wrapper);
+            (*portal)
+                .style()
+                .set_property("top", &format!("{top}px"))
+                .unwrap();
+
+            set_widget.update(|widget| {
+                #[allow(unused_must_use)]
+                widget.insert(Widget::AddAnalysisAssociation);
+            });
         }
     };
 
+    let scroll = move |_: Event| {
+        let wrapper = wrapper_node.get_untracked().unwrap();
+        let portal = popout_portal.get_untracked().unwrap();
+        let Some(base) = widget.with(|widget| {
+            widget.map(|widget| match widget {
+                Widget::AddMetadatum => metadata_node,
+                Widget::AddAnalysisAssociation => analyses_node,
+            })
+        }) else {
+            return;
+        };
+        let base = base.get_untracked().unwrap();
+
+        let top = super::detail_popout_top(&portal, &base, &wrapper);
+        (*portal)
+            .style()
+            .set_property("top", &format!("{top}px"))
+            .unwrap();
+    };
+
+    let on_widget_close = move |_| {
+        set_widget.update(|widget| {
+            widget.take();
+        });
+    };
+
     view! {
-        <div class="overflow-y-auto pr-2 pb-4 h-full">
+        <div
+            ref=wrapper_node
+            on:scroll=scroll
+            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
+        >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Container"</h3>
             </div>
@@ -168,12 +217,30 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                     on:mousedown=show_add_metadatum
                                     class=(
                                         ["bg-primary-400", "dark:bg-primary-700"],
-                                        add_metadatum_visible,
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(
+                                                            false,
+                                                            |widget| matches!(widget, Widget::AddMetadatum),
+                                                        )
+                                                })
+                                        },
                                     )
 
                                     class=(
                                         ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
-                                        move || !add_metadatum_visible(),
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(
+                                                            false,
+                                                            |widget| !matches!(widget, Widget::AddMetadatum),
+                                                        )
+                                                })
+                                        },
                                     )
 
                                     class="aspect-square w-full rounded-sm"
@@ -182,18 +249,18 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                 </button>
                             </span>
                         </div>
-                        <AddDatum
-                            metadata=properties.metadata().read_only()
-                            container=properties.rid().read_only()
-                            visibility=add_metadatum_visible
-                        />
                         <Metadata
+                            node_ref=metadata_node
                             value=properties.metadata().read_only()
                             container=properties.rid().read_only()
                         />
+
                     </label>
                 </div>
-                <div class="relative pt-4 pb-1 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                <div
+                    ref=analyses_node
+                    class="relative pt-4 pb-1 border-t border-t-secondary-200 dark:border-t-secondary-700"
+                >
                     <label class="px-1 block">
                         <div class="flex">
                             <span class="grow">"Analyses"</span>
@@ -204,18 +271,38 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                     on:mousedown=show_add_analysis
                                     class=(
                                         ["bg-primary-400", "dark:bg-primary-700"],
-                                        add_analysis_visible,
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(
+                                                            false,
+                                                            |widget| {
+                                                                matches!(widget, Widget::AddAnalysisAssociation)
+                                                            },
+                                                        )
+                                                })
+                                        },
                                     )
 
                                     class=(
                                         ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
                                         move || {
                                             available_analyses.with(|analyses| !analyses.is_empty())
-                                                && !add_analysis_visible()
+                                                && widget
+                                                    .with(|widget| {
+                                                        widget
+                                                            .map_or(
+                                                                false,
+                                                                |widget| {
+                                                                    !matches!(widget, Widget::AddAnalysisAssociation)
+                                                                },
+                                                            )
+                                                    })
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-sm disabled:opacity-50 "
+                                    class="aspect-square w-full rounded-sm disabled:opacity-50"
                                     disabled=move || {
                                         available_analyses.with(|analyses| analyses.is_empty())
                                     }
@@ -225,11 +312,6 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                 </button>
                             </span>
                         </div>
-                        <AddAssociation
-                            available_analyses
-                            container=properties.rid().read_only()
-                            visibility=add_analysis_visible
-                        />
                         <AnalysisAssociations
                             associations=analysis_associations.read_only()
                             container=properties.rid().read_only()
@@ -237,6 +319,45 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                     </label>
                 </div>
             </form>
+            <Show
+                when=move || widget.with(|widget| widget.is_some()) && popout_portal.get().is_some()
+                fallback=|| view! {}
+            >
+                {
+                    let metadata = properties.metadata().read_only();
+                    let container = properties.rid().read_only();
+                    move || {
+                        let mount = popout_portal.get_untracked().unwrap();
+                        let mount = (*mount).clone();
+                        view! {
+                            <Portal mount>
+                                {move || match widget().unwrap() {
+                                    Widget::AddMetadatum => {
+                                        view! {
+                                            <AddDatum
+                                                metadata
+                                                container
+                                                onclose=on_widget_close.clone()
+                                            />
+                                        }
+                                            .into_view()
+                                    }
+                                    Widget::AddAnalysisAssociation => {
+                                        view! {
+                                            <AddAssociation
+                                                available_analyses
+                                                container
+                                                onclose=on_widget_close.clone()
+                                            />
+                                        }
+                                            .into_view()
+                                    }
+                                }}
+                            </Portal>
+                        }
+                    }
+                }
+            </Show>
         </div>
     }
 }
@@ -541,6 +662,7 @@ mod metadata {
 
     #[component]
     pub fn Editor(
+        #[prop(optional)] node_ref: NodeRef<html::Div>,
         /// Initial value.
         value: ReadSignal<state::Metadata>,
         container: ReadSignal<ResourceId>,
@@ -548,7 +670,7 @@ mod metadata {
         provide_context(ActiveResource(container));
 
         view! {
-            <div class="pt-0.5">
+            <div ref=node_ref class="pt-0.5">
                 <For each=value key=|(key, _)| key.clone() let:datum>
                     <DatumEditor key=datum.0.clone() value=datum.1.read_only() />
                 </For>
@@ -560,11 +682,10 @@ mod metadata {
     pub fn AddDatum(
         container: ReadSignal<ResourceId>,
         metadata: ReadSignal<state::Metadata>,
-        visibility: RwSignal<bool>,
+        #[prop(optional, into)] onclose: Option<Callback<()>>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let (reset_form, set_reset_form) = create_signal(());
         let keys = move || {
             metadata.with(|metadata| {
                 metadata
@@ -599,19 +720,25 @@ mod metadata {
                         tracing::error!(?err);
                         todo!()
                     } else {
-                        visibility.set(false);
-                        set_reset_form(());
+                        if let Some(onclose) = onclose {
+                            onclose(());
+                        }
                     }
                 }
             });
         };
 
+        let close = move |_| {
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
+        };
+
         view! {
-            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+            <DetailPopout title="Add metadata" onclose=Callback::new(close)>
                 <AddDatumEditor
                     keys=Signal::derive(keys)
-                    onadd
-                    reset=reset_form
+                    onadd=Callback::new(onadd)
                     class="w-full px-1"
                 />
             </DetailPopout>
@@ -757,10 +884,11 @@ mod analysis_associations {
         commands,
         components::{message::Builder as Message, DetailPopout},
         pages::project::properties::INPUT_DEBOUNCE,
-        types::Messages,
+        types::{self, Messages},
     };
     use has_id::HasId;
-    use leptos::*;
+    use leptos::{ev::MouseEvent, *};
+    use leptos_icons::Icon;
     use syre_core::{project::AnalysisAssociation, types::ResourceId};
     use syre_local as local;
     use syre_local_database as db;
@@ -769,7 +897,7 @@ mod analysis_associations {
     pub fn AddAssociation(
         available_analyses: Signal<Vec<AnalysisInfo>>,
         container: ReadSignal<ResourceId>,
-        visibility: RwSignal<bool>,
+        #[prop(optional, into)] onclose: Option<Callback<()>>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
@@ -815,11 +943,19 @@ mod analysis_associations {
 
         let onadd = move |association: AnalysisAssociation| {
             add_association.dispatch(association);
-            visibility.set(false);
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
+        };
+
+        let close = move |_| {
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
         };
 
         view! {
-            <DetailPopout title="Add analysis" visibility>
+            <DetailPopout title="Add analysis" onclose=Callback::new(close)>
                 <AddAssociationEditor available_analyses onadd=Callback::new(onadd) class="px-1" />
             </DetailPopout>
         }
@@ -830,6 +966,53 @@ mod analysis_associations {
         #[prop(into)] associations: Signal<Vec<state::AnalysisAssociation>>,
         container: ReadSignal<ResourceId>,
     ) -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<types::Messages>();
+
+        let update_associations = create_action({
+            let project = project.rid().read_only();
+            let graph = graph.clone();
+            let container = container.clone();
+            let messages = messages.clone();
+            move |associations: &Vec<AnalysisAssociation>| {
+                let node = container.with(|rid| graph.find_by_id(rid).unwrap());
+                let container_path = graph.path(&node).unwrap();
+
+                let project = project.get_untracked();
+                let associations = associations.clone();
+                let messages = messages.clone();
+                async move {
+                    if let Err(err) = commands::container::update_analysis_associations(
+                        project,
+                        container_path,
+                        associations,
+                    )
+                    .await
+                    {
+                        tracing::error!(?err);
+                        let mut msg = Message::error("Could not update analysis associations.");
+                        msg.body(format!("{err:?}"));
+                        messages.update(|messages| messages.push(msg.build()));
+                    }
+                }
+            }
+        });
+
+        let remove_association = move |e: MouseEvent, analysis: ResourceId| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            let mut associations = associations.get_untracked();
+            associations.retain(|association| *association.analysis() != analysis);
+            let associations = associations
+                .into_iter()
+                .map(|association| association.as_association())
+                .collect();
+            update_associations.dispatch(associations);
+        };
+
         view! {
             <div>
                 <Show
@@ -841,7 +1024,23 @@ mod analysis_associations {
                         key=|association| association.analysis().clone()
                         let:association
                     >
-                        <AnalysisAssociationEditor association container />
+                        <div class="relative flex gap-2">
+                            <AnalysisAssociationEditor
+                                association=association.clone()
+                                container
+                                class="grow"
+                            />
+                            <button
+                                type="button"
+                                on:mousedown=move |e| remove_association(
+                                    e,
+                                    association.analysis().clone(),
+                                )
+                                class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                            >
+                                <Icon icon=icondata::AiMinusOutlined />
+                            </button>
+                        </div>
                     </For>
                 </Show>
             </div>
@@ -852,6 +1051,7 @@ mod analysis_associations {
     pub fn AnalysisAssociationEditor(
         association: state::AnalysisAssociation,
         container: ReadSignal<ResourceId>,
+        #[prop(into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
@@ -866,7 +1066,7 @@ mod analysis_associations {
 
         let update_association = create_action({
             let graph = graph.clone();
-            let project = project.rid();
+            let project = project.rid().read_only();
             move |association: &AnalysisAssociation| {
                 let node = container.with(|rid| graph.find_by_id(rid).unwrap());
                 let mut associations = node.analyses().with_untracked(|associations| {
@@ -899,7 +1099,7 @@ mod analysis_associations {
                     .await
                     {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container.");
+                        let mut msg = Message::error("Could not update analysis associations.");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     };
@@ -955,8 +1155,10 @@ mod analysis_associations {
             }
         };
 
+        let classes = move || class.with(|class| format!("flex flex-wrap {class}"));
+
         view! {
-            <div class="flex flex-wrap">
+            <div class=classes>
                 <div title=title.clone() class="grow">
                     {title}
                 </div>

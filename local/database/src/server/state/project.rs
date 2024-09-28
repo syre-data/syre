@@ -290,12 +290,13 @@ pub mod project {
     impl TryReducible for State {
         type Action = Action;
         type Error = Error;
+
+        #[tracing::instrument(level = "trace", skip(self))]
         fn try_reduce(&mut self, action: Self::Action) -> std::result::Result<(), Self::Error> {
             match action {
                 Action::SetPath(_) | Action::RemoveFolder | Action::CreateFolder(_) => {
                     unreachable!("handled elsewhere");
                 }
-
                 Action::RemoveConfig => {
                     self.properties = DataResource::Err(io::ErrorKind::NotFound.into());
                     self.settings = DataResource::Err(io::ErrorKind::NotFound.into());
@@ -330,6 +331,7 @@ pub mod project {
     }
 
     impl State {
+        #[tracing::instrument(level = "trace", skip(self))]
         fn try_reduce_graph(&mut self, action: action::Graph) -> Result<(), Error> {
             match action {
                 super::action::Graph::Set(graph) => {
@@ -341,39 +343,69 @@ pub mod project {
                     graph: subgraph,
                 } => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
+                        tracing::error!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
-                    let Some(parent) = graph.find(&parent).unwrap().cloned() else {
+                    let Some(parent_node) = graph.find(&parent).unwrap().cloned() else {
+                        tracing::error!("parent does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
-                    graph.insert(&parent, subgraph).map_err(|err| match err {
-                        graph::error::Insert::ParentNotFound => Error::DoesNotExist,
-                        graph::error::Insert::NameCollision => Error::InvalidTransition,
-                    })
+                    if let Err(err) = graph.insert(&parent_node, subgraph.clone()) {
+                        tracing::error!(?err);
+                        match err {
+                            graph::error::Insert::ParentNotFound => {
+                                return Err(Error::DoesNotExist)
+                            }
+                            graph::error::Insert::NameCollision => {
+                                if cfg!(target_os = "windows") {
+                                    tracing::warn!("inserting graph with name collision");
+                                    let root = subgraph.root().lock().unwrap();
+                                    let existing_path = parent.join(root.name());
+                                    drop(root);
+                                    let existing =
+                                        graph.find(existing_path).unwrap().unwrap().clone();
+                                    graph.remove(&existing).unwrap();
+                                    graph.insert(&parent_node, subgraph).unwrap();
+                                    return Ok(());
+                                } else {
+                                    return Err(Error::InvalidTransition);
+                                }
+                            }
+                        }
+                    }
+
+                    Ok(())
                 }
                 action::Graph::Remove(path) => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
+                        tracing::error!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     let Some(root) = graph.find(&path).unwrap().cloned() else {
+                        tracing::error!("root node does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     graph.remove(&root).map_err(|err| match err {
-                        graph::error::Remove::NotFound => Error::DoesNotExist,
+                        graph::error::Remove::NotFound => {
+                            tracing::error!("node not found");
+                            Error::DoesNotExist
+                        }
                         graph::error::Remove::Root => panic!(),
                     })
                 }
                 action::Graph::Move { from, to } => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
+                        tracing::trace!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     graph.mv(&from, &to).map_err(|err| match err {
                         graph::error::Move::FromNotFound | graph::error::Move::ParentNotFound => {
+                            tracing::trace!("parent node not found");
                             Error::DoesNotExist
                         }
                         graph::error::Move::Root
@@ -384,16 +416,19 @@ pub mod project {
             }
         }
 
+        #[tracing::instrument(level = "trace", skip(self))]
         fn try_reduce_container(
             &mut self,
             path: PathBuf,
             action: action::Container,
         ) -> std::result::Result<(), Error> {
             let FolderResource::Present(graph) = &self.graph else {
+                tracing::trace!("graph not present");
                 return Err(Error::DoesNotExist);
             };
 
             let Some(container) = graph.find(&path).unwrap() else {
+                tracing::trace!("container not found");
                 return Err(Error::DoesNotExist);
             };
 
@@ -418,10 +453,12 @@ pub mod project {
                 }
                 action::Container::Asset { rid, action } => {
                     let Ok(assets) = &mut container.assets else {
+                        tracing::error!("container assets do not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     let Some(asset) = assets.iter_mut().find(|asset| asset.rid() == &rid) else {
+                        tracing::error!("asset does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
@@ -508,18 +545,11 @@ pub mod analysis {
 }
 
 mod container {
-    use super::{DataResource, FileResource};
+    use super::FileResource;
     use crate::state::{Asset, Container};
-    use serde::{Deserialize, Serialize};
-    use std::{ffi::OsString, io, ops::Deref, path::Path};
-    use syre_core::{
-        project::{AnalysisAssociation, Asset as CoreAsset, ContainerProperties},
-        types::ResourceId,
-    };
-    use syre_local::{
-        loader::container::Loader,
-        types::{ContainerSettings, StoredContainerProperties},
-    };
+    use std::{io, path::Path};
+    use syre_core::project::Asset as CoreAsset;
+    use syre_local::loader::container::Loader;
 
     impl Container {
         /// # Errors
@@ -595,7 +625,7 @@ pub mod graph {
     pub type Node = Arc<Mutex<Container>>;
     pub type EdgeMap = Vec<(Node, Vec<Node>)>;
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct State {
         nodes: Vec<Node>,
 
@@ -922,7 +952,7 @@ pub mod graph {
                 return Err(error::Move::InvalidPaths);
             }
 
-            let root_path = Path::new("/");
+            let root_path = Path::new(std::path::Component::RootDir.as_os_str());
             if from_path == root_path || to_path == root_path {
                 return Err(error::Move::Root);
             }

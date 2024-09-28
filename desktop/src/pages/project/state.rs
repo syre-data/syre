@@ -109,9 +109,11 @@ pub mod workspace_graph {
 
         /// Clear all selected resources.
         pub fn select_clear(&self) {
-            self.selection.update(|selection| {
-                selection.clear();
-            })
+            if self.selection.with(|selection| !selection.is_empty()) {
+                self.selection.update(|selection| {
+                    selection.clear();
+                })
+            }
         }
 
         /// Set the selection to be only the given resource.

@@ -204,8 +204,8 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     });
 
     {
-        // TODO: Only tested on Linux.
-        // Need to test on Windows and Mac.
+        // TODO: Tested on Linux and Windows.
+        // Need to test on Mac.
         let project = project.clone();
         let graph = graph.clone();
         spawn_local(async move {
@@ -232,7 +232,15 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                             drag_over_workspace_resource.get_untracked().into_inner()
                         {
                             set_drag_over_workspace_resource(None.into());
-                            handle_drop_event(resource, payload, &project, &graph).await;
+
+                            // NB: Spawn seperate thread to handle large copies.
+                            spawn_local({
+                                let project = project.clone();
+                                let graph = graph.clone();
+                                async move {
+                                    handle_drop_event(resource, payload, &project, &graph).await
+                                }
+                            });
                         }
                     }
                     DragDropEvent::Leave => {
@@ -244,7 +252,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     }
 
     view! {
-        <div class="grow flex relative">
+        <div class="grow flex relative overflow-hidden">
             <Drawer
                 dock=drawer::Dock::East
                 absolute=true
@@ -269,9 +277,9 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 #[component]
 fn ProjectNav() -> impl IntoView {
     view! {
-        <nav class="h-1/8 p-2 border-b dark:bg-secondary-900">
+        <nav class="px-2 border-b dark:bg-secondary-900">
             <ol class="flex">
-                <li>
+                <li class="py-2">
                     <A href="/">
                         <Logo class="h-4" />
                     </A>

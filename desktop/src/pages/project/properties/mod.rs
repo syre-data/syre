@@ -28,6 +28,9 @@ pub const INPUT_DEBOUNCE: f64 = 200.0;
 /// Id for the analyses properties bar.
 pub const ANALYSES_ID: &'static str = "analyses";
 
+#[derive(Clone, Copy, derive_more::Deref)]
+struct PopoutPortal(NodeRef<html::Div>);
+
 #[derive(Clone)]
 pub enum EditorKind {
     Project,
@@ -50,6 +53,8 @@ pub fn PropertiesBar() -> impl IntoView {
     let graph = expect_context::<state::Graph>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let active_editor = expect_context::<RwSignal<workspace::PropertiesEditor>>();
+    let popout_portal = NodeRef::<html::Div>::new();
+    provide_context(PopoutPortal(popout_portal));
 
     create_effect({
         let graph = graph.clone();
@@ -60,7 +65,7 @@ pub fn PropertiesBar() -> impl IntoView {
         }
     });
 
-    move || {
+    let widget = move || {
         active_editor.with(|active_editor| match &**active_editor {
             EditorKind::Project => view! { <Project /> }.into_view(),
             EditorKind::Analyses => view! {
@@ -83,6 +88,13 @@ pub fn PropertiesBar() -> impl IntoView {
                 view! { <MixedBulk resources=resources.clone() /> }.into_view()
             }
         })
+    };
+
+    view! {
+        <div class="h-full relative">
+            {widget}
+            <div ref=popout_portal class="absolute top-1/3 -left-[105%] right-[105%]"></div>
+        </div>
     }
 }
 
@@ -167,4 +179,23 @@ fn active_editor_from_selection(
             }
         }
     })
+}
+
+/// Calculates the y-coordinate the details popout should appear at.
+///
+/// # Returns
+/// y-coordinate of the base relative to the parent, clamped to be within the viewport.
+pub fn detail_popout_top(
+    popout: &HtmlElement<html::Div>,
+    base: &HtmlElement<html::Div>,
+    parent: &HtmlElement<html::Div>,
+) -> i32 {
+    const MARGIN: i32 = 5;
+
+    let popout_rect = popout.get_bounding_client_rect();
+    let base_rect = base.get_bounding_client_rect();
+    let parent_rect = parent.get_bounding_client_rect();
+    let y_max = (parent_rect.height() - popout_rect.height()) as i32 - MARGIN;
+    let top = (base_rect.top() - parent_rect.top()) as i32;
+    crate::common::clamp(top, MARGIN, y_max)
 }

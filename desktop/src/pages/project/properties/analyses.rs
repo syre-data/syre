@@ -108,7 +108,10 @@ fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoV
     });
 
     view! {
-        <div class=(["border-4", "border-blue-400"], highlight) class="h-full">
+        <div
+            class=(["border-4", "border-blue-400"], highlight)
+            class="h-full overflow-x-hidden overflow-y-auto"
+        >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Analyses"</h3>
             </div>

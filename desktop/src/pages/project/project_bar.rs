@@ -121,7 +121,7 @@ fn PreviewSelector() -> impl IntoView {
     const CLASS_CHECKBOX: &str = "w-4 h-4 rounded";
     const CLASS_LABEL: &str = "pl-2";
     view! {
-        <div class="relative">
+        <div class="relative z-10">
             <div
                 on:mousedown=activate
                 class="cursor-pointer inline-flex w-40 px-2 rounded border border-secondary-600 dark:border-secondary-200"

@@ -21,7 +21,9 @@ impl Database {
             .collect()
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn process_event(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        tracing::trace!(?event);
         match event.kind() {
             EventKind::Config(_) => self.handle_fs_event_config(event),
             EventKind::Project(_) => self.handle_fs_event_project(event),

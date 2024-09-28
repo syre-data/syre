@@ -349,7 +349,8 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
         assert!(graph.find(&container_graph_path).unwrap().is_some());
@@ -463,7 +464,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
 
@@ -546,7 +547,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
@@ -678,7 +679,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
@@ -810,13 +811,22 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
-        assert_matches!(
-            container_state.settings(),
-            state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
-        );
+        if cfg!(target_os = "windows") {
+            if !matches!(
+                container_state.settings(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            ) {
+                tracing::warn!("container settings already exists");
+            }
+        } else {
+            assert_matches!(
+                container_state.settings(),
+                state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
+            );
+        }
         drop(container_state);
 
         let settings = loader::container::Loader::load_from_only_settings(base_path);
@@ -881,7 +891,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
@@ -1003,7 +1013,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
@@ -1133,7 +1143,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         if cfg!(target_os = "windows") {
@@ -1159,7 +1169,7 @@ impl Database {
                 let assets = assets::from_assets(base_path, assets.into_inner());
                 self.state
                     .try_reduce(server::state::Action::Project {
-                        path: base_path.to_path_buf(),
+                        path: project_path.clone(),
                         action: server::state::project::Action::Container {
                             path: container_graph_path.clone(),
                             action: server::state::project::action::Container::SetAssets(
@@ -1244,7 +1254,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(
@@ -1360,7 +1370,7 @@ impl Database {
         let container_graph_path = base_path
             .strip_prefix(project.path().join(&project_properties.data_root))
             .unwrap();
-        let container_graph_path = Path::new("/").join(container_graph_path);
+        let container_graph_path = common::prepend_root_dir(container_graph_path);
         let container_state = graph.find(&container_graph_path).unwrap().unwrap();
         let container_state = container_state.lock().unwrap();
         assert!(!matches!(

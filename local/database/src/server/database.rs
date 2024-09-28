@@ -192,7 +192,7 @@ impl Builder {
             }
         }
 
-        tracing::debug!(?state);
+        // tracing::debug!(?state);
         let mut db = Database {
             config: self.config,
             state,
@@ -396,7 +396,7 @@ mod windows {
             &mut self,
             events: syre_fs_watcher::EventResult,
         ) -> crate::Result {
-            let mut events = match events {
+            let events = match events {
                 Ok(events) => events,
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
             };
@@ -407,7 +407,7 @@ mod windows {
                 tracing::error!(?err);
             }
 
-            tracing::debug!(?self.state);
+            // tracing::debug!(?self.state);
             Ok(())
         }
 

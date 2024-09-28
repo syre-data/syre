@@ -8,9 +8,9 @@ use syre_core::system::User;
 pub fn Home(user: User) -> impl IntoView {
     provide_context(user);
     view! {
-        <MainNav/>
+        <MainNav />
         <main>
-            <Dashboard/>
+            <Dashboard />
         </main>
     }
 }
@@ -18,11 +18,11 @@ pub fn Home(user: User) -> impl IntoView {
 #[component]
 fn MainNav() -> impl IntoView {
     view! {
-        <nav class="p-2 border-b dark:bg-secondary-900 flex justify-between">
-            <ol class="flex">
+        <nav class="px-2 border-b dark:bg-secondary-900 flex justify-between">
+            <ol class="flex py-2">
                 <li>
                     <A href="/">
-                        <Logo class="h-4"/>
+                        <Logo class="h-4" />
                     </A>
                 </li>
             </ol>
@@ -30,7 +30,7 @@ fn MainNav() -> impl IntoView {
             <ol class="flex">
                 <li>
                     <A href="/logout">
-                        <Icon icon=icondata::IoLogOutOutline class="[&_*]:dark:!stroke-white h-4"/>
+                        <Icon icon=icondata::IoLogOutOutline class="[&_*]:dark:!stroke-white h-4" />
                     </A>
                 </li>
             </ol>

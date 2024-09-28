@@ -641,6 +641,7 @@ fn test_server_state_and_updates_basics() {
         .container()
         .get(project.rid().clone(), "/")
         .unwrap()
+        .unwrap()
         .unwrap();
 
     assert_matches!(
@@ -676,7 +677,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(path, Path::new("/"));
+    assert_eq!(path, std::path::Component::RootDir);
     assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     let settings_path = syre_local::common::container_settings_file_of(project.data_root_path());
@@ -686,6 +687,7 @@ fn test_server_state_and_updates_basics() {
     let container = db
         .container()
         .get(project.rid().clone(), "/")
+        .unwrap()
         .unwrap()
         .unwrap();
 
@@ -722,7 +724,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(path, Path::new("/"));
+    assert_eq!(path, std::path::Component::RootDir);
     assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     let assets_path = syre_local::common::assets_file_of(project.data_root_path());
@@ -732,6 +734,7 @@ fn test_server_state_and_updates_basics() {
     let container = db
         .container()
         .get(project.rid().clone(), "/")
+        .unwrap()
         .unwrap()
         .unwrap();
 
@@ -768,7 +771,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(path, Path::new("/"));
+    assert_eq!(path, std::path::Component::RootDir);
     assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     fs::remove_dir_all(syre_local::common::app_dir_of(project.data_root_path())).unwrap();
@@ -777,6 +780,7 @@ fn test_server_state_and_updates_basics() {
     let container = db
         .container()
         .get(project.rid().clone(), "/")
+        .unwrap()
         .unwrap()
         .unwrap();
 
@@ -884,6 +888,7 @@ fn test_server_state_and_updates_basics() {
     let container_state = db
         .container()
         .get(project.rid().clone(), "/")
+        .unwrap()
         .unwrap()
         .unwrap();
 
@@ -1018,7 +1023,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(path, Path::new("/"));
+    assert_eq!(path, std::path::Component::RootDir.as_os_str());
     assert_eq!(&update.rid, container.rid());
     assert_eq!(&update.properties, &container.properties);
 
@@ -1064,7 +1069,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(path, Path::new("/"));
+    assert_eq!(path, std::path::Component::RootDir.as_os_str());
     assert_eq!(update.len(), 1);
     assert_eq!(update[0].rid(), asset.rid());
     assert!(!update[0].is_present());
@@ -1101,7 +1106,7 @@ fn test_server_state_and_updates_basics() {
     else {
         panic!();
     };
-    assert_eq!(container_path, Path::new("/"));
+    assert_eq!(container_path, std::path::Component::RootDir.as_os_str());
     assert_eq!(asset.rid(), asset_id);
 
     let untracked_file = tempfile::NamedTempFile::new_in(project.data_root_path()).unwrap();
@@ -1123,7 +1128,8 @@ fn test_server_state_and_updates_basics() {
     let event::Project::AssetFile(event::AssetFile::Created(asset_path)) = update else {
         panic!();
     };
-    let untracked_asset_path = Path::new("/").join(untracked_file.path().file_name().unwrap());
+    let untracked_asset_path =
+        db::common::prepend_root_dir(untracked_file.path().file_name().unwrap());
     assert_eq!(*asset_path, untracked_asset_path);
 
     fs::remove_file(untracked_file.path()).unwrap();

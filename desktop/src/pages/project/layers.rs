@@ -158,7 +158,7 @@ pub fn LayersNavView(
     provide_context(ContextMenuAsset::new(context_menu_asset));
 
     view! {
-        <div class="pt-2 px-1 overflow-auto">
+        <div class="h-full pt-2 px-1 overflow-auto scrollbar scrollbar-thin dark:scrollbar-track-secondary-800">
             <ContainerLayer root=graph.root().clone() />
         </div>
     }
@@ -170,7 +170,6 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
 
     view! {
         <div>
-
             {
                 let root = root.clone();
                 move || {
@@ -230,10 +229,10 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         }
     };
 
-    let selected = {
+    let selected = create_memo({
         let container = container.clone();
         let workspace_graph_state = workspace_graph_state.clone();
-        move || {
+        move |_| {
             container.properties().with(|properties| {
                 if let db::state::DataResource::Ok(properties) = properties {
                     workspace_graph_state.selection().with(|selection| {
@@ -246,7 +245,7 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
                 }
             })
         }
-    };
+    });
 
     let title = {
         let properties = properties.clone();
@@ -268,10 +267,12 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         move |e: &MouseEvent| {
             if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
-                properties().rid().with(|rid| {
+                properties().rid().with_untracked(|rid| {
                     let action = workspace_graph_state
                         .selection()
-                        .with(|selection| interpret_resource_selection_action(rid, e, selection));
+                        .with_untracked(|selection| {
+                            interpret_resource_selection_action(rid, e, selection)
+                        });
                     match action {
                         SelectionAction::Remove => workspace_graph_state.select_remove(&rid),
                         SelectionAction::Add => workspace_graph_state.select_add(
@@ -393,14 +394,14 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         }
     };
 
+    let class = format!("flex {CLASS_LAYER}");
     view! {
         <div
             on:mousedown=move |e| set_click_event(Some(e))
             on:contextmenu=contextmenu
             prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
-            class=CLASS_LAYER
-            class="flex"
+            class=class
             class=(
                 ["bg-primary-200", "dark:bg-secondary-900"],
                 {
@@ -482,10 +483,12 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
         move |e: MouseEvent| {
             if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
-                rid.with(|rid| {
+                rid.with_untracked(|rid| {
                     let action = workspace_graph_state
                         .selection()
-                        .with(|selection| interpret_resource_selection_action(rid, &e, selection));
+                        .with_untracked(|selection| {
+                            interpret_resource_selection_action(rid, &e, selection)
+                        });
 
                     match action {
                         SelectionAction::Remove => workspace_graph_state.select_remove(&rid),
@@ -501,15 +504,15 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
         }
     };
 
-    let selected = {
+    let selected = create_memo({
         let rid = asset.rid().read_only();
         let workspace_graph_state = workspace_graph_state.clone();
-        move || {
+        move |_| {
             workspace_graph_state.selection().with(|selection| {
                 rid.with(|rid| selection.iter().any(|resource| resource.rid() == rid))
             })
         }
-    };
+    });
 
     let contextmenu = {
         let asset = asset.clone();

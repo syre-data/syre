@@ -61,6 +61,50 @@ impl Database {
 
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();
+
+        #[cfg(target_os = "windows")]
+        {
+            let state::FolderResource::Present(graph) = project_state.graph() else {
+                unreachable!();
+            };
+
+            let root = subgraph.root().lock().unwrap();
+            let root_path = parent_path.join(root.name());
+            drop(root);
+            if graph.find(&root_path).unwrap().is_some() {
+                tracing::trace!("{root_path:?} already exists");
+                self.state
+                    .try_reduce(server::state::Action::Project {
+                        path: project_path.clone(),
+                        action: server::state::project::action::Graph::Remove(root_path).into(),
+                    })
+                    .unwrap();
+
+                self.state
+                    .try_reduce(server::state::Action::Project {
+                        path: project_path.clone(),
+                        action: server::state::project::action::Graph::Insert {
+                            parent: parent_path.clone(),
+                            graph: subgraph,
+                        }
+                        .into(),
+                    })
+                    .unwrap();
+            } else {
+                self.state
+                    .try_reduce(server::state::Action::Project {
+                        path: project_path.clone(),
+                        action: server::state::project::action::Graph::Insert {
+                            parent: parent_path.clone(),
+                            graph: subgraph,
+                        }
+                        .into(),
+                    })
+                    .unwrap();
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
         self.state
             .try_reduce(server::state::Action::Project {
                 path: project_path.clone(),

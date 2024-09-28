@@ -1,8 +1,11 @@
-use super::INPUT_DEBOUNCE;
+use super::{PopoutPortal, INPUT_DEBOUNCE};
 use crate::{pages::project::state, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
-use leptos::{ev::MouseEvent, *};
+use leptos::{
+    ev::{Event, MouseEvent},
+    *,
+};
 use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
@@ -16,17 +19,46 @@ struct ActiveAsset(state::Asset);
 
 #[component]
 pub fn Editor(asset: state::Asset) -> impl IntoView {
-    provide_context(ActiveAsset(asset.clone()));
+    let popout_portal = expect_context::<PopoutPortal>();
     let add_metadatum_visible = create_rw_signal(false);
+    let wrapper_node = NodeRef::<html::Div>::new();
+    let metadata_node = NodeRef::<html::Div>::new();
+    provide_context(ActiveAsset(asset.clone()));
 
     let show_add_metadatum = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
+            let wrapper = wrapper_node.get_untracked().unwrap();
+            let base = metadata_node.get_untracked().unwrap();
+            let portal = popout_portal.get_untracked().unwrap();
+
+            let top = super::detail_popout_top(&portal, &base, &wrapper);
+            (*portal)
+                .style()
+                .set_property("top", &format!("{top}px"))
+                .unwrap();
+
             add_metadatum_visible.set(true);
         }
     };
 
+    let scroll = move |_: Event| {
+        let wrapper = wrapper_node.get_untracked().unwrap();
+        let base = metadata_node.get_untracked().unwrap();
+        let portal = popout_portal.get_untracked().unwrap();
+
+        let top = super::detail_popout_top(&portal, &base, &wrapper);
+        (*portal)
+            .style()
+            .set_property("top", &format!("{top}px"))
+            .unwrap();
+    };
+
     view! {
-        <div>
+        <div
+            ref=wrapper_node
+            on:scroll=scroll
+            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
+        >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Asset"</h3>
             </div>
@@ -55,7 +87,10 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
                         <Tags />
                     </label>
                 </div>
-                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                <div
+                    ref=metadata_node
+                    class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700"
+                >
                     <label class="px-1 block">
                         <div class="flex">
                             <span class="grow">"Metadata"</span>
@@ -81,7 +116,6 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
 
                             </span>
                         </div>
-                        <AddDatum visibility=add_metadatum_visible />
                         <Metadata />
                     </label>
                 </div>
@@ -89,6 +123,20 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
             <div class="px-1 py-2 border-t dark:border-t-secondary-700 overflow-x-auto select-all text-nowrap">
                 {move || asset.path().with(|path| path.to_string_lossy().to_string())}
             </div>
+            <Show
+                when=move || add_metadatum_visible() && popout_portal.get().is_some()
+                fallback=|| view! {}
+            >
+                {move || {
+                    let mount = popout_portal.get().unwrap();
+                    let mount = (*mount).clone();
+                    view! {
+                        <Portal mount>
+                            <AddDatum />
+                        </Portal>
+                    }
+                }}
+            </Show>
         </div>
     }
 }
@@ -329,8 +377,6 @@ mod metadata {
 
     #[component]
     pub fn Editor() -> impl IntoView {
-        let project = expect_context::<state::Project>();
-        let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
 
         view! {
@@ -343,7 +389,7 @@ mod metadata {
     }
 
     #[component]
-    pub fn AddDatum(visibility: RwSignal<bool>) -> impl IntoView {
+    pub fn AddDatum(#[prop(optional, into)] onclose: Option<Callback<()>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
@@ -388,19 +434,28 @@ mod metadata {
                         tracing::error!(?err);
                         todo!()
                     } else {
-                        visibility.set(false);
+                        if let Some(onclose) = onclose {
+                            onclose(());
+                        }
+
                         set_reset_form(());
                     }
                 });
             }
         };
 
+        let close = move |_| {
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
+            set_reset_form(());
+        };
+
         view! {
-            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+            <DetailPopout title="Add metadata" onclose=Callback::new(close)>
                 <AddDatumEditor
                     keys=Signal::derive(keys)
-                    onadd
-                    reset=reset_form
+                    onadd=Callback::new(onadd)
                     class="w-full px-1"
                 />
             </DetailPopout>

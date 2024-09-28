@@ -44,7 +44,7 @@ pub fn Editor() -> impl IntoView {
         <div class="overflow-y-auto pr-2 pb-4 h-full flex flex-col">
             <div class="pb-8">
                 <div class="text-center pt-1 pb-2">
-                    <h3 class="font-primary">"Container"</h3>
+                    <h3 class="font-primary">"Project"</h3>
                 </div>
                 <div>
                     <form on:submit=|e| e.prevent_default()>
@@ -73,7 +73,7 @@ pub fn Editor() -> impl IntoView {
                 >
                     "Delete"
                 </button>
-                <ModalDialog node_ref=delete_project_modal >
+                <ModalDialog node_ref=delete_project_modal>
                     <DeleteProjectConfirmation />
                 </ModalDialog>
             </div>
@@ -197,7 +197,7 @@ mod name {
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg = Message::error("Could not save project.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -241,7 +241,7 @@ mod description {
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg = Message::error("Could not save project.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }

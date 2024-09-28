@@ -1,8 +1,11 @@
-use super::INPUT_DEBOUNCE;
+use super::{PopoutPortal, INPUT_DEBOUNCE};
 use crate::{pages::project, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
-use leptos::{ev::MouseEvent, *};
+use leptos::{
+    ev::{Event, MouseEvent},
+    *,
+};
 use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use name::Editor as Name;
@@ -12,6 +15,13 @@ use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use tags::{AddTags, Editor as Tags};
+
+#[derive(Clone, Copy)]
+enum Widget {
+    AddTags,
+    AddMetadatum,
+    AddAnalysisAssociation,
+}
 
 mod state {
     use super::super::common::bulk;
@@ -23,15 +33,11 @@ mod state {
 
     #[derive(Clone, Debug)]
     pub struct State {
-        name: bulk::Value<String>,
-        kind: bulk::Value<Option<String>>,
-        description: bulk::Value<Option<String>>,
-
-        /// Union of all tags.
-        tags: Vec<String>,
-
-        /// Union of all metadata.
-        metadata: bulk::Metadata,
+        names: Vec<ReadSignal<String>>,
+        kinds: Vec<ReadSignal<Option<String>>>,
+        descriptions: Vec<ReadSignal<Option<String>>>,
+        tags: Vec<ReadSignal<Vec<String>>>,
+        metadata: Vec<ReadSignal<state::Metadata>>,
     }
 
     impl State {
@@ -40,7 +46,7 @@ mod state {
             let mut kinds = Vec::with_capacity(states.len());
             let mut descriptions = Vec::with_capacity(states.len());
             let mut tags = Vec::with_capacity(states.len());
-            let mut metadata = HashMap::with_capacity(states.len());
+            let mut metadata = Vec::with_capacity(states.len());
             states
                 .iter()
                 .map(|state| {
@@ -50,11 +56,11 @@ mod state {
                         };
 
                         (
-                            properties.name().get_untracked(),
-                            properties.kind().get_untracked(),
-                            properties.description().get_untracked(),
-                            properties.tags().get_untracked(),
-                            properties.metadata().get_untracked(),
+                            properties.name().read_only(),
+                            properties.kind().read_only(),
+                            properties.description().read_only(),
+                            properties.tags().read_only(),
+                            properties.metadata().read_only(),
                         )
                     })
                 })
@@ -62,62 +68,14 @@ mod state {
                     names.push(name);
                     kinds.push(kind);
                     descriptions.push(description);
-                    tags.extend(tag);
-
-                    for (key, value) in metadatum {
-                        let md = metadata
-                            .entry(key)
-                            .or_insert(Vec::with_capacity(states.len()));
-
-                        if !value.with_untracked(|value| md.contains(value)) {
-                            md.push(value.get_untracked());
-                        }
-                    }
+                    tags.push(tag);
+                    metadata.push(metadatum);
                 });
 
-            names.sort();
-            names.dedup();
-            kinds.sort();
-            kinds.dedup();
-            descriptions.sort();
-            descriptions.dedup();
-            tags.sort();
-            tags.dedup();
-
-            let name = match &names[..] {
-                [name] => bulk::Value::Equal(name.clone()),
-                _ => bulk::Value::Mixed,
-            };
-
-            let kind = match &kinds[..] {
-                [kind] => bulk::Value::Equal(kind.clone()),
-                _ => bulk::Value::Mixed,
-            };
-
-            let description = match &descriptions[..] {
-                [description] => bulk::Value::Equal(description.clone()),
-                _ => bulk::Value::Mixed,
-            };
-
-            let metadata = metadata
-                .into_iter()
-                .map(|(key, values)| {
-                    let value = if values.iter().all(|value| *value == values[0]) {
-                        bulk::metadata::Value::Equal(values[0].clone())
-                    } else if values.iter().all(|value| value.kind() == values[0].kind()) {
-                        bulk::metadata::Value::EqualKind(values[0].kind())
-                    } else {
-                        bulk::metadata::Value::MixedKind
-                    };
-
-                    (key, value)
-                })
-                .collect();
-
             Self {
-                name,
-                kind,
-                description,
+                names,
+                kinds,
+                descriptions,
                 tags,
                 metadata,
             }
@@ -125,24 +83,101 @@ mod state {
     }
 
     impl State {
-        pub fn name(&self) -> &bulk::Value<String> {
-            &self.name
+        pub fn name(&self) -> Signal<bulk::Value<String>> {
+            Signal::derive({
+                let names = self.names.clone();
+                move || {
+                    let mut values = names.iter().map(|name| name.get()).collect::<Vec<_>>();
+                    values.sort();
+                    values.dedup();
+
+                    match &values[..] {
+                        [value] => bulk::Value::Equal(value.clone()),
+                        _ => bulk::Value::Mixed,
+                    }
+                }
+            })
         }
 
-        pub fn kind(&self) -> &bulk::Value<Option<String>> {
-            &self.kind
+        pub fn kind(&self) -> Signal<bulk::Value<Option<String>>> {
+            Signal::derive({
+                let kinds = self.kinds.clone();
+                move || {
+                    let mut values = kinds.iter().map(|kind| kind.get()).collect::<Vec<_>>();
+                    values.sort();
+                    values.dedup();
+
+                    match &values[..] {
+                        [value] => bulk::Value::Equal(value.clone()),
+                        _ => bulk::Value::Mixed,
+                    }
+                }
+            })
         }
 
-        pub fn description(&self) -> &bulk::Value<Option<String>> {
-            &self.description
+        pub fn description(&self) -> Signal<bulk::Value<Option<String>>> {
+            Signal::derive({
+                let descriptions = self.descriptions.clone();
+                move || {
+                    let mut values = descriptions
+                        .iter()
+                        .map(|description| description.get())
+                        .collect::<Vec<_>>();
+                    values.sort();
+                    values.dedup();
+
+                    match &values[..] {
+                        [value] => bulk::Value::Equal(value.clone()),
+                        _ => bulk::Value::Mixed,
+                    }
+                }
+            })
         }
 
-        pub fn tags(&self) -> &Vec<String> {
-            &self.tags
+        /// Union of all tags.
+        pub fn tags(&self) -> Signal<Vec<String>> {
+            Signal::derive({
+                let tags = self.tags.clone();
+                move || {
+                    let mut values = tags.iter().flat_map(|tag| tag.get()).collect::<Vec<_>>();
+                    values.sort();
+                    values.dedup();
+                    values
+                }
+            })
         }
 
-        pub fn metadata(&self) -> &bulk::Metadata {
-            &self.metadata
+        /// Union of all metadata.
+        pub fn metadata(&self) -> Signal<bulk::Metadata> {
+            Signal::derive({
+                let metadata = self.metadata.clone();
+                move || {
+                    let mut values = HashMap::new();
+                    for container_md in metadata.iter() {
+                        container_md.with(|container_md| {
+                            for (key, value) in container_md.iter() {
+                                let entry = values.entry(key.clone()).or_insert(vec![]);
+                                entry.push(value.get());
+                            }
+                        })
+                    }
+
+                    values
+                        .into_iter()
+                        .map(|(key, values)| {
+                            let value = if values.iter().all(|value| *value == values[0]) {
+                                bulk::metadata::Value::Equal(values[0].clone())
+                            } else if values.iter().all(|value| value.kind() == values[0].kind()) {
+                                bulk::metadata::Value::EqualKind(values[0].kind())
+                            } else {
+                                bulk::metadata::Value::MixedKind
+                            };
+
+                            (key, value)
+                        })
+                        .collect()
+                }
+            })
         }
     }
 
@@ -159,9 +194,11 @@ mod state {
 pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(containers.with(|containers| containers.len()) > 1);
     let graph = expect_context::<project::state::Graph>();
-    let add_tags_visible = create_rw_signal(false);
-    let add_metadatum_visible = create_rw_signal(false);
-    let add_analysis_visible = create_rw_signal(false);
+    let popout_portal = expect_context::<PopoutPortal>();
+    let (widget, set_widget) = create_signal(None);
+    let wrapper_node = NodeRef::<html::Div>::new();
+    let tags_node = NodeRef::<html::Div>::new();
+    let metadata_node = NodeRef::<html::Div>::new();
 
     provide_context(Signal::derive(move || {
         let states = containers.with(|containers| {
@@ -176,59 +213,77 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
     provide_context(ActiveResources::new(containers.clone()));
 
-    let _ = watch(
-        move || add_tags_visible(),
-        move |add_tags_visible, _, _| {
-            if *add_tags_visible {
-                add_metadatum_visible.set(false);
-                add_analysis_visible.set(false);
-            }
-        },
-        false,
-    );
-
-    let _ = watch(
-        move || add_metadatum_visible(),
-        move |add_metadatum_visible, _, _| {
-            if *add_metadatum_visible {
-                add_tags_visible.set(false);
-                add_analysis_visible.set(false);
-            }
-        },
-        false,
-    );
-
-    let _ = watch(
-        move || add_analysis_visible(),
-        move |add_analysis_visible, _, _| {
-            if *add_analysis_visible {
-                add_tags_visible.set(false);
-                add_metadatum_visible.set(false);
-            }
-        },
-        false,
-    );
-
     let show_add_tags = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
-            add_tags_visible.set(true);
+            let wrapper = wrapper_node.get_untracked().unwrap();
+            let base = tags_node.get_untracked().unwrap();
+            let portal = popout_portal.get_untracked().unwrap();
+
+            let top = super::detail_popout_top(&portal, &base, &wrapper);
+            (*portal)
+                .style()
+                .set_property("top", &format!("{top}px"))
+                .unwrap();
+
+            set_widget.update(|widget| {
+                #[allow(unused_must_use)]
+                widget.insert(Widget::AddTags);
+            });
         }
     };
 
     let show_add_metadatum = move |e: MouseEvent| {
+        let wrapper = wrapper_node.get_untracked().unwrap();
+        let base = metadata_node.get_untracked().unwrap();
+        let portal = popout_portal.get_untracked().unwrap();
+
+        let top = super::detail_popout_top(&portal, &base, &wrapper);
+        (*portal)
+            .style()
+            .set_property("top", &format!("{top}px"))
+            .unwrap();
+
         if e.button() == types::MouseButton::Primary {
-            add_metadatum_visible.set(true);
+            set_widget.update(|widget| {
+                #[allow(unused_must_use)]
+                widget.insert(Widget::AddMetadatum);
+            });
         }
     };
 
-    let show_add_analyses = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary {
-            add_analysis_visible.set(true);
-        }
+    let scroll = move |_: Event| {
+        let wrapper = wrapper_node.get_untracked().unwrap();
+        let portal = popout_portal.get_untracked().unwrap();
+        let Some(base) = widget.with(|widget| {
+            widget.map(|widget| match widget {
+                Widget::AddTags => tags_node,
+                Widget::AddMetadatum => metadata_node,
+                Widget::AddAnalysisAssociation => todo!(),
+            })
+        }) else {
+            return;
+        };
+        let base = base.get_untracked().unwrap();
+
+        let top = super::detail_popout_top(&portal, &base, &wrapper);
+        (*portal)
+            .style()
+            .set_property("top", &format!("{top}px"))
+            .unwrap();
+    };
+
+    let on_widget_close = move |_| {
+        set_widget.update(|widget| {
+            widget.take();
+        });
     };
 
     view! {
-        <div>
+        <div
+            ref=wrapper_node
+            on:scroll=scroll
+            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
+        >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Bulk containers"</h3>
                 <span class="text-sm text-secondary-500 dark:text-secondary-400">
@@ -255,7 +310,10 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                         <Description />
                     </label>
                 </div>
-                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                <div
+                    ref=tags_node
+                    class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700"
+                >
                     <label class="block px-1">
                         <div class="flex">
                             <span class="grow">"Tags"</span>
@@ -266,12 +324,24 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                     on:mousedown=show_add_tags
                                     class=(
                                         ["bg-primary-400", "dark:bg-primary-700"],
-                                        add_tags_visible,
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(false, |widget| matches!(widget, Widget::AddTags))
+                                                })
+                                        },
                                     )
 
                                     class=(
                                         ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
-                                        move || !add_tags_visible(),
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(false, |widget| !matches!(widget, Widget::AddTags))
+                                                })
+                                        },
                                     )
 
                                     class="aspect-square w-full rounded-sm"
@@ -280,11 +350,13 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                 </button>
                             </span>
                         </div>
-                        <AddTags visibility=add_tags_visible />
                         <Tags />
                     </label>
                 </div>
-                <div class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700">
+                <div
+                    ref=metadata_node
+                    class="relative py-4 border-t border-t-secondary-200 dark:border-t-secondary-700"
+                >
                     <label class="px-1 block">
                         <div class="flex">
                             <span class="grow">"Metadata"</span>
@@ -293,12 +365,30 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                     on:mousedown=show_add_metadatum
                                     class=(
                                         ["bg-primary-400", "dark:bg-primary-700"],
-                                        add_metadatum_visible,
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(
+                                                            false,
+                                                            |widget| matches!(widget, Widget::AddMetadatum),
+                                                        )
+                                                })
+                                        },
                                     )
 
                                     class=(
                                         ["hover:bg-secondary-200", "dark:hover:bg-secondary-700"],
-                                        move || !add_metadatum_visible(),
+                                        move || {
+                                            widget
+                                                .with(|widget| {
+                                                    widget
+                                                        .map_or(
+                                                            false,
+                                                            |widget| !matches!(widget, Widget::AddMetadatum),
+                                                        )
+                                                })
+                                        },
                                     )
 
                                     class="aspect-square w-full rounded-sm"
@@ -307,11 +397,33 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                 </button>
                             </span>
                         </div>
-                        <AddDatum visibility=add_metadatum_visible />
-                        <Metadata oncancel_adddatum=move |_| add_metadatum_visible.set(false) />
+                        <Metadata />
                     </label>
                 </div>
             </form>
+            <Show
+                when=move || widget.with(|widget| widget.is_some()) && popout_portal.get().is_some()
+                fallback=|| view! {}
+            >
+                {move || {
+                    let mount = popout_portal.get_untracked().unwrap();
+                    let mount = (*mount).clone();
+                    view! {
+                        <Portal mount>
+                            {move || match widget().unwrap() {
+                                Widget::AddTags => {
+                                    view! { <AddTags onclose=on_widget_close.clone() /> }
+                                }
+                                Widget::AddMetadatum => {
+                                    view! { <AddDatum onclose=on_widget_close.clone() /> }
+                                }
+                                Widget::AddAnalysisAssociation => todo!(),
+                            }}
+                        </Portal>
+                    }
+                }}
+            </Show>
+
         </div>
     }
 }
@@ -335,7 +447,7 @@ mod name {
         let state = expect_context::<Signal<State>>();
         let (input_error, set_input_error) = create_signal(false);
         let (input_value, set_input_value) = create_signal({
-            state.with(|state| match state.name() {
+            state.with(|state| match state.name().get() {
                 Value::Mixed => String::new(),
                 Value::Equal(value) => value.clone(),
             })
@@ -414,9 +526,11 @@ mod name {
         );
 
         let placeholder = move || {
-            state.with(|state| match state.name() {
-                Value::Mixed => "(mixed)".to_string(),
-                Value::Equal(_) => "(empty)".to_string(),
+            state.with(|state| {
+                state.name().with(|state| match state {
+                    Value::Mixed => "(mixed)".to_string(),
+                    Value::Equal(_) => "(empty)".to_string(),
+                })
             })
         };
 
@@ -515,8 +629,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::{kind::Editor as KindEditor, Value},
-        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources, State,
+        INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -566,13 +680,7 @@ mod kind {
             });
         });
 
-        view! {
-            <KindEditor
-                value=Signal::derive(move || { state.with(|state| { state.kind().clone() }) })
-                oninput
-                debounce=INPUT_DEBOUNCE
-            />
-        }
+        view! { <KindEditor value=state.with(|state| state.kind()) oninput debounce=INPUT_DEBOUNCE /> }
     }
 }
 
@@ -630,7 +738,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=Signal::derive(move || state.with(|state| state.description().clone()))
+                value=state.with(|state| state.description())
                 oninput
                 debounce=INPUT_DEBOUNCE
                 class="input-compact w-full align-top"
@@ -703,16 +811,11 @@ mod tags {
             }
         });
 
-        view! {
-            <TagsEditor
-                value=Signal::derive(move || { state.with(|state| { state.tags().clone() }) })
-                onremove
-            />
-        }
+        view! { <TagsEditor value=state.with(|state| { state.tags() }) onremove /> }
     }
 
     #[component]
-    pub fn AddTags(visibility: RwSignal<bool>) -> impl IntoView {
+    pub fn AddTags(#[prop(optional, into)] onclose: Option<Callback<()>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
@@ -760,7 +863,9 @@ mod tags {
                             }
 
                             if all_ok {
-                                visibility.set(false);
+                                if let Some(onclose) = onclose {
+                                    onclose(());
+                                }
                                 set_reset_form(());
                             }
                         }
@@ -769,9 +874,15 @@ mod tags {
             });
         });
 
+        let close = move |_| {
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
+        };
+
         view! {
-            <DetailPopout title="Add tags" visibility onclose=move |_| set_reset_form(())>
-                <AddTagsEditor onadd reset=reset_form class="w-full px-1" />
+            <DetailPopout title="Add tags" onclose=Callback::new(close)>
+                <AddTagsEditor onadd=Callback::new(onadd) reset=reset_form class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -790,7 +901,7 @@ mod metadata {
     use syre_desktop_lib::command::{bulk::MetadataAction, container::bulk::PropertiesUpdate};
 
     #[component]
-    pub fn Editor(#[prop(into)] oncancel_adddatum: Callback<()>) -> impl IntoView {
+    pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
@@ -886,23 +997,16 @@ mod metadata {
             }
         });
 
-        view! {
-            <MetadataEditor
-                value=Signal::derive(move || { state.with(|state| { state.metadata().clone() }) })
-                onremove
-                onmodify
-            />
-        }
+        view! { <MetadataEditor value=state.with(|state| { state.metadata() }) onremove onmodify /> }
     }
 
     #[component]
-    pub fn AddDatum(visibility: RwSignal<bool>) -> impl IntoView {
+    pub fn AddDatum(#[prop(optional, into)] onclose: Option<Callback<()>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        let (reset_form, set_reset_form) = create_signal(());
         let onadd = Callback::new({
             let project = project.clone();
             let graph = graph.clone();
@@ -945,8 +1049,9 @@ mod metadata {
                                 }
 
                                 if all_ok {
-                                    visibility.set(false);
-                                    set_reset_form(());
+                                    if let Some(onclose) = onclose {
+                                        onclose(());
+                                    }
                                 }
                             }
                         }
@@ -957,20 +1062,26 @@ mod metadata {
 
         let keys = move || {
             state.with(|state| {
-                state
-                    .metadata()
-                    .iter()
-                    .map(|(key, _)| key.clone())
-                    .collect::<Vec<_>>()
+                state.metadata().with(|metadata| {
+                    metadata
+                        .iter()
+                        .map(|(key, _)| key.clone())
+                        .collect::<Vec<_>>()
+                })
             })
         };
 
+        let close = move |_| {
+            if let Some(onclose) = onclose {
+                onclose(());
+            }
+        };
+
         view! {
-            <DetailPopout title="Add metadata" visibility onclose=move |_| set_reset_form(())>
+            <DetailPopout title="Add metadata" onclose=Callback::new(close)>
                 <AddDatumEditor
                     keys=Signal::derive(keys)
-                    onadd
-                    reset=reset_form
+                    onadd=Callback::new(onadd)
                     class="w-full px-1"
                 />
             </DetailPopout>

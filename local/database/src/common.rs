@@ -32,6 +32,19 @@ pub fn datastore_url() -> String {
     format!("{LOCALHOST}:{DATASTORE_PORT}")
 }
 
+/// Prepend the root dir to the path.
+/// If the path already begins with the root dir, the original path is returned.
+pub fn prepend_root_dir(path: impl AsRef<Path>) -> PathBuf {
+    use std::path::Component::RootDir;
+
+    let path = path.as_ref();
+    if let Some(RootDir) = path.components().next() {
+        path.to_path_buf()
+    } else {
+        std::iter::once(RootDir).chain(path.components()).collect()
+    }
+}
+
 /// # Returns
 /// `true` if the path starts from root (`/`), `false` otherwise.
 /// `false` if path is empty.

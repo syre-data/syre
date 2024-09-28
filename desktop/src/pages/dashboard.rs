@@ -209,7 +209,7 @@ fn ProjectDeck(
     projects: ReadSignal<Vec<RwSignal<(PathBuf, db::state::ProjectData)>>>,
 ) -> impl IntoView {
     view! {
-        <div class="flex gap-4">
+        <div class="flex flex-wrap gap-4">
             <For
                 each=projects
                 key=|state| {
@@ -278,11 +278,11 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
                 move || project.to_string()
             }
             on:contextmenu=contextmenu
-            class="w-1/4 rounded border border-secondary-900 dark:bg-secondary-700 dark:border-secondary-50"
+            class="w-1/3 min-w-52 rounded border border-secondary-900 dark:bg-secondary-700 dark:border-secondary-50"
         >
-            <div class="px-4 py-2">
+            <div class="px-4 py-2 flex flex-col h-full">
                 <h3 class="text-2xl font-primary">{project.name.clone()}</h3>
-                <div>{project.description.clone()}</div>
+                <div class="pb-2 grow">{project.description.clone()}</div>
                 <div title=path_str.clone() class="text-sm">
                     <TruncateLeft>{path_str.clone()}</TruncateLeft>
                 </div>

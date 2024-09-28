@@ -37,8 +37,8 @@ pub fn Drawer(
 
     let drawer_class = move || {
         dock.with(|dock| match dock {
-            Dock::East => "absolute left-full -right-0.5 hover:-right-1 transition-width hover:delay-150 hover:duration-200 top-0 bottom-0 cursor-ew-resize hover:bg-primary-700 dark:hover:bg-500",
-            Dock::West => "absolute -left-0.5 right-full hover:-left-1 transition-width hover:delay-150 hover:duration-200 top-0 bottom-0 cursor-ew-resize hover:bg-primary-700 dark:hover:bg-500",
+            Dock::East => "absolute left-full -right-0.5 hover:-right-1 transition-width hover:delay-150 hover:duration-200 top-0 bottom-0 cursor-ew-resize hover:bg-primary-700",
+            Dock::West => "absolute -left-0.5 right-full hover:-left-1 transition-width hover:delay-150 hover:duration-200 top-0 bottom-0 cursor-ew-resize hover:bg-primary-700",
         })
     };
 

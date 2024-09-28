@@ -3,7 +3,7 @@ use leptos::*;
 /// Enum for different mouse buttons
 /// for use with `MouseEvent::button`.
 /// See https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button#value.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum MouseButton {
     Primary = 0,
     // Auxillary = 1,

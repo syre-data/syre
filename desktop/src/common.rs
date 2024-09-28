@@ -5,6 +5,21 @@ pub const APPLICATION_JSON: &'static str = "application/json";
 pub const PATH_SEP_WINDOW: &'static str = "\\";
 pub const PATH_SEP_NIX: &'static str = "/";
 
+/// Clamp a value between two others.
+pub fn clamp<T>(value: T, min: T, max: T) -> T
+where
+    T: PartialOrd,
+{
+    assert!(min < max);
+    if value <= min {
+        min
+    } else if value >= max {
+        max
+    } else {
+        value
+    }
+}
+
 /// Creates the absolute path from the file system root to the container.
 ///
 /// # Arguments

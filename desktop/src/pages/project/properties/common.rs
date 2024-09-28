@@ -120,7 +120,7 @@ pub mod metadata {
     //! Common components for editing metadata
     use super::super::INPUT_DEBOUNCE;
     use crate::components::form::InputNumber;
-    use leptos::*;
+    use leptos::{ev::SubmitEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{data::ValueKind, Value};
 
@@ -156,9 +156,11 @@ pub mod metadata {
             }
         };
 
-        let onadd_datum = {
+        let submit = {
             let keys = keys.clone();
-            move |_| {
+            move |e: SubmitEvent| {
+                e.prevent_default();
+
                 if keys
                     .with_untracked(|keys| key.with_untracked(|key| keys.iter().any(|k| k == key)))
                 {
@@ -189,7 +191,7 @@ pub mod metadata {
         };
 
         view! {
-            <div id=id class=class>
+            <form on:submit=submit id=id class=class>
                 <div class="pb-1">
                     <input
                         name="key"
@@ -202,16 +204,12 @@ pub mod metadata {
                     />
                 </div>
                 <ValueEditor value set_value />
-                <div class="py-1 flex gap-x-1">
-                    <button
-                        type="button"
-                        on:mousedown=onadd_datum
-                        class="hover:bg-primary-400 dark:hover:bg-primary-700"
-                    >
+                <div class="py-1 flex justify-center">
+                    <button class="rounded-sm hover:bg-primary-400 dark:hover:bg-primary-700">
                         <Icon icon=icondata::AiPlusOutlined />
                     </button>
                 </div>
-            </div>
+            </form>
         }
     }
 
@@ -280,7 +278,7 @@ pub mod metadata {
                 }
 
                 on:change=change
-                class="input-compact pr-4"
+                class="input-compact pr-4 w-full"
             >
                 <option value=kind_to_str(&ValueKind::String)>"String"</option>
                 <option value=kind_to_str(&ValueKind::Number)>"Number"</option>
@@ -339,7 +337,7 @@ pub mod metadata {
                 prop:value=input_value
                 on:input=move |e| set_value(Value::String(event_target_value(&e)))
                 placeholder="Value"
-                class="input-compact"
+                class="input-compact w-full"
             />
         }
     }
@@ -373,7 +371,7 @@ pub mod metadata {
                 value=Signal::derive(input_value)
                 oninput
                 placeholder="Value"
-                class="input-compact"
+                class="input-compact w-full"
             />
         }
     }
@@ -429,7 +427,7 @@ pub mod metadata {
         };
 
         view! {
-            <div class="flex">
+            <div class="flex flex-wrap w-full">
                 <InputNumber
                     value=Signal::derive(value_magnitude)
                     oninput=oninput_magnitude
@@ -809,11 +807,11 @@ pub mod analysis_associations {
                         />
                     </div>
                 </div>
-                <div class="py-1">
+                <div class="py-1 flex justify-center">
                     <button
                         type="button"
                         on:mousedown=add
-                        class="hover:bg-primary-400 dark:hover:bg-primary-700"
+                        class="hover:bg-primary-400 dark:hover:bg-primary-700 rounded-sm"
                     >
                         <Icon icon=icondata::AiPlusOutlined />
                     </button>
@@ -1005,7 +1003,10 @@ pub mod bulk {
 
     pub mod tags {
         use crate::types;
-        use leptos::{ev::MouseEvent, *};
+        use leptos::{
+            ev::{MouseEvent, SubmitEvent},
+            *,
+        };
         use leptos_icons::Icon;
         use wasm_bindgen::JsCast;
 
@@ -1037,7 +1038,7 @@ pub mod bulk {
             };
 
             view! {
-                <div class>
+                <div class=class>
                     <ul class="flex gap-2 flex-wrap">
                         {move || {
                             value
@@ -1089,7 +1090,9 @@ pub mod bulk {
                 );
             }
 
-            let add_tags = move |e| {
+            let add_tags = move |e: SubmitEvent| {
+                e.prevent_default();
+
                 let input = input_ref.get_untracked().unwrap();
                 let input_value = input.value();
                 if input_value.trim().is_empty() {
@@ -1115,17 +1118,22 @@ pub mod bulk {
             };
 
             view! {
-                <div class=class>
+                <form on:submit=add_tags class=class>
                     <input
                         ref=input_ref
                         type="text"
                         placeholder="Add tags"
                         class="input-compact w-full"
                     />
-                    <button type="button" on:mousedown=add_tags>
-                        <Icon icon=icondata::AiPlusOutlined />
-                    </button>
-                </div>
+                    <div class="py-1 flex justify-center">
+                        <button
+                            type="button"
+                            class="rounded-sm hover:bg-primary-400 dark:hover:bg-primary-700"
+                        >
+                            <Icon icon=icondata::AiPlusOutlined />
+                        </button>
+                    </div>
+                </form>
             }
         }
     }

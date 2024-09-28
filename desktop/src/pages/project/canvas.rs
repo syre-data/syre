@@ -16,7 +16,7 @@ use leptos::{
 };
 use leptos_icons::*;
 use serde::Serialize;
-use std::{cmp, io, num::NonZeroUsize, ops::Deref, path::PathBuf, rc::Rc};
+use std::{cmp, io, num::NonZeroUsize, path::PathBuf, rc::Rc};
 use syre_core::{project::AnalysisAssociation, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local as local;
@@ -28,8 +28,9 @@ const MAX_CONTAINER_HEIGHT: usize = 300;
 const PADDING_X_SIBLING: usize = 20;
 const PADDING_Y_CHILDREN: usize = 30;
 const RADIUS_ADD_CHILD: usize = 10;
-const ZOOM_FACTOR_IN: f32 = 0.9; // zoom in should reduce viewport.
-const ZOOM_FACTOR_OUT: f32 = 1.1;
+const VB_SCALE_ENLARGE: f32 = 0.9; // zoom in should reduce viewport.
+const VB_SCALE_REDUCE: f32 = 1.1;
+const VB_BASE: usize = 1000;
 const VB_WIDTH_MIN: usize = 500;
 const VB_WIDTH_MAX: usize = 10_000;
 const VB_HEIGHT_MIN: usize = 500;
@@ -74,14 +75,8 @@ struct ContainerHeight(ReadSignal<usize>);
 struct Container(state::graph::Node);
 
 /// Node ref to the modal portal.
-#[derive(Clone)]
+#[derive(Clone, derive_more::Deref)]
 pub struct PortalRef(NodeRef<html::Div>);
-impl Deref for PortalRef {
-    type Target = NodeRef<html::Div>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 #[component]
 pub fn Canvas() -> impl IntoView {
@@ -225,12 +220,12 @@ fn CanvasView(
     //             .max()
     //             .unwrap();
 
-    //         let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
+    //         let height = common::clamp(height, 0, MAX_CONTAINER_HEIGHT);
     //         set_container_height(height);
     //     });
     provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
     provide_context(ContextMenuAsset::new(context_menu_asset));
-    provide_context(PortalRef(portal_ref.clone()));
+    provide_context(PortalRef(portal_ref));
     provide_context(ContainerHeight(container_height));
     // provide_context(ContainerResizeObserver(
     //     web_sys::ResizeObserver::new(container_resize_observer.as_ref().unchecked_ref()).unwrap(),
@@ -262,16 +257,17 @@ fn CanvasView(
             height * 24
         });
 
-        let height = clamp(height, 0, MAX_CONTAINER_HEIGHT);
+        let height = common::clamp(height, 0, MAX_CONTAINER_HEIGHT);
         set_container_height(height);
     });
 
-    let (vb_x, set_vb_x) = create_signal(0);
-    let (vb_y, set_vb_y) = create_signal(0);
-    let (vb_width, set_vb_width) = create_signal(1000);
-    let (vb_height, set_vb_height) = create_signal(1000);
+    let (vb_x, set_vb_x) = create_signal(0 as isize);
+    let (vb_y, set_vb_y) = create_signal(0 as isize);
+    let (vb_width, set_vb_width) = create_signal(VB_BASE);
+    let (vb_height, set_vb_height) = create_signal(VB_BASE);
     let (pan_drag, set_pan_drag) = create_signal(None);
     let (was_dragged, set_was_dragged) = create_signal(false);
+    let vb_scale = move || vb_width.with(|width| VB_BASE as f64 / *width as f64);
 
     let mousedown = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
@@ -294,7 +290,7 @@ fn CanvasView(
         let graph = graph.clone();
         move |e: MouseEvent| {
             if pan_drag.with(|c| c.is_some()) {
-                assert_eq!(e.button(), types::MouseButton::Primary as i16);
+                assert_eq!(e.button(), types::MouseButton::Primary);
                 let (dx, dy) = pan_drag.with(|c| {
                     let (x, y) = c.unwrap();
                     (e.client_x() - x, e.client_y() - y)
@@ -304,25 +300,25 @@ fn CanvasView(
                     set_was_dragged(true);
                 }
 
-                let x = vb_x() - dx;
-                let y = vb_y() - dy;
+                let x = vb_x() - (dx as f64 / vb_scale()) as isize;
+                let y = vb_y() - (dy as f64 / vb_scale()) as isize;
                 let x_max = (graph.root().subtree_width().get().get()
-                    * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as i32
-                    - vb_width() / 2;
+                    * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as isize
+                    - vb_width() as isize / 2;
                 let y_max = cmp::max(
                     (graph.root().subtree_height().get().get()
-                        * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as i32
-                        - vb_height() / 2,
+                        * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as isize
+                        - vb_height() as isize / 2,
                     0,
                 );
-                set_vb_x(clamp(
+                set_vb_x(common::clamp(
                     x,
-                    -TryInto::<i32>::try_into(vb_width() / 2).unwrap(),
+                    -TryInto::<isize>::try_into(vb_width() / 2).unwrap(),
                     x_max.try_into().unwrap(),
                 ));
-                set_vb_y(clamp(
+                set_vb_y(common::clamp(
                     y,
-                    -TryInto::<i32>::try_into(vb_height() / 2).unwrap(),
+                    -TryInto::<isize>::try_into(vb_height() / 2).unwrap(),
                     y_max.try_into().unwrap(),
                 ));
                 set_pan_drag(Some((e.client_x(), e.client_y())));
@@ -337,28 +333,29 @@ fn CanvasView(
         }
     };
 
-    let wheel = move |e: WheelEvent| {
-        let dy = e.delta_y();
-        let zoom = if dy < 0.0 {
-            ZOOM_FACTOR_IN
-        } else if dy > 0.0 {
-            ZOOM_FACTOR_OUT
-        } else {
-            return;
-        };
+    let wheel = {
+        let graph = graph.clone();
+        move |e: WheelEvent| {
+            if e.ctrl_key() {
+                let (width, height) = calculate_canvas_size(e, vb_width(), vb_height());
+                set_vb_width(width);
+                set_vb_height(height);
+            } else {
+                let (x, y) = calculate_canvas_position_from_wheel_event(
+                    e,
+                    vb_x(),
+                    vb_y(),
+                    vb_width(),
+                    vb_height(),
+                    vb_scale(),
+                    graph.root().subtree_width().get().get(),
+                    graph.root().subtree_height().get().get(),
+                );
 
-        let width = (vb_width() as f32 * zoom).round() as usize;
-        let height = (vb_height() as f32 * zoom).round() as usize;
-        set_vb_width(clamp(
-            width.try_into().unwrap(),
-            VB_WIDTH_MIN.try_into().unwrap(),
-            VB_WIDTH_MAX.try_into().unwrap(),
-        ));
-        set_vb_height(clamp(
-            height.try_into().unwrap(),
-            VB_HEIGHT_MIN.try_into().unwrap(),
-            VB_HEIGHT_MAX.try_into().unwrap(),
-        ));
+                set_vb_x(x);
+                set_vb_y(y);
+            }
+        }
     };
 
     view! {
@@ -372,7 +369,6 @@ fn CanvasView(
                 viewBox=move || {
                     format!("{} {} {} {}", vb_x.get(), vb_y.get(), vb_width.get(), vb_height.get())
                 }
-
                 class=("cursor-grabbing", move || pan_drag.with(|c| c.is_some()))
             >
                 <Graph root=graph.root().clone() />
@@ -805,12 +801,15 @@ fn ContainerOk(
             let button = e.button();
             if button == types::MouseButton::Primary {
                 e.stop_propagation();
-                container.properties().with(|properties| {
+                container.properties().with_untracked(|properties| {
                     if let db::state::DataResource::Ok(properties) = properties {
-                        properties.rid().with(|rid| {
-                            let action = workspace_graph_state.selection().with(|selection| {
-                                interpret_resource_selection_action(rid, &e, selection)
-                            });
+                        properties.rid().with_untracked(|rid| {
+                            let action =
+                                workspace_graph_state
+                                    .selection()
+                                    .with_untracked(|selection| {
+                                        interpret_resource_selection_action(rid, &e, selection)
+                                    });
                             match action {
                                 SelectionAction::Remove => {
                                     workspace_graph_state.select_remove(&rid)
@@ -833,10 +832,10 @@ fn ContainerOk(
         }
     };
 
-    let selected = {
+    let selected = create_memo({
         let container = container.clone();
         let workspace_graph_state = workspace_graph_state.clone();
-        move || {
+        move |_| {
             container.properties().with(|properties| {
                 if let db::state::DataResource::Ok(properties) = properties {
                     workspace_graph_state.selection().with(|selection| {
@@ -849,7 +848,7 @@ fn ContainerOk(
                 }
             })
         }
-    };
+    });
 
     let highlight = {
         let container = container.clone();
@@ -1073,10 +1072,12 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         move |e: MouseEvent| {
             if e.button() == types::MouseButton::Primary {
                 e.stop_propagation();
-                rid.with(|rid| {
+                rid.with_untracked(|rid| {
                     let action = workspace_graph_state
                         .selection()
-                        .with(|selection| interpret_resource_selection_action(rid, &e, selection));
+                        .with_untracked(|selection| {
+                            interpret_resource_selection_action(rid, &e, selection)
+                        });
                     match action {
                         SelectionAction::Remove => workspace_graph_state.select_remove(&rid),
                         SelectionAction::Add => workspace_graph_state
@@ -1090,17 +1091,17 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
     };
 
-    let selected = {
+    let selected = create_memo({
         let asset = asset.clone();
         let workspace_graph_state = workspace_graph_state.clone();
-        move || {
+        move |_| {
             workspace_graph_state.selection().with(|selection| {
                 asset
                     .rid()
                     .with(|rid| selection.iter().any(|resource| resource.rid() == rid))
             })
         }
-    };
+    });
 
     let contextmenu = {
         let asset = asset.clone();
@@ -1166,7 +1167,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             class=("bg-secondary-400", selected)
-            class="flex cursor-pointer px-2 py-0.5 border rounded-sm border-transparent hover:border-secondary-400"
+            class="flex gap-2 cursor-pointer px-2 py-0.5 border border-transparent hover:border-secondary-400"
             data-resource=DATA_KEY_ASSET
             data-rid=rid
         >
@@ -1281,7 +1282,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not update analysis association.");
+                    let mut msg = Message::error("Could not update analysis associations.");
                     msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 }
@@ -1342,7 +1343,8 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
     };
 
     view! {
-        <div class="flex px-2">
+        <div class="flex gap-2 px-2">
+        <div class="inline-flex grow">
             <div title=hover_title class="grow">
                 {move || title().unwrap_or("(no title)".to_string())}
             </div>
@@ -1358,6 +1360,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                     }}
 
                 </span>
+            </div>
             </div>
             <div>
                 <button
@@ -1415,6 +1418,85 @@ fn ContainerErr(
     }
 }
 
+/// Calculate new canvas viewbox dimensions.
+///
+/// # Arguments
+/// + `e`: Triggering event.
+/// + `width`: Viewbox width.
+/// + `height`: Viewbox height.
+///
+/// # Returns
+/// Viewbox (width, height).
+fn calculate_canvas_size(e: WheelEvent, width: usize, height: usize) -> (usize, usize) {
+    let dy = e.delta_y();
+    let scale = if dy < 0.0 {
+        VB_SCALE_ENLARGE
+    } else if dy > 0.0 {
+        VB_SCALE_REDUCE
+    } else {
+        return (width, height);
+    };
+
+    let width = (width as f32 * scale).round() as usize;
+    let height = (height as f32 * scale).round() as usize;
+    let width = common::clamp(
+        width.try_into().unwrap(),
+        VB_WIDTH_MIN.try_into().unwrap(),
+        VB_WIDTH_MAX.try_into().unwrap(),
+    );
+    let height = common::clamp(
+        height.try_into().unwrap(),
+        VB_HEIGHT_MIN.try_into().unwrap(),
+        VB_HEIGHT_MAX.try_into().unwrap(),
+    );
+
+    (width, height)
+}
+
+/// Calculates new canvase viewbox position.
+///
+/// # Arguments
+/// + `e`: Triggering event.
+/// + `x`: Viewbox x position.
+/// + `y`: Viewbox y position.
+/// + `width``: Viewbox width.
+/// + `height`: Viewbox height.
+/// + `scale`: Viewbox scale.
+/// + `graph_width`: Graph width.
+/// + `graph_height`: Graph height.
+///
+/// # Returns
+/// Viewbox (x, y).  
+fn calculate_canvas_position_from_wheel_event(
+    e: WheelEvent,
+    x: isize,
+    y: isize,
+    width: usize,
+    height: usize,
+    scale: f64,
+    graph_width: usize,
+    graph_height: usize,
+) -> (isize, isize) {
+    let x = x + (e.delta_x() / scale) as isize;
+    let y = y + (e.delta_y() / scale) as isize;
+    let x_max = (graph_width * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as isize - width as isize / 2;
+    let y_max = cmp::max(
+        (graph_height * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as isize - height as isize / 2,
+        0,
+    );
+    let x = common::clamp(
+        x,
+        -TryInto::<isize>::try_into(width / 2).unwrap(),
+        x_max.try_into().unwrap(),
+    );
+    let y = common::clamp(
+        y,
+        -TryInto::<isize>::try_into(height / 2).unwrap(),
+        y_max.try_into().unwrap(),
+    );
+    (x, y)
+}
+
 fn handle_container_action_add_analysis_accociation(
     analysis: ResourceId,
     container: state::graph::Node,
@@ -1461,20 +1543,6 @@ fn handle_container_action_add_analysis_accociation(
             messages.update(|messages| messages.push(msg.build()));
         }
     });
-}
-
-fn clamp<T>(value: T, min: T, max: T) -> T
-where
-    T: PartialOrd,
-{
-    assert!(min < max);
-    if value <= min {
-        min
-    } else if value >= max {
-        max
-    } else {
-        value
-    }
 }
 
 async fn handle_context_menu_container_ok_events(

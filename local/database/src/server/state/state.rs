@@ -68,6 +68,8 @@ impl State {
 impl TryReducible for State {
     type Action = Action;
     type Error = Error;
+
+    #[tracing::instrument(level = "trace", skip(self))]
     fn try_reduce(&mut self, action: Self::Action) -> Result<(), Self::Error> {
         match action {
             Action::Config(action) => {
@@ -88,6 +90,7 @@ impl TryReducible for State {
                     .iter_mut()
                     .find(|project| project.path() == &path)
                 else {
+                    tracing::trace!("project not found");
                     return Err(Error::DoesNotExist);
                 };
 

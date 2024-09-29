@@ -215,8 +215,8 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                 .unwrap();
 
             set_widget.update(|widget| {
-                #[allow(unused_must_use)]
-                widget.insert(Widget::AddTags);
+                #[allow(unused_must_use)] {
+                widget.insert(Widget::AddTags);}
             });
         }
     };
@@ -234,8 +234,8 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                 .unwrap();
 
             set_widget.update(|widget| {
-                #[allow(unused_must_use)]
-                widget.insert(Widget::AddMetadatum);
+                #[allow(unused_must_use)]{
+                widget.insert(Widget::AddMetadatum);}
             });
         }
     };

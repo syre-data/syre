@@ -10,7 +10,8 @@ use crate::{common, constants, event::Update};
 use crossbeam::channel::{select, Receiver};
 use query::Query;
 use serde_json::Value as JsValue;
-use std::{collections::HashMap, path::PathBuf, thread};
+use std::{collections::HashMap, io, path::PathBuf, thread};
+use syre_fs_watcher as watcher;
 use syre_local::{
     system::{
         collections::{ProjectManifest, UserManifest},
@@ -50,11 +51,11 @@ impl Builder {
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
         let query_actor = query::Actor::new(query_tx.clone());
 
-        let fs_command_client = syre_fs_watcher::Client::new(fs_command_tx);
-        let mut fs_watcher = syre_fs_watcher::server::Builder::new(
+        let fs_command_client = watcher::Client::new(fs_command_tx);
+        let mut fs_watcher = watcher::server::Builder::new(
             fs_command_rx,
             fs_event_tx,
-            syre_fs_watcher::server::Config::new(
+            watcher::server::Config::new(
                 self.config.user_manifest().clone(),
                 self.config.project_manifest().clone(),
                 self.config.local_config().clone(),
@@ -95,13 +96,13 @@ impl Builder {
         if let Err(errors) = fs_event_rx.recv().unwrap() {
             for err in errors {
                 match err {
-                    syre_fs_watcher::Error::Watch(err) => {
+                    watcher::Error::Watch(err) => {
                         if let [path] = &err.paths[..] {
                             if path == self.config.user_manifest() {
                                 let err = match err.kind {
-                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::Io(err) => err.kind(),
+                                    notify::ErrorKind::PathNotFound => io::ErrorKind::NotFound,
                                     notify::ErrorKind::MaxFilesWatch
-                                    | notify::ErrorKind::PathNotFound
                                     | notify::ErrorKind::Generic(_) => todo!(),
                                     notify::ErrorKind::WatchNotFound
                                     | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
@@ -110,9 +111,9 @@ impl Builder {
                                 user_manifest_state = Err(err.into());
                             } else if path == self.config.project_manifest() {
                                 let err = match err.kind {
-                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::Io(err) => err.kind(),
+                                    notify::ErrorKind::PathNotFound => io::ErrorKind::NotFound,
                                     notify::ErrorKind::MaxFilesWatch
-                                    | notify::ErrorKind::PathNotFound
                                     | notify::ErrorKind::Generic(_) => todo!(),
                                     notify::ErrorKind::WatchNotFound
                                     | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
@@ -121,9 +122,9 @@ impl Builder {
                                 project_manifest_state = Err(err.into());
                             } else if path == self.config.local_config() {
                                 let err = match err.kind {
-                                    notify::ErrorKind::Io(err) => err,
+                                    notify::ErrorKind::Io(err) => err.kind(),
+                                    notify::ErrorKind::PathNotFound => io::ErrorKind::NotFound,
                                     notify::ErrorKind::MaxFilesWatch
-                                    | notify::ErrorKind::PathNotFound
                                     | notify::ErrorKind::Generic(_) => todo!(),
                                     notify::ErrorKind::WatchNotFound
                                     | notify::ErrorKind::InvalidConfig(_) => unreachable!(),
@@ -135,7 +136,7 @@ impl Builder {
                             }
                         }
                     }
-                    syre_fs_watcher::Error::Processing { events, kind } => {
+                    watcher::Error::Processing { events, kind } => {
                         tracing::error!(?events, ?kind);
                         todo!()
                     }
@@ -253,8 +254,8 @@ pub struct Database {
     state: super::State,
     data_store: data_store::Client,
     query_rx: Receiver<Query>,
-    fs_event_rx: Receiver<syre_fs_watcher::EventResult>,
-    fs_command_client: syre_fs_watcher::Client,
+    fs_event_rx: Receiver<watcher::EventResult>,
+    fs_command_client: watcher::Client,
 
     /// Publication socket to broadcast updates.
     update_tx: zmq::Socket,
@@ -312,8 +313,8 @@ impl Database {
         self.fs_command_client
             .final_path(path)
             .map_err(|err| match err {
-                syre_fs_watcher::client::error::FinalPath::InvalidPath => unreachable!(),
-                syre_fs_watcher::client::error::FinalPath::Retrieval(err) => err,
+                watcher::client::error::FinalPath::InvalidPath => unreachable!(),
+                watcher::client::error::FinalPath::Retrieval(err) => err,
             })
     }
 
@@ -392,10 +393,7 @@ mod windows {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
-        pub fn handle_file_system_events(
-            &mut self,
-            events: syre_fs_watcher::EventResult,
-        ) -> crate::Result {
+        pub fn handle_file_system_events(&mut self, events: watcher::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
@@ -413,8 +411,8 @@ mod windows {
 
         fn handle_file_system_watcher_errors(
             &self,
-            errors: Vec<syre_fs_watcher::Error>,
-        ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
+            errors: Vec<watcher::Error>,
+        ) -> crate::Result<Vec<watcher::Event>> {
             tracing::error!(?errors);
             todo!();
         }
@@ -581,10 +579,7 @@ mod linux {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
-        pub fn handle_file_system_events(
-            &mut self,
-            events: syre_fs_watcher::EventResult,
-        ) -> crate::Result {
+        pub fn handle_file_system_events(&mut self, events: watcher::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
                 Err(errs) => self.handle_file_system_watcher_errors(errs)?,
@@ -602,8 +597,8 @@ mod linux {
 
         fn handle_file_system_watcher_errors(
             &self,
-            errors: Vec<syre_fs_watcher::Error>,
-        ) -> crate::Result<Vec<syre_fs_watcher::Event>> {
+            errors: Vec<watcher::Error>,
+        ) -> crate::Result<Vec<watcher::Event>> {
             tracing::error!(?errors);
             todo!();
         }

@@ -936,16 +936,16 @@ fn ContainerOk(
             on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
             on:drop=drop
             class=(
-                "border-2",
+                ["border-2", "border-secondary-900", "dark:border-secondary-100"],
                 {
                     let highlight = highlight.clone();
                     move || !highlight()
                 },
             )
 
-            class=(["border-4", "border-primary-400"], highlight.clone())
+            class=(["border-4", "border-primary-700"], highlight.clone())
 
-            class="h-full cursor-pointer rounded border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
+            class="h-full cursor-pointer rounded bg-white dark:bg-secondary-700"
             data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >
@@ -1000,18 +1000,16 @@ fn ContainerPreview(
             <Analyses analyses=analyses
                 .with_untracked(|analyses| analyses.as_ref().unwrap().read_only()) />
 
-            <div>
+            <div class="py border-t border-secondary-200 dark:border-secondary-800">
                 <div class:hidden=move || { state.with(|preview| !preview.kind) } class="px-2">
                     {move || kind().unwrap_or("(no type)".to_string())}
                 </div>
-
                 <div
                     class:hidden=move || { state.with(|preview| !preview.description) }
                     class="px-2"
                 >
                     {move || description().unwrap_or("(no description)".to_string())}
                 </div>
-
                 <div class:hidden=move || { state.with(|preview| !preview.tags) } class="px-2">
                     {move || {
                         tags.with(|tags| {
@@ -1020,7 +1018,6 @@ fn ContainerPreview(
                     }}
 
                 </div>
-
                 <Metadata metadata />
             </div>
         </div>
@@ -1047,7 +1044,7 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
         >
             <Show
                 when=move || assets.with(|assets| !assets.is_empty())
-                fallback=|| view! { "(no data)" }
+                fallback=|| view! { <NoData /> }
             >
                 <For each=assets key=|asset| asset.rid().get() let:asset>
                     <Asset asset />
@@ -1055,6 +1052,11 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
             </Show>
         </div>
     }
+}
+
+#[component]
+fn NoData() -> impl IntoView {
+    view! { <div class="px-2">"(no data)"</div> }
 }
 
 #[component]
@@ -1197,11 +1199,11 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
     view! {
         <div
             class:hidden=move || workspace_state.preview().with(|preview| !preview.analyses)
-            class="pb"
+            class="py border-t border-secondary-200 dark:border-secondary-800"
         >
             <Show
                 when=move || analyses.with(|analyses| !analyses.is_empty())
-                fallback=|| view! { "(no analyses)" }
+                fallback=|| view! { <NoAnalyses /> }
             >
                 <For each=analyses key=|association| association.analysis().clone() let:association>
                     <AnalysisAssociation association />
@@ -1209,6 +1211,11 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
             </Show>
         </div>
     }
+}
+
+#[component]
+fn NoAnalyses() -> impl IntoView {
+    view! { <div class="px-2">"(no analyses)"</div> }
 }
 
 #[component]
@@ -1389,7 +1396,7 @@ fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
         <div class:hidden=move || { workspace_state.preview().with(|preview| !preview.metadata) }>
             <Show
                 when=move || metadata.with(|metadata| !metadata.is_empty())
-                fallback=|| view! { <div class="px-2">"(no metadata)"</div> }
+                fallback=|| view! { <NoMetadata /> }
             >
                 <For each=metadata key=|(key, _)| key.clone() let:datum>
                     <div class="px-2">
@@ -1400,6 +1407,11 @@ fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
             </Show>
         </div>
     }
+}
+
+#[component]
+fn NoMetadata() -> impl IntoView {
+    view! { <div class="px-2">"(no metadata)"</div> }
 }
 
 #[component]

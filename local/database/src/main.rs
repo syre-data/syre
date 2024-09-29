@@ -1,15 +1,10 @@
 //! Runs a local [`Database`].
 //!
 //! Must be run with the `server` feature enabled.
-use syre_local::{
-    file_resource::SystemResource,
-    system::{
-        collections::{ProjectManifest, UserManifest},
-        config::Config as LocalConfig,
-    },
-};
+use syre_local::system::collections::ProjectManifest;
 use syre_local_database::server;
 
+/// Run the database with the default config.
 fn main() {
     logging::enable();
     let default_panic_hook = std::panic::take_hook();
@@ -55,8 +50,8 @@ mod logging {
 
     const LOG_PREFIX: &str = "database.local.log";
 
+    /// Enable logging.
     pub fn enable() {
-        // logging setup
         let config_dir = common::config_dir_path().expect("could not get config dir path");
         let file_logger = tracing_appender::rolling::daily(config_dir, LOG_PREFIX);
         let (file_logger, _log_guard) = tracing_appender::non_blocking(file_logger);

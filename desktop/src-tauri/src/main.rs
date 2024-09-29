@@ -75,14 +75,12 @@ mod logging {
         let file_logger = fmt::layer()
             .with_writer(file_logger)
             .with_timer(UtcTime::rfc_3339())
-            .json()
-            .with_filter(MAX_LOG_LEVEL);
+            .json();
 
         let console_logger = fmt::layer()
             .with_writer(std::io::stdout)
             .with_timer(UtcTime::rfc_3339())
-            .pretty()
-            .with_filter(MAX_LOG_LEVEL);
+            .pretty();
 
         let subscriber = Registry::default().with(console_logger).with(file_logger);
         tracing::subscriber::set_global_default(subscriber).unwrap();

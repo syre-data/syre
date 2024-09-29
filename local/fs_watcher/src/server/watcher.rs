@@ -32,6 +32,9 @@ use std::{
 
 pub use config::Config;
 
+#[cfg(target_os = "windows")]
+pub const WINDOWS_GENERIC_NOT_FOUND_MSG: &str = "neither a file nor a directory";
+
 pub struct Builder {
     /// Sends events to the client.
     event_tx: Sender<EventResult>,
@@ -114,13 +117,31 @@ impl Builder {
                     notify::ErrorKind::Io(io_err)
                         if io_err.kind() == std::io::ErrorKind::NotFound =>
                     {
+                        tracing::trace!("{path:?} not found");
                         path_watcher_command_tx
                             .send(path_watcher::Command::Watch(path.clone()))
                             .unwrap();
 
                         err.add_path(path.clone())
                     }
-                    _ => err,
+                    #[cfg(target_os = "windows")]
+                    notify::ErrorKind::Generic(msg)
+                        if msg.contains(WINDOWS_GENERIC_NOT_FOUND_MSG) =>
+                    {
+                        tracing::trace!("{path:?} not found");
+                        path_watcher_command_tx
+                            .send(path_watcher::Command::Watch(path.clone()))
+                            .unwrap();
+
+                        notify::Error::path_not_found().add_path(path.clone())
+                    }
+                    _kind => {
+                        if err.paths.is_empty() {
+                            err.add_path(path.clone())
+                        } else {
+                            err
+                        }
+                    }
                 };
 
                 errors.push(err);

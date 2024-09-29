@@ -10,14 +10,16 @@ use wasm_bindgen::{closure::Closure, JsCast};
 pub fn ProjectBar() -> impl IntoView {
     view! {
         <div class="flex px-2 py-1">
-            <div class="grow inline-flex gap-2">
+            <div class="w-1/3 inline-flex gap-2">
                 <PreviewSelector />
                 <Analyze />
             </div>
-            <div>
+            <div class="w-1/3 text-center">
                 <ProjectInfo />
             </div>
-            <div class="grow"></div>
+            <div class="w-1/3 text-right">
+                <Controls />
+            </div>
         </div>
     }
 }
@@ -319,12 +321,40 @@ fn ProjectInfo() -> impl IntoView {
     let properties_editor = expect_context::<RwSignal<PropertiesEditor>>();
 
     let mousedown = move |e: MouseEvent| {
-        properties_editor.set(properties::EditorKind::Project.into());
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        if properties_editor.with(|editor| matches!(**editor, properties::EditorKind::Project)) {
+            // TODO: Return properties to widget based on graph selection.
+            // Currenlty the graph and selection state contexts are descendants, so can not access them.
+            properties_editor.set(properties::EditorKind::Analyses.into());
+        } else {
+            properties_editor.set(properties::EditorKind::Project.into());
+        }
     };
 
     view! {
         <div on:mousedown=mousedown class="grow text-center font-primary cursor-pointer">
             {project.properties().name()}
         </div>
+    }
+}
+
+#[component]
+fn Controls() -> impl IntoView {
+    let refresh = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        let window = web_sys::window().unwrap();
+        window.location().reload().unwrap();
+    };
+
+    view! {
+        <button on:mousedown=refresh type="button" class="btn-secondary p-1 rounded-sm">
+            <Icon icon=icondata::AiSyncOutlined />
+        </button>
     }
 }

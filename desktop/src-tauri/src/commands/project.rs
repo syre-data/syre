@@ -1,13 +1,13 @@
 use std::{fs, io, path::PathBuf};
 use syre_core::{
     self as core,
-    project::Project,
     runner::RunnerHooks,
     types::{ResourceId, UserId, UserPermissions},
 };
-use syre_desktop_lib::{self as lib, command::project::error};
+use syre_desktop_lib as lib;
 use syre_local::{
     self as local,
+    file_resource::SystemResource,
     project::{
         project,
         resources::{
@@ -25,6 +25,24 @@ pub fn create_project(
     path: PathBuf,
 ) -> Result<(), lib::command::project::error::Initialize> {
     use lib::command::project::error;
+
+    let project_manifest_path = match local::system::collections::ProjectManifest::default_path() {
+        Ok(path) => path,
+        Err(err) => return Err(error::Initialize::ProjectManifest(err.into())),
+    };
+
+    if !project_manifest_path.exists() {
+        let project_manifest = match local::system::collections::ProjectManifest::load_or_default()
+        {
+            Ok(manifest) => manifest,
+            Err(err) => return Err(error::Initialize::ProjectManifest(err)),
+        };
+
+        if let Err(err) = project_manifest.save() {
+            return Err(error::Initialize::ProjectManifest(err.into()));
+        }
+    }
+
     project::init(&path).map_err(|err| match err {
         project::error::Init::InvalidRootPath => error::Initialize::InvalidRootPath,
         project::error::Init::ProjectManifest(err) => error::Initialize::ProjectManifest(err),

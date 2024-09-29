@@ -110,7 +110,9 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
             set_widget.update(|widget| {
                 #[allow(unused_must_use)]
-                widget.insert(Widget::AddMetadatum);
+                {
+                    widget.insert(Widget::AddMetadatum);
+                }
             });
         }
     };
@@ -129,7 +131,9 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
             set_widget.update(|widget| {
                 #[allow(unused_must_use)]
-                widget.insert(Widget::AddAnalysisAssociation);
+                {
+                    widget.insert(Widget::AddAnalysisAssociation);
+                }
             });
         }
     };

@@ -240,7 +240,9 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
             set_widget.update(|widget| {
                 #[allow(unused_must_use)]
-                widget.insert(Widget::AddTags);
+                {
+                    widget.insert(Widget::AddTags);
+                }
             });
         }
     };
@@ -259,7 +261,9 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
             set_widget.update(|widget| {
                 #[allow(unused_must_use)]
-                widget.insert(Widget::AddMetadatum);
+                {
+                    widget.insert(Widget::AddMetadatum);
+                }
             });
         }
     };

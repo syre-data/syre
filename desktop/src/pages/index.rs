@@ -9,19 +9,25 @@ use syre_local::error::IoSerde;
 #[component]
 pub fn Index() -> impl IntoView {
     let active_user = create_resource(|| (), |_| async move { fetch_user().await });
-    let fallback = |errors| {
-        tracing::debug!(?errors);
-        view! { <div>"An error occurred."</div> }
-    };
 
     view! {
         <Suspense fallback=Initializing>
-            <ErrorBoundary fallback>
-                {move || { active_user().map(|user| user.map(|user| view! { <IndexView user/> })) }}
-
+            <ErrorBoundary fallback=|errors| {
+                view! { <ActiveUserErrors errors /> }
+            }>
+                {move || {
+                    active_user().map(|user| user.map(|user| view! { <IndexView user /> }))
+                }}
             </ErrorBoundary>
         </Suspense>
     }
+}
+
+#[component]
+fn ActiveUserErrors(errors: RwSignal<Errors>) -> impl IntoView {
+    tracing::error!(?errors);
+
+    view! { <div class="text-lg text-center p-4">"An error occurred."</div> }
 }
 
 #[component]
@@ -32,8 +38,9 @@ fn IndexView(user: Option<User>) -> impl IntoView {
             .await
             .unwrap();
 
-        while let Some(event) = listener.next().await {
-            for event in event.payload {
+        while let Some(events) = listener.next().await {
+            tracing::debug!(?events);
+            for event in events.payload {
                 let lib::EventKind::User(user) = event.kind() else {
                     panic!("invalid event kind");
                 };
@@ -44,8 +51,8 @@ fn IndexView(user: Option<User>) -> impl IntoView {
     });
 
     view! {
-        <Show when=move || { user.with(|user| user.is_some()) } fallback=|| view! { <Landing/> }>
-            <Home user=user().unwrap()/>
+        <Show when=move || { user.with(|user| user.is_some()) } fallback=|| view! { <Landing /> }>
+            <Home user=user().unwrap() />
         </Show>
     }
 }

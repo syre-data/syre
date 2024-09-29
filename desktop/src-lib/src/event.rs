@@ -84,9 +84,15 @@ pub enum LocalConfig {
 pub mod topic {
     use syre_core::types::ResourceId;
 
+    /// Prefix to all topics.
     pub const PREFIX: &str = "syre";
+
+    /// Active user.
     pub const USER: &str = "syre:user";
+
+    /// Project manifest.
     pub const PROJECT_MANIFEST: &str = "syre:project_manifest";
+
     pub const PROJECT: &str = "syre:project";
     pub const GRAPH: &str = "syre:graph";
 
@@ -94,6 +100,7 @@ pub mod topic {
         format!("{}/{}", PROJECT, project)
     }
 
+    // TODO: Change to `GRAPH`.
     pub fn graph(project: &ResourceId) -> String {
         format!("{}/{}", PROJECT, project)
     }

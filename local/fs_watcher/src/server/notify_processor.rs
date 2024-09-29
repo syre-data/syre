@@ -606,6 +606,7 @@ impl FsWatcher {
                 #[cfg(not(target_os = "macos"))]
                 todo!();
 
+                #[cfg(target_os = "macos")]
                 /// Must check if paths exists due to operation of `notify` crate.
                 /// See https://github.com/notify-rs/notify/issues/554.
                 match &event.paths[..] {
@@ -669,6 +670,23 @@ impl FsWatcher {
                     Ok(path) => path,
                     Err(err) => match err.kind() {
                         io::ErrorKind::NotFound => {
+                            #[cfg(target_os = "windows")]
+                            {
+                                if path == self.app_config.user_manifest()
+                                    || path == self.app_config.project_manifest()
+                                    || path == self.app_config.local_config()
+                                {
+                                    let path = normalize_path_root(path);
+                                    return Ok(Some(fs_event::Event::new(
+                                        fs_event::File::Removed(path),
+                                        event.time,
+                                    )));
+                                } else {
+                                    return Err(error::Process::NotFound);
+                                }
+                            }
+
+                            #[cfg(not(target_os = "windows"))]
                             return Err(error::Process::NotFound);
                         }
 

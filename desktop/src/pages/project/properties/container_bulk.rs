@@ -226,8 +226,9 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                 .unwrap();
 
             set_widget.update(|widget| {
-                #[allow(unused_must_use)]
+                #[allow(unused_must_use)] {
                 widget.insert(Widget::AddTags);
+                }
             });
         }
     };
@@ -245,8 +246,9 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
         if e.button() == types::MouseButton::Primary {
             set_widget.update(|widget| {
-                #[allow(unused_must_use)]
+                #[allow(unused_must_use)] {
                 widget.insert(Widget::AddMetadatum);
+                }
             });
         }
     };

@@ -346,30 +346,37 @@ fn CreateProject(
 fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     let user = expect_context::<User>();
     let (error, set_error) = create_signal(None);
+
+    let create_project_action = create_action({
+        let user = user.rid().clone();
+        move |project_path: &PathBuf| {
+            let project_path = project_path.clone();
+            let user = user.clone();
+            async move {
+                match create_project(user, project_path).await {
+                    Ok(_project) => {
+                        path.update(|path| {
+                            path.take(); // closes the dialog
+                        });
+                    }
+                    Err(err) => {
+                        tracing::error!(?err);
+                        set_error(Some("Could not create project."));
+                    }
+                }
+            }
+        }
+    });
+
     let create_project = {
         move |e: SubmitEvent| {
             e.prevent_default();
 
-            let user = user.rid().clone();
             match path() {
                 None => {
                     set_error(Some("Path is required."));
                 }
-                Some(p) => {
-                    spawn_local(async move {
-                        match create_project(user, p).await {
-                            Ok(_project) => {
-                                path.update(|path| {
-                                    path.take();
-                                });
-                            }
-                            Err(err) => {
-                                tracing::error!(?err);
-                                set_error(Some("Could not create project."));
-                            }
-                        }
-                    });
-                }
+                Some(path) => create_project_action.dispatch(path),
             }
         }
     };
@@ -423,7 +430,11 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                 </div>
                 <div class="flex gap-2 justify-center">
                     <button
-                        disabled=move || path.with(|path| path.is_none())
+                        disabled=move || {
+                            path.with(|path| {
+                                path.is_none() || create_project_action.pending().get()
+                            })
+                        }
                         class="btn btn-primary"
                     >
                         "Create"
@@ -432,8 +443,8 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                         "Cancel"
                     </button>
                 </div>
-                <div>{error}</div>
             </form>
+            <div class="text-center pt-2 dark:text-white">{error}</div>
         </div>
     }
 }

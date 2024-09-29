@@ -35,7 +35,7 @@ pub fn Landing() -> impl IntoView {
 
                     fallback=|| view! { <div>"The user manifest is corrupt."</div> }
                 >
-                    <Register/>
+                    <Register />
                 </Show>
             }
         })
@@ -44,7 +44,7 @@ pub fn Landing() -> impl IntoView {
     view! {
         <div class="h-screen w-screen flex flex-col justify-center items-center gap-y-4">
             <div class="flex flex-col items-center w-20">
-                <Logo class="w-full"/>
+                <Logo class="w-full" />
                 <h1 class="font-primary text-4xl">"Syre"</h1>
             </div>
             <div>
@@ -59,7 +59,7 @@ pub fn Landing() -> impl IntoView {
                                             view! {
                                                 <Show
                                                     when=move || { count > 0 }
-                                                    fallback=|| view! { <Register/> }
+                                                    fallback=|| view! { <Register /> }
                                                 >
                                                     <div class="flex gap-x-4">
                                                         <A href="/register" class="btn btn-primary">
@@ -89,14 +89,26 @@ fn Loading() -> impl IntoView {
 
 #[component]
 pub fn Register() -> impl IntoView {
-    let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None);
     let form_ref = NodeRef::new();
+
+    let register_user_action = create_action(move |(email, name): &(String, Option<String>)| {
+        let email = email.clone();
+        let name = name.clone();
+        async move {
+            match register(email, name).await {
+                Ok(_user) => {}
+
+                Err(err) => {
+                    set_error(Some(err));
+                }
+            }
+        }
+    });
 
     let register_user = {
         move |e: SubmitEvent| {
             e.prevent_default();
-            set_loading(true);
             set_error(None);
 
             let data = FormData::new_with_form(&form_ref.get().unwrap()).unwrap();
@@ -115,16 +127,7 @@ pub fn Register() -> impl IntoView {
             }
             let email = email.trim().to_string();
 
-            spawn_local(async move {
-                match register(email, name).await {
-                    Ok(_user) => {}
-
-                    Err(err) => {
-                        set_error(Some(err));
-                        set_loading(false);
-                    }
-                }
-            });
+            register_user_action.dispatch((email, name));
         }
     };
 
@@ -148,16 +151,16 @@ pub fn Register() -> impl IntoView {
                 <div class="pt-4">
                     <label>
                         <span class="block">"Name"</span>
-                        <input name="name" class="input-simple"/>
+                        <input name="name" class="input-simple" />
                     </label>
                 </div>
                 <div class="pt-4 text-center">
-                    <button disabled=move || loading() class="btn btn-primary">
+                    <button disabled=register_user_action.pending() class="btn btn-primary">
                         "Sign up"
                     </button>
                 </div>
-                <div>{error}</div>
             </form>
+            <div class="pt-2">{error}</div>
         </div>
     }
 }

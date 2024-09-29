@@ -25,7 +25,8 @@ colors = {
 		900: "#181a1e",
 	},
 
-	"syre-red": {
+	syre: {
+	red: {
 		50: "#ffe9e1",
 		100: "#ffc1ab",
 		200: "#ee9676",
@@ -38,7 +39,7 @@ colors = {
 		900: "#3a080b",
 	},
 
-	"syre-yellow": {
+	yellow: {
 		50: "#fffbf2",
 		100: "#ffeecc",
 		200: "#fee8b0",
@@ -51,7 +52,7 @@ colors = {
 		900: "#3d2900",
 	},
 
-	"syre-green": {
+	green: {
 		50: "#f7faf0",
 		100: "#e9f1d8",
 		200: "#d3e9cd",
@@ -62,7 +63,7 @@ colors = {
 		700: "#486f25",
 		800: "#3a4a18",
 		900: "#242e0f",
-	}
+	}},
 };
 
 fontFamily = {

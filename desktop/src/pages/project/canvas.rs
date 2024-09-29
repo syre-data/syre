@@ -23,8 +23,10 @@ use syre_local as local;
 use syre_local_database as db;
 use tauri_sys::{core::Channel, menu};
 
-const CONTAINER_WIDTH: usize = 250;
-const MAX_CONTAINER_HEIGHT: usize = 300;
+const CONTAINER_WIDTH: usize = 300;
+const MAX_CONTAINER_HEIGHT: usize = 400;
+const CONTAINER_HEADER_HEIGHT: usize = 50;
+const CONTAINER_PREVIEW_LINE_HEIGHT: usize = 24;
 const PADDING_X_SIBLING: usize = 20;
 const PADDING_Y_CHILDREN: usize = 30;
 const RADIUS_ADD_CHILD: usize = 10;
@@ -69,7 +71,7 @@ struct ContextMenuActiveAsset(ResourceId);
 // struct ContainerResizeObserver(web_sys::ResizeObserver);
 
 #[derive(derive_more::Deref, derive_more::From, Clone, Copy)]
-struct ContainerHeight(ReadSignal<usize>);
+struct ContainerPreviewHeight(ReadSignal<usize>);
 
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct Container(state::graph::Node);
@@ -204,7 +206,7 @@ fn CanvasView(
     let workspace_state = expect_context::<state::Workspace>();
 
     let portal_ref = create_node_ref();
-    let (container_height, set_container_height) = create_signal(0);
+    let (container_preview_height, set_container_preview_height) = create_signal(0);
     // let container_resize_observer =
     //     Closure::<dyn Fn(wasm_bindgen::JsValue)>::new(move |entries: wasm_bindgen::JsValue| {
     //         assert!(entries.is_array());
@@ -226,7 +228,7 @@ fn CanvasView(
     provide_context(ContextMenuContainerOk::new(context_menu_container_ok));
     provide_context(ContextMenuAsset::new(context_menu_asset));
     provide_context(PortalRef(portal_ref));
-    provide_context(ContainerHeight(container_height));
+    provide_context(ContainerPreviewHeight(container_preview_height));
     // provide_context(ContainerResizeObserver(
     //     web_sys::ResizeObserver::new(container_resize_observer.as_ref().unchecked_ref()).unwrap(),
     // ));
@@ -254,11 +256,10 @@ fn CanvasView(
                 height += 5;
             }
 
-            height * 24
+            height * CONTAINER_PREVIEW_LINE_HEIGHT
         });
 
-        let height = common::clamp(height, 0, MAX_CONTAINER_HEIGHT);
-        set_container_height(height);
+        set_container_preview_height(common::clamp(height, 0, MAX_CONTAINER_HEIGHT));
     });
 
     let (vb_x, set_vb_x) = create_signal(0 as isize);
@@ -382,7 +383,7 @@ fn CanvasView(
 #[component]
 fn Graph(root: state::graph::Node) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
-    let container_height = expect_context::<ContainerHeight>();
+    let container_preview_height = expect_context::<ContainerPreviewHeight>();
     // let container_resize_observer = expect_context::<ContainerResizeObserver>();
     let portal_ref = expect_context::<PortalRef>();
     let create_child_ref = NodeRef::<html::Dialog>::new();
@@ -407,6 +408,10 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
         }
     };
 
+    let container_height = move || {
+        container_preview_height.with(|preview_height| CONTAINER_HEADER_HEIGHT + preview_height)
+    };
+
     let width = {
         let root = root.clone();
         move || {
@@ -418,6 +423,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
 
     let height = {
         let root = root.clone();
+        let container_height = container_height.clone();
         move || {
             let tree_height = root.subtree_height().get();
             let height = tree_height.get() * (container_height() + PADDING_Y_CHILDREN)
@@ -458,7 +464,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
             if state::graph::Node::ptr_eq(&root, graph.root()) {
                 0
             } else {
-                container_height.with(|height| *height + PADDING_Y_CHILDREN)
+                container_height() + PADDING_Y_CHILDREN
             }
         }
     };
@@ -481,9 +487,8 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
     let line_points = {
         let x_node = x_node.clone();
         let children = children.clone();
-        move |sibling_index: ReadSignal<usize>,
-              subtree_width: ReadSignal<NonZeroUsize>,
-              container_height: ReadSignal<usize>| {
+        let container_height = container_height.clone();
+        move |sibling_index: ReadSignal<usize>, subtree_width: ReadSignal<NonZeroUsize>| {
             let x_node = x_node.clone();
             move || {
                 let parent_x = x_node() + CONTAINER_WIDTH / 2;
@@ -539,17 +544,12 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                     <polyline
                         fill="none"
                         class="stroke-secondary-400 dark:stroke-secondary-500"
-                        points=line_points(
-                            child.sibling_index(),
-                            child.subtree_width(),
-                            *container_height,
-                        )
+                        points=line_points(child.sibling_index(), child.subtree_width())
                     ></polyline>
                 </For>
-
             </g>
             <g class="group">
-                <foreignObject width=CONTAINER_WIDTH height=*container_height x=x_node.clone() y=0>
+                <foreignObject width=CONTAINER_WIDTH height=container_height x=x_node.clone() y=0>
                     <ContainerView node_ref=container_node container=root.clone() />
                 </foreignObject>
                 <g class="group-[:not(:hover)]:hidden hover:cursor-pointer">
@@ -560,7 +560,7 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                             move || { x_node() + CONTAINER_WIDTH / 2 }
                         }
 
-                        cy=move || container_height()
+                        cy=container_height.clone()
                         r=RADIUS_ADD_CHILD
                         class="stroke-black dark:stroke-white fill-white dark:fill-secondary-700 stroke-2"
                     ></circle>
@@ -596,8 +596,12 @@ fn Graph(root: state::graph::Node) -> impl IntoView {
                             move || { x_node() + CONTAINER_WIDTH / 2 }
                         }
 
-                        y1=move || container_height() as f32 - RADIUS_ADD_CHILD as f32 * PLUS_SCALE
-                        y2=move || container_height() as f32 + RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                        y1=move || {
+                            container_height() as f32 - RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                        }
+                        y2=move || {
+                            container_height() as f32 + RADIUS_ADD_CHILD as f32 * PLUS_SCALE
+                        }
                         class="stroke-black dark:stroke-white stroke-2 linecap-round"
                     ></line>
                 </g>
@@ -916,6 +920,13 @@ fn ContainerOk(
         }
     };
 
+    let wheel = move |e: WheelEvent| {
+        // NB: Allow zoom events to propogate, but not wheel scroll events.
+        if !e.ctrl_key() {
+            e.stop_propagation();
+        }
+    };
+
     view! {
         <div
             on:mousedown=mousedown
@@ -924,7 +935,6 @@ fn ContainerOk(
             on:dragover=move |e| e.prevent_default()
             on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
             on:drop=drop
-            class="h-full cursor-pointer rounded pt-2 pb-4 border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
             class=(
                 "border-2",
                 {
@@ -933,24 +943,22 @@ fn ContainerOk(
                 },
             )
 
-            class=(
-                ["border-4", "border-primary-400", "dark:border-primary-700"],
-                {
-                    let highlight = highlight.clone();
-                    move || highlight()
-                },
-            )
+            class=(["border-4", "border-primary-400"], highlight.clone())
 
+            class="h-full cursor-pointer rounded border-secondary-900 dark:border-secondary-100 bg-white dark:bg-secondary-700"
             data-resource=DATA_KEY_CONTAINER
             data-rid=rid
         >
             // NB: inner div with node ref is used for resizing observer to obtain content height.
-            <div ref=node_ref>
+            <div ref=node_ref class="h-full flex flex-col">
                 <div class="pb-2 text-center text-lg">
                     <span class="font-primary">{title}</span>
                 </div>
 
-                <div>
+                <div
+                    on:wheel=wheel
+                    class="grow overflow-y-auto scrollbar-thin scrollbar-thumb-rounded-full scrollbar-track-rounded-full"
+                >
                     <ContainerPreview
                         properties=container.properties().read_only()
                         assets=container.assets().read_only()
@@ -1344,23 +1352,23 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
 
     view! {
         <div class="flex gap-2 px-2">
-        <div class="inline-flex grow">
-            <div title=hover_title class="grow">
-                {move || title().unwrap_or("(no title)".to_string())}
-            </div>
-            <div class="inline-flex gap-1">
-                <span>"(" {association.priority()} ")"</span>
-                <span on:mousedown=autorun_toggle class="inline-flex">
-                    {move || {
-                        if association.autorun().get() {
-                            view! { <Icon icon=icondata::BsStarFill /> }
-                        } else {
-                            view! { <Icon icon=icondata::BsStar /> }
-                        }
-                    }}
+            <div class="inline-flex grow">
+                <div title=hover_title class="grow">
+                    {move || title().unwrap_or("(no title)".to_string())}
+                </div>
+                <div class="inline-flex gap-1">
+                    <span>"(" {association.priority()} ")"</span>
+                    <span on:mousedown=autorun_toggle class="inline-flex">
+                        {move || {
+                            if association.autorun().get() {
+                                view! { <Icon icon=icondata::BsStarFill /> }
+                            } else {
+                                view! { <Icon icon=icondata::BsStar /> }
+                            }
+                        }}
 
-                </span>
-            </div>
+                    </span>
+                </div>
             </div>
             <div>
                 <button

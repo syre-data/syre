@@ -393,7 +393,6 @@ mod metadata {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
-        let (reset_form, set_reset_form) = create_signal(());
         let keys = {
             let asset = asset.clone();
             move || {
@@ -437,8 +436,6 @@ mod metadata {
                         if let Some(onclose) = onclose {
                             onclose(());
                         }
-
-                        set_reset_form(());
                     }
                 });
             }
@@ -448,7 +445,6 @@ mod metadata {
             if let Some(onclose) = onclose {
                 onclose(());
             }
-            set_reset_form(());
         };
 
         view! {

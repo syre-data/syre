@@ -16,7 +16,7 @@ use leptos_icons::Icon;
 use metadata::{AddDatum, Editor as Metadata};
 use serde::Serialize;
 use state::{ActiveResources, State};
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use tags::{AddTags, Editor as Tags};
@@ -187,9 +187,6 @@ mod state {
 
 #[component]
 pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
-    use super::common::bulk;
-    use syre_local_database as db;
-
     assert!(resources.with(|resources| resources.len()) > 1);
     let graph = expect_context::<project::state::Graph>();
     let popout_portal = expect_context::<PopoutPortal>();
@@ -454,14 +451,10 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
 mod kind {
     use super::{
-        super::common::bulk::{kind::Editor as KindEditor, Value},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
+        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources, State,
         INPUT_DEBOUNCE,
     };
-    use crate::{
-        pages::project::{properties::mixed_bulk::resources_to_update_args, state},
-        types::Messages,
-    };
+    use crate::{pages::project::state, types::Messages};
     use leptos::*;
     use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
 
@@ -492,9 +485,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::{description::Editor as DescriptionEditor, Value},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        super::common::bulk::description::Editor as DescriptionEditor, update_properties,
+        ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -533,7 +525,7 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        container_assets, partition_resources, update_properties, ActiveResources, State,
+        update_properties, ActiveResources, State,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;
@@ -620,10 +612,9 @@ mod tags {
 mod metadata {
     use super::{
         super::common::{
-            bulk::{self, metadata::Editor as MetadataEditor},
-            metadata::AddDatum as AddDatumEditor,
+            bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        container_assets, partition_resources, update_properties, ActiveResources, State,
+        update_properties, ActiveResources, State,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::*;

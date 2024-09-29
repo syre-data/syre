@@ -686,8 +686,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::{description::Editor as DescriptionEditor, Value},
-        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        super::common::bulk::description::Editor as DescriptionEditor, update_properties,
+        ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;

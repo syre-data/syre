@@ -1730,11 +1730,6 @@ select {
 }
 
 @media (prefers-color-scheme: dark) {
-  .dark\:border-primary-700 {
-    --tw-border-opacity: 1;
-    border-color: rgb(34 129 170 / var(--tw-border-opacity));
-  }
-
   .dark\:border-secondary-100 {
     --tw-border-opacity: 1;
     border-color: rgb(225 227 230 / var(--tw-border-opacity));

@@ -28,7 +28,6 @@ mod state {
     use leptos::*;
     use std::collections::HashMap;
     use syre_core::types::ResourceId;
-    use syre_local_database as db;
 
     #[derive(Clone, Debug)]
     pub struct State {
@@ -530,8 +529,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::{kind::Editor as KindEditor, Value},
-        container_assets, update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        super::common::bulk::kind::Editor as KindEditor, container_assets, update_properties,
+        ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -578,8 +577,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::{description::Editor as DescriptionEditor, Value},
-        container_assets, update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        super::common::bulk::description::Editor as DescriptionEditor, container_assets,
+        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -696,7 +695,6 @@ mod tags {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
         let assets = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let onadd = Callback::new(move |tags: Vec<String>| {
             if tags.is_empty() {
                 return;

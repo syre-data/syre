@@ -282,7 +282,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
         <div
             ref=wrapper_node
             on:scroll=scroll
-            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
+            class="overflow-y-auto pr-2 h-full scrollbar-thin"
         >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Bulk containers"</h3>

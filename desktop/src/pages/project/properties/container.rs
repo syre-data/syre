@@ -161,11 +161,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
     };
 
     view! {
-        <div
-            ref=wrapper_node
-            on:scroll=scroll
-            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
-        >
+        <div ref=wrapper_node on:scroll=scroll class="overflow-y-auto pr-2 h-full scrollbar-thin">
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Container"</h3>
             </div>

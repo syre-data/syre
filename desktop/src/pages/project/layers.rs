@@ -16,8 +16,6 @@ use syre_desktop_lib as lib;
 use syre_local_database as db;
 use tauri_sys::{core::Channel, menu};
 
-const CLASS_LAYER: &str = "cursor-pointer border-y border-transparent hover:border-secondary-400";
-
 /// Context menu for containers that are `Ok`.
 #[derive(derive_more::Deref, Clone)]
 struct ContextMenuContainerOk(Rc<menu::Menu>);
@@ -158,7 +156,7 @@ pub fn LayersNavView(
     provide_context(ContextMenuAsset::new(context_menu_asset));
 
     view! {
-        <div class="h-full pt-2 px-1 overflow-auto scrollbar scrollbar-thin dark:scrollbar-track-secondary-800">
+        <div class="h-full pt-2 px-1 overflow-auto scrollbar-thin dark:scrollbar-track-secondary-800">
             <ContainerLayer root=graph.root().clone() />
         </div>
     }
@@ -167,6 +165,7 @@ pub fn LayersNavView(
 #[component]
 fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> impl IntoView {
     let graph = expect_context::<state::Graph>();
+    let expanded = create_rw_signal(true);
 
     view! {
         <div>
@@ -174,12 +173,12 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
                 let root = root.clone();
                 move || {
                     if root.properties().with(|properties| properties.is_ok()) {
-                        view! { <ContainerLayerTitleOk container=root.clone() depth /> }
+                        view! { <ContainerLayerTitleOk container=root.clone() depth expanded /> }
                     } else {
                         view! { <ContainerLayerTitleErr container=root.clone() depth /> }
                     }
                 }
-            } <div>
+            } <div class:hidden=move || !expanded()>
                 <AssetsLayer container=root.clone() depth />
                 <div>
                     <For
@@ -205,7 +204,11 @@ fn ContainerLayer(root: state::graph::Node, #[prop(optional)] depth: usize) -> i
 }
 
 #[component]
-fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl IntoView {
+fn ContainerLayerTitleOk(
+    container: state::graph::Node,
+    depth: usize,
+    expanded: RwSignal<bool>,
+) -> impl IntoView {
     const CLICK_DEBOUNCE: f64 = 250.0;
 
     let graph = expect_context::<state::Graph>();
@@ -394,14 +397,13 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
         }
     };
 
-    let class = format!("flex {CLASS_LAYER}");
     view! {
         <div
             on:mousedown=move |e| set_click_event(Some(e))
             on:contextmenu=contextmenu
             prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
-            class=class
+            class="flex cursor-pointer border-y border-transparent hover:border-secondary-400"
             class=(
                 ["bg-primary-200", "dark:bg-secondary-900"],
                 {
@@ -410,11 +412,17 @@ fn ContainerLayerTitleOk(container: state::graph::Node, depth: usize) -> impl In
                 },
             )
         >
-
-            <span class="pr-1">
-                <Icon icon=icondata::FaFolderRegular />
-            </span>
-            <TruncateLeft>{title}</TruncateLeft>
+            <div class="grow inline-flex gap-1">
+                <span class="pr-1">
+                    <Icon icon=icondata::FaFolderRegular />
+                </span>
+                <TruncateLeft>{title}</TruncateLeft>
+            </div>
+            <div class="inline-flex gap-1">
+                <span>
+                    <ToggleExpanded expanded />
+                </span>
+            </div>
         </div>
     }
 }
@@ -448,18 +456,28 @@ fn AssetsLayer(container: state::graph::Node, depth: usize) -> impl IntoView {
 
 #[component]
 fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl IntoView {
-    let no_data = move || view! { <div style:padding-left=move || { depth_to_padding(depth + 1) }>"(no data)"</div> };
+    let expanded = create_rw_signal(false);
 
     view! {
         <div>
-            <Show when=move || assets.with(|assets| !assets.is_empty()) fallback=no_data>
+            <Show
+                when=move || assets.with(|assets| !assets.is_empty())
+                fallback=move || view! { <NoData depth /> }
+            >
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
-                    <span class="pr-1">
-                        <Icon icon=icondata::BsFiles />
-                    </span>
-                    <span>"Assets"</span>
+                    <div class="inline-flex grow">
+                        <span class="pr-1">
+                            <Icon icon=icondata::BsFiles />
+                        </span>
+                        <span class="grow">"Assets"</span>
+                    </div>
+                    <div class="inline-flex gap-1">
+                        <span>
+                            <ToggleExpanded expanded />
+                        </span>
+                    </div>
                 </div>
-                <div>
+                <div class:hidden=move || !expanded()>
                     <For each=assets key=move |asset| asset.rid().get() let:asset>
                         <AssetLayer asset depth />
                     </For>
@@ -467,6 +485,11 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
             </Show>
         </div>
     }
+}
+
+#[component]
+fn NoData(depth: usize) -> impl IntoView {
+    view! { <div style:padding-left=move || { depth_to_padding(depth + 1) }>"(no data)"</div> }
 }
 
 #[component]
@@ -536,7 +559,7 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             style:padding-left=move || { depth_to_padding(depth + 2) }
-            class=CLASS_LAYER
+            class="cursor-pointer border-y border-transparent hover:border-secondary-400"
             class=(
                 ["bg-primary-200", "dark:bg-secondary-900"],
                 {
@@ -595,6 +618,26 @@ async fn handle_context_menu_container_events(
             }
             }
         }
+    }
+}
+
+#[component]
+fn ToggleExpanded(expanded: RwSignal<bool>) -> impl IntoView {
+    let toggle = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        e.stop_propagation();
+        expanded.set(!expanded());
+    };
+
+    view! {
+        <button on:mousedown=toggle type="button">
+            <span class=("rotate-180", expanded) class="inline-block transition">
+                <Icon icon=icondata::AiCaretDownOutlined />
+            </span>
+        </button>
     }
 }
 

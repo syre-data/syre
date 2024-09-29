@@ -57,7 +57,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
         <div
             ref=wrapper_node
             on:scroll=scroll
-            class="overflow-y-auto pr-2 h-full scrollbar scrollbar-thin"
+            class="overflow-y-auto pr-2 h-full scrollbar-thin"
         >
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Asset"</h3>
@@ -120,7 +120,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
                     </label>
                 </div>
             </form>
-            <div class="px-1 py-2 border-t dark:border-t-secondary-700 overflow-x-auto select-all text-nowrap">
+            <div class="px-1 py-2 border-t dark:border-t-secondary-700 overflow-x-auto select-all text-nowrap scrollbar-thin">
                 {move || asset.path().with(|path| path.to_string_lossy().to_string())}
             </div>
             <Show

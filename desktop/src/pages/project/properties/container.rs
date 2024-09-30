@@ -1056,13 +1056,25 @@ mod analysis_associations {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<Messages>();
-
+        let autorun_input_node = NodeRef::<html::Input>::new();
         let (value, set_value) = create_signal(AnalysisAssociation::with_params(
             association.analysis().clone(),
             association.autorun().get_untracked(),
             association.priority().get_untracked(),
         ));
         let value = leptos_use::signal_debounced(value, INPUT_DEBOUNCE);
+
+        let _ = watch(
+            {
+                let autorun = association.autorun().read_only();
+                move || autorun.get()
+            },
+            move |autorun, _, _| {
+                let input = autorun_input_node.get().unwrap();
+                input.set_checked(*autorun);
+            },
+            false,
+        );
 
         let update_association = create_action({
             let graph = graph.clone();
@@ -1180,9 +1192,10 @@ mod analysis_associations {
                     />
 
                     <input
+                        ref=autorun_input_node
                         type="checkbox"
                         name="autorun"
-                        checked=move || value.with(|value| value.autorun.clone())
+                        checked=value.with_untracked(|value| value.autorun)
                         on:input=move |e| {
                             set_value.update(|value| value.autorun = event_target_checked(&e))
                         }

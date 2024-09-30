@@ -341,9 +341,25 @@ fn CanvasView(
                 let (width, height) = calculate_canvas_size(e, vb_width(), vb_height());
                 set_vb_width(width);
                 set_vb_height(height);
+            } else if e.shift_key() {
+                let (x, y) = calculate_canvas_position_from_wheel_event(
+                    e.delta_y(),
+                    e.delta_x(),
+                    vb_x(),
+                    vb_y(),
+                    vb_width(),
+                    vb_height(),
+                    vb_scale(),
+                    graph.root().subtree_width().get().get(),
+                    graph.root().subtree_height().get().get(),
+                );
+
+                set_vb_x(x);
+                set_vb_y(y);
             } else {
                 let (x, y) = calculate_canvas_position_from_wheel_event(
-                    e,
+                    e.delta_x(),
+                    e.delta_y(),
                     vb_x(),
                     vb_y(),
                     vb_width(),
@@ -1476,7 +1492,8 @@ fn calculate_canvas_size(e: WheelEvent, width: usize, height: usize) -> (usize, 
 /// Calculates new canvase viewbox position.
 ///
 /// # Arguments
-/// + `e`: Triggering event.
+/// + `dx`: Wheel shift in x.
+/// + `dy`: Wheel shift in y.
 /// + `x`: Viewbox x position.
 /// + `y`: Viewbox y position.
 /// + `width``: Viewbox width.
@@ -1488,7 +1505,8 @@ fn calculate_canvas_size(e: WheelEvent, width: usize, height: usize) -> (usize, 
 /// # Returns
 /// Viewbox (x, y).  
 fn calculate_canvas_position_from_wheel_event(
-    e: WheelEvent,
+    dx: f64,
+    dy: f64,
     x: isize,
     y: isize,
     width: usize,
@@ -1497,8 +1515,8 @@ fn calculate_canvas_position_from_wheel_event(
     graph_width: usize,
     graph_height: usize,
 ) -> (isize, isize) {
-    let x = x + (e.delta_x() / scale) as isize;
-    let y = y + (e.delta_y() / scale) as isize;
+    let x = x + (dx / scale) as isize;
+    let y = y + (dy / scale) as isize;
     let x_max = (graph_width * (CONTAINER_WIDTH + PADDING_X_SIBLING)) as isize - width as isize / 2;
     let y_max = cmp::max(
         (graph_height * (MAX_CONTAINER_HEIGHT + PADDING_Y_CHILDREN)) as isize - height as isize / 2,

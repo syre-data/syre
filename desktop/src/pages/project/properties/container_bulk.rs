@@ -142,16 +142,19 @@ mod state {
             })
         }
 
-        // TODO: Is union the intuitive thing here?
-        /// Union of all tags.
+        /// Intersection of all tags.
         pub fn tags(&self) -> Signal<Vec<String>> {
             Signal::derive({
                 let tags = self.tags.clone();
                 move || {
-                    let mut values = tags.iter().flat_map(|tag| tag.get()).collect::<Vec<_>>();
-                    values.sort();
-                    values.dedup();
-                    values
+                    tags.iter()
+                        .map(|tags| tags.get())
+                        .reduce(|intersection, tags| {
+                            let mut intersection = intersection.clone();
+                            intersection.retain(|current| tags.contains(current));
+                            intersection
+                        })
+                        .unwrap()
                 }
             })
         }

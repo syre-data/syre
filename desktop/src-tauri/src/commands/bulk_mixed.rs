@@ -1,12 +1,6 @@
 //! Bulk Operations on mixed resources.
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
-use syre_core::{
-    project::{Asset, ContainerProperties},
-    types::ResourceId,
-};
+use std::path::{Path, PathBuf};
+use syre_core::{project::Asset, types::ResourceId};
 use syre_desktop_lib::command;
 use syre_local as local;
 use syre_local_database as db;
@@ -14,7 +8,7 @@ use syre_local_database as db;
 /// # Returns
 /// Results each resources update as (containers, assets).
 #[tauri::command]
-pub fn properties_update_bulk(
+pub fn properties_update_bulk_mixed(
     db: tauri::State<db::Client>,
     project: ResourceId,
     containers: Vec<PathBuf>,
@@ -82,16 +76,35 @@ fn properties_update_bulk_perform_container(
         .properties
         .tags
         .retain(|tag| !update.tags.remove.contains(tag));
-    container.properties.tags.extend(update.tags.insert.clone());
+
+    let new = update
+        .tags
+        .insert
+        .iter()
+        .filter(|tag| !container.properties.tags.contains(tag))
+        .cloned()
+        .collect::<Vec<_>>();
+    container.properties.tags.extend(new);
 
     container
         .properties
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
-    container
-        .properties
+
+    let new = update
         .metadata
-        .extend(update.metadata.insert.clone());
+        .insert
+        .iter()
+        .filter(|(key, _)| {
+            !container
+                .properties
+                .metadata
+                .iter()
+                .any(|(container_key, _)| key == container_key)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    container.properties.metadata.extend(new);
 
     if let Err(err) = container.save(&path) {
         return Err(command::container::bulk::error::Update::Save(err.kind()));
@@ -153,14 +166,33 @@ fn update_asset(asset: &mut Asset, update: &command::bulk::PropertiesUpdate) {
         .properties
         .tags
         .retain(|tag| !update.tags.remove.contains(tag));
-    asset.properties.tags.extend(update.tags.insert.clone());
+
+    let new = update
+        .tags
+        .insert
+        .iter()
+        .filter(|tag| !asset.properties.tags.contains(tag))
+        .cloned()
+        .collect::<Vec<_>>();
+    asset.properties.tags.extend(new);
 
     asset
         .properties
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
-    asset
-        .properties
+
+    let new = update
         .metadata
-        .extend(update.metadata.insert.clone());
+        .insert
+        .iter()
+        .filter(|(key, _)| {
+            !asset
+                .properties
+                .metadata
+                .iter()
+                .any(|(asset_key, _)| key == asset_key)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    asset.properties.metadata.extend(new);
 }

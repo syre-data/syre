@@ -4,7 +4,7 @@ use std::{
 };
 use syre_core::{
     project::{Asset, AssetProperties},
-    types::{data, ResourceId},
+    types::ResourceId,
 };
 use syre_desktop_lib::{
     self as lib,
@@ -139,16 +139,35 @@ fn update_asset(asset: &mut Asset, update: &bulk::PropertiesUpdate) {
         .properties
         .tags
         .retain(|tag| !update.tags.remove.contains(tag));
-    asset.properties.tags.extend(update.tags.insert.clone());
+
+    let new = update
+        .tags
+        .insert
+        .iter()
+        .filter(|tag| !asset.properties.tags.contains(tag))
+        .cloned()
+        .collect::<Vec<_>>();
+    asset.properties.tags.extend(new);
 
     asset
         .properties
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
-    asset
-        .properties
+
+    let new = update
         .metadata
-        .extend(update.metadata.insert.clone());
+        .insert
+        .iter()
+        .filter(|(key, _)| {
+            !asset
+                .properties
+                .metadata
+                .iter()
+                .any(|(asset_key, _)| key == asset_key)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    asset.properties.metadata.extend(new);
 }
 
 /// Remove an asset's file.

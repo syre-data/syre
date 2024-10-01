@@ -129,15 +129,19 @@ mod state {
             })
         }
 
-        /// Union of all tags.
+        /// Intersection of all tags.
         pub fn tags(&self) -> Signal<Vec<String>> {
             Signal::derive({
                 let tags = self.tags.clone();
                 move || {
-                    let mut values = tags.iter().flat_map(|tag| tag.get()).collect::<Vec<_>>();
-                    values.sort();
-                    values.dedup();
-                    values
+                    tags.iter()
+                        .map(|tags| tags.get())
+                        .reduce(|intersection, tags| {
+                            let mut intersection = intersection.clone();
+                            intersection.retain(|current| tags.contains(current));
+                            intersection
+                        })
+                        .unwrap()
                 }
             })
         }
@@ -798,7 +802,7 @@ async fn update_properties_invoke(
     }
 
     tauri_sys::core::invoke_result(
-        "properties_update_bulk",
+        "properties_update_bulk_mixed",
         Args {
             project,
             containers,

@@ -2,14 +2,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use syre_desktop::{
-    commands::{analyses, asset, auth, bulk, common, container, fs, graph, project, user},
+    commands::{analyses, asset, auth, bulk_mixed, common, container, fs, graph, project, user},
     setup,
 };
 
 fn main() {
     let builder = tauri::Builder::default();
 
-    #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    #[cfg(debug_assertions)] // only enable devtools instrumentation in development builds
     let builder = builder.plugin(tauri_plugin_devtools::init());
     #[cfg(not(debug_assertions))]
     logging::enable();
@@ -48,7 +48,7 @@ fn main() {
             asset::asset_properties_update,
             asset::asset_properties_update_bulk,
             asset::asset_remove_file,
-            bulk::properties_update_bulk,
+            bulk_mixed::properties_update_bulk_mixed,
             fs::pick_folder,
             fs::pick_folder_with_location,
             common::open_file,
@@ -64,7 +64,7 @@ mod logging {
     use tracing_subscriber::{
         fmt::{self, time::UtcTime},
         prelude::*,
-        Layer, Registry,
+        Registry,
     };
 
     const LOG_PREFIX: &str = "desktop.log";

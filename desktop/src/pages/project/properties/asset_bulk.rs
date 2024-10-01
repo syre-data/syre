@@ -128,10 +128,14 @@ mod state {
             Signal::derive({
                 let tags = self.tags.clone();
                 move || {
-                    let mut values = tags.iter().flat_map(|tag| tag.get()).collect::<Vec<_>>();
-                    values.sort();
-                    values.dedup();
-                    values
+                    tags.iter()
+                        .map(|tags| tags.get())
+                        .reduce(|intersection, tags| {
+                            let mut intersection = intersection.clone();
+                            intersection.retain(|current| tags.contains(current));
+                            intersection
+                        })
+                        .unwrap()
                 }
             })
         }
@@ -215,8 +219,10 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                 .unwrap();
 
             set_widget.update(|widget| {
-                #[allow(unused_must_use)] {
-                widget.insert(Widget::AddTags);}
+                #[allow(unused_must_use)]
+                {
+                    widget.insert(Widget::AddTags);
+                }
             });
         }
     };
@@ -234,8 +240,10 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                 .unwrap();
 
             set_widget.update(|widget| {
-                #[allow(unused_must_use)]{
-                widget.insert(Widget::AddMetadatum);}
+                #[allow(unused_must_use)]
+                {
+                    widget.insert(Widget::AddMetadatum);
+                }
             });
         }
     };
@@ -267,11 +275,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
     };
 
     view! {
-        <div
-            ref=wrapper_node
-            on:scroll=scroll
-            class="overflow-y-auto pr-2 h-full scrollbar-thin"
-        >
+        <div ref=wrapper_node on:scroll=scroll class="overflow-y-auto pr-2 h-full scrollbar-thin">
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Bulk assets"</h3>
                 <span class="text-sm text-secondary-500 dark:text-secondary-400">

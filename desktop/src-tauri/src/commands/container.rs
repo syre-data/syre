@@ -232,16 +232,35 @@ fn container_properties_update_bulk_perform(
         .properties
         .tags
         .retain(|tag| !update.tags.remove.contains(tag));
-    container.properties.tags.extend(update.tags.insert.clone());
+
+    let new = update
+        .tags
+        .insert
+        .iter()
+        .filter(|tag| !container.properties.tags.contains(tag))
+        .cloned()
+        .collect::<Vec<_>>();
+    container.properties.tags.extend(new);
 
     container
         .properties
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
-    container
-        .properties
+
+    let new = update
         .metadata
-        .extend(update.metadata.insert.clone());
+        .insert
+        .iter()
+        .filter(|(key, _)| {
+            !container
+                .properties
+                .metadata
+                .iter()
+                .any(|(container_key, _)| key == container_key)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    container.properties.metadata.extend(new);
 
     if let Err(err) = container.save(&path) {
         return Err(bulk::error::Update::Save(err.kind()));

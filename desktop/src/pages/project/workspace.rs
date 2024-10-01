@@ -701,7 +701,7 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
         db::event::DataResource::Removed => todo!(),
         db::event::DataResource::Corrupted(_) => todo!(),
         db::event::DataResource::Repaired(_) => todo!(),
-        db::event::DataResource::Modified(update) => {
+        db::event::DataResource::Modified(_) => {
             handle_event_graph_container_properties_modified(event, graph)
         }
     }
@@ -715,7 +715,6 @@ fn handle_event_graph_container_properties_created(event: lib::Event, graph: sta
     else {
         panic!("invalid event kind");
     };
-
     let container = graph
         .find(common::normalize_path_sep(path))
         .unwrap()
@@ -847,44 +846,59 @@ fn update_container_properties(
         });
     });
 
-    container.analyses().update(|analyses| {
+    // NB: Can not nest signal updates or borrow error will occur.
+    container.analyses().with_untracked(|analyses| {
         let db::state::DataResource::Ok(analyses) = analyses else {
             panic!("invalid state");
         };
 
         analyses.update(|analyses| {
             analyses.retain(|association| {
-                if let Some(association_update) = update
+                update
                     .analyses
                     .iter()
-                    .find(|assoc| assoc.analysis() == association.analysis())
-                {
-                    if association
-                        .autorun()
-                        .with_untracked(|autorun| association_update.autorun != *autorun)
-                    {
-                        association.autorun().set(association_update.autorun);
-                    }
-
-                    if association
-                        .priority()
-                        .with_untracked(|priority| association_update.priority != *priority)
-                    {
-                        association.priority().set(association_update.priority);
-                    }
-
-                    true
-                } else {
-                    false
-                }
+                    .any(|assoc| assoc.analysis() == association.analysis())
             });
 
-            for association_update in update.analyses.iter() {
-                if !analyses
+            let new = update
+                .analyses
+                .iter()
+                .filter_map(|association_update| {
+                    if !analyses
+                        .iter()
+                        .any(|association| association.analysis() == association_update.analysis())
+                    {
+                        Some(state::AnalysisAssociation::new(association_update.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            analyses.extend(new);
+        });
+
+        analyses.with_untracked(|analyses| {
+            for association in analyses.iter() {
+                let Some(association_update) = update
+                    .analyses
                     .iter()
-                    .any(|association| association.analysis() == association_update.analysis())
+                    .find(|update| update.analysis() == association.analysis())
+                else {
+                    continue;
+                };
+
+                if association
+                    .autorun()
+                    .with_untracked(|autorun| association_update.autorun != *autorun)
                 {
-                    analyses.push(state::AnalysisAssociation::new(association_update.clone()));
+                    association.autorun().set(association_update.autorun);
+                }
+
+                if association
+                    .priority()
+                    .with_untracked(|priority| association_update.priority != *priority)
+                {
+                    association.priority().set(association_update.priority);
                 }
             }
         });

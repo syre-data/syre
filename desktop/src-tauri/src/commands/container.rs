@@ -249,3 +249,82 @@ fn container_properties_update_bulk_perform(
 
     Ok(())
 }
+
+/// Update multiple containers' analysis associations.
+#[tauri::command]
+pub fn container_analysis_associations_update_bulk(
+    db: tauri::State<db::Client>,
+    project: ResourceId,
+    containers: Vec<PathBuf>,
+    update: bulk::AnalysisAssociationAction,
+) -> Result<Vec<Result<(), bulk::error::Update>>, lib::command::error::ProjectNotFound> {
+    let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
+    else {
+        return Err(lib::command::error::ProjectNotFound);
+    };
+
+    let db::state::DataResource::Ok(project_properties) = project_data.properties() else {
+        panic!("invalid state");
+    };
+    assert_eq!(project_properties.rid(), &project);
+
+    let data_root = project_path.join(&project_properties.data_root);
+    Ok(containers
+        .iter()
+        .map(|container| {
+            let path = db::common::container_system_path(&data_root, container);
+            container_analysis_associations_update_bulk_perform(&path, &update)
+        })
+        .collect())
+}
+
+fn container_analysis_associations_update_bulk_perform(
+    path: impl AsRef<Path>,
+    update: &bulk::AnalysisAssociationAction,
+) -> Result<(), bulk::error::Update> {
+    let mut container =
+        match local::loader::container::Loader::load_from_only_properties(path.as_ref()) {
+            Ok(container) => container,
+            Err(err) => return Err(bulk::error::Update::Load(err)),
+        };
+
+    update.update.iter().for_each(|update| {
+        let Some(association) = container
+            .analyses
+            .iter_mut()
+            .find(|association| association.analysis() == update.analysis())
+        else {
+            return;
+        };
+
+        if let Some(autorun) = update.autorun {
+            association.autorun = autorun;
+        }
+        if let Some(priority) = update.priority {
+            association.priority = priority;
+        }
+    });
+
+    let new = update
+        .add
+        .iter()
+        .filter(|association| {
+            !container
+                .analyses
+                .iter()
+                .any(|assoc| assoc.analysis() == association.analysis())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    container.analyses.extend(new);
+
+    container
+        .analyses
+        .retain(|associaiton| !update.remove.contains(associaiton.analysis()));
+
+    if let Err(err) = container.save(&path) {
+        return Err(bulk::error::Update::Save(err.kind()));
+    }
+
+    Ok(())
+}

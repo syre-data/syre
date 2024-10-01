@@ -52,7 +52,7 @@ pub mod container {
             serde_opt_opt_str,
         };
         use serde::{Deserialize, Serialize};
-        use syre_core::types::Value;
+        use syre_core::{project::AnalysisAssociation, types::ResourceId};
 
         #[derive(Serialize, Deserialize, Default, Debug)]
         pub struct PropertiesUpdate {
@@ -65,6 +65,39 @@ pub mod container {
             pub description: Option<Option<String>>,
             pub tags: TagsAction,
             pub metadata: MetadataAction,
+        }
+
+        #[derive(Serialize, Deserialize, Default, Debug)]
+        pub struct AnalysisAssociationAction {
+            /// Add new associations, ignore if already present.
+            pub add: Vec<AnalysisAssociation>,
+
+            /// Update existing associations, ignore if not present.
+            pub update: Vec<AnalysisAssociationUpdate>,
+
+            /// Remove existing associations, ignore if not present.
+            pub remove: Vec<ResourceId>,
+        }
+
+        #[derive(Serialize, Deserialize, Clone, Debug)]
+        pub struct AnalysisAssociationUpdate {
+            analysis: ResourceId,
+            pub autorun: Option<bool>,
+            pub priority: Option<i32>,
+        }
+
+        impl AnalysisAssociationUpdate {
+            pub fn new(analysis: ResourceId) -> Self {
+                Self {
+                    analysis,
+                    autorun: None,
+                    priority: None,
+                }
+            }
+
+            pub fn analysis(&self) -> &ResourceId {
+                &self.analysis
+            }
         }
 
         pub mod error {

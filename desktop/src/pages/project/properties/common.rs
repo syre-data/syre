@@ -856,6 +856,14 @@ pub mod bulk {
                 Value::Mixed => or,
             }
         }
+
+        /// Converts from `Value<T>` to `Option<T>``.
+        pub fn equal(self) -> Option<T> {
+            match self {
+                Value::Equal(value) => Some(value),
+                Value::Mixed => None,
+            }
+        }
     }
 
     pub mod kind {

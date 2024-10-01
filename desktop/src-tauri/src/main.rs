@@ -44,6 +44,7 @@ fn main() {
             container::container_properties_update,
             container::container_properties_update_bulk,
             container::container_analysis_associations_update,
+            container::container_analysis_associations_update_bulk,
             asset::asset_properties_update,
             asset::asset_properties_update_bulk,
             asset::asset_remove_file,

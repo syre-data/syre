@@ -91,21 +91,24 @@ fn properties_update_bulk_perform_container(
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
 
+    update
+        .metadata
+        .update
+        .iter()
+        .for_each(|(update_key, update_value)| {
+            if let Some(value) = container.properties.metadata.get_mut(update_key) {
+                *value = update_value.clone();
+            }
+        });
+
     let new = update
         .metadata
-        .insert
+        .add
         .iter()
-        .filter(|(key, _)| {
-            !container
-                .properties
-                .metadata
-                .iter()
-                .any(|(container_key, _)| key == container_key)
-        })
+        .filter(|(key, _)| !container.properties.metadata.contains_key(key))
         .cloned()
         .collect::<Vec<_>>();
     container.properties.metadata.extend(new);
-
     if let Err(err) = container.save(&path) {
         return Err(command::container::bulk::error::Update::Save(err.kind()));
     }
@@ -181,17 +184,21 @@ fn update_asset(asset: &mut Asset, update: &command::bulk::PropertiesUpdate) {
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
 
+    update
+        .metadata
+        .update
+        .iter()
+        .for_each(|(update_key, update_value)| {
+            if let Some(value) = asset.properties.metadata.get_mut(update_key) {
+                *value = update_value.clone();
+            }
+        });
+
     let new = update
         .metadata
-        .insert
+        .add
         .iter()
-        .filter(|(key, _)| {
-            !asset
-                .properties
-                .metadata
-                .iter()
-                .any(|(asset_key, _)| key == asset_key)
-        })
+        .filter(|(key, _)| !asset.properties.metadata.contains_key(key))
         .cloned()
         .collect::<Vec<_>>();
     asset.properties.metadata.extend(new);

@@ -155,7 +155,7 @@ pub mod asset {
             serde_opt_opt_str,
         };
         use serde::{Deserialize, Serialize};
-        use syre_core::types::{ResourceId, Value};
+        use syre_core::types::{ResourceId};
 
         #[derive(Serialize, Deserialize, Default, Debug)]
         pub struct ContainerAssets {
@@ -227,10 +227,13 @@ pub mod bulk {
 
     #[derive(Serialize, Deserialize, Default, Debug)]
     pub struct MetadataAction {
-        /// Values to insert new or update.
-        pub insert: Vec<(String, Value)>,
+        /// Add new data, ignore if already present.
+        pub add: Vec<(String, Value)>,
 
-        /// Keys to remove.
+        /// Update existing data, ignore if not present.
+        pub update: Vec<(String, Value)>,
+
+        /// Remove data, ignore if not present.
         pub remove: Vec<String>,
     }
 

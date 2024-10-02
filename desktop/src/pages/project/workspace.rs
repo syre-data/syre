@@ -825,25 +825,7 @@ fn update_container_properties(
             properties.tags().set(update.properties.tags.clone());
         }
 
-        properties.metadata().update(|metadata| {
-            metadata.retain(|(key, value)| {
-                if let Some(value_new) = update.properties.metadata.get(key) {
-                    if value.with_untracked(|value| value_new != value) {
-                        value.set(value_new.clone());
-                    }
-
-                    true
-                } else {
-                    false
-                }
-            });
-
-            for (key, value_new) in update.properties.metadata.iter() {
-                if !metadata.iter().any(|(k, _)| k == key) {
-                    metadata.push((key.clone(), create_rw_signal(value_new.clone())));
-                }
-            }
-        });
+        update_metadata(properties.metadata(), &update.properties.metadata);
     });
 
     // NB: Can not nest signal updates or borrow error will occur.
@@ -1065,6 +1047,22 @@ fn handle_event_graph_container_assets_modified(event: lib::Event, graph: state:
         .unwrap()
         .unwrap();
 
+    // NB: Can not nest signal updates or borrow error will occur.
+    let (assets_update, assets_new): (Vec<_>, Vec<_>) =
+        container.assets().with_untracked(|assets| {
+            let db::state::DataResource::Ok(assets) = assets else {
+                panic!("invalid state");
+            };
+
+            assets.with_untracked(|assets| {
+                update.iter().partition(|update_asset| {
+                    assets
+                        .iter()
+                        .any(|asset| asset.rid().with_untracked(|rid| rid == update_asset.rid()))
+                })
+            })
+        });
+
     container.assets().update(|assets| {
         let db::state::DataResource::Ok(assets) = assets else {
             panic!("invalid state");
@@ -1077,18 +1075,32 @@ fn handle_event_graph_container_assets_modified(event: lib::Event, graph: state:
                     .any(|update| asset.rid().with_untracked(|rid| update.rid() == rid))
             });
 
-            for asset_update in update.iter() {
-                if let Some(asset) = assets
-                    .iter()
-                    .find(|asset| asset.rid().with_untracked(|rid| rid == asset_update.rid()))
-                {
-                    update_asset(asset, asset_update);
-                } else {
-                    assets.push(state::Asset::new(asset_update.clone()));
-                }
-            }
+            let new = assets_new
+                .into_iter()
+                .map(|asset| state::Asset::new(asset.clone()))
+                .collect::<Vec<_>>();
+            assets.extend(new);
         });
     });
+
+    for asset_update in assets_update {
+        let asset = container.assets().with_untracked(|assets| {
+            let db::state::DataResource::Ok(assets) = assets else {
+                panic!("invalid state");
+            };
+
+            assets
+                .with_untracked(|assets| {
+                    assets
+                        .iter()
+                        .find(|asset| asset.rid().with_untracked(|rid| rid == asset_update.rid()))
+                        .cloned()
+                })
+                .unwrap()
+        });
+
+        update_asset(&asset, asset_update);
+    }
 }
 
 fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
@@ -1165,29 +1177,7 @@ fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
             .update(|creator| *creator = (*update).properties.creator.clone());
     }
 
-    asset.metadata().update(|metadata| {
-        metadata.retain(|(key, _)| update.properties.metadata.contains_key(key));
-
-        for (update_key, value_update) in update.properties.metadata.iter() {
-            if let Some(value) =
-                metadata.iter().find_map(
-                    |(key, value)| {
-                        if key == update_key {
-                            Some(value)
-                        } else {
-                            None
-                        }
-                    },
-                )
-            {
-                if value.with_untracked(|value| value != value_update) {
-                    value.update(|value| *value = value_update.clone());
-                }
-            } else {
-                metadata.push((update_key.clone(), RwSignal::new(value_update.clone())));
-            }
-        }
-    });
+    update_metadata(asset.metadata(), &update.properties.metadata);
 }
 
 /// Workspace resource that is currently dragged over.
@@ -1374,4 +1364,51 @@ fn handle_event_graph_asset_file(event: lib::Event, graph: state::Graph) {
         db::event::AssetFile::Renamed { from, to } => todo!(),
         db::event::AssetFile::Moved { from, to } => todo!(),
     }
+}
+
+fn update_metadata(metadata: RwSignal<state::Metadata>, update: &syre_core::project::Metadata) {
+    // NB: Can not nest signal updates or borrow error will occur.
+    let (keys_update, keys_new): (Vec<_>, Vec<_>) = metadata.with_untracked(|metadata| {
+        update
+            .keys()
+            .partition(|(key)| metadata.iter().any(|(k, _)| k == *key))
+    });
+
+    metadata.update(|metadata| {
+        metadata.retain(|(key, _)| keys_update.contains(&key));
+
+        let new = update
+            .iter()
+            .filter_map(|(key, value)| {
+                if keys_new.contains(&key) {
+                    Some((key.clone(), create_rw_signal(value.clone())))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        metadata.extend(new);
+    });
+
+    metadata.with_untracked(|metadata| {
+        for (update_key, update_value) in update.iter().filter(|(key, _)| keys_update.contains(key))
+        {
+            let value = metadata
+                .iter()
+                .find_map(
+                    |(key, value)| {
+                        if key == update_key {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .unwrap();
+
+            if value.with_untracked(|value| update_value != value) {
+                value.set(update_value.clone());
+            }
+        }
+    })
 }

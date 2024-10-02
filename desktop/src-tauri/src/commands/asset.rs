@@ -154,17 +154,21 @@ fn update_asset(asset: &mut Asset, update: &bulk::PropertiesUpdate) {
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
 
+    update
+        .metadata
+        .update
+        .iter()
+        .for_each(|(update_key, update_value)| {
+            if let Some(value) = asset.properties.metadata.get_mut(update_key) {
+                *value = update_value.clone();
+            }
+        });
+
     let new = update
         .metadata
-        .insert
+        .add
         .iter()
-        .filter(|(key, _)| {
-            !asset
-                .properties
-                .metadata
-                .iter()
-                .any(|(asset_key, _)| key == asset_key)
-        })
+        .filter(|(key, _)| !asset.properties.metadata.contains_key(key))
         .cloned()
         .collect::<Vec<_>>();
     asset.properties.metadata.extend(new);

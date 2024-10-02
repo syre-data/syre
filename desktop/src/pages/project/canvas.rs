@@ -1193,14 +1193,14 @@ fn Asset(asset: state::Asset) -> impl IntoView {
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             class=("bg-secondary-400", selected)
-            class="flex gap-2 cursor-pointer px-2 py-0.5 border border-transparent hover:border-secondary-400"
+            class="flex gap-2 cursor-pointer px-2 py-0.5 border border-transparent hover:border-secondary-600"
             data-resource=DATA_KEY_ASSET
             data-rid=rid
         >
             <TruncateLeft class="grow">{title}</TruncateLeft>
             <button
                 on:mousedown=remove_asset
-                class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-800"
             >
                 <Icon icon=icondata::AiMinusOutlined />
             </button>

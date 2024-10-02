@@ -668,10 +668,15 @@ mod metadata {
         container: ReadSignal<ResourceId>,
     ) -> impl IntoView {
         provide_context(ActiveResource(container));
+        let value_sorted = move || {
+            let mut value = value.get();
+            value.sort_by_key(|(key, _)| key.clone());
+            value
+        };
 
         view! {
             <div ref=node_ref class="pt-0.5">
-                <For each=value key=|(key, _)| key.clone() let:datum>
+                <For each=value_sorted key=|(key, _)| key.clone() let:datum>
                     <DatumEditor key=datum.0.clone() value=datum.1.read_only() />
                 </For>
             </div>

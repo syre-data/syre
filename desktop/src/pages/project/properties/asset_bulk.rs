@@ -140,33 +140,29 @@ mod state {
             })
         }
 
-        /// Union of all metadata.
+        /// Intersection of all metadata.
         pub fn metadata(&self) -> Signal<bulk::Metadata> {
             Signal::derive({
-                let metadata = self.metadata.clone();
+                let states = self.metadata.clone();
                 move || {
-                    let mut values = HashMap::new();
-                    for asset_md in metadata.iter() {
-                        asset_md.with(|container_md| {
-                            for (key, value) in container_md.iter() {
-                                let entry = values.entry(key.clone()).or_insert(vec![]);
-                                entry.push(value.get());
-                            }
-                        })
-                    }
+                    let mut metadata = HashMap::new();
+                    states.iter().for_each(|state| {
+                        state.with(|data| {
+                            data.iter().for_each(|(key, value)| {
+                                let entry = metadata.entry(key.clone()).or_insert(vec![]);
+                                entry.push(value.read_only());
+                            });
+                        });
+                    });
 
-                    values
+                    metadata
                         .into_iter()
-                        .map(|(key, values)| {
-                            let value = if values.iter().all(|value| *value == values[0]) {
-                                bulk::metadata::Value::Equal(values[0].clone())
-                            } else if values.iter().all(|value| value.kind() == values[0].kind()) {
-                                bulk::metadata::Value::EqualKind(values[0].kind())
-                            } else {
-                                bulk::metadata::Value::MixedKind
-                            };
+                        .filter_map(|(key, values)| {
+                            if values.len() != states.len() {
+                                return None;
+                            }
 
-                            (key, value)
+                            Some(bulk::Metadatum::new(key, values))
                         })
                         .collect()
                 }
@@ -781,7 +777,8 @@ mod metadata {
             move |value: String| {
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
-                    insert: vec![],
+                    add: vec![],
+                    update: vec![],
                     remove: vec![value.clone()],
                 };
 
@@ -818,7 +815,8 @@ mod metadata {
             move |value: (String, data::Value)| {
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
-                    insert: vec![value.clone()],
+                    add: vec![],
+                    update: vec![value.clone()],
                     remove: vec![],
                 };
 
@@ -865,7 +863,8 @@ mod metadata {
             move |value: (String, data::Value)| {
                 let mut update = PropertiesUpdate::default();
                 update.metadata = MetadataAction {
-                    insert: vec![value.clone()],
+                    add: vec![value.clone()],
+                    update: vec![],
                     remove: vec![],
                 };
 
@@ -908,7 +907,7 @@ mod metadata {
                 state.metadata().with(|metadata| {
                     metadata
                         .iter()
-                        .map(|(key, _)| key.clone())
+                        .map(|datum| datum.key().clone())
                         .collect::<Vec<_>>()
                 })
             })

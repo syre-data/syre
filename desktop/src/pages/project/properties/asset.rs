@@ -54,11 +54,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
     };
 
     view! {
-        <div
-            ref=wrapper_node
-            on:scroll=scroll
-            class="overflow-y-auto pr-2 h-full scrollbar-thin"
-        >
+        <div ref=wrapper_node on:scroll=scroll class="overflow-y-auto pr-2 h-full scrollbar-thin">
             <div class="text-center pt-1 pb-2">
                 <h3 class="font-primary">"Asset"</h3>
             </div>
@@ -378,12 +374,18 @@ mod metadata {
     #[component]
     pub fn Editor() -> impl IntoView {
         let asset = expect_context::<ActiveAsset>();
+        let value_sorted = move || {
+            let mut value = asset.metadata().get();
+            value.sort_by_key(|(key, _)| key.clone());
+            value
+        };
 
         view! {
-            <For each=asset.metadata().read_only() key=|(key, _)| key.clone() let:datum>
-                <div>
-                    <DatumEditor key=datum.0.clone() value=datum.1.read_only() />
-                </div>
+            <For each=value_sorted key=|(key, _)| key.clone() let:datum>
+                {move || {
+                    let (key, value) = &datum;
+                    view! { <DatumEditor key=key.clone() value=value.read_only() /> }
+                }}
             </For>
         }
     }

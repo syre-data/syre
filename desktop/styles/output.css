@@ -1578,6 +1578,10 @@ select {
   --tw-shadow: var(--tw-shadow-colored);
 }
 
+.filter {
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
 .transition {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter;
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
@@ -1731,6 +1735,11 @@ select {
   border-color: rgb(137 142 153 / var(--tw-border-opacity));
 }
 
+.hover\:border-secondary-600:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(86 91 102 / var(--tw-border-opacity));
+}
+
 .hover\:bg-primary-400:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(149 209 217 / var(--tw-bg-opacity));
@@ -1882,6 +1891,11 @@ select {
   .dark\:hover\:bg-secondary-700:hover {
     --tw-bg-opacity: 1;
     background-color: rgb(64 68 77 / var(--tw-bg-opacity));
+  }
+
+  .dark\:hover\:bg-secondary-800:hover {
+    --tw-bg-opacity: 1;
+    background-color: rgb(43 46 51 / var(--tw-bg-opacity));
   }
 
   .\[\&_\*\]\:dark\:\!stroke-white * {

@@ -247,20 +247,25 @@ fn container_properties_update_bulk_perform(
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
 
-    let new = update
-        .metadata
-        .insert
-        .iter()
-        .filter(|(key, _)| {
-            !container
-                .properties
-                .metadata
-                .iter()
-                .any(|(container_key, _)| key == container_key)
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    container.properties.metadata.extend(new);
+        update.metadata.update.iter().for_each(|(update_key, update_value)| {
+            if let Some(value) = container
+                .properties.metadata
+                .get_mut(update_key) {
+                    *value = update_value.clone();
+                }
+        });
+    
+        let new = update
+            .metadata.add
+            .iter()
+            .filter(|(key, _)| {
+                !container
+                    .properties.metadata.contains_key(key)
+                    
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        container.properties.metadata.extend(new);
 
     if let Err(err) = container.save(&path) {
         return Err(bulk::error::Update::Save(err.kind()));
@@ -307,6 +312,10 @@ fn container_analysis_associations_update_bulk_perform(
             Err(err) => return Err(bulk::error::Update::Load(err)),
         };
 
+        container
+        .analyses
+        .retain(|associaiton| !update.remove.contains(associaiton.analysis()));
+
     update.update.iter().for_each(|update| {
         let Some(association) = container
             .analyses
@@ -336,10 +345,6 @@ fn container_analysis_associations_update_bulk_perform(
         .cloned()
         .collect::<Vec<_>>();
     container.analyses.extend(new);
-
-    container
-        .analyses
-        .retain(|associaiton| !update.remove.contains(associaiton.analysis()));
 
     if let Err(err) = container.save(&path) {
         return Err(bulk::error::Update::Save(err.kind()));

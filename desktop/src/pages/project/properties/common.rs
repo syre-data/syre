@@ -178,9 +178,7 @@ pub mod metadata {
                         magnitude: magnitude.clone(),
                         unit: unit.trim().to_string(),
                     },
-                    Value::Bool(_) | Value::Number(_) | Value::Array(_) | Value::Map(_) => {
-                        value.clone()
-                    }
+                    Value::Bool(_) | Value::Number(_) | Value::Array(_) => value.clone(),
                     Value::Null => unreachable!(),
                 });
 
@@ -236,9 +234,6 @@ pub mod metadata {
                 }
                 ValueKind::Array => {
                     view! { <ArrayEditor value set_value /> }
-                }
-                ValueKind::Map => {
-                    view! { <MapEditor value set_value /> }
                 }
             })
         };
@@ -296,7 +291,6 @@ pub mod metadata {
                 <option value=kind_to_str(&ValueKind::Bool)>"Boolean"</option>
                 <option value=kind_to_str(&ValueKind::String)>"String"</option>
                 <option value=kind_to_str(&ValueKind::Array)>"Array"</option>
-                <option value=kind_to_str(&ValueKind::Map)>"Map"</option>
             </select>
         }
     }
@@ -521,15 +515,6 @@ pub mod metadata {
         }
     }
 
-    #[component]
-    fn MapEditor(
-        /// Read signal.
-        value: Signal<Value>,
-        set_value: WriteSignal<Value>,
-    ) -> impl IntoView {
-        view! {}
-    }
-
     pub(super) fn value_to_kind(value: &Value) -> Option<ValueKind> {
         match value {
             Value::Null => None,
@@ -538,7 +523,6 @@ pub mod metadata {
             Value::Number(_) => Some(ValueKind::Number),
             Value::Quantity { .. } => Some(ValueKind::Quantity),
             Value::Array(_) => Some(ValueKind::Array),
-            Value::Map(_) => Some(ValueKind::Map),
         }
     }
 
@@ -553,7 +537,6 @@ pub mod metadata {
             ValueKind::Number => "number",
             ValueKind::Quantity => "quantity",
             ValueKind::Array => "array",
-            ValueKind::Map => "map",
         }
     }
 
@@ -565,7 +548,6 @@ pub mod metadata {
             "number" => Some(ValueKind::Number),
             "quantity" => Some(ValueKind::Quantity),
             "array" => Some(ValueKind::Array),
-            "map" => Some(ValueKind::Map),
             _ => None,
         }
     }
@@ -579,8 +561,7 @@ pub mod metadata {
             | (Value::Number(_), ValueKind::Number)
             | (Value::Quantity { .. }, ValueKind::Quantity)
             | (Value::Bool(_), ValueKind::Bool)
-            | (Value::Array(_), ValueKind::Array)
-            | (Value::Map(_), ValueKind::Map) => v.0,
+            | (Value::Array(_), ValueKind::Array) => v.0,
 
             (Value::Null, _) => match target {
                 ValueKind::Bool => Value::Bool(Default::default()),
@@ -591,7 +572,6 @@ pub mod metadata {
                     unit: Default::default(),
                 },
                 ValueKind::Array => Value::Array(Default::default()),
-                ValueKind::Map => Value::Map(Default::default()),
             },
 
             (Value::String(value), ValueKind::Number) => match str_to_number(&value) {
@@ -615,25 +595,12 @@ pub mod metadata {
                 .unwrap_or(String::default())
                 .into(),
 
-            (Value::Map(value), ValueKind::String) => serde_json::to_string_pretty(&value)
-                .unwrap_or(String::default())
-                .into(),
-
             (Value::String(value), ValueKind::Array) => {
                 let value = serde_json::to_value(value).unwrap_or_default();
                 if value.is_array() {
                     value.into()
                 } else {
                     Value::Array(Vec::default())
-                }
-            }
-
-            (Value::String(value), ValueKind::Map) => {
-                let value = serde_json::to_value(value).unwrap_or_default();
-                if value.is_object() {
-                    value.into()
-                } else {
-                    Value::Map(syre_core::types::data::Map::default())
                 }
             }
 
@@ -645,7 +612,6 @@ pub mod metadata {
             },
             (_, ValueKind::Bool) => Value::Bool(false),
             (_, ValueKind::Array) => Value::Array(Vec::default()),
-            (_, ValueKind::Map) => Value::Map(syre_core::types::data::Map::default()),
         }
     }
 
@@ -1327,10 +1293,6 @@ pub mod bulk {
                         | Value::Equal(data::Value::Array(_)) => {
                             view! { <ArrayEditor value oninput /> }.into_view()
                         }
-                        Value::EqualKind(data::ValueKind::Map)
-                        | Value::Equal(data::Value::Map(_)) => {
-                            view! { <MapEditor value oninput /> }.into_view()
-                        }
                         Value::Equal(data::Value::Null) => unreachable!(),
                     })
                 }
@@ -1416,7 +1378,6 @@ pub mod bulk {
                     <option value=kind_to_str(&data::ValueKind::Bool)>"Boolean"</option>
                     <option value=kind_to_str(&data::ValueKind::String)>"String"</option>
                     <option value=kind_to_str(&data::ValueKind::Array)>"Array"</option>
-                    <option value=kind_to_str(&data::ValueKind::Map)>"Map"</option>
                 </select>
             }
         }
@@ -1622,11 +1583,6 @@ pub mod bulk {
                     {input_value}
                 </textarea>
             }
-        }
-
-        #[component]
-        fn MapEditor(value: Signal<Value>, oninput: Callback<data::Value>) -> impl IntoView {
-            view! {}
         }
     }
 }

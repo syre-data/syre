@@ -1,7 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-
-pub type Map = BTreeMap<String, Value>;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum Value {
@@ -20,7 +17,6 @@ pub enum Value {
     },
 
     Array(Vec<Self>),
-    Map(Map),
 }
 
 impl Value {
@@ -50,7 +46,6 @@ impl Value {
             Value::Number(_) => ValueKind::Number,
             Value::Quantity { .. } => ValueKind::Quantity,
             Value::Array(_) => ValueKind::Array,
-            Value::Map(_) => ValueKind::Map,
         }
     }
 }
@@ -71,13 +66,12 @@ pub enum ValueKind {
     Number,
     Quantity,
     Array,
-    Map,
 }
 
 mod from {
     //! Taken from `serde_json`.
     //! See [https://github.com/serde-rs/json/blob/master/src/value/from.rs].
-    use super::{Map, Value};
+    use super::Value;
     use std::borrow::Cow;
     use std::string::{String, ToString};
     use std::vec::Vec;
@@ -227,23 +221,6 @@ mod from {
         }
     }
 
-    impl From<Map> for Value {
-        /// Convert map (with string keys) to `Value::Object`.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use syre_core::types::{data::Map, Value};
-        ///
-        /// let mut m = Map::new();
-        /// m.insert("Lorem".to_string(), "ipsum".into());
-        /// let x: Value = m.into();
-        /// ```
-        fn from(f: Map) -> Self {
-            Value::Map(f)
-        }
-    }
-
     impl<T: Into<Value>> From<Vec<T>> for Value {
         /// Convert a `Vec` to `Value::Array`.
         ///
@@ -306,26 +283,6 @@ mod from {
         }
     }
 
-    impl<K: Into<String>, V: Into<Value>> FromIterator<(K, V)> for Value {
-        /// Create a `Value::Map` by collecting an iterator of key-value pairs.
-        ///
-        /// # Examples
-        ///
-        /// ```
-        /// use syre_core::types::Value;
-        ///
-        /// let v: Vec<_> = vec![("lorem", 40), ("ipsum", 2)];
-        /// let x: Value = v.into_iter().collect();
-        /// ```
-        fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-            Value::Map(
-                iter.into_iter()
-                    .map(|(k, v)| (k.into(), v.into()))
-                    .collect(),
-            )
-        }
-    }
-
     impl From<()> for Value {
         /// Convert `()` to `Value::Null`.
         ///
@@ -365,12 +322,8 @@ mod from {
                     let arr = arr.into_iter().map(|elm| elm.into()).collect();
                     Value::Array(arr)
                 }
-                serde_json::Value::Object(obj) => {
-                    let map = obj
-                        .into_iter()
-                        .map(|(key, value)| (key, value.into()))
-                        .collect();
-                    Value::Map(map)
+                serde_json::Value::Object(_obj) => {
+                    todo!("map is an invalid kind, probably need to return `Result` here")
                 }
             }
         }

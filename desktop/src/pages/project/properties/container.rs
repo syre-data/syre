@@ -798,11 +798,9 @@ mod metadata {
                         magnitude: magnitude.clone(),
                         unit: unit.trim().to_string(),
                     },
-                    Value::Null
-                    | Value::Bool(_)
-                    | Value::Number(_)
-                    | Value::Array(_)
-                    | Value::Map(_) => value.clone(),
+                    Value::Null | Value::Bool(_) | Value::Number(_) | Value::Array(_) => {
+                        value.clone()
+                    }
                 });
                 properties.metadata.insert(key.clone(), value);
 

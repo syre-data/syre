@@ -80,7 +80,6 @@ pub mod tags {
         #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = create_signal(value());
-
         let input_value = move || value.with(|value| value.join(", "));
 
         let oninput_text = {
@@ -1210,7 +1209,7 @@ pub mod bulk {
         ) -> impl IntoView {
             let value_sorted = move || {
                 let mut value = value.get();
-                value.sort_by_key(|datum| datum.key().clone());
+                value.sort_by_key(|datum| datum.key().to_lowercase());
                 value
             };
 

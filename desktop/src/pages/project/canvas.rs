@@ -1053,6 +1053,18 @@ fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
 #[component]
 fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
+    let assets_sorted = move || {
+        let mut assets = assets.get();
+        assets.sort_by_key(|asset| {
+            asset
+                .name()
+                .get()
+                .unwrap_or_else(|| asset.path().get().to_string_lossy().to_string())
+                .to_lowercase()
+        });
+        assets
+    };
+
     view! {
         <div
             class:hidden=move || workspace_state.preview().with(|preview| !preview.assets)
@@ -1062,7 +1074,7 @@ fn AssetsPreview(assets: ReadSignal<Vec<state::Asset>>) -> impl IntoView {
                 when=move || assets.with(|assets| !assets.is_empty())
                 fallback=|| view! { <NoData /> }
             >
-                <For each=assets key=|asset| asset.rid().get() let:asset>
+                <For each=assets_sorted key=|asset| asset.rid().get() let:asset>
                     <Asset asset />
                 </For>
             </Show>
@@ -1211,6 +1223,12 @@ fn Asset(asset: state::Asset) -> impl IntoView {
 #[component]
 fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
+    let analyses_sorted = move || {
+        let mut analyses = analyses.get();
+        // TODO: Sort by title as least significant.
+        analyses.sort_by_key(|analysis| (analysis.priority().get(), analysis.autorun().get()));
+        analyses
+    };
 
     view! {
         <div
@@ -1221,7 +1239,11 @@ fn Analyses(analyses: ReadSignal<Vec<state::AnalysisAssociation>>) -> impl IntoV
                 when=move || analyses.with(|analyses| !analyses.is_empty())
                 fallback=|| view! { <NoAnalyses /> }
             >
-                <For each=analyses key=|association| association.analysis().clone() let:association>
+                <For
+                    each=analyses_sorted
+                    key=|association| association.analysis().clone()
+                    let:association
+                >
                     <AnalysisAssociation association />
                 </For>
             </Show>
@@ -1408,16 +1430,25 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
 #[component]
 fn Metadata(metadata: ReadSignal<state::Metadata>) -> impl IntoView {
     let workspace_state = expect_context::<state::Workspace>();
+    let metadata_sorted = move || {
+        let mut metadata = metadata.get();
+        metadata.sort_by_key(|(key, _)| key.clone().to_lowercase());
+        metadata
+    };
+
     view! {
         <div class:hidden=move || { workspace_state.preview().with(|preview| !preview.metadata) }>
             <Show
                 when=move || metadata.with(|metadata| !metadata.is_empty())
                 fallback=|| view! { <NoMetadata /> }
             >
-                <For each=metadata key=|(key, _)| key.clone() let:datum>
+                <For each=metadata_sorted key=|(key, _)| key.clone() let:datum>
                     <div class="px-2">
-                        <span>{datum.0} ": "</span>
-                        <span>{move || datum.1.with(|value| serde_json::to_string(value))}</span>
+                        <span>
+                            <strong>{datum.0}</strong>
+                            ": "
+                        </span>
+                        <span>{move || datum.1.with(|value| value.to_string())}</span>
                     </div>
                 </For>
             </Show>

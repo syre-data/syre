@@ -457,6 +457,16 @@ fn AssetsLayer(container: state::graph::Node, depth: usize) -> impl IntoView {
 #[component]
 fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl IntoView {
     let expanded = create_rw_signal(false);
+    let assets_sorted = move || {
+        let mut assets = assets.get();
+        assets.sort_by_key(|asset| {
+            asset
+                .name()
+                .get()
+                .unwrap_or_else(|| asset.path().get().to_string_lossy().to_string()).to_lowercase()
+        });
+        assets
+    };
 
     view! {
         <div>
@@ -478,7 +488,7 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
                     </div>
                 </div>
                 <div class:hidden=move || !expanded()>
-                    <For each=assets key=move |asset| asset.rid().get() let:asset>
+                    <For each=assets_sorted key=move |asset| asset.rid().get() let:asset>
                         <AssetLayer asset depth />
                     </For>
                 </div>

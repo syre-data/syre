@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum Value {
@@ -50,14 +51,21 @@ impl Value {
     }
 }
 
-// Implementing Eq is fine because float values are always finite.
-impl Eq for Value {}
-
-impl std::fmt::Display for Value {
+impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&serde_json::to_string(self).unwrap())
+        match self {
+            Value::Null => write!(f, "(null)"),
+            Value::Bool(value) => write!(f, "{value}"),
+            Value::String(value) => write!(f, r#""{value}""#),
+            Value::Number(number) => write!(f, "{number}"),
+            Value::Quantity { magnitude, unit } => write!(f, "{magnitude} {unit}"),
+            Value::Array(vec) => write!(f, "{vec:?}"),
+        }
     }
 }
+
+// Implementing Eq is fine because float values are always finite.
+impl Eq for Value {}
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
 pub enum ValueKind {

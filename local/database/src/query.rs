@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use syre_core::types::ResourceId;
+use syre_core::{db::search_filter::deserialize_possible_empty_string, types::ResourceId};
 
 #[derive(Serialize, Deserialize, Debug, derive_more::From)]
 pub enum Query {
@@ -9,6 +9,7 @@ pub enum Query {
     User(User),
     Project(Project),
     Container(Container),
+    Asset(Asset),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -102,13 +103,13 @@ pub enum Container {
         container: ResourceId,
     },
 
-    /// Retrieve a container with its ancestor's metadata shaped for use in an analysis script.
+    /// Retrieve a container with inherited metadata shaped for use in an analysis script.
     ///
     /// # Returns
     /// Result<
     ///   Option<Result<
     ///     ContainerForAnalysis,
-    ///     (error::ContainerState, Vec<Option<IoSerde>>)
+    ///     Vec<Option<IoSerde>>
     ///   >>,
     ///   error::InvalidPath,
     /// >
@@ -117,15 +118,107 @@ pub enum Container {
         container: PathBuf,
     },
 
-    /// Retrieve a container with its ancestor's metadata shaped for use in an analysis script.
+    /// Retrieve a container with inherited metadata shaped for use in an analysis script.
     ///
     /// # Returns
     /// Option<Result<
     ///   ContainerForAnalysis,
-    ///   (error::ContainerState, Vec<Option<IoSerde>>)
+    ///   Vec<Option<IoSerde>>
     /// >>
     GetByIdForAnalysis {
         project: ResourceId,
         container: ResourceId,
     },
+
+    /// Find containers from `root` matching `query` with inherited metadata shaped for use in an analysis script.
+    ///
+    /// # Returns
+    /// Result<
+    ///     Vec<ContainerForAnalysis>,
+    ///     crate::query::error::Query
+    /// >
+    Search {
+        project: ResourceId,
+        root: PathBuf,
+        query: ContainerQuery,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Asset {
+    /// Find assets from `root` matching `query` with inherited metadata shaped for use in an analysis script.
+    ///
+    /// # Returns
+    /// Result<
+    ///   Vec<AssetForAnalysis>,
+    ///   error::InvalidPath,
+    /// >
+    Search {
+        project: ResourceId,
+        root: PathBuf,
+        query: AssetQuery,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContainerQuery {
+    pub name: Option<String>,
+
+    #[serde(default, deserialize_with = "deserialize_possible_empty_string")]
+    pub kind: Option<Option<String>>,
+    pub tags: Vec<String>,
+    pub metadata: Metadata,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AssetQuery {
+    #[serde(default, deserialize_with = "deserialize_possible_empty_string")]
+    pub name: Option<Option<String>>,
+
+    #[serde(default, deserialize_with = "deserialize_possible_empty_string")]
+    pub kind: Option<Option<String>>,
+    pub tags: Vec<String>,
+    pub metadata: Metadata,
+    pub path: Option<PathBuf>,
+}
+
+pub type Metadata = Vec<Metadatum>;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Metadatum {
+    pub key: String,
+    pub value: syre_core::types::data::Value,
+}
+
+pub mod error {
+    use serde::{Deserialize, Serialize};
+    use std::path::PathBuf;
+    use syre_local as local;
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub enum Query {
+        ProjectDoesNotExist,
+
+        /// The root of a query does not exist.
+        RootDoesNotExist,
+
+        InvalidPath,
+
+        /// States within the required graph is corrupt.
+        GraphStateCorrupt(Vec<CorruptState>),
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone)]
+    pub struct CorruptState {
+        pub path: PathBuf,
+
+        /// `properties` error.
+        pub err: local::error::IoSerde,
+    }
+
+    impl From<(PathBuf, local::error::IoSerde)> for CorruptState {
+        fn from((path, err): (PathBuf, local::error::IoSerde)) -> Self {
+            Self { path, err }
+        }
+    }
 }

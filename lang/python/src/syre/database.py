@@ -2,6 +2,7 @@ from typing import Union, Any
 import io
 import subprocess
 import importlib.resources as pkg_resources
+import inspect
 import socket
 import os
 import json
@@ -99,8 +100,10 @@ class Database:
     def _init_dev(self, dev_root: str, chdir: bool):
         """Initialize the database in a dev environment.
         """
+        # TODO: Allow relative paths
+        # See `inspect.stack`
         if not os.path.isabs(dev_root):
-            dev_root = os.path.join(os.getcwd(), dev_root)
+            raise ValueError("`dev_root` must be an absolute path")
             
         os_name = platform.system()
         if os_name == "Windows":
@@ -150,7 +153,10 @@ class Database:
         if root is None:
             raise RuntimeError("Could not get root Container")
 
-        root_properties = root["properties"]["Ok"]
+        root_properties = root["properties"]
+        if "Err" in root_properties:
+            raise RuntimeError(f"Root container properties file is corrupt: {root_properties['Err']}")
+        root_properties = root_properties["Ok"]
         self._root_id: str = root_properties["rid"]
         
         if chdir:
@@ -292,18 +298,28 @@ class Database:
             f["kind"] = type
         if tags is not None:
             f["tags"] = tags
+        else:
+            f["tags"] = []
         if metadata is not None:
-            f["metadata"] = metadata
+            f["metadata"] = [item for item in metadata.items()]
+        else:
+            f["metadata"] = []
 
-        self._socket.send_json(
-            {"Container": {"FindWithMetadata": (self._root, f)}}
-        )
+        self._socket.send_json({
+            "Container": {
+                "Search": {
+                    "project": self._project, 
+                    "root": self._root, 
+                    "query": f
+                }
+            }
+        })
         containers = self._socket.recv_json()
         if "Err" in containers:
             raise RuntimeError(f"Error getting containers: {containers['Err']}")
 
         return list(
-            map(lambda container: dict_to_container(container, db=self), containers)
+            map(lambda container: dict_to_container(container, db=self), containers["Ok"])
         )
 
     def find_container(
@@ -359,10 +375,22 @@ class Database:
             f["kind"] = type
         if tags is not None:
             f["tags"] = tags
+        else:
+            f["tags"] = []
         if metadata is not None:
-            f["metadata"] = metadata
+            f["metadata"] = [item for item in metadata.items()]
+        else:
+            f["metadata"] = []
 
-        self._socket.send_json({"Asset": {"FindWithMetadata": (self._root, f)}})
+        self._socket.send_json({
+            "Asset": {
+                "Search": {
+                    "project": self._project, 
+                    "root": self._root, 
+                    "query": f
+                }
+            }
+        })
         assets = self._socket.recv_json()
         if "Err" in assets:
             raise RuntimeError(f"Error getting assets: {assets['Err']}")

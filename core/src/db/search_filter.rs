@@ -6,22 +6,14 @@ use std::collections::HashSet;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize};
 
-// *************
-// *** Trait ***
-// *************
-
 pub trait SearchFilter<T> {
     /// Returns `true` if the object matches the filter,
     /// otherwise `false`.
     fn matches(&self, obj: &T) -> bool;
 }
 
-// ***********************
-// *** Standard Filter ***
-// ***********************
-
 #[cfg(feature = "serde")]
-fn deserialize_possible_empty_string<'de, D>(
+pub fn deserialize_possible_empty_string<'de, D>(
     deserializer: D,
 ) -> Result<Option<Option<String>>, D::Error>
 where

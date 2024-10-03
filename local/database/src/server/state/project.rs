@@ -799,7 +799,7 @@ pub mod graph {
         /// `None` if the root node is not found in the graph.
         /// Parents come before  their children.
         /// The root node is at index 0.
-        fn descendants(&self, root: &Node) -> Option<Vec<Node>> {
+        pub fn descendants(&self, root: &Node) -> Option<Vec<Node>> {
             if !self.nodes.iter().any(|node| Arc::ptr_eq(node, root)) {
                 return None;
             }

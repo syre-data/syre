@@ -1198,7 +1198,11 @@ fn handle_event_graph_container_assets_corrupted(event: lib::Event, graph: state
         panic!("invalid event kind");
     };
 
-    let container = graph.find(path).unwrap().unwrap();
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
     container.assets().update(|container_assets| {
         *container_assets = db::state::DataResource::Err(err.clone());
     });
@@ -1218,7 +1222,11 @@ fn handle_event_graph_container_assets_repaired(event: lib::Event, graph: state:
         .map(|asset| state::Asset::new(asset.clone()))
         .collect();
 
-    let container = graph.find(path).unwrap().unwrap();
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
     container.assets().update(|container_assets| {
         *container_assets = db::state::DataResource::Ok(create_rw_signal(assets));
     });

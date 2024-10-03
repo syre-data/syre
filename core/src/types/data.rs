@@ -1,7 +1,13 @@
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[cfg(feature = "serde")]
+use serde::{
+    de::{MapAccess, SeqAccess},
+    ser::{SerializeSeq, SerializeStruct},
+    Deserialize, Serialize,
+};
+
+#[derive(PartialEq, Clone, Debug)]
 pub enum Value {
     /// Empty data.
     Null,
@@ -67,7 +73,137 @@ impl Display for Value {
 // Implementing Eq is fine because float values are always finite.
 impl Eq for Value {}
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[cfg(feature = "serde")]
+impl Serialize for Value {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Value::Null => serializer.serialize_unit(),
+            Value::Bool(value) => serializer.serialize_bool(*value),
+            Value::String(value) => serializer.serialize_str(&value),
+            Value::Number(number) => serializer.serialize_newtype_struct("Value", number),
+            Value::Quantity { magnitude, unit } => {
+                let mut s = serializer.serialize_struct("Quantity", 2)?;
+                s.serialize_field("magnitude", magnitude)?;
+                s.serialize_field("unit", unit)?;
+                s.end()
+            }
+            Value::Array(vec) => {
+                let mut s = serializer.serialize_seq(Some(vec.len()))?;
+                for value in vec {
+                    s.serialize_element(value)?;
+                }
+                s.end()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Value {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ValueVisitor;
+        impl<'de> serde::de::Visitor<'de> for ValueVisitor {
+            type Value = Value;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a valid syre value")
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Value, E> {
+                Ok(Value::Bool(value))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Value, E> {
+                Ok(Value::Number(value.into()))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Value, E> {
+                Ok(Value::Number(value.into()))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Value, E> {
+                Ok(serde_json::Number::from_f64(value).map_or(Value::Null, Value::Number))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Value, E>
+            where
+                E: serde::de::Error,
+            {
+                self.visit_string(String::from(value))
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Value, E> {
+                Ok(Value::String(value))
+            }
+
+            fn visit_unit<E>(self) -> Result<Value, E> {
+                Ok(Value::Null)
+            }
+
+            fn visit_seq<V>(self, mut visitor: V) -> Result<Value, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let mut vec = Vec::new();
+
+                while let Some(elem) = visitor.next_element()? {
+                    vec.push(elem);
+                }
+
+                Ok(Value::Array(vec))
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(field_identifier, rename_all = "lowercase")]
+                enum Field {
+                    Magnitude,
+                    Unit,
+                }
+
+                let mut magnitude = None;
+                let mut unit = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Magnitude => {
+                            if magnitude.is_some() {
+                                return Err(serde::de::Error::duplicate_field("magnitude"));
+                            } else {
+                                magnitude = Some(map.next_value()?);
+                            }
+                        }
+
+                        Field::Unit => {
+                            if unit.is_some() {
+                                return Err(serde::de::Error::duplicate_field("unit"));
+                            } else {
+                                unit = Some(map.next_value()?);
+                            }
+                        }
+                    }
+                }
+                let magnitude =
+                    magnitude.ok_or_else(|| serde::de::Error::missing_field("magnitude"))?;
+                let unit = unit.ok_or_else(|| serde::de::Error::missing_field("unit"))?;
+                Ok(Value::Quantity { magnitude, unit })
+            }
+        }
+
+        deserializer.deserialize_any(ValueVisitor)
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ValueKind {
     Bool,
     String,
@@ -335,5 +471,103 @@ mod from {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn value_serialize() {
+        let null = Value::Null;
+        let bool_true = Value::Bool(true);
+        let bool_false = Value::Bool(false);
+        let string = Value::String("test string".to_string());
+        let number_int = Value::Number(42.into());
+        let number_float = Value::Number(serde_json::Number::from_f64(42.137).unwrap());
+        let quantity = Value::Quantity {
+            magnitude: 42.0,
+            unit: "cm".to_string(),
+        };
+        let array = Value::Array(
+            vec![
+                null.clone(),
+                bool_true.clone(),
+                bool_false.clone(),
+                string.clone(),
+                number_int.clone(),
+                number_float.clone(),
+                quantity.clone(),
+            ]
+            .into(),
+        );
+
+        assert_eq!(serde_json::to_string(&null).unwrap(), "null");
+        assert_eq!(serde_json::to_string(&bool_true).unwrap(), "true");
+        assert_eq!(serde_json::to_string(&bool_false).unwrap(), "false");
+        assert_eq!(serde_json::to_string(&string).unwrap(), r#""test string""#);
+        assert_eq!(serde_json::to_string(&number_int).unwrap(), "42");
+        assert_eq!(serde_json::to_string(&number_float).unwrap(), "42.137");
+        assert_eq!(
+            serde_json::to_string(&quantity).unwrap(),
+            r#"{"magnitude":42.0,"unit":"cm"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&array).unwrap(),
+            r#"[null,true,false,"test string",42,42.137,{"magnitude":42.0,"unit":"cm"}]"#
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn value_deserialize() {
+        let null = Value::Null;
+        let bool_true = Value::Bool(true);
+        let bool_false = Value::Bool(false);
+        let string = Value::String("test string".to_string());
+        let number_int = Value::Number(42.into());
+        let number_float = Value::Number(serde_json::Number::from_f64(42.137).unwrap());
+        let quantity = Value::Quantity {
+            magnitude: 42.0,
+            unit: "cm".to_string(),
+        };
+        let array = Value::Array(
+            vec![
+                null.clone(),
+                bool_true.clone(),
+                bool_false.clone(),
+                string.clone(),
+                number_int.clone(),
+                number_float.clone(),
+                quantity.clone(),
+            ]
+            .into(),
+        );
+
+        assert_eq!(serde_json::from_str::<Value>("null").unwrap(), null);
+        assert_eq!(serde_json::from_str::<Value>("true").unwrap(), bool_true);
+        assert_eq!(serde_json::from_str::<Value>("false").unwrap(), bool_false);
+        assert_eq!(
+            serde_json::from_str::<Value>(r#""test string""#).unwrap(),
+            string
+        );
+        assert_eq!(serde_json::from_str::<Value>("42").unwrap(), number_int);
+        assert_eq!(
+            serde_json::from_str::<Value>("42.137").unwrap(),
+            number_float
+        );
+        assert_eq!(
+            serde_json::from_str::<Value>(r#"{"magnitude":42.0,"unit":"cm"}"#).unwrap(),
+            quantity
+        );
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                r#"[null,true,false,"test string",42,42.137,{"magnitude":42.0,"unit":"cm"}]"#
+            )
+            .unwrap(),
+            array
+        );
     }
 }

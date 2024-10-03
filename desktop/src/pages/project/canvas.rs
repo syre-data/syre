@@ -1042,10 +1042,22 @@ fn ContainerPreview(
 
 #[component]
 fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
+    let messages = expect_context::<types::Messages>();
+
     move || {
         assets.with(|assets| match assets {
             Ok(assets) => view! { <AssetsPreview assets=assets.read_only() /> }.into_view(),
-            Err(err) => "(error)".into_view(),
+            Err(err) => {
+                tracing::error!(?err);
+                messages.update(|messages| {
+                    // TODO: Get path of container.
+                    let mut msg = Message::error("Could not load assets.");
+                    msg.body(format!("{err:?}"));
+                    messages.push(msg.build());
+                });
+
+                view! { <div class="text-center">"(assets error)"</div> }.into_view()
+            }
         })
     }
 }

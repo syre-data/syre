@@ -328,13 +328,11 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
 
     // TODO: Indicate file presence.
     view! {
-        <div
-            class="flex cursor-pointer"
-            on:dragstart=dragstart
-            on:contextmenu=contextmenu
-            draggable="true"
-        >
-            <span class="grow">{title}</span>
+        <div class="flex cursor-pointer">
+            <span on:contextmenu=contextmenu on:dragstart=dragstart draggable="true" class="grow">
+
+                {title}
+            </span>
             <span>
                 <button
                     type="button"

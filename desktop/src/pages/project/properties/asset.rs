@@ -128,7 +128,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
                     let mount = (*mount).clone();
                     view! {
                         <Portal mount>
-                            <AddDatum />
+                            <AddDatum onclose=move |_| add_metadatum_visible.set(false) />
                         </Portal>
                     }
                 }}

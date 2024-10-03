@@ -395,7 +395,7 @@ class Database:
         if "Err" in assets:
             raise RuntimeError(f"Error getting assets: {assets['Err']}")
 
-        return list(map(lambda asset: dict_to_asset(asset, db=self), assets))
+        return list(map(lambda asset: dict_to_asset(asset, db=self), assets["Ok"]))
 
     def find_asset(
         self,
@@ -563,11 +563,14 @@ def ensure_root_path(path: str) -> str:
 
     Returns:
         str: Path beginning with root directory.
+        
+    Notes:
+        If the path equals the current dir (`.`), the root path is returned.
     """
     if path.startswith(ROOT_DIR):
         return path
-    # elif path == os.path.curdir:
-    #     return ROOT_DIR
+    elif path == os.path.curdir:
+        return ROOT_DIR
     else:
         return ROOT_DIR + path
     

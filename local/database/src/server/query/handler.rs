@@ -1,11 +1,8 @@
-use crate::{constants, error, query, server, state, Database};
+use crate::{common, constants, error, query, server, state, Database};
 use serde_json::Value as JsValue;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use syre_core::{db::SearchFilter, system::User, types::ResourceId};
-use syre_local::error::IoSerde;
+use syre_local as local;
 
 impl Database {
     pub fn handle_query_config(&self, query: query::Config) -> JsValue {
@@ -416,8 +413,10 @@ impl Database {
         &self,
         project: &ResourceId,
         container: impl AsRef<Path>,
-    ) -> Result<Option<Result<ContainerForAnalysis, Vec<Option<IoSerde>>>>, error::InvalidPath>
-    {
+    ) -> Result<
+        Option<Result<ContainerForAnalysis, Vec<Option<local::error::IoSerde>>>>,
+        error::InvalidPath,
+    > {
         let Some(project) = self.state.find_project_by_id(&project) else {
             return Ok(None);
         };
@@ -446,7 +445,7 @@ impl Database {
         &self,
         project: &ResourceId,
         container: &ResourceId,
-    ) -> Option<Result<ContainerForAnalysis, Vec<Option<IoSerde>>>> {
+    ) -> Option<Result<ContainerForAnalysis, Vec<Option<local::error::IoSerde>>>> {
         let Some(project) = self.state.find_project_by_id(&project) else {
             return None;
         };
@@ -474,24 +473,24 @@ impl Database {
         project: &ResourceId,
         root: impl AsRef<Path>,
         query: &crate::query::ContainerQuery,
-    ) -> Result<Vec<ContainerForAnalysis>, crate::query::error::Query> {
+    ) -> Result<Vec<ContainerForAnalysis>, crate::query::error::Search> {
         let Some(project) = self.state.find_project_by_id(&project) else {
-            return Err(crate::query::error::Query::ProjectDoesNotExist);
+            return Err(crate::query::error::Search::ProjectDoesNotExist);
         };
 
         let state::FolderResource::Present(project) = project.fs_resource() else {
-            return Err(crate::query::error::Query::ProjectDoesNotExist);
+            return Err(crate::query::error::Search::ProjectDoesNotExist);
         };
 
         let state::FolderResource::Present(graph) = project.graph() else {
-            return Err(crate::query::error::Query::RootDoesNotExist);
+            return Err(crate::query::error::Search::RootDoesNotExist);
         };
 
         let Ok(root) = graph.find(root.as_ref()) else {
-            return Err(crate::query::error::Query::InvalidPath);
+            return Err(crate::query::error::Search::InvalidPath);
         };
         let Some(root) = root else {
-            return Err(crate::query::error::Query::RootDoesNotExist);
+            return Err(crate::query::error::Search::RootDoesNotExist);
         };
 
         let descendants = graph.descendants(&root).unwrap();
@@ -518,7 +517,7 @@ impl Database {
             let matches = matches.into_iter().map(|state| state.unwrap()).collect();
             Ok(matches)
         } else {
-            let errors = matches
+            let mut errors = matches
                 .into_iter()
                 .enumerate()
                 .filter_map(|(idx_root, state)| {
@@ -548,21 +547,22 @@ impl Database {
                 })
                 .flatten()
                 .map(|err| err.into())
-                .collect();
+                .collect::<Vec<query::error::CorruptState>>();
 
-            Err(crate::query::error::Query::GraphStateCorrupt(errors))
+            errors.sort_by_key(|err| err.path.clone());
+            errors.dedup();
+            Err(crate::query::error::Search::Inheritance(errors))
         }
     }
 
     /// # Returns
     /// Container shaped for use in an analysis script with inherited metadata.
     /// `None` if `ancestors` is empty.
-    /// Error is a tuple of (container, ancestors) where container is the state of the container,
-    /// and ancestors is a list of ancestor property states.
+    /// Error is a list of error states for the ancestor at the corresponding index.
     fn container_for_analysis(
         &self,
         ancestors: &Vec<server::state::project::graph::Node>,
-    ) -> Option<Result<ContainerForAnalysis, Vec<Option<IoSerde>>>> {
+    ) -> Option<Result<ContainerForAnalysis, Vec<Option<local::error::IoSerde>>>> {
         if ancestors.is_empty() {
             return None;
         }
@@ -629,92 +629,175 @@ impl Database {
 
     /// # Returns
     /// Containers shaped for use in an analysis script with folded metadata.
-    /// Error is a tuple of (container, ancestors) where container is the state of the container,
+    /// Error is a tuple of (assets, ancestors) where `assets`` is the state of the container's assets,
     /// and ancestors is a list of ancestor property states.
     fn handle_query_asset_search(
         &self,
         project: &ResourceId,
         root: impl AsRef<Path>,
         query: &crate::query::AssetQuery,
-    ) -> Result<Vec<AssetForAnalysis>, crate::query::error::Query> {
+    ) -> Result<Vec<AssetForAnalysis>, crate::query::error::Search> {
         let Some(project) = self.state.find_project_by_id(&project) else {
-            return Err(crate::query::error::Query::ProjectDoesNotExist);
+            return Err(crate::query::error::Search::ProjectDoesNotExist);
         };
 
-        let state::FolderResource::Present(project) = project.fs_resource() else {
-            return Err(crate::query::error::Query::ProjectDoesNotExist);
+        let state::FolderResource::Present(project_data) = project.fs_resource() else {
+            return Err(crate::query::error::Search::ProjectDoesNotExist);
         };
 
-        let state::FolderResource::Present(graph) = project.graph() else {
-            return Err(crate::query::error::Query::RootDoesNotExist);
+        let project_properties = match project_data.properties() {
+            state::DataResource::Ok(properties) => properties,
+            state::DataResource::Err(err) => {
+                return Err(crate::query::error::Search::ProjectProperties(err))
+            }
+        };
+
+        let state::FolderResource::Present(graph) = project_data.graph() else {
+            return Err(crate::query::error::Search::RootDoesNotExist);
         };
 
         let Ok(root) = graph.find(root.as_ref()) else {
-            return Err(crate::query::error::Query::InvalidPath);
+            return Err(crate::query::error::Search::InvalidPath);
         };
         let Some(root) = root else {
-            return Err(crate::query::error::Query::RootDoesNotExist);
+            return Err(crate::query::error::Search::RootDoesNotExist);
         };
 
+        let data_root = project.path().join(&project_properties.data_root);
         let descendants = graph.descendants(&root).unwrap();
         assert!(descendants.len() > 0);
-        todo!();
-        // let matches = descendants
-        //     .iter()
-        //     .filter_map(|descendant| {
-        //         let container = descendant.lock().unwrap();
-        //         let matches = query.matches(&*container);
-        //         drop(container);
+        let matches = descendants
+            .iter()
+            .filter_map(|descendant| {
+                let container = descendant.lock().unwrap();
+                let Ok(assets) = container.assets() else {
+                    return None;
+                };
+                let matches = assets
+                    .iter()
+                    .filter_map(|asset| {
+                        if query.matches(asset) {
+                            Some(asset.properties.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                drop(container);
 
-        //         if matches {
-        //             let container = self
-        //                 .container_for_analysis(&graph.ancestors(&descendant))
-        //                 .unwrap();
-        //             Some(container)
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .collect::<Vec<_>>();
+                let ancestors = graph.ancestors(descendant);
+                assert!(ancestors.len() > 0);
+                let container_path = graph.path(descendant).unwrap();
+                let path = common::container_system_path(&data_root, container_path);
+                Some(
+                    matches
+                        .into_iter()
+                        .map(|asset| self.asset_for_analysis(asset, &ancestors, &path))
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
 
-        // if matches.iter().all(|state| state.is_ok()) {
-        //     let matches = matches.into_iter().map(|state| state.unwrap()).collect();
-        //     Ok(matches)
-        // } else {
-        //     let errors = matches
-        //         .into_iter()
-        //         .enumerate()
-        //         .filter_map(|(idx_root, state)| {
-        //             if let Err(errors) = state {
-        //                 let node = &descendants[idx_root];
-        //                 let errors = errors
-        //                     .into_iter()
-        //                     .enumerate()
-        //                     .filter_map(|(idx_err, err)| {
-        //                         if let Some(err) = err {
-        //                             let mut path = graph.path(&node).unwrap();
-        //                             (0..idx_err).for_each(|_| {
-        //                                 // get path of node where error occurred
-        //                                 path.pop();
-        //                             });
-        //                             Some((path, err))
-        //                         } else {
-        //                             None
-        //                         }
-        //                     })
-        //                     .collect::<Vec<_>>();
+        if matches.iter().flatten().all(|state| state.is_ok()) {
+            let matches = matches
+                .into_iter()
+                .flatten()
+                .map(|state| state.unwrap())
+                .collect();
 
-        //                 Some(errors)
-        //             } else {
-        //                 None
-        //             }
-        //         })
-        //         .flatten()
-        //         .map(|err| err.into())
-        //         .collect();
+            Ok(matches)
+        } else {
+            let mut errors = matches
+                .into_iter()
+                .enumerate()
+                .map(|(idx_root, states)| {
+                    let node = &descendants[idx_root];
+                    let path = graph.path(&node).unwrap();
 
-        //     Err(crate::query::error::Query::GraphStateCorrupt(errors))
-        // }
+                    states
+                        .into_iter()
+                        .filter_map(|state| {
+                            if let Err(errors) = state {
+                                let errors = errors
+                                    .into_iter()
+                                    .enumerate()
+                                    .filter_map(|(idx_err, err)| {
+                                        if let Some(err) = err {
+                                            let mut path = path.clone();
+                                            (0..idx_err).for_each(|_| {
+                                                // get path of node where error occurred
+                                                path.pop();
+                                            });
+                                            Some((path, err))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                Some(errors)
+                            } else {
+                                None
+                            }
+                        })
+                        .flatten()
+                        .collect::<Vec<_>>()
+                })
+                .flatten()
+                .map(|err| err.into())
+                .collect::<Vec<query::error::CorruptState>>();
+
+            errors.sort_by_key(|err| err.path.clone());
+            errors.dedup();
+            Err(crate::query::error::Search::Inheritance(errors))
+        }
+    }
+
+    /// # Returns
+    /// Asset shaped for use in an analysis script with inherited metadata.
+    /// Error is a list of the errors that occured for each ancestor in the corresponding index.
+    fn asset_for_analysis(
+        &self,
+        mut asset: syre_core::project::Asset,
+        ancestors: &Vec<server::state::project::graph::Node>,
+        parent_path: impl AsRef<Path>,
+    ) -> Result<AssetForAnalysis, Vec<Option<local::error::IoSerde>>> {
+        assert!(ancestors.len() > 0);
+
+        let nodes = ancestors
+            .iter()
+            .map(|node| node.lock().unwrap())
+            .collect::<Vec<_>>();
+
+        let properties = nodes
+            .iter()
+            .map(|node| node.properties())
+            .collect::<Vec<_>>();
+
+        if properties.iter().any(|state| state.is_err()) {
+            return Err(properties
+                .into_iter()
+                .map(|state| state.err().clone())
+                .collect());
+        }
+
+        let metadata = properties
+            .iter()
+            .rev()
+            .map(|state| state.as_ref().unwrap().metadata.clone())
+            .chain(std::iter::once(asset.properties.metadata.clone()))
+            .reduce(|mut metadata, data| {
+                metadata.extend(data);
+                metadata
+            })
+            .unwrap();
+        asset.properties.metadata = metadata;
+
+        Ok(AssetForAnalysis {
+            rid: asset.rid().clone(),
+            properties: asset.properties,
+            path: parent_path.as_ref().join(&asset.path),
+        })
     }
 }
 #[derive(serde::Serialize, Debug)]

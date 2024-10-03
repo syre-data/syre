@@ -196,7 +196,7 @@ pub mod error {
     use syre_local as local;
 
     #[derive(Serialize, Deserialize, Debug, Clone)]
-    pub enum Query {
+    pub enum Search {
         ProjectDoesNotExist,
 
         /// The root of a query does not exist.
@@ -204,15 +204,20 @@ pub mod error {
 
         InvalidPath,
 
-        /// States within the required graph is corrupt.
-        GraphStateCorrupt(Vec<CorruptState>),
+        /// Project properties are corrupt.
+        ///
+        /// # Notes
+        /// + Only occurs in asset searches
+        ProjectProperties(local::error::IoSerde),
+
+        /// States within the inheritance graph are corrupt.
+        /// This may include the container itself.
+        Inheritance(Vec<CorruptState>),
     }
 
-    #[derive(Serialize, Deserialize, Debug, Clone)]
+    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
     pub struct CorruptState {
         pub path: PathBuf,
-
-        /// `properties` error.
         pub err: local::error::IoSerde,
     }
 

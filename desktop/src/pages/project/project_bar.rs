@@ -256,7 +256,24 @@ fn Analyze() -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();
 
-    let trigger_analysis = create_action(move |_| analyze(project.rid().get_untracked(), "/"));
+    let trigger_analysis = create_action({
+        let project = project.rid().read_only();
+        move |_| async move {
+            match analyze(project.get_untracked(), "/").await {
+                Ok(_) => {
+                    let msg = crate::components::message::Builder::success("Analysis complete.");
+                    messages.update(|messages| messages.push(msg.build()));
+                }
+                Err(err) => {
+                    tracing::error!(?err);
+                    let mut msg =
+                        crate::components::message::Builder::error("Could not complete analysis.");
+                    msg.body(err);
+                    messages.update(|messages| messages.push(msg.build()));
+                }
+            }
+        }
+    });
 
     let mousedown = move |e: MouseEvent| {
         if e.button() != types::MouseButton::Primary {
@@ -265,22 +282,6 @@ fn Analyze() -> impl IntoView {
 
         trigger_analysis.dispatch(());
     };
-
-    let _ = watch(
-        move || trigger_analysis.value().get(),
-        move |value, _, _| {
-            let Some(value) = value else {
-                return;
-            };
-            if let Err(err) = value {
-                let mut msg =
-                    crate::components::message::Builder::error("Could not complete analysis.");
-                msg.body(err);
-                messages.update(|messages| messages.push(msg.build()));
-            }
-        },
-        false,
-    );
 
     view! {
         <button

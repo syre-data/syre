@@ -1452,14 +1452,13 @@ pub mod bulk {
                     return;
                 };
 
-                // oninput(data::Value::Number(value));
-                tracing::debug!("{:?}", data::Value::Number(value));
+                oninput(data::Value::Number(value));
             };
 
             view! {
                 <InputNumber
                     value=Signal::derive(input_value)
-                    oninput=oninput_text
+                    oninput=Callback::new(oninput_text)
                     placeholder=MaybeProp::derive(placeholder)
                     class="input-compact"
                 />

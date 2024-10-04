@@ -1,17 +1,14 @@
 //! Local runner hooks.
 use std::path::{Path, PathBuf};
 use syre_core::{
-    project::{ExcelTemplate, Project, Script, ScriptLang},
-    runner::{self, Runnable, RunnerHooks},
+    project::{ExcelTemplate, Script, ScriptLang},
+    runner::{Runnable, RunnerHooks},
     types::ResourceId,
 };
-use syre_local::{
-    self as local,
-    system::config::{runner_settings, RunnerSettings},
-    types::analysis::AnalysisKind,
-};
-use syre_local_database::state;
+use syre_local::{self as local, system::config::RunnerSettings, types::analysis::AnalysisKind};
+use syre_local_database as db;
 
+#[derive(Debug)]
 pub struct Runner {
     analyses: Vec<(ResourceId, AnalysisKind)>,
 }
@@ -19,7 +16,10 @@ pub struct Runner {
 impl Runner {
     /// # Arguments
     /// `path`: Path to the projects base directory.
-    pub fn from(path: impl AsRef<Path>, project: &state::ProjectData) -> Result<Self, error::From> {
+    pub fn from(
+        path: impl AsRef<Path>,
+        project: &db::state::ProjectData,
+    ) -> Result<Self, error::From> {
         let analyses = Self::create_analyses(path, project)?;
         Ok(Self { analyses })
     }
@@ -28,13 +28,13 @@ impl Runner {
     /// List of `(id, analysis)`.
     fn create_analyses(
         path: impl AsRef<Path>,
-        project_data: &state::ProjectData,
+        project_data: &db::state::ProjectData,
     ) -> Result<Vec<(ResourceId, AnalysisKind)>, error::From> {
-        let state::DataResource::Ok(analyses) = project_data.analyses() else {
+        let db::state::DataResource::Ok(analyses) = project_data.analyses() else {
             return Err(error::From::InvalidAnalysesState);
         };
 
-        let state::DataResource::Ok(properties) = project_data.properties() else {
+        let db::state::DataResource::Ok(properties) = project_data.properties() else {
             return Err(error::From::InvalidPropertiesState);
         };
 

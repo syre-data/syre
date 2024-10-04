@@ -25,7 +25,7 @@ impl PartialEq<MouseButton> for i16 {
 }
 
 /// App wide messages.
-#[derive(Clone, derive_more::Deref)]
+#[derive(Clone, derive_more::Deref, Copy)]
 pub struct Messages(RwSignal<Vec<crate::components::Message>>);
 impl Messages {
     pub fn new() -> Self {

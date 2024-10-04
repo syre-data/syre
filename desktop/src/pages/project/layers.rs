@@ -403,7 +403,7 @@ fn ContainerLayerTitleOk(
             on:contextmenu=contextmenu
             prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
-            class="flex cursor-pointer border-y border-transparent hover:border-secondary-400"
+            class="flex gap-1 cursor-pointer border-y border-transparent hover:border-secondary-400"
             class=(
                 ["bg-primary-200", "dark:bg-secondary-900"],
                 {
@@ -412,16 +412,16 @@ fn ContainerLayerTitleOk(
                 },
             )
         >
+            <div class="inline-flex gap-1">
+                <span>
+                    <ToggleExpanded expanded />
+                </span>
+            </div>
             <div class="grow inline-flex gap-1">
                 <span class="pr-1">
                     <Icon icon=icondata::FaFolderRegular />
                 </span>
                 <TruncateLeft>{title}</TruncateLeft>
-            </div>
-            <div class="inline-flex gap-1">
-                <span>
-                    <ToggleExpanded expanded />
-                </span>
             </div>
         </div>
     }
@@ -463,7 +463,8 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
             asset
                 .name()
                 .get()
-                .unwrap_or_else(|| asset.path().get().to_string_lossy().to_string()).to_lowercase()
+                .unwrap_or_else(|| asset.path().get().to_string_lossy().to_string())
+                .to_lowercase()
         });
         assets
     };
@@ -475,16 +476,16 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
                 fallback=move || view! { <NoData depth /> }
             >
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
+                    <div class="inline-flex gap-1">
+                        <span>
+                            <ToggleExpanded expanded />
+                        </span>
+                    </div>
                     <div class="inline-flex grow">
                         <span class="pr-1">
                             <Icon icon=icondata::BsFiles />
                         </span>
                         <span class="grow">"Assets"</span>
-                    </div>
-                    <div class="inline-flex gap-1">
-                        <span>
-                            <ToggleExpanded expanded />
-                        </span>
                     </div>
                 </div>
                 <div class:hidden=move || !expanded()>
@@ -644,8 +645,8 @@ fn ToggleExpanded(expanded: RwSignal<bool>) -> impl IntoView {
 
     view! {
         <button on:mousedown=toggle type="button">
-            <span class=("rotate-180", expanded) class="inline-block transition">
-                <Icon icon=icondata::AiCaretDownOutlined />
+            <span class=("rotate-90", expanded) class="inline-block transition">
+                <Icon icon=icondata::VsChevronRight />
             </span>
         </button>
     }

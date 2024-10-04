@@ -268,7 +268,6 @@ impl<'a> TreeRunner<'a> {
                 .collect();
 
             let container_path = self.tree.path(container.rid()).unwrap();
-            tracing::debug!(?container_path);
             self.run_analyses(analyses, container_path, self.project.clone())?;
         }
 
@@ -346,6 +345,7 @@ impl<'a> TreeRunner<'a> {
         container: PathBuf,
         project: ResourceId,
     ) -> Result<process::Output> {
+        tracing::trace!("running {} on {:?}", analysis.id(), container);
         let mut out = analysis.command();
         let out = match out
             .env(PROJECT_ID_KEY, project.to_string())

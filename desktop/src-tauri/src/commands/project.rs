@@ -275,39 +275,6 @@ pub async fn analyze_project(
     Ok(())
 }
 
-// #[tauri::command]
-// pub fn analyze_project(
-//     db: tauri::State<db::Client>,
-//     project: ResourceId,
-//     root: PathBuf,
-//     max_tasks: Option<usize>,
-// ) -> Result<(), lib::command::project::error::Analyze> {
-//     use lib::command::project::error;
-
-//     let (project_path, project_data, graph) =
-//         db.project().resources(project.clone()).unwrap().unwrap();
-//     let db::state::FolderResource::Present(graph) = graph else {
-//         return Err(error::Analyze::GraphAbsent);
-//     };
-
-//     let runner_hooks = match runner::Runner::from(project_path, &project_data) {
-//         Ok(hooks) => hooks,
-//         Err(err) => return Err(err.into()),
-//     };
-//     let runner_hooks = Box::new(runner_hooks) as Box<dyn RunnerHooks>;
-//     let runner = core::runner::Runner::new(runner_hooks);
-//     let Ok(mut graph) = graph_state_to_container_tree(graph) else {
-//         return Err(error::Analyze::InvalidGraph);
-//     };
-//     let root = graph.get_path(&root).unwrap().unwrap().rid().clone();
-//     match max_tasks {
-//         None => runner.from(&project, &mut graph, &root)?,
-//         Some(max_tasks) => runner.with_tasks(&project, &mut graph, max_tasks)?,
-//     }
-
-//     Ok(())
-// }
-
 #[tauri::command]
 pub fn delete_project(project: PathBuf) -> Result<(), lib::command::error::Trash> {
     trash::delete(&project).map_err(|err| err.into())

@@ -1026,6 +1026,10 @@ select {
   right: 0px;
 }
 
+.right-2 {
+  right: 0.5rem;
+}
+
 .right-\[105\%\] {
   right: 105%;
 }
@@ -1352,6 +1356,11 @@ select {
 .border-secondary-900 {
   --tw-border-opacity: 1;
   border-color: rgb(24 26 30 / var(--tw-border-opacity));
+}
+
+.border-syre-red-600 {
+  --tw-border-opacity: 1;
+  border-color: rgb(179 48 0 / var(--tw-border-opacity));
 }
 
 .border-transparent {

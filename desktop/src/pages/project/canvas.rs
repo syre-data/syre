@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{message::Builder as Message, ModalDialog, TruncateLeft},
+    components::{message::Builder as Message, ModalDialog, ToggleExpand, TruncateLeft},
     pages::project::actions,
     types,
 };
@@ -1478,20 +1478,41 @@ fn ContainerErr(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
     container: state::graph::Node,
 ) -> impl IntoView {
-    assert!(container
-        .properties()
-        .with_untracked(|properties| properties.is_err()));
+    let show_details = create_rw_signal(false);
+    let error = {
+        let properties = container.properties().read_only();
+        move || {
+            properties.with(|properties| {
+                let db::state::DataResource::Err(error) = properties else {
+                    panic!("invalid state");
+                };
+
+                format!("{error:?}")
+            })
+        }
+    };
 
     view! {
-        <div ref=node_ref data-resource=DATA_KEY_CONTAINER>
-            <div>
-                <span>
-                    {move || container.name().with(|name| name.to_string_lossy().to_string())}
-                </span>
+        <div
+            ref=node_ref
+            class="h-full flex flex-col border-4 border-syre-red-600 rounded bg-white dark:bg-secondary-700"
+            data-resource=DATA_KEY_CONTAINER
+        >
+            <div class="pb-2 text-center text-lg">
+                {move || container.name().with(|name| name.to_string_lossy().to_string())}
             </div>
 
-            <div>
-                <div>"Error"</div>
+            <div class="grow">
+                <div class="text-center relative border-syre-red-600">
+                    <strong>"Error"</strong>
+                    <div class="absolute top-0 right-2">
+                        <ToggleExpand expanded=show_details />
+                    </div>
+                </div>
+
+                <div class:hidden=move || !show_details() class="grow scroll-y-auto px-2">
+                    {error}
+                </div>
             </div>
         </div>
     }

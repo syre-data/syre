@@ -5,6 +5,7 @@ pub mod form;
 mod logo;
 pub mod message;
 pub mod modal;
+mod toggle_expand;
 mod truncate_left;
 
 pub use autofocus::Autofocus;
@@ -13,4 +14,5 @@ pub use drawer::Drawer;
 pub use logo::Logo;
 pub use message::Message;
 pub use modal::ModalDialog;
+pub use toggle_expand::ToggleExpand;
 pub use truncate_left::TruncateLeft;

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{message::Builder as Message, TruncateLeft},
+    components::{message::Builder as Message, ToggleExpand, TruncateLeft},
     types,
 };
 use futures::StreamExt;
@@ -414,7 +414,7 @@ fn ContainerLayerTitleOk(
         >
             <div class="inline-flex gap-1">
                 <span>
-                    <ToggleExpanded expanded />
+                    <ToggleExpand expanded />
                 </span>
             </div>
             <div class="grow inline-flex gap-1">
@@ -478,7 +478,7 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
                     <div class="inline-flex gap-1">
                         <span>
-                            <ToggleExpanded expanded />
+                            <ToggleExpand expanded />
                         </span>
                     </div>
                     <div class="inline-flex grow">
@@ -629,26 +629,6 @@ async fn handle_context_menu_container_events(
             }
             }
         }
-    }
-}
-
-#[component]
-fn ToggleExpanded(expanded: RwSignal<bool>) -> impl IntoView {
-    let toggle = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary {
-            return;
-        }
-
-        e.stop_propagation();
-        expanded.set(!expanded());
-    };
-
-    view! {
-        <button on:mousedown=toggle type="button">
-            <span class=("rotate-90", expanded) class="inline-block transition">
-                <Icon icon=icondata::VsChevronRight />
-            </span>
-        </button>
     }
 }
 

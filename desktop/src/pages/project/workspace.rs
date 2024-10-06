@@ -699,8 +699,12 @@ fn handle_event_graph_container_properties(event: lib::Event, graph: state::Grap
             handle_event_graph_container_properties_created(event, graph)
         }
         db::event::DataResource::Removed => todo!(),
-        db::event::DataResource::Corrupted(_) => todo!(),
-        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Corrupted(_) => {
+            handle_event_graph_container_properties_corrupted(event, graph)
+        }
+        db::event::DataResource::Repaired(_) => {
+            handle_event_graph_container_properties_repaired(event, graph)
+        }
         db::event::DataResource::Modified(_) => {
             handle_event_graph_container_properties_modified(event, graph)
         }
@@ -763,6 +767,53 @@ fn handle_event_graph_container_properties_created(event: lib::Event, graph: sta
             }
         }
     }
+}
+
+fn handle_event_graph_container_properties_repaired(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Properties(db::event::DataResource::Repaired(update)),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
+    assert!(container
+        .properties()
+        .with_untracked(|properties| properties.is_err()));
+
+    container.properties().update(|properties| {
+        *properties = db::state::DataResource::Ok(state::container::Properties::new(
+            update.rid.clone(),
+            update.properties.clone(),
+        ));
+    });
+}
+
+fn handle_event_graph_container_properties_corrupted(event: lib::Event, graph: state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Container {
+        path,
+        update: db::event::Container::Properties(db::event::DataResource::Corrupted(update)),
+    }) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    let container = graph
+        .find(common::normalize_path_sep(path))
+        .unwrap()
+        .unwrap();
+
+    assert!(container
+        .properties()
+        .with_untracked(|properties| properties.is_ok()));
+
+    container.properties().update(|properties| {
+        *properties = db::state::DataResource::Err(update.clone());
+    });
 }
 
 fn handle_event_graph_container_properties_modified(event: lib::Event, graph: state::Graph) {

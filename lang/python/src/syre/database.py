@@ -52,7 +52,7 @@ class Database:
                 The script will set its graph root to the `Container` at the given path.
                 This is ignored if the script is being run by a runner.
 
-            chdir (bool, optional): Whether to change the directory to the script's. Defaults to `True`.
+            chdir (bool, optional): Change the working directory to the analysis root. Defaults to `True`.
         """
         self._ctx: zmq.Context = zmq.Context()
         self._socket: zmq.Socket = self._ctx.socket(zmq.REQ)
@@ -121,7 +121,11 @@ class Database:
         project_manifest = project_manifest["Ok"]
         project_path = None
         for path in project_manifest:
-            common = os.path.commonpath([path, self._root_path])
+            try:
+                common = os.path.commonpath([path, self._root_path])
+            except ValueError:
+                continue
+            
             if common == path:
                 project_path = path
                 break
@@ -541,7 +545,7 @@ class Database:
         return config["user"]
 
 def windows_ensure_unc_path(path: str) -> str:
-    """Ensures the path begins with the windows UNC identifier (\\?\)
+    """Ensures the path begins with the windows UNC identifier (\\\\?\\)
 
     Args:
         path (str): Path to modify.

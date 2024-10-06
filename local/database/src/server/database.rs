@@ -193,7 +193,7 @@ impl Builder {
             }
         }
 
-        // tracing::debug!(?state);
+        tracing::trace!(?state);
         let mut db = Database {
             config: self.config,
             state,
@@ -406,7 +406,7 @@ mod windows {
                 tracing::error!(?err);
             }
 
-            // tracing::debug!(?self.state);
+            tracing::trace!(?self.state);
             Ok(())
         }
 

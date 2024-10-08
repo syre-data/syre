@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{message::Builder as Message, ToggleExpand, TruncateLeft},
+    components::{ ToggleExpand, TruncateLeft},
     types,
 };
 use futures::StreamExt;
@@ -621,7 +621,7 @@ async fn handle_context_menu_container_events(
                     if let Err(err) = commands::fs::open_file(path)
                         .await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not open container folder.");
+                                let mut msg = types::message::Builder::error("Could not open container folder.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });
@@ -669,7 +669,7 @@ async fn handle_context_menu_asset_events(
                     if let Err(err) = commands::fs::open_file(path)
                         .await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not open asset file.");
+                                let mut msg = types::message::Builder::error("Could not open asset file.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

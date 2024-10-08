@@ -561,7 +561,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
 mod name {
     use super::{super::common::bulk::Value, ActiveResources, State, INPUT_DEBOUNCE};
-    use crate::{components::message, pages::project::state, types::Messages};
+    use crate::{pages::project::state, types};
     use leptos::*;
     use serde::Serialize;
     use std::{ffi::OsString, path::PathBuf};
@@ -573,7 +573,7 @@ mod name {
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
         let (input_error, set_input_error) = create_signal(false);
@@ -623,7 +623,7 @@ mod name {
 
                                 if rename_errors.len() > 0 {
                                     messages.update(|messages| {
-                                        let mut msg = message::Builder::error(
+                                        let mut msg = types::message::Builder::error(
                                             "An error ocurred when renaming container folders.",
                                         );
                                         msg.body(
@@ -642,8 +642,9 @@ mod name {
                                 ) => {
                                     set_input_error(true);
                                     messages.update(|messages| {
-                                        let mut msg =
-                                            message::Builder::error("Could not rename containers");
+                                        let mut msg = types::message::Builder::error(
+                                            "Could not rename containers",
+                                        );
                                         msg.body(view! { <ErrNameCollisionMessage paths /> });
                                         messages.push(msg.build());
                                     });
@@ -1232,9 +1233,9 @@ mod analysis_associations {
         ActiveResources,
     };
     use crate::{
-        components::{message::Builder as Message, DetailPopout},
+        components::DetailPopout,
         pages::project::{properties::common::bulk, state},
-        types::{self, Messages},
+        types,
     };
     use has_id::HasId;
     use leptos::{ev::MouseEvent, *};
@@ -1314,7 +1315,7 @@ mod analysis_associations {
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<super::State>>();
 
@@ -1395,7 +1396,7 @@ mod analysis_associations {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let autorun_input_node = NodeRef::<html::Input>::new();
         let (value, set_value) = create_signal({
@@ -1566,7 +1567,7 @@ mod analysis_associations {
     pub fn AddAssociation(#[prop(optional, into)] onclose: Option<Callback<()>>) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<super::State>>();
 
@@ -1648,7 +1649,7 @@ mod analysis_associations {
                         add_analysis_association(project, container_paths, association).await
                     {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container.");
+                        let mut msg = types::message::Builder::error("Could not save container.");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     };

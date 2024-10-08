@@ -1,7 +1,6 @@
 use super::super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
 use crate::{
     commands, common,
-    components::message::Builder as Message,
     pages::project::{actions, state},
     types,
 };
@@ -277,12 +276,14 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                     tracing::error!(?err);
                     let msg = match err {
                         AnalysesUpdate::AnalysesFile(err) => {
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             msg
                         }
                         AnalysesUpdate::RemoveFile(err) => {
-                            let mut msg = Message::error("Could not remove analysis file.");
+                            let mut msg =
+                                types::message::Builder::error("Could not remove analysis file.");
                             msg.body(format!("{err:?}"));
                             msg
                         }
@@ -417,7 +418,7 @@ async fn handle_context_menu_analyses_events(
                     if let Err(err) = commands::fs::open_file(path)
                         .await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not open analysis file.");
+                                let mut msg = types::message::Builder::error("Could not open analysis file.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

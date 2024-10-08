@@ -2,9 +2,9 @@ use std::{io, path::PathBuf};
 
 use super::INPUT_DEBOUNCE;
 use crate::{
-    components::{message::Builder as Message, ModalDialog, TruncateLeft},
+    components::{ModalDialog, TruncateLeft},
     pages::project::state,
-    types::{self, MouseButton},
+    types::{self},
 };
 use description::Editor as Description;
 use ev::SubmitEvent;
@@ -30,7 +30,7 @@ pub fn Editor() -> impl IntoView {
     };
 
     let show_delete_confirmation = move |e: MouseEvent| {
-        if e.button() != MouseButton::Primary {
+        if e.button() != types::MouseButton::Primary {
             return;
         }
 
@@ -117,7 +117,7 @@ fn DeleteProjectConfirmation() -> impl IntoView {
                 let navigate = navigate.clone();
                 async move {
                     if let Err(err) = delete_project(project.get_untracked()).await {
-                        let mut msg = Message::error("Could not delete project.");
+                        let mut msg = types::message::Builder::error("Could not delete project.");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     } else {
@@ -169,17 +169,13 @@ fn DeleteProjectConfirmation() -> impl IntoView {
 
 mod name {
     use super::{update_properties, INPUT_DEBOUNCE};
-    use crate::{
-        components::{form::debounced::InputText, message::Builder as Message},
-        pages::project::state,
-        types::Messages,
-    };
+    use crate::{components::form::debounced::InputText, pages::project::state, types};
     use leptos::*;
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let oninput = {
             let project = project.clone();
@@ -197,7 +193,7 @@ mod name {
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save project.");
+                            let mut msg = types::message::Builder::error("Could not save project.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -221,13 +217,13 @@ mod description {
     use super::{
         super::common::description::Editor as DescriptionEditor, update_properties, INPUT_DEBOUNCE,
     };
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
+    use crate::{pages::project::state, types};
     use leptos::*;
 
     #[component]
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let oninput = {
             let project = project.clone();
@@ -241,7 +237,7 @@ mod description {
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save project.");
+                            let mut msg = types::message::Builder::error("Could not save project.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }

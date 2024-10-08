@@ -364,11 +364,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
 mod name {
     use super::INPUT_DEBOUNCE;
-    use crate::{
-        components::{form::debounced::value, message::Builder as Message},
-        pages::project::state,
-        types::Messages,
-    };
+    use crate::{components::form::debounced::value, pages::project::state, types};
     use leptos::*;
     use serde::Serialize;
     use std::{ffi::OsString, path::PathBuf};
@@ -384,7 +380,7 @@ mod name {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
         let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
         let (error, set_error) = create_signal(false);
@@ -420,7 +416,8 @@ mod name {
 
                     async move {
                         if let Err(err) = rename_container(project, path, name).await {
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -471,7 +468,7 @@ mod name {
 
 mod kind {
     use super::{super::common::kind::Editor as KindEditor, update_properties, INPUT_DEBOUNCE};
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
+    use crate::{pages::project::state, types};
     use leptos::*;
     use syre_core::types::ResourceId;
     use syre_local_database as db;
@@ -483,7 +480,7 @@ mod kind {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let oninput = move |value: Option<String>| {
             let messages = messages.write_only();
@@ -505,7 +502,7 @@ mod kind {
                 async move {
                     if let Err(err) = update_properties(project, path, properties).await {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not save container.");
+                        let mut msg = types::message::Builder::error("Could not save container.");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -528,7 +525,7 @@ mod description {
     use super::{
         super::common::description::Editor as DescriptionEditor, update_properties, INPUT_DEBOUNCE,
     };
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
+    use crate::{pages::project::state, types};
     use leptos::*;
     use syre_core::types::ResourceId;
     use syre_local_database as db;
@@ -541,7 +538,7 @@ mod description {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let oninput = {
             let messages = messages.write_only();
@@ -564,7 +561,8 @@ mod description {
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -586,7 +584,7 @@ mod description {
 
 mod tags {
     use super::{super::common::tags::Editor as TagsEditor, update_properties, INPUT_DEBOUNCE};
-    use crate::{components::message::Builder as Message, pages::project::state, types::Messages};
+    use crate::{pages::project::state, types};
     use leptos::*;
     use syre_core::types::ResourceId;
     use syre_local_database as db;
@@ -599,7 +597,7 @@ mod tags {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let oninput = {
             let messages = messages.write_only();
@@ -622,7 +620,8 @@ mod tags {
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -647,11 +646,7 @@ mod metadata {
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
         update_properties, INPUT_DEBOUNCE,
     };
-    use crate::{
-        components::{message::Builder as Message, DetailPopout},
-        pages::project::state,
-        types,
-    };
+    use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{ev::MouseEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
@@ -811,7 +806,8 @@ mod metadata {
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -851,7 +847,8 @@ mod metadata {
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg = Message::error("Could not save container.");
+                            let mut msg =
+                                types::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -884,10 +881,7 @@ mod analysis_associations {
         state,
     };
     use crate::{
-        commands,
-        components::{message::Builder as Message, DetailPopout},
-        pages::project::properties::INPUT_DEBOUNCE,
-        types::{self, Messages},
+        commands, components::DetailPopout, pages::project::properties::INPUT_DEBOUNCE, types,
     };
     use has_id::HasId;
     use leptos::{ev::MouseEvent, *};
@@ -904,7 +898,7 @@ mod analysis_associations {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
 
         let add_association = create_action(move |association: &AnalysisAssociation| {
             let node = container.with(|rid| graph.find_by_id(rid).unwrap());
@@ -937,7 +931,7 @@ mod analysis_associations {
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not save container.");
+                    let mut msg = types::message::Builder::error("Could not save container.");
                     msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 };
@@ -994,7 +988,9 @@ mod analysis_associations {
                     .await
                     {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not update analysis associations.");
+                        let mut msg = types::message::Builder::error(
+                            "Could not update analysis associations.",
+                        );
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -1058,7 +1054,7 @@ mod analysis_associations {
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
-        let messages = expect_context::<Messages>();
+        let messages = expect_context::<types::Messages>();
         let autorun_input_node = NodeRef::<html::Input>::new();
         let (value, set_value) = create_signal(AnalysisAssociation::with_params(
             association.analysis().clone(),
@@ -1114,7 +1110,9 @@ mod analysis_associations {
                     .await
                     {
                         tracing::error!(?err);
-                        let mut msg = Message::error("Could not update analysis associations.");
+                        let mut msg = types::message::Builder::error(
+                            "Could not update analysis associations.",
+                        );
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     };

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{message::Builder as Message, ModalDialog, ToggleExpand, TruncateLeft},
+    components::{ModalDialog, ToggleExpand, TruncateLeft},
     pages::project::actions,
     types,
 };
@@ -1051,7 +1051,7 @@ fn Assets(assets: ReadSignal<state::container::AssetsState>) -> impl IntoView {
                 tracing::error!(?err);
                 messages.update(|messages| {
                     // TODO: Get path of container.
-                    let mut msg = Message::error("Could not load assets.");
+                    let mut msg = types::message::Builder::error("Could not load assets.");
                     msg.body(format!("{err:?}"));
                     messages.push(msg.build());
                 });
@@ -1194,7 +1194,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not remove asset file");
+                    let mut msg = types::message::Builder::error("Could not remove asset file");
                     msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 };
@@ -1347,7 +1347,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg = Message::error("Could not update analysis associations.");
+                    let mut msg = types::message::Builder::error("Could not update analysis associations.");
                     msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 }
@@ -1640,7 +1640,7 @@ fn handle_container_action_add_analysis_accociation(
                 .await
         {
             tracing::error!(?err);
-            let mut msg = Message::error("Could not save container.");
+            let mut msg = types::message::Builder::error("Could not save container.");
             msg.body(format!("{err:?}"));
             messages.update(|messages| messages.push(msg.build()));
         }
@@ -1676,7 +1676,7 @@ async fn handle_context_menu_container_ok_events(
                     if let Err(err) = commands::fs::open_file(path)
                         .await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not open container folder.");
+                                let mut msg = types::message::Builder::error("Could not open container folder.");
                                 msg.body(format!("{err:?}"));
                                 messages.push(msg.build());
                         });
@@ -1693,7 +1693,7 @@ async fn handle_context_menu_container_ok_events(
                     let project_id = project.rid().get_untracked();
                     if let Err(err) =  duplicate_container(project_id, path).await {
                         messages.update(|messages|{
-                            let mut msg = Message::error("Could not duplicate container.");
+                            let mut msg = types::message::Builder::error("Could not duplicate container.");
                             msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });
@@ -1710,7 +1710,7 @@ async fn handle_context_menu_container_ok_events(
                     let project_id = project.rid().get_untracked();
                     if let Err(err) =  trash_container(project_id, path).await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not trash container.");
+                                let mut msg = types::message::Builder::error("Could not trash container.");
                                 msg.body(format!("{err:?}"));
                                 messages.push(msg.build());
                             });
@@ -1758,7 +1758,7 @@ async fn handle_context_menu_asset_events(
                     if let Err(err) = commands::fs::open_file(path)
                         .await {
                             messages.update(|messages|{
-                                let mut msg = Message::error("Could not open asset file.");
+                                let mut msg = types::message::Builder::error("Could not open asset file.");
                                 msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

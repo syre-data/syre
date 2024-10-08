@@ -1430,7 +1430,7 @@ fn update_metadata(metadata: RwSignal<state::Metadata>, update: &syre_core::proj
     let (keys_update, keys_new): (Vec<_>, Vec<_>) = metadata.with_untracked(|metadata| {
         update
             .keys()
-            .partition(|(key)| metadata.iter().any(|(k, _)| k == *key))
+            .partition(|key| metadata.iter().any(|(k, _)| k == *key))
     });
 
     metadata.update(|metadata| {

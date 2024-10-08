@@ -261,13 +261,12 @@ fn Analyze() -> impl IntoView {
         move |_| async move {
             match analyze(project.get_untracked(), "/").await {
                 Ok(_) => {
-                    let msg = crate::components::message::Builder::success("Analysis complete.");
+                    let msg = types::message::Builder::success("Analysis complete.");
                     messages.update(|messages| messages.push(msg.build()));
                 }
                 Err(err) => {
                     tracing::error!(?err);
-                    let mut msg =
-                        crate::components::message::Builder::error("Could not complete analysis.");
+                    let mut msg = types::message::Builder::error("Could not complete analysis.");
                     msg.body(err);
                     messages.update(|messages| messages.push(msg.build()));
                 }

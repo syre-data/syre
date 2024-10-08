@@ -1,6 +1,6 @@
 use crate::{
     commands::fs::{pick_folder, pick_folder_with_location},
-    components::{message::Builder as Message, ModalDialog, TruncateLeft},
+    components::{ModalDialog, TruncateLeft},
     types,
 };
 use futures::stream::StreamExt;
@@ -466,7 +466,7 @@ fn InitializeProject(
             async move {
                 if let Some(path) = pick_folder("Initialize an existing directory").await {
                     if let Err(err) = initialize_project(user, path).await {
-                        let mut msg = Message::error("Could not initialize project");
+                        let mut msg = types::message::Builder::error("Could not initialize project");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -505,7 +505,7 @@ fn ImportProject(
             async move {
                 if let Some(path) = pick_folder("Import a project").await {
                     if let Err(err) = import_project(user, path).await {
-                        let mut msg = Message::error("Could not import project");
+                        let mut msg = types::message::Builder::error("Could not import project");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -589,7 +589,7 @@ async fn handle_context_menu_project_ok_events(
                     let project = context_menu_active_project.get_untracked().unwrap();
                     if let Err(err) =  remove_project((*project).clone()).await {
                         messages.update(|messages|{
-                            let mut msg = Message::error("Could not remove project.");
+                            let mut msg = types::message::Builder::error("Could not remove project.");
                             msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

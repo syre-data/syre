@@ -14,6 +14,7 @@ pub const CONTAINER_FILE: &str = "container.json";
 pub const CONTAINER_SETTINGS_FILE: &str = "container_settings.json";
 pub const ASSETS_FILE: &str = "assets.json";
 pub const ANALYSES_FILE: &str = "analyses.json";
+pub const IGNORE_FILE: &str = ".syreignore";
 
 // ************
 // *** misc ***

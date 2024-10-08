@@ -98,10 +98,13 @@ impl Database {
             unreachable!("invalid state");
         };
 
+        let ignore = common::load_syre_ignore(project.path())
+            .map(|res| res.ok())
+            .flatten();
         let data_root_path = project.path().join(&project_properties.data_root);
         let parent_path =
             common::container_graph_path(&data_root_path, path.parent().unwrap()).unwrap();
-        let subgraph = server::state::project::graph::State::load(path).unwrap();
+        let subgraph = server::state::project::graph::State::load(path, ignore.as_ref()).unwrap();
         let subgraph_state = subgraph.as_graph();
 
         let project_path = project.path().clone();

@@ -6,7 +6,8 @@ use crate::{
     Error, Result,
 };
 use std::{
-    fs, io,
+    fs,
+    io::{self, BufRead},
     path::{Path, PathBuf},
     result::Result as StdResult,
 };

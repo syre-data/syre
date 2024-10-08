@@ -1,5 +1,6 @@
 //! Common functions.
 use std::path::{Component, Path, PathBuf, StripPrefixError};
+use syre_local as local;
 
 #[cfg(any(feature = "client", feature = "server"))]
 use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
@@ -115,4 +116,26 @@ pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<
         .components()
         .chain(container.as_ref().components().skip(1))
         .collect()
+}
+
+/// Loads an ignore matcher for a project.
+///
+/// # Arguments
+/// + `path`: Base path.
+/// # Returns
+/// + `None` if an ignore file is not present.
+#[cfg(feature = "server")]
+pub fn load_syre_ignore(
+    path: impl AsRef<Path>,
+) -> Option<Result<ignore::gitignore::Gitignore, ignore::Error>> {
+    let ignore_path = local::common::ignore_file_of(&path);
+    if !ignore_path.exists() {
+        return None;
+    }
+
+    let mut ignore = ignore::gitignore::GitignoreBuilder::new(&path);
+    if let Some(err) = ignore.add(ignore_path) {
+        return Some(Err(err));
+    };
+    Some(ignore.build())
 }

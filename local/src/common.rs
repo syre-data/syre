@@ -149,7 +149,6 @@ pub fn strip_windows_unc(path: impl AsRef<Path>) -> PathBuf {
 // *** file paths ***
 // ******************
 
-// --- app directory ---
 /// Returns the relative path to the Syre directory from a base path.
 pub fn app_dir() -> &'static Path {
     Path::new(APP_DIR)
@@ -161,76 +160,76 @@ pub fn app_dir_of(path: impl AsRef<Path>) -> PathBuf {
     path.as_ref().join(APP_DIR)
 }
 
-// --- project ---
 /// Path to the project file for a given path.
 pub fn project_file() -> PathBuf {
     app_dir().join(PROJECT_FILE)
 }
 
 /// Path to the project file for a given path.
-/// app_dir(path)/\<PROJECT_FILE\>
+/// app_dir_of(path)/\<PROJECT_FILE\>
 pub fn project_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(PROJECT_FILE)
 }
 
-// --- project settings ---
 /// Path to the project settings file relative to a base path.
 pub fn project_settings_file() -> PathBuf {
     app_dir().join(PROJECT_SETTINGS_FILE)
 }
 
 /// Path to the project settings file for a given path.
-/// app_dir(path)/\<PROJECT_SETTINGS_FILE\>
+/// app_dir_of(path)/\<PROJECT_SETTINGS_FILE\>
 pub fn project_settings_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(PROJECT_SETTINGS_FILE)
 }
 
-// --- container ---
 /// Path to the Container file from a base path.
 pub fn container_file() -> PathBuf {
     app_dir().join(CONTAINER_FILE)
 }
 
 /// Path to the Container file for a given path.
-/// app_dir(path)/\<CONTAINER_FILE\>
+/// app_dir_of(path)/\<CONTAINER_FILE\>
 pub fn container_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(CONTAINER_FILE)
 }
 
-// --- container settings ---
 /// Path to the Container settings file from a base path.
 pub fn container_settings_file() -> PathBuf {
     app_dir().join(CONTAINER_SETTINGS_FILE)
 }
 
 /// Path to the Container settings file for a given path.
-/// app_dir(path)/\<CONTAINER_SETTINGS_FILE\>
+/// app_dir_of(path)/\<CONTAINER_SETTINGS_FILE\>
 pub fn container_settings_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(CONTAINER_SETTINGS_FILE)
 }
 
-// --- assets ---
 /// Path to the Assets file from a base path.
 pub fn assets_file() -> PathBuf {
     app_dir().join(ASSETS_FILE)
 }
 
 /// Path to the Assets file for a given path.
-/// app_dir(path)/\<ASSETS_FILE\>
+/// app_dir_of(path)/\<ASSETS_FILE\>
 pub fn assets_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(ASSETS_FILE)
 }
 
-// --- analysis ---
 /// Path to the Assets file from a base path.
 pub fn analyses_file() -> PathBuf {
     app_dir().join(ANALYSES_FILE)
 }
 
 /// Path to the analyses file for a given path.
-/// app_dir(path)/\<ANALYSES_FILE\>
+/// app_dir_of(path)/\<ANALYSES_FILE\>
 pub fn analyses_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(ANALYSES_FILE)
+}
+
+/// Path to the ignore file for a given path.
+/// <path>/\<IGNORE_FILE\>
+pub fn ignore_file_of(path: impl AsRef<Path>) -> PathBuf {
+    path.as_ref().join(IGNORE_FILE)
 }
 
 #[cfg(test)]

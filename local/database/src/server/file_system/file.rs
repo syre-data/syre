@@ -16,7 +16,10 @@ impl Database {
         match kind {
             event::ResourceEvent::Created => self.handle_fs_event_file_created(event),
             event::ResourceEvent::Modified(_) => self.handle_fs_event_file_modified(event),
-            _ => todo!(),
+            event::ResourceEvent::Removed => todo!(),
+            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Moved => todo!(),
+            event::ResourceEvent::MovedProject => todo!(),
         }
     }
 }

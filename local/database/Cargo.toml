@@ -20,6 +20,7 @@ crossbeam = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["full"] }
 file-id = { version = "0.2", optional = true }
 futures  = { workspace = true, optional = true }
+ignore  = { workspace = true, optional = true }
 notify = { workspace = true, default-features = false, optional = true }
 regex = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
@@ -56,18 +57,19 @@ server = [
 	"syre-local/fs",
 	"syre-core/surreal_db",
 	"dep:syre-fs-watcher",
-	"dep:file_path_from_id",
-	"dep:has_id",
-	"dep:zmq",
-	"dep:rayon",
-	"dep:trash",
-	"dep:tokio",
-	"dep:surrealdb",
-	"dep:notify",
-	"dep:futures",
-	"dep:file-id",
 	"dep:crossbeam",
+	"dep:file_path_from_id",
+	"dep:file-id",
+	"dep:futures",
+	"dep:has_id",
+	"dep:ignore",
+	"dep:notify",
+	"dep:rayon",
 	"dep:regex",
+	"dep:surrealdb",
+	"dep:tokio",
+	"dep:trash",
+	"dep:zmq",
 ]
 client = [
 	"dep:zmq",

@@ -1,15 +1,7 @@
-use crate::{common, project::resources::Container};
+use crate::{common, project::project, project::resources::Container};
 use rayon::prelude::*;
-use std::{
-    collections::HashMap,
-    fs, io,
-    path::Path,
-    sync::{Arc, Mutex},
-};
-use syre_core::{
-    graph::{ResourceNode, ResourceTree},
-    types::ResourceId,
-};
+use std::{io, path::Path, sync::Arc};
+use syre_core::graph::{ResourceNode, ResourceTree};
 
 type ContainerTree = ResourceTree<Container>;
 
@@ -25,10 +17,23 @@ impl Loader {
             return Err(error::Error::Root(io::ErrorKind::NotADirectory));
         }
 
+        // TODO: Allow recursive ignore files
+        let ignore = project::project_root_path(&path)
+            .map(|project_path| {
+                let ignore_path = common::ignore_file_of(&project_path);
+                let mut ignore = ignore::gitignore::GitignoreBuilder::new(&project_path);
+                if let Some(err) = ignore.add(&ignore_path) {
+                    return Err((ignore_path, err));
+                };
+                ignore.build().map_err(|err| (ignore_path, err))
+            })
+            .transpose()
+            .map_err(|(path, err)| error::Error::Ignore { path, err })?;
+
         let state = rayon::ThreadPoolBuilder::new()
             .build()
             .unwrap()
-            .install(move || Self::load_tree(path));
+            .install(move || Self::load_tree(path, ignore.as_ref()));
 
         if state.is_ok() {
             let (nodes, edges, _) = state.to_parts();
@@ -71,7 +76,10 @@ impl Loader {
     }
 
     /// Recursive loader.
-    fn load_tree(path: impl AsRef<Path>) -> state::Tree {
+    fn load_tree(
+        path: impl AsRef<Path>,
+        ignore: Option<&ignore::gitignore::Gitignore>,
+    ) -> state::Tree {
         let path = path.as_ref();
         let root = state::Container::load(path);
         let mut graph = state::Tree::new(root);
@@ -83,16 +91,29 @@ impl Loader {
                     return None;
                 };
 
-                if entry.file_type().is_dir() {
-                    if entry.file_name() != common::app_dir() {
-                        return Some(entry);
-                    }
+                if !entry.file_type().is_dir()
+                    || entry.file_name() == common::app_dir()
+                    || entry
+                        .file_name()
+                        .to_str()
+                        .map(|name| name.starts_with("."))
+                        .unwrap_or(false)
+                {
+                    return None;
                 }
-                None
+
+                if ignore
+                    .map(|ignore| ignore.matched(entry.path(), true).is_ignore())
+                    .unwrap_or(false)
+                {
+                    return None;
+                }
+
+                Some(entry)
             })
             .collect::<Vec<_>>()
             .into_par_iter()
-            .map(|entry| Self::load_tree(entry.path()))
+            .map(|entry| Self::load_tree(entry.path(), ignore))
             .collect::<Vec<_>>();
 
         let root = graph.root().clone();
@@ -103,35 +124,6 @@ impl Loader {
         graph
     }
 }
-
-// pub struct AssetValidator {}
-// impl AssetValidator {
-//     pub fn validate(graph: &ContainerTree) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
-//         let thread_pool = rayon::ThreadPoolBuilder::new().build().unwrap();
-//         return thread_pool.install(move || Self::validate_tree(graph));
-//     }
-
-//     fn validate_tree(
-//         graph: &ContainerTree,
-//     ) -> Result<(), HashMap<ResourceId, Vec<AssetFileError>>> {
-//         let errors = graph
-//             .nodes()
-//             .par_iter()
-//             .filter_map(|(rid, container)| {
-//                 match ContainerAssetValidator::validate(container.data()) {
-//                     Ok(_) => None,
-//                     Err(errs) => Some((rid.clone(), errs)),
-//                 }
-//             })
-//             .collect::<HashMap<ResourceId, Vec<AssetFileError>>>();
-
-//         if errors.is_empty() {
-//             Ok(())
-//         } else {
-//             Err(errors)
-//         }
-//     }
-// }
 
 mod state {
     use super::super::container;
@@ -303,7 +295,8 @@ mod state {
 
 pub mod error {
     use super::state::Tree;
-    use std::io;
+    use crate::project::project;
+    use std::{io, path::PathBuf};
 
     #[derive(Debug)]
     pub enum Error {
@@ -312,6 +305,9 @@ pub mod error {
 
         /// The tree could not be loaded normally.
         State(Tree),
+
+        /// An ignore file could not be read correctly.
+        Ignore { path: PathBuf, err: ignore::Error },
     }
 }
 

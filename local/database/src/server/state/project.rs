@@ -1,6 +1,9 @@
 //! Project state.
 use super::Error;
-use crate::state::{DataResource, FileResource, FolderResource};
+use crate::{
+    common,
+    state::{DataResource, FileResource, FolderResource},
+};
 pub use action::Action;
 use std::path::PathBuf;
 use syre_local::{file_resource::LocalResource, TryReducible};
@@ -37,13 +40,17 @@ impl State {
 }
 
 impl State {
+    /// # Arguments
+    /// + `path`: Path to project base directory.
+    ///
     /// # Panics
     /// + If graph is present, but invalid.
     pub fn load(path: impl Into<PathBuf>) -> Self {
         use crate::state;
         use syre_local::project::resources::{project::LoadError, Analyses, Project};
 
-        let mut state = Self::new(path);
+        let path = path.into();
+        let mut state = Self::new(&path);
         if !state.path().is_dir() {
             return state;
         }
@@ -108,8 +115,15 @@ impl State {
         });
         project.set_analyses(analyses);
 
+        // TODO: Allow recursive ignore files
+        let ignore = common::load_syre_ignore(&path)
+            .map(|res| res.ok())
+            .flatten();
+
         if let Result::Ok(properties) = project.properties().as_ref() {
-            if let Ok(graph) = graph::State::load(state.path().join(&properties.data_root)) {
+            if let Ok(graph) =
+                graph::State::load(state.path().join(&properties.data_root), ignore.as_ref())
+            {
                 project.set_graph(graph)
             }
         }
@@ -621,6 +635,7 @@ pub mod graph {
         sync::{Arc, Mutex},
     };
     use syre_core::types::ResourceId;
+    use syre_local as local;
 
     pub type Node = Arc<Mutex<Container>>;
     pub type EdgeMap = Vec<(Node, Vec<Node>)>;
@@ -651,7 +666,10 @@ pub mod graph {
 
         /// # Errors
         /// + If `path` is not a directory.
-        pub fn load(path: impl AsRef<Path>) -> Result<Self, io::ErrorKind> {
+        pub fn load(
+            path: impl AsRef<Path>,
+            ignore: Option<&ignore::gitignore::Gitignore>,
+        ) -> Result<Self, io::ErrorKind> {
             let path = path.as_ref();
             if !path.exists() {
                 return Err(io::ErrorKind::NotFound);
@@ -663,14 +681,17 @@ pub mod graph {
             Ok(rayon::ThreadPoolBuilder::new()
                 .build()
                 .unwrap()
-                .install(move || Self::load_tree(path)))
+                .install(move || Self::load_tree(path, ignore)))
         }
 
         /// Recursive loader.
         ///
         /// # Panics
         /// + If the path is invalid.
-        fn load_tree(path: impl AsRef<Path>) -> Self {
+        fn load_tree(
+            path: impl AsRef<Path>,
+            ignore: Option<&ignore::gitignore::Gitignore>,
+        ) -> Self {
             let path = path.as_ref();
             let root = Container::load(path).unwrap();
             let mut graph = Self::new(root);
@@ -679,16 +700,29 @@ pub mod graph {
                 .into_iter()
                 .filter_map(|entry| {
                     let path = entry.unwrap().path();
-                    if path.file_name().unwrap() == syre_local::common::app_dir() || !path.is_dir()
+                    let file_name = path.file_name().unwrap();
+                    if !path.is_dir()
+                        || file_name == local::common::app_dir()
+                        || file_name
+                            .to_str()
+                            .map(|name| name.starts_with("."))
+                            .unwrap_or(false)
                     {
-                        None
-                    } else {
-                        Some(path)
+                        return None;
                     }
+
+                    if ignore
+                        .map(|ignore| ignore.matched(&path, true).is_ignore())
+                        .unwrap_or(false)
+                    {
+                        return None;
+                    }
+
+                    Some(path)
                 })
                 .collect::<Vec<_>>()
                 .into_par_iter()
-                .map(|path| Self::load_tree(path))
+                .map(|path| Self::load_tree(path, ignore))
                 .collect::<Vec<_>>();
 
             let root = graph.root().clone();

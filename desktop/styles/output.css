@@ -1340,6 +1340,11 @@ select {
   border-style: solid;
 }
 
+.\!border-syre-red-600 {
+  --tw-border-opacity: 1 !important;
+  border-color: rgb(179 48 0 / var(--tw-border-opacity)) !important;
+}
+
 .border-black {
   --tw-border-opacity: 1;
   border-color: rgb(0 0 0 / var(--tw-border-opacity));
@@ -1852,6 +1857,11 @@ select {
 
 .hover\:duration-200:hover {
   transition-duration: 200ms;
+}
+
+.focus\:ring-syre-red-600:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(179 48 0 / var(--tw-ring-opacity));
 }
 
 .disabled\:cursor-not-allowed:disabled {

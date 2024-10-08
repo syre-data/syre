@@ -135,12 +135,12 @@ pub mod metadata {
     ) -> impl IntoView {
         let (key, set_key) = create_signal("".to_string());
         let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
-        let (value, set_value) = create_signal(Value::String("".to_string()));
+        let (value, set_value) = create_signal(Value::Number(serde_json::Number::from(0)));
 
         if let Some(reset) = reset {
             let _ = watch(
                 reset,
-                move |_, _, _| set_value(Value::String("".to_string())),
+                move |_, _, _| set_value(Value::Number(serde_json::Number::from(0))),
                 false,
             );
         }
@@ -182,7 +182,7 @@ pub mod metadata {
                 });
 
                 set_key.update(|key| key.clear());
-                set_value(Value::String(String::new()));
+                set_value(Value::Number(serde_json::Number::from(0)));
                 onadd((key, value));
             }
         };
@@ -285,11 +285,11 @@ pub mod metadata {
                 on:change=change
                 class="input-compact pr-4 w-full"
             >
-                <option value=kind_to_str(&ValueKind::Quantity)>"Quantity"</option>
                 <option value=kind_to_str(&ValueKind::Number)>"Number"</option>
+                <option value=kind_to_str(&ValueKind::Quantity)>"Quantity"</option>
                 <option value=kind_to_str(&ValueKind::Bool)>"Boolean"</option>
                 <option value=kind_to_str(&ValueKind::String)>"String"</option>
-                <option value=kind_to_str(&ValueKind::Array)>"Array"</option>
+                <option value=kind_to_str(&ValueKind::Array)>"List"</option>
             </select>
         }
     }
@@ -451,11 +451,8 @@ pub mod metadata {
     }
 
     #[component]
-    fn ArrayEditor(
-        /// Read signal.
-        value: Signal<Value>,
-        set_value: WriteSignal<Value>,
-    ) -> impl IntoView {
+    fn ArrayEditor(value: Signal<Value>, set_value: WriteSignal<Value>) -> impl IntoView {
+        let (error, set_error) = create_signal(None);
         let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
             let Value::Array(value) = value else {
                 panic!("invalid value kind");
@@ -486,6 +483,7 @@ pub mod metadata {
         });
 
         create_effect(move |_| {
+            set_error(None);
             let val = input_value.with(|value| {
                 value
                     .split([',', '\n', ';'])
@@ -494,20 +492,33 @@ pub mod metadata {
                         if value.is_empty() {
                             None
                         } else {
-                            todo!();
+                            Some(serde_json::from_str::<Value>(elm))
                         }
                     })
-                    .collect::<Vec<Value>>()
+                    .collect::<serde_json::Result<Vec<_>>>()
             });
 
-            set_value(Value::Array(val));
+            match val {
+                Ok(val) => {
+                    let val = Value::Array(val);
+                    if value.with_untracked(|value| *value != val) {
+                        set_value(val);
+                    }
+                }
+                Err(err) => set_error(Some(err)),
+            }
         });
 
         view! {
             <textarea
                 on:input=move |e| set_input_value(event_target_value(&e))
-                placeholder="Value"
-                class="input-compact align-top"
+                placeholder="Separate values by comma, semicolon, or new line."
+                class=(
+                    ["border-2", "!border-syre-red-600", "focus:ring-syre-red-600"],
+                    move || error.with(|error| error.is_some()),
+                )
+                class="input-compact align-top overflow-auto scrollbar-thin"
+                title="Separate values by comma, semicolon, or new line."
             >
                 {input_value}
             </textarea>
@@ -1130,6 +1141,7 @@ pub mod bulk {
         use crate::components::form::InputNumber;
         use leptos::*;
         use leptos_icons::Icon;
+        use serde::Deserialize;
         use syre_core::types::data;
 
         #[derive(PartialEq, Clone, Debug)]
@@ -1346,7 +1358,7 @@ pub mod bulk {
                             .with(|value| match value {
                                 Value::Equal(ref value) => {
                                     value_to_kind_str(&value)
-                                        .unwrap_or(kind_to_str(&data::ValueKind::String))
+                                        .unwrap_or(kind_to_str(&data::ValueKind::Number))
                                 }
                                 Value::EqualKind(ref kind) => kind_to_str(&kind),
                                 Value::MixedKind => "",
@@ -1372,11 +1384,11 @@ pub mod bulk {
                             })
                     }}
 
-                    <option value=kind_to_str(&data::ValueKind::Quantity)>"Quantity"</option>
                     <option value=kind_to_str(&data::ValueKind::Number)>"Number"</option>
+                    <option value=kind_to_str(&data::ValueKind::Quantity)>"Quantity"</option>
                     <option value=kind_to_str(&data::ValueKind::Bool)>"Boolean"</option>
                     <option value=kind_to_str(&data::ValueKind::String)>"String"</option>
-                    <option value=kind_to_str(&data::ValueKind::Array)>"Array"</option>
+                    <option value=kind_to_str(&data::ValueKind::Array)>"List"</option>
                 </select>
             }
         }
@@ -1533,6 +1545,7 @@ pub mod bulk {
 
         #[component]
         fn ArrayEditor(value: Signal<Value>, oninput: Callback<data::Value>) -> impl IntoView {
+            let (error, set_error) = create_signal(None);
             let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
                 match value {
                     Value::EqualKind(_) => "".to_string(),
@@ -1540,7 +1553,7 @@ pub mod bulk {
                         .iter()
                         .map(|value| value.to_string())
                         .collect::<Vec<_>>()
-                        .join(",\n"),
+                        .join("\n"),
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 }
             }));
@@ -1549,7 +1562,9 @@ pub mod bulk {
             let placeholder = move || {
                 value.with(|value| match value {
                     Value::EqualKind(_) => "(mixed)",
-                    Value::Equal(data::Value::Array(_)) => "",
+                    Value::Equal(data::Value::Array(_)) => {
+                        "Separate values by comma, semicolon, or new line."
+                    }
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 })
             };
@@ -1563,20 +1578,28 @@ pub mod bulk {
                             if value.is_empty() {
                                 None
                             } else {
-                                todo!();
+                                Some(serde_json::from_str::<data::Value>(elm))
                             }
                         })
-                        .collect::<Vec<data::Value>>()
+                        .collect::<serde_json::Result<Vec<_>>>()
                 });
 
-                oninput(data::Value::Array(val));
+                match val {
+                    Ok(val) => oninput(data::Value::Array(val)),
+                    Err(err) => set_error(Some(err)),
+                }
             });
 
             view! {
                 <textarea
                     on:input=move |e| set_input_value(event_target_value(&e))
                     placeholder=placeholder
-                    class="input-compact align-top"
+                    class=(
+                        ["border-2", "!border-syre-red-600", "focus:ring-syre-red-600"],
+                        move || error.with(|error| error.is_some()),
+                    )
+                    class="input-compact align-top overflow-auto scrollbar-thin"
+                    title="Separate values by comma, semicolon, or new line."
                 >
                     {input_value}
                 </textarea>

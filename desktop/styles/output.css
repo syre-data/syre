@@ -1159,6 +1159,16 @@ select {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 .cursor-ew-resize {
   cursor: ew-resize;
 }
@@ -1868,6 +1878,11 @@ select {
   cursor: not-allowed;
 }
 
+.disabled\:bg-primary-800:disabled {
+  --tw-bg-opacity: 1;
+  background-color: rgb(6 91 128 / var(--tw-bg-opacity));
+}
+
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
 }
@@ -1997,6 +2012,11 @@ select {
   .dark\:hover\:bg-secondary-800:hover {
     --tw-bg-opacity: 1;
     background-color: rgb(43 46 51 / var(--tw-bg-opacity));
+  }
+
+  .dark\:disabled\:bg-primary-400:disabled {
+    --tw-bg-opacity: 1;
+    background-color: rgb(149 209 217 / var(--tw-bg-opacity));
   }
 
   .\[\&_\*\]\:dark\:\!stroke-white * {

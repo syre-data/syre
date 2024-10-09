@@ -285,13 +285,25 @@ fn Analyze() -> impl IntoView {
     view! {
         <button
             on:mousedown=mousedown
-            class="btn-primary rounded px-4"
+            class="flex gap-2 items-center btn-primary rounded px-4 disabled:bg-primary-800 dark:disabled:bg-primary-400 disabled:cursor-not-allowed"
             disabled={
                 let pending = trigger_analysis.pending();
                 move || pending.get()
             }
         >
-            "Analyze"
+            <span>
+                {move || {
+                    if trigger_analysis.pending().get() {
+                        view! { "Analyzing" }
+                    } else {
+                        view! { "Analyze" }
+                    }
+                }}
+            </span>
+
+            <span class:hidden=move || !trigger_analysis.pending().get() class="animate-spin">
+                <Icon icon=components::icon::Refresh />
+            </span>
         </button>
     }
 }

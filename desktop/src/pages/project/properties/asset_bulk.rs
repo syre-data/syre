@@ -1,5 +1,5 @@
 use super::{PopoutPortal, INPUT_DEBOUNCE};
-use crate::{pages::project, types};
+use crate::{components, pages::project, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{
@@ -333,7 +333,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -380,7 +380,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>

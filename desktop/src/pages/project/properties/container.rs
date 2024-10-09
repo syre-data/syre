@@ -1,5 +1,5 @@
 use super::{common, PopoutPortal, INPUT_DEBOUNCE};
-use crate::{pages::project::state, types};
+use crate::{pages::project::state, types, components};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
 use has_id::HasId;
@@ -245,7 +245,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -308,7 +308,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
                                     }
                                 >
 
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -646,7 +646,7 @@ mod metadata {
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
         update_properties, INPUT_DEBOUNCE,
     };
-    use crate::{components::DetailPopout, pages::project::state, types};
+    use crate::{components::{self, DetailPopout}, pages::project::state, types};
     use leptos::{ev::MouseEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
@@ -866,7 +866,7 @@ mod metadata {
                         on:mousedown=remove_datum
                         class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                     >
-                        <Icon icon=icondata::AiMinusOutlined />
+                        <Icon icon=components::icon::Remove />
                     </button>
                 </div>
                 <ValueEditor value=input_value set_value=set_input_value />
@@ -881,7 +881,7 @@ mod analysis_associations {
         state,
     };
     use crate::{
-        commands, components::DetailPopout, pages::project::properties::INPUT_DEBOUNCE, types,
+        commands, components::{self, DetailPopout}, pages::project::properties::INPUT_DEBOUNCE, types,
     };
     use has_id::HasId;
     use leptos::{ev::MouseEvent, *};
@@ -1037,7 +1037,7 @@ mod analysis_associations {
                                 )
                                 class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                             >
-                                <Icon icon=icondata::AiMinusOutlined />
+                                <Icon icon=components::icon::Remove />
                             </button>
                         </div>
                     </For>

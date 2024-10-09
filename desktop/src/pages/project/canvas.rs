@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{ModalDialog, ToggleExpand, TruncateLeft},
+    components::{self, ModalDialog, ToggleExpand, TruncateLeft},
     pages::project::actions,
     types,
 };
@@ -1226,7 +1226,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
                 on:mousedown=remove_asset
                 class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-800"
             >
-                <Icon icon=icondata::AiMinusOutlined />
+                <Icon icon=components::icon::Remove />
             </button>
         </div>
     }
@@ -1347,7 +1347,8 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg = types::message::Builder::error("Could not update analysis associations.");
+                    let mut msg =
+                        types::message::Builder::error("Could not update analysis associations.");
                     msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 }
@@ -1432,7 +1433,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
                     on:mousedown=remove_association
                     class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                 >
-                    <Icon icon=icondata::AiMinusOutlined />
+                    <Icon icon=components::icon::Remove />
                 </button>
             </div>
         </div>

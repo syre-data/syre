@@ -1,5 +1,5 @@
 use super::{PopoutPortal, INPUT_DEBOUNCE};
-use crate::{pages::project::state, types};
+use crate::{components, pages::project::state, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{
@@ -107,7 +107,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
 
                             </span>
@@ -358,7 +358,11 @@ mod metadata {
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
         update_properties, ActiveAsset, INPUT_DEBOUNCE,
     };
-    use crate::{components::DetailPopout, pages::project::state, types};
+    use crate::{
+        components::{self, DetailPopout},
+        pages::project::state,
+        types,
+    };
     use leptos::{ev::MouseEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
@@ -567,7 +571,7 @@ mod metadata {
                         on:mousedown=remove_datum
                         class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                     >
-                        <Icon icon=icondata::AiMinusOutlined />
+                        <Icon icon=components::icon::Remove />
                     </button>
                 </div>
                 <ValueEditor value=input_value set_value=set_input_value />

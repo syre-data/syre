@@ -1,5 +1,5 @@
 use super::{properties, state, workspace::PropertiesEditor};
-use crate::types;
+use crate::{components, types};
 use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
 use std::path::PathBuf;
@@ -354,7 +354,7 @@ fn Controls() -> impl IntoView {
 
     view! {
         <button on:mousedown=refresh type="button" class="btn-secondary p-1 rounded-sm">
-            <Icon icon=icondata::AiSyncOutlined />
+            <Icon icon=components::icon::Refresh />
         </button>
     }
 }

@@ -1,5 +1,5 @@
 use super::{PopoutPortal, INPUT_DEBOUNCE};
-use crate::{pages::project, types};
+use crate::{components, pages::project, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
 use kind::Editor as Kind;
@@ -428,7 +428,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -475,7 +475,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -522,7 +522,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -1233,7 +1233,7 @@ mod analysis_associations {
         ActiveResources,
     };
     use crate::{
-        components::DetailPopout,
+        components::{self, DetailPopout},
         pages::project::{properties::common::bulk, state},
         types,
     };
@@ -1380,7 +1380,7 @@ mod analysis_associations {
                         <AssociationEditor association=association.clone() class="grow" />
                         <div>
                             <button on:mousedown=onremove(association.analysis.clone())>
-                                <Icon icon=icondata::AiMinusOutlined />
+                                <Icon icon=components::icon::Remove />
                             </button>
                         </div>
                     </div>

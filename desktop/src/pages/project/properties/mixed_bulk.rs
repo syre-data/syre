@@ -1,5 +1,6 @@
 use super::{PopoutPortal, INPUT_DEBOUNCE};
 use crate::{
+    components,
     pages::project::{
         self,
         state::workspace_graph::{ResourceKind, SelectedResource},
@@ -369,7 +370,7 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>
@@ -416,7 +417,7 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
                                     class="aspect-square w-full rounded-sm"
                                 >
-                                    <Icon icon=icondata::AiPlusOutlined />
+                                    <Icon icon=components::icon::Add />
                                 </button>
                             </span>
                         </div>

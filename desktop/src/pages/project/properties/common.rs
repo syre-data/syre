@@ -1,5 +1,5 @@
 pub mod kind {
-    use crate::components::form::debounced::InputText;
+    use crate::components::{self, form::debounced::InputText};
     use leptos::*;
 
     #[component]
@@ -118,7 +118,7 @@ pub mod tags {
 pub mod metadata {
     //! Common components for editing metadata
     use super::super::INPUT_DEBOUNCE;
-    use crate::components::form::InputNumber;
+    use crate::components::{self, form::InputNumber};
     use leptos::{ev::SubmitEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{data::ValueKind, Value};
@@ -203,7 +203,7 @@ pub mod metadata {
                 <ValueEditor value set_value />
                 <div class="py-1 flex justify-center">
                     <button class="rounded-sm hover:bg-primary-400 dark:hover:bg-primary-700">
-                        <Icon icon=icondata::AiPlusOutlined />
+                        <Icon icon=components::icon::Add />
                     </button>
                 </div>
             </form>
@@ -682,6 +682,7 @@ pub mod metadata {
 }
 
 pub mod analysis_associations {
+    use crate::components;
     use leptos::*;
     use leptos_icons::Icon;
     use std::str::FromStr;
@@ -800,7 +801,7 @@ pub mod analysis_associations {
                         on:mousedown=add
                         class="hover:bg-primary-400 dark:hover:bg-primary-700 rounded-sm"
                     >
-                        <Icon icon=icondata::AiPlusOutlined />
+                        <Icon icon=components::icon::Add />
                     </button>
                 </div>
             </div>
@@ -997,7 +998,7 @@ pub mod bulk {
     }
 
     pub mod tags {
-        use crate::types;
+        use crate::{components, types};
         use leptos::{
             ev::{MouseEvent, SubmitEvent},
             *,
@@ -1049,7 +1050,7 @@ pub mod bulk {
                                                         class="aspect-square h-full rounded-full hover:bg-secondary-200 dark:hover:bg-secondary-600"
                                                     >
 
-                                                        <Icon icon=icondata::AiMinusOutlined class="inline-block" />
+                                                        <Icon icon=components::icon::Add class="inline-block" />
                                                     </button>
                                                 </li>
                                             }
@@ -1125,7 +1126,7 @@ pub mod bulk {
                             type="button"
                             class="rounded-sm hover:bg-primary-400 dark:hover:bg-primary-700"
                         >
-                            <Icon icon=icondata::AiPlusOutlined />
+                            <Icon icon=components::icon::Add />
                         </button>
                     </div>
                 </form>
@@ -1138,10 +1139,9 @@ pub mod bulk {
             super::INPUT_DEBOUNCE,
             metadata::{convert_value_kind, kind_to_str, string_to_kind, value_to_kind_str},
         };
-        use crate::components::form::InputNumber;
+        use crate::components::{self, form::InputNumber};
         use leptos::*;
         use leptos_icons::Icon;
-        use serde::Deserialize;
         use syre_core::types::data;
 
         #[derive(PartialEq, Clone, Debug)]
@@ -1266,7 +1266,7 @@ pub mod bulk {
                             class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                         >
 
-                            <Icon icon=icondata::AiMinusOutlined />
+                            <Icon icon=components::icon::Remove />
                         </button>
                     </div>
                     <ValueEditor value oninput />

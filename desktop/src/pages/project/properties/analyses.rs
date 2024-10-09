@@ -1,6 +1,6 @@
 use super::super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
 use crate::{
-    commands, common,
+    commands, common, components,
     pages::project::{actions, state},
     types,
 };
@@ -341,7 +341,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                     on:mousedown=remove_analysis
                     class="aspect-square h-full rounded-sm hover:bg-secondary-200 dark:hover:bg-secondary-700"
                 >
-                    <Icon icon=icondata::AiMinusOutlined />
+                    <Icon icon=components::icon::Remove />
                 </button>
             </span>
         </div>

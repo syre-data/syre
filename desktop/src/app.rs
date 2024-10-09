@@ -38,7 +38,10 @@ pub fn App() -> impl IntoView {
 }
 
 mod message {
-    use crate::{components::ToggleExpand, types};
+    use crate::{
+        components::{self, ToggleExpand},
+        types,
+    };
     use leptos::{ev::MouseEvent, *};
     use leptos_icons::Icon;
 
@@ -132,7 +135,7 @@ mod message {
                 </div>
                 <div class=class_btn>
                     <button on:mousedown=close>
-                        <Icon icon=icondata::AiCloseOutlined />
+                        <Icon icon=components::icon::Close />
                     </button>
                 </div>
             </div>

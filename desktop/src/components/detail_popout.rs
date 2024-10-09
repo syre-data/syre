@@ -1,4 +1,4 @@
-use crate::types;
+use crate::{components, types};
 use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
 
@@ -26,7 +26,7 @@ pub fn DetailPopout(
                         on:mousedown=close
                         class="hover:bg-secondary-200 dark:hover:bg-secondary-600"
                     >
-                        <Icon icon=icondata::AiCloseOutlined />
+                        <Icon icon=components::icon::Close />
                     </button>
                 </span>
             </div>

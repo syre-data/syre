@@ -14,3 +14,10 @@ pub use logo::Logo;
 pub use modal::ModalDialog;
 pub use toggle_expand::ToggleExpand;
 pub use truncate_left::TruncateLeft;
+
+pub mod icon {
+    pub use {
+        icondata::AiCloseOutlined as Close, icondata::AiMinusOutlined as Remove,
+        icondata::AiPlusOutlined as Add, icondata::AiSyncOutlined as Refresh,
+    };
+}

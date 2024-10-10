@@ -1,6 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use syre_desktop::{
     commands::{analyses, asset, auth, common, container, fs, graph, mixed_bulk, project, user},
     setup,
@@ -53,6 +52,7 @@ fn main() {
             fs::pick_folder_with_location,
             common::open_file,
             common::target_os,
+            common::file_size,
         ])
         .setup(setup)
         .run(tauri::generate_context!())

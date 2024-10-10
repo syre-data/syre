@@ -31,17 +31,16 @@ pub fn create_child_container(
     })
 }
 
-// TODO: Change return `Err` kind to `io::ErrorKind`
-// but needs serialization.
+// TODO: Clean up return type.
 /// Adds file system resources to the project.
 ///
 /// # Returns
 /// `Vec` of `Result`s corresponding to each resource.
 #[tauri::command]
-pub fn add_file_system_resources(
-    db: tauri::State<db::Client>,
+pub async fn add_file_system_resources(
+    db: tauri::State<'_, db::Client>,
     resources: Vec<lib::types::AddFsGraphResourceData>,
-) -> Vec<Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>>> {
+) -> Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>> {
     use syre_local::types::FsResourceAction;
 
     let mut projects = resources

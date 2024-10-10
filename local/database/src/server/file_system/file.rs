@@ -1,11 +1,6 @@
-use crate::{
-    common,
-    event::{self as update, Update},
-    server, state, Database,
-};
-use std::{assert_matches::assert_matches, io, path::Path};
+use crate::{event::Update, Database};
+use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::{error::IoSerde, loader, TryReducible};
 
 impl Database {
     pub(super) fn handle_fs_event_file(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
@@ -16,8 +11,8 @@ impl Database {
         match kind {
             event::ResourceEvent::Created => self.handle_fs_event_file_created(event),
             event::ResourceEvent::Modified(_) => self.handle_fs_event_file_modified(event),
-            event::ResourceEvent::Removed => todo!(),
-            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Removed => self.handle_fs_event_file_removed(event),
+            event::ResourceEvent::Renamed => self.handle_fs_event_file_renamed(event),
             event::ResourceEvent::Moved => todo!(),
             event::ResourceEvent::MovedProject => todo!(),
         }
@@ -28,9 +23,34 @@ impl Database {
     fn handle_fs_event_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Created));
 
-        let [_path] = &event.paths()[..] else {
+        let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
+        tracing::info!("file created {path:?}");
+
+        // TODO: May want to perform additional checks on if file is a resource worth watching.
+        vec![]
+    }
+
+    fn handle_fs_event_file_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Renamed));
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+        tracing::info!("file renamed from {from:?} to {to:?}");
+
+        // TODO: May want to perform additional checks on if file is a resource worth watching.
+        vec![]
+    }
+
+    fn handle_fs_event_file_removed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Removed));
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+        tracing::info!("file removed {path:?}");
 
         // TODO: May want to perform additional checks on if file is a resource worth watching.
         vec![]
@@ -46,8 +66,14 @@ impl Database {
         };
 
         match kind {
-            event::ModifiedKind::Data => todo!(),
-            event::ModifiedKind::Other => vec![],
+            event::ModifiedKind::Data => {
+                tracing::info!("file modified data {path:?}");
+                vec![]
+            }
+            event::ModifiedKind::Other => {
+                tracing::info!("file modified other {path:?}");
+                vec![]
+            }
         }
     }
 }

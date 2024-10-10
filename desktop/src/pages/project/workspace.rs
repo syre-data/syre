@@ -2,6 +2,7 @@ use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, Properties
 use crate::{
     common,
     components::{drawer, Drawer, Logo},
+    types,
 };
 use futures::stream::StreamExt;
 use leptos::*;
@@ -15,7 +16,12 @@ use syre_local_database as db;
 use tauri_sys::window::DragDropPayload;
 use wasm_bindgen::JsCast;
 
-const THROTTLE_DRAG_EVENT: f64 = 50.0; // drag drop event debounce in ms.
+/// Drag-drop event debounce in ms.
+const THROTTLE_DRAG_EVENT: f64 = 50.0;
+
+/// File system resource size in bytes at which to notify user
+/// because file system transfer action may take significant time.
+const FS_RESOURCE_ACTION_NOTIFY_THRESHOLD: u64 = 5_000_000;
 
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 pub struct DragOverWorkspaceResource(Option<WorkspaceResource>);
@@ -154,6 +160,7 @@ fn NoGraph() -> impl IntoView {
 #[component]
 fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     let project = expect_context::<state::Project>();
+    let messages = expect_context::<types::Messages>();
     let graph = state::Graph::new(graph);
     provide_context(graph.clone());
     provide_context(state::WorkspaceGraph::new());
@@ -238,7 +245,8 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                                 let project = project.clone();
                                 let graph = graph.clone();
                                 async move {
-                                    handle_drop_event(resource, payload, &project, &graph).await
+                                    handle_drop_event(resource, payload, &project, &graph, messages)
+                                        .await
                                 }
                             });
                         }
@@ -361,14 +369,21 @@ async fn handle_drop_event(
     payload: DragDropPayload,
     project: &state::Project,
     graph: &state::Graph,
+    messages: types::Messages,
 ) {
     match resource {
         WorkspaceResource::Analyses => {
             handle_drop_event_analyses(payload, project.rid().get_untracked()).await
         }
         WorkspaceResource::Container(container) => {
-            handle_drop_event_container(container, payload, project.rid().get_untracked(), graph)
-                .await
+            handle_drop_event_container(
+                container,
+                payload,
+                project.rid().get_untracked(),
+                graph,
+                messages,
+            )
+            .await
         }
         WorkspaceResource::Asset(_) => todo!(),
     }
@@ -380,15 +395,63 @@ async fn handle_drop_event_container(
     payload: DragDropPayload,
     project: ResourceId,
     graph: &state::Graph,
+    messages: types::Messages,
 ) {
     let container_node = graph.find_by_id(&container).unwrap();
     let container_path = graph.path(&container_node).unwrap();
-    for res in add_fs_resources_to_graph(project, container_path, payload.paths().clone()).await {
-        if let Err(err) = res {
-            tracing::error!(?err);
+
+    let transfer_size = file_size(payload.paths().clone())
+        .await
+        .map(|sizes| {
+            sizes
+                .into_iter()
+                .reduce(|total, size| total + size)
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+
+    if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+        let msg = types::message::Builder::info("Transferring files.");
+        let msg = msg.build();
+        messages.update(|messages| {
+            messages.push(msg);
+        });
+    }
+
+    match add_fs_resources_to_graph(project, container_path, payload.paths().clone()).await {
+        Ok(_) => {
+            if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+                let msg = types::message::Builder::success("File transfer complete.");
+                let msg = msg.build();
+                messages.update(|messages| {
+                    messages.push(msg);
+                });
+            }
+        }
+        Err(errors) => {
+            tracing::error!(?errors);
             todo!();
         }
     }
+}
+
+async fn file_size(paths: Vec<PathBuf>) -> Result<Vec<u64>, Vec<(PathBuf, io::ErrorKind)>> {
+    #[derive(Serialize)]
+    struct Args {
+        paths: Vec<PathBuf>,
+    }
+
+    tauri_sys::core::invoke_result::<Vec<u64>, Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
+        "file_size",
+        Args { paths },
+    )
+    .await
+    .map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|(path, err)| (path, err.0))
+            .collect()
+    })
 }
 
 /// Adds file system resources (file or folder) to the project's data graph.
@@ -396,7 +459,7 @@ async fn add_fs_resources_to_graph(
     project: ResourceId,
     parent: PathBuf,
     paths: Vec<PathBuf>,
-) -> Vec<Result<(), io::ErrorKind>> {
+) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
     #[derive(Serialize)]
     struct Args {
         resources: Vec<lib::types::AddFsGraphResourceData>,
@@ -412,14 +475,17 @@ async fn add_fs_resources_to_graph(
         })
         .collect();
 
-    tauri_sys::core::invoke::<Vec<Result<(), lib::command::error::IoErrorKind>>>(
+    tauri_sys::core::invoke_result::<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
         "add_file_system_resources",
         Args { resources },
     )
     .await
-    .into_iter()
-    .map(|res| res.map_err(|err| err.0))
-    .collect()
+    .map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|(path, err)| (path, err.0))
+            .collect()
+    })
 }
 
 /// Handle a drop event on the project analyses bar.

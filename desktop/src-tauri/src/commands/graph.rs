@@ -124,8 +124,8 @@ pub async fn add_file_system_resources(
 }
 
 #[tauri::command]
-pub fn container_duplicate(
-    db: tauri::State<db::Client>,
+pub async fn container_duplicate(
+    db: tauri::State<'_, db::Client>,
     project: ResourceId,
     container: PathBuf,
 ) -> Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>> {

@@ -3,6 +3,10 @@ use crate::pages::project::state;
 use leptos::{ev::MouseEvent, *};
 use syre_core::types::ResourceId;
 
+/// File system resource size in bytes at which to notify user
+/// because file system transfer action may take significant time.
+pub const FS_RESOURCE_ACTION_NOTIFY_THRESHOLD: u64 = 5_000_000;
+
 pub fn interpret_resource_selection_action(
     resource: &ResourceId,
     event: &MouseEvent,

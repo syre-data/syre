@@ -1665,40 +1665,15 @@ async fn handle_context_menu_container_ok_events(
             event = container_open.next() => match event {
                 None => continue,
                 Some(_id) => {
-                    let data_root = project
-                        .path()
-                        .get_untracked()
-                        .join(project.properties().data_root().get_untracked());
-
-                    let container = context_menu_active_container.get_untracked().unwrap();
-                    let container_path = graph.path(&container).unwrap();
-                    let path = common::container_system_path(data_root, container_path);
-
-                    if let Err(err) = commands::fs::open_file(path)
-                        .await {
-                            messages.update(|messages|{
-                                let mut msg = types::message::Builder::error("Could not open container folder.");
-                                msg.body(format!("{err:?}"));
-                                messages.push(msg.build());
-                        });
-                    }
+                   handle_context_menu_container_ok_events_container_open(context_menu_active_container, &project, &graph, messages).await
                 }
             },
 
             event = container_duplicate.next() => match event {
                 None => continue,
                 Some(_id) => {
-                    let container = context_menu_active_container.get_untracked().unwrap();
-                    let container_path = graph.path(&container).unwrap();
-                    let path = common::normalize_path_sep(container_path);
-                    let project_id = project.rid().get_untracked();
-                    if let Err(err) =  duplicate_container(project_id, path).await {
-                        messages.update(|messages|{
-                            let mut msg = types::message::Builder::error("Could not duplicate container.");
-                            msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
-                    }
+                    handle_context_menu_container_ok_events_container_duplicate(context_menu_active_container, &project, &graph, messages).await
+
                 }
             },
 
@@ -1718,6 +1693,89 @@ async fn handle_context_menu_container_ok_events(
                         }
                 }
             }
+        }
+    }
+}
+
+async fn handle_context_menu_container_ok_events_container_open(
+    active_container: ReadSignal<Option<ContextMenuActiveContainerOk>>,
+    project: &state::Project,
+    graph: &state::Graph,
+    messages: types::Messages,
+) {
+    let data_root = project
+        .path()
+        .get_untracked()
+        .join(project.properties().data_root().get_untracked());
+
+    let container = active_container.get_untracked().unwrap();
+    let container_path = graph.path(&container).unwrap();
+    let path = common::container_system_path(data_root, container_path);
+
+    if let Err(err) = commands::fs::open_file(path).await {
+        messages.update(|messages| {
+            let mut msg = types::message::Builder::error("Could not open container folder.");
+            msg.body(format!("{err:?}"));
+            messages.push(msg.build());
+        });
+    }
+}
+
+async fn handle_context_menu_container_ok_events_container_duplicate(
+    active_container: ReadSignal<Option<ContextMenuActiveContainerOk>>,
+    project: &state::Project,
+    graph: &state::Graph,
+    messages: types::Messages,
+) {
+    let container = active_container.get_untracked().unwrap();
+    let container_path = graph.path(&container).unwrap();
+    let path = common::normalize_path_sep(&container_path);
+    let project_id = project.rid().get_untracked();
+    let data_root = project
+        .path()
+        .get_untracked()
+        .join(project.properties().data_root().get_untracked());
+
+    let system_path = common::container_system_path(data_root, &path);
+    let system_path = common::normalize_path_sep(system_path);
+    let size = match commands::fs::file_size(vec![system_path]).await {
+        Ok(size) => {
+            assert_eq!(size.len(), 1);
+            size[0]
+        }
+        Err(err) => {
+            tracing::error!(?err);
+            0
+        }
+    };
+
+    if size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+        let msg = types::message::Builder::info(format!("Duplicating tree {container_path:?}."));
+        let msg = msg.build();
+        messages.update(|messages| messages.push(msg))
+    }
+
+    match duplicate_container(project_id, path).await {
+        Ok(_) => {
+            if size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+                let msg = types::message::Builder::success(format!(
+                    "Completed duplicating {container_path:?}."
+                ));
+                let msg = msg.build();
+                messages.update(|messages| {
+                    messages.push(msg);
+                });
+            }
+        }
+
+        Err(err) => {
+            let mut msg =
+                types::message::Builder::error(format!("Could not duplicate {container_path:?}."));
+            msg.body(format!("{err:?}"));
+            let msg = msg.build();
+            messages.update(|messages| {
+                messages.push(msg);
+            });
         }
     }
 }

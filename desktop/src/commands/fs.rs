@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::{io, path::PathBuf};
-use syre_desktop_lib::command::error::IoErrorKind;
+use syre_desktop_lib::{self as lib, command::error::IoErrorKind};
 
 pub async fn pick_folder(title: impl Into<String>) -> Option<PathBuf> {
     #[derive(Serialize)]
@@ -48,4 +48,24 @@ pub async fn open_file(path: impl Into<PathBuf>) -> Result<(), io::ErrorKind> {
     tauri_sys::core::invoke_result::<(), IoErrorKind>("open_file", Args { path: path.into() })
         .await
         .map_err(|err| err.into())
+}
+
+/// Get the size of files on disk.
+pub async fn file_size(paths: Vec<PathBuf>) -> Result<Vec<u64>, Vec<(PathBuf, io::ErrorKind)>> {
+    #[derive(Serialize)]
+    struct Args {
+        paths: Vec<PathBuf>,
+    }
+
+    tauri_sys::core::invoke_result::<Vec<u64>, Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
+        "file_size",
+        Args { paths },
+    )
+    .await
+    .map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|(path, err)| (path, err.0))
+            .collect()
+    })
 }

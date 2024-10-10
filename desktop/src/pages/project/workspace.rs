@@ -1,6 +1,6 @@
 use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
 use crate::{
-    common,
+    commands, common,
     components::{drawer, Drawer, Logo},
     types,
 };
@@ -18,10 +18,6 @@ use wasm_bindgen::JsCast;
 
 /// Drag-drop event debounce in ms.
 const THROTTLE_DRAG_EVENT: f64 = 50.0;
-
-/// File system resource size in bytes at which to notify user
-/// because file system transfer action may take significant time.
-const FS_RESOURCE_ACTION_NOTIFY_THRESHOLD: u64 = 5_000_000;
 
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 pub struct DragOverWorkspaceResource(Option<WorkspaceResource>);
@@ -400,17 +396,22 @@ async fn handle_drop_event_container(
     let container_node = graph.find_by_id(&container).unwrap();
     let container_path = graph.path(&container_node).unwrap();
 
-    let transfer_size = file_size(payload.paths().clone())
+    let transfer_size = match commands::fs::file_size(payload.paths().clone())
         .await
         .map(|sizes| {
             sizes
                 .into_iter()
                 .reduce(|total, size| total + size)
                 .unwrap_or(0)
-        })
-        .unwrap_or(0);
+        }) {
+        Ok(size) => size,
+        Err(err) => {
+            tracing::error!(?err);
+            0
+        }
+    };
 
-    if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+    if transfer_size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
         let msg = types::message::Builder::info("Transferring files.");
         let msg = msg.build();
         messages.update(|messages| {
@@ -420,7 +421,7 @@ async fn handle_drop_event_container(
 
     match add_fs_resources_to_graph(project, container_path, payload.paths().clone()).await {
         Ok(_) => {
-            if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+            if transfer_size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
                 let msg = types::message::Builder::success("File transfer complete.");
                 let msg = msg.build();
                 messages.update(|messages| {
@@ -433,25 +434,6 @@ async fn handle_drop_event_container(
             todo!();
         }
     }
-}
-
-async fn file_size(paths: Vec<PathBuf>) -> Result<Vec<u64>, Vec<(PathBuf, io::ErrorKind)>> {
-    #[derive(Serialize)]
-    struct Args {
-        paths: Vec<PathBuf>,
-    }
-
-    tauri_sys::core::invoke_result::<Vec<u64>, Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
-        "file_size",
-        Args { paths },
-    )
-    .await
-    .map_err(|errors| {
-        errors
-            .into_iter()
-            .map(|(path, err)| (path, err.0))
-            .collect()
-    })
 }
 
 /// Adds file system resources (file or folder) to the project's data graph.

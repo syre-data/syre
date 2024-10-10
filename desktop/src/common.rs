@@ -42,6 +42,7 @@ pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<
 }
 
 /// Normalize path separators to the build target.
+/// i.e. `\\` on Windows, `/` on unix.
 pub fn normalize_path_sep(path: impl AsRef<Path>) -> PathBuf {
     path.as_ref()
         .to_string_lossy()

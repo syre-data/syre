@@ -427,8 +427,12 @@ impl Actor {
         match update {
             db::event::Project::FolderRemoved
             | db::event::Project::Moved(_)
-            | db::event::Project::Properties(_)
             | db::event::Project::Settings(_) => todo!(),
+
+            db::event::Project::Properties(_) => vec![(
+                lib::event::topic::project(project.as_ref().unwrap()),
+                lib::Event::new(update.clone().into(), event.id().clone()),
+            )],
 
             db::event::Project::Analyses(_)
             | db::event::Project::Graph(_)

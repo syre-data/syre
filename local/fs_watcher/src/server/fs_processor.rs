@@ -18,30 +18,14 @@ impl FsWatcher {
             events.into_par_iter().partition_map(|fs_event| {
                 match self.process_event_fs_to_apps(&fs_event) {
                     Ok(events) => Either::Left(events),
-                    Err(err) => {
-                        // let events = fs_event
-                        //     .parents()
-                        //     .into_iter()
-                        //     .map(|parent| parent.clone())
-                        //     .collect::<Vec<_>>();
-
-                        Either::Right(ConversionError {
-                            events: fs_event.parents(),
-                            kind: err.into(),
-                        })
-                    }
+                    Err(err) => Either::Right(ConversionError {
+                        events: fs_event.parents(),
+                        kind: err.into(),
+                    }),
                 }
             });
 
-        // let converted = converted
-        //     .into_iter()
-        //     .flat_map(|events| match events {
-        //         Ok(events) => events,
-        //         _ => unreachable!("elements have been partitioned"),
-        //     })
-        //     .collect();
         let converted = converted.into_iter().flatten().collect();
-
         (converted, errors)
     }
 
@@ -797,6 +781,7 @@ impl FsWatcher {
 
         let from_kind = resources::dir_kind(&from);
         let to_kind = resources::dir_kind(&to);
+        tracing::debug!(?from_kind, ?to_kind);
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
                 if to_err.kind() != from_err.kind() {

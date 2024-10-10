@@ -96,7 +96,7 @@ pub mod topic {
     pub const PROJECT: &str = "syre:project";
     pub const GRAPH: &str = "syre:graph";
 
-    pub fn project(project: ResourceId) -> String {
+    pub fn project(project: &ResourceId) -> String {
         format!("{}/{}", PROJECT, project)
     }
 

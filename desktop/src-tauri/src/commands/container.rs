@@ -28,6 +28,7 @@ pub fn container_rename(
     name: String, // TODO: Should be an `OsString` but need to specify custom deserializer
                   // `syre_local_database::serde_os_string`.
 ) -> Result<(), error::Rename> {
+    assert!(db::common::is_root_path(&container));
     let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
     else {
         return Err(error::Rename::ProjectNotFound);
@@ -247,25 +248,24 @@ fn container_properties_update_bulk_perform(
         .metadata
         .retain(|key, _| !update.metadata.remove.contains(key));
 
-        update.metadata.update.iter().for_each(|(update_key, update_value)| {
-            if let Some(value) = container
-                .properties.metadata
-                .get_mut(update_key) {
-                    *value = update_value.clone();
-                }
+    update
+        .metadata
+        .update
+        .iter()
+        .for_each(|(update_key, update_value)| {
+            if let Some(value) = container.properties.metadata.get_mut(update_key) {
+                *value = update_value.clone();
+            }
         });
-    
-        let new = update
-            .metadata.add
-            .iter()
-            .filter(|(key, _)| {
-                !container
-                    .properties.metadata.contains_key(key)
-                    
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        container.properties.metadata.extend(new);
+
+    let new = update
+        .metadata
+        .add
+        .iter()
+        .filter(|(key, _)| !container.properties.metadata.contains_key(key))
+        .cloned()
+        .collect::<Vec<_>>();
+    container.properties.metadata.extend(new);
 
     if let Err(err) = container.save(&path) {
         return Err(bulk::error::Update::Save(err.kind()));
@@ -312,7 +312,7 @@ fn container_analysis_associations_update_bulk_perform(
             Err(err) => return Err(bulk::error::Update::Load(err)),
         };
 
-        container
+    container
         .analyses
         .retain(|associaiton| !update.remove.contains(associaiton.analysis()));
 

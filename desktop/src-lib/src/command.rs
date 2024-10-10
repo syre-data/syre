@@ -134,6 +134,10 @@ pub mod container {
             ProjectNotFound,
             NameCollision,
             Rename(#[serde(with = "IoErrorKind")] io::ErrorKind),
+
+            /// Could not update project's data root.
+            /// Only applicable when renaming the root node.
+            DataRoot(#[serde(with = "IoErrorKind")] io::ErrorKind),
         }
 
         /// Error updating container.

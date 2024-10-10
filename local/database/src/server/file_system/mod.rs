@@ -13,7 +13,7 @@ use syre_fs_watcher::EventKind;
 impl Database {
     pub fn process_file_system_events(
         &mut self,
-        mut events: Vec<syre_fs_watcher::Event>,
+        events: Vec<syre_fs_watcher::Event>,
     ) -> Vec<Update> {
         events
             .into_iter()

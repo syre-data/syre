@@ -117,6 +117,17 @@ pub fn normalize_path_separators(path: impl AsRef<Path>) -> PathBuf {
         })
 }
 
+/// Root path for the current system.
+///
+/// On Windows this is `\\`.
+/// On all other systems this is `/`.
+pub fn root_path() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    return PathBuf::from("\\");
+    #[cfg(not(target_os = "windows"))]
+    return PathBuf::from("/");
+}
+
 /// Prefixes the path with the [Windows UNC](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#unc-paths) path if it is not already there.
 pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
     let path: PathBuf = path.into();

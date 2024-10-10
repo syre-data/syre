@@ -1159,7 +1159,7 @@ pub(crate) mod action {
         Graph(Graph),
 
         Container {
-            /// Absolute path to the container.
+            /// Absolute path to the container from the graph root.
             /// Root path indicates the graph root.
             path: PathBuf,
             action: Container,

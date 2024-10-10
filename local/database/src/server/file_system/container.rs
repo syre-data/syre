@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server, state, Database,
 };
-use std::{assert_matches::assert_matches, io, path::Path};
+use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{error::IoSerde, loader, TryReducible};
 

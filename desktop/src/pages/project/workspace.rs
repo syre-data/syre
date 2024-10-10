@@ -148,7 +148,7 @@ fn WorkspaceView(
 
 #[component]
 fn NoGraph() -> impl IntoView {
-    view! { <div>"Data graph does not exist."</div> }
+    view! { <div class="text-center pt-4">"Data graph does not exist."</div> }
 }
 
 #[component]
@@ -500,10 +500,75 @@ fn handle_event_project(event: lib::Event, project: state::Project) {
 
         db::event::Project::FolderRemoved => todo!(),
         db::event::Project::Moved(_) => todo!(),
-        db::event::Project::Properties(_) => todo!(),
+        db::event::Project::Properties(_) => handle_event_project_properties(event, project),
         db::event::Project::Settings(_) => todo!(),
         db::event::Project::Analyses(_) => handle_event_project_analyses(event, project),
         db::event::Project::AnalysisFile(_) => todo!(),
+    }
+}
+fn handle_event_project_properties(event: lib::Event, project: state::Project) {
+    let lib::EventKind::Project(db::event::Project::Properties(update)) = event.kind() else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::DataResource::Created(_) => todo!(),
+        db::event::DataResource::Removed => todo!(),
+        db::event::DataResource::Corrupted(io_serde) => todo!(),
+        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Modified(_) => {
+            handle_event_project_properties_modified(event, project)
+        }
+    }
+}
+
+fn handle_event_project_properties_modified(event: lib::Event, project: state::Project) {
+    let lib::EventKind::Project(db::event::Project::Properties(db::event::DataResource::Modified(
+        update,
+    ))) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    if project
+        .properties()
+        .name()
+        .with_untracked(|name| *name != update.name)
+    {
+        project.properties().name().set(update.name.clone());
+    }
+
+    if project
+        .properties()
+        .description()
+        .with_untracked(|description| *description != update.description)
+    {
+        project
+            .properties()
+            .description()
+            .set(update.description.clone());
+    }
+
+    if project
+        .properties()
+        .data_root()
+        .with_untracked(|data_root| *data_root != update.data_root)
+    {
+        project
+            .properties()
+            .data_root()
+            .set(update.data_root.clone());
+    }
+
+    if project
+        .properties()
+        .analysis_root()
+        .with_untracked(|analysis_root| *analysis_root != update.analysis_root)
+    {
+        project
+            .properties()
+            .analysis_root()
+            .set(update.analysis_root.clone());
     }
 }
 

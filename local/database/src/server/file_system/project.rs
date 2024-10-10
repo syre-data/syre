@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server, state, Database,
 };
-use std::{assert_matches::assert_matches, io};
+use std::{assert_matches::assert_matches, io, path};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{
     self as local,
@@ -428,10 +428,12 @@ impl Database {
         match kind {
             event::ResourceEvent::Created => self.handle_fs_event_project_data_dir_created(event),
             event::ResourceEvent::Removed => todo!(),
-            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Renamed => self.handle_fs_event_project_data_dir_renamed(event),
             event::ResourceEvent::Moved => todo!(),
             event::ResourceEvent::MovedProject => todo!(),
-            event::ResourceEvent::Modified(_) => todo!(),
+            event::ResourceEvent::Modified(_) => {
+                self.handle_fs_event_project_data_dir_modified(event)
+            }
         }
     }
 
@@ -459,32 +461,174 @@ impl Database {
         };
 
         let data_root_path = project.path().join(&properties.data_root);
+        assert_eq!(*path, data_root_path);
+        assert!(!project_state.graph().is_present());
+
+        let ignore = common::load_syre_ignore(project.path())
+            .map(|res| res.ok())
+            .flatten();
+        let project_path = project.path().clone();
+        let project_id = properties.rid().clone();
+        let graph = server::state::project::graph::State::load(path, ignore.as_ref()).unwrap();
+        let graph_state = graph.as_graph();
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Graph::Set(state::FolderResource::Present(
+                    graph,
+                ))
+                .into(),
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Graph::Created(graph_state).into(),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_project_data_dir_renamed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Renamed)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let data_root_path = project.path().join(&properties.data_root);
+        assert_eq!(*from, data_root_path);
+        assert!(project_state.graph().is_present());
+
+        let project_path = project.path().clone();
+        let project_id = properties.rid().clone();
+
+        let from_path = common::container_graph_path(&data_root_path, from).unwrap();
+        assert_eq!(from_path, local::common::root_path());
+        let to_path = common::container_graph_path(&project_path, to).unwrap();
+        let name = to_path.as_os_str().to_os_string();
+        let mut properties = properties.clone();
+
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Action::Container {
+                    path: from_path.clone(),
+                    action: server::state::project::action::Container::SetName(name.clone()),
+                }
+                .into(),
+            })
+            .unwrap();
+
+        if self.config.handle_fs_resource_changes() {
+            assert_matches!(
+                to_path.components().next().unwrap(),
+                path::Component::RootDir
+            );
+            properties.data_root = to_path.clone().into_iter().skip(1).collect();
+            if let Err(err) =
+                local::project::resources::Project::save_properties_only(&project_path, &properties)
+            {
+                tracing::error!(?err);
+                todo!();
+            }
+
+            let mut container =
+                match local::loader::container::Loader::load_from_only_properties(to) {
+                    Ok(container) => container,
+                    Err(err) => {
+                        tracing::error!(?err);
+                        todo!();
+                    }
+                };
+            container.properties.name = to.file_name().unwrap().to_string_lossy().to_string();
+            if let Err(err) = container.save(to) {
+                tracing::error!(?err);
+                todo!();
+            }
+        }
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Project::Graph(update::Graph::Renamed {
+                from: from_path,
+                to: name,
+            })
+            .into(),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_project_data_dir_modified(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Modified(kind))) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::ModifiedKind::Data => todo!(),
+            event::ModifiedKind::Other => {
+                self.handle_fs_event_project_data_dir_modified_other(event)
+            }
+        }
+    }
+
+    fn handle_fs_event_project_data_dir_modified_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Project(event::Project::DataDir(event::ResourceEvent::Modified(
+                event::ModifiedKind::Other
+            )))
+        );
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(path).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let data_root_path = project.path().join(&properties.data_root);
+        #[cfg(target_os = "windows")]
         if *path == data_root_path {
-            assert!(!project_state.graph().is_present());
+            return vec![];
+        } else {
+            todo!();
+        }
 
-            let ignore = common::load_syre_ignore(project.path())
-                .map(|res| res.ok())
-                .flatten();
-            let project_path = project.path().clone();
-            let project_id = properties.rid().clone();
-            let graph = server::state::project::graph::State::load(path, ignore.as_ref()).unwrap();
-            let graph_state = graph.as_graph();
-            self.state
-                .try_reduce(server::state::Action::Project {
-                    path: project_path.clone(),
-                    action: server::state::project::action::Graph::Set(
-                        state::FolderResource::Present(graph),
-                    )
-                    .into(),
-                })
-                .unwrap();
-
-            vec![Update::project_with_id(
-                project_id,
-                project_path,
-                update::Graph::Created(graph_state).into(),
-                event.id().clone(),
-            )]
+        #[cfg(not(target_os = "windows"))]
+        if *path == data_root_path {
+            todo!();
         } else {
             todo!();
         }

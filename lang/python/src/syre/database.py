@@ -560,7 +560,7 @@ def windows_ensure_unc_path(path: str) -> str:
         return UNC_PREFIX + path
     
 def ensure_root_path(path: str) -> str:
-    """Ensures the path begins with the root directory (`/`).
+    """Ensures the path begins with the root directory (`/` on unix, `\\\\` on Windows).
 
     Args:
         path (str): Path to modify.

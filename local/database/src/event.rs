@@ -228,7 +228,7 @@ pub enum Graph {
         graph: state::Graph,
     },
 
-    /// A subgraph root wa renamed.
+    /// A subgraph root was renamed.
     ///
     /// # Fields
     /// + `from`: Absolute path from the the data root.

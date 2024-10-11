@@ -369,7 +369,7 @@ async fn handle_drop_event(
 ) {
     match resource {
         WorkspaceResource::Analyses => {
-            handle_drop_event_analyses(payload, project.rid().get_untracked()).await
+            handle_drop_event_analyses(payload, project.rid().get_untracked(), messages).await
         }
         WorkspaceResource::Container(container) => {
             handle_drop_event_container(
@@ -471,11 +471,41 @@ async fn add_fs_resources_to_graph(
 }
 
 /// Handle a drop event on the project analyses bar.
-async fn handle_drop_event_analyses(payload: DragDropPayload, project: ResourceId) {
-    for res in add_fs_resources_to_analyses(payload.paths().clone(), project).await {
-        if let Err(err) = res {
+async fn handle_drop_event_analyses(
+    payload: DragDropPayload,
+    project: ResourceId,
+    messages: types::Messages,
+) {
+    let transfer_size = match commands::fs::file_size(payload.paths().clone()).await {
+        Ok(sizes) => sizes
+            .into_iter()
+            .reduce(|total, size| total + size)
+            .unwrap_or(0),
+        Err(err) => {
             tracing::error!(?err);
-            todo!();
+            0
+        }
+    };
+
+    if transfer_size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+        let msg = types::message::Builder::info("Adding analyses.");
+        let msg = msg.build();
+        messages.update(|messages| messages.push(msg));
+    }
+
+    match add_fs_resources_to_analyses(payload.paths().clone(), project).await {
+        Ok(_) => {
+            if transfer_size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+                let msg = types::message::Builder::success("Analyses added.");
+                let msg = msg.build();
+                messages.update(|messages| messages.push(msg));
+            }
+        }
+        Err(err) => {
+            let mut msg = types::message::Builder::error("Could not add analyses.");
+            msg.body(format!("{err:?}"));
+            let msg = msg.build();
+            messages.update(|messages| messages.push(msg));
         }
     }
 }
@@ -483,7 +513,7 @@ async fn handle_drop_event_analyses(payload: DragDropPayload, project: ResourceI
 async fn add_fs_resources_to_analyses(
     paths: Vec<PathBuf>,
     project: ResourceId,
-) -> Vec<Result<(), local::error::IoSerde>> {
+) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,
@@ -499,7 +529,17 @@ async fn add_fs_resources_to_analyses(
         })
         .collect();
 
-    tauri_sys::core::invoke("add_scripts", Args { project, resources }).await
+    tauri_sys::core::invoke_result::<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
+        "add_scripts",
+        Args { project, resources },
+    )
+    .await
+    .map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|(path, err)| (path, err.0))
+            .collect()
+    })
 }
 
 /// # Returns

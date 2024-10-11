@@ -41,8 +41,6 @@ pub async fn add_file_system_resources(
     db: tauri::State<'_, db::Client>,
     resources: Vec<lib::types::AddFsGraphResourceData>,
 ) -> Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>> {
-    use syre_local::types::FsResourceAction;
-
     let mut projects = resources
         .iter()
         .map(|resource| &resource.project)
@@ -63,64 +61,83 @@ pub async fn add_file_system_resources(
         })
         .collect::<Vec<_>>();
 
-    resources
-        .into_iter()
-        .map(|resource| {
-            let project_path = project_paths
-                .iter()
-                .find_map(|(project, path)| {
-                    if *project == resource.project {
-                        Some(path)
-                    } else {
-                        None
-                    }
-                })
-                .unwrap();
-
-            let to_path = lib::utils::join_path_absolute(project_path, &resource.parent);
-            let to_path = to_path.join(resource.path.file_name().unwrap());
-            match resource.action {
-                FsResourceAction::Move => {
-                    if to_path == resource.path {
-                        return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
-                    }
-
-                    fs::rename(&resource.path, &resource.parent)
-                        .map_err(|err| vec![(resource.path.clone(), err.kind())])
+    let mut results = tokio::task::JoinSet::new();
+    for resource in resources {
+        let project_path = project_paths
+            .iter()
+            .find_map(|(project, path)| {
+                if *project == resource.project {
+                    Some(path)
+                } else {
+                    None
                 }
-                FsResourceAction::Copy => {
-                    if to_path == resource.path {
-                        return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
-                    }
-
-                    let to_name = local::common::unique_file_name(&to_path)
-                        .map_err(|err| vec![(resource.path.clone(), err)])?;
-                    let to_path = resource.parent.join(to_name);
-                    if resource.path.is_file() {
-                        fs::copy(&resource.path, &to_path)
-                            .map(|_| ())
-                            .map_err(|err| vec![(resource.path.clone(), err.kind())])
-
-                        // TODO: Set creator. What if already a resource and current creator differs from original?
-                        // TODO: If file is already a resource, copy info.
-                    } else if resource.path.is_dir() {
-                        copy_dir(&resource.path, &to_path)
-                    } else {
-                        todo!();
-                    }
-                }
-                FsResourceAction::Reference => todo!(),
-            }
-        })
-        .map(|result| {
-            result.map_err(|errors| {
-                errors
-                    .into_iter()
-                    .map(|(path, err)| (path, err.into()))
-                    .collect()
             })
+            .cloned()
+            .unwrap();
+
+        results.spawn(async move { add_file_system_resource(resource, project_path).await });
+    }
+    let results = results.join_all().await;
+
+    let errors = results
+        .into_iter()
+        .filter_map(|result| result.err())
+        .flat_map(|errors| {
+            errors
+                .into_iter()
+                .map(|(path, err)| (path, err.into()))
+                .collect::<Vec<_>>()
         })
-        .collect()
+        .collect::<Vec<_>>();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+async fn add_file_system_resource(
+    resource: lib::types::AddFsGraphResourceData,
+    project: impl AsRef<Path>,
+) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+    use syre_local::types::FsResourceAction;
+
+    let to_path = lib::utils::join_path_absolute(project, &resource.parent);
+    let to_path = to_path.join(resource.path.file_name().unwrap());
+    match resource.action {
+        FsResourceAction::Move => {
+            if to_path == resource.path {
+                return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
+            }
+
+            tokio::fs::rename(&resource.path, &resource.parent)
+                .await
+                .map_err(|err| vec![(resource.path.clone(), err.kind())])
+        }
+        FsResourceAction::Copy => {
+            if to_path == resource.path {
+                return Err(vec![(resource.path.clone(), io::ErrorKind::AlreadyExists)]);
+            }
+
+            let to_name = local::common::unique_file_name(&to_path)
+                .map_err(|err| vec![(resource.path.clone(), err)])?;
+            let to_path = resource.parent.join(to_name);
+            if resource.path.is_file() {
+                tokio::fs::copy(&resource.path, &to_path)
+                    .await
+                    .map(|_| ())
+                    .map_err(|err| vec![(resource.path.clone(), err.kind())])
+
+                // TODO: Set creator. What if already a resource and current creator differs from original?
+                // TODO: If file is already a resource, copy info.
+            } else if resource.path.is_dir() {
+                copy_dir(&resource.path, &to_path).await
+            } else {
+                todo!();
+            }
+        }
+        FsResourceAction::Reference => todo!(),
+    }
 }
 
 #[tauri::command]
@@ -171,34 +188,37 @@ pub fn container_trash(
 
 /// # Returns
 /// `Err` if any path fails to be copied.
-pub fn copy_dir(
+pub async fn copy_dir(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
 ) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
     let src: &Path = src.as_ref();
     let dst: &Path = dst.as_ref();
-    let results = walkdir::WalkDir::new(src)
+    let mut results = tokio::task::JoinSet::new();
+    for entry in walkdir::WalkDir::new(src)
         .into_iter()
         .filter_map(|entry| entry.ok())
-        .map(|entry| {
-            let rel_path = entry.path().strip_prefix(src).unwrap();
-            let dst = dst.join(rel_path);
+    {
+        let rel_path = entry.path().strip_prefix(src).unwrap();
+        let dst = dst.join(rel_path);
 
+        results.spawn(async move {
             if entry.file_type().is_file() {
-                match fs::copy(entry.path(), dst) {
+                match tokio::fs::copy(entry.path(), dst).await {
                     Ok(_) => Ok(()),
                     Err(err) => Err((entry.path().to_path_buf(), err.kind())),
                 }
             } else if entry.file_type().is_dir() {
-                match fs::create_dir(dst) {
+                match tokio::fs::create_dir(dst).await {
                     Ok(_) => Ok(()),
                     Err(err) => Err((entry.path().to_path_buf(), err.kind())),
                 }
             } else {
                 todo!();
             }
-        })
-        .collect::<Vec<_>>();
+        });
+    }
+    let results = results.join_all().await;
 
     let errors = results
         .into_iter()

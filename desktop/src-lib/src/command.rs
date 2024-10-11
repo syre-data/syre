@@ -45,6 +45,70 @@ pub mod project {
     }
 }
 
+pub mod graph {
+    pub mod error {
+        use super::super::error::IoErrorKind;
+        use serde::{Deserialize, Serialize};
+        use std::path::PathBuf;
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum LoadTree {
+            /// The tree's root resource could not be accessed.
+            Root(IoErrorKind),
+
+            /// The tree could not be loaded normally.
+            State,
+
+            /// An ignore file could not be read correctly.
+            Ignore(PathBuf),
+        }
+
+        pub mod duplicate {
+            use super::super::super::error::IoErrorKind;
+            use serde::{Deserialize, Serialize};
+            use std::path::PathBuf;
+            use syre_local::error::IoSerde;
+
+            // #[derive(Serialize, Deserialize, Debug)]
+            // pub enum DuplicateTree {
+            //     Load(LoadTree)
+            // }
+
+            // #[derive(Serialize, Deserialize, Debug)]
+            // pub enum DuplicateTree {
+            //     Load(LoadTree),
+            //     Duplicate(DuplicateTree)
+            // }
+            #[derive(Serialize, Deserialize, Debug)]
+            pub enum Error {
+                /// Creating a unique file name for the duplicate root failed.
+                Filename(IoErrorKind),
+
+                /// Creating a temporary directory in which to duplicate the tree failed.
+                Tmp(IoErrorKind),
+
+                /// Duplicating the tree failed.
+                Duplicate(Vec<(PathBuf, Duplicate)>),
+
+                /// Relocating the duplicated tree to its final dstination failed.
+                Move(IoErrorKind),
+            }
+
+            #[derive(Serialize, Deserialize, Debug)]
+            pub enum Duplicate {
+                /// Loading the parent failed.
+                Load {
+                    properties: Option<IoSerde>,
+                    settings: Option<IoSerde>,
+                },
+
+                /// Saving the child failed.
+                Save(IoErrorKind),
+            }
+        }
+    }
+}
+
 pub mod container {
     pub mod bulk {
         use super::super::{
@@ -159,7 +223,7 @@ pub mod asset {
             serde_opt_opt_str,
         };
         use serde::{Deserialize, Serialize};
-        use syre_core::types::{ResourceId};
+        use syre_core::types::ResourceId;
 
         #[derive(Serialize, Deserialize, Default, Debug)]
         pub struct ContainerAssets {

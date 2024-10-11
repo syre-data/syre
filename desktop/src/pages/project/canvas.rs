@@ -1828,19 +1828,17 @@ async fn handle_context_menu_asset_events(
     }
 }
 
-async fn duplicate_container(project: ResourceId, container: PathBuf) -> Result<(), io::ErrorKind> {
+async fn duplicate_container(
+    project: ResourceId,
+    container: PathBuf,
+) -> Result<(), lib::command::graph::error::duplicate::Error> {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,
         container: PathBuf,
     }
 
-    tauri_sys::core::invoke_result::<(), lib::command::error::IoErrorKind>(
-        "container_duplicate",
-        Args { project, container },
-    )
-    .await
-    .map_err(|err| err.into())
+    tauri_sys::core::invoke_result("container_duplicate", Args { project, container }).await
 }
 
 async fn trash_container(project: ResourceId, container: PathBuf) -> Result<(), io::ErrorKind> {

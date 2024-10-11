@@ -295,7 +295,6 @@ mod state {
 
 pub mod error {
     use super::state::Tree;
-    use crate::project::project;
     use std::{io, path::PathBuf};
 
     #[derive(Debug)]

@@ -17,6 +17,7 @@ tauri-build = { version = "2.0", features = [] }
 
 [dependencies]
 derive_more.workspace = true
+ignore.workspace = true
 open = "5.3.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,6 +30,7 @@ tauri = { version = "2.0", features = [] }
 tauri-plugin-dialog = "2.0"
 tauri-plugin-devtools = { git = "https://github.com/crabnebula-dev/devtools" }
 tauri-plugin-shell = "2.0"
+tempfile.workspace = true
 tokio = { version = "1.40", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["full"] }
 tracing.workspace = true

@@ -145,25 +145,24 @@ pub async fn container_duplicate(
     db: tauri::State<'_, db::Client>,
     project: ResourceId,
     container: PathBuf,
-) -> Result<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>> {
+) -> Result<(), lib::command::graph::error::duplicate::Error> {
     assert!(is_root_path(&container));
     let (project_path, project_state) = db.project().get_by_id(project).unwrap().unwrap();
     let db::state::DataResource::Ok(properties) = project_state.properties() else {
         panic!("invalid state");
     };
 
+    let ignore =
+        ignore::gitignore::GitignoreBuilder::new(local::common::ignore_file_of(&project_path))
+            .build()
+            .ok();
+
     let root_path =
         db::common::container_system_path(project_path.join(&properties.data_root), &container);
 
-    let name = local::common::unique_file_name(&root_path).unwrap();
-    let mut dup_path = root_path.clone();
-    dup_path.set_file_name(name);
-    duplicate_subgraph(root_path, dup_path).map_err(|errors| {
-        errors
-            .into_iter()
-            .map(|(path, err)| (path, err.into()))
-            .collect()
-    })
+    duplicate::duplicate_subgraph(root_path, ignore)
+        .map(|_path| ())
+        .map_err(|err| err.into())
 }
 
 #[tauri::command]
@@ -235,34 +234,174 @@ pub async fn copy_dir(
     }
 }
 
-/// Duplicates a subgraph.
-/// Removes all assets from containers.
-///
-/// # Returns
-/// `Err` if any path fails to be copied.
-pub fn duplicate_subgraph(
-    src: impl AsRef<Path>,
-    dst: impl AsRef<Path>,
-) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
-    let src: &Path = src.as_ref();
-    let dst: &Path = dst.as_ref();
-    let Ok(graph) = local::loader::tree::Loader::load(src) else {
-        todo!();
+mod duplicate {
+    use std::{
+        fs,
+        path::{Path, PathBuf},
     };
+    use syre_local as local;
 
-    if let Err(err) = local::graph::ContainerTreeDuplicator::duplicate_without_assets_to(
-        dst,
-        &graph,
-        graph.root(),
-    ) {
-        todo!("{err:?}");
+    /// Duplicate a subgraph.
+    ///
+    /// # Returns
+    /// Path to the duplicated root.
+    pub fn duplicate_subgraph(
+        root: impl AsRef<Path>,
+        ignore: Option<ignore::gitignore::Gitignore>,
+    ) -> Result<PathBuf, error::Error> {
+        let dup_root =
+            local::common::unique_file_name(&root).map_err(|err| error::Error::Filename(err))?;
+
+        let tmp_root = tempfile::tempdir().map_err(|err| error::Error::Tmp(err.kind()))?;
+        let containers = walkdir::WalkDir::new(&root)
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().is_dir())
+            .filter(|entry| {
+                let Some(file_name) = entry.path().file_name() else {
+                    return false;
+                };
+                if file_name == local::common::app_dir().as_os_str() {
+                    return false;
+                }
+                let Some(file_name) = file_name.to_str() else {
+                    return false;
+                };
+                if file_name.starts_with(".") {
+                    return false;
+                }
+
+                if let Some(ignore) = ignore.as_ref() {
+                    !ignore.matched(entry.path(), true).is_ignore()
+                } else {
+                    true
+                }
+            })
+            .map(|entry| {
+                let rel_path = entry.path().strip_prefix(&root).unwrap();
+                let path = tmp_root.path().join(rel_path);
+
+                let mut container = local::project::resources::Container::new(path);
+                let (properties, analyses, settings) =
+                    match local::loader::container::Loader::load(entry.path()) {
+                        Ok(container) => (
+                            container.properties.clone(),
+                            container.analyses.clone(),
+                            container.settings,
+                        ),
+                        Err(local::loader::container::State {
+                            properties,
+                            settings,
+                            ..
+                        }) if properties.is_ok() && settings.is_ok() => {
+                            let properties = properties.unwrap();
+                            (
+                                properties.properties,
+                                properties.analyses,
+                                settings.unwrap(),
+                            )
+                        }
+                        Err(state) => {
+                            return Err((
+                                entry.path().to_path_buf(),
+                                error::Duplicate::Load(state),
+                            ));
+                        }
+                    };
+
+                container.properties = properties;
+                container.analyses = analyses;
+                container.settings = settings;
+
+                if rel_path.as_os_str() == "" {
+                    container.properties.name =
+                        dup_root.file_name().unwrap().to_string_lossy().to_string();
+                }
+
+                container.save().map_err(|err| {
+                    (
+                        container.base_path().to_path_buf(),
+                        error::Duplicate::Save(err.kind()),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let errors = containers
+            .into_iter()
+            .filter_map(|container| container.err())
+            .collect::<Vec<_>>();
+        if !errors.is_empty() {
+            return Err(error::Error::Duplicate(errors));
+        }
+
+        fs::rename(tmp_root.path(), &dup_root).map_err(|err| error::Error::Move(err.kind()))?;
+        Ok(dup_root)
     }
 
-    let mut root = local::loader::container::Loader::load_from_only_properties(dst).unwrap();
-    root.properties.name = dst.file_name().unwrap().to_string_lossy().to_string();
-    if let Err(err) = root.save(dst) {
-        todo!("{err:?}");
-    }
+    pub mod error {
+        use std::{io, path::PathBuf};
+        use syre_desktop_lib as lib;
+        use syre_local as local;
 
-    Ok(())
+        #[derive(Debug)]
+        pub enum Error {
+            /// Creating a unique file name for the duplicate root failed.
+            Filename(io::ErrorKind),
+
+            /// Creating a temporary directory in which to duplicate the tree failed.
+            Tmp(io::ErrorKind),
+
+            /// Duplicating the tree failed.
+            Duplicate(Vec<(PathBuf, Duplicate)>),
+
+            /// Relocating the duplicated tree to its final dstination failed.
+            Move(io::ErrorKind),
+        }
+
+        #[derive(Debug)]
+        pub enum Duplicate {
+            /// Loading the parent failed.
+            Load(local::loader::container::State),
+
+            /// Saving the child failed.
+            Save(io::ErrorKind),
+        }
+
+        impl Into<lib::command::graph::error::duplicate::Error> for Error {
+            fn into(self) -> lib::command::graph::error::duplicate::Error {
+                use lib::command::graph::error;
+
+                match self {
+                    Self::Filename(err) => error::duplicate::Error::Filename(err.into()),
+                    Self::Tmp(err) => error::duplicate::Error::Tmp(err.into()),
+                    Self::Move(err) => error::duplicate::Error::Move(err.into()),
+                    Self::Duplicate(errors) => {
+                        let errors = errors
+                            .into_iter()
+                            .map(|(path, err)| {
+                                let err = match err {
+                                    Duplicate::Load(local::loader::container::State {
+                                        properties,
+                                        settings,
+                                        ..
+                                    }) => error::duplicate::Duplicate::Load {
+                                        properties: properties.err(),
+                                        settings: settings.err(),
+                                    },
+                                    Duplicate::Save(err) => {
+                                        error::duplicate::Duplicate::Save(err.into())
+                                    }
+                                };
+
+                                (path, err)
+                            })
+                            .collect();
+
+                        error::duplicate::Error::Duplicate(errors)
+                    }
+                }
+            }
+        }
+    }
 }

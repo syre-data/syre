@@ -207,7 +207,6 @@ impl Database {
         };
 
         let data_root_path = project.path().join(&project_properties.data_root);
-
         let graph_path = common::container_graph_path(&data_root_path, path).unwrap();
         let project_path = project.path().clone();
         let project_id = project_properties.rid().clone();

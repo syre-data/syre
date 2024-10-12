@@ -70,6 +70,7 @@ impl FsWatcher {
                     to.clone(),
                     event.time,
                     event.id().clone(),
+                    event.parents(),
                     &self.app_config,
                 )
             }
@@ -384,6 +385,7 @@ impl FsWatcher {
         to: PathBuf,
         time: Instant,
         parent: Uuid,
+        parent_events: Vec<&notify_debouncer_full::DebouncedEvent>,
         app_config: &config::Config,
     ) -> Vec<Event> {
         let from_kind = resources::resource_kind(&from, app_config);
@@ -444,7 +446,12 @@ impl FsWatcher {
                 }
 
                 (None, Some(to_kind)) => {
-                    let kind = Self::convert_resource_to_event_kind_moved_to(to_kind);
+                    let kind = if matches!(parent_events[1].kind, notify::EventKind::Create(_)) {
+                        Self::convert_resource_to_event_kind_created(to_kind)
+                    } else {
+                        Self::convert_resource_to_event_kind_moved_to(to_kind)
+                    };
+
                     vec![Event::with_time(kind, time, parent)
                         .add_path(from)
                         .add_path(to)]
@@ -1091,6 +1098,7 @@ impl FsWatcher {
         }
     }
 
+    /// Non-resource moved into a resource.
     fn convert_resource_to_event_kind_moved_to(kind: resources::ResourceEvent) -> EventKind {
         match kind {
             resources::ResourceEvent::Config(kind) => match kind {

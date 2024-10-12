@@ -236,7 +236,7 @@ pub async fn copy_dir(
 
 mod duplicate {
     use std::{
-        fs,
+        fs, io,
         path::{Path, PathBuf},
     };
     use syre_local as local;
@@ -335,7 +335,16 @@ mod duplicate {
             return Err(error::Error::Duplicate(errors));
         }
 
-        fs::rename(tmp_root.path(), &dup_root).map_err(|err| error::Error::Move(err.kind()))?;
+        fs::rename(tmp_root.path(), &dup_root).or_else(|err| match err.kind() {
+            io::ErrorKind::CrossesDevices => {
+                // can not rename across devices, copy instead
+                fs::copy(tmp_root.path(), &dup_root)
+                    .map(|_| ())
+                    .map_err(|err| error::Error::Move(err.kind()))
+            }
+            _ => Err(error::Error::Move(err.kind())),
+        })?;
+
         Ok(dup_root)
     }
 

@@ -77,8 +77,6 @@ impl FsWatcher {
         &'a self,
         events: Vec<&'a DebouncedEvent>,
     ) -> (Vec<fs_event::Event>, Vec<&'a DebouncedEvent>) {
-        use std::collections::hash_map::Entry;
-
         let mut remaining = Vec::with_capacity(events.len());
         let mut grouped_id = HashMap::with_capacity(events.len());
         let mut grouped_path = HashMap::with_capacity(events.len());
@@ -231,12 +229,13 @@ impl FsWatcher {
                             };
 
                             if !grouped_path.iter().any(|(p, _)| *p == path) {
-                                tracing::trace!("event not paired by path");
+                                tracing::trace!("event not paired by path added to remaining");
                                 remaining.push(e);
                             }
                         }
 
                         _ => {
+                            tracing::trace!("{e:?} added to remaining");
                             remaining.push(e);
                         }
                     }
@@ -281,9 +280,8 @@ impl FsWatcher {
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else {
-                                remaining.push(e1);
-                                remaining.push(e2);
-                                tracing::trace!("could not convert {e1:?} and {e2:?}");
+                                tracing::trace!("could not convert {events:?}");
+                                remaining.extend(events);
                             }
                         } else {
                             if path_to.is_file() {
@@ -313,9 +311,8 @@ impl FsWatcher {
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else {
-                                remaining.push(e1);
-                                remaining.push(e2);
                                 tracing::trace!("could not convert {e1:?} and {e2:?}");
+                                remaining.extend(events);
                             }
                         }
                     }
@@ -387,26 +384,98 @@ impl FsWatcher {
                             converted.push(event);
                         }
                     }
+                    (
+                        NotifyEventKind::Remove(RemoveKind::Any),
+                        NotifyEventKind::Create(CreateKind::Any),
+                    ) => {
+                        #[cfg(not(target_os = "windows"))]
+                        todo!();
+
+                        let path_from = normalize_path_root(e1.paths[0].clone());
+                        let path_to = normalize_path_root(e2.paths[0].clone());
+                        if path_from.parent() == path_to.parent() {
+                            let event = if path_to.is_dir() {
+                                fs_event::Event::new(
+                                    fs_event::Folder::Renamed {
+                                        from: path_from,
+                                        to: path_to,
+                                    },
+                                    e2.time,
+                                )
+                                .add_parent(e1)
+                                .add_parent(e2)
+                            } else if path_to.is_file() {
+                                fs_event::Event::new(
+                                    fs_event::File::Renamed {
+                                        from: path_from,
+                                        to: path_to,
+                                    },
+                                    e2.time,
+                                )
+                                .add_parent(e1)
+                                .add_parent(e2)
+                            } else {
+                                todo!();
+                            };
+
+                            tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
+                            converted.push(event);
+                        } else {
+                            let event = if path_to.is_dir() {
+                                fs_event::Event::new(
+                                    fs_event::Folder::Moved {
+                                        from: path_from,
+                                        to: path_to,
+                                    },
+                                    e2.time,
+                                )
+                                .add_parent(e1)
+                                .add_parent(e2)
+                            } else if path_to.is_file() {
+                                fs_event::Event::new(
+                                    fs_event::File::Moved {
+                                        from: path_from,
+                                        to: path_to,
+                                    },
+                                    e2.time,
+                                )
+                                .add_parent(e1)
+                                .add_parent(e2)
+                            } else {
+                                todo!();
+                            };
+
+                            tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
+                            converted.push(event);
+                        }
+                    }
 
                     _ => {
-                        tracing::trace!("could not convert {e1:?} and {e2:?}");
+                        tracing::trace!("could not convert {e1:?} and {e2:?} added to remaining");
                         remaining.extend(events);
                     }
                 },
 
                 _ => {
-                    tracing::trace!("could not convert {events:?}");
+                    tracing::trace!("could not convert {events:?} added to remaining");
                     remaining.extend(events);
                 }
             }
         }
 
         tracing::trace!("converting grouped path");
+        let mut converted_parents = converted
+            .iter()
+            .flat_map(|event| event.parents())
+            .collect::<Vec<_>>();
         for (path, events) in grouped_path.into_iter() {
             match &events[..] {
                 [e] => {
                     tracing::trace!("{e:?} is alone");
-                    remaining.push(e);
+                    if !(converted_parents.contains(e) || remaining.contains(e)) {
+                        tracing::trace!("{e:?} add to remaining");
+                        remaining.push(e);
+                    }
                 }
 
                 [e1, e2] => {
@@ -426,6 +495,7 @@ impl FsWatcher {
 
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
+                            converted_parents.extend(events);
                         }
 
                         NotifyEventKind::Create(CreateKind::Folder) => {
@@ -438,11 +508,19 @@ impl FsWatcher {
 
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
+                            converted_parents.extend(events);
                         }
 
                         NotifyEventKind::Create(_) => {
                             tracing::trace!("could not convert {events:?}");
-                            remaining.extend(events);
+                            if !(converted_parents.contains(e1) || remaining.contains(e1)) {
+                                tracing::trace!("{e1:?} added to remaining");
+                                remaining.push(e1);
+                            }
+                            if !(converted_parents.contains(e2) || remaining.contains(e2)) {
+                                tracing::trace!("{e2:?} added to remaining");
+                                remaining.push(e2);
+                            }
                         }
 
                         _ => unreachable!(),
@@ -450,7 +528,12 @@ impl FsWatcher {
                 }
 
                 _ => {
-                    remaining.extend(events);
+                    for event in events {
+                        if !(converted_parents.contains(&event) || remaining.contains(&event)) {
+                            tracing::trace!("added {event:?} to remaining");
+                            remaining.push(event);
+                        }
+                    }
                 }
             }
         }
@@ -491,17 +574,6 @@ impl FsWatcher {
                 _ => unreachable!("events are partitioned"),
             })
             .collect();
-
-        // let errors = errors
-        //     .into_iter()
-        //     .map(|event| match event {
-        //         ConversionResult::Err(ConversionError { event, kind }) => Error::Processing {
-        //             events: vec![event.clone()],
-        //             kind,
-        //         },
-        //         _ => unreachable!("events are partitioned"),
-        //     })
-        //     .collect();
 
         (converted, errors)
     }

@@ -149,6 +149,12 @@ pub enum StaticResourceEvent {
 /// i.e. The resource's file is the resource its self.
 #[derive(Debug)]
 pub enum ResourceEvent {
+    /// A resource was created.
+    ///
+    /// # Notes
+    /// + If one path is present the app resource was created via a newly created file system resource.
+    /// If two paths are present (`[from, to]`) the app resource was created by an existing file system resource moving
+    /// into the app resource's path.
     Created,
     Removed,
     Renamed,

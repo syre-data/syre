@@ -198,8 +198,10 @@ impl Database {
     }
 
     fn handle_analysis_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
-        let [path] = &event.paths()[..] else {
-            panic!("invalid paths");
+        let path = match &event.paths()[..] {
+            [path] => path,
+            [_from, to] => to,
+            _ => panic!("invalid paths"),
         };
 
         let project = self.state.find_resource_project_by_path(path).unwrap();

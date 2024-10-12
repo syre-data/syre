@@ -19,7 +19,7 @@ use wasm_bindgen::JsCast;
 /// Drag-drop event debounce in ms.
 const THROTTLE_DRAG_EVENT: f64 = 50.0;
 
-#[derive(derive_more::Deref, derive_more::From, Clone)]
+#[derive(derive_more::Deref, derive_more::From, Clone, PartialEq)]
 pub struct DragOverWorkspaceResource(Option<WorkspaceResource>);
 impl DragOverWorkspaceResource {
     pub fn new() -> Self {
@@ -161,11 +161,13 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     provide_context(graph.clone());
     provide_context(state::WorkspaceGraph::new());
 
+    let (drag_over_event, set_drag_over_event) =
+        create_signal(tauri_sys::window::DragDropEvent::Leave);
+    let drag_over_event = leptos_use::signal_throttled(drag_over_event, THROTTLE_DRAG_EVENT);
+    let (drag_over_container_elm, set_drag_over_container_elm) = create_signal(None);
     let (drag_over_workspace_resource, set_drag_over_workspace_resource) =
         create_signal(DragOverWorkspaceResource::new());
-    let drag_over_workspace_resource =
-        leptos_use::signal_throttled(drag_over_workspace_resource, THROTTLE_DRAG_EVENT);
-    provide_context(drag_over_workspace_resource);
+    provide_context(Signal::from(drag_over_workspace_resource));
 
     spawn_local({
         let project = project.clone();
@@ -209,48 +211,113 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     {
         // TODO: Tested on Linux and Windows.
         // Need to test on Mac.
-        let project = project.clone();
-        let graph = graph.clone();
-        spawn_local(async move {
-            use tauri_sys::window::DragDropEvent;
-
-            let window = tauri_sys::window::get_current();
-            let mut listener = window.on_drag_drop_event().await.unwrap();
-            while let Some(event) = listener.next().await {
-                match event.payload {
-                    DragDropEvent::Enter(payload) => {
-                        if payload.paths().is_empty() {
-                            return;
-                        }
-
-                        let resource = resource_from_position(payload.position()).await;
-                        set_drag_over_workspace_resource(resource.into());
+        // Check if needed on unix systems.
+        use tauri_sys::window::DragDropEvent;
+        let _ = watch(
+            move || drag_over_event.get(),
+            move |event, _, _| match event {
+                DragDropEvent::Enter(payload) => {
+                    // Cursor entered window
+                    if payload.paths().is_empty() {
+                        return;
                     }
-                    DragDropEvent::Over(payload) => {
-                        let resource = resource_from_position(payload.position()).await;
-                        set_drag_over_workspace_resource(resource.into());
-                    }
-                    DragDropEvent::Drop(payload) => {
-                        if let Some(resource) =
-                            drag_over_workspace_resource.get_untracked().into_inner()
+
+                    let payload = payload.clone();
+                    spawn_local(async move {
+                        let (resource, elm) = match resource_from_position(payload.position()).await
                         {
-                            set_drag_over_workspace_resource(None.into());
-
-                            // NB: Spawn seperate thread to handle large copies.
-                            spawn_local({
-                                let project = project.clone();
-                                let graph = graph.clone();
-                                async move {
-                                    handle_drop_event(resource, payload, &project, &graph, messages)
-                                        .await
-                                }
-                            });
+                            None => (None, None),
+                            Some((resource, elm)) => (Some(resource), elm),
+                        };
+                        if drag_over_workspace_resource
+                            .with_untracked(|current| resource != **current)
+                        {
+                            set_drag_over_workspace_resource(resource.into());
+                            if let Some(container) = elm {
+                                set_drag_over_container_elm.update(|elm| {
+                                    elm.insert(container);
+                                });
+                            }
                         }
-                    }
-                    DragDropEvent::Leave => {
+                    });
+                }
+                DragDropEvent::Over(payload) => {
+                    let payload = payload.clone();
+                    spawn_local(async move {
+                        let (resource, elm) = match resource_from_position(payload.position()).await
+                        {
+                            None => (None, None),
+                            Some((resource, elm)) => (Some(resource), elm),
+                        };
+                        if drag_over_workspace_resource
+                            .with_untracked(|current| resource != **current)
+                        {
+                            set_drag_over_workspace_resource(resource.into());
+                            if let Some(container) = elm {
+                                set_drag_over_container_elm.update(|elm| {
+                                    elm.insert(container);
+                                });
+                            } else {
+                                set_drag_over_container_elm.update(|elm| {
+                                    elm.take();
+                                });
+                            }
+                        }
+                    });
+                }
+                DragDropEvent::Leave => {
+                    // Cursor exited window
+                    if drag_over_workspace_resource.with_untracked(|current| current.is_some()) {
                         set_drag_over_workspace_resource(None.into());
                     }
                 }
+                DragDropEvent::Drop(payload) => {
+                    if let Some(resource) =
+                        drag_over_workspace_resource.get_untracked().into_inner()
+                    {
+                        set_drag_over_workspace_resource(None.into());
+
+                        // NB: Spawn seperate thread to handle large copies.
+                        let payload = payload.clone();
+                        spawn_local({
+                            let project = project.clone();
+                            let graph = graph.clone();
+                            async move {
+                                handle_drop_event(resource, payload, &project, &graph, messages)
+                                    .await
+                            }
+                        });
+                    }
+                }
+            },
+            false,
+        );
+
+        let _ = watch(
+            drag_over_container_elm,
+            move |elm, prev_container, _| {
+                if let Some(elm) = prev_container {
+                    if let Some(container) = elm.as_ref() {
+                        let event = web_sys::Event::new("dragleave_windows").unwrap();
+                        container.dispatch_event(&event).unwrap();
+                    }
+                }
+
+                if let Some(container) = elm.as_ref() {
+                    let event = web_sys::Event::new("dragenter_windows").unwrap();
+                    container.dispatch_event(&event).unwrap();
+                }
+
+                elm.clone()
+            },
+            false,
+        );
+
+        spawn_local(async move {
+            let window = tauri_sys::window::get_current();
+            let mut listener = window.on_drag_drop_event().await.unwrap();
+            while let Some(event) = listener.next().await {
+                set_drag_over_event(event.payload);
             }
         });
     }
@@ -293,7 +360,7 @@ fn ProjectNav() -> impl IntoView {
     }
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub enum WorkspaceResource {
     /// Analyses properties bar.
     Analyses,
@@ -305,16 +372,22 @@ pub enum WorkspaceResource {
     Asset(ResourceId),
 }
 
+/// Get a resource from a location on screen.
+///
+/// # Returns
+/// `Some(resource, Option<element>)` if the position represents a resource.
+/// `Option<element>` is `Some` for container resources, where `element` is the DOM
+/// element representing the container.
 async fn resource_from_position(
     position: &tauri_sys::dpi::PhysicalPosition,
-) -> Option<WorkspaceResource> {
+) -> Option<(WorkspaceResource, Option<web_sys::Element>)> {
     let monitor = tauri_sys::window::current_monitor().await.unwrap();
     let position = position.as_logical(monitor.scale_factor());
     let (x, y) = (position.x(), position.y());
     if analyses_from_point(x, y) {
-        Some(WorkspaceResource::Analyses)
-    } else if let Some(id) = container_from_point(x, y) {
-        Some(WorkspaceResource::Container(id))
+        Some((WorkspaceResource::Analyses, None))
+    } else if let Some((id, elm)) = container_from_point(x, y) {
+        Some((WorkspaceResource::Container(id), Some(elm)))
     } else {
         None
     }
@@ -339,7 +412,10 @@ fn analyses_from_point(x: isize, y: isize) -> bool {
 ///
 /// # Arguments
 /// `x`, `y`: Logical size.
-fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
+///
+/// # Returns
+/// `Some((id, elm))` if the point is over a valid container.`
+fn container_from_point(x: isize, y: isize) -> Option<(ResourceId, web_sys::Element)> {
     document()
         .elements_from_point(x as f32, y as f32)
         .iter()
@@ -349,7 +425,7 @@ fn container_from_point(x: isize, y: isize) -> Option<ResourceId> {
                 if kind == canvas::DATA_KEY_CONTAINER {
                     if let Some(rid) = elm.get_attribute("data-rid") {
                         let rid = ResourceId::from_str(&rid).unwrap();
-                        return Some(rid);
+                        return Some((rid, elm.clone()));
                     }
                 }
 

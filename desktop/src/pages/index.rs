@@ -59,7 +59,7 @@ fn IndexView(user: Option<User>) -> impl IntoView {
 
 #[component]
 fn Initializing() -> impl IntoView {
-    view! { <div>"Initializing app"</div> }
+    view! { <div class="text-center pt-4">"Initializing app"</div> }
 }
 
 async fn fetch_user() -> Result<Option<User>, IoSerde> {

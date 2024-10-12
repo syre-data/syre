@@ -873,21 +873,21 @@ fn ContainerOk(
     let highlight = {
         let container = container.clone();
         move || {
-            let drag_over_workspace = drag_over_workspace_resource.with(|resource| {
-                let Some(WorkspaceResource::Container(over_id)) = resource.as_ref() else {
-                    return false;
-                };
+            // let drag_over_workspace = drag_over_workspace_resource.with(|resource| {
+            //     let Some(WorkspaceResource::Container(over_id)) = resource.as_ref() else {
+            //         return false;
+            //     };
 
-                container.properties().with(|properties| {
-                    if let db::state::DataResource::Ok(properties) = properties {
-                        return properties.rid().with(|rid| over_id == rid);
-                    }
+            //     container.properties().with_untracked(|properties| {
+            //         if let db::state::DataResource::Ok(properties) = properties {
+            //             return properties.rid().with_untracked(|rid| over_id == rid);
+            //         }
 
-                    false
-                })
-            });
+            //         false
+            //     })
+            // });
 
-            selected() || drag_over() > 0 || drag_over_workspace
+            selected() || drag_over() > 0 //|| drag_over_workspace
         }
     };
 
@@ -948,8 +948,16 @@ fn ContainerOk(
             on:mousedown=mousedown
             on:contextmenu=contextmenu
             on:dragenter=move |_| set_drag_over.update(|count| *count += 1)
-            on:dragover=move |e| e.prevent_default()
             on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
+            on:dragover=move |e| e.prevent_default()
+            on:dragenter_windows=move |_: web_sys::Event| {
+                tracing::debug!("custom enter");
+                set_drag_over.update(|count| *count += 1);
+            }
+            on:dragleave_windows=move |_: web_sys::Event| {
+                tracing::debug!("custom leave");
+                set_drag_over.update(|count| *count -= 1);
+            }
             on:drop=drop
             class=(
                 ["border-2", "border-secondary-900", "dark:border-secondary-100"],

@@ -11,7 +11,10 @@ use syre_local::types::FsResourceAction;
 ///     i.e. The analysis root has path `/`.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AddFsAnalysisResourceData {
+    /// Absolute path to the file system resource.
     pub path: PathBuf,
+
+    /// Relative path within the analysis root in which to insert the resources.
     pub parent: PathBuf,
     pub action: FsResourceAction,
 }

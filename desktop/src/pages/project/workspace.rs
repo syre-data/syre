@@ -589,13 +589,12 @@ async fn handle_drop_event_analyses(
 async fn add_fs_resources_to_analyses(
     paths: Vec<PathBuf>,
     project: ResourceId,
-) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+) -> Result<(), Vec<lib::command::analyses::error::AddAnalyses>> {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,
         resources: Vec<lib::types::AddFsAnalysisResourceData>,
     }
-
     let resources = paths
         .into_iter()
         .map(|path| lib::types::AddFsAnalysisResourceData {
@@ -605,17 +604,7 @@ async fn add_fs_resources_to_analyses(
         })
         .collect();
 
-    tauri_sys::core::invoke_result::<(), Vec<(PathBuf, lib::command::error::IoErrorKind)>>(
-        "add_scripts",
-        Args { project, resources },
-    )
-    .await
-    .map_err(|errors| {
-        errors
-            .into_iter()
-            .map(|(path, err)| (path, err.0))
-            .collect()
-    })
+    tauri_sys::core::invoke_result("project_add_analyses", Args { project, resources }).await
 }
 
 /// # Returns

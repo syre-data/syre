@@ -33,7 +33,7 @@ fn main() {
             project::project_properties_update,
             project::analyze_project,
             project::delete_project,
-            analyses::add_scripts,
+            analyses::project_add_analyses,
             graph::create_child_container,
             graph::add_file_system_resources,
             graph::container_duplicate,

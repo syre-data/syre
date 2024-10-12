@@ -45,6 +45,24 @@ pub mod project {
     }
 }
 
+pub mod analyses {
+    pub mod error {
+        use super::super::error::IoErrorKind;
+        use serde::{Deserialize, Serialize};
+        use std::path::PathBuf;
+        use syre_local::error::IoSerde;
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum AddAnalyses {
+            /// Moving the file system resource failed.
+            FsResource { path: PathBuf, error: IoErrorKind },
+
+            /// Updating the project's analyses failed.
+            UpdateAnalyses(IoSerde),
+        }
+    }
+}
+
 pub mod graph {
     pub mod error {
         use super::super::error::IoErrorKind;

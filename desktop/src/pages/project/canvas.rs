@@ -870,27 +870,7 @@ fn ContainerOk(
         }
     });
 
-    let highlight = {
-        let container = container.clone();
-        move || {
-            // let drag_over_workspace = drag_over_workspace_resource.with(|resource| {
-            //     let Some(WorkspaceResource::Container(over_id)) = resource.as_ref() else {
-            //         return false;
-            //     };
-
-            //     container.properties().with_untracked(|properties| {
-            //         if let db::state::DataResource::Ok(properties) = properties {
-            //             return properties.rid().with_untracked(|rid| over_id == rid);
-            //         }
-
-            //         false
-            //     })
-            // });
-
-            selected() || drag_over() > 0 //|| drag_over_workspace
-        }
-    };
-
+    let highlight = move || selected() || drag_over() > 0;
     let contextmenu = {
         let container = container.clone();
         move |e: MouseEvent| {
@@ -949,15 +929,9 @@ fn ContainerOk(
             on:contextmenu=contextmenu
             on:dragenter=move |_| set_drag_over.update(|count| *count += 1)
             on:dragleave=move |_| set_drag_over.update(|count| *count -= 1)
+            on:dragenter_windows=move |_: web_sys::Event| set_drag_over.update(|count| *count += 1)
+            on:dragleave_windows=move |_: web_sys::Event| set_drag_over.update(|count| *count -= 1)
             on:dragover=move |e| e.prevent_default()
-            on:dragenter_windows=move |_: web_sys::Event| {
-                tracing::debug!("custom enter");
-                set_drag_over.update(|count| *count += 1);
-            }
-            on:dragleave_windows=move |_: web_sys::Event| {
-                tracing::debug!("custom leave");
-                set_drag_over.update(|count| *count -= 1);
-            }
             on:drop=drop
             class=(
                 ["border-2", "border-secondary-900", "dark:border-secondary-100"],

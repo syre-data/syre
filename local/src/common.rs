@@ -2,6 +2,7 @@
 use crate::constants::*;
 use regex::Regex;
 use std::{
+    ffi::OsString,
     fs, io,
     path::{Component, Path, PathBuf, Prefix, MAIN_SEPARATOR},
 };
@@ -235,6 +236,11 @@ pub fn analyses_file() -> PathBuf {
 /// app_dir_of(path)/\<ANALYSES_FILE\>
 pub fn analyses_file_of(path: impl AsRef<Path>) -> PathBuf {
     app_dir_of(path).join(ANALYSES_FILE)
+}
+
+/// Path to the ignore file for a given path.
+pub fn ignore_file() -> OsString {
+    OsString::from(IGNORE_FILE)
 }
 
 /// Path to the ignore file for a given path.

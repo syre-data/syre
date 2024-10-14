@@ -775,8 +775,6 @@ fn ContainerOk(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
     container: state::graph::Node,
 ) -> impl IntoView {
-    use super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
-
     assert!(container
         .properties()
         .with_untracked(|properties| properties.is_ok()));
@@ -788,7 +786,6 @@ fn ContainerOk(
     let context_menu_active_container =
         expect_context::<RwSignal<Option<ContextMenuActiveContainerOk>>>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
-    let drag_over_workspace_resource = expect_context::<Signal<DragOverWorkspaceResource>>();
     let (drag_over, set_drag_over) = create_signal(0);
     provide_context(Container(container.clone()));
 

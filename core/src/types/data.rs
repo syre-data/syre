@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt;
 
 #[cfg(feature = "serde")]
 use serde::{
@@ -57,15 +57,22 @@ impl Value {
     }
 }
 
-impl Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Null => write!(f, "(null)"),
             Value::Bool(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, r#""{value}""#),
             Value::Number(number) => write!(f, "{number}"),
             Value::Quantity { magnitude, unit } => write!(f, "{magnitude} {unit}"),
-            Value::Array(vec) => write!(f, "{vec:?}"),
+            Value::Array(vec) => {
+                let values = vec
+                    .iter()
+                    .map(|item| item.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "[{values}]")
+            }
         }
     }
 }

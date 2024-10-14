@@ -161,6 +161,7 @@ pub async fn container_duplicate(
         db::common::container_system_path(project_path.join(&properties.data_root), &container);
 
     duplicate::duplicate_subgraph(root_path, ignore)
+        .await
         .map(|_path| ())
         .map_err(|err| err.into())
 }
@@ -245,7 +246,7 @@ mod duplicate {
     ///
     /// # Returns
     /// Path to the duplicated root.
-    pub fn duplicate_subgraph(
+    pub async fn duplicate_subgraph(
         root: impl AsRef<Path>,
         ignore: Option<ignore::gitignore::Gitignore>,
     ) -> Result<PathBuf, error::Error> {
@@ -335,17 +336,71 @@ mod duplicate {
             return Err(error::Error::Duplicate(errors));
         }
 
-        fs::rename(tmp_root.path(), &dup_root).or_else(|err| match err.kind() {
-            io::ErrorKind::CrossesDevices => {
-                // can not rename across devices, copy instead
-                fs::copy(tmp_root.path(), &dup_root)
-                    .map(|_| ())
-                    .map_err(|err| error::Error::Move(err.kind()))
-            }
-            _ => Err(error::Error::Move(err.kind())),
-        })?;
+        match fs::rename(tmp_root.path(), &dup_root) {
+            Ok(_) => Ok(dup_root),
+            Err(err) if matches!(err.kind(), io::ErrorKind::CrossesDevices) => {
+                copy_dir(tmp_root.path(), &dup_root).await.map_err(|err| {
+                    tracing::debug!(?err);
+                    error::Error::Copy(err)
+                })?;
 
-        Ok(dup_root)
+                Ok(dup_root)
+            }
+            Err(err) => {
+                tracing::debug!(?err);
+                Err(error::Error::Move(err.kind()))
+            }
+        }
+    }
+
+    /// # Returns
+    /// `Err` if any path fails to be copied.
+    pub async fn copy_dir(
+        src: impl AsRef<Path>,
+        dst: impl AsRef<Path>,
+    ) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+        let src: &Path = src.as_ref();
+        let dst: &Path = dst.as_ref();
+        let mut results = tokio::task::JoinSet::new();
+        let mut dir_walker = ignore::WalkBuilder::new(src);
+        dir_walker.add_custom_ignore_filename(local::common::ignore_file());
+        let dir_walker = dir_walker.build();
+        for entry in dir_walker.into_iter().filter_map(|entry| entry.ok()) {
+            let rel_path = entry.path().strip_prefix(src).unwrap();
+            let dst = dst.join(rel_path);
+
+            results.spawn(async move {
+                let file_type = entry.file_type().unwrap();
+                if file_type.is_file() {
+                    match tokio::fs::copy(entry.path(), dst).await {
+                        Ok(_) => Ok(()),
+                        Err(err) => Err((entry.path().to_path_buf(), err.kind())),
+                    }
+                } else if file_type.is_dir() {
+                    match tokio::fs::create_dir(dst).await {
+                        Ok(_) => Ok(()),
+                        Err(err) => Err((entry.path().to_path_buf(), err.kind())),
+                    }
+                } else {
+                    todo!();
+                }
+            });
+        }
+        let results = results.join_all().await;
+
+        let errors = results
+            .into_iter()
+            .filter_map(|result| match result {
+                Ok(_) => None,
+                Err(err) => Some(err),
+            })
+            .collect::<Vec<_>>();
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 
     pub mod error {
@@ -364,8 +419,11 @@ mod duplicate {
             /// Duplicating the tree failed.
             Duplicate(Vec<(PathBuf, Duplicate)>),
 
-            /// Relocating the duplicated tree to its final dstination failed.
+            /// Relocating the duplicated tree to its final destination failed.
             Move(io::ErrorKind),
+
+            /// Copying the duplicated tree to its final destination failed.
+            Copy(Vec<(PathBuf, io::ErrorKind)>),
         }
 
         #[derive(Debug)]
@@ -385,6 +443,13 @@ mod duplicate {
                     Self::Filename(err) => error::duplicate::Error::Filename(err.into()),
                     Self::Tmp(err) => error::duplicate::Error::Tmp(err.into()),
                     Self::Move(err) => error::duplicate::Error::Move(err.into()),
+                    Self::Copy(errors) => {
+                        let errors = errors
+                            .into_iter()
+                            .map(|(path, err)| (path, err.into()))
+                            .collect();
+                        error::duplicate::Error::Copy(errors)
+                    }
                     Self::Duplicate(errors) => {
                         let errors = errors
                             .into_iter()

@@ -1,11 +1,14 @@
-use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar};
+use super::{
+    super::Settings, canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar,
+};
 use crate::{
     commands, common,
-    components::{drawer, Drawer, Logo},
+    components::{self, drawer, Drawer, Logo},
     types,
 };
 use futures::stream::StreamExt;
 use leptos::*;
+use leptos_icons::*;
 use leptos_router::*;
 use serde::Serialize;
 use std::{io, path::PathBuf, str::FromStr};
@@ -18,6 +21,14 @@ use wasm_bindgen::JsCast;
 
 /// Drag-drop event debounce in ms.
 const THROTTLE_DRAG_EVENT: f64 = 50.0;
+
+#[derive(Clone, Copy, derive_more::Deref, derive_more::From)]
+struct ShowSettings(RwSignal<bool>);
+impl ShowSettings {
+    pub fn new() -> Self {
+        Self(create_rw_signal(false))
+    }
+}
 
 #[derive(derive_more::Deref, derive_more::From, Clone, PartialEq)]
 pub struct DragOverWorkspaceResource(Option<WorkspaceResource>);
@@ -91,6 +102,9 @@ fn WorkspaceView(
     provide_context(DragOverWorkspaceResource::new());
     provide_context(create_rw_signal(PropertiesEditor::default()));
 
+    let show_settings = ShowSettings::new();
+    provide_context(show_settings);
+
     spawn_local({
         let project = project.clone();
         async move {
@@ -131,7 +145,7 @@ fn WorkspaceView(
     });
 
     view! {
-        <div class="select-none flex flex-col h-full">
+        <div class="select-none flex flex-col h-full relative">
             <ProjectNav />
             <div class="border-b">
                 <ProjectBar />
@@ -144,6 +158,14 @@ fn WorkspaceView(
                     db::state::FolderResource::Absent => view! { <NoGraph /> },
                 }
             }}
+
+            <div
+                class=(["-right-full", "left-full"], move || !show_settings())
+                class=(["right-0", "left-0"], move || show_settings())
+                class="absolute top-0 bottom-0 transition-absolute-position z-20"
+            >
+                <Settings onclose=move |_| show_settings.set(false) />
+            </div>
         </div>
     }
 }
@@ -235,7 +257,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                             set_drag_over_workspace_resource(resource.into());
                             if let Some(container) = elm {
                                 set_drag_over_container_elm.update(|elm| {
-                                    elm.insert(container);
+                                    let _ = elm.insert(container);
                                 });
                             }
                         }
@@ -255,7 +277,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                             set_drag_over_workspace_resource(resource.into());
                             if let Some(container) = elm {
                                 set_drag_over_container_elm.update(|elm| {
-                                    elm.insert(container);
+                                    let _ = elm.insert(container);
                                 });
                             } else {
                                 set_drag_over_container_elm.update(|elm| {
@@ -347,13 +369,33 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 
 #[component]
 fn ProjectNav() -> impl IntoView {
+    let show_settings = expect_context::<ShowSettings>();
+    let open_settings = move |e: ev::MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        show_settings.set(true);
+    };
+
     view! {
-        <nav class="px-2 border-b dark:bg-secondary-900">
-            <ol class="flex">
+        <nav class="px-2 border-b dark:bg-secondary-900 flex">
+            <ol class="flex grow">
                 <li class="py-2">
                     <A href="/">
                         <Logo class="h-4" />
                     </A>
+                </li>
+            </ol>
+            <ol>
+                <li class="py-2">
+                    <button
+                        on:mousedown=open_settings
+                        type="button"
+                        class="hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded"
+                    >
+                        <Icon icon=components::icon::Settings />
+                    </button>
                 </li>
             </ol>
         </nav>

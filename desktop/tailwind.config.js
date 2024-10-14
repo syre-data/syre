@@ -2,6 +2,7 @@
 import { colors, fontFamily, } from "./styles/theme.js";
 
 module.exports = {
+	darkMode: "selector",
 	content: {
 		files: ["*.html", "./src/**/*.rs"],
 	},
@@ -9,8 +10,9 @@ module.exports = {
 		extend: {
 			colors,
 			fontFamily,
-			transitionPropety: {
-				"width": "width"
+			transitionProperty: {
+				"width": "width",
+				"absolute-position": "top, bottom, left, right"
 			}
 		},
 	},

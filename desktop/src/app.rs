@@ -16,13 +16,41 @@ use message::Messages;
 /// This array is used to include them when needed.
 static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden", "invisible"];
 
+/// User prefers dark theme.
+#[derive(derive_more::Deref, Clone, Copy)]
+pub struct PrefersDarkTheme(RwSignal<bool>);
+impl PrefersDarkTheme {
+    pub fn new(prefers_dark: bool) -> Self {
+        Self(create_rw_signal(prefers_dark))
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
     provide_context(types::Messages::new()); // TODO: Only provide after user is logged in?
+    let (stored_prefers_dark, set_stored_prefers_dark, _) = leptos_use::storage::use_local_storage::<
+        bool,
+        codee::string::FromToStringCodec,
+    >("dark_mode");
+    let prefers_dark_theme = PrefersDarkTheme::new(stored_prefers_dark.get_untracked());
+    provide_context(prefers_dark_theme);
+    create_effect(move |_| {
+        set_stored_prefers_dark(prefers_dark_theme());
+    });
+
+    let class_html = move || {
+        if prefers_dark_theme() {
+            "dark"
+        } else {
+            ""
+        }
+    };
 
     view! {
         <Title formatter=|text| text text="Syre" />
+        <Html class=class_html />
+        <Body class="h-screen font-secondary overflow-hidden dark:bg-secondary-800 dark:text-white" />
 
         <Router>
             <Routes>

@@ -19,5 +19,6 @@ pub mod icon {
     pub use {
         icondata::AiCloseOutlined as Close, icondata::AiMinusOutlined as Remove,
         icondata::AiPlusOutlined as Add, icondata::AiSyncOutlined as Refresh,
+        icondata::IoSettingsSharp as Settings,
     };
 }

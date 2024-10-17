@@ -30,15 +30,18 @@ pub trait LocalResource<T> {
 /// User resources have a fixed base path with a variable relative path.
 /// i.e. <fixed>/<variable>
 pub trait UserResource<T> {
-    /// Returns the (fixed) base path to the settings file.
-    fn base_path() -> PathBuf;
+    /// # Returns
+    /// (fixed) Base path to the file.
+    fn base_path() -> Result<PathBuf, io::Error>;
 
-    /// Returns the (variable) relative path for the settings.
+    /// # Returns
+    /// (variable) Relative path ot the file.
     fn rel_path(&self) -> &Path;
 
-    /// Returns the absolute path to the settings file.
-    fn path(&self) -> PathBuf {
-        Self::base_path().join(self.rel_path())
+    /// # Returns
+    /// Absolute path to the file.
+    fn path(&self) -> Result<PathBuf, io::Error> {
+        Ok(Self::base_path()?.join(self.rel_path()))
     }
 }
 

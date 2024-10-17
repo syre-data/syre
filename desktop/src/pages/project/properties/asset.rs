@@ -1,4 +1,4 @@
-use super::{PopoutPortal, INPUT_DEBOUNCE};
+use super::{InputDebounce, PopoutPortal};
 use crate::{components, pages::project::state, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
@@ -138,7 +138,7 @@ pub fn Editor(asset: state::Asset) -> impl IntoView {
 }
 
 mod name {
-    use super::{update_properties, ActiveAsset, INPUT_DEBOUNCE};
+    use super::{update_properties, ActiveAsset, InputDebounce};
     use crate::{components::form::debounced::InputText, pages::project::state, types};
     use leptos::*;
 
@@ -148,6 +148,7 @@ mod name {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let input_value = {
             let value = asset.name().read_only();
@@ -189,7 +190,7 @@ mod name {
             <InputText
                 value=Signal::derive(input_value)
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact"
             />
         }
@@ -198,7 +199,7 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::kind::Editor as KindEditor, update_properties, ActiveAsset, INPUT_DEBOUNCE,
+        super::common::kind::Editor as KindEditor, update_properties, ActiveAsset, InputDebounce,
     };
     use crate::{pages::project::state, types};
     use leptos::*;
@@ -209,6 +210,7 @@ mod kind {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new({
             let asset = asset.clone();
@@ -241,7 +243,7 @@ mod kind {
             <KindEditor
                 value=asset.kind().read_only()
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact"
             />
         }
@@ -251,7 +253,7 @@ mod kind {
 mod description {
     use super::{
         super::common::description::Editor as DescriptionEditor, update_properties, ActiveAsset,
-        INPUT_DEBOUNCE,
+        InputDebounce,
     };
     use crate::{pages::project::state, types};
     use leptos::*;
@@ -262,6 +264,7 @@ mod description {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new({
             let asset = asset.clone();
@@ -294,7 +297,7 @@ mod description {
             <DescriptionEditor
                 value=asset.description().read_only()
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }
@@ -303,7 +306,7 @@ mod description {
 
 mod tags {
     use super::{
-        super::common::tags::Editor as TagsEditor, update_properties, ActiveAsset, INPUT_DEBOUNCE,
+        super::common::tags::Editor as TagsEditor, update_properties, ActiveAsset, InputDebounce,
     };
     use crate::{pages::project::state, types};
     use leptos::*;
@@ -314,6 +317,7 @@ mod tags {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new({
             let asset = asset.clone();
@@ -346,7 +350,7 @@ mod tags {
             <TagsEditor
                 value=asset.tags().read_only()
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact"
             />
         }
@@ -356,7 +360,7 @@ mod tags {
 mod metadata {
     use super::{
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
-        update_properties, ActiveAsset, INPUT_DEBOUNCE,
+        update_properties, ActiveAsset, InputDebounce,
     };
     use crate::{
         components::{self, DetailPopout},
@@ -463,8 +467,10 @@ mod metadata {
         let graph = expect_context::<state::Graph>();
         let asset = expect_context::<ActiveAsset>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let (input_value, set_input_value) = create_signal(value.get_untracked());
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+        let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
         let _ = watch(
             input_value,
             move |value, _, _| {

@@ -117,7 +117,7 @@ pub mod tags {
 
 pub mod metadata {
     //! Common components for editing metadata
-    use super::super::INPUT_DEBOUNCE;
+    use super::super::InputDebounce;
     use crate::components::{self, form::InputNumber};
     use leptos::{ev::SubmitEvent, *};
     use leptos_icons::Icon;
@@ -133,8 +133,9 @@ pub mod metadata {
         #[prop(optional, into)] id: MaybeProp<String>,
         #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
+        let input_debounce = expect_context::<InputDebounce>();
         let (key, set_key) = create_signal("".to_string());
-        let key = leptos_use::signal_debounced(key, INPUT_DEBOUNCE);
+        let key = leptos_use::signal_debounced(key, *input_debounce);
         let (value, set_value) = create_signal(Value::Number(serde_json::Number::from(0)));
 
         if let Some(reset) = reset {
@@ -363,6 +364,8 @@ pub mod metadata {
         };
 
         let oninput = move |value: String| {
+            tracing::debug!(?value);
+            let value = value.trim_start_matches("0");
             let Ok(value) = serde_json::from_str(&value) else {
                 return;
             };
@@ -452,6 +455,7 @@ pub mod metadata {
 
     #[component]
     fn ArrayEditor(value: Signal<Value>, set_value: WriteSignal<Value>) -> impl IntoView {
+        let input_debounce = expect_context::<InputDebounce>();
         let (error, set_error) = create_signal(None);
         let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
             let Value::Array(value) = value else {
@@ -464,7 +468,7 @@ pub mod metadata {
                 .collect::<Vec<_>>()
                 .join("\n")
         }));
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+        let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
 
         create_effect(move |_| {
             let val = value.with(|value| {
@@ -1136,7 +1140,7 @@ pub mod bulk {
 
     pub mod metadata {
         use super::super::{
-            super::INPUT_DEBOUNCE,
+            super::InputDebounce,
             metadata::{convert_value_kind, kind_to_str, string_to_kind, value_to_kind_str},
         };
         use crate::components::{self, form::InputNumber};
@@ -1545,6 +1549,7 @@ pub mod bulk {
 
         #[component]
         fn ArrayEditor(value: Signal<Value>, oninput: Callback<data::Value>) -> impl IntoView {
+            let input_debounce = expect_context::<InputDebounce>();
             let (error, set_error) = create_signal(None);
             let (input_value, set_input_value) = create_signal(value.with_untracked(|value| {
                 match value {
@@ -1557,7 +1562,7 @@ pub mod bulk {
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 }
             }));
-            let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+            let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
 
             let placeholder = move || {
                 value.with(|value| match value {

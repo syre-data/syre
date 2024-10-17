@@ -1,4 +1,5 @@
-use std::{fs, io, path::PathBuf};
+use crate::settings;
+use std::{fs, path::PathBuf};
 use syre_core::{
     self as core,
     runner::RunnerHooks,
@@ -245,6 +246,7 @@ pub fn project_analysis_remove(
 #[tauri::command]
 pub async fn analyze_project(
     db: tauri::State<'_, db::Client>,
+    state: tauri::State<'_, crate::State>,
     project: ResourceId,
     root: PathBuf,
     max_tasks: Option<usize>,
@@ -257,10 +259,19 @@ pub async fn analyze_project(
         return Err(error::Analyze::GraphAbsent);
     };
 
-    let runner_hooks = match runner::Runner::from(project_path, &project_data) {
-        Ok(hooks) => hooks,
-        Err(err) => return Err(err.into()),
-    };
+    let runner_settings = state
+        .user()
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|user| settings::Runner::load(user.rid()).ok())
+        .flatten();
+
+    let runner_hooks =
+        match runner::Runner::from(project_path, &project_data, runner_settings.as_ref()) {
+            Ok(hooks) => hooks,
+            Err(err) => return Err(err.into()),
+        };
     let runner_hooks = Box::new(runner_hooks) as Box<dyn RunnerHooks>;
     let runner = core::runner::Runner::new(runner_hooks);
     let Ok(mut graph) = graph_state_to_container_tree(graph) else {

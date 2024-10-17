@@ -24,7 +24,7 @@ pub struct ExcelTemplate {
     pub output: OutputParameters,
 
     /// Python executable.
-    pub python_exe: String,
+    pub python_exe: PathBuf,
 }
 
 impl ExcelTemplate {

@@ -1,6 +1,4 @@
-use std::{io, path::PathBuf};
-
-use super::INPUT_DEBOUNCE;
+use super::InputDebounce;
 use crate::{
     components::{ModalDialog, TruncateLeft},
     pages::project::state,
@@ -11,6 +9,7 @@ use ev::SubmitEvent;
 use leptos::{ev::MouseEvent, *};
 use name::Editor as Name;
 use serde::Serialize;
+use std::{io, path::PathBuf};
 use syre_core as core;
 use syre_desktop_lib as lib;
 use syre_local as local;
@@ -168,7 +167,7 @@ fn DeleteProjectConfirmation() -> impl IntoView {
 }
 
 mod name {
-    use super::{update_properties, INPUT_DEBOUNCE};
+    use super::{update_properties, InputDebounce};
     use crate::{components::form::debounced::InputText, pages::project::state, types};
     use leptos::*;
 
@@ -176,6 +175,7 @@ mod name {
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = {
             let project = project.clone();
@@ -206,7 +206,7 @@ mod name {
             <InputText
                 value=project.properties().name().read_only()
                 oninput=Callback::new(oninput)
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full"
             />
         }
@@ -215,7 +215,7 @@ mod name {
 
 mod description {
     use super::{
-        super::common::description::Editor as DescriptionEditor, update_properties, INPUT_DEBOUNCE,
+        super::common::description::Editor as DescriptionEditor, update_properties, InputDebounce,
     };
     use crate::{pages::project::state, types};
     use leptos::*;
@@ -224,6 +224,7 @@ mod description {
     pub fn Editor() -> impl IntoView {
         let project = expect_context::<state::Project>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = {
             let project = project.clone();
@@ -250,7 +251,7 @@ mod description {
             <DescriptionEditor
                 value=project.properties().description().read_only()
                 oninput=Callback::new(oninput)
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }

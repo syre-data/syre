@@ -1,5 +1,5 @@
-use super::{common, PopoutPortal, INPUT_DEBOUNCE};
-use crate::{pages::project::state, types, components};
+use super::{common, InputDebounce, PopoutPortal};
+use crate::{components, pages::project::state, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
 use has_id::HasId;
@@ -363,7 +363,7 @@ pub fn Editor(container: state::Container) -> impl IntoView {
 }
 
 mod name {
-    use super::INPUT_DEBOUNCE;
+    use super::InputDebounce;
     use crate::{components::form::debounced::value, pages::project::state, types};
     use leptos::*;
     use serde::Serialize;
@@ -381,8 +381,10 @@ mod name {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let (input_value, set_input_value) = create_signal(value::State::set_from_state(value()));
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+        let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
         let (error, set_error) = create_signal(false);
 
         create_effect(move |_| {
@@ -467,7 +469,7 @@ mod name {
 }
 
 mod kind {
-    use super::{super::common::kind::Editor as KindEditor, update_properties, INPUT_DEBOUNCE};
+    use super::{super::common::kind::Editor as KindEditor, update_properties, InputDebounce};
     use crate::{pages::project::state, types};
     use leptos::*;
     use syre_core::types::ResourceId;
@@ -481,6 +483,7 @@ mod kind {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = move |value: Option<String>| {
             let messages = messages.write_only();
@@ -514,7 +517,7 @@ mod kind {
             <KindEditor
                 value
                 oninput=Callback::new(oninput)
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full"
             />
         }
@@ -523,7 +526,7 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::description::Editor as DescriptionEditor, update_properties, INPUT_DEBOUNCE,
+        super::common::description::Editor as DescriptionEditor, update_properties, InputDebounce,
     };
     use crate::{pages::project::state, types};
     use leptos::*;
@@ -539,6 +542,7 @@ mod description {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = {
             let messages = messages.write_only();
@@ -575,7 +579,7 @@ mod description {
             <DescriptionEditor
                 value
                 oninput=Callback::new(oninput)
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }
@@ -583,7 +587,7 @@ mod description {
 }
 
 mod tags {
-    use super::{super::common::tags::Editor as TagsEditor, update_properties, INPUT_DEBOUNCE};
+    use super::{super::common::tags::Editor as TagsEditor, update_properties, InputDebounce};
     use crate::{pages::project::state, types};
     use leptos::*;
     use syre_core::types::ResourceId;
@@ -598,6 +602,7 @@ mod tags {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = {
             let messages = messages.write_only();
@@ -634,7 +639,7 @@ mod tags {
             <TagsEditor
                 value
                 oninput=Callback::new(oninput)
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full"
             />
         }
@@ -644,9 +649,13 @@ mod tags {
 mod metadata {
     use super::{
         super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
-        update_properties, INPUT_DEBOUNCE,
+        update_properties, InputDebounce,
     };
-    use crate::{components::{self, DetailPopout}, pages::project::state, types};
+    use crate::{
+        components::{self, DetailPopout},
+        pages::project::state,
+        types,
+    };
     use leptos::{ev::MouseEvent, *};
     use leptos_icons::Icon;
     use syre_core::types::{ResourceId, Value};
@@ -752,8 +761,10 @@ mod metadata {
         let graph = expect_context::<state::Graph>();
         let container = expect_context::<ActiveResource>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let (input_value, set_input_value) = create_signal(value.get_untracked());
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+        let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
 
         create_effect(move |_| {
             set_input_value(value());
@@ -881,7 +892,10 @@ mod analysis_associations {
         state,
     };
     use crate::{
-        commands, components::{self, DetailPopout}, pages::project::properties::INPUT_DEBOUNCE, types,
+        commands,
+        components::{self, DetailPopout},
+        pages::project::properties::InputDebounce,
+        types,
     };
     use has_id::HasId;
     use leptos::{ev::MouseEvent, *};
@@ -1055,13 +1069,15 @@ mod analysis_associations {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let autorun_input_node = NodeRef::<html::Input>::new();
         let (value, set_value) = create_signal(AnalysisAssociation::with_params(
             association.analysis().clone(),
             association.autorun().get_untracked(),
             association.priority().get_untracked(),
         ));
-        let value = leptos_use::signal_debounced(value, INPUT_DEBOUNCE);
+        let value = leptos_use::signal_debounced(value, *input_debounce);
 
         let _ = watch(
             {

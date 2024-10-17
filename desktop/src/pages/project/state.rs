@@ -546,8 +546,6 @@ pub mod graph {
         /// # Returns
         /// Tuple of `(subgraph width, subgraph height)` for the given node.
         fn graph_data(root: usize, graph: &Vec<Vec<usize>>) -> (NonZeroUsize, NonZeroUsize) {
-            use std::cmp;
-
             let children_data = graph[root]
                 .iter()
                 .map(|child| Self::graph_data(*child, graph))

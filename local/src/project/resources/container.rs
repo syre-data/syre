@@ -50,9 +50,9 @@ impl Container {
 
     /// Save all data.
     pub fn save(&self) -> StdResult<(), io::Error> {
-        let properties_path = <Container as LocalResource<StoredContainerProperties>>::path(self);
-        let assets_path = <Container as LocalResource<Vec<Asset>>>::path(self);
-        let settings_path = <Container as LocalResource<ContainerSettings>>::path(self);
+        let properties_path = <Self as LocalResource<StoredContainerProperties>>::path(self);
+        let assets_path = <Self as LocalResource<Vec<Asset>>>::path(self);
+        let settings_path = <Self as LocalResource<ContainerSettings>>::path(self);
 
         fs::create_dir_all(properties_path.parent().expect("invalid Container path"))?;
         let properties: StoredContainerProperties = self.container.clone().into();

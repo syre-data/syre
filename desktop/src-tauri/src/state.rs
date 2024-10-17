@@ -1,50 +1,66 @@
 //! App state.
 use std::{
-    ops::Deref,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 use syre_core::types::ResourceId;
+use syre_local_database as db;
 
 /// App state.
 pub struct State {
     /// Active user.
-    user: Slice<Option<ResourceId>>,
-
-    /// Project paths associated with the current user.
-    projects: Slice<Vec<PathBuf>>,
+    user: Slice<Option<User>>,
 }
 
 impl State {
     pub fn new() -> Self {
         Self {
-            user: Slice::new(None),
-            projects: Slice::new(vec![]),
+            user: new_slice(None),
         }
     }
 
-    pub fn user(&self) -> &Slice<Option<ResourceId>> {
-        &self.user
+    pub fn user(&self) -> Slice<Option<User>> {
+        self.user.clone()
+    }
+}
+
+pub struct User {
+    rid: ResourceId,
+
+    /// Project paths associated with the current user.
+    projects: Slice<Vec<PathBuf>>,
+}
+
+impl User {
+    pub fn new(user: ResourceId, projects: Vec<PathBuf>) -> Self {
+        Self {
+            rid: user,
+            projects: new_slice(projects),
+        }
     }
 
-    pub fn projects(&self) -> &Slice<Vec<PathBuf>> {
-        &self.projects
+    pub fn rid(&self) -> &ResourceId {
+        &self.rid
     }
+
+    pub fn projects(&self) -> Slice<Vec<PathBuf>> {
+        self.projects.clone()
+    }
+}
+
+pub fn load_user_state(db: &db::Client, user: &ResourceId) -> Vec<PathBuf> {
+    db.user()
+        .projects(user.clone())
+        .unwrap()
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect()
 }
 
 /// Slice of the state.
 ///
 /// Arc<Mutex<T>> newtype for convenience.
-pub struct Slice<T>(Arc<Mutex<T>>);
-impl<T> Slice<T> {
-    fn new(value: T) -> Self {
-        Self(Arc::new(Mutex::new(value)))
-    }
-}
-
-impl<T> Deref for Slice<T> {
-    type Target = Arc<Mutex<T>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub type Slice<T> = Arc<Mutex<T>>;
+fn new_slice<T>(obj: T) -> Slice<T> {
+    Arc::new(Mutex::new(obj))
 }

@@ -1,4 +1,4 @@
-use super::{PopoutPortal, INPUT_DEBOUNCE};
+use super::{InputDebounce, PopoutPortal};
 use crate::{components, pages::project, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
@@ -560,7 +560,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 }
 
 mod name {
-    use super::{super::common::bulk::Value, ActiveResources, State, INPUT_DEBOUNCE};
+    use super::{super::common::bulk::Value, ActiveResources, InputDebounce, State};
     use crate::{pages::project::state, types};
     use leptos::*;
     use serde::Serialize;
@@ -576,6 +576,8 @@ mod name {
         let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let (input_error, set_input_error) = create_signal(false);
         let (input_value, set_input_value) = create_signal({
             state.with(|state| match state.name().get() {
@@ -583,7 +585,7 @@ mod name {
                 Value::Equal(value) => value.clone(),
             })
         });
-        let input_value = leptos_use::signal_debounced(input_value, INPUT_DEBOUNCE);
+        let input_value = leptos_use::signal_debounced(input_value, *input_debounce);
 
         let _ = watch(
             input_value,
@@ -674,7 +676,7 @@ mod name {
                     set_input_value(event_target_value(&e));
                 }
 
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 placeholder=placeholder
                 minlength="1"
                 class=(["border-red-600", "border-solid", "border-2"], input_error)
@@ -761,8 +763,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources,
+        InputDebounce, State,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -775,6 +777,7 @@ mod kind {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new(move |input_value: Option<String>| {
             let containers_len = containers.with_untracked(|containers| containers.len());
@@ -812,14 +815,14 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state.with(|state| state.kind()) oninput debounce=INPUT_DEBOUNCE /> }
+        view! { <KindEditor value=state.with(|state| state.kind()) oninput debounce=*input_debounce /> }
     }
 }
 
 mod description {
     use super::{
         super::common::bulk::description::Editor as DescriptionEditor, update_properties,
-        ActiveResources, State, INPUT_DEBOUNCE,
+        ActiveResources, InputDebounce, State,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -832,6 +835,8 @@ mod description {
         let messages = expect_context::<Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let oninput = Callback::new(move |input_value: Option<String>| {
             let containers_len = containers.with_untracked(|containers| containers.len());
             let mut update = PropertiesUpdate::default();
@@ -872,7 +877,7 @@ mod description {
             <DescriptionEditor
                 value=state.with(|state| state.description())
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }
@@ -1228,7 +1233,7 @@ mod analysis_associations {
     use super::{
         super::{
             common::{self, analysis_associations::AddAssociation as AddAssociationEditor},
-            INPUT_DEBOUNCE,
+            InputDebounce,
         },
         ActiveResources,
     };
@@ -1398,6 +1403,8 @@ mod analysis_associations {
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let autorun_input_node = NodeRef::<html::Input>::new();
         let (value, set_value) = create_signal({
             let association = association.clone();
@@ -1406,7 +1413,7 @@ mod analysis_associations {
             value.priority = association.priority().get_untracked().equal();
             value
         });
-        let value = leptos_use::signal_debounced(value, INPUT_DEBOUNCE);
+        let value = leptos_use::signal_debounced(value, *input_debounce);
 
         let _ = watch(
             move || value.get(),

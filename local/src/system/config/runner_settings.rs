@@ -1,21 +1,12 @@
 //! Runner settings.
-use crate::file_resource::SystemResource;
-use crate::system::common::config_dir_path;
-use crate::Result;
+use crate::{error, file_resource::UserResource, system::common::config_dir_path};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{self, BufReader},
-    ops::Deref,
-    path::PathBuf,
-    result::Result as StdResult,
+    path::{Path, PathBuf},
 };
-
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct Settings {
-    pub python_path: Option<String>,
-    pub r_path: Option<String>,
-}
+use syre_core::types::ResourceId;
 
 /// Represents Syre runner settings.
 ///
@@ -27,47 +18,56 @@ pub struct Settings {
 /// # Fields
 /// + **python_path:** Option for the python binary path.
 /// + **r_path:** Option for the r binary path.
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, derive_more::Deref)]
 #[serde(transparent)]
 pub struct RunnerSettings {
+    /// Path to the user's runner settings.
     #[serde(skip)]
     path: PathBuf,
+
+    #[deref]
     inner: Settings,
 }
 
 impl RunnerSettings {
-    const FILE_NAME: &'static str = "runner_settings.json";
+    const SETTINGS_DIR: &'static str = "settings";
 
-    pub fn load() -> Result<Self> {
-        let path = Self::default_path()?;
-        let file = fs::File::open(&path)?;
+    pub fn load(user: ResourceId) -> Result<Self, error::IoSerde> {
+        let mut path = PathBuf::from(user.to_string());
+        path.set_extension("json");
+
+        let path_abs = Self::base_path()?.join(&path);
+        let file = fs::File::open(&path_abs)?;
         let reader = BufReader::new(file);
         let inner = serde_json::from_reader(reader)?;
         Ok(Self { path, inner })
     }
 
-    pub fn save(&self) -> Result {
-        fs::create_dir_all(self.path().parent().unwrap())?;
-        fs::write(self.path(), serde_json::to_string_pretty(&self)?)?;
+    pub fn save(&self) -> Result<(), io::Error> {
+        let path = self.path()?;
+        let dir = path.parent().unwrap();
+        fs::create_dir_all(dir)?;
+        fs::write(path, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 }
 
-// TODO Should probably be a `UserResource`.
-impl SystemResource<Settings> for RunnerSettings {
-    fn path(&self) -> &PathBuf {
-        &self.path
+impl UserResource<Settings> for RunnerSettings {
+    fn base_path() -> Result<PathBuf, io::Error> {
+        let base_path = config_dir_path()?;
+        Ok(base_path.join(Self::SETTINGS_DIR))
     }
 
-    /// Returns the path to the system settings file.
-    fn default_path() -> StdResult<PathBuf, io::Error> {
-        Ok(config_dir_path()?.join(Self::FILE_NAME))
+    fn rel_path(&self) -> &Path {
+        self.path.as_path()
     }
 }
 
-impl Deref for RunnerSettings {
-    type Target = Settings;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct Settings {
+    /// Path to python executable runner should use.
+    pub python_path: Option<PathBuf>,
+
+    /// Path to R executable runner should use.
+    pub r_path: Option<PathBuf>,
 }

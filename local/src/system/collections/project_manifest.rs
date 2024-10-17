@@ -5,12 +5,13 @@ use crate::system::common::config_dir_path;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, BufReader};
-use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, derive_more::Deref, derive_more::DerefMut)]
 #[serde(transparent)]
 pub struct ProjectManifest {
+    #[deref]
+    #[deref_mut]
     inner: Vec<PathBuf>,
 
     /// Path to the project manifest file.
@@ -113,20 +114,6 @@ impl ProjectManifest {
     /// Consumes `self`, returning the underlying `Vec`.
     pub fn to_vec(self) -> Vec<PathBuf> {
         self.inner
-    }
-}
-
-impl Deref for ProjectManifest {
-    type Target = Vec<PathBuf>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for ProjectManifest {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
     }
 }
 

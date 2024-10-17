@@ -1,4 +1,4 @@
-use super::{PopoutPortal, INPUT_DEBOUNCE};
+use super::{InputDebounce, PopoutPortal};
 use crate::{components, pages::project, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
@@ -416,7 +416,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 mod name {
     use super::{
         super::common::bulk::Value, container_assets, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        InputDebounce,
     };
     use crate::{components::form::debounced::InputText, pages::project::state, types::Messages};
     use leptos::*;
@@ -429,6 +429,7 @@ mod name {
         let messages = expect_context::<Messages>();
         let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
@@ -458,7 +459,7 @@ mod name {
             })
         });
 
-        view! { <NameEditor value=state.with(|state| { state.name() }) oninput debounce=INPUT_DEBOUNCE /> }
+        view! { <NameEditor value=state.with(|state| { state.name() }) oninput debounce=*input_debounce /> }
     }
 
     #[component]
@@ -530,7 +531,7 @@ mod name {
 mod kind {
     use super::{
         super::common::bulk::kind::Editor as KindEditor, container_assets, update_properties,
-        ActiveResources, State, INPUT_DEBOUNCE,
+        ActiveResources, State, InputDebounce,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -543,6 +544,7 @@ mod kind {
         let messages = expect_context::<Messages>();
         let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
@@ -571,14 +573,14 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state.with(|state| { state.kind() }) oninput debounce=INPUT_DEBOUNCE /> }
+        view! { <KindEditor value=state.with(|state| { state.kind() }) oninput debounce=*input_debounce /> }
     }
 }
 
 mod description {
     use super::{
         super::common::bulk::description::Editor as DescriptionEditor, container_assets,
-        update_properties, ActiveResources, State, INPUT_DEBOUNCE,
+        update_properties, ActiveResources, State, InputDebounce,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -591,6 +593,8 @@ mod description {
         let messages = expect_context::<Messages>();
         let assets = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
             let _ = update.description.insert(input_value.clone());
@@ -623,7 +627,7 @@ mod description {
             <DescriptionEditor
                 value=state.with(|state| state.description())
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }

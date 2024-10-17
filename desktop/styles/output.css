@@ -1050,6 +1050,10 @@ input.input-compact:not([type="checkbox"]):where(.dark, .dark *) {
   z-index: 20;
 }
 
+.z-50 {
+  z-index: 50;
+}
+
 .block {
   display: block;
 }
@@ -1621,6 +1625,10 @@ input.input-compact:not([type="checkbox"]):where(.dark, .dark *) {
   vertical-align: top;
 }
 
+.align-middle {
+  vertical-align: middle;
+}
+
 .align-bottom {
   vertical-align: bottom;
 }
@@ -1846,6 +1854,16 @@ input.input-compact:not([type="checkbox"]):where(.dark, .dark *) {
   cursor: pointer;
 }
 
+.hover\:border-black:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(0 0 0 / var(--tw-border-opacity));
+}
+
+.hover\:border-secondary-200:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(196 199 204 / var(--tw-border-opacity));
+}
+
 .hover\:border-secondary-400:hover {
   --tw-border-opacity: 1;
   border-color: rgb(137 142 153 / var(--tw-border-opacity));
@@ -1937,6 +1955,11 @@ input.input-compact:not([type="checkbox"]):where(.dark, .dark *) {
   border-color: rgb(43 46 51 / var(--tw-border-opacity));
 }
 
+.dark\:border-white:where(.dark, .dark *) {
+  --tw-border-opacity: 1;
+  border-color: rgb(255 255 255 / var(--tw-border-opacity));
+}
+
 .dark\:border-t-secondary-700:where(.dark, .dark *) {
   --tw-border-opacity: 1;
   border-top-color: rgb(64 68 77 / var(--tw-border-opacity));
@@ -2006,6 +2029,11 @@ input.input-compact:not([type="checkbox"]):where(.dark, .dark *) {
 
 .dark\:backdrop\:opacity-50:where(.dark, .dark *)::backdrop {
   opacity: 0.5;
+}
+
+.dark\:hover\:border-white:hover:where(.dark, .dark *) {
+  --tw-border-opacity: 1;
+  border-color: rgb(255 255 255 / var(--tw-border-opacity));
 }
 
 .dark\:hover\:bg-primary-700:hover:where(.dark, .dark *) {

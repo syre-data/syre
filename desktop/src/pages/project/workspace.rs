@@ -12,7 +12,7 @@ use leptos_icons::*;
 use leptos_router::*;
 use serde::Serialize;
 use std::{io, path::PathBuf, str::FromStr};
-use syre_core::types::ResourceId;
+use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_local_database as db;
@@ -50,21 +50,50 @@ pub fn Workspace() -> impl IntoView {
     let params = use_params_map();
     let id =
         move || params.with(|params| ResourceId::from_str(&params.get("id").unwrap()).unwrap());
+    let active_user = create_resource(|| (), |_| async move { commands::user::fetch_user().await });
     let resources = create_resource(id, |id| async move { fetch_project_resources(id).await });
 
     view! {
         <Suspense fallback=Loading>
-            {move || {
-                resources()
-                    .map(|resources| {
-                        resources
-                            .map(|(project_path, project_data, graph)| {
-                                view! { <WorkspaceView project_path project_data graph /> }
-                            })
-                            .or_else(|| Some(view! { <NoProject /> }))
-                    })
-            }}
+            <ErrorBoundary fallback=|errors| {
+                view! { <UserError errors /> }
+            }>
+                {move || {
+                    active_user()
+                        .map(|user| {
+                            user.map(|user| match user {
+                                None => view! { <NoUser /> },
+                                Some(user) => {
+                                    view! {
+                                        <Suspense fallback=Loading>
+                                            {
+                                                let user = user.clone();
+                                                move || {
+                                                    resources()
+                                                        .map(|resources| {
+                                                            resources
+                                                                .map(|(project_path, project_data, graph)| {
+                                                                    view! {
+                                                                        <WorkspaceView
+                                                                            user=user.clone()
+                                                                            project_path
+                                                                            project_data
+                                                                            graph
+                                                                        />
+                                                                    }
+                                                                })
+                                                                .or_else(|| Some(view! { <NoProject /> }))
+                                                        })
+                                                }
+                                            }
 
+                                        </Suspense>
+                                    }
+                                }
+                            })
+                        })
+                }}
+            </ErrorBoundary>
         </Suspense>
     }
 }
@@ -72,6 +101,33 @@ pub fn Workspace() -> impl IntoView {
 #[component]
 fn Loading() -> impl IntoView {
     view! { <div class="pt-4 text-center">"Loading..."</div> }
+}
+
+#[component]
+fn NoUser() -> impl IntoView {
+    let messages = expect_context::<types::Messages>();
+    let navigate = leptos_router::use_navigate();
+
+    let msg = types::message::Builder::error("You are not logged in.").build();
+    messages.update(|messages| messages.push(msg));
+    navigate("login", Default::default());
+
+    view! {
+        <div class="text-center">
+            <p>"You are not logged in."</p>
+            <p>"Taking you to the login page."</p>
+        </div>
+    }
+}
+
+#[component]
+fn UserError(errors: RwSignal<Errors>) -> impl IntoView {
+    view! {
+        <div class="text-center">
+            <div class="text-large p4">"Error with user."</div>
+            <div>{format!("{errors:?}")}</div>
+        </div>
+    }
 }
 
 #[component]
@@ -90,6 +146,7 @@ fn NoProject() -> impl IntoView {
 
 #[component]
 fn WorkspaceView(
+    user: core::system::User,
     project_path: PathBuf,
     project_data: db::state::ProjectData,
     graph: db::state::FolderResource<db::state::Graph>,
@@ -97,10 +154,13 @@ fn WorkspaceView(
     assert!(project_data.properties().is_ok());
 
     let project = state::Project::new(project_path, project_data);
+    provide_context(user);
     provide_context(state::Workspace::new());
     provide_context(project.clone());
     provide_context(DragOverWorkspaceResource::new());
     provide_context(create_rw_signal(PropertiesEditor::default()));
+    let user_settings = types::settings::User::new(lib::settings::User::default());
+    provide_context(user_settings.clone());
 
     let show_settings = ShowSettings::new();
     provide_context(show_settings);
@@ -379,20 +439,20 @@ fn ProjectNav() -> impl IntoView {
     };
 
     view! {
-        <nav class="px-2 border-b dark:bg-secondary-900 flex">
+        <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
             <ol class="flex grow">
-                <li class="py-2">
+                <li>
                     <A href="/">
                         <Logo class="h-4" />
                     </A>
                 </li>
             </ol>
             <ol>
-                <li class="py-2">
+                <li>
                     <button
                         on:mousedown=open_settings
                         type="button"
-                        class="hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded"
+                        class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded border border-transparent hover:border-black dark:hover:border-white"
                     >
                         <Icon icon=components::icon::Settings />
                     </button>

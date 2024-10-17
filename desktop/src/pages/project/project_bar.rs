@@ -4,6 +4,7 @@ use leptos::{ev::MouseEvent, *};
 use leptos_icons::Icon;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
+use syre_desktop_lib as lib;
 use wasm_bindgen::{closure::Closure, JsCast};
 
 #[component]
@@ -267,7 +268,7 @@ fn Analyze() -> impl IntoView {
                 Err(err) => {
                     tracing::error!(?err);
                     let mut msg = types::message::Builder::error("Could not complete analysis.");
-                    msg.body(err);
+                    msg.body(format!("{err:?}"));
                     messages.update(|messages| messages.push(msg.build()));
                 }
             }
@@ -308,7 +309,10 @@ fn Analyze() -> impl IntoView {
     }
 }
 
-async fn analyze(project: ResourceId, root: impl Into<PathBuf>) -> Result<(), String> {
+async fn analyze(
+    project: ResourceId,
+    root: impl Into<PathBuf>,
+) -> Result<(), lib::command::project::error::Analyze> {
     #[derive(serde::Serialize)]
     struct Args {
         project: ResourceId,

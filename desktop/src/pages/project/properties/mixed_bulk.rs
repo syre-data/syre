@@ -1,4 +1,4 @@
-use super::{PopoutPortal, INPUT_DEBOUNCE};
+use super::{InputDebounce, PopoutPortal};
 use crate::{
     components,
     pages::project::{
@@ -452,8 +452,8 @@ pub fn Editor(resources: Memo<Vec<SelectedResource>>) -> impl IntoView {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources, State,
-        INPUT_DEBOUNCE,
+        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources,
+        InputDebounce, State,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -466,6 +466,8 @@ mod kind {
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
             let _ = update.kind.insert(input_value.clone());
@@ -480,14 +482,14 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state.with(|state| { state.kind() }) oninput debounce=INPUT_DEBOUNCE /> }
+        view! { <KindEditor value=state.with(|state| { state.kind() }) oninput debounce=*input_debounce /> }
     }
 }
 
 mod description {
     use super::{
         super::common::bulk::description::Editor as DescriptionEditor, update_properties,
-        ActiveResources, State, INPUT_DEBOUNCE,
+        ActiveResources, InputDebounce, State,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::*;
@@ -500,6 +502,8 @@ mod description {
         let messages = expect_context::<Messages>();
         let resources = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
+        let input_debounce = expect_context::<InputDebounce>();
+
         let oninput = Callback::new(move |input_value: Option<String>| {
             let mut update = PropertiesUpdate::default();
             let _ = update.description.insert(input_value.clone());
@@ -516,7 +520,7 @@ mod description {
             <DescriptionEditor
                 value=state.with(|state| { state.description() })
                 oninput
-                debounce=INPUT_DEBOUNCE
+                debounce=*input_debounce
                 class="input-compact w-full align-top"
             />
         }

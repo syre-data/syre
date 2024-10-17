@@ -1,5 +1,5 @@
 use crate::{
-    commands::fs::{pick_folder, pick_folder_with_location},
+    commands,
     components::{ModalDialog, TruncateLeft},
     types,
 };
@@ -7,7 +7,7 @@ use futures::stream::StreamExt;
 use leptos::*;
 use leptos_router::*;
 use serde::Serialize;
-use std::{path::PathBuf, rc::Rc, str::FromStr};
+use std::{path::PathBuf, rc::Rc};
 use syre_core::{project::Project, system::User, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local as local;
@@ -314,7 +314,7 @@ fn CreateProject(
         }
 
         spawn_local(async move {
-            if let Some(p) = pick_folder("Create a new project").await {
+            if let Some(p) = commands::fs::pick_folder("Create a new project").await {
                 create_project_path.update(|path| {
                     let _ = path.insert(p);
                 });
@@ -383,7 +383,7 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
 
     let select_path = move |_| {
         spawn_local(async move {
-            let init_dir = path.with(|path| match path {
+            let init_dir = path.with_untracked(|path| match path {
                 None => PathBuf::new(),
                 Some(path) => path
                     .parent()
@@ -391,7 +391,7 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                     .unwrap_or(PathBuf::new()),
             });
 
-            if let Some(p) = pick_folder_with_location("Create a new project", init_dir).await {
+            if let Some(p) = commands::fs::pick_folder_with_location("Create a new project", init_dir).await {
                 path.update(|path| {
                     let _ = path.insert(p);
                 });
@@ -464,7 +464,7 @@ fn InitializeProject(
             let user = user.clone();
             let messages = messages.clone();
             async move {
-                if let Some(path) = pick_folder("Initialize an existing directory").await {
+                if let Some(path) = commands::fs::pick_folder("Initialize an existing directory").await {
                     if let Err(err) = initialize_project(user, path).await {
                         let mut msg = types::message::Builder::error("Could not initialize project");
                         msg.body(format!("{err:?}"));
@@ -503,7 +503,7 @@ fn ImportProject(
             let user = user.clone();
             let messages = messages.clone();
             async move {
-                if let Some(path) = pick_folder("Import a project").await {
+                if let Some(path) = commands::fs::pick_folder("Import a project").await {
                     if let Err(err) = import_project(user, path).await {
                         let mut msg = types::message::Builder::error("Could not import project");
                         msg.body(format!("{err:?}"));

@@ -19,23 +19,33 @@ pub fn InputNumber(
 ) -> impl IntoView {
     let step = move || {
         value.with(|value| match value.split_once('.') {
-            None => 1_f64,
+            None => {
+                let magnitude = value.chars().rev().take_while(|c| *c == '0').count();
+                10_f64.powi(magnitude as i32)
+            }
             Some((_, decs)) => 10_f64.powi(-(decs.len() as i32)),
         })
     };
 
     let is_invalid = move || {
         value
-            .with(|value| serde_json::Number::from_str(value))
+            .with(|value| {
+                let value = value.trim_start_matches("0");
+                serde_json::Number::from_str(value)
+            })
             .is_err()
     };
 
     view! {
         <input
             type="number"
-            class=("error", is_invalid)
+            class:error=is_invalid
             prop:value=value
-            on:input=move |e| oninput(event_target_value(&e))
+            on:input=move |e| {
+                let v = event_target_value(&e);
+                tracing::debug!(?v);
+                oninput(v)
+            }
             min=min
             max=max
             step=step

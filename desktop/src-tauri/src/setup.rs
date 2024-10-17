@@ -1,5 +1,8 @@
 //! Setup functionality for the app.
-use syre_local_database::state::ConfigState;
+use crate::state;
+use std::path::PathBuf;
+use syre_core::types::ResourceId;
+use syre_local_database::{self as db, state::ConfigState};
 use tauri::{Listener, Manager};
 
 /// Runs setup tasks:
@@ -23,21 +26,18 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tracing::debug!(?event);
     });
 
-    let db = app.state::<syre_local_database::Client>();
+    let db = app.state::<db::Client>();
     let state = crate::State::new();
     if let ConfigState::Ok(local_config) = db.state().local_config().unwrap() {
         if let Some(user) = local_config.user {
-            *state.user().lock().unwrap() = Some(user.clone());
-            *state.projects().lock().unwrap() = db
+            let projects = state::load_user_state(&db, &user);
+            let _ = state
                 .user()
-                .projects(user)
+                .lock()
                 .unwrap()
-                .into_iter()
-                .map(|(path, _)| path)
-                .collect();
+                .insert(state::User::new(user, projects));
         }
     }
-
     assert!(app.manage(state));
 
     Ok(())

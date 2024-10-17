@@ -6,5 +6,6 @@ pub mod container;
 pub mod fs;
 pub mod graph;
 pub mod mixed_bulk;
+pub mod settings;
 pub mod project;
 pub mod user;

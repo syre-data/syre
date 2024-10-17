@@ -1,14 +1,13 @@
 use super::{Home, Landing};
-use crate::types::Messages;
+use crate::{commands, types::Messages};
 use futures::StreamExt;
 use leptos::*;
-use syre_core::system::User;
+use syre_core as core;
 use syre_desktop_lib as lib;
-use syre_local::error::IoSerde;
 
 #[component]
 pub fn Index() -> impl IntoView {
-    let active_user = create_resource(|| (), |_| async move { fetch_user().await });
+    let active_user = create_resource(|| (), |_| async move { commands::user::fetch_user().await });
 
     view! {
         <Suspense fallback=Initializing>
@@ -25,13 +24,16 @@ pub fn Index() -> impl IntoView {
 
 #[component]
 fn ActiveUserErrors(errors: RwSignal<Errors>) -> impl IntoView {
-    tracing::error!(?errors);
-
-    view! { <div class="text-lg text-center p-4">"An error occurred."</div> }
+    view! {
+        <div class="text-center">
+            <div class="text-lg p-4">"An error occurred."</div>
+            <div>{format!("{errors:?}")}</div>
+        </div>
+    }
 }
 
 #[component]
-fn IndexView(user: Option<User>) -> impl IntoView {
+fn IndexView(user: Option<core::system::User>) -> impl IntoView {
     let (user, set_user) = create_signal(user);
     spawn_local(async move {
         let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(lib::event::topic::USER)
@@ -60,8 +62,4 @@ fn IndexView(user: Option<User>) -> impl IntoView {
 #[component]
 fn Initializing() -> impl IntoView {
     view! { <div class="text-center pt-4">"Initializing app"</div> }
-}
-
-async fn fetch_user() -> Result<Option<User>, IoSerde> {
-    tauri_sys::core::invoke_result("active_user", ()).await
 }

@@ -1,11 +1,12 @@
 //! Local runner hooks.
 use std::path::{Path, PathBuf};
 use syre_core::{
+    self as core,
     project::{ExcelTemplate, Script, ScriptLang},
     runner::{Runnable, RunnerHooks},
     types::ResourceId,
 };
-use syre_local::{self as local, system::config::RunnerSettings, types::analysis::AnalysisKind};
+use syre_local::{self as local, system::config, types::analysis::AnalysisKind};
 use syre_local_database as db;
 
 #[derive(Debug)]
@@ -19,8 +20,9 @@ impl Runner {
     pub fn from(
         path: impl AsRef<Path>,
         project: &db::state::ProjectData,
+        settings: Option<&config::runner_settings::Settings>,
     ) -> Result<Self, error::From> {
-        let analyses = Self::create_analyses(path, project)?;
+        let analyses = Self::create_analyses(path, project, settings)?;
         Ok(Self { analyses })
     }
 
@@ -29,6 +31,7 @@ impl Runner {
     fn create_analyses(
         path: impl AsRef<Path>,
         project_data: &db::state::ProjectData,
+        settings: Option<&config::runner_settings::Settings>,
     ) -> Result<Vec<(ResourceId, AnalysisKind)>, error::From> {
         let db::state::DataResource::Ok(analyses) = project_data.analyses() else {
             return Err(error::From::InvalidAnalysesState);
@@ -43,27 +46,20 @@ impl Runner {
         };
         let analysis_root = path.as_ref().join(analysis_root);
 
-        // TODO: Settings should be passed in and not loaded here. This is a temporary fix.
-        // Get runner settings and override script's cmd if necessary
-        let runner_settings = RunnerSettings::load();
-
         let map = analyses
             .clone()
             .into_iter()
             .map(|analysis| match analysis.properties() {
                 AnalysisKind::Script(script) => {
-                    let script = Self::create_analysis_script(
-                        script.clone(),
-                        &analysis_root,
-                        &runner_settings,
-                    );
+                    let script =
+                        Self::create_analysis_script(script.clone(), &analysis_root, settings);
                     (script.rid().clone(), AnalysisKind::Script(script))
                 }
                 AnalysisKind::ExcelTemplate(template) => {
                     let template = Self::create_analysis_excel_template(
                         template.clone(),
                         &analysis_root,
-                        &runner_settings,
+                        settings,
                     );
                     (
                         template.rid().clone(),
@@ -80,7 +76,7 @@ impl Runner {
     fn create_analysis_script(
         mut script: Script,
         analysis_root: &PathBuf,
-        runner_settings: &Result<RunnerSettings, local::Error>,
+        runner_settings: Option<&config::runner_settings::Settings>,
     ) -> Script {
         if script.path.is_relative() {
             script.path = analysis_root.join(script.path);
@@ -90,17 +86,17 @@ impl Runner {
             todo!();
         }
 
-        if let Ok(runner_settings) = runner_settings {
+        if let Some(runner_settings) = runner_settings {
             match script.env.language {
                 ScriptLang::Python => {
                     if let Some(python_path) = runner_settings.python_path.clone() {
-                        script.env.cmd = python_path;
+                        script.env.cmd = python_path.to_string_lossy().to_string();
                     }
                 }
 
                 ScriptLang::R => {
                     if let Some(r_path) = runner_settings.r_path.clone() {
-                        script.env.cmd = r_path;
+                        script.env.cmd = r_path.to_string_lossy().to_string();
                     }
                 }
             }
@@ -113,7 +109,7 @@ impl Runner {
     fn create_analysis_excel_template(
         mut template: ExcelTemplate,
         analysis_root: &PathBuf,
-        runner_settings: &Result<RunnerSettings, local::Error>,
+        runner_settings: Option<&config::runner_settings::Settings>,
     ) -> ExcelTemplate {
         if template.template.path.is_relative() {
             template.template.path = analysis_root.join(template.template.path);
@@ -123,7 +119,7 @@ impl Runner {
             todo!();
         }
 
-        if let Ok(runner_settings) = runner_settings {
+        if let Some(runner_settings) = runner_settings {
             if let Some(python_path) = runner_settings.python_path.clone() {
                 template.python_exe = python_path;
             }
@@ -158,6 +154,14 @@ impl RunnerHooks for Runner {
                 }
             })
             .ok_or(format!("could not find analysis {analysis}"))
+    }
+
+    fn analysis_error(
+        &self,
+        ctx: core::runner::AnalysisExecutionContext,
+        err: core::runner::Error,
+    ) -> Result<(), core::runner::Error> {
+        Err(err)
     }
 }
 

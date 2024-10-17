@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use syre_core::{project::Project as CoreProject, system::User, types::ResourceId};
+use syre_core::{system::User, types::ResourceId};
 use syre_local::error::IoSerde;
 use syre_local_database as db;
 
@@ -15,8 +15,8 @@ pub fn active_user(
         .user()
         .lock()
         .unwrap()
-        .clone()
-        .map(|user| db.user().get(user).unwrap())?
+        .as_ref()
+        .map(|user| db.user().get(user.rid().clone()).unwrap())?
 }
 
 /// # Returns

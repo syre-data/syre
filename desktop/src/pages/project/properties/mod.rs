@@ -2,8 +2,10 @@ use super::{
     state::{self, workspace_graph::SelectedResource},
     workspace,
 };
+use crate::types;
 use leptos::*;
 use syre_core::types::ResourceId;
+use syre_desktop_lib as lib;
 
 mod analyses;
 mod asset;
@@ -21,9 +23,6 @@ use container::Editor as Container;
 use container_bulk::Editor as ContainerBulk;
 use mixed_bulk::Editor as MixedBulk;
 use project::Editor as Project;
-
-/// Debounce time in milliseconds for editor input.
-pub const INPUT_DEBOUNCE: f64 = 200.0;
 
 /// Id for the analyses properties bar.
 pub const ANALYSES_ID: &'static str = "analyses";
@@ -48,13 +47,28 @@ impl Default for EditorKind {
     }
 }
 
+#[derive(derive_more::Deref, Clone, Copy)]
+pub struct InputDebounce(Signal<f64>);
+
 #[component]
 pub fn PropertiesBar() -> impl IntoView {
+    let user_settings = expect_context::<types::settings::User>();
     let graph = expect_context::<state::Graph>();
     let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
     let active_editor = expect_context::<RwSignal<workspace::PropertiesEditor>>();
     let popout_portal = NodeRef::<html::Div>::new();
     provide_context(PopoutPortal(popout_portal));
+
+    provide_context(InputDebounce(Signal::derive(move || {
+        user_settings.with(|settings| {
+            let debounce = match &settings.desktop {
+                Ok(settings) => settings.input_debounce_ms,
+                Err(_) => lib::settings::Desktop::default().input_debounce_ms,
+            };
+
+            debounce as f64
+        })
+    })));
 
     create_effect({
         let graph = graph.clone();

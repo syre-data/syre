@@ -1581,6 +1581,7 @@ pub mod options {
         action_count_range: Range<u8>,
         user_manifest: Option<PathBuf>,
         project_manifest: Option<PathBuf>,
+        local_config: Option<PathBuf>,
     }
 
     impl Builder {
@@ -1593,6 +1594,7 @@ pub mod options {
                 action_count_range: 1..11,
                 user_manifest: None,
                 project_manifest: None,
+                local_config: None,
             }
         }
 
@@ -1606,6 +1608,7 @@ pub mod options {
                 action_count_range: 0..10,
                 user_manifest: None,
                 project_manifest: None,
+                local_config: None,
             }
         }
 
@@ -1637,9 +1640,16 @@ pub mod options {
             let _ = self.project_manifest.insert(path.into());
         }
 
+        pub fn set_local_config(&mut self, path: impl Into<PathBuf>) {
+            let _ = self.local_config.insert(path.into());
+        }
+
         pub fn build(self) -> Options {
-            let app_config =
-                Config::new(self.user_manifest.unwrap(), self.project_manifest.unwrap());
+            let app_config = Config::new(
+                self.user_manifest.unwrap(),
+                self.project_manifest.unwrap(),
+                self.local_config.unwrap(),
+            );
 
             Options {
                 seed: self.seed,

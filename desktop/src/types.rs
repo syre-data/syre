@@ -125,3 +125,16 @@ pub mod message {
         }
     }
 }
+
+pub mod settings {
+    use leptos::*;
+    use syre_desktop_lib as lib;
+
+    #[derive(derive_more::Deref, Clone, Copy)]
+    pub struct User(RwSignal<lib::settings::User>);
+    impl User {
+        pub fn new(settings: lib::settings::User) -> Self {
+            Self(create_rw_signal(settings))
+        }
+    }
+}

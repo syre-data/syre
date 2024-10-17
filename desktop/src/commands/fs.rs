@@ -38,6 +38,27 @@ pub async fn pick_folder_with_location(
     .await
 }
 
+/// Open a file picker dialog starting from the given directory.
+pub async fn pick_file_with_location(
+    title: impl Into<String>,
+    dir: impl Into<PathBuf>,
+) -> Option<PathBuf> {
+    #[derive(Serialize)]
+    struct Args {
+        title: String,
+        dir: PathBuf,
+    }
+
+    tauri_sys::core::invoke(
+        "pick_file_with_location",
+        Args {
+            title: title.into(),
+            dir: dir.into(),
+        },
+    )
+    .await
+}
+
 /// Open the file or folder at the path with the default program.
 pub async fn open_file(path: impl Into<PathBuf>) -> Result<(), io::ErrorKind> {
     #[derive(Serialize)]

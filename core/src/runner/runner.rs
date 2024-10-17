@@ -142,7 +142,7 @@ struct TreeRunner<'a> {
     root: &'a ResourceId,
     hooks: &'a Box<dyn RunnerHooks>,
     max_tasks: Option<usize>,
-    ignore_errors: bool,
+    error_response: ErrorResponse,
     analyses: HashMap<ResourceId, Box<dyn Runnable>>,
 }
 
@@ -159,7 +159,7 @@ impl<'a> TreeRunner<'a> {
             root,
             hooks,
             max_tasks: None,
-            ignore_errors: false,
+            error_response: ErrorResponse::default(),
             analyses: HashMap::new(),
         }
     }
@@ -177,7 +177,7 @@ impl<'a> TreeRunner<'a> {
             root,
             hooks,
             max_tasks: Some(max_tasks),
-            ignore_errors: false,
+            error_response: ErrorResponse::default(),
             analyses: HashMap::new(),
         }
     }
@@ -317,11 +317,13 @@ impl<'a> TreeRunner<'a> {
                 Ok(_) => {}
                 Err(err) => match self.hooks.analysis_error(exec_ctx.clone(), err) {
                     Ok(()) => {}
-                    Err(err) => {
-                        if !self.ignore_errors {
+                    Err(err) => match self.error_response {
+                        ErrorResponse::Terminate => {
+                            tracing::trace!("terminating analysis due to error");
                             return Err(err.into());
                         }
-                    }
+                        ErrorResponse::Ignore => todo!("collect errors for reporting"),
+                    },
                 },
             }
 
@@ -365,9 +367,11 @@ impl<'a> TreeRunner<'a> {
             }
         };
 
-        if !out.status.success() {
+        tracing::trace!(?out);
+        if out.status.success() {
+            Ok(out)
+        } else {
             let stderr = str::from_utf8(out.stderr.as_slice()).unwrap().to_string();
-
             return Err(Error::AnalysisError {
                 project: project.clone(),
                 analysis: analysis.id().clone(),
@@ -376,8 +380,20 @@ impl<'a> TreeRunner<'a> {
             }
             .into());
         }
+    }
+}
 
-        Ok(out)
+pub enum ErrorResponse {
+    /// Terminate all analyses on first error.
+    Terminate,
+
+    /// Collect errors, but continue running.
+    Ignore,
+}
+
+impl Default for ErrorResponse {
+    fn default() -> Self {
+        Self::Terminate
     }
 }
 

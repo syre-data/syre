@@ -1,9 +1,12 @@
 //! Actor for listening to database updates.
 use super::FS_EVENT_TOPIC;
+use crate::state;
 use std::collections::HashMap;
 use syre_desktop_lib as lib;
+use syre_local as local;
 use syre_local_database as db;
 use tauri::{Emitter, EventTarget, Manager};
+use uuid::Uuid;
 
 /// Builder for [`Actor`].
 pub struct Builder {
@@ -177,40 +180,16 @@ impl Actor {
             panic!("invalid event kind");
         };
 
-        let state = self.app.state::<crate::State>();
-        let mut state_user = state.user().lock().unwrap();
         match update {
             db::event::LocalConfig::Ok(config) => {
-                if *state_user != config.user {
-                    *state_user = config.user.clone();
-
-                    if let Some(ref user) = config.user {
-                        *state.projects().lock().unwrap() = self
-                            .db
-                            .user()
-                            .projects(user.clone())
-                            .unwrap()
-                            .into_iter()
-                            .map(|(path, _)| path)
-                            .collect();
-                    } else {
-                        state.projects().lock().unwrap().clear();
-                    }
-
-                    let user = config
-                        .user
-                        .clone()
-                        .map(|user| self.db.user().get(user).unwrap().unwrap());
-
-                    return vec![(
-                        lib::event::topic::USER.to_string(),
-                        lib::Event::new(lib::EventKind::User(user), event.id().clone()),
-                    )];
-                }
+                return self.handle_local_config_update(event.id().clone(), config);
             }
             db::event::LocalConfig::Error => {
-                if *state_user != None {
-                    *state_user = None;
+                let state = self.app.state::<crate::State>();
+                let state_user = state.user();
+                let mut state_user = state_user.lock().unwrap();
+                if state_user.is_some() {
+                    let _ = state_user.take();
                     return vec![(
                         lib::event::topic::USER.to_string(),
                         lib::Event::new(lib::EventKind::User(None), event.id().clone()),
@@ -220,24 +199,62 @@ impl Actor {
             db::event::LocalConfig::Updated => {
                 let db::state::ConfigState::Ok(config) = self.db.state().local_config().unwrap()
                 else {
-                    unreachable!("event assumes state");
+                    panic!("invalid state");
                 };
 
-                if *state_user != config.user {
-                    *state_user = config.user.clone();
-                    let user = state_user
-                        .clone()
-                        .map(|user| self.db.user().get(user).unwrap().unwrap());
-
-                    return vec![(
-                        lib::event::topic::USER.to_string(),
-                        lib::Event::new(lib::EventKind::User(user), event.id().clone()),
-                    )];
-                }
+                return self.handle_local_config_update(event.id().clone(), &config);
             }
         }
 
         vec![]
+    }
+
+    fn handle_local_config_update(
+        &self,
+        event: Uuid,
+        config: &local::system::resources::local::Config,
+    ) -> Vec<(String, lib::Event)> {
+        let state = self.app.state::<crate::State>();
+        let state_user = state.user();
+        let mut state_user = state_user.lock().unwrap();
+        match (state_user.as_ref(), config.user.as_ref()) {
+            (None, None) => {
+                vec![]
+            }
+            (Some(_), None) => {
+                let _ = state_user.take();
+                vec![(
+                    lib::event::topic::USER.to_string(),
+                    lib::Event::new(lib::EventKind::User(None), event),
+                )]
+            }
+            (None, Some(user)) => {
+                let projects = state::load_user_state(&self.db, &user);
+                let _ = state_user.insert(state::User::new(user.clone(), projects));
+
+                let user = self.db.user().get(user.clone()).unwrap();
+                assert!(user.is_some());
+                vec![(
+                    lib::event::topic::USER.to_string(),
+                    lib::Event::new(lib::EventKind::User(user), event),
+                )]
+            }
+            (Some(user_state), Some(user_update)) => {
+                if user_state.rid() == user_update {
+                    return vec![];
+                }
+
+                let (projects) = state::load_user_state(&self.db, &user_update);
+                let _ = state_user.insert(state::User::new(user_update.clone(), projects));
+
+                let user = self.db.user().get(user_update.clone()).unwrap();
+                assert!(user.is_some());
+                vec![(
+                    lib::event::topic::USER.to_string(),
+                    lib::Event::new(lib::EventKind::User(user), event),
+                )]
+            }
+        }
     }
 
     fn process_event_app_user_manifest(
@@ -250,7 +267,8 @@ impl Actor {
         };
 
         let state = self.app.state::<crate::State>();
-        let mut user = state.user().lock().unwrap();
+        let user = state.user();
+        let mut user = user.lock().unwrap();
         let Some(ref active_user) = *user else {
             return vec![];
         };
@@ -259,7 +277,7 @@ impl Actor {
             db::event::UserManifest::Ok(manifest)
             | db::event::UserManifest::Added(manifest)
             | db::event::UserManifest::Updated(manifest) => {
-                if let Some(user) = manifest.iter().find(|user| user.rid() == active_user) {
+                if let Some(user) = manifest.iter().find(|user| user.rid() == active_user.rid()) {
                     vec![(
                         lib::event::topic::USER.to_string(),
                         lib::Event::new(
@@ -327,7 +345,8 @@ impl Actor {
         };
 
         let state = self.app.state::<crate::State>();
-        let user = state.user().lock().unwrap();
+        let user = state.user();
+        let user = user.lock().unwrap();
         let Some(ref user) = *user else {
             return vec![];
         };
@@ -347,7 +366,7 @@ impl Actor {
                     return None;
                 };
 
-                let Some(permissions) = settings.permissions.get(user) else {
+                let Some(permissions) = settings.permissions.get(user.rid()) else {
                     return None;
                 };
 
@@ -363,13 +382,38 @@ impl Actor {
             vec![]
         } else {
             let state = self.app.state::<crate::State>();
-            let mut projects_state = state.projects().lock().unwrap();
-            projects_state.extend(projects.iter().map(|(path, _)| path.clone()));
+            let user_state = state.user();
+            let mut user_state = user_state.lock().unwrap();
+            let Some(user_state) = user_state.as_mut() else {
+                return vec![];
+            };
+
+            let user_projects = projects
+                .into_iter()
+                .filter(|(path, data)| {
+                    let db::state::DataResource::Ok(settings) = data.settings() else {
+                        return false;
+                    };
+
+                    let Some(permissions) = settings.permissions.get(user_state.rid()) else {
+                        return false;
+                    };
+
+                    if permissions.any() {
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            *user.projects().lock().unwrap() =
+                user_projects.iter().map(|(path, _)| path.clone()).collect();
 
             vec![(
                 lib::event::topic::PROJECT_MANIFEST.to_string(),
                 lib::Event::new(
-                    lib::event::ProjectManifest::Added(projects).into(),
+                    lib::event::ProjectManifest::Added(user_projects).into(),
                     event.id().clone(),
                 ),
             )]
@@ -389,15 +433,22 @@ impl Actor {
         };
 
         let state = self.app.state::<crate::State>();
-        let mut state_projects = state.projects().lock().unwrap();
+        let user_state = state.user();
+        let mut user_state = user_state.lock().unwrap();
+        let Some(user_state) = user_state.as_mut() else {
+            return vec![];
+        };
+
+        let user_projects = user_state.projects();
+        let mut user_projects = user_projects.lock().unwrap();
         let mut removed = Vec::with_capacity(paths.len());
         for path in paths {
-            if let Some(index) = state_projects.iter().position(|project| project == path) {
-                removed.push(state_projects.swap_remove(index));
+            if let Some(index) = user_projects.iter().position(|project| project == path) {
+                removed.push(user_projects.swap_remove(index));
             }
         }
 
-        if removed.len() == 0 {
+        if removed.is_empty() {
             vec![]
         } else {
             vec![(

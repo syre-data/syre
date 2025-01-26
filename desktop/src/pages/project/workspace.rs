@@ -25,7 +25,7 @@ use std::{
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
-use syre_local_database as db;
+use syre_project_watcher as db;
 use tauri_sys::window::DragDropPayload;
 use wasm_bindgen::JsCast;
 
@@ -446,7 +446,7 @@ mod analyze {
     use syre_core::types::ResourceId;
     use syre_desktop_lib as lib;
     use syre_local::types::AnalysisKind;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     enum AnalysisState {
         Idle,

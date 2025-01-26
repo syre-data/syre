@@ -2,7 +2,7 @@
 //!
 //! Must be run with the `server` feature enabled.
 use syre_local::{self as local, system::collections::ProjectManifest};
-use syre_local_database::server;
+use syre_project_watcher::server;
 
 /// Run the database with the default config.
 fn main() {

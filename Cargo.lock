@@ -7544,8 +7544,8 @@ dependencies = [
  "syre-core",
  "syre-desktop-lib",
  "syre-local",
- "syre-local-database",
  "syre-local-runner",
+ "syre-project-watcher",
  "tauri",
  "tauri-build",
  "tauri-plugin-devtools",
@@ -7572,8 +7572,8 @@ dependencies = [
  "serde",
  "syre-core",
  "syre-local",
- "syre-local-database",
  "syre-local-runner",
+ "syre-project-watcher",
  "trash",
  "uuid",
 ]
@@ -7603,7 +7603,7 @@ dependencies = [
  "syre-core",
  "syre-desktop-lib",
  "syre-local",
- "syre-local-database",
+ "syre-project-watcher",
  "tauri-sys",
  "time",
  "tracing",
@@ -7699,7 +7699,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "syre-local-database"
+name = "syre-local-project-watcher-cli"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "notify 6.1.1",
+ "notify-debouncer-full 0.3.2",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-local",
+ "syre-project-watcher",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "zmq",
+]
+
+[[package]]
+name = "syre-local-runner"
+version = "0.0.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-local",
+ "syre-project-watcher",
+ "tracing",
+]
+
+[[package]]
+name = "syre-project-watcher"
 version = "0.0.3"
 dependencies = [
  "chrono",
@@ -7734,36 +7764,6 @@ dependencies = [
  "uuid",
  "walkdir",
  "zmq",
-]
-
-[[package]]
-name = "syre-local-database-cli"
-version = "0.0.1"
-dependencies = [
- "clap",
- "notify 6.1.1",
- "notify-debouncer-full 0.3.2",
- "serde",
- "serde_json",
- "syre-core",
- "syre-local",
- "syre-local-database",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "zmq",
-]
-
-[[package]]
-name = "syre-local-runner"
-version = "0.0.2"
-dependencies = [
- "serde",
- "serde_json",
- "syre-core",
- "syre-local",
- "syre-local-database",
- "tracing",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 use crate::state;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
-use syre_local_database::{self as db, state::ConfigState};
+use syre_project_watcher::{self as db, state::ConfigState};
 use tauri::{Listener, Manager};
 
 const DB_CONNECTION_ATTEMPTS: usize = 50;

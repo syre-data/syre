@@ -11,7 +11,7 @@ use std::{path::PathBuf, sync::Arc};
 use syre_core::{project::Project, system::User, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local as local;
-use syre_local_database as db;
+use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
 use web_sys::{MouseEvent, SubmitEvent};
 

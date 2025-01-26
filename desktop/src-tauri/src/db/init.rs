@@ -1,5 +1,5 @@
 //! Initialization functionality with a [`Database`].
-use syre_local_database::Client as DbClient;
+use syre_project_watcher::Client as DbClient;
 use tauri::async_runtime::Receiver;
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
@@ -25,8 +25,8 @@ pub fn start_database_if_needed(
 /// Initializes a [`Database`] as a sidecar process.
 fn init_database(app: &tauri::AppHandle) -> (Receiver<CommandEvent>, CommandChild) {
     app.shell()
-        .sidecar("syre-local-database")
-        .expect("failed to create `syre-local-database` binary command")
+        .sidecar("syre-project-watcher")
+        .expect("failed to create `syre-project-watcher` binary command")
         .spawn()
         .expect("failed to spawn sidecar")
 }

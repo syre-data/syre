@@ -27,7 +27,7 @@ pub fn remove_root_path(path: impl AsRef<Path>) -> PathBuf {
 /// ```
 ///
 /// # See also
-/// + [`syre_local_database::common::container_system_path`]
+/// + [`syre_project_watcher::common::container_system_path`]
 pub fn join_path_absolute(root: impl AsRef<Path>, child: impl AsRef<Path>) -> PathBuf {
     root.as_ref()
         .components()

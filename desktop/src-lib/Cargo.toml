@@ -9,7 +9,7 @@ io_error_serde.workspace = true
 serde = { workspace = true, features = ["derive"] }
 syre-core.workspace = true
 syre-local.workspace = true
-syre-local-database.workspace = true
+syre-project-watcher.workspace = true
 syre-local-runner.workspace = true
 trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v7", "serde"] }

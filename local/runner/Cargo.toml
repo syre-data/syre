@@ -19,6 +19,6 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 
-syre-core = { workspace = true }
+syre-core.workspace = true
 syre-local = { workspace = true, features = ["fs"] }
-syre-local-database = { workspace = true }
+syre-project-watcher.workspace = true

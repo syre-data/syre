@@ -33,7 +33,7 @@ mod state {
     use crate::pages::project::state::{self, workspace_graph};
     use leptos::prelude::*;
     use std::collections::HashMap;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     #[derive(Clone, Debug)]
     pub struct State {

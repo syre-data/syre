@@ -1,5 +1,5 @@
 [package]
-name = "syre-local-database-cli"
+name = "syre-local-project-watcher-cli"
 version = "0.0.1"
 edition = "2021"
 
@@ -16,6 +16,6 @@ zmq = { workspace = true }
 
 syre-core = { workspace = true, features=["clap"] }
 syre-local = { workspace = true }
-syre-local-database = { workspace = true, features = ["client"] }
+syre-project-watcher = { workspace = true, features = ["client"] }
 notify-debouncer-full = "0.3.1"
 notify = "6.1.1"

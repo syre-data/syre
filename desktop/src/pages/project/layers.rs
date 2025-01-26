@@ -14,7 +14,7 @@ use leptos_icons::Icon;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
-use syre_local_database as db;
+use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
 
 const FLAGS_INDICATOR_RADIUS: usize = 4;

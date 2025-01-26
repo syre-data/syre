@@ -3,7 +3,7 @@ use notify::Watcher;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use syre_local_database::constants;
+use syre_project_watcher::constants;
 
 const DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -36,7 +36,7 @@ fn publ() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::PUB).unwrap();
     zmq_socket
-        .bind(&syre_local_database::common::zmq_url(zmq::PUB).unwrap())
+        .bind(&syre_project_watcher::common::zmq_url(zmq::PUB).unwrap())
         .unwrap();
 
     let stdin = io::stdin();
@@ -52,7 +52,7 @@ fn publ() -> zmq::Result<()> {
 fn sub() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::SUB).unwrap();
-    zmq_socket.connect(&syre_local_database::common::zmq_url(zmq::SUB).unwrap())?;
+    zmq_socket.connect(&syre_project_watcher::common::zmq_url(zmq::SUB).unwrap())?;
     zmq_socket
         .set_subscribe(constants::PUB_SUB_TOPIC.as_bytes())
         .unwrap();
@@ -77,7 +77,7 @@ fn sub() -> zmq::Result<()> {
             message.push_str(msg.as_str().unwrap());
         }
 
-        match serde_json::from_str::<Vec<syre_local_database::event::Update>>(&message) {
+        match serde_json::from_str::<Vec<syre_project_watcher::event::Update>>(&message) {
             Ok(message) => println!(
                 "{topic}\n{}\n",
                 serde_json::to_string_pretty(&message).unwrap()
@@ -91,7 +91,7 @@ fn sub() -> zmq::Result<()> {
 fn req() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::REQ)?;
-    zmq_socket.connect(&syre_local_database::common::zmq_url(zmq::REQ).unwrap())?;
+    zmq_socket.connect(&syre_project_watcher::common::zmq_url(zmq::REQ).unwrap())?;
 
     let stdin = io::stdin();
     let mut message = String::new();
@@ -105,7 +105,7 @@ fn req() -> zmq::Result<()> {
 fn rep() -> zmq::Result<()> {
     let zmq_context = zmq::Context::new();
     let zmq_socket = zmq_context.socket(zmq::REP).unwrap();
-    zmq_socket.bind(&syre_local_database::common::zmq_url(zmq::REP).unwrap())?;
+    zmq_socket.bind(&syre_project_watcher::common::zmq_url(zmq::REP).unwrap())?;
 
     loop {
         let msg = zmq_socket.recv_msg(0)?;

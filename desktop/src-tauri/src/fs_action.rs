@@ -1,4 +1,4 @@
-use syre_local_database as db;
+use syre_project_watcher as db;
 
 pub type Filter = Box<dyn Fn(&db::event::Update) -> bool + Send>;
 pub type Callback = Box<dyn FnOnce(&db::event::Update) + Send>;

@@ -12,10 +12,10 @@ members = [
     "has_id/has_id_derive",
     "in_trash",
     "local",
-    "local/database",
-    "local/database/cli",
 	"local/fs_watcher",
 	"local/fs_watcher/test_utils",
+    "local/project_watcher",
+    "local/project_watcher/cli",
 	"local/simulator",
     "local/runner",
 ]
@@ -27,7 +27,7 @@ default-members = [
 [workspace.dependencies]
 syre-core = { path = "core" }
 syre-local = { path = "local" }
-syre-local-database = { path = "local/database" }
+syre-project-watcher = { path = "local/project_watcher" }
 syre-fs-watcher = { path = "local/fs_watcher" }
 syre-local-runner = { path = "local/runner" }
 dev_utils = { path = "dev_utils" }

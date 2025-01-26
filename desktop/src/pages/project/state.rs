@@ -92,7 +92,7 @@ pub mod workspace_graph {
     use leptos::prelude::*;
     use std::sync::Arc;
     use syre_core::types::ResourceId;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     pub type ContainerVisibility = Vec<(super::graph::Node, ArcRwSignal<bool>)>;
 
@@ -440,7 +440,7 @@ pub mod project {
         types::{ResourceId, ResourceMap, UserId, UserPermissions},
     };
     use syre_local::{project::config::Settings as ProjectSettings, types::AnalysisKind};
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     pub type AnalysesState = db::state::DataResource<RwSignal<Vec<Analysis>>>;
 
@@ -625,7 +625,7 @@ pub mod graph {
         sync::{Arc, Mutex},
     };
     use syre_core::types::ResourceId;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     pub type Node = Arc<Container>;
     pub type Children = Vec<(Node, RwSignal<Vec<Node>>)>;
@@ -1673,7 +1673,7 @@ pub mod container {
         project::ContainerProperties,
         types::{Creator, ResourceId, ResourceMap, UserId, UserPermissions},
     };
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     pub type PropertiesState = db::state::DataResource<Properties>;
     pub type AnalysesState = db::state::DataResource<RwSignal<Vec<AnalysisAssociation>>>;
@@ -2058,7 +2058,7 @@ mod flags {
     use leptos::prelude::*;
     use std::path::{Path, PathBuf};
     use syre_local::project::resources::Flag;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     pub type Flags = Vec<(PathBuf, ArcRwSignal<Vec<Flag>>)>;
 

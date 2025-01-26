@@ -20,8 +20,8 @@ use syre_local::{
     },
     types::AnalysisKind,
 };
-use syre_local_database as db;
 use syre_local_runner as runner;
+use syre_project_watcher as db;
 
 #[tauri::command]
 pub fn create_project(

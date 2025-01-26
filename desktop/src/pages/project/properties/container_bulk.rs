@@ -33,7 +33,7 @@ mod state {
     use leptos::prelude::*;
     use std::collections::HashMap;
     use syre_core::types::ResourceId;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     #[derive(Clone, Debug)]
     pub struct State {
@@ -570,7 +570,7 @@ mod name {
     use std::{ffi::OsString, path::PathBuf};
     use syre_core::types::ResourceId;
     use syre_desktop_lib as lib;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
 
     #[component]
     pub fn Editor() -> impl IntoView {
@@ -1332,7 +1332,7 @@ mod analysis_associations {
         command::container::bulk::{AnalysisAssociationAction, AnalysisAssociationUpdate},
     };
     use syre_local as local;
-    use syre_local_database::{self as db};
+    use syre_project_watcher::{self as db};
 
     #[derive(Clone)]
     pub struct State {

@@ -17,7 +17,7 @@ use std::{path::PathBuf, sync::Arc};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
-use syre_local_database as db;
+use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
 
 /// Context menu for analyses that are `Ok`.

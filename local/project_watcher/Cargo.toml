@@ -1,10 +1,10 @@
 [package]
-name = "syre-local-database"
+name = "syre-project-watcher"
 version = "0.0.3"
 edition = "2021"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Local database for Syre resources."
+description = "Local project watcher for Syre."
 license = "MIT OR Apache-2.0"
 
 homepage = "https://syre.ai"

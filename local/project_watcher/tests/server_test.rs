@@ -16,7 +16,7 @@ use syre_local::{
     },
     types::AnalysisKind,
 };
-use syre_local_database::{self as db, event, server::config, state, types::PortNumber, Update};
+use syre_project_watcher::{self as db, event, server::config, state, types::PortNumber, Update};
 
 const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
@@ -41,9 +41,9 @@ fn test_server_state_and_updates_basics() {
     let update_listener = UpdateListener::new(update_tx, config.update_port());
     thread::spawn(move || update_listener.run());
 
-    let db = syre_local_database::server::Builder::new(config);
+    let db = syre_project_watcher::server::Builder::new(config);
     thread::spawn(move || db.run().unwrap());
-    let db = syre_local_database::Client::new();
+    let db = syre_project_watcher::Client::new();
     thread::sleep(ACTION_SLEEP_TIME);
 
     let user_manifest_state = db.state().user_manifest().unwrap();
@@ -1188,9 +1188,9 @@ fn test_server_state_and_updates_graph() {
     let update_listener = UpdateListener::new(update_tx, config.update_port());
     thread::spawn(move || update_listener.run());
 
-    let db = syre_local_database::server::Builder::new(config);
+    let db = syre_project_watcher::server::Builder::new(config);
     thread::spawn(move || db.run().unwrap());
-    let db = syre_local_database::Client::new();
+    let db = syre_project_watcher::Client::new();
     thread::sleep(ACTION_SLEEP_TIME);
 
     let project = tempfile::tempdir().unwrap();
@@ -1316,7 +1316,7 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let c1_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), c1.base_path())
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), c1.base_path())
             .unwrap();
     let container_state = db
         .container()
@@ -1360,7 +1360,7 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let c2_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), c2.base_path())
             .unwrap();
     let container_state = db
         .container()
@@ -1405,10 +1405,10 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let c2_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), c2.base_path())
             .unwrap();
     let c2_new_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), &c2_new_path)
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), &c2_new_path)
             .unwrap();
 
     assert!(db
@@ -1457,7 +1457,7 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let c2_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), c2.base_path())
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), c2.base_path())
             .unwrap();
     let container_state = db
         .container()
@@ -1499,7 +1499,7 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let c2_graph_path =
-        syre_local_database::common::container_graph_path(project.data_root_path(), &c2_path)
+        syre_project_watcher::common::container_graph_path(project.data_root_path(), &c2_path)
             .unwrap();
     let container_state = db
         .container()
@@ -1533,7 +1533,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(
         *from,
-        syre_local_database::common::container_graph_path(
+        syre_project_watcher::common::container_graph_path(
             project.data_root_path(),
             &c2.base_path()
         )
@@ -1552,11 +1552,11 @@ impl UpdateListener {
         let zmq_context = zmq::Context::new();
         let socket = zmq_context.socket(zmq::SUB).unwrap();
         socket
-            .set_subscribe(syre_local_database::constants::PUB_SUB_TOPIC.as_bytes())
+            .set_subscribe(syre_project_watcher::constants::PUB_SUB_TOPIC.as_bytes())
             .unwrap();
 
         socket
-            .connect(&syre_local_database::common::localhost_with_port(port))
+            .connect(&syre_project_watcher::common::localhost_with_port(port))
             .unwrap();
 
         Self { tx, socket }

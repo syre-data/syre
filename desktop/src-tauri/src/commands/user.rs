@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use syre_core::{system::User, types::ResourceId};
 use syre_local::error::IoSerde;
-use syre_local_database as db;
+use syre_project_watcher as db;
 
 /// # Returns
 /// The active user.

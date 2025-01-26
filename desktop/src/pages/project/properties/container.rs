@@ -93,7 +93,7 @@ mod properties {
     use syre_core::types::ResourceId;
     use syre_desktop_lib as lib;
     use syre_local as local;
-    use syre_local_database as db;
+    use syre_project_watcher as db;
     use tags::Editor as Tags;
 
     #[derive(Clone, Copy)]
@@ -443,7 +443,7 @@ mod properties {
         use std::{ffi::OsString, path::PathBuf};
         use syre_core::types::ResourceId;
         use syre_desktop_lib as lib;
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[component]
         pub fn Editor(
@@ -555,7 +555,7 @@ mod properties {
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[component]
         pub fn Editor(
@@ -615,7 +615,7 @@ mod properties {
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[component]
         pub fn Editor(
@@ -677,7 +677,7 @@ mod properties {
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[component]
         pub fn Editor(
@@ -745,7 +745,7 @@ mod properties {
         use leptos::{ev::MouseEvent, html, prelude::*, task::spawn_local};
         use leptos_icons::Icon;
         use syre_core::types::{ResourceId, Value};
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[derive(Clone, derive_more::Deref)]
         struct ActiveResource(ReadSignal<ResourceId>);
@@ -992,7 +992,7 @@ mod properties {
         use leptos_icons::Icon;
         use syre_core::{project::AnalysisAssociation, types::ResourceId};
         use syre_local as local;
-        use syre_local_database as db;
+        use syre_project_watcher as db;
 
         #[component]
         pub fn AddAssociation(

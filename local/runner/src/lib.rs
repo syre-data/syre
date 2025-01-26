@@ -7,7 +7,7 @@ use syre_core::{
     types::ResourceId,
 };
 use syre_local::{system::config, types::AnalysisKind};
-use syre_local_database as db;
+use syre_project_watcher as db;
 
 pub struct Builder<'a> {
     path: &'a dyn AsRef<Path>,

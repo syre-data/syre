@@ -12,7 +12,7 @@ use syre_desktop_lib::{
     command::container::{bulk, error},
 };
 use syre_local as local;
-use syre_local_database as db;
+use syre_project_watcher as db;
 
 /// Rename a container folder.
 ///
@@ -27,7 +27,7 @@ pub fn container_rename(
     project: ResourceId,
     container: PathBuf,
     name: String, // TODO: Should be an `OsString` but need to specify custom deserializer
-                  // `syre_local_database::serde_os_string`.
+                  // `syre_project_watcher::serde_os_string`.
 ) -> Result<(), error::Rename> {
     assert!(db::common::is_root_path(&container));
     let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
@@ -126,7 +126,7 @@ pub fn container_rename_bulk(
     project: ResourceId,
     containers: Vec<PathBuf>,
     name: String, // TODO: Should be an `OsString` but need to specify custom deserializer
-                  // `syre_local_database::serde_os_string`.
+                  // `syre_project_watcher::serde_os_string`.
 ) -> Result<Vec<Result<(), lib::command::error::IoErrorKind>>, bulk::error::Rename> {
     let Some((project_path, project_data)) = db.project().get_by_id(project.clone()).unwrap()
     else {

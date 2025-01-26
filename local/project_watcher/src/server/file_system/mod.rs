@@ -7,12 +7,12 @@ mod folder;
 mod graph;
 mod project;
 
-use crate::{Database, Update};
+use crate::{Watcher, Update};
 use std::path::Path;
 use syre_fs_watcher::EventKind;
 use syre_local as local;
 
-impl Database {
+impl Watcher {
     pub fn process_file_system_events(
         &mut self,
         events: Vec<syre_fs_watcher::Event>,

@@ -1,10 +1,10 @@
-use crate::{common, event as update, server, state, Database, Update};
+use crate::{common, event as update, server, state, Watcher, Update};
 use std::{assert_matches::assert_matches, path::PathBuf};
 use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{self as local, TryReducible};
 
-impl Database {
+impl Watcher {
     pub(super) fn handle_fs_event_asset_file(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -32,7 +32,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_asset_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),

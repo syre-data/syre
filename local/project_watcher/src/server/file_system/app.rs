@@ -1,13 +1,13 @@
 use crate::{
     event::{self as update, Update},
     server::state,
-    Database,
+    Watcher,
 };
 use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::TryReducible;
 
-impl Database {
+impl Watcher {
     pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -24,7 +24,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_app_project_manifest(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -353,7 +353,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_app_user_manifest(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::UserManifest(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -527,7 +527,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_app_local_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::LocalConfig(kind)) = event.kind() else {
             panic!("invalid event kind");

@@ -1,13 +1,13 @@
 use crate::{
     common,
     event::{self as update, Update},
-    server, state, Database,
+    server, state, Watcher,
 };
 use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{self as local, TryReducible};
 
-impl Database {
+impl Watcher {
     pub(super) fn handle_fs_event_folder(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Folder(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -22,7 +22,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_folder_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),

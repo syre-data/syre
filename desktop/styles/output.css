@@ -753,6 +753,9 @@
   .inline-flex {
     display: inline-flex;
   }
+  .table {
+    display: table;
+  }
   .aspect-square {
     aspect-ratio: 1 / 1;
   }
@@ -1399,6 +1402,9 @@
   }
   .text-syre-yellow-900 {
     color: var(--color-syre-yellow-900);
+  }
+  .lowercase {
+    text-transform: lowercase;
   }
   .shadow {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));

@@ -33,7 +33,7 @@ pub use error::{Error, Result};
 pub use client::Client;
 
 #[cfg(feature = "server")]
-pub use server::Database;
+pub use server::Watcher;
 
 // #[cfg(target_arch = "wasm32")]
 pub mod serde_os_string {

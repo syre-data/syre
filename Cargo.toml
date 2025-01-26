@@ -7,6 +7,7 @@ members = [
     "desktop",
     "desktop/src-tauri",
     "desktop/src-lib",
+    "desktop/resource_db",
     "file_path_from_id",
     "has_id",
     "has_id/has_id_derive",

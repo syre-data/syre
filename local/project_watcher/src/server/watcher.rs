@@ -5,7 +5,6 @@ pub(super) mod query;
 #[path = "file_system/mod.rs"]
 mod file_system;
 
-use super::store::data_store;
 use crate::{common, constants, event::Update};
 use crossbeam::channel::{select, Receiver};
 use query::Query;
@@ -67,10 +66,6 @@ impl Builder {
             watcher::server::Builder::new(fs_command_rx, fs_event_tx, watcher_config.build());
         fs_watcher.add_paths(self.paths);
 
-        let (store_tx, store_rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut datastore = data_store::Datastore::new(store_rx);
-        let data_store = data_store::Client::new(store_tx);
-
         thread::Builder::new()
             .name("syre local database file system watcher".to_string())
             .spawn(move || fs_watcher.run())
@@ -80,15 +75,6 @@ impl Builder {
             .name("syre local database query actor".to_string())
             .spawn(move || {
                 if let Err(err) = query_actor.run() {
-                    tracing::error!(?err);
-                }
-            })
-            .unwrap();
-
-        thread::Builder::new()
-            .name("syre local database data store".to_string())
-            .spawn(move || {
-                if let Err(err) = datastore.run() {
                     tracing::error!(?err);
                 }
             })
@@ -198,10 +184,9 @@ impl Builder {
         }
 
         tracing::trace!(target: "syre::local::database::state", ?state);
-        let mut db = Database {
+        let mut db = Watcher {
             config: self.config,
             state,
-            data_store,
             query_rx,
             fs_event_rx,
             fs_command_client,
@@ -246,10 +231,9 @@ impl Builder {
 /// + [`crate::constants::pub_sub_topic::PROJECT_UNKNOWN`]: Changes to a project whose id could not be obtained.
 ///     It is left to the client application to infer the project based on the paths.
 /// + `[crate::constants::pub_sub_topic::PROJECT_PREFIX]/{id}`: Changes made to the project with resource id `id`.
-pub struct Database {
+pub struct Watcher {
     config: Config,
     state: super::State,
-    data_store: data_store::Client,
     query_rx: Receiver<Query>,
     fs_event_rx: Receiver<watcher::EventResult>,
     fs_command_client: watcher::Client,
@@ -258,7 +242,7 @@ pub struct Database {
     update_tx: zmq::Socket,
 }
 
-impl Database {
+impl Watcher {
     /// Begin responding to events.
     pub fn start(&mut self) {
         self.listen_for_events();
@@ -390,7 +374,7 @@ mod windows {
     use super::*;
     use std::path::Path;
 
-    impl Database {
+    impl Watcher {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
@@ -430,7 +414,7 @@ mod macos {
 
     const TRASH_PATH: &str = ".Trash";
 
-    impl Database {
+    impl Watcher {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
@@ -570,7 +554,7 @@ mod linux {
     use super::*;
     use std::path::Path;
 
-    impl Database {
+    impl Watcher {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]

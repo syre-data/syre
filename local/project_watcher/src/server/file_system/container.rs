@@ -1,13 +1,13 @@
 use crate::{
     common,
     event::{self as update, Update},
-    server, state, Database,
+    server, state, Watcher,
 };
 use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{event, EventKind};
 use syre_local::{error::IoSerde, loader, TryReducible};
 
-impl Database {
+impl Watcher {
     pub(super) fn handle_fs_event_container(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -27,7 +27,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -107,7 +107,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_config_dir(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -411,7 +411,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_properties(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -761,7 +761,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_settings(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Settings(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -1093,7 +1093,7 @@ impl Database {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_assets(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Assets(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -1497,7 +1497,7 @@ mod assets {
     }
 }
 
-impl Database {
+impl Watcher {
     fn handle_fs_event_container_flags(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Flags(kind)) = event.kind() else {
             panic!("invalid event kind");

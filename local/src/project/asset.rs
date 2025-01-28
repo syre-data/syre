@@ -12,6 +12,8 @@ use syre_core::{
 };
 
 pub struct AssetProperties;
+
+#[cfg(feature = "fs")]
 impl AssetProperties {
     /// Creates a new [`AssetProperties`](CoreAssetProperties) with fields actively filled from system settings.
     pub fn new() -> Result<CoreAssetProperties> {
@@ -30,6 +32,8 @@ impl AssetProperties {
 }
 
 pub struct Asset;
+
+#[cfg(feature = "fs")]
 impl Asset {
     /// Creates an [Asset](CoreAsset) with the `properties` field filled actively from
     /// [`LocalStandardProperties`].

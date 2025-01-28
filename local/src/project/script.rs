@@ -6,6 +6,8 @@ use syre_core::error::Error as CoreError;
 use syre_core::project::Script as CoreScript;
 
 pub struct Script;
+
+#[cfg(feature = "fs")]
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
     pub fn new(path: impl Into<PathBuf>) -> Result<CoreScript> {

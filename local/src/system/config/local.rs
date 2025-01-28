@@ -1,8 +1,4 @@
-use crate::{
-    error::IoSerde,
-    file_resource::SystemResource,
-    system::{common::config_dir_path, resources::Config as ConfigData},
-};
+use crate::{error::IoSerde, system::resources::Config as ConfigData};
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 use std::{
@@ -10,6 +6,9 @@ use std::{
     io::{self, BufReader},
     path::PathBuf,
 };
+
+#[cfg(feature = "fs")]
+use crate::system::common::config_dir_path;
 
 /// User settings.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,6 +19,7 @@ pub struct Config {
     inner: ConfigData,
 }
 
+#[cfg(feature = "fs")]
 impl Config {
     pub fn load() -> Result<Self, IoSerde> {
         let path = Self::default_path()?;
@@ -51,6 +51,7 @@ impl Config {
     }
 }
 
+#[cfg(feature = "fs")]
 impl Config {
     /// Load the manifest from the given path.
     pub fn load_from(path: impl Into<PathBuf>) -> Result<Self, IoSerde> {
@@ -94,7 +95,8 @@ impl Config {
     }
 }
 
-impl SystemResource<Config> for Config {
+#[cfg(feature = "fs")]
+impl crate::file_resource::SystemResource<Config> for Config {
     fn path(&self) -> &PathBuf {
         &self.path
     }

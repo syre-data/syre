@@ -8,6 +8,7 @@ use std::{
 };
 use syre_core::project::Project as CoreProject;
 
+#[cfg(feature = "fs")]
 pub use duplicate::duplicate;
 
 #[cfg(feature = "fs")]

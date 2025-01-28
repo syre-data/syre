@@ -1,8 +1,11 @@
 //! Runner settings.
-use crate::{error, file_resource::UserResource, system::common::config_dir_path};
+use crate::{error, file_resource::UserResource};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs, io::{self, BufReader}, num::NonZeroUsize, path::{Path, PathBuf}
+    fs,
+    io::{self, BufReader},
+    num::NonZeroUsize,
+    path::{Path, PathBuf},
 };
 use syre_core::types::ResourceId;
 
@@ -29,7 +32,10 @@ pub struct RunnerSettings {
 
 impl RunnerSettings {
     const SETTINGS_DIR: &'static str = "settings";
+}
 
+#[cfg(feature = "fs")]
+impl RunnerSettings {
     pub fn load(user: ResourceId) -> Result<Self, error::IoSerde> {
         let mut path = PathBuf::from(user.to_string());
         path.set_extension("json");
@@ -50,9 +56,10 @@ impl RunnerSettings {
     }
 }
 
-impl UserResource<Settings> for RunnerSettings {
+#[cfg(feature = "fs")]
+impl crate::file_resource::UserResource<Settings> for RunnerSettings {
     fn base_path() -> Result<PathBuf, io::Error> {
-        let base_path = config_dir_path()?;
+        let base_path = crate::system::common::config_dir_path()?;
         Ok(base_path.join(Self::SETTINGS_DIR))
     }
 

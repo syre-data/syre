@@ -15,9 +15,7 @@ use super::options::{Fs, LocalContainerTree};
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "fs")]
-use syre_local::{
-    graph::tree::ContainerTreeTransformer, project::resources::Project as LocalProject,
-};
+use syre_local::{graph::tree::ContainerTreeTransformer, project::Project as LocalProject};
 
 pub const SCRIPT_PATHS: [&'static str; 3] = [
     Fireworks::SCRIPT_RECIPE_COMPARISON_PATH,

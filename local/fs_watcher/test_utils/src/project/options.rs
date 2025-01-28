@@ -6,7 +6,7 @@ use syre_core::{
 };
 
 #[cfg(feature = "fs")]
-use syre_local::project::resources::{Container as LocalContainer, Project as LocalProject};
+use syre_local::project::{Container as LocalContainer, Project as LocalProject};
 
 #[cfg(feature = "fs")]
 pub use fs::*;

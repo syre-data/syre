@@ -8,7 +8,7 @@ use syre_fs_watcher::{event, EventKind};
 use syre_local::{
     self as local,
     error::IoSerde,
-    project::resources::{project::LoadError, Analyses, Project},
+    project::{project::LoadError, Analyses, Project},
     types::AnalysisKind,
     TryReducible,
 };
@@ -540,7 +540,7 @@ impl Watcher {
             );
             properties.data_root = to_path.clone().into_iter().skip(1).collect();
             if let Err(err) =
-                local::project::resources::Project::save_properties_only(&project_path, &properties)
+                local::project::Project::save_properties_only(&project_path, &properties)
             {
                 tracing::error!(?err);
                 todo!();

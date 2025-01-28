@@ -415,7 +415,7 @@ mod duplicate {
                 let rel_path = entry.path().strip_prefix(&root).unwrap();
                 let path = tmp_root.join(rel_path);
 
-                let mut container = local::project::resources::Container::new(path);
+                let mut container = local::project::Container::new(path);
                 let (properties, analyses, settings) =
                     match local::loader::container::Loader::load(entry.path()) {
                         Ok(container) => (
@@ -518,7 +518,7 @@ mod duplicate {
             Load(local::loader::container::State),
 
             /// Saving the child failed.
-            Save(local::project::resources::container::error::Save),
+            Save(local::project::container::error::Save),
         }
 
         impl Into<lib::command::graph::error::duplicate::Error> for Error {
@@ -543,8 +543,8 @@ mod duplicate {
                                         settings: settings.err(),
                                     },
                                     Duplicate::Save(err) => { match err {
-                                        local::project::resources::container::error::Save::CreateDir(error) => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::CreateDir(error.into())),
-                                        local::project::resources::container::error::Save::SaveFiles{properties, assets, settings} => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::SaveFiles{
+                                        local::project::container::error::Save::CreateDir(error) => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::CreateDir(error.into())),
+                                        local::project::container::error::Save::SaveFiles{properties, assets, settings} => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::SaveFiles{
                                             properties: properties.map(|err| err.into()) ,
                                             assets: assets.map(|err| err.into()),
                                             settings: settings.map(|err| err.into())

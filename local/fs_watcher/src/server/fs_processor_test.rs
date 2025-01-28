@@ -7,7 +7,7 @@ use std::{assert_matches::assert_matches, fs};
 use syre_core::graph::ResourceTree;
 use syre_local::{
     common as local_common,
-    project::resources::{Container, Project as LocalProject},
+    project::{Container, Project as LocalProject},
     system::collections::ProjectManifest,
 };
 

@@ -11,8 +11,8 @@ use syre_local::{
     self as local,
     error::IoSerde,
     project::{
-        config::{ContainerSettings, Settings, StoredContainerProperties},
-        resources::flag,
+        config::Settings,
+        container::{Settings as ContainerSettings, StoredProperties as StoredContainerProperties},
     },
     system::resources::Config as ConfigData,
 };
@@ -267,7 +267,7 @@ pub enum Container {
     Properties(DataResource<StoredContainerProperties>),
     Settings(DataResource<ContainerSettings>),
     Assets(DataResource<Vec<state::Asset>>),
-    Flags(DataResource<Vec<(PathBuf, Vec<local::project::resources::Flag>)>>),
+    Flags(DataResource<Vec<(PathBuf, Vec<local::project::Flag>)>>),
 }
 
 /// Asset state updates.

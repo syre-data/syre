@@ -1,11 +1,7 @@
-pub mod container;
 pub mod runner_settings;
 pub mod settings;
 
 pub use analysis::Store as AnalysisStore;
-pub use container::{
-    Assets, Settings as ContainerSettings, StoredProperties as StoredContainerProperties,
-};
 pub use runner_settings::Settings as RunnerSettings;
 pub use settings::Settings;
 

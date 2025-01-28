@@ -2126,7 +2126,7 @@ mod resources {
     use syre_core::{project::ScriptLang, types::ResourceId};
     use syre_local::{
         common,
-        project::{project, resources::Project as LocalProject},
+        project::{project, Project as LocalProject},
     };
 
     /// Files of resources represented
@@ -2548,7 +2548,7 @@ mod resources {
     pub mod error {
         //! event errors meant to be reported with events that caused them.
         use std::path::PathBuf;
-        use syre_local::{error::IoSerde, project::resources::project::LoadError as LoadProject};
+        use syre_local::{error::IoSerde, project::project::LoadError as LoadProject};
 
         #[derive(Debug)]
         pub struct Error {

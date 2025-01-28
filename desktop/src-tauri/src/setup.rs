@@ -13,7 +13,9 @@ const DB_CONNECTION_DELAY_MS: u64 = 100;
 /// 2. Launches the update listener.
 /// 3. Creates the inital app state.
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some((_rx, _child)) = crate::db::start_database_if_needed(app.handle()) {
+    if let Some((_rx, _child)) =
+        crate::project_watcher::start_project_watcher_if_needed(app.handle())
+    {
         tracing::trace!("initializing local database");
         let mut attempt = 0;
         while !db::Client::server_available() {
@@ -30,13 +32,13 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tracing::debug!("database already running");
     };
 
-    let actor = crate::db::actor::Builder::new(app.handle().clone());
+    let actor = crate::project_watcher::actor::Builder::new(app.handle().clone());
     std::thread::Builder::new()
         .name("syre desktop database event listener".to_string())
         .spawn(move || actor.run())?;
 
     let main = app.get_webview_window("main").unwrap();
-    main.listen(crate::db::FS_EVENT_TOPIC, move |event| {
+    main.listen(crate::project_watcher::FS_EVENT_TOPIC, move |event| {
         tracing::debug!(?event);
     });
 

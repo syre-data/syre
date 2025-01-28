@@ -1,5 +1,9 @@
 use super::*;
-use crate::common::{app_dir_of, project_file_of, project_settings_file_of};
+use crate::{
+    common::{app_dir_of, project_file_of, project_settings_file_of},
+    system,
+};
+use std::fs;
 use syre_core::project::Project as CoreProject;
 
 // ******************
@@ -16,7 +20,7 @@ fn new_should_work() {
     assert_eq!(false, root.is_dir(), "root dir should not exist before new");
 
     // initialize project
-    new(root).expect("new should work");
+    functions::new(root).expect("new should work");
 
     let app_dir = app_dir_of(root);
     assert_eq!(true, root.is_dir(), "root dir should exist after new");
@@ -39,7 +43,7 @@ fn new_should_work() {
 #[should_panic(expected = "IsADirectory")]
 fn new_should_error_if_directory_already_exists() {
     let _dir = tempfile::tempdir().unwrap();
-    new(_dir.path()).unwrap();
+    functions::new(_dir.path()).unwrap();
 }
 
 #[test]
@@ -48,7 +52,7 @@ fn init_should_work() {
     let root = _dir.path();
 
     // initialize project
-    let init_res = init(root);
+    let init_res = functions::init(root);
     assert_eq!(true, init_res.is_ok(), "new should return Ok");
 
     let app_dir = app_dir_of(root);
@@ -76,10 +80,10 @@ fn init_if_app_directory_exists_should_do_nothing() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
     let root = _dir.path();
-    let rid = init(root).expect("init should work");
+    let rid = functions::init(root).expect("init should work");
 
     // test
-    let found_rid = init(root).expect("init should work even if already initialized");
+    let found_rid = functions::init(root).expect("init should work even if already initialized");
     assert_eq!(rid, found_rid, "resource ids should match");
 }
 
@@ -89,7 +93,7 @@ fn init_should_error_if_not_given_an_existing_directory() {
     let _dir = tempfile::tempdir().unwrap();
     let false_root = _dir.path().join("absent");
 
-    init(false_root.as_path()).unwrap();
+    functions::init(false_root.as_path()).unwrap();
 }
 
 // *************************
@@ -103,12 +107,16 @@ fn path_is_resource_should_work() {
 
     assert_eq!(
         false,
-        path_is_resource(root),
+        functions::path_is_resource(root),
         "path should not be a resource"
     );
 
-    init(root).expect("init should work");
-    assert_eq!(true, path_is_resource(root), "path should be a resource");
+    functions::init(root).expect("init should work");
+    assert_eq!(
+        true,
+        functions::path_is_resource(root),
+        "path should be a resource"
+    );
 }
 
 // *************************
@@ -120,12 +128,12 @@ fn project_root_path_should_work_for_root() {
     // setup
     let _dir = tempfile::tempdir().unwrap();
     let root = _dir.path();
-    let rid = init(root).unwrap();
+    let rid = functions::init(root).unwrap();
 
     // test
-    let found = project_root_path(root).unwrap();
+    let found = functions::project_root_path(root).unwrap();
 
-    let projects = ProjectManifest::load().unwrap();
+    let projects = system::collections::ProjectManifest::load().unwrap();
     assert!(projects.contains(&found));
 }
 
@@ -133,19 +141,19 @@ fn project_root_path_should_work_for_root() {
 fn project_root_path_should_work_for_descendents() {
     // setup
     let mut _dir = tempfile::tempdir().unwrap();
-    init(_dir.path()).expect("init should work");
+    functions::init(_dir.path()).expect("init should work");
     let cp1 = tempfile::tempdir_in(_dir.path()).unwrap();
     let cp2 = tempfile::tempdir_in(cp1.path()).unwrap();
 
     // test
-    let f1 = project_root_path(&cp1).expect("project root path should work");
+    let f1 = functions::project_root_path(&cp1).expect("project root path should work");
     assert_eq!(
         _dir.path(),
         f1.as_path(),
         "found project root from child should be correct"
     );
 
-    let f2 = project_root_path(&cp2).expect("project root path should work");
+    let f2 = functions::project_root_path(&cp2).expect("project root path should work");
     assert_eq!(
         _dir.path(),
         f2.as_path(),
@@ -162,7 +170,7 @@ fn project_root_path_if_exits_resource_path_should_work() {
 #[should_panic(expected = "PathNotInProject")]
 fn project_root_path_if_path_is_not_in_a_project_should_error() {
     let _dir = tempfile::tempdir().unwrap();
-    project_root_path(_dir.path()).unwrap();
+    functions::project_root_path(_dir.path()).unwrap();
 }
 
 #[test]

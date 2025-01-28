@@ -2000,7 +2000,7 @@ fn handle_event_graph_container_properties_modified(event: lib::Event, graph: st
 
 fn update_container_properties(
     container: state::graph::Node,
-    update: &local::project::config::StoredContainerProperties,
+    update: &local::project::container::StoredProperties,
 ) {
     container.properties().with_untracked(|properties| {
         let db::state::DataResource::Ok(properties) = properties else {
@@ -2939,7 +2939,7 @@ fn handle_event_graph_container_flags_modified(
 
 fn insert_graph_container_flags(
     container: &PathBuf,
-    update: &Vec<(PathBuf, Vec<local::project::resources::Flag>)>,
+    update: &Vec<(PathBuf, Vec<local::project::Flag>)>,
     flags: state::Flags,
 ) {
     let root_dir = PathBuf::from("/");

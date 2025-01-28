@@ -1,239 +1,563 @@
-//! Functionality and resources related to projects.
-use super::resources::{Analyses, Project};
-use crate::{
-    common,
-    system::{collections::ProjectManifest, project_manifest},
-    Result,
-};
+use super::config::Settings;
+use crate::{common, error::IoSerde as IoSerdeError, file_resource::LocalResource};
 use std::{
-    fs, io,
+    fs,
+    io::{self, BufReader, Write},
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    result::Result as StdResult,
 };
-use syre_core::types::ResourceId;
+use syre_core::project::Project as CoreProject;
 
 pub use duplicate::duplicate;
 
-// ************
-// *** Init ***
-// ************
+#[cfg(feature = "fs")]
+pub use functions::*;
 
-/// Initialize a new Syre project.
-/// If the path is already initialized as a Syre resource -- i.e. has an app folder -- nothing is
-/// done.
-///
-/// # Steps
-/// 1. Create app folder to store data.
-/// 2. Create [`Project`] for project info.
-/// 3. Create `ProjectSettings` for project settings.
-/// 4. Create `Script`s registry.
-/// 5. Add [`Project`] to collections registry.
-pub fn init(path: impl AsRef<Path>) -> StdResult<ResourceId, error::Init> {
-    let path = path.as_ref();
-    if !is_valid_project_path(&path).map_err(|err| error::Init::ProjectManifest(err))? {
-        return Err(error::Init::InvalidRootPath);
+/// Represents a Syre project.
+pub struct Project {
+    inner: CoreProject,
+    base_path: PathBuf,
+    settings: Settings,
+}
+
+impl Project {
+    /// Create a new `Project` with the given path.
+    /// Name of the `Project` is taken from the last component of the path.
+    ///
+    /// # Errors
+    /// + `io::ErrorKind::InvalidFilename`: If file name can not be extracted
+    /// from path.
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self, io::Error> {
+        let path = path.into();
+        let Some(name) = path.file_name() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be extracted from path",
+            )
+            .into());
+        };
+
+        let Some(name) = name.to_str() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "file name could not be converted to string",
+            )
+            .into());
+        };
+
+        let name = name.to_string();
+        Ok(Self {
+            base_path: path,
+            inner: CoreProject::new(name),
+            settings: Settings::new(),
+        })
     }
 
-    // create directory
-    let syre_dir = common::app_dir_of(path);
-    fs::create_dir(&syre_dir).map_err(|err| error::Init::CreateAppDir(err))?;
-
-    // create app files
-    let project = Project::new(path).map_err(|err| error::Init::Properties(err.into()))?;
-    project.save().map_err(|err| error::Init::Properties(err))?;
-
-    let analyses = Analyses::new(path);
-    analyses.save().map_err(|err| error::Init::Analyses(err))?;
-
-    project_manifest::register_project(project.base_path())
-        .map_err(|err| error::Init::ProjectManifest(err))?;
-
-    Ok(project.rid().clone().into())
-}
-
-/// Creates a new Syre project.
-///
-/// # Errors
-/// + If the folder already exists.
-///
-/// # See also
-/// + [`init`]
-pub fn new(root: &Path) -> StdResult<ResourceId, error::New> {
-    if root.exists() {
-        return Err(io::Error::new(io::ErrorKind::IsADirectory, "folder already exists").into());
-    }
-
-    fs::create_dir_all(root).map_err(|err| error::New::CreateRoot(err))?;
-    Ok(init(root)?)
-}
-
-/// Move project to a new location.
-pub fn mv(from: impl Into<PathBuf>, to: impl Into<PathBuf>) -> Result {
-    let from = from.into();
-    let mut projects = ProjectManifest::load()?;
-    if !projects.contains(&from) {
-        return Err(crate::error::Project::PathNotAProjectRoot(from).into());
-    }
-
-    // move folder
-    let to = to.into();
-    if let Err(err) = fs::rename(&from, &to) {
-        return Err(err.into());
-    }
-
-    projects.remove(&from);
-    projects.push(to);
-    projects.save()?;
-    Ok(())
-}
-
-/// Checks if the given path is within a registered project root,
-/// by comparing it to registered project roots.
-/// This does not check the state of the project it may be in.
-///
-/// # Returns
-/// `Some` with the registered project's path if the path is contained within it.
-/// `None` if the path is not within a registered project root.
-///
-/// # Errors
-/// + If the project manifest can not be loaded.
-pub fn path_in_registered_project(
-    path: impl AsRef<Path>,
-) -> StdResult<Option<PathBuf>, crate::error::IoSerde> {
-    let project_manifest = ProjectManifest::load()?;
-    let project = project_manifest
-        .iter()
-        .find(|project| path.as_ref().strip_prefix(project).is_ok())
-        .map(|project| project.clone());
-
-    Ok(project)
-}
-
-/// Checks if the given path contains a registered project root,
-/// by comparing it to registered project roots.
-/// This does not check the state of the project it may contain.
-///
-/// # Errors
-/// + If the project manifest can not be loaded.
-pub fn contains_registered_projects(
-    path: impl AsRef<Path>,
-) -> StdResult<Vec<PathBuf>, crate::error::IoSerde> {
-    let project_manifest = ProjectManifest::load()?;
-    let project = project_manifest
-        .iter()
-        .filter(|project| project.strip_prefix(path.as_ref()).is_ok())
-        .map(|project| project.clone())
-        .collect();
-
-    Ok(project)
-}
-
-/// Checks if the given path is a valid project root,
-/// by comparing it to registered project roots.
-/// This does not check the state of any projects.
-///
-/// # Returns
-/// `false` if the given path contains or is contained within any
-/// registered project root paths, otherwise `true`.
-///
-/// # Errors
-/// + If the project manifest can not be loaded.
-pub fn is_valid_project_path(path: impl AsRef<Path>) -> StdResult<bool, crate::error::IoSerde> {
-    let project_manifest = ProjectManifest::load()?;
-    let valid = !project_manifest.iter().any(|project| {
-        project.strip_prefix(path.as_ref()).is_ok() || path.as_ref().strip_prefix(project).is_ok()
-    });
-
-    Ok(valid)
-}
-
-/// Returns whether the given path is part of a Syre project.
-///
-/// # Returns
-/// `true`` if the path has a <APP_DIR> folder in it.
-///
-/// # Note
-/// + Only works with `Container`s and `Project`s, not `Asset`s.
-pub fn path_is_resource(path: &Path) -> bool {
-    let path = common::app_dir_of(path);
-    path.exists()
-}
-
-/// Checks if the path has an app directory with a project's properties file.
-/// i.e. The path has a <APP_DIR>/<PROJECT_FILE>.
-/// Does not check if the project is regsitered.
-///
-/// # Returns
-/// Whether the given path is a project root.
-pub fn path_is_project_root(path: impl AsRef<Path>) -> bool {
-    let path = common::project_file_of(path);
-    path.exists()
-}
-
-/// Traverses up the directory tree to find a project root.
-/// Does not check if the project is registered.
-///
-/// # Returns
-/// Path to the project root.
-///
-/// # See also
-/// + [`project_resource_root_path`]
-pub fn project_root_path(path: impl AsRef<Path>) -> Option<PathBuf> {
-    let mut path = path.as_ref().join("tmp"); // false join to pop off in loop
-    while path.pop() {
-        if path_is_project_root(&path) {
-            return Some(path);
+    /// Create a new local project from the provided project.
+    pub fn from(path: impl Into<PathBuf>, project: CoreProject) -> Self {
+        Self {
+            base_path: path.into(),
+            inner: project,
+            settings: Settings::new(),
         }
     }
 
-    None
+    pub fn properties(&self) -> &CoreProject {
+        &self.inner
+    }
+
+    pub fn properties_mut(&mut self) -> &mut CoreProject {
+        &mut self.inner
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+
+    pub fn settings_mut(&mut self) -> &mut Settings {
+        &mut self.settings
+    }
+
+    pub fn base_path(&self) -> &Path {
+        self.base_path.as_path()
+    }
+
+    pub fn set_base_path(&mut self, path: impl Into<PathBuf>) {
+        self.base_path = path.into();
+    }
+
+    /// Get the full path of the data root.
+    pub fn data_root_path(&self) -> PathBuf {
+        self.base_path.join(&self.data_root)
+    }
+
+    /// Get the full path of the analysis root.
+    pub fn analysis_root_path(&self) -> Option<PathBuf> {
+        let Some(analysis_root) = self.analysis_root.as_ref() else {
+            return None;
+        };
+
+        Some(self.base_path.join(analysis_root))
+    }
+
+    /// Breaks self into parts.
+    ///
+    /// # Returns
+    /// Tuple of (properties, settings, base path).
+    pub fn into_parts(self) -> (CoreProject, Settings, PathBuf) {
+        let Self {
+            inner,
+            base_path,
+            settings,
+        } = self;
+
+        (inner, settings, base_path)
+    }
 }
 
-// /// # Returns
-// /// Path to the project root for a Syre resource.
-// ///
-// /// # See also
-// /// + [`project_root_path`]
-// pub fn project_resource_root_path(path: impl AsRef<Path>) -> StdResult<PathBuf, error::ProjectResource> {
-//     let mut path = path.as_ref().join("tmp"); // false join to pop off in loop
-//     while path.pop() {
-//         let prj_path = common::project_file_of(&path);
-//         if !prj_path.exists() {
-//             // folder is not root
-//             continue;
-//         }
+#[cfg(feature = "fs")]
+impl Project {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> Result<Self, LoadError> {
+        let Ok(base_path) = fs::canonicalize(base_path.into()) else {
+            return Err(LoadError {
+                properties: Err(io::ErrorKind::NotFound.into()),
+                settings: Err(io::ErrorKind::NotFound.into()),
+            });
+        };
 
-//         let file = fs::File::open(prj_path)?;
-//         let reader = io::BufReader::new(file);
-//         let prj: CoreProject = match serde_json::from_reader(reader) {
-//             Ok(prj) => prj,
-//             Err(err) => return Err(err.into()),
-//         };
+        let project = 'project: {
+            let path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(err) => break 'project Err(err.into()),
+            };
 
-//         if prj.meta_level == 0 {
-//             return Ok(fs::canonicalize(path)?);
-//         }
-//     }
+            let reader = BufReader::new(file);
+            serde_json::from_reader(reader).map_err(|err| err.into())
+        };
 
-//     Err(error::ProjectResource::NotInProject)
-// }
+        let settings = 'settings: {
+            let path = base_path.join(<Project as LocalResource<Settings>>::rel_path());
+            let file = match fs::File::open(path) {
+                Ok(file) => file,
+                Err(err) => break 'settings Err(err.into()),
+            };
 
-// /// # Returns
-// /// + [`ResourceId`] of the containing [`Project`] if it exists.
-// /// + `None` if the path is not inside a `Project``.
-// pub fn project_id(path: impl AsRef<Path>) -> StdResult<Option<ResourceId>, error::ProjectResource> {
-//     let root = match project_resource_root_path(path.as_ref()) {
-//         Ok(root) => root,
-//         Err(Error::Project(crate::error::Project::PathNotInProject(_))) => return Ok(None),
-//         Err(err) => return Err(err),
-//     };
+            let reader = BufReader::new(file);
+            serde_json::from_reader(reader).map_err(|err| err.into())
+        };
 
-//     let project = Project::load_from(root)?;
-//     Ok(Some(project.rid().clone()))
-// }
+        match (project, settings) {
+            (Ok(project), Ok(settings)) => Ok(Self {
+                base_path,
+                inner: project,
+                settings,
+            }),
 
+            (project, settings) => Err(LoadError {
+                properties: project,
+                settings,
+            }),
+        }
+    }
+
+    /// Save all data.
+    pub fn save(&self) -> Result<(), io::Error> {
+        let project_path = <Project as LocalResource<CoreProject>>::path(self);
+        let settings_path = <Project as LocalResource<Settings>>::path(self);
+        let Some(parent) = project_path.parent() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidFilename,
+                "project path does not have a parent",
+            )
+            .into());
+        };
+
+        fs::create_dir_all(parent)?;
+
+        #[cfg(target_os = "windows")]
+        if let Err(err) = common::fs::hide_folder(parent) {
+            tracing::error!(?err);
+        };
+
+        fs::write(
+            project_path,
+            serde_json::to_string_pretty(&self.inner).unwrap(),
+        )?;
+        fs::write(
+            settings_path,
+            serde_json::to_string_pretty(&self.settings).unwrap(),
+        )?;
+
+        Ok(())
+    }
+
+    /// Only load the project's properties.
+    pub fn load_from_properties_only(
+        base_path: impl Into<PathBuf>,
+    ) -> Result<CoreProject, IoSerdeError> {
+        let base_path = fs::canonicalize(base_path.into())?;
+        let path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
+
+    pub fn save_properties_only(
+        base_path: impl AsRef<Path>,
+        properties: &CoreProject,
+    ) -> Result<(), io::Error> {
+        let path = common::project_file_of(base_path);
+        let mut file = fs::File::options().write(true).truncate(true).open(path)?;
+        file.write(serde_json::to_string_pretty(properties).unwrap().as_bytes())?;
+        Ok(())
+    }
+
+    /// Only load the project's settings.
+    pub fn load_from_settings_only(
+        base_path: impl Into<PathBuf>,
+    ) -> Result<Settings, IoSerdeError> {
+        let base_path = fs::canonicalize(base_path.into())?;
+        let path = base_path.join(<Project as LocalResource<Settings>>::rel_path());
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
+    }
+}
+
+impl Deref for Project {
+    type Target = CoreProject;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for Project {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl Into<CoreProject> for Project {
+    fn into(self: Self) -> CoreProject {
+        self.inner
+    }
+}
+
+impl LocalResource<CoreProject> for Project {
+    fn rel_path() -> PathBuf {
+        common::project_file()
+    }
+
+    fn base_path(&self) -> &Path {
+        &self.base_path
+    }
+}
+
+impl LocalResource<Settings> for Project {
+    fn rel_path() -> PathBuf {
+        common::project_settings_file()
+    }
+
+    fn base_path(&self) -> &Path {
+        &self.base_path
+    }
+}
+
+pub struct Builder {
+    base_path: PathBuf,
+    properties: Option<CoreProject>,
+    settings: Option<Settings>,
+}
+
+impl Builder {
+    pub fn new(base_path: impl Into<PathBuf>) -> Self {
+        Self {
+            base_path: base_path.into(),
+            properties: None,
+            settings: None,
+        }
+    }
+
+    pub fn with_properties(&mut self, properties: CoreProject) {
+        let _ = self.properties.insert(properties);
+    }
+
+    pub fn build(self) -> Result<Project, io::Error> {
+        let Self {
+            base_path,
+            properties,
+            settings,
+        } = self;
+
+        let mut project = Project::new(base_path)?;
+        if let Some(CoreProject {
+            name,
+            description,
+            data_root,
+            analysis_root,
+            meta_level,
+            ..
+        }) = properties
+        {
+            project.properties_mut().name = name;
+            project.properties_mut().description = description;
+            project.properties_mut().data_root = data_root;
+            project.properties_mut().analysis_root = analysis_root;
+            project.properties_mut().meta_level = meta_level;
+        }
+
+        Ok(project)
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct LoadError {
+    pub properties: Result<CoreProject, IoSerdeError>,
+    pub settings: Result<Settings, IoSerdeError>,
+}
+
+/// Functionality and resources related to projects.
+#[cfg(feature = "fs")]
+pub mod functions {
+    use super::{super::Analyses, error, Project};
+    use crate::{
+        common,
+        system::{collections::ProjectManifest, project_manifest},
+        Result,
+    };
+    use std::{
+        fs, io,
+        path::{Path, PathBuf},
+        result::Result as StdResult,
+    };
+    use syre_core::types::ResourceId;
+
+    /// Initialize a new Syre project.
+    /// If the path is already initialized as a Syre resource -- i.e. has an app folder -- nothing is
+    /// done.
+    ///
+    /// # Steps
+    /// 1. Create app folder to store data.
+    /// 2. Create [`Project`] for project info.
+    /// 3. Create `ProjectSettings` for project settings.
+    /// 4. Create `Script`s registry.
+    /// 5. Add [`Project`] to collections registry.
+    pub fn init(path: impl AsRef<Path>) -> StdResult<ResourceId, error::Init> {
+        let path = path.as_ref();
+        if !is_valid_project_path(&path).map_err(|err| error::Init::ProjectManifest(err))? {
+            return Err(error::Init::InvalidRootPath);
+        }
+
+        // create directory
+        let syre_dir = common::app_dir_of(path);
+        fs::create_dir(&syre_dir).map_err(|err| error::Init::CreateAppDir(err))?;
+
+        // create app files
+        let project = Project::new(path).map_err(|err| error::Init::Properties(err.into()))?;
+        project.save().map_err(|err| error::Init::Properties(err))?;
+
+        let analyses = Analyses::new(path);
+        analyses.save().map_err(|err| error::Init::Analyses(err))?;
+
+        project_manifest::register_project(project.base_path())
+            .map_err(|err| error::Init::ProjectManifest(err))?;
+
+        Ok(project.rid().clone().into())
+    }
+
+    /// Creates a new Syre project.
+    ///
+    /// # Errors
+    /// + If the folder already exists.
+    ///
+    /// # See also
+    /// + [`init`]
+    pub fn new(root: &Path) -> StdResult<ResourceId, error::New> {
+        if root.exists() {
+            return Err(
+                io::Error::new(io::ErrorKind::IsADirectory, "folder already exists").into(),
+            );
+        }
+
+        fs::create_dir_all(root).map_err(|err| error::New::CreateRoot(err))?;
+        Ok(init(root)?)
+    }
+
+    /// Move project to a new location.
+    pub fn mv(from: impl Into<PathBuf>, to: impl Into<PathBuf>) -> Result {
+        let from = from.into();
+        let mut projects = ProjectManifest::load()?;
+        if !projects.contains(&from) {
+            return Err(crate::error::Project::PathNotAProjectRoot(from).into());
+        }
+
+        // move folder
+        let to = to.into();
+        if let Err(err) = fs::rename(&from, &to) {
+            return Err(err.into());
+        }
+
+        projects.remove(&from);
+        projects.push(to);
+        projects.save()?;
+        Ok(())
+    }
+
+    /// Checks if the given path is within a registered project root,
+    /// by comparing it to registered project roots.
+    /// This does not check the state of the project it may be in.
+    ///
+    /// # Returns
+    /// `Some` with the registered project's path if the path is contained within it.
+    /// `None` if the path is not within a registered project root.
+    ///
+    /// # Errors
+    /// + If the project manifest can not be loaded.
+    pub fn path_in_registered_project(
+        path: impl AsRef<Path>,
+    ) -> StdResult<Option<PathBuf>, crate::error::IoSerde> {
+        let project_manifest = ProjectManifest::load()?;
+        let project = project_manifest
+            .iter()
+            .find(|project| path.as_ref().strip_prefix(project).is_ok())
+            .map(|project| project.clone());
+
+        Ok(project)
+    }
+
+    /// Checks if the given path contains a registered project root,
+    /// by comparing it to registered project roots.
+    /// This does not check the state of the project it may contain.
+    ///
+    /// # Errors
+    /// + If the project manifest can not be loaded.
+    pub fn contains_registered_projects(
+        path: impl AsRef<Path>,
+    ) -> StdResult<Vec<PathBuf>, crate::error::IoSerde> {
+        let project_manifest = ProjectManifest::load()?;
+        let project = project_manifest
+            .iter()
+            .filter(|project| project.strip_prefix(path.as_ref()).is_ok())
+            .map(|project| project.clone())
+            .collect();
+
+        Ok(project)
+    }
+
+    /// Checks if the given path is a valid project root,
+    /// by comparing it to registered project roots.
+    /// This does not check the state of any projects.
+    ///
+    /// # Returns
+    /// `false` if the given path contains or is contained within any
+    /// registered project root paths, otherwise `true`.
+    ///
+    /// # Errors
+    /// + If the project manifest can not be loaded.
+    pub fn is_valid_project_path(path: impl AsRef<Path>) -> StdResult<bool, crate::error::IoSerde> {
+        let project_manifest = ProjectManifest::load()?;
+        let valid = !project_manifest.iter().any(|project| {
+            project.strip_prefix(path.as_ref()).is_ok()
+                || path.as_ref().strip_prefix(project).is_ok()
+        });
+
+        Ok(valid)
+    }
+
+    /// Returns whether the given path is part of a Syre project.
+    ///
+    /// # Returns
+    /// `true`` if the path has a <APP_DIR> folder in it.
+    ///
+    /// # Note
+    /// + Only works with `Container`s and `Project`s, not `Asset`s.
+    pub fn path_is_resource(path: &Path) -> bool {
+        let path = common::app_dir_of(path);
+        path.exists()
+    }
+
+    /// Checks if the path has an app directory with a project's properties file.
+    /// i.e. The path has a <APP_DIR>/<PROJECT_FILE>.
+    /// Does not check if the project is regsitered.
+    ///
+    /// # Returns
+    /// Whether the given path is a project root.
+    pub fn path_is_project_root(path: impl AsRef<Path>) -> bool {
+        let path = common::project_file_of(path);
+        path.exists()
+    }
+
+    /// Traverses up the directory tree to find a project root.
+    /// Does not check if the project is registered.
+    ///
+    /// # Returns
+    /// Path to the project root.
+    ///
+    /// # See also
+    /// + [`project_resource_root_path`]
+    pub fn project_root_path(path: impl AsRef<Path>) -> Option<PathBuf> {
+        let mut path = path.as_ref().join("tmp"); // false join to pop off in loop
+        while path.pop() {
+            if path_is_project_root(&path) {
+                return Some(path);
+            }
+        }
+
+        None
+    }
+
+    // /// # Returns
+    // /// Path to the project root for a Syre resource.
+    // ///
+    // /// # See also
+    // /// + [`project_root_path`]
+    // pub fn project_resource_root_path(path: impl AsRef<Path>) -> StdResult<PathBuf, error::ProjectResource> {
+    //     let mut path = path.as_ref().join("tmp"); // false join to pop off in loop
+    //     while path.pop() {
+    //         let prj_path = common::project_file_of(&path);
+    //         if !prj_path.exists() {
+    //             // folder is not root
+    //             continue;
+    //         }
+
+    //         let file = fs::File::open(prj_path)?;
+    //         let reader = io::BufReader::new(file);
+    //         let prj: CoreProject = match serde_json::from_reader(reader) {
+    //             Ok(prj) => prj,
+    //             Err(err) => return Err(err.into()),
+    //         };
+
+    //         if prj.meta_level == 0 {
+    //             return Ok(fs::canonicalize(path)?);
+    //         }
+    //     }
+
+    //     Err(error::ProjectResource::NotInProject)
+    // }
+
+    // /// # Returns
+    // /// + [`ResourceId`] of the containing [`Project`] if it exists.
+    // /// + `None` if the path is not inside a `Project``.
+    // pub fn project_id(path: impl AsRef<Path>) -> StdResult<Option<ResourceId>, error::ProjectResource> {
+    //     let root = match project_resource_root_path(path.as_ref()) {
+    //         Ok(root) => root,
+    //         Err(Error::Project(crate::error::Project::PathNotInProject(_))) => return Ok(None),
+    //         Err(err) => return Err(err),
+    //     };
+
+    //     let project = Project::load_from(root)?;
+    //     Ok(Some(project.rid().clone()))
+    // }
+}
+
+#[cfg(feature = "fs")]
 pub mod converter {
-    use super::super::{container, resources};
+    use super::{
+        super::{container, Analyses},
+        Project,
+    };
     use crate::{common, loader::container::Loader as ContainerLoader, system::config};
     use std::{
         collections::HashMap,
@@ -308,8 +632,8 @@ pub mod converter {
                 return Err(error::Convert::DoesNotExist);
             };
 
-            let pid = super::init(root.as_path())?;
-            let mut project = resources::Project::load_from(root.as_path()).unwrap();
+            let pid = super::functions::init(root.as_path())?;
+            let mut project = Project::load_from(root.as_path()).unwrap();
             project.data_root = self.data_root.clone();
             project.analysis_root = self.analysis_root.clone();
 
@@ -379,8 +703,8 @@ pub mod converter {
                 }
 
                 // initialize scripts
-                let mut scripts = resources::Analyses::load_from(&root)
-                    .map_err(|err| error::Convert::Analyses(err))?;
+                let mut scripts =
+                    Analyses::load_from(&root).map_err(|err| error::Convert::Analyses(err))?;
                 for script_path in script_paths {
                     let Ok(script) = Script::from_path(script_path) else {
                         continue;
@@ -401,7 +725,7 @@ pub mod converter {
 
             if self.analysis_root.is_some() {
                 // assign scripts
-                let analyses = resources::Analyses::load_from(&root)?;
+                let analyses = Analyses::load_from(&root)?;
                 let mut container_scripts = HashMap::new();
                 for script in analyses.scripts() {
                     let entry = container_scripts
@@ -422,8 +746,8 @@ pub mod converter {
                     }
 
                     container.save().map_err(|err| match err {
-                        resources::container::error::Save::CreateDir(error) => error,
-                        resources::container::error::Save::SaveFiles {
+                        container::error::Save::CreateDir(error) => error,
+                        container::error::Save::SaveFiles {
                             properties,
                             assets,
                             settings,
@@ -487,8 +811,13 @@ pub mod converter {
     }
 }
 
+#[cfg(feature = "fs")]
 pub mod duplicate {
-    use crate::{common, loader, project::resources, types};
+    use super::{
+        super::{container, Analyses, Container},
+        Project,
+    };
+    use crate::{common, loader, types};
     use std::{
         collections::HashMap,
         fs,
@@ -515,8 +844,8 @@ pub mod duplicate {
             return Err(Error::SourceDoesNotExist);
         }
 
-        let project_src = resources::Project::load_from(src).map_err(|err| {
-            let resources::project::LoadError {
+        let project_src = Project::load_from(src).map_err(|err| {
+            let super::LoadError {
                 properties,
                 settings,
             } = err;
@@ -542,7 +871,7 @@ pub mod duplicate {
         #[cfg(target_os = "windows")]
         let hidden = common::fs::hide_folder(&tmp).is_ok();
 
-        let mut project = resources::project::Builder::new(tmp);
+        let mut project = super::Builder::new(tmp);
         let mut properties = project_src.properties().clone();
         let mut project_name = project_src.properties().name.clone();
         project_name.push_str(" - Copy");
@@ -554,7 +883,7 @@ pub mod duplicate {
             .save()
             .map_err(|err| Error::SaveProject(err.kind()))?;
 
-        let analyses_src = resources::Analyses::load_from(project_src.base_path())
+        let analyses_src = Analyses::load_from(project_src.base_path())
             .map_err(Error::LoadAnalyses)?
             .to_vec();
         let mut analyses_map = Vec::with_capacity(analyses_src.len());
@@ -583,7 +912,7 @@ pub mod duplicate {
                 types::AnalysisKind::ExcelTemplate(_excel_template) => todo!(),
             })
             .collect::<Vec<_>>();
-        let analyses = resources::Analyses::new_with(project.base_path().to_path_buf(), analyses);
+        let analyses = Analyses::new_with(project.base_path().to_path_buf(), analyses);
         analyses
             .save()
             .map_err(|err| Error::SaveAnalyses(err.kind()))?;
@@ -638,8 +967,7 @@ pub mod duplicate {
                 let container_graph_path =
                     container_graph_path.strip_prefix(&data_root_src).unwrap();
 
-                let mut container =
-                    resources::container::Builder::new(data_root.join(container_graph_path));
+                let mut container = container::Builder::new(data_root.join(container_graph_path));
                 container.with_properties(container_src.properties.clone());
                 container.with_analyses(container_src.analyses.clone());
                 container.with_settings(container_src.settings.clone());
@@ -704,8 +1032,8 @@ pub mod duplicate {
 
         save_graph(&graph).map_err(|(path, err)| {
             let (path, error) = match err {
-                resources::container::error::Save::CreateDir(err) => (path, err.kind()),
-                resources::container::error::Save::SaveFiles {
+                container::error::Save::CreateDir(err) => (path, err.kind()),
+                container::error::Save::SaveFiles {
                     properties,
                     assets,
                     settings,
@@ -736,12 +1064,12 @@ pub mod duplicate {
     }
 
     fn save_graph(
-        graph: &ResourceTree<resources::Container>,
-    ) -> Result<(), (PathBuf, resources::container::error::Save)> {
+        graph: &ResourceTree<Container>,
+    ) -> Result<(), (PathBuf, container::error::Save)> {
         fn inner(
             root: &ResourceId,
-            graph: &ResourceTree<resources::Container>,
-        ) -> Result<(), (PathBuf, resources::container::error::Save)> {
+            graph: &ResourceTree<Container>,
+        ) -> Result<(), (PathBuf, container::error::Save)> {
             let node = graph.get(root).unwrap();
             node.save()
                 .map_err(|err| (node.base_path().to_path_buf(), err))?;

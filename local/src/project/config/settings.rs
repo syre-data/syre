@@ -23,7 +23,10 @@ impl Settings {
             permissions: ResourceMap::new(),
         }
     }
+}
 
+#[cfg(feature = "fs")]
+impl Settings {
     /// # Arguments
     /// 1. `base_path`: Base path of the project.
     pub fn save(&self, base_path: impl AsRef<Path>) -> Result<(), io::Error> {

@@ -1,4 +1,4 @@
-use crate::{common, project::project, project::resources::Container};
+use crate::{common, project::project, project::Container};
 use rayon::prelude::*;
 use std::{io, path::Path, sync::Arc};
 use syre_core::graph::{ResourceNode, ResourceTree};
@@ -130,8 +130,10 @@ mod state {
     use crate::{
         error::IoSerde,
         project::{
-            config::{ContainerSettings, StoredContainerProperties},
-            resources::Container as LocalContainer,
+            container::{
+                Settings as ContainerSettings, StoredProperties as StoredContainerProperties,
+            },
+            Container as LocalContainer,
         },
     };
     use std::{

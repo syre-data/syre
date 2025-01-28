@@ -37,7 +37,7 @@ pub fn asset_properties_update(
 
     let data_root = project_path.join(&project_properties.data_root);
     let path = db::common::container_system_path(data_root, container);
-    let mut assets = local::project::resources::Assets::load_from(path)
+    let mut assets = local::project::Assets::load_from(path)
         .map_err(|err| error::Update::Load(err))?;
     let asset = assets
         .iter_mut()

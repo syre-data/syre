@@ -3,33 +3,36 @@ name = "syre-project-watcher"
 version = "0.0.3"
 edition = "2021"
 
-authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 description = "Local project watcher for Syre."
 license = "MIT OR Apache-2.0"
 
 homepage = "https://syre.ai"
 repository = "https://github.com/syre-data/syre"
-keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
-categories = [ "science", "data-structures" ]
+keywords = ["syre", "syre-data", "data", "data-analysis", "data-management"]
+categories = ["science", "data-structures"]
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 crossbeam = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["full"] }
 file-id = { version = "0.2", optional = true }
-futures  = { workspace = true, optional = true }
-glob  = { workspace = true, optional = true }
-ignore  = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+glob = { workspace = true, optional = true }
+ignore = { workspace = true, optional = true }
 notify = { workspace = true, default-features = false, optional = true }
 rayon = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
-tokio = { version = "1.36", features = ["sync", "macros", "rt-multi-thread"], optional = true }
-tracing = { workspace = true }
-tracing-appender = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["time", "json", "env-filter"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber = { version = "0.3", features = [
+	"time",
+	"json",
+	"env-filter",
+] }
 trash = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4", "v7"] }
 walkdir = { workspace = true, optional = true }
@@ -64,13 +67,9 @@ server = [
 	"dep:notify",
 	"dep:rayon",
 	"dep:regex",
-	"dep:tokio",
 	"dep:trash",
 	"dep:walkdir",
 	"dep:zmq",
 ]
-client = [
-	"dep:zmq",
-	"dep:crossbeam",
-]
+client = ["dep:zmq", "dep:crossbeam"]
 error = []

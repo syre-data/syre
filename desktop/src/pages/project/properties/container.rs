@@ -1401,7 +1401,7 @@ mod flags {
     fn Flags(
         /// Graph path to the container.
         container: PathBuf,
-        flags: ArcReadSignal<Vec<local::project::resources::Flag>>,
+        flags: ArcReadSignal<Vec<local::project::Flag>>,
     ) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let messages = expect_context::<types::Messages>();
@@ -1459,7 +1459,7 @@ mod flags {
     }
 
     #[component]
-    fn Flag(container: PathBuf, flag: local::project::resources::Flag) -> impl IntoView {
+    fn Flag(container: PathBuf, flag: local::project::Flag) -> impl IntoView {
         let project = expect_context::<state::Project>();
         let messages = expect_context::<types::Messages>();
 

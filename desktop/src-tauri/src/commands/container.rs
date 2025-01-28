@@ -360,7 +360,7 @@ pub fn remove_flag(
     project: PathBuf,
     container: PathBuf,
     resource: PathBuf,
-    flag: local::project::resources::flag::Id,
+    flag: local::project::flag::Id,
 ) -> Result<(), local::error::IoSerde> {
     let project_data = db.project().get(project.clone()).unwrap().unwrap();
     let project_data = project_data.fs_resource().as_ref().unwrap();

@@ -7,14 +7,14 @@ pub async fn remove(
     project: impl Into<PathBuf>,
     container: impl Into<PathBuf>,
     resource: impl Into<PathBuf>,
-    flag: local::project::resources::flag::Id,
+    flag: local::project::flag::Id,
 ) -> Result<(), local::error::IoSerde> {
     #[derive(Serialize)]
     struct Args {
         project: PathBuf,
         container: PathBuf,
         resource: PathBuf,
-        flag: local::project::resources::flag::Id,
+        flag: local::project::flag::Id,
     }
 
     tauri_sys::core::invoke_result(

@@ -12,8 +12,9 @@ use syre_core::{
 use syre_local::{
     error::IoSerde,
     project::{
-        config::{ContainerSettings, Settings, StoredContainerProperties},
-        resources::Flag,
+        config::Settings,
+        container::{Settings as ContainerSettings, StoredProperties as StoredContainerProperties},
+        Flag,
     },
     types::AnalysisKind,
 };

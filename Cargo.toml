@@ -82,3 +82,15 @@ debug = true
 [profile.release]
 opt-level = 3
 debug = false
+
+[profile.release.package.syre-resource-db]
+strip = true
+opt-level = 3
+codegen-units = 1
+# lto = true
+# BUG: Should have `lto = true` but this cannot currently be used.
+# See https://github.com/rust-lang/cargo/issues/9330
+
+# panic = 'abort'
+# BUG: Should have `panic = abort` but this cannot currently be used.
+# See https://github.com/rust-lang/cargo/issues/8264

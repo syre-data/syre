@@ -1989,8 +1989,8 @@ pub mod container {
     }
 
     impl Settings {
-        pub fn new(settings: syre_local::project::config::ContainerSettings) -> Self {
-            let syre_local::project::config::ContainerSettings {
+        pub fn new(settings: syre_local::project::container::Settings) -> Self {
+            let syre_local::project::container::Settings {
                 creator,
                 created,
                 permissions,
@@ -2057,7 +2057,7 @@ mod flags {
     use crate::common;
     use leptos::prelude::*;
     use std::path::{Path, PathBuf};
-    use syre_local::project::resources::Flag;
+    use syre_local::project::Flag;
     use syre_project_watcher as db;
 
     pub type Flags = Vec<(PathBuf, ArcRwSignal<Vec<Flag>>)>;

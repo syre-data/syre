@@ -6,8 +6,8 @@
 pub mod commands;
 pub mod common;
 pub mod constants;
-pub(crate) mod db;
 mod fs_action;
+pub(crate) mod project_watcher;
 pub mod settings;
 mod setup;
 pub mod state;

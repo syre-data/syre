@@ -1,5 +1,5 @@
 use syre_core::graph::ResourceTree;
-use syre_local::project::resources::{Container, Project};
+use syre_local::project::{Container, Project};
 
 type ContainerTree = ResourceTree<Container>;
 

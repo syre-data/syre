@@ -1,4 +1,4 @@
-use crate::{common, event as update, server, state, Watcher, Update};
+use crate::{common, event as update, server, state, Update, Watcher};
 use std::{assert_matches::assert_matches, path::PathBuf};
 use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
@@ -81,8 +81,7 @@ impl Watcher {
 
             if self.config.handle_fs_resource_changes() {
                 // TODO: Set creator for all handled resources.
-                let mut assets =
-                    local::project::resources::Assets::load_from(&container_path).unwrap();
+                let mut assets = local::project::Assets::load_from(&container_path).unwrap();
                 let asset_path = path.strip_prefix(&container_graph_path).unwrap();
                 assets.push(core::project::Asset::new(asset_path));
                 assets.save().unwrap();
@@ -210,7 +209,7 @@ impl Watcher {
             .unwrap();
 
         if self.config.handle_fs_resource_changes() {
-            match local::project::resources::Assets::load_from(&base_path) {
+            match local::project::Assets::load_from(&base_path) {
                 Ok(mut assets) => {
                     assets.retain(|asset| *asset.rid() != asset_id);
                     match assets.save() {
@@ -309,7 +308,7 @@ impl Watcher {
             .unwrap();
 
         if self.config.handle_fs_resource_changes() {
-            match local::project::resources::Assets::load_from(&container_path) {
+            match local::project::Assets::load_from(&container_path) {
                 Ok(mut assets) => {
                     let asset = assets
                         .iter_mut()

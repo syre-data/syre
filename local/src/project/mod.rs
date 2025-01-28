@@ -1,12 +1,16 @@
 //! Functionality and resources related to Syre Projects.
 pub mod config;
-pub mod container;
-
-#[cfg(feature = "fs")]
+pub mod flag;
+pub mod analysis;
 pub mod asset;
-
-#[cfg(feature = "fs")]
+pub mod container;
 pub mod project;
+pub mod script;
 
-#[cfg(feature = "fs")]
-pub mod resources;
+
+pub use flag::Flag;
+pub use analysis::Analyses;
+pub use asset::{Asset, Assets};
+pub use container::Container;
+pub use project::Project;
+pub use script::Script;

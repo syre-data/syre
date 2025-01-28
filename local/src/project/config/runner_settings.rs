@@ -3,7 +3,8 @@ use crate::common;
 use serde::{Deserialize, Serialize};
 use std::{
     fs, io,
-    path::{Path, PathBuf},num::NonZeroUsize, 
+    num::NonZeroUsize,
+    path::{Path, PathBuf},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
@@ -22,6 +23,7 @@ pub struct Settings {
     pub max_tasks: Option<NonZeroUsize>,
 }
 
+#[cfg(feature = "fs")]
 impl Settings {
     /// # Arguments
     /// 1. `base_path`: Base path of the project.

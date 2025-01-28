@@ -2,8 +2,10 @@ use crate::{
     error::IoSerde,
     file_resource::LocalResource,
     project::{
-        config::{Assets, ContainerSettings, StoredContainerProperties},
-        resources::container::Container,
+        container::{
+            Assets, Settings as ContainerSettings, StoredProperties as StoredContainerProperties,
+        },
+        Container,
     },
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -163,7 +165,7 @@ pub mod error {
 }
 
 pub mod flags {
-    use crate::{common, error::IoSerde, project::resources::Flag};
+    use crate::{common, error::IoSerde, project::Flag};
     use std::{
         collections::HashMap,
         fs,

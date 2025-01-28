@@ -90,11 +90,6 @@ pub enum AssetError {
     /// incompatible with the path.
     #[error("invalid action: {0}")]
     IncompatibleAction(String),
-
-    /// An error occured in the process of using the
-    /// [`AssetBuilder`](crate::project::asset::AssetBuilder).
-    #[error("builder errored: {0}")]
-    BuilderError(String),
 }
 
 // ********************
@@ -207,8 +202,8 @@ impl From<serde_json::Error> for Error {
 }
 
 #[cfg(feature = "fs")]
-impl From<crate::project::resources::project::LoadError> for Error {
-    fn from(_value: crate::project::resources::project::LoadError) -> Self {
+impl From<crate::project::project::LoadError> for Error {
+    fn from(_value: crate::project::project::LoadError) -> Self {
         Self::Load
     }
 }

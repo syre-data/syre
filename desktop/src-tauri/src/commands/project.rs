@@ -13,10 +13,7 @@ use syre_local::{
     self as local, common,
     file_resource::SystemResource,
     project::{
-        project,
-        resources::{
-            Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject,
-        },
+        project, Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject,
     },
     types::AnalysisKind,
 };
@@ -132,7 +129,7 @@ pub fn import_project(
 ) -> Result<(), lib::command::project::error::Import> {
     use lib::command::project::error;
 
-    let mut settings = local::project::resources::Project::load_from_settings_only(&path)
+    let mut settings = local::project::Project::load_from_settings_only(&path)
         .map_err(|err| error::Import::Settings(err))?;
 
     settings
@@ -180,7 +177,7 @@ pub async fn duplicate_project(
     let user_state = state.user();
     let user = user_state.lock().unwrap();
     if let Some(ref user) = *user {
-        let mut settings = local::project::resources::Project::load_from_settings_only(&dst)
+        let mut settings = local::project::Project::load_from_settings_only(&dst)
             .map_err(|error| error::Duplicate::DuplicateDesktop {
                 path: common::project_settings_file_of(&dst),
                 error,
@@ -245,7 +242,7 @@ pub fn project_properties_update(
     update: core::project::Project,
 ) -> Result<(), local::error::IoSerde> {
     let path = db.project().path(update.rid().clone()).unwrap().unwrap();
-    let mut properties = local::project::resources::Project::load_from_properties_only(&path)?;
+    let mut properties = local::project::Project::load_from_properties_only(&path)?;
     assert_eq!(properties.rid(), update.rid());
     if properties == update {
         return Ok(());
@@ -266,7 +263,7 @@ pub fn project_properties_update(
     properties.analysis_root = analysis_root;
     properties.meta_level = meta_level;
 
-    local::project::resources::Project::save_properties_only(&path, &properties)
+    local::project::Project::save_properties_only(&path, &properties)
         .map_err(|err| err.kind())?;
 
     Ok(())

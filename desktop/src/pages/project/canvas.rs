@@ -1992,7 +1992,7 @@ fn AssetFlags(asset: ReadSignal<PathBuf>, container: state::graph::Node) -> impl
 fn Flag(
     container_path: impl Fn() -> PathBuf + 'static,
     resource_path: impl Fn() -> PathBuf + 'static,
-    flag: local::project::resources::Flag,
+    flag: local::project::Flag,
 ) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();

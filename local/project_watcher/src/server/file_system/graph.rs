@@ -46,7 +46,7 @@ impl Watcher {
     fn handle_fs_event_graph_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         use std::fs;
 
-        use local::{loader::container, project::resources};
+        use local::{loader::container, project};
 
         assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
         let [path] = &event.paths()[..] else {
@@ -76,7 +76,7 @@ impl Watcher {
                                 tracing::warn!("{path:?}: `.syre` folder exists without `container.json` and `assets.json` files");
                                 Err((path, error::GraphCreate::Reassign(err)))
                             } else {
-                                let mut container = resources::Container::new(&path);
+                                let mut container = project::Container::new(&path);
                                 let assets = fs::read_dir(&path).map(|entries| entries.filter_map(|entry| {
                                     entry.ok()
                                 }).filter(|entry| {
@@ -369,8 +369,7 @@ impl Watcher {
                 if self.config.handle_fs_resource_changes() {
                     tracing::debug!(?parent_container_path);
                     let mut local_assets =
-                        local::project::resources::Assets::load_from(parent_container_path)
-                            .unwrap();
+                        local::project::Assets::load_from(parent_container_path).unwrap();
                     local_assets.retain(|local_asset| *local_asset.rid() != asset);
                     local_assets.save().unwrap();
                     return vec![];
@@ -462,7 +461,7 @@ fn container_reassign_ids(path: impl AsRef<Path>) -> Result<(), error::Container
 
 mod error {
     use std::io;
-    use syre_local::{self as local, project::resources};
+    use syre_local::{self as local, project};
 
     /// Error when handling `Graph::Create` events.
     #[derive(Debug)]
@@ -471,7 +470,7 @@ mod error {
         Reassign(ContainerPropertiesAssets),
 
         /// Error when creating a new container.
-        CreateContainer(resources::container::error::Save),
+        CreateContainer(project::container::error::Save),
     }
 
     /// Error when updating a container's properties or assets file.

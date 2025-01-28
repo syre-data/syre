@@ -9,7 +9,7 @@ use syre_core::{
 use syre_local::{
     error::IoSerde,
     file_resource::LocalResource,
-    project::resources::{Analyses, Container, Project},
+    project::{Analyses, Container, Project},
     system::{
         collections::ProjectManifest, config::Config as LocalConfig,
         resources::Config as ConfigData,
@@ -1587,7 +1587,7 @@ mod common {
     use std::fs;
     use std::path::PathBuf;
     use syre_local::project::project;
-    use syre_local::project::resources::{Container as LocalContainer, Project as LocalProject};
+    use syre_local::project::{Container as LocalContainer, Project as LocalProject};
 
     pub fn init_project() -> PathBuf {
         let project_dir = tempfile::tempdir().unwrap();

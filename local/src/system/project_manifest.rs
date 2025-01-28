@@ -1,7 +1,7 @@
 //! High level functions associated to the projects list.
 use super::collections::project_manifest::ProjectManifest;
 use crate::error::IoSerde as IoSerdeError;
-use crate::project::resources::Project;
+use crate::project::Project;
 use std::fs;
 use std::path::{Path, PathBuf};
 use syre_core::types::ResourceId;

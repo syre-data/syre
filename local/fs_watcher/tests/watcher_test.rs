@@ -262,7 +262,7 @@ fn test_watcher_project() {
         ))
     );
 
-    let mut project = syre_local::project::resources::Project::new(prj.path()).unwrap();
+    let mut project = syre_local::project::Project::new(prj.path()).unwrap();
     project.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(
@@ -430,7 +430,7 @@ fn test_watcher_project() {
         ))
     );
 
-    let mut container = syre_local::project::resources::Container::new(project.data_root_path());
+    let mut container = syre_local::project::Container::new(project.data_root_path());
     container.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 3);
@@ -575,7 +575,7 @@ fn test_watcher_project() {
         EventKind::Folder(event::ResourceEvent::Removed)
     );
 
-    let mut container = syre_local::project::resources::Container::new(path);
+    let mut container = syre_local::project::Container::new(path);
     container.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
@@ -593,7 +593,7 @@ fn test_watcher_project() {
     container.set_base_path(to);
 
     let path = project.data_root_path().join("child-2");
-    let mut container_sibling = syre_local::project::resources::Container::new(&path);
+    let mut container_sibling = syre_local::project::Container::new(&path);
     container_sibling.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);

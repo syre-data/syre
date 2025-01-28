@@ -1,4 +1,4 @@
-use crate::{event as update, server, state, Watcher, Update};
+use crate::{event as update, server, state, Update, Watcher};
 use std::assert_matches::assert_matches;
 use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
@@ -99,8 +99,7 @@ impl Watcher {
 
             if self.config.handle_fs_resource_changes() {
                 let analysis_root = project_path.join(analysis_root.unwrap());
-                let mut analyses =
-                    local::project::resources::Analyses::load_from(project_path).unwrap();
+                let mut analyses = local::project::Analyses::load_from(project_path).unwrap();
 
                 let analysis_path = path.strip_prefix(&analysis_root).unwrap();
                 analyses.retain(|_, analysis| match analysis {
@@ -248,8 +247,7 @@ impl Watcher {
                     .path()
                     .join(properties.analysis_root.clone().unwrap());
 
-                let mut analyses =
-                    local::project::resources::Analyses::load_from(project.path()).unwrap();
+                let mut analyses = local::project::Analyses::load_from(project.path()).unwrap();
 
                 let analysis_path = path.strip_prefix(&analysis_root).unwrap();
                 let Some(ext) = analysis_path.extension() else {

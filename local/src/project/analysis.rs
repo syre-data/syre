@@ -1,5 +1,5 @@
 //! Local [`Script`].
-use super::super::config::analysis::Store;
+use super::config::analysis::Store;
 use crate::{common::analyses_file, error, file_resource::LocalResource, types::AnalysisKind};
 use serde::Serialize;
 use std::{

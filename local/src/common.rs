@@ -10,6 +10,7 @@ use std::{
 };
 
 /// Creates a unique file name.
+#[cfg(feature = "fs")]
 pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind> {
     let path = path.as_ref();
     if !path.exists() {
@@ -166,6 +167,7 @@ pub fn strip_windows_unc(path: impl AsRef<Path>) -> PathBuf {
 ///
 /// # Notes
 /// Spawns threads for copying.
+#[cfg(feature = "fs")]
 pub fn copy_dir(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
@@ -325,6 +327,7 @@ pub fn ignore_file_of(path: impl AsRef<Path>) -> PathBuf {
     path.as_ref().join(IGNORE_FILE)
 }
 
+#[cfg(feature = "fs")]
 pub mod fs {
     //! Function that modify the file system.
     use crate::constants;
@@ -449,6 +452,7 @@ pub mod fs {
     }
 }
 
+#[cfg(feature = "fs")]
 pub mod ignore {
     use std::path::Path;
 

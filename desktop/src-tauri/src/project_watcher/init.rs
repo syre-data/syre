@@ -1,5 +1,5 @@
 //! Initialization functionality with a [`Database`].
-use syre_project_watcher::Client as DbClient;
+use syre_project_watcher::Client as WatcherClient;
 use tauri::async_runtime::Receiver;
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
@@ -7,23 +7,23 @@ use tauri_plugin_shell::{
 };
 
 /// Init
-pub fn start_database_if_needed(
+pub fn start_project_watcher_if_needed(
     app: &tauri::AppHandle,
 ) -> Option<(Receiver<CommandEvent>, CommandChild)> {
     // try to connect to database
-    if DbClient::server_available() {
+    if WatcherClient::server_available() {
         return None;
     }
 
     // database not running
     // create one
-    let handler = init_database(app);
+    let handler = init_project_watcher(app);
     Some(handler)
 }
 
 // IMPORTANT: On macOS m1, not dropping the `Receiver` (part of the _db_handler), causes ZMQ issues.
 /// Initializes a [`Database`] as a sidecar process.
-fn init_database(app: &tauri::AppHandle) -> (Receiver<CommandEvent>, CommandChild) {
+fn init_project_watcher(app: &tauri::AppHandle) -> (Receiver<CommandEvent>, CommandChild) {
     app.shell()
         .sidecar("syre-project-watcher")
         .expect("failed to create `syre-project-watcher` binary command")

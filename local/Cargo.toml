@@ -36,7 +36,7 @@ tempfile.workspace = true
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4", "v7"] }
-validator = "0.19"
+validator = "0.20"
 walkdir.workspace = true
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 

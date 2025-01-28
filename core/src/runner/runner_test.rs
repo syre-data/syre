@@ -13,7 +13,7 @@ pub fn runner_should_work() {
     let handle = runner.run(project, tree);
     let status = handle.join().unwrap();
     status.into_iter().for_each(|status| {
-        assert_matches!(status.status, AnalysisStatus::Complete);
+        assert_matches!(status.status, AnalysisStatus::Complete(_));
     });
 }
 

@@ -16,7 +16,10 @@ use std::{
     thread,
 };
 use syre_fs_watcher::{self as watcher};
-use syre_local::{project::config, Reducible};
+use syre_local::{
+    project::{config, container},
+    Reducible,
+};
 
 type Result<T = ()> = std::result::Result<T, error::Error>;
 
@@ -1072,7 +1075,7 @@ impl Simulator {
                 let folder = &folders[rng.gen_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource::<
-                    config::StoredContainerProperties,
+                    container::StoredProperties,
                     _,
                 >(
                     constants::CONTAINER_FILE,
@@ -1085,7 +1088,7 @@ impl Simulator {
                 let folder = &folders[rng.gen_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource::<
-                    config::ContainerSettings,
+                    container::Settings,
                     _,
                 >(
                     constants::CONTAINER_SETTINGS_FILE,
@@ -1266,12 +1269,12 @@ impl Simulator {
             state::app::FileResource::ContainerProperties(_) => {
                 let container =
                     syre_core::project::Container::new(path.file_name().unwrap().to_string_lossy());
-                let container: config::StoredContainerProperties = container.into();
+                let container: container::StoredProperties = container.into();
                 let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
                 serde_json::to_writer(file, &container).unwrap();
             }
             state::app::FileResource::ContainerSettings(_) => {
-                let settings = config::ContainerSettings::default();
+                let settings = container::Settings::default();
                 let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
                 serde_json::to_writer(file, &settings).unwrap();
             }

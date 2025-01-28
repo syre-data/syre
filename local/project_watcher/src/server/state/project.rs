@@ -45,7 +45,7 @@ impl State {
     pub fn load(path: impl Into<PathBuf>) -> Self {
         use crate::state;
         use syre_local::{
-            project::resources::{project::LoadError, Analyses, Project},
+            project::{project::LoadError, Analyses, Project},
             types::AnalysisKind,
         };
 
@@ -1111,8 +1111,9 @@ pub(crate) mod action {
     use std::{ffi::OsString, path::PathBuf};
     use syre_core::{project::Project as CoreProject, types::ResourceId};
     use syre_local::project::{
-        config::{ContainerSettings, Settings, StoredContainerProperties},
-        resources::Flag,
+        config::Settings,
+        container::{Settings as ContainerSettings, StoredProperties as StoredContainerProperties},
+        Flag,
     };
 
     #[derive(Debug, derive_more::From)]

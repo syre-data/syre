@@ -8,12 +8,13 @@ use std::{
 };
 
 #[cfg(feature = "fs")]
-use crate::system::common::config_dir_path;
+use crate::{file_resource::SystemResource, system::common::config_dir_path};
 
 /// User settings.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct Config {
+    #[cfg(feature = "fs")]
     #[serde(skip)]
     path: PathBuf,
     inner: ConfigData,

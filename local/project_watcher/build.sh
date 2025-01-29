@@ -1,16 +1,15 @@
 #!/bin/bash
-
-program_basenaem=syre-local-database
+program_basename=syre-project-watcher
 root=../..
 releases=${root}/target/release
 crate_release_dir=target/release
 target=$(rustc -Vv | grep host | cut -f2 -d' ')
-target_file=${program_basenaem}-${target}
+target_file=${program_basename}-${target}
 target_out=${releases}/${target_file}
 
 mkdir -p ${releases}
 cargo build --release -F server
-mv ${crate_release_dir}/${program_basenaem} ${target_out}
+mv ${crate_release_dir}/${program_basename} ${target_out}
 
 # copy to other packages
 lang=${root}/lang

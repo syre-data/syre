@@ -1,20 +1,22 @@
 #!/bin/bash
-
+program_basename=syre-project-watcher
 root=../..
 releases=${root}/target/release
+crate_release_dir=target/release
 target=x86_64-apple-darwin
-target_file=syre-local-database-${target}
+target_file=${program_basenaem}-${target}
 target_out=${releases}/${target_file}
 
 mkdir -p ${dir}
 cargo build --release -F server --target ${target}
-build_path=${root}/target/${target}/release/syre-local-database
-mv ${build_path} ${target_out}
+mv ${crate_release_dir}/${program_basename} ${target_out}
 
 # copy to other packages
 lang=${root}/lang
 python_path=${lang}/python/src/syre/bin
 r_path=${lang}/r/inst
+mkdir -p ${python_path}
+mkdir -p ${r_path}
 
 cp ${target_out} ${python_path}
 cp ${target_out} ${r_path}

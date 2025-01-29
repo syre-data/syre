@@ -28,6 +28,7 @@ to_json <- function(obj) {
 #'
 #' @returns Path to the local database executable for the current system.
 database_server_path <- function() {
+  exe_basename <- "syre-project-watcher"
   sys_info <- Sys.info()
   exe <- switch(sys_info["sysname"],
     "Linux" = "x86_64-unknown-linux-gnu",
@@ -35,7 +36,7 @@ database_server_path <- function() {
     "Windows" = "x86_64-pc-windows-msvc.exe",
   )
 
-  exe <- paste("syre-local-database-", exe, sep = "")
+  exe <- paste(exe_basename, "-", exe, sep = "")
   system.file(exe, package = "syre", mustWork = TRUE)
 }
 

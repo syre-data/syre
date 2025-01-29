@@ -32,7 +32,7 @@
       "icons/icon.ico"
     ],
 	"externalBin": [
-		"../../target/release/syre-local-database"
+		"../../target/release/syre-project-watcher"
 	]
   }
 }

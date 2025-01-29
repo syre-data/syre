@@ -68,18 +68,18 @@ class Database:
         self._socket.setsockopt(zmq.RCVTIMEO, SOCKET_TIMEOUT)
         self._socket.connect(f"tcp://{LOCALHOST}:{SYRE_PORT}")
         if not self._is_database_available():
-            exe_base_name = "syre-local-database"
+            exe_basename = "syre-project-watcher"
             os_name = platform.system()
             if os_name == "Linux":
-                exe_name = f"{exe_base_name}-x86_64-unknown-linux-gnu"
+                exe_name = f"{exe_basename}-x86_64-unknown-linux-gnu"
             elif os_name == "Darwin":
                 mac_system = platform.processor()
                 if mac_system == "arm":
-                    exe_name = f"{exe_base_name}-aarch64-apple-darwin"
+                    exe_name = f"{exe_basename}-aarch64-apple-darwin"
                 else:
-                    exe_name = f"{exe_base_name}-x86_64-apple-darwin"
+                    exe_name = f"{exe_basename}-x86_64-apple-darwin"
             elif os_name == "Windows":
-                exe_name = f"{exe_base_name}-x86_64-pc-windows-msvc.exe"
+                exe_name = f"{exe_basename}-x86_64-pc-windows-msvc.exe"
             else:
                 raise OSError()
 

@@ -9,10 +9,13 @@ To install Syre globally (default path is ./)
 `devtools::install()`
 
 ## Creating a zipped R library for sharing
+### R Terminal
+1. Move to the `R` folder: `setwd(<path/to/syre>/lang/r)`
+2. `devtools::build()`
 
-- Open the `RStudio` application
-- On the top menu, click on `File/Open project ...`
-- Select `PATH-TO-SYRE/lang/r/syre.Rproj`
+### RStudio
+1. On the top menu, click on `File/Open project ...`
+2. Select `<path/to/syre>/lang/r/syre.Rproj`
 
 Based on this [guide](https://support.posit.co/hc/en-us/articles/115000239587-Sharing-Internal-R-Packages).
 

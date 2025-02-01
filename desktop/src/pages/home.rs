@@ -89,12 +89,10 @@ fn HomeView(user_settings: lib::settings::user::Settings) -> impl IntoView {
     }
 
     view! {
-        <div class="relative h-full w-full">
+        <div class="relative h-full w-full flex flex-col">
             <MainNav />
-            <main>
-                <div>
-                    <Dashboard />
-                </div>
+            <main class="grow min-h-0">
+                <Dashboard />
                 <div
                     class=(["-right-full", "left-full"], move || !show_settings())
                     class=(["right-0", "left-0"], move || show_settings())

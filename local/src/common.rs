@@ -145,16 +145,14 @@ pub fn ensure_windows_unc(path: impl Into<PathBuf>) -> PathBuf {
     }
 }
 
+// TODO: Need to do more full match on `prefix`.
 /// Strip the UNC prefix from a Windows path.
 /// If the UNC prefix is not present, the path is returned as is.
 pub fn strip_windows_unc(path: impl AsRef<Path>) -> PathBuf {
     path.as_ref()
         .components()
         .filter(|component| match component {
-            Component::Prefix(prefix) => match prefix.kind() {
-                Prefix::Disk(_) => true,
-                _ => false,
-            },
+            Component::Prefix(prefix) => matches!(prefix.kind(), Prefix::Disk(_)),
             _ => true,
         })
         .fold(PathBuf::new(), |path, component| path.join(component))

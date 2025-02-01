@@ -16,25 +16,25 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Some((_rx, _child)) =
         crate::project_watcher::start_project_watcher_if_needed(app.handle())
     {
-        tracing::trace!("initializing local database");
+        tracing::trace!("initializing project watcher");
         let mut attempt = 0;
         while !db::Client::server_available() {
             attempt += 1;
             if attempt > DB_CONNECTION_ATTEMPTS {
-                panic!("could not connect to database");
+                panic!("could not connect to project watcher");
             }
 
             std::thread::sleep(std::time::Duration::from_millis(DB_CONNECTION_DELAY_MS));
         }
 
-        tracing::debug!("initialized local database");
+        tracing::debug!("initialized project watcher");
     } else {
-        tracing::debug!("database already running");
+        tracing::debug!("project watcher already running");
     };
 
     let actor = crate::project_watcher::actor::Builder::new(app.handle().clone());
     std::thread::Builder::new()
-        .name("syre desktop database event listener".to_string())
+        .name("syre desktop project watcher event listener".to_string())
         .spawn(move || actor.run())?;
 
     let main = app.get_webview_window("main").unwrap();

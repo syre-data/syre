@@ -121,14 +121,12 @@ fn DashboardView(
     });
 
     view! {
-        <div class="p-4">
-            <Show
-                when=move || projects.with(|projects| !projects.is_empty())
-                fallback=|| view! { <DashboardNoProjects /> }
-            >
-                <DashboardProjects projects />
-            </Show>
-        </div>
+        <Show
+            when=move || projects.with(|projects| !projects.is_empty())
+            fallback=|| view! { <DashboardNoProjects /> }
+        >
+            <DashboardProjects projects />
+        </Show>
     }
 }
 
@@ -173,16 +171,18 @@ fn DashboardProjects(
     projects: ReadSignal<Vec<ArcRwSignal<(PathBuf, db::state::ProjectData)>>>,
 ) -> impl IntoView {
     view! {
-        <div class="pb-4">
-            <span class="font-primary text-3xl pr-4">"Dashboard"</span>
-            <div class="inline-flex gap-x-2 align-bottom">
-                <CreateProject class="btn btn-primary">"New"</CreateProject>
-                <InitializeProject class="btn btn-secondary">"Initialize"</InitializeProject>
-                <ImportProject class="btn btn-secondary">"Import"</ImportProject>
+        <div class="h-full overflow-y-auto">
+            <div class="py-4 px-4 bg-white dark:bg-secondary-800 sticky top-0">
+                <span class="font-primary text-3xl pr-4">"Dashboard"</span>
+                <div class="inline-flex gap-x-2 align-bottom">
+                    <CreateProject class="btn btn-primary">"New"</CreateProject>
+                    <InitializeProject class="btn btn-secondary">"Initialize"</InitializeProject>
+                    <ImportProject class="btn btn-secondary">"Import"</ImportProject>
+                </div>
             </div>
-        </div>
 
-        <ProjectDeck projects />
+            <ProjectDeck projects />
+        </div>
     }
 }
 
@@ -190,16 +190,8 @@ fn DashboardProjects(
 fn ProjectDeck(
     projects: ReadSignal<Vec<ArcRwSignal<(PathBuf, db::state::ProjectData)>>>,
 ) -> impl IntoView {
-    Effect::new(move |_| {
-        let p = projects
-            .read()
-            .iter()
-            .map(|data| data.with(|(p, _)| p.clone()))
-            .collect::<Vec<_>>();
-    });
-
     view! {
-        <div class="flex flex-wrap gap-4">
+        <div class="flex flex-wrap gap-4 px-4 pb-4">
             <For
                 each=projects
                 key=|state| {
@@ -238,7 +230,9 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
     let context_menu = expect_context::<ContextMenuProjectOk>();
     let context_menu_active_project =
         expect_context::<RwSignal<Option<ContextMenuActiveProject>>>();
-    let path_string = path.to_string_lossy().to_string();
+    let path_string = local::common::strip_windows_unc(&path)
+        .to_string_lossy()
+        .to_string();
 
     let contextmenu = {
         let path = path.clone();
@@ -260,10 +254,13 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
         <A
             href=project.rid().to_string()
             on:contextmenu=contextmenu
-            attr:class="w-1/3 min-w-52 rounded-sm border border-secondary-900 dark:bg-secondary-700 dark:border-secondary-50"
+            attr:class="w-1/3 min-w-52 rounded-sm border border-secondary-900 \
+            dark:bg-secondary-700 dark:border-secondary-50"
         >
             <div class="px-4 py-2 flex flex-col h-full">
-                <h3 class="text-2xl font-primary">{project.name.clone()}</h3>
+                <h3 class="text-2xl font-primary truncate" title=project.name.clone()>
+                    {project.name.clone()}
+                </h3>
                 <div class="pb-2 grow">{project.description.clone()}</div>
                 <div title=path_string class="text-sm">
                     <TruncateLeft clone:path_string>{path_string}</TruncateLeft>

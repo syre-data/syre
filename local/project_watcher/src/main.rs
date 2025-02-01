@@ -40,7 +40,7 @@ fn panic_hook(panic_info: &std::panic::PanicHookInfo) {
     };
 
     let location = panic_info.location().map(|location| location.to_string());
-    tracing::error!("local/database panicked: {location:?} : {payload:?}");
+    tracing::error!("local/project_watcher panicked: {location:?} : {payload:?}");
 }
 
 mod logging {

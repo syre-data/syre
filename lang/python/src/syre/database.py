@@ -670,7 +670,16 @@ def ensure_root_path(path: str) -> str:
 
 
 def json_overwrite(obj: Any, f: io.TextIOWrapper):
-    """Overwrite a file's contents with the JSON serialization of the object."""
+    """Overwrite a file's contents with the JSON serialization of the object.
+    """
+    # NB: Serialize object first to ensure success.
+    #   If serailized directly to file, and an error occurs the file becomes corrupt.
+    try:
+        out = json.dumps(obj, indent=2)
+    except TypeError as err:
+        # TODO: Give better error message for user.
+        raise err
+        
     f.seek(0)
-    json.dump(obj, f, indent=2)
+    f.write(out)
     f.truncate()

@@ -458,6 +458,7 @@ add_asset <- function(
   )
 
   assets_file <- assets_file_of(db@root_path)
+  assets_file_lock <- lock(paste(assets_file, ".lock", sep = ""))
   assets <- fromJSON(assets_file, simplifyVector = FALSE)
   dirty <- FALSE
   stored_asset <- NA
@@ -483,6 +484,7 @@ add_asset <- function(
     json <- json_empty_list_to_obj("metadata", json)
     write(json, file = assets_file)
   }
+  unlock(assets_file_lock)
 
   if (SYSNAME == "Windows") {
     join_path_windows(db@root_path, asset$path[[1]])

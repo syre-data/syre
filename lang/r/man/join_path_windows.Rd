@@ -14,7 +14,7 @@ join_path_windows(p1, p2)
 \item{p2}{Extension path.}
 }
 \value{
-Normalized path
+Normalized path.
 }
 \description{
 Normalize Windows paths.

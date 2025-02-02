@@ -4,14 +4,16 @@
 \alias{flag}
 \title{Flags a resource (Container or Asset).}
 \usage{
-flag(db, resource, message)
+flag(db, resource, message, severity = c("warning", "info", "error"))
 }
 \arguments{
 \item{db}{Syre database connection.}
 
 \item{resource}{Resource to flag.}
 
-\item{message}{Flag message.}
+\item{message}{Message to display.}
+
+\item{severity}{Flag's everity.}
 }
 \description{
 Flags a resource (Container or Asset).

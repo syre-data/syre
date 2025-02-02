@@ -19,7 +19,7 @@ add_asset(
 \item{db}{Syre database connection.}
 
 \item{file}{File name of the associated data.
-Use relative paths to place the Asset in a bucket.}
+Must be a relative path.}
 
 \item{name}{Name of the Asset.}
 

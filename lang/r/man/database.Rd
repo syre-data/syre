@@ -4,10 +4,16 @@
 \alias{database}
 \title{Create a new Syre database connection.}
 \usage{
-database(dev_root = NULL)
+database(dev_root = NULL, chdir = TRUE)
 }
 \arguments{
-\item{dev_root}{Path to the root Container for use in development mode.}
+\item{dev_root}{Interactive graph root.
+Used to set the development root when using a script interactively.
+The script will set its graph root to the \code{Container} at the given path.
+This is ignored if the script is being run by a runner.}
+
+\item{chdir}{Change the working directory to the analysis root.
+Defaults to \code{True}.}
 }
 \value{
 A Syre Database connection.

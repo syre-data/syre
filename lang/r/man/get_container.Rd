@@ -2,18 +2,20 @@
 % Please edit documentation in R/commands.R
 \name{get_container}
 \alias{get_container}
-\title{Gets a Syre Container.}
+\title{Get a container.}
 \usage{
-get_container(socket, id)
+get_container(socket, project, container)
 }
 \arguments{
 \item{socket}{ZMQ socket.}
 
-\item{id}{Container id.}
+\item{project}{Project id.}
+
+\item{container}{Graph path to project. (i.e. Root container has path \code{/}.)}
 }
 \value{
 List of Container properties.
 }
 \description{
-Gets a Syre Container.
+Get a container.
 }

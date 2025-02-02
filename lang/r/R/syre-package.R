@@ -16,5 +16,7 @@
 #' @importFrom rzmq set.linger
 #' @importFrom rzmq set.reconnect.ivl
 #' @importFrom rzmq set.send.timeout
+#' @importFrom filelock lock
+#' @importFrom filelock unlock
 ## usethis namespace: end
 NULL

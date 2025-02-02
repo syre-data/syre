@@ -19,7 +19,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["pyzmq"]
+dependencies = ["pyzmq", "filelock"]
 
 [project.urls]
 Issues = "https://github.com/syre-data/syre/issues"

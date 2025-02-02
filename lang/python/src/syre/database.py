@@ -12,6 +12,7 @@ import platform
 from uuid import uuid4 as uuid
 
 import zmq
+import filelock
 
 from syre import _LEGACY_
 from .types import OptStr, Tags, Metadata
@@ -502,25 +503,27 @@ class Database:
             "metadata": metadata,
         }
         asset = {"rid": str(uuid()), "properties": properties, "path": file}
+        assets_file = assets_file_of(self._root_path)
+        assets_file_lock = filelock.FileLock(f"{assets_file}.lock")
+        with assets_file_lock:
+            with open(assets_file, "r+") as f:
+                assets: list = json.load(f)
+                update = False
+                dirty = False
+                for stored_asset in assets:
+                    if stored_asset["path"] == asset["path"]:
+                        update = True
+                        if stored_asset["properties"] != asset["properties"]:
+                            stored_asset["properties"] = asset["properties"]
+                            dirty = True
+                        break
 
-        with open(assets_file_of(self._root_path), "r+") as f:
-            assets: list = json.load(f)
-            update = False
-            dirty = False
-            for stored_asset in assets:
-                if stored_asset["path"] == asset["path"]:
-                    update = True
-                    if stored_asset["properties"] != asset["properties"]:
-                        stored_asset["properties"] = asset["properties"]
-                        dirty = True
-                    break
+                if not update:
+                    assets.append(asset)
+                    dirty = True
 
-            if not update:
-                assets.append(asset)
-                dirty = True
-
-            if dirty:
-                json_overwrite(assets, f)
+                if dirty:
+                    json_overwrite(assets, f)
 
         path = os.path.join(self._root_path, os.path.normpath(file))
         os.makedirs(
@@ -669,5 +672,5 @@ def ensure_root_path(path: str) -> str:
 def json_overwrite(obj: Any, f: io.TextIOWrapper):
     """Overwrite a file's contents with the JSON serialization of the object."""
     f.seek(0)
-    json.dump(obj, f, indent=4)
+    json.dump(obj, f, indent=2)
     f.truncate()

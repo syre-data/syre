@@ -61,6 +61,7 @@ assets_file_of <- function(base_path) {
   normalizePath(file.path(base_path, APP_DIR, ASSETS_FILE))
 }
 
+#' Gets the flags file for a container.
 #' @param base_path Base path of the container from the system root.
 #'
 #' @returns Path to the container's flags file.

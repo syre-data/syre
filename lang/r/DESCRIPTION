@@ -12,8 +12,9 @@ Imports:
     base,
     jsonlite,
     purrr (>= 1.0.1),
-    rzmq (>= 0.9.8)
+    rzmq (>= 0.9.8),
+    filelock,
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2

@@ -1212,7 +1212,6 @@ mod properties {
 
                     let project = project.get_untracked();
                     let container_path = graph.path(&node).unwrap();
-                    let messages = messages.write_only();
                     async move {
                         if let Err(err) = commands::container::update_analysis_associations(
                             project,

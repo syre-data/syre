@@ -1561,6 +1561,10 @@ fn Asset(asset: state::Asset) -> impl IntoView {
         }
 
         e.stop_propagation();
+        if remove.pending().get_untracked() {
+            return;
+        }
+
         remove.dispatch(());
     };
 
@@ -1598,6 +1602,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
                 <button
                     on:mousedown=remove_asset
                     class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800"
+                    disabled=remove.pending()
                 >
                     <Icon icon=components::icon::Remove />
                 </button>

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     commands, common,
-    components::{self, ModalDialog, ToggleExpand, TruncateLeft},
+    components::{self, ModalDialog, ToggleExpand},
     pages::project::actions,
     types,
 };
@@ -1046,7 +1046,7 @@ fn CreateChildContainer(
     };
 
     view! {
-        <div class="px-4 py-2 rounded-sm bg-white dark:bg-secondary-900">
+        <div class="px-4 py-2 rounded-sm bg-white dark:bg-secondary-900 border dark:border-secondary-400">
             <h1 class="text-center text-lg pb-2 dark:text-white">"Create a new child"</h1>
             <form on:submit=move |e| {
                 e.prevent_default();
@@ -1057,7 +1057,7 @@ fn CreateChildContainer(
                         placeholder="Name"
                         on:input=move |e| set_name(event_target_value(&e))
                         prop:value=name
-                        class="input-simple"
+                        class="input-simple dark:text-white"
                         minlength="1"
                         autofocus
                         required

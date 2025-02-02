@@ -25,7 +25,7 @@ pub fn ModalDialog(
         <dialog
             node_ref=node_ref
             on:mousedown=close_dialog
-            class="bg-transparent dark:backdrop:bg-black dark:backdrop:opacity-50"
+            class="bg-transparent dark:backdrop:bg-black dark:backdrop:opacity-50 m-auto"
         >
             {children()}
         </dialog>

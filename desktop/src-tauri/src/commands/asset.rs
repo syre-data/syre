@@ -37,8 +37,8 @@ pub fn asset_properties_update(
 
     let data_root = project_path.join(&project_properties.data_root);
     let path = db::common::container_system_path(data_root, container);
-    let mut assets = local::project::Assets::load_from(path)
-        .map_err(|err| error::Update::Load(err))?;
+    let mut assets =
+        local::project::Assets::load_from(path).map_err(|err| error::Update::Load(err))?;
     let asset = assets
         .iter_mut()
         .find(|asset_state| asset_state.path == asset)
@@ -194,7 +194,7 @@ pub fn asset_remove_file(
     let asset_path = container_path.join(&asset);
 
     if asset_path.exists() {
-        trash::delete(asset_path).map_err(|err| {
+        trash::delete(&asset_path).map_err(|err| {
             tracing::debug!(?err);
             let err = match err {
                 trash::Error::Unknown { description } => todo!(),
@@ -212,12 +212,17 @@ pub fn asset_remove_file(
     } else {
         let mut assets =
             local::loader::container::Loader::load_from_only_assets(&container_path).unwrap();
-        assert!(assets
-            .iter()
-            .find(|stored_asset| stored_asset.path == asset)
-            .is_some());
 
-        assets.retain(|stored_asset| stored_asset.path != asset);
-        assets.save(&container_path).map_err(|err| err.into())
+        let removed = assets
+            .extract_if(.., |stored_asset| stored_asset.path == asset)
+            .collect::<Vec<_>>();
+        if removed.is_empty() {
+            tracing::trace!("asset {:?} not present", asset_path);
+            Ok(())
+        } else if removed.len() == 1 {
+            assets.save(&container_path).map_err(|err| err.into())
+        } else {
+            panic!("multiple assets matched {:?}", asset);
+        }
     }
 }

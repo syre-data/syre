@@ -2,7 +2,7 @@ use crate::{event as update, server, state, Update, Watcher};
 use std::assert_matches::assert_matches;
 use syre_core as core;
 use syre_fs_watcher::{event, EventKind};
-use syre_local::{self as local, TryReducible};
+use syre_local::{self as local, project::analysis, TryReducible};
 
 impl Watcher {
     pub(super) fn handle_fs_event_analysis_file(
@@ -20,7 +20,10 @@ impl Watcher {
             syre_fs_watcher::event::ResourceEvent::Removed => {
                 self.handle_fs_event_analysis_file_removed(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Renamed => todo!(),
+            syre_fs_watcher::event::ResourceEvent::Renamed => {
+                self.handle_fs_event_analysis_file_renamed(event)
+            }
+
             syre_fs_watcher::event::ResourceEvent::Moved => todo!(),
             syre_fs_watcher::event::ResourceEvent::MovedProject => todo!(),
             syre_fs_watcher::event::ResourceEvent::Modified(_) => {
@@ -116,6 +119,115 @@ impl Watcher {
                     project_id,
                     project_path,
                     update::AnalysisFile::Removed(path.clone()).into(),
+                    event.id().clone(),
+                )]
+            }
+        } else {
+            vec![]
+        }
+    }
+
+    fn handle_fs_event_analysis_file_renamed(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        use syre_local::types::AnalysisKind;
+
+        assert_matches!(
+            event.kind(),
+            EventKind::AnalysisFile(event::ResourceEvent::Renamed)
+        );
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(analyses) = project_state.analyses() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let mut analyses_state = analyses.clone();
+        let from_rel_path = from
+            .strip_prefix(
+                project
+                    .path()
+                    .join(properties.analysis_root.as_ref().unwrap()),
+            )
+            .unwrap();
+
+        let to_rel_path = to
+            .strip_prefix(
+                project
+                    .path()
+                    .join(properties.analysis_root.as_ref().unwrap()),
+            )
+            .unwrap();
+
+        if let Some(analysis) = server::state::project::analysis::find_analysis_by_path_mut(
+            from_rel_path,
+            &mut analyses_state,
+        ) {
+            assert!(analysis.is_present());
+            match &mut analysis.properties {
+                AnalysisKind::Script(script) => script.path = to_rel_path.to_path_buf(),
+                AnalysisKind::ExcelTemplate(template) => {
+                    template.template.path = to_rel_path.to_path_buf()
+                }
+            }
+
+            let project_path = project.path().clone();
+            let project_id = properties.rid().clone();
+            let analysis_root = properties.analysis_root.clone();
+            let analysis_id = match &analysis.properties {
+                AnalysisKind::Script(script) => script.rid().clone(),
+                AnalysisKind::ExcelTemplate(template) => template.rid().clone(),
+            };
+
+            if self.config.handle_fs_resource_changes() {
+                let analysis_root = project_path.join(analysis_root.unwrap());
+                let mut analyses = local::project::Analyses::load_from(project_path).unwrap();
+                let mut analysis = analyses
+                    .iter_mut()
+                    .find_map(|(rid, analysis)| (rid == &analysis_id).then_some(analysis))
+                    .unwrap();
+
+                let analysis_path = to.strip_prefix(&analysis_root).unwrap().to_path_buf();
+                match analysis {
+                    AnalysisKind::Script(script) => script.path = analysis_path.clone(),
+                    AnalysisKind::ExcelTemplate(template) => {
+                        template.template.path = analysis_path.clone()
+                    }
+                }
+                analyses.save().unwrap();
+
+                vec![]
+            } else {
+                self.state
+                    .try_reduce(server::state::Action::Project {
+                        path: project_path.clone(),
+                        action: server::state::project::Action::SetAnalyses(
+                            state::DataResource::Ok(analyses_state),
+                        ),
+                    })
+                    .unwrap();
+
+                vec![Update::project_with_id(
+                    project_id,
+                    project_path,
+                    update::AnalysisFile::Moved {
+                        analysis: analysis_id,
+                        path: to_rel_path.to_path_buf(),
+                    }
+                    .into(),
                     event.id().clone(),
                 )]
             }

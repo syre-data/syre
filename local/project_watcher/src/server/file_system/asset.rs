@@ -281,7 +281,7 @@ impl Watcher {
             .unwrap()
             .clone();
 
-        asset_state.properties.path = to_path.clone();
+        asset_state.inner.path = to_path.clone();
         if asset_state.path.is_file() {
             asset_state.fs_resource = state::FileResource::Present;
         } else {

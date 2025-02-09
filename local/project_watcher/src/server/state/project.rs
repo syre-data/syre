@@ -584,7 +584,7 @@ mod container {
                         };
 
                         Asset {
-                            properties: asset,
+                            inner: asset,
                             fs_resource,
                         }
                     })
@@ -606,14 +606,14 @@ mod container {
     impl Asset {
         pub fn present(asset: CoreAsset) -> Self {
             Self {
-                properties: asset,
+                inner: asset,
                 fs_resource: FileResource::Present,
             }
         }
 
         pub fn absent(asset: CoreAsset) -> Self {
             Self {
-                properties: asset,
+                inner: asset,
                 fs_resource: FileResource::Absent,
             }
         }

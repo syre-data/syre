@@ -785,7 +785,7 @@ impl Watcher {
             .assets()
             .unwrap()
             .iter()
-            .map(|asset| asset.properties.clone())
+            .map(|asset| asset.inner.clone())
             .collect();
 
         Some(Ok(ContainerForAnalysis {
@@ -911,7 +911,7 @@ impl Watcher {
                     .iter()
                     .filter_map(|asset| {
                         if query.matches(asset) {
-                            Some(asset.properties.clone())
+                            Some(asset.inner.clone())
                         } else {
                             None
                         }

@@ -155,7 +155,7 @@ impl Container {
 
         let assets = assets
             .into_iter()
-            .map(|asset| asset.properties.clone())
+            .map(|asset| asset.inner.clone())
             .collect();
 
         Some(CoreContainer::from_parts(
@@ -169,7 +169,7 @@ impl Container {
 
 #[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub struct Asset {
-    pub(crate) properties: CoreAsset,
+    pub(crate) inner: CoreAsset,
     pub(crate) fs_resource: FileResource,
 }
 
@@ -180,12 +180,16 @@ impl Asset {
             FileResource::Absent => false,
         }
     }
+
+    pub fn into_inner(self) -> CoreAsset {
+        self.inner
+    }
 }
 
 impl Deref for Asset {
     type Target = CoreAsset;
     fn deref(&self) -> &Self::Target {
-        &self.properties
+        &self.inner
     }
 }
 

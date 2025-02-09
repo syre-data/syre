@@ -54,7 +54,7 @@ impl SearchFilter<state::Container> for ContainerQuery {
 
 impl SearchFilter<state::Asset> for AssetQuery {
     fn matches(&self, obj: &state::Asset) -> bool {
-        let asset = &obj.properties;
+        let asset = &obj.inner;
         let props = &asset.properties;
 
         if let Some(s_path) = self.path.as_ref() {

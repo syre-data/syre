@@ -52,7 +52,7 @@ mod logging {
         EnvFilter, Layer, Registry,
     };
 
-    const LOG_PREFIX: &str = "database.local.log";
+    const LOG_PREFIX: &str = "project_watcher.local.log";
 
     /// Enable logging.
     pub fn enable() {

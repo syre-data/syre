@@ -300,9 +300,9 @@ impl Watcher {
                         self.state
                             .try_reduce(state::Action::RemoveProject(project.clone()))
                             .unwrap();
-                    }
 
-                    removed.push(project);
+                        removed.push(project);
+                    }
                 }
 
                 let mut updates = vec![Update::app(

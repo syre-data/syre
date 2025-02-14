@@ -5,6 +5,9 @@ use syre_local::{self as local, system::collections::ProjectManifest};
 use syre_project_watcher::server;
 
 /// Run the database with the default config.
+///
+/// # Notes
+/// + Must run with the `server` feature enabled.
 fn main() {
     logging::enable();
     let default_panic_hook = std::panic::take_hook();

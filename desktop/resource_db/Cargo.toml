@@ -23,16 +23,12 @@ surrealdb = { workspace = true, features = ["kv-mem"], optional = true }
 syre-core = { workspace = true, optional = true }
 syre-local = { workspace = true, optional = true }
 syre-project-watcher = { workspace = true, optional = true }
-tokio = { version = "1.36", features = [
-    "sync",
-    "macros",
-    "rt-multi-thread",
-], optional = true }
+tokio = { version = "1.36", features = ["sync"], optional = true }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = [
-	"time",
-	"json",
-	"env-filter",
+    "time",
+    "json",
+    "env-filter",
 ] }
 uuid.workspace = true
 zmq = { workspace = true, optional = true }
@@ -44,9 +40,10 @@ server = [
     "syre-project-watcher/client",
     "syre-core/surreal_db",
     "syre-local",
-    "tokio",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
     "zmq",
 ]
-client = ["zmq"]
+client = ["tokio", "zmq"]
 
 # NB: Release profile configured in workspace root.

@@ -1,9 +1,38 @@
+use std::{
+    io::{self, Write},
+    thread,
+};
+use syre_resource_db as db;
+
+/// Launch a resource database and accept user input to query it.
+///
+/// # Notes
+/// + Must run with the `server` and `client` features enabled.
 fn main() {
     logging::enable();
 
-    let (_command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
-    let db = syre_resource_db::Builder::new(command_rx);
-    db.run().unwrap();
+    let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let db = db::Builder::new(command_rx);
+    thread::Builder::new()
+        .name("syre desktop resource database".to_string())
+        .spawn(move || db.run().unwrap())
+        .unwrap();
+
+    let client = db::Client::new(command_tx);
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    loop {
+        let mut query = String::new();
+        stdin.read_line(&mut query).unwrap();
+        if query.trim().is_empty() {
+            continue;
+        }
+
+        let response = client.query(query).unwrap();
+        let out = format!("{response:?}\n\n");
+        stdout.write_all(out.as_bytes()).unwrap();
+    }
 }
 
 mod logging {

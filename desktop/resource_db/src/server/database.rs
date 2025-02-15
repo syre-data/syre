@@ -1,12 +1,13 @@
+use super::{store, Store};
 use crate::Command;
-use std::{path::PathBuf, str::FromStr, thread};
+use std::{path::PathBuf, thread};
 use surrealdb::{
     engine::local::{Db, Mem},
     Surreal,
 };
 use syre_core::types::ResourceId;
 use syre_project_watcher as project_watcher;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
 pub enum ResourceKind {
@@ -14,15 +15,8 @@ pub enum ResourceKind {
     Asset,
 }
 
-type Tx<T> = oneshot::Sender<surrealdb::Result<T>>;
-
 pub const NAMESPACE: &str = "syre";
 pub const DATABASE: &str = "resource_db";
-
-#[derive(Debug, serde::Deserialize)]
-struct IdRecord {
-    pub id: surrealdb::RecordId,
-}
 
 const DEFINE_TABLE_USER: &str = "
 DEFINE TABLE user SCHEMAFULL;
@@ -93,7 +87,7 @@ DEFINE FIELD name           ON TABLE container_properties TYPE string;
 DEFINE FIELD kind           ON TABLE container_properties TYPE option<string>;
 DEFINE FIELD description    ON TABLE container_properties TYPE option<string>;
 DEFINE FIELD tags           ON TABLE container_properties TYPE set<string>;
-DEFINE FIELD metadata       ON TABLE container_properties TYPE object;
+DEFINE FIELD metadata       ON TABLE container_properties FLEXIBLE TYPE object;
 ";
 
 const DEFINE_TABLE_CONTAINER_SETTINGS: &str = "
@@ -114,16 +108,16 @@ DEFINE FIELD name           ON TABLE asset TYPE option<string>;
 DEFINE FIELD kind           ON TABLE asset TYPE option<string>;
 DEFINE FIELD description    ON TABLE asset TYPE option<string>;
 DEFINE FIELD tags           ON TABLE asset TYPE set<string>;
-DEFINE FIELD metadata       ON TABLE asset TYPE object;
+DEFINE FIELD metadata       ON TABLE asset FLEXIBLE TYPE object;
 
 DEFINE FIELD created        ON TABLE asset TYPE datetime;
 DEFINE FIELD creator        ON TABLE asset TYPE
-      { User: option<{ Email: string } | { Id: bytes }> }
+    { User: option<{ Email: string } | { Id: bytes }> }
     | { Script: bytes };
     
-    DEFINE FIELD path                   ON TABLE asset TYPE string;
-    DEFINE FIELD fs_resource_present    ON TABLE asset TYPE bool;
-    ";
+DEFINE FIELD path                   ON TABLE asset TYPE string;
+DEFINE FIELD fs_resource_present    ON TABLE asset TYPE bool;
+";
 
 const DEFINE_TABLE_FLAG: &str = "
 DEFINE TABLE flag SCHEMAFULL;
@@ -134,7 +128,6 @@ DEFINE FIELD resource       ON TABLE flag TYPE option<record<container> | record
 DEFINE FIELD path           ON TABLE flag TYPE string;
 DEFINE FIELD severity       ON TABLE flag TYPE 'Info' | 'Warning' | 'Error';
 DEFINE FIELD message        ON TABLE flag TYPE string;
-
 ";
 
 const DEFINE_TABLE_PERMISSIONS: &str = "
@@ -208,6 +201,7 @@ impl Builder {
 }
 
 struct Database {
+    pw_client: project_watcher::Client,
     store: Store,
     query_rx: mpsc::UnboundedReceiver<Command>,
     project_event_rx: mpsc::UnboundedReceiver<Vec<project_watcher::Update>>,
@@ -220,6 +214,7 @@ impl Database {
         project_event_rx: mpsc::UnboundedReceiver<Vec<project_watcher::Update>>,
     ) -> Self {
         Self {
+            pw_client: project_watcher::Client::new(),
             store: Store::new(store),
             query_rx,
             project_event_rx,
@@ -233,12 +228,12 @@ impl Database {
             tokio::select! {
                 events = self.project_event_rx.recv() => {
                     let Some(events) = events else {
-                        tracing::debug!("`progress_event` channel closed");
+                        tracing::debug!("`project_event` channel closed");
                         break;
                     };
                     tracing::debug!(?events);
 
-                    self.handle_project_events(events).await;
+                    self.handle_update_events(events).await;
                 }
                 cmd = self.query_rx.recv() => {
                     let Some(cmd) = cmd else {
@@ -249,7 +244,7 @@ impl Database {
 
                     match cmd {
                         Command::Query { query, tx } => self.store.handle_query(tx, query).await,
-                        Command::Search { tx, query } => self.store.handle_search(tx, query).await,
+                        Command::Search { tx, project, query } => self.store.handle_search(tx, project, query).await,
                     }
                 },
             }
@@ -259,10 +254,14 @@ impl Database {
     }
 
     async fn init_state(&self) -> surrealdb::Result<()> {
-        let db = project_watcher::Client::new();
-        let projects = db.state().projects().expect("could not get project states");
+        let projects = self
+            .pw_client
+            .state()
+            .projects()
+            .expect("could not get project states");
+
         for project in projects.iter() {
-            if let Err(err) = self.init_project(&db, project).await {
+            if let Err(err) = self.init_project(project).await {
                 tracing::error!("could not load project {:?}: {err:?}", project.path());
             }
         }
@@ -272,7 +271,6 @@ impl Database {
 
     async fn init_project(
         &self,
-        db: &project_watcher::Client,
         project: &project_watcher::state::Project,
     ) -> Result<(), error::ProjectInit> {
         #[derive(serde::Serialize)]
@@ -326,9 +324,8 @@ impl Database {
             }
         };
 
-        let _update: Option<project::Record> = self
+        let _update: Option<store::project::Record> = self
             .store
-            .db
             .update(project_record_id.clone())
             .merge(ProjectRecordLinks {
                 properties: Some(properties_record_id.clone()),
@@ -339,7 +336,7 @@ impl Database {
         assert!(_update.is_some());
 
         let (containers, assets) = match self
-            .init_project_resources(db, project_record_id.clone(), properties.rid().clone())
+            .init_project_resources(project_record_id.clone(), properties.rid().clone())
             .await
         {
             Ok(resources) => resources,
@@ -357,7 +354,6 @@ impl Database {
     /// `(container record ids, asset record ids)`
     async fn init_project_resources(
         &self,
-        db: &project_watcher::Client,
         project_id: surrealdb::RecordId,
         project: ResourceId,
     ) -> Result<(Vec<surrealdb::RecordId>, Vec<surrealdb::RecordId>), error::ProjectResourcesInit>
@@ -368,7 +364,7 @@ impl Database {
             settings: Option<surrealdb::RecordId>,
         }
 
-        let Some((_, _, graph)) = db.project().resources(project).unwrap() else {
+        let Some((_, _, graph)) = self.pw_client.project().resources(project).unwrap() else {
             return Err(error::ProjectResourcesInit::ProjectNotFound);
         };
 
@@ -425,9 +421,8 @@ impl Database {
                     None
                 };
 
-            let _update: Option<container::Record> = self
+            let _update: Option<store::container::Record> = self
                 .store
-                .db
                 .update(&container_record_id)
                 .merge(ContainerRecordLinks {
                     properties: properties_record_id,
@@ -511,1212 +506,216 @@ pub mod error {
     }
 }
 
-impl Database {
-    async fn handle_project_events(&self, events: Vec<project_watcher::Update>) {}
-}
+mod project_events {
+    use super::Database;
+    use syre_project_watcher::{event, Update};
 
-struct Store {
-    db: Surreal<Db>,
-}
-
-impl Store {
-    pub fn new(db: Surreal<Db>) -> Self {
-        Self { db }
-    }
-
-    pub async fn handle_query(&self, tx: Tx<surrealdb::Response>, query: String) {
-        Self::send_response(tx, self.db.query(query).await);
-    }
-
-    pub async fn handle_search(&self, tx: Tx<Vec<ResourceId>>, query: String) {
-        #[allow(dead_code)]
-        #[derive(serde::Deserialize, Debug)]
-        struct Record {
-            id: surrealdb::RecordIdKey,
-            score: f64,
+    impl Database {
+        pub(super) async fn handle_update_events(&self, events: Vec<Update>) {
+            for event in events {
+                tracing::trace!(?event);
+                match event.kind() {
+                    event::UpdateKind::App(_) => self.handle_event_update_app(event).await,
+                    event::UpdateKind::Project { .. } => {
+                        self.handle_event_update_project(event).await
+                    }
+                }
+            }
         }
 
-        let query = escape_string(query);
-        let container_query = format!(
-            "SELECT
-                id,
-                math::product([
-                    search::score(0) * 3 
-                    + search::score(1) * 3 
-                    + search::score(2) * 1 
-                    + search::score(3) * 2 
-                    + search::score(4) * 2,
-                    0.090909 // normalization
-                ]) AS score
-            FROM container
-            WHERE name @0@ '{query}'
-                OR kind @1@ '{query}'
-                OR description @2@ '{query}'
-                OR tags @3@ '{query}'
-                OR metadata @4@ '{query}'
-            ORDER BY score DESC"
-        );
+        async fn handle_event_update_app(&self, event: Update) {
+            let event::UpdateKind::App(kind) = event.kind() else {
+                panic!("invalid event kind");
+            };
 
-        let asset_query = format!(
-            "SELECT
-                id,
-                math::product([
-                    search::score(0) * 3 
-                    + search::score(1) * 3 
-                    + search::score(2) * 1 
-                    + search::score(3) * 2 
-                    + search::score(4) * 2
-                    + search::score(5) * 3,
-                    0.071429 // normalization
-                ]) AS score
-            FROM asset
-            WHERE name @0@ '{query}'
-                OR kind @1@ '{query}'
-                OR description @2@ '{query}'
-                OR tags @3@ '{query}'
-                OR metadata @4@ '{query}'
-                OR path @5@ '{query}'
-            ORDER BY score DESC"
-        );
-
-        let mut container_results = match self.db.query(container_query).await {
-            Ok(results) => results,
-            Err(err) => {
-                Self::send_response(tx, Err(err));
-                return;
+            match kind {
+                event::App::UserManifest(_) => {
+                    self.handle_event_update_app_user_manifest(event).await
+                }
+                event::App::ProjectManifest(_) => {
+                    self.handle_event_update_app_project_manifest(event).await
+                }
+                event::App::LocalConfig(_) => {
+                    self.handle_event_update_app_local_config(event).await
+                }
             }
-        };
-
-        let mut asset_results = match self.db.query(asset_query).await {
-            Ok(results) => results,
-            Err(err) => {
-                Self::send_response(tx, Err(err));
-                return;
-            }
-        };
-
-        let container_results = match container_results.take::<Vec<Record>>(0) {
-            Ok(results) => results,
-            Err(err) => {
-                Self::send_response(tx, Err(err));
-                return;
-            }
-        };
-
-        let mut asset_results = match asset_results.take::<Vec<Record>>(0) {
-            Ok(results) => results,
-            Err(err) => {
-                Self::send_response(tx, Err(err));
-                return;
-            }
-        };
-
-        let mut results = container_results;
-        results.append(&mut asset_results);
-        results.sort_by(|ra, rb| ra.score.partial_cmp(&rb.score).unwrap());
-
-        let results = results
-            .into_iter()
-            .map(|record| ResourceId::from_str(&record.id.to_string()).unwrap())
-            .collect();
-
-        Self::send_response(tx, Ok(results));
-    }
-
-    fn send_response<T>(tx: Tx<T>, value: surrealdb::Result<T>) {
-        match tx.send(value) {
-            Ok(_) => {}
-            Err(_) => tracing::error!("could not send response"),
-        }
-    }
-
-    /// Selects the projects id that contains a resource.
-    ///
-    /// # Returns
-    /// Id of the project that the resource belongs to.
-    async fn project_from_resource_id(
-        &self,
-        kind: ResourceKind,
-        id: ResourceId,
-    ) -> surrealdb::Result<Option<ResourceId>> {
-        let table = match kind {
-            ResourceKind::Container => "container",
-            ResourceKind::Asset => "asset",
-        };
-
-        let mut result = self
-            .db
-            // .query("SELECT in FROM has_resource WHERE out = type::thing($table, $id)")
-            // .bind(("table", table))
-            // .bind(("id", id))
-            .query("SELECT in AS id FROM has_resource WHERE out = $id")
-            .bind(("id", (table, id.into_surreal_id())))
-            .await?;
-
-        let result = result.take::<Vec<IdRecord>>(0)?;
-        if result.is_empty() {
-            return Ok(None);
-        };
-
-        assert_eq!(result.len(), 1);
-        let rid = result[0].id.to_string();
-        let Ok(rid) = ResourceId::from_str(&rid) else {
-            return Err(surrealdb::Error::Db(surrealdb::error::Db::IdInvalid {
-                value: rid.to_string(),
-            }));
-        };
-
-        Ok(Some(rid))
-    }
-}
-
-mod project {
-    use super::{cast, IdRecord, Store};
-    use chrono::{DateTime, Utc};
-    use serde::{Deserialize, Serialize};
-    use std::path::PathBuf;
-    use syre_core as core;
-
-    impl Store {
-        /// # Panics
-        /// If the insertion or subsequent query to obtain the id fails.
-        pub async fn insert_project(
-            &self,
-            path: PathBuf,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let record = self
-                .db
-                .create::<Option<IdRecord>>("project")
-                .content(Record { path })
-                .await?
-                .unwrap();
-
-            Ok(record.id)
         }
 
-        /// Inserts project properties keyed by the project's resource id.
-        ///
-        /// # Panics
-        /// If the insertion or subsequent query to obtain the id fails.
-        pub async fn insert_project_properties(
-            &self,
-            project_id: surrealdb::RecordId,
-            project: core::project::Project,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let id = project.rid().clone();
-            let core::project::Project {
-                name,
-                description,
-                data_root,
-                analysis_root,
+        async fn handle_event_update_app_user_manifest(&self, event: Update) {
+            let event::UpdateKind::App(event::App::UserManifest(kind)) = event.kind() else {
+                panic!("invalid event kind");
+            };
+
+            match kind {
+                event::UserManifest::Ok(_) => {}
+                event::UserManifest::Error => {}
+                event::UserManifest::Added(_) => {}
+                event::UserManifest::Removed(_) => {}
+                event::UserManifest::Updated(_) => {}
+            }
+        }
+
+        async fn handle_event_update_app_project_manifest(&self, event: Update) {
+            let event::UpdateKind::App(event::App::ProjectManifest(kind)) = event.kind() else {
+                panic!("invalid event kind");
+            };
+
+            match kind {
+                event::ProjectManifest::Added(_) => {
+                    self.handle_event_update_app_project_manifest_added(event)
+                        .await
+                }
+                event::ProjectManifest::Removed(_) => {
+                    self.handle_event_update_app_project_manifest_removed(event)
+                        .await
+                }
+                event::ProjectManifest::Repaired => {
+                    self.handle_event_update_app_project_manifest_repaired(event)
+                        .await
+                }
+                event::ProjectManifest::Corrupted => {
+                    self.handle_event_update_app_project_manifest_corrupted(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_app_project_manifest_added(&self, event: Update) {
+            let event::UpdateKind::App(event::App::ProjectManifest(event::ProjectManifest::Added(
+                projects,
+            ))) = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let projects = self
+                .pw_client
+                .project()
+                .get_many(projects.clone())
+                .expect("could not get project states");
+
+            for project in projects.iter() {
+                if let Err(err) = self.init_project(project).await {
+                    tracing::error!("could not load project {:?}: {err:?}", project.path());
+                }
+            }
+        }
+
+        async fn handle_event_update_app_project_manifest_removed(&self, event: Update) {
+            let event::UpdateKind::App(event::App::ProjectManifest(
+                event::ProjectManifest::Removed(projects),
+            )) = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            for project in projects {
+                if let Err(err) = self.store.remove_project(project.clone()).await {
+                    tracing::debug!("could not remove project {project:?}: {err:?}");
+                };
+            }
+        }
+
+        async fn handle_event_update_app_project_manifest_corrupted(&self, event: Update) {
+            let event::UpdateKind::App(event::App::ProjectManifest(
+                event::ProjectManifest::Corrupted,
+            )) = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store.clear_all().await;
+        }
+
+        async fn handle_event_update_app_project_manifest_repaired(&self, event: Update) {
+            let event::UpdateKind::App(event::App::ProjectManifest(
+                event::ProjectManifest::Repaired,
+            )) = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.init_state().await.unwrap();
+        }
+
+        async fn handle_event_update_project(&self, event: Update) {
+            let event::UpdateKind::Project { update, .. } = event.kind() else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::Project::FolderRemoved => todo!(),
+                event::Project::Moved(_) => todo!(),
+                event::Project::Properties(_) => todo!(),
+                event::Project::Settings(_) => todo!(),
+                event::Project::Analyses(_) => todo!(),
+                event::Project::Graph(..) => todo!(),
+                event::Project::Container { .. } => {
+                    self.handle_event_update_project_container(event).await
+                }
+                event::Project::Asset { .. } => todo!(),
+                event::Project::AssetFile(_) => todo!(),
+                event::Project::AnalysisFile(_) => todo!(),
+            }
+        }
+
+        async fn handle_event_update_project_container(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update: event::Project::Container { update, .. },
                 ..
-            } = project;
-
-            let record = PropertiesRecord {
-                _project: project_id,
-                name,
-                description,
-                data_root,
-                analysis_root,
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
             };
 
-            let record = self
-                .db
-                .create::<Option<IdRecord>>(("project_properties", id.to_string()))
-                .content(record)
-                .await?
-                .unwrap();
-
-            Ok(record.id)
+            match update {
+                event::Container::Properties(data_resource) => {
+                    self.handle_event_update_project_container_properties(event)
+                        .await
+                }
+                event::Container::Settings(data_resource) => todo!(),
+                event::Container::Assets(data_resource) => todo!(),
+                event::Container::Flags(data_resource) => todo!(),
+            }
         }
 
-        /// Inserts project settings.
-        ///
-        /// # Panics
-        /// If the insertion or subsequent query to obtain the id fails.
-        pub async fn insert_project_settings(
-            &self,
-            project_id: surrealdb::RecordId,
-            creator: Option<core::types::UserId>,
-            created: DateTime<Utc>,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let record = self
-                .db
-                .create::<Option<IdRecord>>("project_settings")
-                .content(SettingsRecord {
-                    _project: project_id,
-                    creator,
-                    created,
-                })
-                .await?
-                .unwrap();
-
-            Ok(record.id)
-        }
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct Record {
-        path: PathBuf,
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct PropertiesRecord {
-        _project: surrealdb::RecordId,
-        name: String,
-        description: Option<String>,
-        data_root: PathBuf,
-        analysis_root: Option<PathBuf>,
-    }
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct SettingsRecord {
-        _project: surrealdb::RecordId,
-        creator: Option<core::types::UserId>,
-
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
-    }
-}
-
-mod container {
-    use super::{cast, IdRecord, Store};
-    use chrono::{DateTime, Utc};
-    use serde::{Deserialize, Serialize};
-    use std::{collections::HashMap, path::PathBuf};
-    use syre_core as core;
-    use syre_local as local;
-
-    impl Store {
-        pub async fn insert_container(
-            &self,
-            project_id: surrealdb::RecordId,
-            path: PathBuf,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let record = self
-                .db
-                .create::<Option<IdRecord>>("container")
-                .content(Record {
-                    _project: project_id,
-                    path,
-                })
-                .await?
-                .unwrap();
-
-            Ok(record.id)
-        }
-
-        pub async fn insert_container_properties(
-            &self,
-            project_id: surrealdb::RecordId,
-            container_id: surrealdb::RecordId,
-            id: core::types::ResourceId,
-            properties: core::project::ContainerProperties,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let core::project::ContainerProperties {
-                name,
-                kind,
-                description,
-                tags,
-                metadata,
-            } = properties;
-
-            let record = PropertiesRecord {
-                _project: project_id,
-                _container: container_id,
-                name,
-                kind,
-                description,
-                tags,
-                metadata,
-            };
-
-            let record = self
-                .db
-                .create::<Option<IdRecord>>(("container_properties", id.to_string()))
-                .content(record)
-                .await?
-                .unwrap();
-
-            Ok(record.id)
-        }
-
-        pub async fn insert_container_settings(
-            &self,
-            project_id: surrealdb::RecordId,
-            container_id: surrealdb::RecordId,
-            settings: local::project::container::Settings,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let local::project::container::Settings {
-                creator, created, ..
-            } = settings;
-
-            let record = SettingsRecord {
-                _project: project_id,
-                _container: container_id,
-                creator,
-                created,
-            };
-
-            let record = self
-                .db
-                .create::<Option<IdRecord>>("container_settings")
-                .content(record)
-                .await?
-                .unwrap();
-
-            Ok(record.id)
-        }
-    }
-
-    #[derive(Serialize, Deserialize)]
-    pub struct Record {
-        _project: surrealdb::RecordId,
-        path: PathBuf,
-    }
-
-    #[derive(Serialize)]
-    struct PropertiesRecord {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        name: String,
-        kind: Option<String>,
-        description: Option<String>,
-        tags: Vec<String>,
-        metadata: HashMap<String, core::types::Value>,
-    }
-
-    #[derive(Serialize)]
-    struct SettingsRecord {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        creator: Option<core::types::UserId>,
-
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
-    }
-}
-
-mod asset {
-    use super::{cast, IdRecord, Store};
-    use chrono::{DateTime, Utc};
-    use serde::Serialize;
-    use std::{collections::HashMap, path::PathBuf};
-    use syre_core as core;
-    use syre_local as local;
-    use syre_project_watcher as project_watcher;
-
-    impl Store {
-        pub async fn insert_asset(
-            &self,
-            project_id: surrealdb::RecordId,
-            container_id: surrealdb::RecordId,
-            asset: project_watcher::state::Asset,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let fs_resource_present = asset.is_present();
-            let rid = asset.rid().clone();
-            let created = asset.properties.created().clone();
-            let core::project::Asset {
-                properties:
-                    core::project::AssetProperties {
-                        creator,
-                        name,
-                        kind,
-                        description,
-                        tags,
-                        metadata,
+        async fn handle_event_update_project_container_properties(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Properties(update),
                         ..
                     },
-                path,
                 ..
-            } = asset.into_inner();
-
-            let record = Record {
-                _project: project_id,
-                _container: container_id,
-                name,
-                kind,
-                description,
-                tags,
-                metadata,
-                path,
-                fs_resource_present,
-                creator,
-                created,
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
             };
 
-            let record = self
-                .db
-                .create::<Option<IdRecord>>(("asset", rid))
-                .content(record)
-                .await?
-                .unwrap();
-
-            Ok(record.id)
+            match update {
+                event::DataResource::Created(_) => todo!(),
+                event::DataResource::Removed => todo!(),
+                event::DataResource::Corrupted(_) => todo!(),
+                event::DataResource::Repaired(_) => todo!(),
+                event::DataResource::Modified(_) => todo!(),
+            }
         }
-    }
 
-    #[derive(Serialize)]
-    struct Record {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        name: Option<String>,
-        kind: Option<String>,
-        description: Option<String>,
-        tags: Vec<String>,
-        metadata: HashMap<String, core::types::Value>,
-        path: PathBuf,
-        fs_resource_present: bool,
-
-        creator: core::types::Creator,
-
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
-    }
-}
-
-mod flag {
-    use super::{cast, IdRecord, Store};
-    use chrono::{DateTime, Utc};
-    use serde::Serialize;
-    use std::{collections::HashMap, path::PathBuf};
-    use syre_core as core;
-    use syre_local as local;
-    use syre_project_watcher as project_watcher;
-
-    impl Store {
-        pub async fn insert_flag(
-            &self,
-            project_id: surrealdb::RecordId,
-            resource: Option<surrealdb::RecordId>,
-            path: PathBuf,
-            flag: &local::project::Flag,
-        ) -> surrealdb::Result<surrealdb::RecordId> {
-            let record = Record {
-                _project: project_id,
-                resource,
-                path,
-                severity: flag.severity(),
-                message: flag.message().clone(),
+        async fn handle_event_update_app_local_config(&self, event: Update) {
+            let event::UpdateKind::App(event::App::LocalConfig(kind)) = event.kind() else {
+                panic!("invalid event kind");
             };
 
-            let record = self
-                .db
-                .create::<Option<IdRecord>>(("flag", flag.id().to_string()))
-                .content(record)
-                .await?
-                .unwrap();
-
-            Ok(record.id)
+            match kind {
+                event::LocalConfig::Ok(_) => {}
+                event::LocalConfig::Error => {}
+                event::LocalConfig::Updated => {}
+            }
         }
     }
-
-    #[derive(Serialize)]
-    struct Record {
-        _project: surrealdb::RecordId,
-        resource: Option<surrealdb::RecordId>,
-        path: PathBuf,
-        severity: local::project::flag::Severity,
-        message: String,
-    }
 }
-
-/// Escapes a string.
-///
-/// # Characters
-/// + `'`
-fn escape_string(input: impl AsRef<str>) -> String {
-    let input = input.as_ref();
-    let input = input.replace("'", "\\'");
-    input
-}
-
-mod cast {
-    use serde::{Serialize, Serializer};
-
-    pub fn chrono_as_sql_datetime<S>(
-        t: &chrono::DateTime<chrono::Utc>,
-        s: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        Into::<surrealdb::sql::Datetime>::into(*t).serialize(s)
-    }
-}
-
-// pub mod project {
-//     use super::super::command::project::Command;
-//     use super::{Result, Store};
-//     use chrono::{DateTime, Utc};
-//     use serde::{Deserialize, Serialize};
-//     use std::path::PathBuf;
-//     use syre_core::{project::Project as CoreProject, types::ResourceId};
-//     use syre_local::project::{config::Settings, Project as LocalProject};
-
-//     impl Store {
-//         pub async fn handle_command_project(&self, cmd: Command) {
-//             match cmd {
-//                 Command::Create { id, project, tx } => {
-//                     let resp = self.project_create(id, project).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::Update { id, project, tx } => {
-//                     let resp = self.project_update(id, project).await;
-//                     Self::send_response(tx, resp);
-//                 }
-//             }
-//         }
-
-//         async fn project_create(&self, id: ResourceId, project: Record) -> Result {
-//             self.db
-//                 .create::<Option<Record>>(("project", id.to_string()))
-//                 .content(project)
-//                 .await?;
-
-//             Ok(())
-//         }
-
-//         async fn project_update(&self, id: ResourceId, project: Record) -> Result {
-//             self.db
-//                 .update::<Option<Record>>(("project", id.to_string()))
-//                 .content(project)
-//                 .await?;
-
-//             Ok(())
-//         }
-//     }
-
-//     #[allow(dead_code)]
-//     #[derive(Debug, Serialize, Deserialize)]
-//     pub struct Record {
-//         name: String,
-//         description: Option<String>,
-//         data_root: PathBuf,
-//         analysis_root: Option<PathBuf>,
-
-//         creator: Option<syre_core::types::UserId>,
-//         created: DateTime<Utc>,
-
-//         base_path: PathBuf,
-//     }
-
-//     impl Record {
-//         pub fn new(
-//             base_path: impl Into<PathBuf>,
-//             name: impl Into<String>,
-//             data_root: impl Into<PathBuf>,
-//             created: DateTime<Utc>,
-//         ) -> Self {
-//             Self {
-//                 name: name.into(),
-//                 description: None,
-//                 data_root: data_root.into(),
-//                 analysis_root: None,
-//                 creator: None,
-//                 created,
-//                 base_path: base_path.into(),
-//             }
-//         }
-
-//         pub fn set_description(&mut self, description: impl Into<String>) {
-//             let _ = self.description.insert(description.into());
-//         }
-
-//         pub fn set_analysis_root(&mut self, analysis_root: impl Into<PathBuf>) {
-//             let _ = self.analysis_root.insert(analysis_root.into());
-//         }
-//     }
-
-//     impl From<LocalProject> for Record {
-//         fn from(value: LocalProject) -> Self {
-//             let (properties, settings, base_path) = value.into_parts();
-//             let CoreProject {
-//                 name,
-//                 description,
-//                 data_root,
-//                 analysis_root,
-//                 meta_level: _,
-//                 ..
-//             } = properties;
-
-//             let Settings {
-//                 local_format_version: _,
-//                 created,
-//                 creator,
-//                 permissions: _,
-//             } = settings;
-
-//             Self {
-//                 name,
-//                 description,
-//                 data_root,
-//                 analysis_root,
-//                 creator,
-//                 created,
-//                 base_path,
-//             }
-//         }
-//     }
-// }
-
-// pub mod graph {
-//     use super::{
-//         super::command::graph::{Command, ContainerTree},
-//         asset::Record as AssetRecord,
-//         container::Record as ContainerRecord,
-//         error, Error, Result, Store,
-//     };
-//     use futures::future::{BoxFuture, FutureExt};
-//     use std::{collections::HashMap, str::FromStr};
-//     use syre_core::{
-//         graph::ResourceNode,
-//         project::{Asset, Container},
-//         types::ResourceId,
-//     };
-
-//     type Nodes = HashMap<ResourceId, ResourceNode<Container>>;
-
-//     impl Store {
-//         pub async fn handle_command_graph(&self, cmd: Command) {
-//             match cmd {
-//                 Command::Create { tx, graph, project } => {
-//                     let resp = self.graph_create(graph, project).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::CreateSubgraph { tx, graph, parent } => {
-//                     let resp = self.graph_create_subgraph(graph, parent).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::Remove { tx, root } => {
-//                     let resp = self.graph_remove(root).await;
-//                     Self::send_response(tx, resp);
-//                 }
-//             }
-//         }
-
-//         async fn graph_create(&self, graph: ContainerTree, project: ResourceId) -> Result {
-//             let (nodes, edges) = graph.into_components();
-//             let Resources { containers, assets } = nodes_to_records(nodes);
-//             for container in containers {
-//                 let ContainerInfo { id, record } = container;
-//                 self.db
-//                     .create::<Option<ContainerRecord>>(("container", id.to_string()))
-//                     .content(record)
-//                     .await?;
-
-//                 self.db
-//                     .query("RELATE $project -> has_resource -> $id")
-//                     .bind(("project", ("project", project.clone().into_surreal_id())))
-//                     .bind(("id", ("container", id.into_surreal_id())))
-//                     .await?;
-//             }
-
-//             for (parent, children) in edges {
-//                 for child in children {
-//                     self.db
-//                         .query("RELATE $parent -> has_child -> $child")
-//                         .bind(("parent", ("container", parent.clone().into_surreal_id())))
-//                         .bind(("child", ("container", child.clone().into_surreal_id())))
-//                         .await?;
-//                 }
-//             }
-
-//             for asset in assets {
-//                 let AssetInfo {
-//                     id,
-//                     record,
-//                     container,
-//                 } = asset;
-//                 self.db
-//                     .create::<Option<AssetRecord>>(("asset", id.to_string()))
-//                     .content(record)
-//                     .await?;
-
-//                 self.db
-//                     .query("RELATE $container -> has_asset -> $id")
-//                     .bind((
-//                         "container",
-//                         ("container", container.clone().into_surreal_id()),
-//                     ))
-//                     .bind(("id", ("asset", id.clone().into_surreal_id())))
-//                     .await?;
-
-//                 self.db
-//                     .query("RELATE $project -> has_resource -> $id")
-//                     .bind(("project", ("project", project.clone().into_surreal_id())))
-//                     .bind(("id", ("asset", id.into_surreal_id())))
-//                     .await?;
-//             }
-
-//             Ok(())
-//         }
-
-//         async fn graph_create_subgraph(&self, graph: ContainerTree, parent: ResourceId) -> Result {
-//             let Some(project) = self
-//                 .project_from_resource_id(super::ResourceKind::Container, parent.clone())
-//                 .await?
-//             else {
-//                 return Err(Error::Db(error::Db::NoRecordFound));
-//             };
-
-//             let root = graph.root().clone();
-//             self.graph_create(graph, project).await?;
-
-//             self.db
-//                 .query("RELATE $parent -> has_child -> $child")
-//                 .bind(("parent", ("container", parent.clone().into_surreal_id())))
-//                 .bind(("child", ("container", root.into_surreal_id())))
-//                 .await?;
-
-//             Ok(())
-//         }
-
-//         async fn graph_remove(&self, root: ResourceId) -> Result {
-//             let containers = self.descendants(root).await?;
-//             for container in containers {
-//                 self.db
-//                     .query("DELETE asset WHERE <-(has_asset WHERE in == $container)")
-//                     .bind((
-//                         "container",
-//                         ("container", container.clone().into_surreal_id()),
-//                     ))
-//                     .await?;
-
-//                 self.db
-//                     .delete::<Option<super::container::Record>>(("container", container))
-//                     .await?;
-//             }
-
-//             Ok(())
-//         }
-
-//         async fn children(&self, parent: ResourceId) -> Result<Vec<ResourceId>> {
-//             #[derive(serde::Deserialize, Debug)]
-//             struct Record {
-//                 out: surrealdb::RecordIdKey,
-//             }
-
-//             let mut results = self
-//                 .db
-//                 .query("SELECT out FROM has_child WHERE in == $parent")
-//                 .bind(("parent", ("container", parent.into_surreal_id())))
-//                 .await?;
-
-//             let results = results.take::<Vec<Record>>(0)?;
-//             let ids = results
-//                 .into_iter()
-//                 .map(|record| ResourceId::from_str(&record.out.to_string()).unwrap())
-//                 .collect();
-
-//             Ok(ids)
-//         }
-
-//         // See https://rust-lang.github.io/async-book/07_workarounds/04_recursion.html
-//         /// Get all descendant Containers.
-//         /// Include root.
-//         fn descendants(&self, root: ResourceId) -> BoxFuture<'_, Result<Vec<ResourceId>>> {
-//             let mut descendants = vec![root.clone()];
-//             async move {
-//                 for child in self.children(root).await? {
-//                     descendants.extend(self.descendants(child).await?);
-//                 }
-
-//                 Ok(descendants)
-//             }
-//             .boxed()
-//         }
-//     }
-
-//     fn nodes_to_records(nodes: Nodes) -> Resources {
-//         let mut container_info = Vec::with_capacity(nodes.len());
-//         let mut asset_info = Vec::new();
-//         for container in nodes.into_values() {
-//             todo!();
-//             // let Container {
-//             //     rid: cid,
-//             //     properties,
-//             //     assets,
-//             //     analyses: _,
-//             // } = container.into_data();
-
-//             // let record = ContainerRecord::;
-
-//             // container_info.push(ContainerInfo {
-//             //     id: cid.clone(),
-//             //     record,
-//             // });
-
-//             // for asset in assets.into_values() {
-//             //     let Asset {
-//             //         rid: aid,
-//             //         properties,
-//             //         path,
-//             //     } = asset;
-
-//             //     asset_info.push(AssetInfo {
-//             //         id: aid,
-//             //         record: AssetRecord::from_properties(properties, path),
-//             //         container: cid.clone(),
-//             //     });
-//             // }
-//         }
-
-//         Resources {
-//             containers: container_info,
-//             assets: asset_info,
-//         }
-//     }
-
-//     struct Resources {
-//         pub containers: Vec<ContainerInfo>,
-//         pub assets: Vec<AssetInfo>,
-//     }
-
-//     struct ContainerInfo {
-//         id: ResourceId,
-//         record: ContainerRecord,
-//     }
-
-//     struct AssetInfo {
-//         id: ResourceId,
-//         record: AssetRecord,
-//         container: ResourceId,
-//     }
-// }
-
-// pub mod container {
-//     use super::{super::command::container::Command, ResourceKind, Result, Store};
-//     use chrono::{DateTime, Utc};
-//     use serde::{Deserialize, Serialize};
-//     use std::path::PathBuf;
-//     use surrealdb::{error, Error};
-//     use syre_core::{
-//         project::{ContainerProperties, Metadata},
-//         types::{ResourceId, UserId},
-//     };
-//     use syre_local::project::{container::Settings as ContainerSettings, Container};
-
-//     impl Store {
-//         pub async fn handle_command_container(&self, cmd: Command) {
-//             match cmd {
-//                 Command::Create {
-//                     tx,
-//                     id,
-//                     container,
-//                     parent,
-//                 } => {
-//                     let resp = self.container_create(id, container, parent).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::Update { tx, id, container } => {
-//                     let resp = self.container_update(id, container).await;
-//                     Self::send_response(tx, resp);
-//                 }
-//             }
-//         }
-
-//         async fn container_create(
-//             &self,
-//             id: ResourceId,
-//             container: Record,
-//             parent: ResourceId,
-//         ) -> Result {
-//             let Some(project) = self
-//                 .project_from_resource_id(ResourceKind::Container, parent.clone())
-//                 .await?
-//             else {
-//                 return Err(Error::Db(error::Db::NoRecordFound));
-//             };
-
-//             self.db
-//                 .create::<Option<Record>>(("container", id.to_string()))
-//                 .content(container)
-//                 .await?;
-
-//             self.db
-//                 .query("RELATE $parent -> has_child -> $id")
-//                 .bind(("parent", ("container", parent.into_surreal_id())))
-//                 .bind(("id", ("container", id.clone().into_surreal_id())))
-//                 .await?;
-
-//             self.db
-//                 .query("RELATE $project -> has_resource -> $id")
-//                 .bind(("project", ("project", project.into_surreal_id())))
-//                 .bind(("id", ("container", id.into_surreal_id())))
-//                 .await?;
-
-//             Ok(())
-//         }
-
-//         async fn container_update(&self, id: ResourceId, container: Record) -> Result {
-//             self.db
-//                 .update::<Option<Record>>(("container", id.to_string()))
-//                 .content(container)
-//                 .await?;
-
-//             Ok(())
-//         }
-//     }
-
-//     #[allow(dead_code)]
-//     #[derive(Debug, Serialize, Deserialize)]
-//     pub struct Record {
-//         name: String,
-//         kind: Option<String>,
-//         description: Option<String>,
-//         tags: Vec<String>,
-//         metadata: Metadata,
-//         creator: Option<UserId>,
-//         created: DateTime<Utc>,
-//         base_path: PathBuf,
-//     }
-
-//     impl From<Container> for Record {
-//         fn from(value: Container) -> Self {
-//             let (container, settings, base_path) = value.into_parts();
-//             let ContainerProperties {
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 ..
-//             } = container.properties;
-
-//             let ContainerSettings {
-//                 creator, created, ..
-//             } = settings;
-
-//             Self {
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 creator,
-//                 created,
-//                 base_path,
-//             }
-//         }
-//     }
-// }
-
-// pub mod asset {
-//     use super::{super::command::asset::Command, ResourceKind, Result, Store};
-//     use chrono::{DateTime, Utc};
-//     use serde::{Deserialize, Serialize};
-//     use std::path::PathBuf;
-//     use surrealdb::{error, Error};
-//     use syre_core::{
-//         project::{Asset, AssetProperties, Metadata},
-//         types::ResourceId,
-//     };
-
-//     impl Store {
-//         pub async fn handle_command_asset(&self, cmd: Command) {
-//             match cmd {
-//                 Command::Create {
-//                     tx,
-//                     id,
-//                     asset,
-//                     container,
-//                 } => {
-//                     let resp = self.asset_create(id, asset, container).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::Update { tx, id, asset } => {
-//                     let resp = self.asset_update(id, asset).await;
-//                     Self::send_response(tx, resp);
-//                 }
-
-//                 Command::Remove { tx, id } => {
-//                     let resp = self.asset_remove(id).await;
-//                     Self::send_response(tx, resp);
-//                 }
-//             }
-//         }
-
-//         async fn asset_create(
-//             &self,
-//             id: ResourceId,
-//             asset: Record,
-//             container: ResourceId,
-//         ) -> Result {
-//             let Some(project) = self
-//                 .project_from_resource_id(ResourceKind::Container, container.clone())
-//                 .await?
-//             else {
-//                 return Err(Error::Db(error::Db::NoRecordFound));
-//             };
-
-//             self.db
-//                 .create::<Option<Record>>(("asset", id.to_string()))
-//                 .content(asset)
-//                 .await?;
-
-//             self.db
-//                 .query("RELATE $container -> has_asset -> $id")
-//                 .bind(("container", ("container", container.into_surreal_id())))
-//                 .bind(("id", ("asset", id.clone().into_surreal_id())))
-//                 .await?;
-
-//             self.db
-//                 .query("RELATE $project -> has_resource -> $id")
-//                 .bind(("project", ("project", project.into_surreal_id())))
-//                 .bind(("id", ("asset", id.into_surreal_id())))
-//                 .await?;
-
-//             Ok(())
-//         }
-
-//         async fn asset_update(&self, id: ResourceId, asset: Record) -> Result {
-//             self.db
-//                 .update::<Option<Record>>(("asset", id.to_string()))
-//                 .content(asset)
-//                 .await?;
-
-//             Ok(())
-//         }
-
-//         async fn asset_remove(&self, id: ResourceId) -> Result {
-//             self.db
-//                 .delete::<Option<Record>>(("asset", id.into_surreal_id()))
-//                 .await?;
-
-//             Ok(())
-//         }
-//     }
-
-//     #[allow(dead_code)]
-//     #[derive(Debug, Serialize, Deserialize)]
-//     pub struct Record {
-//         name: Option<String>,
-//         kind: Option<String>,
-//         description: Option<String>,
-//         tags: Vec<String>,
-//         metadata: Metadata,
-//         path: PathBuf,
-//         creator_kind: types::CreatorKind,
-//         creator: Option<types::CreatorId>,
-//         created: DateTime<Utc>,
-//     }
-
-//     impl Record {
-//         pub fn new(
-//             path: PathBuf,
-//             creator: syre_core::types::Creator,
-//             created: DateTime<Utc>,
-//         ) -> Self {
-//             let (creator_kind, creator) = types::creator_to_parts(creator);
-//             Self {
-//                 path,
-//                 created,
-//                 name: None,
-//                 kind: None,
-//                 description: None,
-//                 tags: vec![],
-//                 metadata: Metadata::new(),
-//                 creator,
-//                 creator_kind,
-//             }
-//         }
-
-//         pub fn from_properties(properties: AssetProperties, path: PathBuf) -> Self {
-//             let created = properties.created().clone();
-//             let AssetProperties {
-//                 creator,
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 ..
-//             } = properties;
-//             let (creator_kind, creator) = types::creator_to_parts(creator);
-//             Self {
-//                 path,
-//                 created,
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 creator,
-//                 creator_kind,
-//             }
-//         }
-//     }
-
-//     impl From<Asset> for Record {
-//         fn from(value: Asset) -> Self {
-//             let Asset {
-//                 properties, path, ..
-//             } = value;
-
-//             let created = properties.created().clone();
-//             let AssetProperties {
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 creator,
-//                 ..
-//             } = properties;
-//             let (creator_kind, creator) = types::creator_to_parts(creator);
-
-//             Self {
-//                 name,
-//                 kind,
-//                 description,
-//                 tags,
-//                 metadata,
-//                 path,
-//                 created,
-//                 creator,
-//                 creator_kind,
-//             }
-//         }
-//     }
-
-//     mod types {
-//         use serde::{Deserialize, Serialize};
-//         use syre_core::types::{Creator, ResourceId, UserId};
-
-//         #[derive(Debug, Serialize, Deserialize)]
-//         pub enum CreatorId {
-//             Id(ResourceId),
-//             Email(String),
-//         }
-
-//         #[derive(Debug, Serialize, Deserialize)]
-//         pub enum CreatorKind {
-//             User,
-//             Script,
-//         }
-
-//         /// Converts a [syre_core::Creator](syre_core::types::Creator) into its
-//         /// corresponding components.
-//         pub fn creator_to_parts(
-//             creator: syre_core::types::Creator,
-//         ) -> (CreatorKind, Option<CreatorId>) {
-//             match creator {
-//                 Creator::User(None) => (CreatorKind::User, None),
-//                 Creator::User(Some(UserId::Id(id))) => (CreatorKind::User, Some(CreatorId::Id(id))),
-//                 Creator::User(Some(UserId::Email(email))) => {
-//                     (CreatorKind::User, Some(CreatorId::Email(email)))
-//                 }
-//                 Creator::Script(id) => (CreatorKind::Script, Some(CreatorId::Id(id))),
-//             }
-//         }
-//     }
-// }
 
 #[cfg(test)]
 #[path = "./database_test.rs"]

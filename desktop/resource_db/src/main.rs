@@ -1,5 +1,6 @@
 use std::{
     io::{self, Write},
+    path::PathBuf,
     thread,
 };
 use syre_resource_db as db;
@@ -29,9 +30,26 @@ fn main() {
             continue;
         }
 
-        let response = client.query(query).unwrap();
-        let out = format!("{response:?}\n\n");
-        stdout.write_all(out.as_bytes()).unwrap();
+        if let Some(search) = query.strip_prefix("search(") {
+            let Some((project, search)) = search.split_once("):") else {
+                io::stderr().write_all("invalid query".as_bytes()).unwrap();
+                continue;
+            };
+
+            let response = client
+                .search_project(search.trim().to_string(), PathBuf::from(project))
+                .unwrap();
+            let out = format!("{response:?}\n\n");
+            stdout.write_all(out.as_bytes()).unwrap();
+        } else if let Some(search) = query.strip_prefix("search:") {
+            let response = client.search(search.trim().to_string()).unwrap();
+            let out = format!("{response:?}\n\n");
+            stdout.write_all(out.as_bytes()).unwrap();
+        } else {
+            let response = client.query(query).unwrap();
+            let out = format!("{response:?}\n\n");
+            stdout.write_all(out.as_bytes()).unwrap();
+        }
     }
 }
 

@@ -15,7 +15,14 @@ pub enum Command {
     Search {
         /// Response channel.
         tx: Tx<surrealdb::Result<Vec<ResourceId>>>,
-        project: Option<PathBuf>,
+        query: String,
+    },
+
+    /// Search for project resources within the database.
+    SearchProject {
+        /// Response channel.
+        tx: Tx<surrealdb::Result<Vec<ResourceId>>>,
+        project: PathBuf,
         query: String,
     },
 }

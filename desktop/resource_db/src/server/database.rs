@@ -1,10 +1,6 @@
 use super::{store, Store};
 use crate::Command;
 use std::{path::PathBuf, thread};
-use surrealdb::{
-    engine::local::{Db, Mem},
-    Surreal,
-};
 use syre_core::types::ResourceId;
 use syre_project_watcher as project_watcher;
 use tokio::sync::mpsc;
@@ -14,153 +10,6 @@ pub enum ResourceKind {
     Container,
     Asset,
 }
-
-pub const NAMESPACE: &str = "syre";
-pub const DATABASE: &str = "resource_db";
-
-const DEFINE_TABLE_USER: &str = "
-DEFINE TABLE user SCHEMAFULL;
-
-DEFINE FIELD email ON TABLE user TYPE string;
-";
-
-const DEFINE_TABLE_PROJECT: &str = "
-DEFINE TABLE project SCHEMAFULL;
-
-DEFINE FIELD path       ON TABLE project TYPE string;
-DEFINE FIELD properties ON TABLE project TYPE option<record<project_properties>>;
-DEFINE FIELD settings   ON TABLE project TYPE option<record<project_settings>>;
-";
-
-const DEFINE_TABLE_PROJECT_PROPERTIES: &str = "
-DEFINE TABLE project_properties SCHEMAFULL;
-
-DEFINE FIELD _project       ON TABLE project_properties TYPE record<project>;
-DEFINE FIELD name           ON TABLE project_properties TYPE string;
-DEFINE FIELD description    ON TABLE project_properties TYPE option<string>;
-DEFINE FIELD data_root      ON TABLE project_properties TYPE string;
-DEFINE FIELD analysis_root  ON TABLE project_properties TYPE option<string>;
-";
-
-const DEFINE_TABLE_PROJECT_SETTINGS: &str = "
-DEFINE TABLE project_settings SCHEMAFULL;
-
-DEFINE FIELD _project   ON TABLE project_settings TYPE record<project>;
-DEFINE FIELD creator    ON TABLE project_settings TYPE option<{ Email: string } | { Id: bytes }>;
-DEFINE FIELD created    ON TABLE project_settings TYPE datetime;
-";
-
-// NB: `env` field may need to be marked as `FLEXIBLE`.
-// https://surrealdb.com/docs/surrealdb/surrealql/statements/define/field#flexible-data-types
-const DEFINE_TABLE_ANALYSIS: &str = "
-DEFINE TABLE analysis SCHEMAFULL;
-
-DEFINE FIELD _project       ON TABLE analysis TYPE record<project>;
-DEFINE FIELD path           ON TABLE analysis TYPE string;
-DEFINE FIELD name           ON TABLE analysis TYPE option<string>;
-DEFINE FIELD description    ON TABLE analysis TYPE option<string>;
-
-DEFINE FIELD language       ON TABLE analysis TYPE string;
-DEFINE FIELD cmd            ON TABLE analysis TYPE string;
-DEFINE FIELD args           ON TABLE analysis TYPE array<string>;
-DEFINE FIELD env            ON TABLE analysis TYPE object;
-
-DEFINE FIELD creator        ON TABLE analysis TYPE option<bytes>;
-DEFINE FIELD created        ON TABLE analysis TYPE datetime;
-";
-
-const DEFINE_TABLE_CONTAINER: &str = "
-DEFINE TABLE container SCHEMAFULL;
-
-DEFINE FIELD _project   ON TABLE container TYPE record<project>;
-DEFINE FIELD path       ON TABLE container TYPE string;
-DEFINE FIELD properties ON TABLE container TYPE option<record<container_properties>>;
-DEFINE FIELD settings   ON TABLE container TYPE option<record<container_settings>>;
-";
-
-const DEFINE_TABLE_CONTAINER_PROPERTIES: &str = "
-DEFINE TABLE container_properties SCHEMAFULL;
-
-DEFINE FIELD _project       ON TABLE container_properties TYPE record<project>;
-DEFINE FIELD _container     ON TABLE container_properties TYPE record<container>;
-DEFINE FIELD name           ON TABLE container_properties TYPE string;
-DEFINE FIELD kind           ON TABLE container_properties TYPE option<string>;
-DEFINE FIELD description    ON TABLE container_properties TYPE option<string>;
-DEFINE FIELD tags           ON TABLE container_properties TYPE set<string>;
-DEFINE FIELD metadata       ON TABLE container_properties FLEXIBLE TYPE object;
-";
-
-const DEFINE_TABLE_CONTAINER_SETTINGS: &str = "
-DEFINE TABLE container_settings SCHEMAFULL;
-
-DEFINE FIELD _project   ON TABLE container_settings TYPE record<project>;
-DEFINE FIELD _container ON TABLE container_settings TYPE record<container>;
-DEFINE FIELD creator    ON TABLE container_settings TYPE option<{ Email: string } | { Id: bytes }>;
-DEFINE FIELD created    ON TABLE container_settings TYPE datetime;
-";
-
-const DEFINE_TABLE_ASSET: &str = "
-DEFINE TABLE asset SCHEMAFULL;
-
-DEFINE FIELD _project       ON TABLE asset TYPE record<project>;
-DEFINE FIELD _container     ON TABLE asset TYPE record<container>;
-DEFINE FIELD name           ON TABLE asset TYPE option<string>;
-DEFINE FIELD kind           ON TABLE asset TYPE option<string>;
-DEFINE FIELD description    ON TABLE asset TYPE option<string>;
-DEFINE FIELD tags           ON TABLE asset TYPE set<string>;
-DEFINE FIELD metadata       ON TABLE asset FLEXIBLE TYPE object;
-
-DEFINE FIELD created        ON TABLE asset TYPE datetime;
-DEFINE FIELD creator        ON TABLE asset TYPE
-    { User: option<{ Email: string } | { Id: bytes }> }
-    | { Script: bytes };
-    
-DEFINE FIELD path                   ON TABLE asset TYPE string;
-DEFINE FIELD fs_resource_present    ON TABLE asset TYPE bool;
-";
-
-const DEFINE_TABLE_FLAG: &str = "
-DEFINE TABLE flag SCHEMAFULL;
-
-DEFINE FIELD _project       ON TABLE flag TYPE record<project>;
-DEFINE FIELD resource       ON TABLE flag TYPE option<record<container> | record<asset>>;
-
-DEFINE FIELD path           ON TABLE flag TYPE string;
-DEFINE FIELD severity       ON TABLE flag TYPE 'Info' | 'Warning' | 'Error';
-DEFINE FIELD message        ON TABLE flag TYPE string;
-";
-
-const DEFINE_TABLE_PERMISSIONS: &str = "
-DEFINE TABLE permissions SCHEMAFULL;
-
-DEFINE FIELD resource   ON TABLE permissions TYPE record<string>;
-DEFINE FIELD user       ON TABLE permissions TYPE record<user>;
-DEFINE FIELD owner      ON TABLE permissions TYPE bool;
-DEFINE FIELD read       ON TABLE permissions TYPE bool;
-DEFINE FIELD write      ON TABLE permissions TYPE bool;
-DEFINE FIELD execute    ON TABLE permissions TYPE bool;
-
-DEFINE INDEX id         ON TABLE permissions FIELDS resource, user UNIQUE;
-";
-
-const DEFINE_SEARCH_INDICES: &str = "
-DEFINE ANALYZER properties_analyzer 
-    TOKENIZERS blank, class, punct 
-    FILTERS lowercase, ascii, snowball(english), ngram(1, 15);
-
-DEFINE INDEX container_name         ON container_properties COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_kind         ON container_properties COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_description  ON container_properties COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_tags         ON container_properties COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_metadata     ON container_properties COLUMNS metadata SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-
-DEFINE INDEX asset_name         ON asset COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_kind         ON asset COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_description  ON asset COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_tags         ON asset COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_metadata     ON asset COLUMNS metadata SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_path         ON asset COLUMNS path SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-";
 
 pub struct Builder {
     query_rx: mpsc::UnboundedReceiver<Command>,
@@ -173,18 +22,6 @@ impl Builder {
 
     #[tokio::main]
     pub async fn run(self) -> surrealdb::Result<()> {
-        let db = Surreal::new::<Mem>(()).await?;
-        db.use_ns(NAMESPACE).use_db(DATABASE).await?;
-        db.query(DEFINE_TABLE_PROJECT).await?;
-        db.query(DEFINE_TABLE_PROJECT_PROPERTIES).await?;
-        db.query(DEFINE_TABLE_PROJECT_SETTINGS).await?;
-        db.query(DEFINE_TABLE_CONTAINER).await?;
-        db.query(DEFINE_TABLE_CONTAINER_PROPERTIES).await?;
-        db.query(DEFINE_TABLE_CONTAINER_SETTINGS).await?;
-        db.query(DEFINE_TABLE_ASSET).await?;
-        db.query(DEFINE_TABLE_FLAG).await?;
-        db.query(DEFINE_SEARCH_INDICES).await?;
-
         let (project_event_tx, project_event_rx) = mpsc::unbounded_channel();
         let project_actor = super::project_watcher_actor::Builder::new(project_event_tx);
         thread::Builder::new()
@@ -194,7 +31,7 @@ impl Builder {
             })
             .expect("could not launch project watcher actor");
 
-        let mut db = Database::new(db, self.query_rx, project_event_rx);
+        let mut db = Database::new(self.query_rx, project_event_rx).await?;
         db.run().await;
         Ok(())
     }
@@ -208,17 +45,16 @@ struct Database {
 }
 
 impl Database {
-    fn new(
-        store: Surreal<Db>,
+    async fn new(
         query_rx: mpsc::UnboundedReceiver<Command>,
         project_event_rx: mpsc::UnboundedReceiver<Vec<project_watcher::Update>>,
-    ) -> Self {
-        Self {
+    ) -> surrealdb::Result<Self> {
+        Ok(Self {
             pw_client: project_watcher::Client::new(),
-            store: Store::new(store),
+            store: Store::new().await?,
             query_rx,
             project_event_rx,
-        }
+        })
     }
 
     async fn run(&mut self) {
@@ -244,7 +80,8 @@ impl Database {
 
                     match cmd {
                         Command::Query { query, tx } => self.store.handle_query(tx, query).await,
-                        Command::Search { tx, project, query } => self.store.handle_search(tx, project, query).await,
+                        Command::Search { tx,  query } => self.store.handle_search(tx, query, None).await,
+                        Command::SearchProject { tx, project, query } => self.store.handle_search(tx, query, Some(project)).await,
                     }
                 },
             }
@@ -378,7 +215,7 @@ impl Database {
         for (path, container) in std::iter::zip(paths, graph.nodes.iter()) {
             let container_record_id = self
                 .store
-                .insert_container(project_id.clone(), path)
+                .insert_container(project_id.clone(), container.name().clone(), path)
                 .await
                 .unwrap();
 
@@ -463,7 +300,13 @@ impl Database {
                     for flag in resource_flags {
                         let record_id = self
                             .store
-                            .insert_flag(project_id.clone(), resource.clone(), path.clone(), flag)
+                            .insert_flag(
+                                project_id.clone(),
+                                container_record_id.clone(),
+                                resource.clone(),
+                                path.clone(),
+                                flag,
+                            )
                             .await
                             .unwrap();
                     }
@@ -480,18 +323,28 @@ fn paths_from_graph_data(graph: &project_watcher::state::Graph) -> Vec<PathBuf> 
         graph: &project_watcher::state::Graph,
         paths: &mut Vec<PathBuf>,
         idx: usize,
-        root: &PathBuf,
+        root: PathBuf,
     ) {
-        let node = graph.nodes.get(idx).unwrap();
-        let root = root.join(node.name());
+        let root = if idx == 0 {
+            root
+        } else {
+            let node = graph.nodes.get(idx).unwrap();
+            root.join(node.name())
+        };
+
         paths[idx] = root.clone();
         for child in graph.children[idx].iter() {
-            inner(graph, paths, *child, &root);
+            inner(graph, paths, *child, root.clone());
         }
     }
 
     let mut paths = vec![PathBuf::new(); graph.nodes.len()];
-    inner(graph, &mut paths, 0, &PathBuf::new());
+    inner(
+        graph,
+        &mut paths,
+        0,
+        PathBuf::from_iter(std::iter::once(std::path::Component::RootDir)),
+    );
     paths
 }
 
@@ -507,8 +360,13 @@ pub mod error {
 }
 
 mod project_events {
-    use super::Database;
-    use syre_project_watcher::{event, Update};
+    use super::{store, Database};
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Serialize};
+    use std::{collections::HashMap, path::PathBuf};
+    use syre_core as core;
+    use syre_local as local;
+    use syre_project_watcher::{event, state, Update};
 
     impl Database {
         pub(super) async fn handle_update_events(&self, events: Vec<Update>) {
@@ -638,6 +496,18 @@ mod project_events {
             self.init_state().await.unwrap();
         }
 
+        async fn handle_event_update_app_local_config(&self, event: Update) {
+            let event::UpdateKind::App(event::App::LocalConfig(kind)) = event.kind() else {
+                panic!("invalid event kind");
+            };
+
+            match kind {
+                event::LocalConfig::Ok(_) => {}
+                event::LocalConfig::Error => {}
+                event::LocalConfig::Updated => {}
+            }
+        }
+
         async fn handle_event_update_project(&self, event: Update) {
             let event::UpdateKind::Project { update, .. } = event.kind() else {
                 panic!("invalid event kind");
@@ -653,7 +523,7 @@ mod project_events {
                 event::Project::Container { .. } => {
                     self.handle_event_update_project_container(event).await
                 }
-                event::Project::Asset { .. } => todo!(),
+                event::Project::Asset { .. } => self.handle_event_update_project_asset(event).await,
                 event::Project::AssetFile(_) => todo!(),
                 event::Project::AnalysisFile(_) => todo!(),
             }
@@ -669,22 +539,29 @@ mod project_events {
             };
 
             match update {
-                event::Container::Properties(data_resource) => {
+                event::Container::Properties(_) => {
                     self.handle_event_update_project_container_properties(event)
                         .await
                 }
-                event::Container::Settings(data_resource) => todo!(),
-                event::Container::Assets(data_resource) => todo!(),
-                event::Container::Flags(data_resource) => todo!(),
+                event::Container::Settings(_) => {
+                    self.handle_event_update_project_container_settings(event)
+                        .await
+                }
+                event::Container::Assets(_) => {
+                    self.handle_event_update_project_container_assets(event)
+                        .await
+                }
+                event::Container::Flags(_) => {
+                    self.handle_event_update_project_container_flags(event)
+                        .await
+                }
             }
         }
 
         async fn handle_event_update_project_container_properties(&self, event: Update) {
             let event::UpdateKind::Project {
-                path: project_path,
                 update:
                     event::Project::Container {
-                        path: container_path,
                         update: event::Container::Properties(update),
                         ..
                     },
@@ -695,24 +572,1062 @@ mod project_events {
             };
 
             match update {
-                event::DataResource::Created(_) => todo!(),
-                event::DataResource::Removed => todo!(),
-                event::DataResource::Corrupted(_) => todo!(),
-                event::DataResource::Repaired(_) => todo!(),
-                event::DataResource::Modified(_) => todo!(),
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_container_properties_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_container_properties_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(_) => {
+                    self.handle_event_update_project_container_properties_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_container_properties_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_container_properties_modified(event)
+                        .await
+                }
             }
         }
 
-        async fn handle_event_update_app_local_config(&self, event: Update) {
-            let event::UpdateKind::App(event::App::LocalConfig(kind)) = event.kind() else {
+        async fn handle_event_update_project_container_properties_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Properties(event::DataResource::Created(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
                 panic!("invalid event kind");
             };
 
-            match kind {
-                event::LocalConfig::Ok(_) => {}
-                event::LocalConfig::Error => {}
-                event::LocalConfig::Updated => {}
+            let state::DataResource::Ok(local::project::container::StoredProperties {
+                rid,
+                properties,
+                ..
+            }) = update
+            else {
+                return;
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_container_properties(
+                    project_id,
+                    container_id,
+                    rid.clone(),
+                    properties.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_properties_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Properties(event::DataResource::Removed),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_properties_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_properties_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Properties(event::DataResource::Corrupted(_)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_properties_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_properties_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Properties(event::DataResource::Repaired(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let local::project::container::StoredProperties {
+                rid, properties, ..
+            } = update;
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_container_properties(
+                    project_id,
+                    container_id,
+                    rid.clone(),
+                    properties.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_properties_modified(&self, event: Update) {
+            #[derive(Serialize)]
+            struct Update {
+                name: String,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
             }
+
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Container {
+                        update: event::Container::Properties(event::DataResource::Modified(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let local::project::container::StoredProperties {
+                rid, properties, ..
+            } = update;
+
+            let core::project::ContainerProperties {
+                name,
+                kind,
+                description,
+                tags,
+                metadata,
+            } = properties.clone();
+
+            self.store
+                .update::<Option<store::IdRecord>>(("container_properties", rid.to_string()))
+                .merge(Update {
+                    name,
+                    kind,
+                    description,
+                    tags,
+                    metadata,
+                })
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_settings(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Container {
+                        update: event::Container::Settings(update),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_container_settings_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_container_settings_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(io_serde) => {
+                    self.handle_event_update_project_container_settings_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_container_settings_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_container_settings_modified(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_settings_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Settings(event::DataResource::Created(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let state::DataResource::Ok(update) = update else {
+                return;
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_container_settings(project_id, container_id, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_settings_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Settings(event::DataResource::Removed),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_settings_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_settings_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Settings(event::DataResource::Corrupted(_)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_settings_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_settings_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Settings(event::DataResource::Repaired(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_container_settings(project_id, container_id, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_settings_modified(&self, event: Update) {
+            #[derive(Serialize)]
+            struct Update {
+                creator: Option<core::types::UserId>,
+
+                #[serde(serialize_with = "store::cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Settings(event::DataResource::Modified(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let mut settings_id = self
+                .store
+                .query(
+                    "SELECT settings as id FROM container \
+                    WHERE _project=type::thing($project) AND path=type::string($path)",
+                )
+                .bind(("project", project_id))
+                .bind(("path", container_path.clone()))
+                .await
+                .unwrap();
+
+            let settings_id: Option<store::IdRecord> = settings_id.take(0).unwrap();
+            let settings_id = settings_id.unwrap();
+
+            let update = Update {
+                creator: update.creator.clone(),
+                created: update.created.clone(),
+            };
+
+            self.store
+                .update::<Option<store::IdRecord>>(settings_id.id)
+                .merge(update)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_assets(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Container {
+                        update: event::Container::Assets(update),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_container_assets_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_container_assets_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(_) => {
+                    self.handle_event_update_project_container_assets_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_container_assets_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_container_assets_modified(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_assets_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Assets(event::DataResource::Created(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let state::DataResource::Ok(update) = update else {
+                return;
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            for asset in update {
+                self.store
+                    .insert_asset(project_id.clone(), container_id.clone(), asset.clone())
+                    .await
+                    .unwrap();
+            }
+        }
+
+        async fn handle_event_update_project_container_assets_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Assets(event::DataResource::Removed),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_assets_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_assets_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Assets(event::DataResource::Corrupted(_)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_assets_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_assets_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Assets(event::DataResource::Repaired(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            for asset in update {
+                self.store
+                    .insert_asset(project_id.clone(), container_id.clone(), asset.clone())
+                    .await
+                    .unwrap();
+            }
+        }
+
+        async fn handle_event_update_project_container_assets_modified(&self, event: Update) {
+            #[derive(Deserialize)]
+            struct AssetRecord {
+                pub id: surrealdb::RecordId,
+                pub path: PathBuf,
+            }
+
+            #[derive(Serialize)]
+            struct UpdateRecord {
+                name: Option<String>,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
+                path: PathBuf,
+                fs_resource_present: bool,
+
+                creator: core::types::Creator,
+
+                #[serde(serialize_with = "store::cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Assets(event::DataResource::Modified(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let mut assets = self
+                .store
+                .query("SELECT id, path FROM asset WHERE _container=type::thing($container)")
+                .bind(("container", container_id.clone()))
+                .await
+                .unwrap();
+
+            let assets = assets.take::<Vec<AssetRecord>>(0).unwrap();
+            let asset_paths = assets.iter().map(|asset| &asset.path).collect::<Vec<_>>();
+            let update_paths = update.iter().map(|asset| &asset.path).collect::<Vec<_>>();
+            for asset in assets.iter() {
+                if !update_paths.contains(&&asset.path) {
+                    self.store
+                        .delete::<Option<store::IdRecord>>(asset.id.clone())
+                        .await
+                        .unwrap();
+                }
+            }
+
+            for asset_update in update {
+                if let Some(idx) = asset_paths
+                    .iter()
+                    .position(|path| &asset_update.path == *path)
+                {
+                    let update_record = UpdateRecord {
+                        name: asset_update.properties.name.clone(),
+                        kind: asset_update.properties.kind.clone(),
+                        description: asset_update.properties.description.clone(),
+                        tags: asset_update.properties.tags.clone(),
+                        metadata: asset_update.properties.metadata.clone(),
+                        path: asset_update.path.clone(),
+                        fs_resource_present: asset_update.is_present(),
+                        creator: asset_update.properties.creator.clone(),
+                        created: asset_update.properties.created().clone(),
+                    };
+
+                    self.store
+                        .update::<Option<store::IdRecord>>(assets[idx].id.clone())
+                        .merge(update_record)
+                        .await
+                        .unwrap();
+                } else {
+                    self.store
+                        .insert_asset(
+                            project_id.clone(),
+                            container_id.clone(),
+                            asset_update.clone(),
+                        )
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_flags(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Container {
+                        update: event::Container::Flags(update),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_container_flags_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_container_flags_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(_) => {
+                    self.handle_event_update_project_container_flags_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_container_flags_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_container_flags_modified(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_flags_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Flags(event::DataResource::Created(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let state::DataResource::Ok(update) = update else {
+                return;
+            };
+            let root_dir = PathBuf::from("/");
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            for (path, flags) in update {
+                let resource = if *path == root_dir {
+                    Some(container_id.clone())
+                } else {
+                    self.store
+                        .asset_record_id_from_path(container_id.clone(), path.clone())
+                        .await
+                        .unwrap()
+                };
+
+                for flag in flags {
+                    self.store
+                        .insert_flag(
+                            project_id.clone(),
+                            container_id.clone(),
+                            resource.clone(),
+                            path.clone(),
+                            flag,
+                        )
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_flags_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Flags(event::DataResource::Created(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_flags_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_flags_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Flags(event::DataResource::Corrupted(_)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_container_flags_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_container_flags_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Flags(event::DataResource::Repaired(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+            let root_dir = PathBuf::from("/");
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            for (path, flags) in update {
+                let resource = if *path == root_dir {
+                    Some(container_id.clone())
+                } else {
+                    self.store
+                        .asset_record_id_from_path(container_id.clone(), path.clone())
+                        .await
+                        .unwrap()
+                };
+
+                for flag in flags {
+                    self.store
+                        .insert_flag(
+                            project_id.clone(),
+                            container_id.clone(),
+                            resource.clone(),
+                            path.clone(),
+                            flag,
+                        )
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+
+        async fn handle_event_update_project_container_flags_modified(&self, event: Update) {
+            let root_dir = PathBuf::from("/");
+
+            #[derive(Deserialize)]
+            struct FlagRecord {
+                pub id: surrealdb::RecordId,
+                pub path: PathBuf,
+            }
+
+            #[derive(Serialize)]
+            struct UpdateRecord {
+                severity: local::project::flag::Severity,
+                message: String,
+            }
+
+            let event::UpdateKind::Project {
+                path: project_path,
+                update:
+                    event::Project::Container {
+                        path: container_path,
+                        update: event::Container::Flags(event::DataResource::Modified(update)),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(project_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let container_id = self
+                .store
+                .container_record_id_from_path(project_id.clone(), container_path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .remove_container_flags_by_path(project_path.clone(), container_path.clone())
+                .await
+                .unwrap();
+            for (path, flags) in update {
+                let resource = if *path == root_dir {
+                    Some(container_id.clone())
+                } else {
+                    self.store
+                        .asset_record_id_from_path(container_id.clone(), path.clone())
+                        .await
+                        .unwrap()
+                };
+
+                for flag in flags {
+                    self.store
+                        .insert_flag(
+                            project_id.clone(),
+                            container_id.clone(),
+                            resource.clone(),
+                            path.clone(),
+                            flag,
+                        )
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+
+        async fn handle_event_update_project_asset(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update: event::Project::Asset { update, .. },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::Asset::FileCreated => {
+                    self.handle_event_update_project_asset_file_created(event)
+                        .await
+                }
+                event::Asset::FileRemoved => {
+                    self.handle_event_update_project_asset_file_removed(event)
+                        .await
+                }
+                event::Asset::Properties(_) => {
+                    self.handle_event_update_project_asset_properties(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_asset_file_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Asset {
+                        asset,
+                        update: event::Asset::FileCreated,
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .query("UPDATE type::thing($asset) SET fs_resource_present = TRUE")
+                .bind(("asset", asset.clone()))
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_asset_file_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Asset {
+                        asset,
+                        update: event::Asset::FileRemoved,
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .query("UPDATE type::thing($asset) SET fs_resource_present = FALSE")
+                .bind(("asset", asset.clone()))
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_asset_properties(&self, event: Update) {
+            #[derive(Serialize)]
+            struct UpdateRecord {
+                name: Option<String>,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
+                path: PathBuf,
+                fs_resource_present: bool,
+
+                creator: core::types::Creator,
+
+                #[serde(serialize_with = "store::cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
+            let event::UpdateKind::Project {
+                update:
+                    event::Project::Asset {
+                        asset,
+                        update: event::Asset::Properties(update),
+                        ..
+                    },
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let update_record = UpdateRecord {
+                name: update.properties.name.clone(),
+                kind: update.properties.kind.clone(),
+                description: update.properties.description.clone(),
+                tags: update.properties.tags.clone(),
+                metadata: update.properties.metadata.clone(),
+                path: update.path.clone(),
+                fs_resource_present: update.is_present(),
+                creator: update.properties.creator.clone(),
+                created: update.properties.created().clone(),
+            };
+
+            self.store
+                .update::<Option<store::IdRecord>>(("asset", asset.clone()))
+                .merge(update_record)
+                .await
+                .unwrap();
         }
     }
 }

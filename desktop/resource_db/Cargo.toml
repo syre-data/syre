@@ -19,8 +19,8 @@ derive_more.workspace = true
 futures.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-surrealdb = { workspace = true, features = ["kv-mem"], optional = true }
-syre-core = { workspace = true, optional = true }
+surrealdb = { version = "2.1", package = "surrealdb-nightly", optional = true }
+syre-core.workspace = true
 syre-local = { workspace = true, optional = true }
 syre-project-watcher = { workspace = true, optional = true }
 tokio = { version = "1.36", features = ["sync"], optional = true }
@@ -34,16 +34,15 @@ uuid.workspace = true
 zmq = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["server", "client"]
 server = [
-    "surrealdb",
+    "surrealdb/kv-mem",
     "syre-project-watcher/client",
-    "syre-core/surreal_db",
     "syre-local",
     "tokio/macros",
     "tokio/rt-multi-thread",
     "zmq",
 ]
-client = ["tokio", "zmq"]
+client = ["surrealdb", "tokio"]
 
 # NB: Release profile configured in workspace root.

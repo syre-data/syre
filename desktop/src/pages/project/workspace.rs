@@ -1,4 +1,4 @@
-use super::{canvas, properties, state, Canvas, LayersNav, ProjectBar, PropertiesBar, Settings};
+use super::{canvas, properties, state, Canvas, NavBar, ProjectBar, PropertiesBar, Settings};
 use crate::{
     commands, common,
     components::{self, drawer, Drawer, Logo},
@@ -368,7 +368,7 @@ fn WorkspaceGraph(graph: db::state::Graph, analyze_node: NodeRef<html::Div>) -> 
                     absolute=true
                     class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-r"
                 >
-                    <LayersNav />
+                    <NavBar />
                 </Drawer>
                 <div class="grow">
                     <Canvas />
@@ -426,7 +426,7 @@ fn ProjectNav() -> impl IntoView {
                         on:mousedown=open_settings
                         type="button"
                         class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
-                            border border-transparent hover:border-black dark:hover:border-white"
+                        border border-transparent hover:border-black dark:hover:border-white"
                     >
                         <Icon icon=components::icon::Settings />
                     </button>

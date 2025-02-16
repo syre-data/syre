@@ -27,7 +27,6 @@ rayon = { workspace = true, optional = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true }
-surrealdb = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
@@ -52,4 +51,3 @@ system = []
 serde = ["dep:serde", "serde/rc", "has_id/serde"]
 clap = ["dep:clap"]
 js = ["uuid/js"]
-surreal_db = ["dep:surrealdb"]

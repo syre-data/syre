@@ -1,4 +1,3 @@
-#[cfg(any(feature = "server", feature = "client"))]
 mod command;
 
 #[cfg(feature = "server")]
@@ -15,3 +14,5 @@ pub use server::Builder;
 
 #[cfg(feature = "client")]
 pub use client::Client;
+
+pub use command::SearchResult;

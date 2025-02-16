@@ -7,5 +7,6 @@ pub mod fs;
 pub mod graph;
 pub mod mixed_bulk;
 pub mod settings;
+pub mod query;
 pub mod project;
 pub mod user;

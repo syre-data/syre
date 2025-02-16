@@ -1,4 +1,4 @@
-use super::{
+use super::super::{
     common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
     state,
     workspace::ViewboxState,
@@ -315,7 +315,7 @@ fn ContainerLayerTitleOk(
             let node = document
                 .query_selector(&format!(
                     "[data-resource=\"{}\"][data-rid=\"{}\"]",
-                    super::canvas::DATA_KEY_CONTAINER,
+                    super::super::canvas::DATA_KEY_CONTAINER,
                     rid.get_untracked()
                 ))
                 .unwrap()
@@ -358,8 +358,7 @@ fn ContainerLayerTitleOk(
                 current_wrapper = wrapper;
             }
 
-            tracing::debug!(?y, ?object_height, vbh = ?viewbox.height().get_untracked());
-            let x0 = x + object_x + (super::CONTAINER_WIDTH / 2) as isize
+            let x0 = x + object_x + (super::super::CONTAINER_WIDTH / 2) as isize
                 - viewbox.width().with_untracked(|width| width / 2) as isize;
             let y0 = y + (object_height / 2) as isize
                 - viewbox.height().with_untracked(|height| height / 2) as isize;

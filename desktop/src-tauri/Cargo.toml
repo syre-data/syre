@@ -28,6 +28,7 @@ syre-local = { workspace = true, features = ["fs"] }
 syre-project-watcher = { workspace = true, features = ["client"] }
 syre-local-runner = { workspace = true }
 syre-desktop-lib = { path = "../src-lib", features = ["server"] }
+syre-resource-db = { path = "../resource_db" }
 tauri = { version = "2.2", features = [] }
 tauri-plugin-dialog = "2.2"
 tauri-plugin-devtools = { git = "https://github.com/crabnebula-dev/devtools" }

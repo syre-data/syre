@@ -1,6 +1,5 @@
-use crate::Command;
+use crate::{Command, SearchResult};
 use std::path::PathBuf;
-use syre_core::types::ResourceId;
 use tokio::sync::{mpsc, oneshot};
 
 pub struct Client {
@@ -23,7 +22,7 @@ impl Client {
         rx.blocking_recv().unwrap()
     }
 
-    pub fn search(&self, query: impl Into<String>) -> surrealdb::Result<Vec<ResourceId>> {
+    pub fn search(&self, query: impl Into<String>) -> surrealdb::Result<SearchResult> {
         let (tx, rx) = oneshot::channel();
         let cmd = Command::Search {
             tx,
@@ -38,7 +37,7 @@ impl Client {
         &self,
         query: impl Into<String>,
         project: PathBuf,
-    ) -> surrealdb::Result<Vec<ResourceId>> {
+    ) -> surrealdb::Result<SearchResult> {
         let (tx, rx) = oneshot::channel();
         let cmd = Command::SearchProject {
             tx,

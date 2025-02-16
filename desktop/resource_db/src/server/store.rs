@@ -1,3 +1,4 @@
+use crate::command::SearchResult;
 use std::{path::PathBuf, str::FromStr};
 use surrealdb::{
     engine::local::{Db, Mem},
@@ -208,7 +209,7 @@ impl Store {
 
     pub async fn handle_search(
         &self,
-        tx: Tx<Vec<ResourceId>>,
+        tx: Tx<SearchResult>,
         query: String,
         project: Option<PathBuf>,
     ) {
@@ -230,7 +231,7 @@ impl Store {
             };
 
             if project_id.is_none() {
-                Self::send_response(tx, Ok(vec![]));
+                Self::send_response(tx, Ok(SearchResult::empty()));
                 return;
             }
 
@@ -325,7 +326,7 @@ impl Store {
             }
         };
 
-        let container_results = match container_results.take::<Vec<Record>>(0) {
+        let mut container_results = match container_results.take::<Vec<Record>>(0) {
             Ok(results) => results,
             Err(err) => {
                 tracing::error!(?err);
@@ -343,23 +344,26 @@ impl Store {
             }
         };
 
-        let mut results = container_results;
-        results.append(&mut asset_results);
-        results.sort_by(|ra, rb| ra.score.partial_cmp(&rb.score).unwrap());
+        container_results.sort_by(|ra, rb| rb.score.partial_cmp(&ra.score).unwrap());
+        asset_results.sort_by(|ra, rb| rb.score.partial_cmp(&ra.score).unwrap());
 
-        let results = results
+        let (containers, container_scores): (Vec<_>, Vec<_>) = container_results
             .into_iter()
             .map(|record| {
-                let key = record.id.key();
-                let key_str = key.to_string();
-                let mut rid = key_str.chars();
-                rid.next(); // strip key delimeters
-                rid.next_back();
-                let rid = rid.as_str();
-
-                ResourceId::from_str(rid).unwrap()
+                let rid = record_id_key_to_resource_id(record.id.key()).unwrap();
+                (rid, record.score)
             })
-            .collect();
+            .unzip();
+
+        let (assets, asset_scores): (Vec<_>, Vec<_>) = asset_results
+            .into_iter()
+            .map(|record| {
+                let rid = record_id_key_to_resource_id(record.id.key()).unwrap();
+                (rid, record.score)
+            })
+            .unzip();
+
+        let results = SearchResult::new(containers, assets, container_scores, asset_scores);
 
         Self::send_response(tx, Ok(results));
     }
@@ -769,7 +773,7 @@ pub mod asset {
 
             let record = self
                 .db
-                .create::<Option<IdRecord>>(("asset", rid))
+                .create::<Option<IdRecord>>(("asset", rid.to_string()))
                 .content(record)
                 .await?
                 .unwrap();
@@ -918,6 +922,18 @@ fn escape_string(input: impl AsRef<str>) -> String {
     let input = input.as_ref();
     let input = input.replace("'", "\\'");
     input
+}
+
+fn record_id_key_to_resource_id(
+    key: &surrealdb::RecordIdKey,
+) -> Result<ResourceId, <ResourceId as FromStr>::Err> {
+    let key_str = key.to_string();
+    let mut rid = key_str.chars();
+    rid.next(); // strip key delimeters
+    rid.next_back();
+    let rid = rid.as_str();
+
+    ResourceId::from_str(rid)
 }
 
 pub mod cast {

@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use syre_desktop::{
     commands::{
-        analyses, asset, auth, common, container, fs, graph, mixed_bulk, project, settings, user,
+        analyses, asset, auth, common, container, fs, graph, mixed_bulk, project, query, settings,
+        user,
     },
     setup, state,
 };
@@ -69,6 +70,7 @@ fn main() {
             user::active_user,
             user::user_count,
             user::user_projects,
+            query::search_project,
         ])
         .setup(setup)
         .run(tauri::generate_context!())

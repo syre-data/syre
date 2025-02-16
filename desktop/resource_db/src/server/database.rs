@@ -1624,7 +1624,7 @@ mod project_events {
             };
 
             self.store
-                .update::<Option<store::IdRecord>>(("asset", asset.clone()))
+                .update::<Option<store::IdRecord>>(("asset", asset.to_string()))
                 .merge(update_record)
                 .await
                 .unwrap();

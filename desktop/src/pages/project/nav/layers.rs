@@ -154,7 +154,7 @@ pub fn LayersNavView(
     provide_context(ContextMenuAsset::new(context_menu_asset));
 
     view! {
-        <div class="h-full pt-2 px-1 overflow-auto scrollbar-thin dark:scrollbar-track-secondary-800">
+        <div class="h-full pt-2 overflow-auto scrollbar-thin dark:scrollbar-track-secondary-800">
             <ContainerLayer root=graph.root().clone() />
         </div>
     }
@@ -406,14 +406,14 @@ fn ContainerLayerTitleOk(
             prop:title=tooltip
             style:padding-left=move || { depth_to_padding(depth) }
             class="flex gap-1 cursor-pointer border-y border-transparent hover:border-secondary-400"
-            class=(["bg-primary-200", "dark:bg-secondary-900"], selected.clone())
+            class=(["bg-secondary-100", "dark:bg-secondary-900"], selected.clone())
         >
             <div class="inline-flex gap-1">
                 <span>
                     <ToggleExpand expanded />
                 </span>
             </div>
-            <div class="grow inline-flex gap-2">
+            <div class="grow inline-flex gap-2 pr-px">
                 <div class="grow inline-flex gap-1">
                     <TruncateLeft>{title}</TruncateLeft>
                 </div>
@@ -485,7 +485,8 @@ fn ContainerLayerTitleVisibilityToggle(container: state::graph::Node) -> impl In
                                 <button
                                     type="button"
                                     on:mousedown=toggle_container_visibility.clone()
-                                    class="align-middle"
+                                    class="align-middle cursor-pointer p-px rounded-xs \
+                                    hover:bg-secondary-100 dark:hover:bg-secondary-900"
                                 >
                                     <Icon icon=visibility_icon />
                                 </button>
@@ -588,7 +589,7 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<state::Asset>>, depth: usize) -> impl In
                 when=move || assets.with(|assets| !assets.is_empty())
                 fallback=move || ().into_view()
             >
-                <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex">
+                <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex pr-px">
                     <div class="inline-flex gap-1">
                         <span>
                             <ToggleExpand expanded />
@@ -691,7 +692,7 @@ fn AssetLayer(asset: state::Asset, depth: usize) -> impl IntoView {
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
             style:padding-left=move || { depth_to_padding(depth + 2) }
-            class=(["bg-primary-200", "dark:bg-secondary-900"], selected.clone())
+            class=(["bg-secondary-100", "dark:bg-secondary-900"], selected.clone())
             class="cursor-pointer border-y border-transparent hover:border-secondary-400"
         >
             <div

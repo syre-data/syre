@@ -1,14 +1,73 @@
-use leptos::prelude::*;
+use crate::{components::icon, types};
+use leptos::{either::either, ev::MouseEvent, prelude::*};
+use leptos_icons::Icon;
 
 mod layers;
 mod search;
 
+#[derive(PartialEq, Copy, Clone)]
+enum Widget {
+    Layers,
+    Search,
+}
+
 #[component]
 pub fn NavBar() -> impl IntoView {
+    let (widget, set_widget) = signal(Widget::Layers);
+
+    let mousedown = move |e: MouseEvent, view: Widget| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        if widget.with_untracked(|widget| view != *widget) {
+            set_widget(view);
+        }
+    };
+
     view! {
         <div>
-            <search::Search />
-            <layers::LayersNav />
+            <div class="flex gap-1 px-1 pt-px">
+                <button
+                    on:mousedown=move |e| mousedown(e, Widget::Layers)
+                    class=(
+                        ["bg-secondary-100", "dark:bg-secondary-900"],
+                        move || widget.with(|widget| matches!(widget, Widget::Layers)),
+                    )
+                    class="p-px hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded-xs \
+                    cursor-pointer"
+                >
+                    <Icon icon=icondata::TbListTree />
+                // <Icon icon=icondata::BsLayers />
+                </button>
+                <button
+                    on:mousedown=move |e| mousedown(e, Widget::Search)
+                    class=(
+                        ["bg-secondary-100", "dark:bg-secondary-900"],
+                        move || widget.with(|widget| matches!(widget, Widget::Search)),
+                    )
+                    class="p-px hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded-xs \
+                    cursor-pointer"
+                >
+                    <Icon icon=icon::Search />
+                </button>
+            </div>
+            <div>
+                <layers::LayersNav
+                    {..}
+                    class=(
+                        "hidden",
+                        move || widget.with(|widget| !matches!(widget, Widget::Layers)),
+                    )
+                />
+                <search::Search
+                    {..}
+                    class=(
+                        "hidden",
+                        move || widget.with(|widget| !matches!(widget, Widget::Search)),
+                    )
+                />
+            </div>
         </div>
     }
 }

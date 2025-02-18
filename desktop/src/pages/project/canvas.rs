@@ -1585,7 +1585,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
             on:mousedown=mousedown
             on:contextmenu=contextmenu
             title=asset_title_closure(&asset)
-            class=(["bg-secondary-300", "dark:bg-secondary-600"], selection_resource.clone())
+            class=(["bg-secondary-100", "dark:bg-secondary-600"], selection_resource.clone())
             class="flex gap-2 cursor-pointer px-2 py-0.5 border border-transparent \
             hover:border-secondary-600 dark:hover:border-secondary-400"
             data-resource=DATA_KEY_ASSET

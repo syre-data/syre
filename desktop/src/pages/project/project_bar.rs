@@ -134,7 +134,7 @@ fn PreviewSelector() -> impl IntoView {
                 id=MENU_ID
                 class:hidden=move || active.read().is_none()
                 class="absolute w-40 rounded-b bg-white dark:bg-secondary-900 border \
-                    border-t-0 border-secondary-600 dark:border-secondary-200"
+                border-t-0 border-secondary-600 dark:border-secondary-200"
             >
                 <form on:submit=move |e| e.prevent_default()>
                     <div class=CLASS_FORM_DIV>
@@ -289,7 +289,7 @@ fn Controls() -> impl IntoView {
         <button
             on:mousedown=refresh
             type="button"
-            class="btn-secondary p-1 rounded-xs"
+            class="btn-secondary p-1 rounded-xs cursor-pointer"
             title="Refresh"
         >
             <Icon icon=components::icon::Refresh />

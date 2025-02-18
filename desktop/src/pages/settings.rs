@@ -207,7 +207,7 @@ pub mod user {
                     </div>
                     <div>
                         <label>
-                            "Input debounce"
+                            <span class="pr-1">"Input debounce"</span>
                             <input
                                 type="number"
                                 min="250"
@@ -215,8 +215,9 @@ pub mod user {
                                 step="50"
                                 prop:value=input_debounce
                                 on:input=update_input_debounce
-                                class="input-simple"
-                            /> <small>"250 - 1000 ms"</small>
+                                class="input-compact"
+                            />
+                            <small class="pl-1">"250 - 1000 ms"</small>
                         </label>
                     </div>
                 </form>

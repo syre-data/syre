@@ -214,7 +214,7 @@ fn WorkspaceView(
     view! {
         <div class="select-none flex flex-col h-full relative">
             <ProjectNav />
-            <div class="border-b">
+            <div class="border-b not-dark:border-b-secondary-900">
                 <ProjectBar analyze_node />
             </div>
             {move || {
@@ -366,7 +366,8 @@ fn WorkspaceGraph(graph: db::state::Graph, analyze_node: NodeRef<html::Div>) -> 
                 <Drawer
                     dock=drawer::Dock::East
                     absolute=true
-                    class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-r"
+                    class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-r \
+                    not-dark:border-r-secondary-900"
                 >
                     <NavBar />
                 </Drawer>
@@ -376,7 +377,8 @@ fn WorkspaceGraph(graph: db::state::Graph, analyze_node: NodeRef<html::Div>) -> 
                 <Drawer
                     dock=drawer::Dock::West
                     absolute=true
-                    class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-l"
+                    class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-l \
+                    not-dark:border-l-secondary-900"
                 >
                     <PropertiesBar />
                 </Drawer>

@@ -1,4 +1,6 @@
-/dist/
-/target/
-/Cargo.lock
+/dist
+/target
+/bundles
 /node_modules
+/.tauri/syre.key
+build.out

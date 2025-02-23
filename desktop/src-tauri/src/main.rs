@@ -9,7 +9,10 @@ use syre_desktop::{
 };
 
 fn main() {
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(debug_assertions)] // only enable devtools instrumentation in development builds
     let builder = builder.plugin(tauri_plugin_devtools::init());
@@ -17,8 +20,6 @@ fn main() {
     let _log_guard = logging::enable();
 
     builder
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_shell::init())
         .manage(syre_project_watcher::Client::new())
         .manage(state::new_slice(Option::<state::AnalyzerAction>::None))
         .invoke_handler(tauri::generate_handler![

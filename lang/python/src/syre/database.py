@@ -1,11 +1,10 @@
 from typing import Union, Any
+import os
 import io
 import subprocess
 import importlib.resources as pkg_resources
-from enum import StrEnum
 import inspect
 import socket
-import os
 import json
 from datetime import datetime
 import platform
@@ -29,6 +28,12 @@ if _LEGACY_:
 else:
     Containers = list[Container]
     Assets = list[Asset]
+    
+try:
+    from enum import StrEnum as Enum
+except ImportError:
+    from enum import Enum
+
 
 LOCALHOST = "127.0.0.1"
 SYRE_PORT = 7047
@@ -39,12 +44,10 @@ if platform.system() == "Windows":
 else:
     ROOT_DIR = "/"
 
-
-class FlagSeverity(StrEnum):
+class FlagSeverity(Enum):
     Info = "Info"
     Warning = "Warning"
     Error = "Error"
-
 
 class Database:
     """

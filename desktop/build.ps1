@@ -22,16 +22,24 @@ $TAURI_CONF_PATH = "src-tauri/tauri.conf.json"
 $LIB_TOML_PATH = "src-lib/Cargo.toml"
 $BUILD_FILE = "build.out"
 
+function Read-File-Lines {
+  param (
+    [string]$filePath
+  )
+
+  $content = Get-Content $filePath -Raw
+  return $content -split "`n"
+}
+
 function Get-Version-Cargo {
   param (
     [string]$filePath
   )
   $VERSION_PATTERN = "version = *"
 
-  $toml = Get-Content $filePath -Raw
-  $toml_lines = $toml -split "`n"
-  for ($i = 0; $i -lt $toml_lines.Length; $i++) {
-    $line = $toml_lines[$i].Trim()
+  $lines = Read-File-Lines -filePath $filePath
+  for ($i = 0; $i -lt $lines.Length; $i++) {
+    $line = $lines[$i].Trim()
     if ($line -like $VERSION_PATTERN) {
       $version_line_no = $i
       break
@@ -42,20 +50,20 @@ function Get-Version-Cargo {
     exit
   }
 
-  $version_line = $toml_lines[$version_line_no]
+  $version_line = $lines[$version_line_no]
   $version = $version_line.Substring($VERSION_PATTERN.Length).Trim().Trim('"')
-  return $version
+  return $version, $version_line_no
 }
+
 function Get-Version-Node {
   param (
     [string]$filePath
   )
   $VERSION_PATTERN = "*""version"": ""*"","
 
-  $json = Get-Content $filePath -Raw
-  $json_lines = $json -split "`n"
-  for ($i = 0; $i -lt $json_lines.Length; $i++) {
-    $line = $json_lines[$i].Trim()
+  $lines = Read-File-Lines -filePath $filePath
+  for ($i = 0; $i -lt $lines.Length; $i++) {
+    $line = $lines[$i].Trim()
     if ($line -like $VERSION_PATTERN) {
       $version_line_no = $i
       break
@@ -66,10 +74,10 @@ function Get-Version-Node {
     exit
   }
 
-  $version_line = $json_lines[$version_line_no]
+  $version_line = $lines[$version_line_no]
   $version = $version_line -replace ".*""version"": """, ""
   $version = $version.Trim().Trim('",')
-  return $version
+  return $version, $version_line_no
 }
 
 function Update-Version-Cargo {
@@ -77,32 +85,33 @@ function Update-Version-Cargo {
     [string]$filePath
   )
   
-  $version = Get-Version-Cargo -filePath $filePath
+  $version, $version_line_no = Get-Version-Cargo -filePath $filePath
   $version_parts = $version -split "\."
   $major = $version_parts[0]
   $minor = $version_parts[1]
   $patch = [int]$version_parts[2] + 1
-
   $new_version = "$major.$minor.$patch"
-  $toml_lines[$version_line_no] = "version = ""$new_version"""
-  Set-Content $filePath -Value ($toml_lines -join "`n")
+
+  $lines = Read-File-Lines -filePath $filePath
+  $lines[$version_line_no] = "version = ""$new_version"""
+  Set-Content $filePath -Value ($lines -join "`n")
 }
+
 function Update-Version-Node {
   param (
     [string]$filePath
   )
   
-  $version = Get-Version-Node -filePath $filePath
+  $version, $version_line_no = Get-Version-Node -filePath $filePath
   $version_parts = $version -split "\."
   $major = $version_parts[0]
   $minor = $version_parts[1]
   $patch = [int]$version_parts[2] + 1
-
   $new_version = "$major.$minor.$patch"
-  $json_lines[$version_line_no] = "  ""version"": ""$new_version"","
-  Set-Content $filePath -Value ($json_lines -join "`n")
 
-  return $new_version
+  $lines = Read-File-Lines -filePath $filePath
+  $lines[$version_line_no] = "  ""version"": ""$new_version"","
+  Set-Content $filePath -Value ($lines -join "`n")
 }
 
 # get target
@@ -130,10 +139,10 @@ if ($null -eq (Get-Item -Path Env:$PRIVATE_KEY_PASSWORD_KEY -ErrorAction Silentl
   exit
 }
 
-$desktop_version = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
-$tauri_version = Get-Version-Cargo -filePath $TAURI_TOML_PATH
-$lib_version = Get-Version-Cargo -filePath $LIB_TOML_PATH
-$node_version = Get-Version-Node -filePath $TAURI_CONF_PATH
+$desktop_version, $_ = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
+$tauri_version, $_ = Get-Version-Cargo -filePath $TAURI_TOML_PATH
+$lib_version, $_ = Get-Version-Cargo -filePath $LIB_TOML_PATH
+$node_version, $_ = Get-Version-Node -filePath $TAURI_CONF_PATH
 if ($desktop_version -ne $tauri_version -or $desktop_version -ne $lib_version -or $desktop_version -ne $node_version) {
   Write-Error "Versions do not match."
   exit

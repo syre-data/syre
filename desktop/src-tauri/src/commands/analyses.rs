@@ -64,9 +64,8 @@ pub async fn project_add_analyses(
                             }
                         })?;
                     } else {
-                        let mut analyses =
-                            local::project::Analyses::load_from(&project_path)
-                                .map_err(|err| Error::UpdateAnalyses(err))?;
+                        let mut analyses = local::project::Analyses::load_from(&project_path)
+                            .map_err(|err| Error::UpdateAnalyses(err))?;
 
                         let rel_path = to.strip_prefix(analysis_root).unwrap();
                         if !analyses.values().any(|analysis| match analysis {

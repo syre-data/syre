@@ -43,8 +43,8 @@ async fn check_for_update(app: tauri::AppHandle) {
     let endpoints = if cfg!(debug_assertions) {
         tracing::trace!("checking for updates locally");
         vec![
-            "http://localhost:3030/check?system={{target}}&arch={{arch}}&version={{current_version}}&debug=true",
-            "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&debug=true",
+            "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel=debug",
+            "http://localhost:3030/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel=debug",
         ]
     } else {
         vec!["https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}"]

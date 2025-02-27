@@ -177,10 +177,12 @@ pub async fn duplicate_project(
     let user_state = state.user();
     let user = user_state.lock().unwrap();
     if let Some(ref user) = *user {
-        let mut settings = local::project::Project::load_from_settings_only(&dst)
-            .map_err(|error| error::Duplicate::DuplicateDesktop {
-                path: common::project_settings_file_of(&dst),
-                error,
+        let mut settings =
+            local::project::Project::load_from_settings_only(&dst).map_err(|error| {
+                error::Duplicate::DuplicateDesktop {
+                    path: common::project_settings_file_of(&dst),
+                    error,
+                }
             })?;
 
         settings.creator = Some(core::types::UserId::Id(user.rid().clone()));
@@ -263,8 +265,7 @@ pub fn project_properties_update(
     properties.analysis_root = analysis_root;
     properties.meta_level = meta_level;
 
-    local::project::Project::save_properties_only(&path, &properties)
-        .map_err(|err| err.kind())?;
+    local::project::Project::save_properties_only(&path, &properties).map_err(|err| err.kind())?;
 
     Ok(())
 }

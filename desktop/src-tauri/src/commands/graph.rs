@@ -542,15 +542,26 @@ mod duplicate {
                                         properties: properties.err(),
                                         settings: settings.err(),
                                     },
-                                    Duplicate::Save(err) => { match err {
-                                        local::project::container::error::Save::CreateDir(error) => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::CreateDir(error.into())),
-                                        local::project::container::error::Save::SaveFiles{properties, assets, settings} => error::duplicate::Duplicate::Save(error::duplicate::SaveContainer::SaveFiles{
-                                            properties: properties.map(|err| err.into()) ,
-                                            assets: assets.map(|err| err.into()),
-                                            settings: settings.map(|err| err.into())
-                                        }),
-                                    }
-                                    }
+                                    Duplicate::Save(err) => match err {
+                                        local::project::container::error::Save::CreateDir(
+                                            error,
+                                        ) => error::duplicate::Duplicate::Save(
+                                            error::duplicate::SaveContainer::CreateDir(
+                                                error.into(),
+                                            ),
+                                        ),
+                                        local::project::container::error::Save::SaveFiles {
+                                            properties,
+                                            assets,
+                                            settings,
+                                        } => error::duplicate::Duplicate::Save(
+                                            error::duplicate::SaveContainer::SaveFiles {
+                                                properties: properties.map(|err| err.into()),
+                                                assets: assets.map(|err| err.into()),
+                                                settings: settings.map(|err| err.into()),
+                                            },
+                                        ),
+                                    },
                                 };
 
                                 (path, err)

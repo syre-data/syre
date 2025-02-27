@@ -78,7 +78,7 @@ DEFINE FIELD properties ON TABLE container TYPE option<record<container_properti
 DEFINE FIELD settings   ON TABLE container TYPE option<record<container_settings>>;
 ";
 
-const DEFINE_TABLE_CONTAINER_PROPERTIES: &str = "
+const DEFINE_TABLE_CONTAINER_PROPERTIES: &str = r#"
 DEFINE TABLE container_properties SCHEMAFULL;
 
 DEFINE FIELD _project       ON TABLE container_properties TYPE record<project>;
@@ -88,7 +88,22 @@ DEFINE FIELD kind           ON TABLE container_properties TYPE option<string>;
 DEFINE FIELD description    ON TABLE container_properties TYPE option<string>;
 DEFINE FIELD tags           ON TABLE container_properties TYPE set<string>;
 DEFINE FIELD metadata       ON TABLE container_properties FLEXIBLE TYPE object;
-";
+
+DEFINE FIELD metadata_search                    ON TABLE container_properties TYPE string;
+DEFINE EVENT container_update_metadata_search   ON TABLE container_properties
+    WHEN ($event = "CREATE" || $event = "UPDATE") && $after.metadata != $before.metadata
+    THEN {
+        $search = $value.metadata.entries().fold(
+            "",
+            |$search, $field| string::concat(
+                $search,
+                string::concat($field[0], ":", $field[1]),
+                " "
+            )
+        );
+        UPDATE $value.id SET metadata_search = $search; 
+    }
+"#;
 
 const DEFINE_TABLE_CONTAINER_SETTINGS: &str = "
 DEFINE TABLE container_settings SCHEMAFULL;
@@ -99,7 +114,7 @@ DEFINE FIELD creator    ON TABLE container_settings TYPE option<{ Email: string 
 DEFINE FIELD created    ON TABLE container_settings TYPE datetime;
 ";
 
-const DEFINE_TABLE_ASSET: &str = "
+const DEFINE_TABLE_ASSET: &str = r#"
 DEFINE TABLE asset SCHEMAFULL;
 
 DEFINE FIELD _project       ON TABLE asset TYPE record<project>;
@@ -117,7 +132,22 @@ DEFINE FIELD creator        ON TABLE asset TYPE
     
 DEFINE FIELD path                   ON TABLE asset TYPE string;
 DEFINE FIELD fs_resource_present    ON TABLE asset TYPE bool;
-";
+
+DEFINE FIELD metadata_search                ON TABLE asset TYPE string;
+DEFINE EVENT asset_update_metadata_search   ON TABLE asset
+    WHEN ($event = "CREATE" || $event = "UPDATE") && $after.metadata != $before.metadata
+    THEN {
+        $search = $value.metadata.entries().fold(
+            "", 
+            |$search, $field| string::concat(
+                $search,
+                string::concat($field[0], ":", $field[1]),
+                " "
+            )
+        );
+        UPDATE $value.id SET metadata_search = $search; 
+    }
+"#;
 
 const DEFINE_TABLE_FLAG: &str = "
 DEFINE TABLE flag SCHEMAFULL;
@@ -153,13 +183,13 @@ DEFINE INDEX container_name         ON container_properties COLUMNS name SEARCH 
 DEFINE INDEX container_kind         ON container_properties COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX container_description  ON container_properties COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX container_tags         ON container_properties COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_metadata     ON container_properties COLUMNS metadata SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_metadata     ON container_properties COLUMNS metadata_search SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 
 DEFINE INDEX asset_name         ON asset COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX asset_kind         ON asset COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX asset_description  ON asset COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX asset_tags         ON asset COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_metadata     ON asset COLUMNS metadata SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_metadata     ON asset COLUMNS metadata_search SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 DEFINE INDEX asset_path         ON asset COLUMNS path SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 ";
 
@@ -259,7 +289,7 @@ impl Store {
                 OR kind @1@ '{query}'
                 OR description @2@ '{query}'
                 OR tags @3@ '{query}'
-                OR metadata @4@ '{query}'
+                OR metadata_search @4@ '{query}'
             )
             ORDER BY score DESC"
         );
@@ -284,7 +314,7 @@ impl Store {
                 OR kind @1@ '{query}'
                 OR description @2@ '{query}'
                 OR tags @3@ '{query}'
-                OR metadata @4@ '{query}'
+                OR metadata_search @4@ '{query}'
                 OR path @5@ '{query}'
             )
             ORDER BY score DESC"
@@ -382,6 +412,12 @@ pub mod project {
     use serde::{Deserialize, Serialize};
     use std::path::PathBuf;
     use syre_core as core;
+    use syre_local as local;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct Record {
+        path: PathBuf,
+    }
 
     impl Store {
         /// # Panics
@@ -413,6 +449,33 @@ pub mod project {
             Ok(record.map(|record| record.id))
         }
 
+        /// Set a project's path.
+        ///
+        /// # Arguments
+        /// + `project`: Project's current path.
+        /// + `path`: New path to set.
+        ///
+        /// # Returns
+        /// `None` if the project could not be found.
+        pub async fn project_set_path(
+            &self,
+            project: PathBuf,
+            path: PathBuf,
+        ) -> surrealdb::Result<Option<surrealdb::RecordId>> {
+            let mut response = self
+                .db
+                .query(
+                    "UPDATE project SET path=type::string($path) \
+                WEHRE path=type::string($project)",
+                )
+                .bind(("project", project))
+                .bind(("path", path))
+                .await?;
+
+            let record: Option<IdRecord> = response.take(0)?;
+            Ok(record.map(|record| record.id))
+        }
+
         /// Inserts project properties keyed by the project's resource id.
         ///
         /// # Panics
@@ -422,6 +485,15 @@ pub mod project {
             project_id: surrealdb::RecordId,
             project: core::project::Project,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Debug, Serialize, Deserialize)]
+            pub struct Record {
+                _project: surrealdb::RecordId,
+                name: String,
+                description: Option<String>,
+                data_root: PathBuf,
+                analysis_root: Option<PathBuf>,
+            }
+
             let id = project.rid().clone();
             let core::project::Project {
                 name,
@@ -431,7 +503,7 @@ pub mod project {
                 ..
             } = project;
 
-            let record = PropertiesRecord {
+            let record = Record {
                 _project: project_id,
                 name,
                 description,
@@ -459,10 +531,19 @@ pub mod project {
             creator: Option<core::types::UserId>,
             created: DateTime<Utc>,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Debug, Serialize, Deserialize)]
+            pub struct Record {
+                _project: surrealdb::RecordId,
+                creator: Option<core::types::UserId>,
+
+                #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
             let record = self
                 .db
                 .create::<Option<IdRecord>>("project_settings")
-                .content(SettingsRecord {
+                .content(Record {
                     _project: project_id,
                     creator,
                     created,
@@ -474,7 +555,7 @@ pub mod project {
         }
 
         /// Remove a project and all its resources.
-        pub async fn remove_project(&self, project: PathBuf) -> surrealdb::Result<()> {
+        pub async fn remove_project_by_path(&self, project: PathBuf) -> surrealdb::Result<()> {
             let mut project_id = self
                 .db
                 .query("SELECT id FROM project WHERE path=type::string($path)")
@@ -504,29 +585,107 @@ pub mod project {
 
             Ok(())
         }
-    }
 
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct Record {
-        path: PathBuf,
-    }
+        pub async fn project_properties_update(
+            &self,
+            project: surrealdb::RecordId,
+            update: core::project::Project,
+        ) -> surrealdb::Result<()> {
+            #[derive(Debug, Serialize, Deserialize)]
+            struct Update {
+                name: String,
+                description: Option<String>,
+                data_root: PathBuf,
+                analysis_root: Option<PathBuf>,
+            }
 
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct PropertiesRecord {
-        _project: surrealdb::RecordId,
-        name: String,
-        description: Option<String>,
-        data_root: PathBuf,
-        analysis_root: Option<PathBuf>,
-    }
+            let mut record_id = self
+                .db
+                .query("SELECT id FROM project_properties WHERE _project=type::thing($project)")
+                .bind(("project", project))
+                .await?;
 
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct SettingsRecord {
-        _project: surrealdb::RecordId,
-        creator: Option<core::types::UserId>,
+            let record_id: Option<IdRecord> = record_id.take(0)?;
+            let record_id = record_id.unwrap();
 
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
+            let core::project::Project {
+                name,
+                description,
+                data_root,
+                analysis_root,
+                ..
+            } = update;
+
+            self.db
+                .update::<Option<IdRecord>>(record_id.id)
+                .merge(Update {
+                    name,
+                    description,
+                    data_root,
+                    analysis_root,
+                })
+                .await?;
+
+            Ok(())
+        }
+
+        pub async fn project_properties_remove(
+            &self,
+            project: surrealdb::RecordId,
+        ) -> surrealdb::Result<()> {
+            self.db
+                .query("DELETE project_properties WHERE _project=type::thing($project)")
+                .bind(("project", project))
+                .await?;
+
+            Ok(())
+        }
+
+        pub async fn project_settings_update(
+            &self,
+            project: surrealdb::RecordId,
+            update: local::project::config::Settings,
+        ) -> surrealdb::Result<()> {
+            #[derive(Debug, Serialize, Deserialize)]
+            struct Update {
+                creator: Option<core::types::UserId>,
+
+                #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
+            let mut record_id = self
+                .db
+                .query("SELECT id FROM project_settings WHERE _project=type::thing($project)")
+                .bind(("project", project))
+                .await?;
+
+            let record_id: Option<IdRecord> = record_id.take(0)?;
+            let record_id = record_id.unwrap();
+
+            let local::project::config::Settings {
+                created, creator, ..
+            } = update;
+
+            self.db
+                .update::<Option<IdRecord>>(record_id.id)
+                .merge(Update { creator, created })
+                .await?;
+
+            Ok(())
+        }
+
+        pub async fn project_settings_remove(
+            &self,
+            project: surrealdb::RecordId,
+        ) -> surrealdb::Result<()> {
+            self.db
+                .query("DELETE project_settings WHERE _project=type::thing($project)")
+                .bind(("project", project))
+                .await?;
+
+            Ok(())
+        }
     }
 }
 
@@ -537,6 +696,13 @@ pub mod container {
     use std::{collections::HashMap, ffi::OsString, path::PathBuf};
     use syre_core as core;
     use syre_local as local;
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Record {
+        _project: surrealdb::RecordId,
+        name: String,
+        path: PathBuf,
+    }
 
     impl Store {
         pub async fn insert_container(
@@ -578,6 +744,77 @@ pub mod container {
             Ok(record.map(|record| record.id))
         }
 
+        /// Sets the given container's name.
+        ///
+        /// # Returns
+        /// `None` if a container with the given path and project is not found.
+        ///
+        /// # Notes
+        /// + This does not change the container's path.
+        ///     See `container_set_path_and_update_children`.
+        pub async fn container_set_name(
+            &self,
+            project: surrealdb::RecordId,
+            container: PathBuf,
+            name: OsString,
+        ) -> surrealdb::Result<Option<surrealdb::RecordId>> {
+            let mut response = self
+                .query(
+                    "UPDATE container \
+                    SET name=type::string($name)
+                    WHERE _project=type::thing($project) AND path=type::string($container))",
+                )
+                .bind(("project", project))
+                .bind(("container", container))
+                .bind(("name", name))
+                .await?;
+
+            let record: Option<IdRecord> = response.take(0)?;
+            Ok(record.map(|record| record.id))
+        }
+
+        /// Sets the given container's path and updated all children paths.
+        ///
+        /// # Arguments
+        /// + `container`: Current path.
+        /// + `path`: Update path.
+        ///
+        /// # Returns
+        /// All updated records.
+        /// If a container with the given path is not found an empty `Vec` is returned.
+        ///
+        /// # Notes
+        /// + This does not change the container's name.
+        ///     See `container_set_name`.
+        pub async fn container_set_path_and_update_children(
+            &self,
+            project: surrealdb::RecordId,
+            container: PathBuf,
+            path: PathBuf,
+        ) -> surrealdb::Result<Vec<surrealdb::RecordId>> {
+            let container_len = container.as_os_str().to_string_lossy().chars().count();
+            let mut response = self
+            .query(
+                "UPDATE container \
+                SET path=string::concat( \
+                    type::string($path), \
+                    string::slice( \
+                        path, \
+                        type::int($container_len)
+                    ) \
+                )
+                WHERE _project=type::thing($project) AND string::starts_with(path, type::string($container))",
+            )
+            .bind(("project", project))
+            .bind(("container", container))
+            .bind(("path", path))
+            .bind(("container_len", container_len))
+            .await?;
+
+            let record: Vec<IdRecord> = response.take(0)?;
+            Ok(record.into_iter().map(|record| record.id).collect())
+        }
+
         pub async fn insert_container_properties(
             &self,
             project_id: surrealdb::RecordId,
@@ -585,6 +822,18 @@ pub mod container {
             id: core::types::ResourceId,
             properties: core::project::ContainerProperties,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Serialize, Deserialize, Debug)]
+            struct Record {
+                _project: surrealdb::RecordId,
+                _container: surrealdb::RecordId,
+                name: String,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
+                metadata_search: String,
+            }
+
             let core::project::ContainerProperties {
                 name,
                 kind,
@@ -593,7 +842,7 @@ pub mod container {
                 metadata,
             } = properties;
 
-            let record = PropertiesRecord {
+            let record = Record {
                 _project: project_id,
                 _container: container_id,
                 name,
@@ -601,6 +850,7 @@ pub mod container {
                 description,
                 tags,
                 metadata,
+                metadata_search: "".to_string(),
             };
 
             let record = self
@@ -646,11 +896,21 @@ pub mod container {
             container_id: surrealdb::RecordId,
             settings: local::project::container::Settings,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Serialize)]
+            struct Record {
+                _project: surrealdb::RecordId,
+                _container: surrealdb::RecordId,
+                creator: Option<core::types::UserId>,
+
+                #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+            }
+
             let local::project::container::Settings {
                 creator, created, ..
             } = settings;
 
-            let record = SettingsRecord {
+            let record = Record {
                 _project: project_id,
                 _container: container_id,
                 creator,
@@ -693,34 +953,35 @@ pub mod container {
 
             Ok(())
         }
-    }
 
-    #[derive(Serialize, Deserialize)]
-    pub struct Record {
-        _project: surrealdb::RecordId,
-        name: String,
-        path: PathBuf,
-    }
+        /// Remove a container, all its children, and all related resources.
+        /// i.e. From `container`, `container_properties`, `container_settings`, and `asset`
+        pub async fn remove_subgraph_by_path(
+            &self,
+            project: surrealdb::RecordId,
+            root: PathBuf,
+        ) -> surrealdb::Result<()> {
+            self.db.query(
+                r#"
+                $containers = SELECT id FROM container 
+                    WHERE _project=type::thing($project) AND string::starts_with(path, type::string($root));
 
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct PropertiesRecord {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        name: String,
-        kind: Option<String>,
-        description: Option<String>,
-        tags: Vec<String>,
-        metadata: HashMap<String, core::types::Value>,
-    }
+                BEGIN TRANSACTION;
+                FOR $container in $containers {
+                    DELETE $container;
+                    DELETE container_properties WHERE _container=$container;
+                    DELETE container_settings WHERE _container=$container;
+                    DELETE asset WHERE _container=$container;
+                };
+                COMMIT TRANSACTION;
+                "#
+            )
+            .bind(("project", project))
+            .bind(("root", root))
+            .await?;
 
-    #[derive(Serialize)]
-    pub struct SettingsRecord {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        creator: Option<core::types::UserId>,
-
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
+            Ok(())
+        }
     }
 }
 
@@ -739,6 +1000,26 @@ pub mod asset {
             container_id: surrealdb::RecordId,
             asset: project_watcher::state::Asset,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Serialize)]
+            struct Record {
+                _project: surrealdb::RecordId,
+                _container: surrealdb::RecordId,
+                name: Option<String>,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
+                path: PathBuf,
+                fs_resource_present: bool,
+
+                creator: core::types::Creator,
+
+                #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+
+                metadata_search: String,
+            }
+
             let fs_resource_present = asset.is_present();
             let rid = asset.rid().clone();
             let created = asset.properties.created().clone();
@@ -769,6 +1050,7 @@ pub mod asset {
                 fs_resource_present,
                 creator,
                 created,
+                metadata_search: "".to_string(),
             };
 
             let record = self
@@ -788,8 +1070,7 @@ pub mod asset {
         ) -> surrealdb::Result<Option<surrealdb::RecordId>> {
             let mut response = self
                 .query(
-                    "
-                    SELECT id FROM asset \
+                    "SELECT id FROM asset \
                     WHERE _container=type::thing($container) AND path=type::string($path)",
                 )
                 .bind(("container", container))
@@ -824,24 +1105,6 @@ pub mod asset {
             Ok(removed.unwrap())
         }
     }
-
-    #[derive(Serialize)]
-    struct Record {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        name: Option<String>,
-        kind: Option<String>,
-        description: Option<String>,
-        tags: Vec<String>,
-        metadata: HashMap<String, core::types::Value>,
-        path: PathBuf,
-        fs_resource_present: bool,
-
-        creator: core::types::Creator,
-
-        #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
-        created: DateTime<Utc>,
-    }
 }
 
 pub mod flag {
@@ -859,6 +1122,16 @@ pub mod flag {
             path: PathBuf,
             flag: &local::project::Flag,
         ) -> surrealdb::Result<surrealdb::RecordId> {
+            #[derive(Serialize)]
+            struct Record {
+                _project: surrealdb::RecordId,
+                _container: surrealdb::RecordId,
+                resource: Option<surrealdb::RecordId>,
+                path: PathBuf,
+                severity: local::project::flag::Severity,
+                message: String,
+            }
+
             let record = Record {
                 _project: project_id,
                 _container: container_id,
@@ -901,16 +1174,6 @@ pub mod flag {
             let removed = result.take::<Option<usize>>(0)?;
             Ok(removed.unwrap())
         }
-    }
-
-    #[derive(Serialize)]
-    struct Record {
-        _project: surrealdb::RecordId,
-        _container: surrealdb::RecordId,
-        resource: Option<surrealdb::RecordId>,
-        path: PathBuf,
-        severity: local::project::flag::Severity,
-        message: String,
     }
 }
 

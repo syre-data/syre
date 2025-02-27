@@ -181,7 +181,7 @@ fn EmptySearch() -> impl IntoView {
 fn SearchResults(results: ReadSignal<db::SearchResult>) -> impl IntoView {
     view! {
         <Show when=move || { !results.read().is_empty() } fallback=NoMatches>
-            <div>
+            <div class="overflow-auto">
                 <div class="text-sm/4">
                     <h3 class="text-base font-primary px-1">"Containers"</h3>
                     <Show

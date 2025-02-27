@@ -180,8 +180,6 @@ impl Database {
             Err(error::ProjectResourcesInit::ProjectNotFound) => panic!("project not found"),
         };
 
-        // TODO: Update project with resources.
-
         Ok(())
     }
 
@@ -195,12 +193,6 @@ impl Database {
         project: ResourceId,
     ) -> Result<(Vec<surrealdb::RecordId>, Vec<surrealdb::RecordId>), error::ProjectResourcesInit>
     {
-        #[derive(serde::Serialize)]
-        struct ContainerRecordLinks {
-            properties: Option<surrealdb::RecordId>,
-            settings: Option<surrealdb::RecordId>,
-        }
-
         let Some((_, _, graph)) = self.pw_client.project().resources(project).unwrap() else {
             return Err(error::ProjectResourcesInit::ProjectNotFound);
         };
@@ -209,7 +201,34 @@ impl Database {
             return Ok((vec![], vec![]));
         };
 
+        self.insert_graph_resources(project_id, None, graph).await
+    }
+
+    /// # Returns
+    /// `(container record ids, asset record ids)`
+    async fn insert_graph_resources(
+        &self,
+        project_id: surrealdb::RecordId,
+        parent: Option<PathBuf>,
+        graph: project_watcher::state::Graph,
+    ) -> Result<(Vec<surrealdb::RecordId>, Vec<surrealdb::RecordId>), error::ProjectResourcesInit>
+    {
+        #[derive(serde::Serialize)]
+        struct ContainerRecordLinks {
+            properties: Option<surrealdb::RecordId>,
+            settings: Option<surrealdb::RecordId>,
+        }
+
         let paths = paths_from_graph_data(&graph);
+        let paths = if let Some(parent) = parent.as_ref() {
+            paths
+                .into_iter()
+                .map(|path| parent.join(path))
+                .collect::<Vec<_>>()
+        } else {
+            paths
+        };
+
         let mut containers = Vec::with_capacity(graph.nodes.len());
         let mut assets = vec![];
         for (path, container) in std::iter::zip(paths, graph.nodes.iter()) {
@@ -354,6 +373,7 @@ pub mod error {
         PropertiesCorrupt,
     }
 
+    #[derive(Debug)]
     pub enum ProjectResourcesInit {
         ProjectNotFound,
     }
@@ -468,7 +488,7 @@ mod project_events {
             };
 
             for project in projects {
-                if let Err(err) = self.store.remove_project(project.clone()).await {
+                if let Err(err) = self.store.remove_project_by_path(project.clone()).await {
                     tracing::debug!("could not remove project {project:?}: {err:?}");
                 };
             }
@@ -514,19 +534,559 @@ mod project_events {
             };
 
             match update {
-                event::Project::FolderRemoved => todo!(),
-                event::Project::Moved(_) => todo!(),
-                event::Project::Properties(_) => todo!(),
-                event::Project::Settings(_) => todo!(),
-                event::Project::Analyses(_) => todo!(),
-                event::Project::Graph(..) => todo!(),
+                event::Project::FolderRemoved => {
+                    self.handle_event_update_project_folder_removed(event).await
+                }
+                event::Project::Moved(_) => self.handle_event_update_project_moved(event).await,
+                event::Project::Properties(_) => {
+                    self.handle_event_update_project_properties(event).await
+                }
+                event::Project::Settings(_) => {
+                    self.handle_event_update_project_settings(event).await
+                }
+                event::Project::Analyses(_) => {
+                    self.handle_event_update_project_analyses(event).await
+                }
+                event::Project::Graph(..) => self.handle_event_update_project_graph(event).await,
                 event::Project::Container { .. } => {
                     self.handle_event_update_project_container(event).await
                 }
                 event::Project::Asset { .. } => self.handle_event_update_project_asset(event).await,
-                event::Project::AssetFile(_) => todo!(),
-                event::Project::AnalysisFile(_) => todo!(),
+                event::Project::AssetFile(_) => {}
+                event::Project::AnalysisFile(_) => {}
             }
+        }
+
+        async fn handle_event_update_project_folder_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::FolderRemoved,
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .remove_project_by_path(path.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_moved(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Moved(update),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            self.store
+                .project_set_path(path.clone(), update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_properties(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update: event::Project::Properties(update),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_properties_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_properties_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(io_serde) => {
+                    self.handle_event_update_project_properties_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_properties_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_properties_modified(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_properties_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Properties(event::DataResource::Created(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            if let state::DataResource::Ok(update) = update {
+                self.store
+                    .project_properties_update(project_id, update.clone())
+                    .await
+                    .unwrap();
+            } else {
+                self.store
+                    .project_properties_remove(project_id)
+                    .await
+                    .unwrap();
+            }
+        }
+
+        async fn handle_event_update_project_properties_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Properties(event::DataResource::Removed),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_properties_remove(project_id)
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_properties_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Properties(event::DataResource::Corrupted(_)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_properties_remove(project_id)
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_properties_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Properties(event::DataResource::Repaired(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_project_properties(project_id, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_properties_modified(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Properties(event::DataResource::Modified(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_properties_update(project_id, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_settings(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(update),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::DataResource::Created(_) => {
+                    self.handle_event_update_project_settings_created(event)
+                        .await
+                }
+                event::DataResource::Removed => {
+                    self.handle_event_update_project_settings_removed(event)
+                        .await
+                }
+                event::DataResource::Corrupted(io_serde) => {
+                    self.handle_event_update_project_settings_corrupted(event)
+                        .await
+                }
+                event::DataResource::Repaired(_) => {
+                    self.handle_event_update_project_settings_repaired(event)
+                        .await
+                }
+                event::DataResource::Modified(_) => {
+                    self.handle_event_update_project_settings_modified(event)
+                        .await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_settings_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(event::DataResource::Created(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            if let state::DataResource::Ok(update) = update {
+                self.store
+                    .project_settings_update(project_id, update.clone())
+                    .await
+                    .unwrap();
+            } else {
+                self.store
+                    .project_settings_remove(project_id)
+                    .await
+                    .unwrap();
+            }
+        }
+
+        async fn handle_event_update_project_settings_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(event::DataResource::Removed),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_settings_remove(project_id)
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_settings_corrupted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(event::DataResource::Corrupted(_)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_settings_remove(project_id)
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_settings_repaired(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(event::DataResource::Repaired(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .insert_project_settings(project_id, update.creator.clone(), update.created.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_settings_modified(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Settings(event::DataResource::Modified(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .project_settings_update(project_id, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_analyses(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update: event::Project::Analyses(_),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+        }
+
+        async fn handle_event_update_project_graph(&self, event: Update) {
+            let event::UpdateKind::Project {
+                update: event::Project::Graph(update),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            match update {
+                event::Graph::Created(graph) => {
+                    self.handle_event_update_project_graph_created(event).await
+                }
+                event::Graph::Inserted { parent, graph } => {
+                    self.handle_event_update_project_graph_inserted(event).await
+                }
+                event::Graph::Renamed { from, to } => {
+                    self.handle_event_update_project_graph_renamed(event).await
+                }
+                event::Graph::Moved { from, to } => {
+                    self.handle_event_update_project_graph_moved(event).await
+                }
+                event::Graph::Removed(path_buf) => {
+                    self.handle_event_update_project_graph_removed(event).await
+                }
+            }
+        }
+
+        async fn handle_event_update_project_graph_created(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Graph(event::Graph::Created(update)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let (_container, _assets) = self
+                .insert_graph_resources(project_id, None, update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_graph_inserted(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update:
+                    event::Project::Graph(event::Graph::Inserted {
+                        parent,
+                        graph: update,
+                    }),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let (_container, _assets) = self
+                .insert_graph_resources(project_id, Some(parent.clone()), update.clone())
+                .await
+                .unwrap();
+        }
+
+        async fn handle_event_update_project_graph_renamed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Graph(event::Graph::Renamed { from, to: update }),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+            let root_path = PathBuf::from("/");
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let record = self
+                .store
+                .container_set_name(project_id.clone(), from.clone(), update.clone())
+                .await
+                .unwrap();
+            assert!(record.is_some());
+
+            if from != &root_path {
+                let mut to = from.clone();
+                to.set_file_name(update);
+                let records = self
+                    .store
+                    .container_set_path_and_update_children(project_id, from.clone(), to)
+                    .await
+                    .unwrap();
+                assert!(!records.is_empty());
+            }
+        }
+
+        async fn handle_event_update_project_graph_moved(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Graph(event::Graph::Moved { from, to }),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            let records = self
+                .store
+                .container_set_path_and_update_children(
+                    project_id.clone(),
+                    from.clone(),
+                    to.clone(),
+                )
+                .await
+                .unwrap();
+            assert!(!records.is_empty());
+
+            match (from.file_name(), to.file_name()) {
+                (Some(from_name), Some(to_name)) if from_name != to_name => {
+                    let record = self
+                        .store
+                        .container_set_name(project_id, from.clone(), to_name.to_os_string())
+                        .await
+                        .unwrap();
+                    assert!(record.is_some());
+                }
+                _ => {}
+            }
+        }
+
+        async fn handle_event_update_project_graph_removed(&self, event: Update) {
+            let event::UpdateKind::Project {
+                path,
+                update: event::Project::Graph(event::Graph::Removed(root)),
+                ..
+            } = event.kind()
+            else {
+                panic!("invalid event kind");
+            };
+
+            let project_id = self
+                .store
+                .project_record_id_from_path(path.clone())
+                .await
+                .unwrap()
+                .unwrap();
+
+            self.store
+                .remove_subgraph_by_path(project_id, root.clone())
+                .await
+                .unwrap()
         }
 
         async fn handle_event_update_project_container(&self, event: Update) {

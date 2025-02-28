@@ -1,6 +1,6 @@
 {
   "productName": "syre",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "identifier": "ai.syre.desktop",
   "build": {
     "beforeDevCommand": "trunk serve",
@@ -36,8 +36,10 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBM0MxNjdEMjRBRDc5MTgKUldRWWVhMGtmUlk4K293RjN3MWpUcitrd1l5QVRPbjZxSjRSdmlqRjJDM29GTHcwM0JCUWlGRWEK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBM0MxNjdEMjRBRDc5MTgKUldRWWVhMGtmUlk4K293RjN3MWpUcitrd1l5QVRPbjZxSjRSdmlqRjJDM29GTHcwM0JCUWlGRWEK",
+      "endpoints": ["https://releases.syre.ai"]
     }
   }
 }
+
 

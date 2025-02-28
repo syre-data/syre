@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop"
-version = "0.11.1"
+version = "0.11.2"
 description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 edition = "2021"
@@ -49,4 +49,5 @@ tauri-plugin-updater = "2"
 
 [features]
 no-auto-update = []
+
 

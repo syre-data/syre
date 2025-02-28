@@ -149,13 +149,18 @@ if ($desktop_version -ne $tauri_version -or $desktop_version -ne $lib_version -o
 }
 
 if (-not ($args -contains $KEEP_VERSION_FLAG)) { 
-  Write-Output "Bumping patch versions."
+  Write-Output "Bumping patch versions"
   Update-Version-Cargo -filePath $DESKTOP_TOML_PATH
   Update-Version-Cargo -filePath $TAURI_TOML_PATH
   Update-Version-Cargo -filePath $LIB_TOML_PATH
   Update-Version-Node -filePath $TAURI_CONF_PATH
-  Write-Output "Versions bumped."
-}
+
+  $new_version = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
+  Write-Output "Versions bumped to $new_version"
+} 
+else {
+  Write-Output "Keeping version $desktop_version"
+} 
 
 $debug = $args -contains $DEBUG_FLAG
 if ($debug) {

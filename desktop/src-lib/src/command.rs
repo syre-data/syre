@@ -67,12 +67,24 @@ pub mod analyses {
         use syre_local::error::IoSerde;
 
         #[derive(Serialize, Deserialize, Debug)]
-        pub enum AddAnalyses {
-            /// Moving the file system resource failed.
-            FsResource { path: PathBuf, error: IoErrorKind },
+        pub struct AddAnalyses {
+            /// Updating the project's analyses.
+            pub update_analyses: Option<UpdateAnalyses>,
 
-            /// Updating the project's analyses failed.
-            UpdateAnalyses(IoSerde),
+            /// Moving the file system resource failed.
+            pub fs: Vec<FsResource>,
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct UpdateAnalyses {
+            pub error: IoSerde,
+            pub resources: Vec<PathBuf>,
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct FsResource {
+            pub path: PathBuf,
+            pub error: IoErrorKind,
         }
 
         #[derive(Serialize, Deserialize, Debug)]

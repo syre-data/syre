@@ -1327,12 +1327,13 @@ async fn handle_drop_event_analyses(
 async fn add_fs_resources_to_analyses(
     paths: Vec<PathBuf>,
     project: ResourceId,
-) -> Result<(), Vec<lib::command::analyses::error::AddAnalyses>> {
+) -> Result<(), lib::command::analyses::error::AddAnalyses> {
     #[derive(Serialize)]
     struct Args {
         project: ResourceId,
         resources: Vec<lib::types::AddFsAnalysisResourceData>,
     }
+
     let resources = paths
         .into_iter()
         .map(|path| lib::types::AddFsAnalysisResourceData {

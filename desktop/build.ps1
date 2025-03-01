@@ -4,9 +4,9 @@
 # Copies the binaries to a `bundles` folder renaming the files as 
 # `syre_desktop--<arch>-<vendor>-<system>-<subsystem>--<major_version>_<minor_version>_<patch_version>[--debug]<ext>`.
 #
-# Use the `--debug` flag to build a debug version.
-# Use the `--keep-version` flag to keep the same version.
-
+# # Flags
+# `--debug` builds a debug version.
+# `--keep-version` keeps the same version (i.e. Does not bump the patch version).
 $APP_NAME = "syre_desktop"
 $FILE_DELIMETER = "_"
 $PUB_DIR = "bundles"
@@ -114,7 +114,7 @@ function Update-Version-Node {
   Set-Content $filePath -Value ($lines -join "`n")
 }
 
-# get target
+#--- main ---
 $target_output = rustc -Vv
 foreach ($line in $target_output) {
   if ($line -like "host: *") {

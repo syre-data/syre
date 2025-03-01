@@ -155,7 +155,7 @@ if (-not ($args -contains $KEEP_VERSION_FLAG)) {
   Update-Version-Cargo -filePath $LIB_TOML_PATH
   Update-Version-Node -filePath $TAURI_CONF_PATH
 
-  $new_version = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
+  $new_version, $_ = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
   Write-Output "Versions bumped to $new_version"
 } 
 else {

@@ -7698,7 +7698,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "derive_more 1.0.0",
  "directories",
@@ -7733,7 +7733,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop-lib"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "derive_more 1.0.0",
  "io_error_serde",
@@ -7748,7 +7748,7 @@ dependencies = [
 
 [[package]]
 name = "syre-desktop-ui"
-version = "0.11.2"
+version = "0.11.3"
 dependencies = [
  "chrono",
  "codee",

@@ -1,0 +1,5 @@
+tab_spaces = 4 # Number of spaces per tab
+macro_names = [ "leptos::view", "view" ] # Macro names which will be formatted
+
+[attr_values]
+class = "Tailwind"

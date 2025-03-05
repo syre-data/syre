@@ -3,7 +3,7 @@ use super::Error;
 use crate::state::{DataResource, FileResource, FolderResource};
 pub use action::Action;
 use std::path::PathBuf;
-use syre_local::{file_resource::LocalResource, TryReducible};
+use syre_local::{TryReducible, file_resource::LocalResource};
 
 /// Project state.
 #[derive(Debug)]
@@ -45,7 +45,7 @@ impl State {
     pub fn load(path: impl Into<PathBuf>) -> Self {
         use crate::state;
         use syre_local::{
-            project::{project::LoadError, Analyses, Project},
+            project::{Analyses, Project, project::LoadError},
             types::AnalysisKind,
         };
 
@@ -75,7 +75,7 @@ impl State {
         };
 
         let analyses = Analyses::load_from(state.path()).map(|analyses| {
-            let analysis_root = if let DataResource::Ok(ref project) = project.properties() {
+            let analysis_root = if let DataResource::Ok(project) = project.properties() {
                 project
                     .analysis_root
                     .as_ref()
@@ -162,14 +162,14 @@ impl TryReducible for State {
 }
 
 pub mod project {
-    use super::{action, graph, Action, DataResource, Error, FolderResource};
+    use super::{Action, DataResource, Error, FolderResource, action, graph};
     use crate::state::{self, FileResource};
     use std::{
         io::{self, ErrorKind},
         path::PathBuf,
     };
     use syre_core::project::Project as CoreProject;
-    use syre_local::{error::IoSerde, project::config::Settings, TryReducible};
+    use syre_local::{TryReducible, error::IoSerde, project::config::Settings};
 
     #[derive(Debug)]
     pub struct Builder {
@@ -361,7 +361,7 @@ pub mod project {
                         tracing::error!(?err);
                         match err {
                             graph::error::Insert::ParentNotFound => {
-                                return Err(Error::DoesNotExist)
+                                return Err(Error::DoesNotExist);
                             }
                             graph::error::Insert::NameCollision => {
                                 if cfg!(target_os = "windows") {
@@ -1106,14 +1106,14 @@ pub mod graph {
 }
 
 pub(crate) mod action {
-    use super::{graph, project::State as Project, DataResource, FolderResource};
+    use super::{DataResource, FolderResource, graph, project::State as Project};
     use crate::state;
     use std::{ffi::OsString, path::PathBuf};
     use syre_core::{project::Project as CoreProject, types::ResourceId};
     use syre_local::project::{
+        Flag,
         config::Settings,
         container::{Settings as ContainerSettings, StoredProperties as StoredContainerProperties},
-        Flag,
     };
 
     #[derive(Debug, derive_more::From)]

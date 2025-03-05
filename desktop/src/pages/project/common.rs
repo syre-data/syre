@@ -56,7 +56,7 @@ pub enum SelectionAction {
     Clear,
 }
 
-pub fn asset_title_closure(asset: &state::Asset) -> impl Fn() -> String {
+pub fn asset_title_closure(asset: &state::Asset) -> impl Fn() -> String + use<> {
     let name = asset.name();
     let path = asset.path();
     move || {
@@ -74,11 +74,7 @@ pub fn asset_title_closure(asset: &state::Asset) -> impl Fn() -> String {
             name
         } else if let Some(path) = path.with(|path| {
             let path = path.to_string_lossy().trim().to_string();
-            if path.is_empty() {
-                None
-            } else {
-                Some(path)
-            }
+            if path.is_empty() { None } else { Some(path) }
         }) {
             path
         } else {

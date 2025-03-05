@@ -422,8 +422,8 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
 mod name {
     use super::{
-        super::common::bulk::Value, container_assets, update_properties, ActiveResources,
-        InputDebounce, State, UpdatePropertiesErrors,
+        super::common::bulk::Value, ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        container_assets, update_properties,
     };
     use crate::{components::form::debounced::InputText, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -548,8 +548,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, container_assets, update_properties,
-        ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
+        UpdatePropertiesErrors, container_assets, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -611,8 +611,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, container_assets,
-        update_properties, ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
+        InputDebounce, State, UpdatePropertiesErrors, container_assets, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -676,7 +676,7 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        container_assets, update_properties, ActiveResources, State, UpdatePropertiesErrors,
+        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -812,8 +812,8 @@ mod metadata {
         super::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        container_assets, update_properties, ActiveResources, InputDebounce, State,
-        UpdatePropertiesErrors,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
+        update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -1068,7 +1068,7 @@ fn container_assets(
     for asset in assets {
         let node = graph.find_by_asset_id(asset).unwrap();
         let container = graph.path(&node).unwrap();
-        if let Some((container_id, ref mut container_assets)) = asset_ids
+        if let Some((container_id, container_assets)) = asset_ids
             .iter_mut()
             .find(|(container_id, _)| *container_id == container)
         {

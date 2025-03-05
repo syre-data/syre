@@ -12,9 +12,9 @@ use syre_core::{
 use syre_local::{
     error::IoSerde,
     project::{
+        Flag,
         config::Settings,
         container::{Settings as ContainerSettings, StoredProperties as StoredContainerProperties},
-        Flag,
     },
     types::AnalysisKind,
 };
@@ -240,7 +240,7 @@ impl<T> FolderResource<T> {
         F: FnOnce(&T) -> U,
     {
         match self {
-            Self::Present(ref x) => FolderResource::Present(f(x)),
+            Self::Present(x) => FolderResource::Present(f(x)),
             Self::Absent => FolderResource::Absent,
         }
     }

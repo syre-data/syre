@@ -1,5 +1,5 @@
 use super::super::{
-    common::{interpret_resource_selection_action, SelectionAction},
+    common::{SelectionAction, interpret_resource_selection_action},
     state,
 };
 use crate::types;
@@ -61,13 +61,15 @@ impl std::iter::IntoIterator for SearchHistory {
 pub fn Search() -> impl IntoView {
     let project = expect_context::<state::Project>();
     let user_settings = expect_context::<Store<types::settings::User>>();
-    let input_debounce = user_settings.with(|settings| {
-        let debounce = match &settings.desktop {
-            Ok(settings) => settings.input_debounce_ms,
-            Err(_) => lib::settings::user::Desktop::default().input_debounce_ms,
-        };
+    let input_debounce = Signal::derive(move || {
+        user_settings.with(|settings| {
+            let debounce = match &settings.desktop {
+                Ok(settings) => settings.input_debounce_ms,
+                Err(_) => lib::settings::user::Desktop::default().input_debounce_ms,
+            };
 
-        debounce as f64
+            debounce as f64
+        })
     });
     let (input, set_input) = signal("".to_string());
     let input: Signal<String> = leptos_use::signal_debounced(input, input_debounce);

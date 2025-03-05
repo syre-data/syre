@@ -1,24 +1,23 @@
 [package]
 name = "syre-desktop-ui"
 version = "0.11.3"
-edition = "2021"
+edition = "2024"
 
-authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 description = "Syre desktop application."
 
 homepage = "https://syre.ai"
 repository = "https://github.com/syre-data/syre"
-keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
-categories = [ "gui", "science" ]
+keywords = ["syre", "syre-data", "data", "data-analysis", "data-management"]
+categories = ["gui", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
-codee = "0.2"
+codee = "0.3"
 console_error_panic_hook = "0.1.7"
 derive_more = { workspace = true, features = ["debug"] }
 futures.workspace = true
-getrandom = { version = "0.2", features = ["js"] }
 has_id.workspace = true
 icondata = "0.5"
 js-sys = "0.3"
@@ -26,7 +25,9 @@ leptos = { version = "0.7", features = ["nightly", "csr"] }
 leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
 leptos_meta = { version = "0.7" }
 leptos_router = { version = "0.7", features = ["nightly"] }
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", features = ["storage"]}
+leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", features = [
+	"storage",
+] }
 reactive_stores = "0.1.2"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -36,17 +37,22 @@ syre-desktop-lib = { path = "src-lib" }
 syre-local = { workspace = true }
 syre-project-watcher.workspace = true
 syre-resource-db = { path = "resource_db", default-features = false }
-# tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2", features = ["core", "event", "menu", "window"] }
-tauri-sys = { git = "https://github.com/bicarlsen/tauri-sys", branch = "v2", features = ["core", "event", "menu", "window"] }
+tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2", features = [
+	"app",
+	"core",
+	"event",
+	"menu",
+	"window",
+] }
 time = { version = "0.3", features = ["wasm-bindgen"] }
 tracing-subscriber = { workspace = true, features = ["time"] }
 tracing-web = "0.1.3"
 tracing.workspace = true
-uuid.workspace = true
+uuid = { workspace = true, features = ["js"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
-[dependencies.web-sys]  
+[dependencies.web-sys]
 version = "0.3.70"
 features = [
 	"AbortController",
@@ -77,8 +83,3 @@ features = [
 	"SvgGraphicsElement",
 	"SvgMatrix",
 ]
-
-
-
-
-

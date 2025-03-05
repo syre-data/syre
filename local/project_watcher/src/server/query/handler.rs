@@ -1,4 +1,4 @@
-use crate::{common, constants, error, query, server, state, Watcher};
+use crate::{Watcher, common, constants, error, query, server, state};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde_json::Value as JsValue;
 use std::{
@@ -118,8 +118,7 @@ impl Watcher {
     pub fn handle_query_user(&self, query: query::User) -> JsValue {
         match query {
             query::User::Info(id) => {
-                let state::ManifestState::Ok(ref manifest) = self.state.app().user_manifest()
-                else {
+                let state::ManifestState::Ok(manifest) = self.state.app().user_manifest() else {
                     return serde_json::to_value(Option::<User>::None).unwrap();
                 };
 
@@ -145,11 +144,7 @@ impl Watcher {
 
                 let Some(permissions) =
                     settings.permissions.iter().find_map(|(uid, permissions)| {
-                        if uid == user {
-                            Some(permissions)
-                        } else {
-                            None
-                        }
+                        if uid == user { Some(permissions) } else { None }
                     })
                 else {
                     return None;
@@ -370,9 +365,11 @@ impl Watcher {
 
         let ancestors = &graph.ancestors(parent);
         assert!(!ancestors.is_empty());
-        assert!(ancestors
-            .iter()
-            .any(|ancestor| Node::ptr_eq(ancestor, root)));
+        assert!(
+            ancestors
+                .iter()
+                .any(|ancestor| Node::ptr_eq(ancestor, root))
+        );
         let parent = self
             .container_for_analysis(&ancestors)
             .unwrap()
@@ -882,7 +879,7 @@ impl Watcher {
         let project_properties = match project_data.properties() {
             state::DataResource::Ok(properties) => properties,
             state::DataResource::Err(err) => {
-                return Err(crate::query::error::Search::ProjectProperties(err))
+                return Err(crate::query::error::Search::ProjectProperties(err));
             }
         };
 

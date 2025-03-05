@@ -135,7 +135,7 @@ pub mod metadata {
     use super::super::InputDebounce;
     use crate::components::{
         self,
-        form::{debounced, InputNumber},
+        form::{InputNumber, debounced},
     };
     use leptos::{
         either::either,
@@ -144,7 +144,7 @@ pub mod metadata {
         prelude::*,
     };
     use leptos_icons::Icon;
-    use syre_core::types::{data::ValueKind, Value};
+    use syre_core::types::{Value, data::ValueKind};
     use wasm_bindgen::JsCast;
 
     #[component]
@@ -423,7 +423,7 @@ pub mod metadata {
         let onblur = move |e: FocusEvent| {
             let v = event_target_value(&e);
             if value.with(|value| {
-                let Value::String(ref value) = value else {
+                let Value::String(value) = value else {
                     panic!("invalid value kind");
                 };
 
@@ -1370,7 +1370,7 @@ pub mod bulk {
         };
         use crate::components::{self, form::InputNumber};
         use leptos::{
-            either::{either, Either},
+            either::{Either, either},
             html,
             prelude::*,
         };
@@ -1586,11 +1586,11 @@ pub mod bulk {
                     prop:value=move || {
                         value
                             .with(|value| match value {
-                                Value::Equal(ref value) => {
+                                Value::Equal(value) => {
                                     value_to_kind_str(&value)
                                         .unwrap_or(kind_to_str(&data::ValueKind::Number))
                                 }
-                                Value::EqualKind(ref kind) => kind_to_str(&kind),
+                                Value::EqualKind(kind) => kind_to_str(&kind),
                                 Value::MixedKind => "",
                             })
                     }
@@ -1648,7 +1648,7 @@ pub mod bulk {
             let input_value = move || {
                 value.with(|value| match value {
                     Value::EqualKind(_) => "".to_string(),
-                    Value::Equal(data::Value::String(ref value)) => value.clone(),
+                    Value::Equal(data::Value::String(value)) => value.clone(),
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 })
             };
@@ -1677,7 +1677,7 @@ pub mod bulk {
             let input_value = move || {
                 value.with(|value| match value {
                     Value::EqualKind(_) => "".to_string(),
-                    Value::Equal(data::Value::Number(ref value)) => value.to_string(),
+                    Value::Equal(data::Value::Number(value)) => value.to_string(),
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 })
             };
@@ -1713,9 +1713,7 @@ pub mod bulk {
             let (magnitude, set_magnitude) = signal({
                 value.with_untracked(|value| match value {
                     Value::EqualKind(_) => "".to_string(),
-                    Value::Equal(data::Value::Quantity { ref magnitude, .. }) => {
-                        magnitude.to_string()
-                    }
+                    Value::Equal(data::Value::Quantity { magnitude, .. }) => magnitude.to_string(),
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 })
             });
@@ -1723,7 +1721,7 @@ pub mod bulk {
             let (unit, set_unit) = signal({
                 value.with_untracked(|value| match value {
                     Value::EqualKind(_) => "".to_string(),
-                    Value::Equal(data::Value::Quantity { ref unit, .. }) => unit.clone(),
+                    Value::Equal(data::Value::Quantity { unit, .. }) => unit.clone(),
                     Value::MixedKind | Value::Equal(_) => unreachable!(),
                 })
             });
@@ -1781,7 +1779,7 @@ pub mod bulk {
             let (input_value, set_input_value) = signal(value.with_untracked(|value| {
                 match value {
                     Value::EqualKind(_) => "".to_string(),
-                    Value::Equal(data::Value::Array(ref value)) => value
+                    Value::Equal(data::Value::Array(value)) => value
                         .iter()
                         .map(|value| value.to_string())
                         .collect::<Vec<_>>()

@@ -1,7 +1,7 @@
 [package]
 name = "syre-project-watcher"
 version = "0.0.3"
-edition = "2021"
+edition = "2024"
 
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 description = "Local project watcher for Syre."
@@ -45,7 +45,7 @@ has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true, optional = true }
 
 [dev-dependencies]
-rand = "0.8"
+rand.workspace = true
 fake.workspace = true
 lazy_static = "1.4"
 tempfile.workspace = true

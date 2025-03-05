@@ -46,7 +46,7 @@ pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
         panic!("invalid `id` field type");
     };
 
-    let gen = quote! {
+    let out = quote! {
         impl #impl_generics HasId for #name #ty_generics #where_clause {
             type Id = #id_type;
 
@@ -56,5 +56,5 @@ pub(crate) fn impl_has_id(ast: &syn::DeriveInput) -> TokenStream {
         }
     };
 
-    gen.into()
+    out.into()
 }

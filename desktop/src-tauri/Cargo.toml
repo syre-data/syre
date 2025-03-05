@@ -3,7 +3,7 @@ name = "syre-desktop"
 version = "0.11.3"
 description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 homepage = "https://syre.ai"
 repository = "https://github.com/syre-data/syre"

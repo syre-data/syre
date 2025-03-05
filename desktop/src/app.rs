@@ -1,8 +1,8 @@
 use crate::{
     pages::{
+        Index,
         auth::{Login, Logout, Register},
         project::Workspace,
-        Index,
     },
     types,
 };
@@ -43,11 +43,7 @@ pub fn App() -> impl IntoView {
     });
 
     let class_html = move || {
-        if prefers_dark_theme() {
-            "dark"
-        } else {
-            ""
-        }
+        if prefers_dark_theme() { "dark" } else { "" }
     };
 
     view! {
@@ -174,7 +170,7 @@ mod message {
                         })}
                 </div>
                 <div class=class_btn>
-                    <button on:mousedown=close class="px-2 w-full h-full">
+                    <button on:mousedown=close class="px-2 w-full h-full cursor-pointer">
                         <Icon icon=components::icon::Close />
                     </button>
                 </div>

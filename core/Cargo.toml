@@ -1,7 +1,7 @@
 [package]
 name = "syre-core"
 version = "0.10.2"
-edition = "2021"
+edition = "2024"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
 description = "Core functionality and types for Syre data management and analysis software."
@@ -20,7 +20,7 @@ chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true }
 derivative = "2.2"
 derive_more = { workspace = true, features = ["from"] }
-directories = "5.0"
+directories.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 io_error_serde.workspace = true
 rayon = { workspace = true, optional = true }
@@ -30,12 +30,12 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
-validator = "0.19"
+validator = "0.20"
 
 has_id = { path = "../has_id", features = ["derive"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand.workspace = true
 fake.workspace = true
 lazy_static = "1.4"
 tempfile = { workspace = true }

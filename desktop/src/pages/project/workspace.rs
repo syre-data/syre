@@ -1,12 +1,12 @@
-use super::{canvas, properties, state, Canvas, NavBar, ProjectBar, PropertiesBar, Settings};
+use super::{Canvas, NavBar, ProjectBar, PropertiesBar, Settings, canvas, properties, state};
 use crate::{
     commands, common,
-    components::{self, drawer, Drawer, Logo},
+    components::{self, Drawer, Logo, drawer},
     types,
 };
 use futures::stream::StreamExt;
 use leptos::{
-    either::{either, Either},
+    either::{Either, either},
     ev::MouseEvent,
     html,
     portal::Portal,
@@ -176,13 +176,12 @@ fn WorkspaceView(
     spawn_local({
         let project = project.clone();
         async move {
-            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(
-                &project
-                    .rid()
-                    .with_untracked(|rid| lib::event::topic::graph(rid)),
-            )
-            .await
-            .unwrap();
+            let rid = &project
+                .rid()
+                .with_untracked(|rid| lib::event::topic::graph(rid));
+            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(rid)
+                .await
+                .unwrap();
 
             while let Some(events) = listener.next().await {
                 tracing::debug!(?events);
@@ -272,13 +271,12 @@ fn WorkspaceGraph(graph: db::state::Graph, analyze_node: NodeRef<html::Div>) -> 
         let graph = graph.clone();
         let workspace_graph_state = workspace_graph_state.clone();
         async move {
-            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(
-                &project
-                    .rid()
-                    .with_untracked(|rid| lib::event::topic::graph(rid)),
-            )
-            .await
-            .unwrap();
+            let rid = &project
+                .rid()
+                .with_untracked(|rid| lib::event::topic::graph(rid));
+            let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(rid)
+                .await
+                .unwrap();
 
             while let Some(events) = listener.next().await {
                 for event in events.payload {
@@ -681,8 +679,13 @@ mod analyze {
                     completed,
                     remaining,
                 } => {
-                    let percent_complete = 100 * completed / (completed + remaining);
-                    format!("{percent_complete}%")
+                    let total = completed + remaining;
+                    if total == 0 {
+                        "100%".to_string()
+                    } else {
+                        let percent_complete = 100 * completed / total;
+                        format!("{percent_complete}%")
+                    }
                 }
             })
         };
@@ -1936,9 +1939,11 @@ fn handle_event_graph_container_properties_repaired(
         .unwrap()
         .unwrap();
 
-    assert!(container
-        .properties()
-        .with_untracked(|properties| properties.is_err()));
+    assert!(
+        container
+            .properties()
+            .with_untracked(|properties| properties.is_err())
+    );
 
     let properties =
         state::container::Properties::new(update.rid.clone(), update.properties.clone());
@@ -1970,9 +1975,11 @@ fn handle_event_graph_container_properties_corrupted(
         .unwrap()
         .unwrap();
 
-    assert!(container
-        .properties()
-        .with_untracked(|properties| properties.is_ok()));
+    assert!(
+        container
+            .properties()
+            .with_untracked(|properties| properties.is_ok())
+    );
 
     let rid = container
         .properties()
@@ -2692,11 +2699,7 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
                         .iter()
                         .for_each(|(update_key, update_value)| {
                             if let Some(value) = metadata.iter().find_map(|(key, value)| {
-                                if update_key == key {
-                                    Some(value)
-                                } else {
-                                    None
-                                }
+                                if update_key == key { Some(value) } else { None }
                             }) {
                                 if value.with_untracked(|value| value != update_value) {
                                     value.set(update_value.clone())
@@ -2758,11 +2761,7 @@ fn update_metadata(metadata: RwSignal<state::Metadata>, update: &syre_core::proj
                 .iter()
                 .find_map(
                     |(key, value)| {
-                        if key == update_key {
-                            Some(value)
-                        } else {
-                            None
-                        }
+                        if key == update_key { Some(value) } else { None }
                     },
                 )
                 .unwrap();
@@ -2963,11 +2962,13 @@ fn insert_graph_container_flags(
         })
         .collect::<Vec<_>>();
 
-    assert!(!update.iter().any(|(update_path, _)| flags
-        .read_untracked()
-        .iter()
-        .find(|(flag_path, _)| update_path == flag_path)
-        .is_some()));
+    assert!(!update.iter().any(|(update_path, _)| {
+        flags
+            .read_untracked()
+            .iter()
+            .find(|(flag_path, _)| update_path == flag_path)
+            .is_some()
+    }));
 
     flags.write().extend(update)
 }

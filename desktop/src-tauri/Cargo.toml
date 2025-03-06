@@ -31,7 +31,6 @@ syre-desktop-lib = { path = "../src-lib", features = ["server"] }
 syre-resource-db = { path = "../resource_db" }
 tauri = { version = "2.2", features = [] }
 tauri-plugin-dialog = "2.2"
-tauri-plugin-devtools = { git = "https://github.com/crabnebula-dev/devtools" }
 tauri-plugin-shell = "2.2"
 tempfile.workspace = true
 tokio = { version = "1.42", features = ["full"] }

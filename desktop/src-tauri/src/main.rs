@@ -14,9 +14,6 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build());
 
-    #[cfg(debug_assertions)] // only enable devtools instrumentation in development builds
-    let builder = builder.plugin(tauri_plugin_devtools::init());
-    #[cfg(not(debug_assertions))]
     let _log_guard = logging::enable();
 
     builder
@@ -78,16 +75,20 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-#[cfg(not(debug_assertions))]
 mod logging {
     use syre_desktop as desktop;
     use tracing_subscriber::{
+        Registry, filter,
         fmt::{self, time},
         prelude::*,
-        Registry,
     };
 
     const LOG_PREFIX: &str = "desktop.log";
+
+    #[cfg(debug_assertions)]
+    const SYRE_LOG_LEVEL: tracing::Level = tracing::Level::DEBUG;
+    #[cfg(not(debug_assertions))]
+    const SYRE_LOG_LEVEL: tracing::Level = tracing::Level::ERROR;
 
     pub fn enable() -> tracing_appender::non_blocking::WorkerGuard {
         let config_dir = desktop::common::config_dir_path().unwrap();
@@ -98,14 +99,20 @@ mod logging {
             .with_timer(time::UtcTime::rfc_3339())
             .json();
 
+        #[cfg(debug_assertions)]
         let console_logger = fmt::layer()
             .with_writer(std::io::stdout)
             .with_timer(time::UtcTime::rfc_3339())
             .pretty();
 
-        let subscriber = Registry::default().with(console_logger).with(file_logger);
-        tracing::subscriber::set_global_default(subscriber).unwrap();
+        let filter = filter::Targets::new().with_target("syre", SYRE_LOG_LEVEL);
 
+        let subscriber = Registry::default().with(filter).with(file_logger);
+
+        #[cfg(debug_assertions)]
+        let subscriber = subscriber.with(console_logger);
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
         _log_guard
     }
 }

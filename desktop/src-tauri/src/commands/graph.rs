@@ -479,7 +479,7 @@ mod duplicate {
                     if matches!(err.kind(), io::ErrorKind::PermissionDenied)
                         && attempt < MOVE_DUPLICATED_TREE_ATTEMPTS =>
                 {
-                    continue
+                    continue;
                 }
                 Err(err) => return Err(error::Error::Move(err.kind())),
             }

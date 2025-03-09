@@ -1,5 +1,5 @@
 pub use project::Settings as Project;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{fs, io, path::Path};
 use syre_local as local;
 pub use user::Settings as User;

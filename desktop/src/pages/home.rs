@@ -120,7 +120,7 @@ fn MainNav() -> impl IntoView {
         <nav class="px-2 border-b dark:bg-secondary-900 flex justify-between">
             <ol>
                 <li>
-                    <A href="/" attr:class="inline-block align-middle">
+                    <A href="/" attr:class="inline-block align-middle" attr:title="Dashboard">
                         <Logo attr:class="h-4" />
                     </A>
                 </li>
@@ -132,7 +132,8 @@ fn MainNav() -> impl IntoView {
                         on:mousedown=open_settings
                         type="button"
                         class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
-                        border border-transparent hover:border-secondary-200 dark:hover:border-white"
+                        border border-transparent hover:border-secondary-200 dark:hover:border-white cursor-pointer"
+                        title="Settings"
                     >
                         <Icon icon=components::icon::Settings />
                     </button>
@@ -142,6 +143,7 @@ fn MainNav() -> impl IntoView {
                         href="/logout"
                         attr:class="inline-block align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 \
                         rounded border border-transparent hover:border-secondary-200 dark:hover:border-white"
+                        attr:title="Log out"
                     >
                         <Icon
                             icon=icondata::IoLogOutOutline

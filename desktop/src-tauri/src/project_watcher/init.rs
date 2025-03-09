@@ -2,8 +2,8 @@
 use syre_project_watcher::Client as WatcherClient;
 use tauri::async_runtime::Receiver;
 use tauri_plugin_shell::{
-    process::{CommandChild, CommandEvent},
     ShellExt,
+    process::{CommandChild, CommandEvent},
 };
 
 /// Init

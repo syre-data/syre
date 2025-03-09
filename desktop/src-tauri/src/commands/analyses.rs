@@ -177,7 +177,7 @@ pub async fn analysis_toggle_associations(
     let project_properties = match project_data.properties() {
         db::state::DataResource::Ok(properties) => properties,
         db::state::DataResource::Err(err) => {
-            return Err(ToggleSubtreeAssociations::InvalidProject(err))
+            return Err(ToggleSubtreeAssociations::InvalidProject(err));
         }
     };
 

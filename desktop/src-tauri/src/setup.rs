@@ -1,9 +1,11 @@
 //! Setup functionality for the app.
 use crate::state;
 use std::thread;
-use syre_project_watcher as project_watcher;
+use syre_desktop_lib as lib;
+use syre_project_watcher::{self as project_watcher, Update};
 use syre_resource_db as resource_db;
 use tauri::{Listener, Manager};
+use tauri_plugin_store::StoreExt;
 use tauri_plugin_updater::UpdaterExt;
 
 const PROJECT_WATCHER_CONNECTION_ATTEMPTS: usize = 50;
@@ -40,14 +42,38 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn check_for_update(app: tauri::AppHandle) {
+    use lib::settings::app::UpdateChannel;
+
+    let store = app.store(crate::common::DESKTOP_SETTINGS_FILE).unwrap();
+    let update_channel = store
+        .get("update_channel")
+        .map(|channel| serde_json::from_value::<UpdateChannel>(channel).unwrap())
+        .unwrap_or_else(|| {
+            if cfg!(debug_assertions) {
+                UpdateChannel::Debug
+            } else {
+                UpdateChannel::Stable
+            }
+        });
+
+    if matches!(update_channel, UpdateChannel::None) {
+        return;
+    }
+
     let endpoints = if cfg!(debug_assertions) {
-        tracing::trace!("checking for updates locally");
+        tracing::trace!("checking for updates locally, too");
         vec![
-            "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel=debug",
-            "http://localhost:3030/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel=debug",
+            format!(
+                "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}",
+            ),
+            format!(
+                "http://localhost:3030/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}",
+            ),
         ]
     } else {
-        vec!["https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}"]
+        vec![format!(
+            "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}"
+        )]
     };
     let endpoints = endpoints
         .into_iter()
@@ -74,13 +100,13 @@ async fn check_for_update(app: tauri::AppHandle) {
     };
 
     if let Some(update) = update {
+        tracing::trace!("update available");
         let mut downloaded = 0;
-
         let response = update
             .download_and_install(
                 |chunk_length, content_length| {
                     downloaded += chunk_length;
-                    tracing::trace!("downloaded {downloaded} from {content_length:?}");
+                    tracing::trace!("downloaded {downloaded} of {content_length:?}");
                 },
                 || {
                     tracing::trace!("download finished");
@@ -94,6 +120,8 @@ async fn check_for_update(app: tauri::AppHandle) {
             tracing::trace!("update installed, restarting app");
             app.restart();
         }
+    } else {
+        tracing::trace!("no update available");
     }
 }
 

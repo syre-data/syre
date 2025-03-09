@@ -9,12 +9,12 @@ use syre_desktop::{
 };
 
 fn main() {
+    let _log_guard = logging::enable();
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build());
-
-    let _log_guard = logging::enable();
 
     builder
         .manage(syre_project_watcher::Client::new())
@@ -59,6 +59,8 @@ fn main() {
             project::project_analysis_remove,
             project::project_properties_update,
             project::project_resources,
+            settings::app_settings,
+            settings::app_settings_update,
             settings::user_settings,
             settings::user_settings_desktop_update,
             settings::user_settings_runner_update,
@@ -86,28 +88,31 @@ mod logging {
     const LOG_PREFIX: &str = "desktop.log";
 
     #[cfg(debug_assertions)]
-    const SYRE_LOG_LEVEL: tracing::Level = tracing::Level::DEBUG;
+    const SYRE_LOG_LEVEL_FILE: tracing::Level = tracing::Level::DEBUG;
     #[cfg(not(debug_assertions))]
-    const SYRE_LOG_LEVEL: tracing::Level = tracing::Level::ERROR;
+    const SYRE_LOG_LEVEL_FILE: tracing::Level = tracing::Level::ERROR;
 
     pub fn enable() -> tracing_appender::non_blocking::WorkerGuard {
         let config_dir = desktop::common::config_dir_path().unwrap();
+        let file_filter = filter::Targets::default()
+            .with_default(tracing::Level::ERROR)
+            .with_target("syre", SYRE_LOG_LEVEL_FILE);
         let file_logger = tracing_appender::rolling::daily(config_dir, LOG_PREFIX);
         let (file_logger, _log_guard) = tracing_appender::non_blocking(file_logger);
         let file_logger = fmt::layer()
             .with_writer(file_logger)
             .with_timer(time::UtcTime::rfc_3339())
-            .json();
+            .json()
+            .with_filter(file_filter);
 
         #[cfg(debug_assertions)]
         let console_logger = fmt::layer()
             .with_writer(std::io::stdout)
             .with_timer(time::UtcTime::rfc_3339())
-            .pretty();
+            .pretty()
+            .with_filter(filter::EnvFilter::from_default_env());
 
-        let filter = filter::Targets::new().with_target("syre", SYRE_LOG_LEVEL);
-
-        let subscriber = Registry::default().with(filter).with(file_logger);
+        let subscriber = Registry::default().with(file_logger);
 
         #[cfg(debug_assertions)]
         let subscriber = subscriber.with(console_logger);

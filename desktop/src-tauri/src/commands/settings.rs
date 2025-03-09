@@ -2,6 +2,7 @@ use crate::settings;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
+use tauri_plugin_store::StoreExt;
 
 /// Retrieve the desktop settings for the active user.
 /// If none are set, uses default.
@@ -77,4 +78,36 @@ pub fn project_settings_runner_update(
     update: lib::settings::project::Runner,
 ) -> Result<(), lib::command::error::IoErrorKind> {
     settings::project::Runner::save(&project, update).map_err(|err| err.into())
+}
+
+#[tauri::command]
+pub fn app_settings(app: tauri::AppHandle) -> lib::settings::App {
+    let store = app.store(crate::common::DESKTOP_SETTINGS_FILE).unwrap();
+    let update_channel = store
+        .get("update_channel")
+        .map(|channel| serde_json::from_value(channel).unwrap())
+        .unwrap_or(lib::settings::app::UpdateChannel::default());
+
+    lib::settings::App { update_channel }
+}
+
+#[tauri::command]
+pub fn app_settings_update(
+    app: tauri::AppHandle,
+    update: lib::settings::App,
+) -> Result<(), lib::command::error::IoErrorKind> {
+    let store = app.store(crate::common::DESKTOP_SETTINGS_FILE).unwrap();
+    store.set(
+        "update_channel",
+        serde_json::to_value(update.update_channel).unwrap(),
+    );
+    let result = store.save();
+    if let Err(err) = result.as_ref() {
+        tracing::error!("could not save desktop settings: {err:?}");
+    }
+
+    result.map_err(|err| match err {
+        tauri_plugin_store::Error::Io(err) => err.into(),
+        _ => panic!("{err:?}"),
+    })
 }

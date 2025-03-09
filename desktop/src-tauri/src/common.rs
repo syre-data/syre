@@ -6,6 +6,8 @@ use std::{
 use syre_core::identifier::Identifier as CoreIdentifier;
 use syre_local as local;
 
+pub const DESKTOP_SETTINGS_FILE: &str = "desktop_settings.json";
+
 /// Returns app config directories for the system user.
 pub fn system_dirs() -> Result<directories::ProjectDirs, io::Error> {
     let dirs = directories::ProjectDirs::from(

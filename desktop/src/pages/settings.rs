@@ -1,6 +1,20 @@
 use crate::{components::icon, types};
-use leptos::{ev::MouseEvent, prelude::*};
+use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::*;
+use reactive_stores::Store;
+use syre_desktop_lib as lib;
+
+#[derive(Clone, Copy)]
+enum ActiveView {
+    User,
+    App,
+}
+
+impl Default for ActiveView {
+    fn default() -> Self {
+        Self::User
+    }
+}
 
 #[component]
 pub fn Settings(
@@ -8,6 +22,7 @@ pub fn Settings(
     #[prop(into)]
     onclose: Callback<()>,
 ) -> impl IntoView {
+    let active_view = RwSignal::new(ActiveView::default());
     let trigger_close = move |e: MouseEvent| {
         if e.button() == types::MouseButton::Primary {
             onclose.run(());
@@ -16,20 +31,91 @@ pub fn Settings(
 
     view! {
         <div class="flex relative bg-white dark:bg-secondary-800 dark:text-white h-full w-full">
+            <Nav active_view />
             <div class="grow h-full">
-                <user::Settings />
+                <SettingsView active_view=active_view.read_only() />
             </div>
             <div class="absolute top-2 right-2 ">
                 <button
                     on:mousedown=trigger_close
                     type="button"
-                    class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700"
+                    class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700 cursor-pointer"
                 >
                     <Icon icon=icon::Close />
                 </button>
             </div>
         </div>
     }
+}
+
+#[component]
+fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
+    view! {
+        <nav class="flex flex-col h-full bg-secondary-100 dark:bg-secondary-900">
+            <ul class="pt-4 grow">
+                <li
+                    class=(
+                        ["bg-white", "dark:bg-secondary-800"],
+                        move || matches!(active_view(), ActiveView::User),
+                    )
+                    class="px-2 border-b"
+                    title="User settings"
+                >
+                    <button
+                        type="button"
+                        on:mousedown=move |_| active_view.set(ActiveView::User)
+                        class="text-2xl p-2 cursor-pointer"
+                    >
+                        <Icon icon=icon::User />
+                    </button>
+                </li>
+            </ul>
+            <ul class="pb-4">
+                <li
+                    class=(
+                        ["bg-white", "dark:bg-secondary-800"],
+                        move || matches!(active_view(), ActiveView::App),
+                    )
+                    class="px-2 border-t"
+                    title="App settings"
+                >
+                    <button
+                        type="button"
+                        on:mousedown=move |_| active_view.set(ActiveView::App)
+                        class="text-2xl p-2 cursor-pointer"
+                    >
+                        <Icon icon=icon::Settings />
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+#[component]
+fn SettingsView(active_view: ReadSignal<ActiveView>) -> impl IntoView {
+    let user_settings = expect_context::<Store<types::settings::User>>();
+    let user_settings_resource = LocalResource::new(fetch_user_settings);
+
+    view! {
+        <Suspense fallback=Loading>
+            {move || Suspend::new(async move {
+                if let Some(settings) = user_settings_resource.await {
+                    user_settings.set(settings.into());
+                }
+                either!(
+                    active_view(),
+                    ActiveView::User => user::Settings,
+                    ActiveView::App => app::Settings,
+                )
+            })}
+        </Suspense>
+    }
+}
+
+#[component]
+fn Loading() -> impl IntoView {
+    view! { <div class="text-center">"Loading"</div> }
 }
 
 pub mod user {
@@ -41,7 +127,7 @@ pub mod user {
     #[component]
     pub fn Settings() -> impl IntoView {
         let user_settings = expect_context::<Store<types::settings::User>>();
-        let settings = LocalResource::new(fetch_user_settings);
+        let settings = LocalResource::new(super::fetch_user_settings);
         view! {
             <Suspense fallback=Loading>
                 {move || Suspend::new(async move {
@@ -181,7 +267,7 @@ pub mod user {
                                             <button
                                                 type="button"
                                                 on:mousedown=toggle_theme
-                                                class="text-2xl p-2 border rounded-sm"
+                                                class="text-2xl p-2 border rounded-sm cursor-pointer"
                                                 title="Light mode"
                                             >
                                                 <Icon icon=icondata::BsSun />
@@ -194,7 +280,7 @@ pub mod user {
                                             <button
                                                 type="button"
                                                 on:mousedown=toggle_theme
-                                                class="text-2xl p-2 border border-black rounded-sm"
+                                                class="text-2xl p-2 border border-black rounded-sm cursor-pointer"
                                                 title="Dark mode"
                                             >
                                                 <Icon icon=icondata::BsMoon />
@@ -623,8 +709,172 @@ pub mod user {
                 .await
         }
     }
+}
 
-    async fn fetch_user_settings() -> Option<lib::settings::user::Settings> {
-        tauri_sys::core::invoke("user_settings", ()).await
+pub mod app {
+    use crate::types;
+    use leptos::{html, prelude::*};
+    use reactive_stores::Store;
+    use serde::Serialize;
+    use syre_desktop_lib as lib;
+
+    #[component]
+    pub fn Settings() -> impl IntoView {
+        let settings = LocalResource::new(fetch_app_settings);
+        view! {
+            <Suspense fallback=Loading>
+                {move || Suspend::new(async move {
+                    let settings = settings.await;
+                    view! { <SettingsView settings /> }
+                })}
+            </Suspense>
+        }
     }
+
+    #[component]
+    fn Loading() -> impl IntoView {
+        view! { <div class="text-center">"Loading"</div> }
+    }
+
+    #[component]
+    fn SettingsView(settings: lib::settings::App) -> impl IntoView {
+        use lib::settings::app::UpdateChannel;
+
+        let messages = expect_context::<types::Messages>();
+        let (settings, set_settings) = signal(settings);
+        let update_channel_node = NodeRef::<html::Select>::new();
+        let version = LocalResource::new(tauri_sys::app::get_version);
+        let update_settings_action: Action<_, _> =
+            Action::new_unsync(move |settings: &lib::settings::App| {
+                let settings = settings.clone();
+                async move {
+                    if let Err(err) = update_app_settings(settings).await {
+                        let mut msg = types::message::Builder::error("Could not update settings.");
+                        msg.body(format!("{err:?}"));
+                        messages.write().push(msg.build());
+                    }
+                }
+            });
+
+        Effect::watch(
+            move || update_channel_node.get(),
+            move |update_channel_node, _, _| {
+                let Some(input) = update_channel_node else {
+                    return;
+                };
+
+                settings.with_untracked(|settings| {
+                    input.set_value(update_channel_to_str(settings.update_channel));
+                });
+            },
+            true,
+        );
+
+        Effect::watch(
+            settings,
+            move |settings, _, _| {
+                update_settings_action.dispatch(settings.clone());
+            },
+            false,
+        );
+
+        view! {
+            <div class="relative bg-white dark:bg-secondary-800 dark:text-white h-full w-full">
+                <h1 class="text-lg font-primary pt-2 pb-4 px-2">"App settings"</h1>
+                <div class="pl-2 pb-2">
+                    "App version: "
+                    <Suspense fallback=LoadingVersion>
+                        {move || Suspend::new(async move {
+                            let version = version.await;
+                            view! {
+                                <span class="font-primary pl-2 select-all cursor-pointer">
+                                    {version}
+                                </span>
+                            }
+                        })}
+                    </Suspense>
+                </div>
+                <div class="pl-2">
+                    <form>
+                        <div>
+                            <label>
+                                <span class="pr-2">"Update channel"</span>
+                                <select
+                                    node_ref=update_channel_node
+                                    class="input-compact"
+                                    prop:value=move || {
+                                        settings
+                                            .with(|settings| update_channel_to_str(
+                                                settings.update_channel,
+                                            ))
+                                    }
+                                    on:input:target=move |e| {
+                                        set_settings
+                                            .update(|settings| {
+                                                settings.update_channel = update_channel_from_str(
+                                                    e.target().value().as_str(),
+                                                );
+                                            })
+                                    }
+                                >
+                                    <option value=update_channel_to_str(
+                                        UpdateChannel::Stable,
+                                    )>"Stable"</option>
+                                    <option value=update_channel_to_str(
+                                        UpdateChannel::Debug,
+                                    )>"Debug"</option>
+                                    <option value=update_channel_to_str(
+                                        UpdateChannel::None,
+                                    )>"Do not update"</option>
+                                </select>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+    }
+
+    #[component]
+    fn LoadingVersion() -> impl IntoView {
+        view! { <span class="pl-2">"Loading"</span> }
+    }
+
+    fn update_channel_from_str(channel: &str) -> lib::settings::app::UpdateChannel {
+        use lib::settings::app::UpdateChannel;
+        match channel.as_ref() {
+            "stable" => UpdateChannel::Stable,
+            "debug" => UpdateChannel::Debug,
+            "none" => UpdateChannel::None,
+            _ => panic!("invalid value"),
+        }
+    }
+
+    fn update_channel_to_str(channel: lib::settings::app::UpdateChannel) -> &'static str {
+        use lib::settings::app::UpdateChannel;
+        match channel {
+            UpdateChannel::Stable => "stable",
+            UpdateChannel::Debug => "debug",
+            UpdateChannel::None => "none",
+        }
+    }
+
+    async fn fetch_app_settings() -> lib::settings::App {
+        tauri_sys::core::invoke("app_settings", ()).await
+    }
+
+    async fn update_app_settings(
+        update: lib::settings::App,
+    ) -> Result<(), lib::command::error::IoErrorKind> {
+        #[derive(Serialize)]
+        struct Args {
+            update: lib::settings::App,
+        }
+
+        tauri_sys::core::invoke_result("app_settings_update", Args { update }).await
+    }
+}
+
+async fn fetch_user_settings() -> Option<lib::settings::user::Settings> {
+    tauri_sys::core::invoke("user_settings", ()).await
 }

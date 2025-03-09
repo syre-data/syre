@@ -1,4 +1,7 @@
-use super::{super::settings::user::Settings as UserSettings, state};
+use super::{
+    super::settings::{app::Settings as AppSettings, user::Settings as UserSettings},
+    state,
+};
 use crate::{components::icon, types};
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::*;
@@ -11,6 +14,7 @@ use syre_desktop_lib as lib;
 enum ActiveView {
     User,
     Project,
+    App,
 }
 
 impl Default for ActiveView {
@@ -42,7 +46,7 @@ pub fn Settings(
                 <button
                     on:mousedown=trigger_close
                     type="button"
-                    class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700"
+                    class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700 cursor-pointer"
                 >
                     <Icon icon=icon::Close />
                 </button>
@@ -54,8 +58,8 @@ pub fn Settings(
 #[component]
 fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
     view! {
-        <nav class="h-full bg-secondary-100 dark:bg-secondary-900">
-            <ul class="pt-4">
+        <nav class="flex flex-col h-full bg-secondary-100 dark:bg-secondary-900">
+            <ul class="grow pt-4">
                 <li
                     class=(
                         ["bg-white", "dark:bg-secondary-800"],
@@ -67,7 +71,7 @@ fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
                     <button
                         type="button"
                         on:mousedown=move |_| active_view.set(ActiveView::User)
-                        class="text-2xl p-2"
+                        class="text-2xl p-2 cursor-pointer"
                     >
                         <Icon icon=icon::User />
                     </button>
@@ -83,9 +87,27 @@ fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
                     <button
                         type="button"
                         on:mousedown=move |_| active_view.set(ActiveView::Project)
-                        class="text-2xl p-2"
+                        class="text-2xl p-2 cursor-pointer"
                     >
                         <Icon icon=icondata::LuNetwork />
+                    </button>
+                </li>
+            </ul>
+            <ul class="pb-4">
+                <li
+                    class=(
+                        ["bg-white", "dark:bg-secondary-800"],
+                        move || matches!(active_view(), ActiveView::App),
+                    )
+                    class="px-2 border-t"
+                    title="App settings"
+                >
+                    <button
+                        type="button"
+                        on:mousedown=move |_| active_view.set(ActiveView::App)
+                        class="text-2xl p-2 cursor-pointer"
+                    >
+                        <Icon icon=icon::Settings />
                     </button>
                 </li>
             </ul>
@@ -113,8 +135,9 @@ fn SettingsView(active_view: ReadSignal<ActiveView>) -> impl IntoView {
                 }
                 either!(
                     active_view(),
-                    ActiveView::Project => view! {<project::Settings />},
-                    ActiveView::User => view! {<UserSettings />},
+                    ActiveView::Project => project::Settings,
+                    ActiveView::User => UserSettings,
+                    ActiveView::App => AppSettings,
                 )
             })}
         </Suspense>
@@ -178,7 +201,7 @@ mod project {
     }
 
     mod desktop {
-        use super::{state, InputDebounce};
+        use super::{InputDebounce, state};
         use crate::{
             commands,
             types::{self, settings::project::SettingsStoreFields},
@@ -322,7 +345,7 @@ mod project {
     }
 
     mod runner {
-        use super::{state, InputDebounce};
+        use super::{InputDebounce, state};
         use crate::{
             commands,
             types::{self, settings::project::SettingsStoreFields},

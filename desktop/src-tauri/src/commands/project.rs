@@ -13,7 +13,7 @@ use syre_local::{
     self as local, common,
     file_resource::SystemResource,
     project::{
-        project, Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject,
+        Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject, project,
     },
     types::AnalysisKind,
 };

@@ -1,3 +1,4 @@
+pub use app::Settings as App;
 pub use project::Settings as Project;
 pub use user::Settings as User;
 
@@ -150,6 +151,43 @@ pub mod project {
                 continue_on_error: self.continue_on_error,
                 max_tasks: self.max_tasks,
             }
+        }
+    }
+}
+
+pub mod app {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct Settings {
+        pub update_channel: UpdateChannel,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+    #[serde(rename_all = "lowercase")]
+    pub enum UpdateChannel {
+        Stable,
+        Debug,
+
+        // Do not update app.
+        None,
+    }
+
+    impl Default for UpdateChannel {
+        fn default() -> Self {
+            Self::Stable
+        }
+    }
+
+    impl std::fmt::Display for UpdateChannel {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let out = match self {
+                UpdateChannel::Stable => "stable",
+                UpdateChannel::Debug => "debug",
+                UpdateChannel::None => panic!("{self:?} can not be formatted"),
+            };
+
+            write!(f, "{out}")
         }
     }
 }

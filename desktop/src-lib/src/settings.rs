@@ -58,6 +58,7 @@ pub mod user {
         pub r_path: Option<PathBuf>,
         pub continue_on_error: bool,
         pub max_tasks: Option<NonZeroUsize>,
+        pub disable_analysis_after: local::system::config::runner_settings::DisableAnalysisAfter,
     }
 
     impl From<local::system::config::runner_settings::Settings> for Runner {
@@ -67,6 +68,7 @@ pub mod user {
                 r_path: value.r_path,
                 continue_on_error: value.continue_on_error,
                 max_tasks: value.max_tasks,
+                disable_analysis_after: value.disable_analysis_after,
             }
         }
     }
@@ -78,6 +80,7 @@ pub mod user {
                 r_path: self.r_path,
                 continue_on_error: self.continue_on_error,
                 max_tasks: self.max_tasks,
+                disable_analysis_after: self.disable_analysis_after,
             }
         }
     }

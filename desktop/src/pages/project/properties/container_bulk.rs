@@ -538,7 +538,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
             </form>
             <Show
                 when=move || widget.with(|widget| widget.is_some()) && popout_portal.get().is_some()
-                fallback=|| view! {}
+                fallback=|| ()
             >
                 {move || {
                     let mount = popout_portal.get_untracked().unwrap();
@@ -779,8 +779,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources,
-        InputDebounce, State, UpdatePropertiesErrors,
+        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
+        UpdatePropertiesErrors, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -796,20 +796,19 @@ mod kind {
         let input_debounce = expect_context::<InputDebounce>();
 
         let oninput = Callback::new(move |input_value: Option<String>| {
-            let containers_len = containers.with_untracked(|containers| containers.len());
+            let containers_len = containers.read_untracked().len();
             let mut update = PropertiesUpdate::default();
             let _ = update.kind.insert(input_value.clone());
             spawn_local({
                 let project = project.rid().get_untracked();
-                let containers = containers.with_untracked(|containers| {
-                    containers
-                        .iter()
-                        .map(|container| {
-                            let node = graph.find_by_id(container).unwrap();
-                            graph.path(&node).unwrap()
-                        })
-                        .collect::<Vec<_>>()
-                });
+                let containers = containers
+                    .read_untracked()
+                    .iter()
+                    .map(|container| {
+                        let node = graph.find_by_id(container).unwrap();
+                        graph.path(&node).unwrap()
+                    })
+                    .collect::<Vec<_>>();
 
                 async move {
                     match update_properties(project, containers, update).await {
@@ -837,14 +836,14 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state.with(|state| state.kind()) oninput debounce=*input_debounce /> }
+        view! { <KindEditor value=state.read_untracked().kind() oninput debounce=*input_debounce /> }
     }
 }
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, update_properties,
-        ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
+        InputDebounce, State, UpdatePropertiesErrors, update_properties,
     };
     use crate::{
         pages::project::state,
@@ -906,7 +905,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=state.with(|state| state.description())
+                value=state.with_untracked(|state| state.description())
                 oninput
                 debounce=*input_debounce
                 class="input-compact w-full align-top"
@@ -918,7 +917,7 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        update_properties, ActiveResources, State, UpdatePropertiesErrors,
+        ActiveResources, State, UpdatePropertiesErrors, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -986,7 +985,7 @@ mod tags {
             }
         });
 
-        view! { <TagsEditor value=state.with(|state| { state.tags() }) onremove /> }
+        view! { <TagsEditor value=state.with_untracked(|state| { state.tags() }) onremove /> }
     }
 
     #[component]
@@ -1071,7 +1070,7 @@ mod metadata {
         super::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        update_properties, ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -1208,13 +1207,7 @@ mod metadata {
             false,
         );
 
-        view! {
-            <MetadataEditor
-                value=state.with_untracked(|state| { state.metadata() })
-                onremove
-                onmodify
-            />
-        }
+        view! { <MetadataEditor value=state.read_untracked().metadata() onremove onmodify /> }
     }
 
     #[component]
@@ -1311,8 +1304,8 @@ mod metadata {
 mod analysis_associations {
     use super::{
         super::{
-            common::{self, analysis_associations::AddAssociation as AddAssociationEditor},
             InputDebounce,
+            common::{self, analysis_associations::AddAssociation as AddAssociationEditor},
         },
         ActiveResources,
     };
@@ -1464,7 +1457,7 @@ mod analysis_associations {
         view! {
             <div>
                 <For
-                    each=state.with_untracked(|state| state.analyses())
+                    each=state.read_untracked().analyses()
                     key=|association| association.analysis.clone()
                     let:association
                 >

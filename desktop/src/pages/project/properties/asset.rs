@@ -216,7 +216,7 @@ mod properties {
     }
 
     mod name {
-        use super::{update_properties, ActiveAsset, InputDebounce};
+        use super::{ActiveAsset, InputDebounce, update_properties};
         use crate::{components::form::debounced::InputText, pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
 
@@ -230,7 +230,7 @@ mod properties {
 
             let input_value = Signal::derive({
                 let value = asset.name().read_only();
-                move || value.with(|value| value.clone().unwrap_or(String::new()))
+                move || value.get().unwrap_or(String::new())
             });
 
             let oninput = Callback::new({
@@ -256,8 +256,7 @@ mod properties {
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                types::message::Builder::error("Could not save container");
+                            let mut msg = types::message::Builder::error("Could not save asset.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -278,8 +277,8 @@ mod properties {
 
     mod kind {
         use super::{
-            super::super::common::kind::Editor as KindEditor, update_properties, ActiveAsset,
-            InputDebounce,
+            super::super::common::kind::Editor as KindEditor, ActiveAsset, InputDebounce,
+            update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -311,8 +310,7 @@ mod properties {
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                types::message::Builder::error("Could not save container");
+                            let mut msg = types::message::Builder::error("Could not save asset.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -333,8 +331,8 @@ mod properties {
 
     mod description {
         use super::{
-            super::super::common::description::Editor as DescriptionEditor, update_properties,
-            ActiveAsset, InputDebounce,
+            super::super::common::description::Editor as DescriptionEditor, ActiveAsset,
+            InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -366,8 +364,7 @@ mod properties {
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                types::message::Builder::error("Could not save container");
+                            let mut msg = types::message::Builder::error("Could not save asset.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -388,8 +385,8 @@ mod properties {
 
     mod tags {
         use super::{
-            super::super::common::tags::Editor as TagsEditor, update_properties, ActiveAsset,
-            InputDebounce,
+            super::super::common::tags::Editor as TagsEditor, ActiveAsset, InputDebounce,
+            update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -421,8 +418,7 @@ mod properties {
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                types::message::Builder::error("Could not save container");
+                            let mut msg = types::message::Builder::error("Could not save asset.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }
@@ -444,7 +440,7 @@ mod properties {
     mod metadata {
         use super::{
             super::super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
-            update_properties, ActiveAsset, InputDebounce,
+            ActiveAsset, InputDebounce, update_properties,
         };
         use crate::{
             components::{self, DetailPopout},
@@ -495,9 +491,11 @@ mod properties {
                 let asset = asset.clone();
                 move |(key, value): (String, Value)| {
                     assert!(!key.is_empty());
-                    assert!(!asset
-                        .metadata()
-                        .with_untracked(|metadata| metadata.iter().any(|(k, _)| *k == key)));
+                    assert!(
+                        !asset
+                            .metadata()
+                            .with_untracked(|metadata| metadata.iter().any(|(k, _)| *k == key))
+                    );
 
                     let mut properties = asset.as_properties();
                     let mut metadata = asset
@@ -645,8 +643,7 @@ mod properties {
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                types::message::Builder::error("Could not save container");
+                            let mut msg = types::message::Builder::error("Could not save asset.");
                             msg.body(format!("{err:?}"));
                             messages.update(|messages| messages.push(msg.build()));
                         }

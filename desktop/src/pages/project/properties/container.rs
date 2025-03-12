@@ -72,7 +72,7 @@ fn Header() -> impl IntoView {
 }
 
 mod properties {
-    use super::super::{common, InputDebounce, PopoutPortal};
+    use super::super::{InputDebounce, PopoutPortal, common};
     use crate::{components, pages::project::state, types};
     use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
     use description::Editor as Description;
@@ -328,7 +328,7 @@ mod properties {
                                             },
                                         )
 
-                                        class="aspect-square w-full rounded-xs"
+                                        class="aspect-square w-full rounded-xs cursor-pointer"
                                     >
                                         <Icon icon=components::icon::Add />
                                     </button>
@@ -387,7 +387,7 @@ mod properties {
                                             },
                                         )
 
-                                        class="aspect-square w-full rounded-xs disabled:opacity-50"
+                                        class="aspect-square w-full rounded-xs disabled:opacity-50 cursor-pointer"
                                         disabled=move || {
                                             available_analyses.with(|analyses| analyses.is_empty())
                                         }
@@ -550,7 +550,7 @@ mod properties {
 
     mod kind {
         use super::{
-            super::super::common::kind::Editor as KindEditor, update_properties, InputDebounce,
+            super::super::common::kind::Editor as KindEditor, InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -609,8 +609,8 @@ mod properties {
 
     mod description {
         use super::{
-            super::super::common::description::Editor as DescriptionEditor, update_properties,
-            InputDebounce,
+            super::super::common::description::Editor as DescriptionEditor, InputDebounce,
+            update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -672,7 +672,7 @@ mod properties {
 
     mod tags {
         use super::{
-            super::super::common::tags::Editor as TagsEditor, update_properties, InputDebounce,
+            super::super::common::tags::Editor as TagsEditor, InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -735,7 +735,7 @@ mod properties {
     mod metadata {
         use super::{
             super::super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
-            update_properties, InputDebounce,
+            InputDebounce, update_properties,
         };
         use crate::{
             components::{self, DetailPopout},
@@ -963,7 +963,8 @@ mod properties {
                         <button
                             type="button"
                             on:mousedown=remove_datum
-                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700 \
+                            cursor-pointer"
                         >
                             <Icon icon=components::icon::Remove />
                         </button>
@@ -1019,9 +1020,11 @@ mod properties {
                                 .collect::<Vec<_>>()
                         })
                     });
-                    assert!(!associations
-                        .iter()
-                        .any(|assoc| assoc.analysis() == association.analysis()));
+                    assert!(
+                        !associations
+                            .iter()
+                            .any(|assoc| assoc.analysis() == association.analysis())
+                    );
                     associations.push(association.clone());
 
                     let project = project.rid().get_untracked();
@@ -1145,7 +1148,8 @@ mod properties {
                                         e,
                                         association.analysis().clone(),
                                     )
-                                    class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                                    class="aspect-square h-full rounded-xs hover:bg-secondary-200 \
+                                    dark:hover:bg-secondary-700 cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Remove />
                                 </button>
@@ -1501,7 +1505,11 @@ mod flags {
                     <div>{flag.message().clone()}</div>
                 </div>
                 <div>
-                    <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()>
+                    <button
+                        on:mousedown=trigger_remove_flag
+                        disabled=remove_flag_action.pending()
+                        class="cursor-pointer"
+                    >
                         <Icon icon=components::icon::Remove />
                     </button>
                 </div>

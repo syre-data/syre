@@ -432,7 +432,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -479,7 +479,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -526,7 +526,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -995,7 +995,7 @@ mod tags {
         let messages = expect_context::<types::Messages>();
         let containers = expect_context::<ActiveResources>();
         let state = expect_context::<Signal<State>>();
-        let (reset_form, set_reset_form) = signal(());
+        let reset_form = Trigger::new();
         let onadd = Callback::new(move |tags: Vec<String>| {
             if tags.is_empty() {
                 return;
@@ -1464,7 +1464,10 @@ mod analysis_associations {
                     <div class="flex gap-2">
                         <AssociationEditor association=association.clone() class="grow" />
                         <div>
-                            <button on:mousedown=onremove(association.analysis.clone())>
+                            <button
+                                on:mousedown=onremove(association.analysis.clone())
+                                class="cursor-pointer"
+                            >
                                 <Icon icon=components::icon::Remove />
                             </button>
                         </div>

@@ -378,7 +378,7 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -425,7 +425,7 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>

@@ -183,7 +183,7 @@ mod properties {
                                             move || !add_metadatum_visible(),
                                         )
 
-                                        class="aspect-square w-full rounded-xs"
+                                        class="aspect-square w-full rounded-xs cursor-pointer"
                                     >
                                         <Icon icon=components::icon::Add />
                                     </button>
@@ -658,7 +658,8 @@ mod properties {
                         <button
                             type="button"
                             on:mousedown=remove_datum
-                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 \
+                            dark:hover:bg-secondary-700 cursor-pointer"
                         >
                             <Icon icon=components::icon::Remove />
                         </button>
@@ -853,7 +854,8 @@ mod flags {
                     <div>{flag.message().clone()}</div>
                 </div>
                 <div>
-                    <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()>
+                    <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()
+                    class="cursor-pointer">
                         <Icon icon=components::icon::Remove />
                     </button>
                 </div>

@@ -10,7 +10,7 @@ use tauri_plugin_updater::UpdaterExt;
 
 const PROJECT_WATCHER_CONNECTION_ATTEMPTS: usize = 50;
 const PROJECT_WATCHER_CONNECTION_DELAY_MS: u64 = 100;
-const UPDATE_CHECK_TIMEOUT: u64 = 30; // in seconds
+const UPDATE_CHECK_TIMEOUT: u64 = 30; // seconds
 const TAURI_SIGNING_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBM0MxNjdEMjRBRDc5MTgKUldRWWVhMGtmUlk4K293RjN3MWpUcitrd1l5QVRPbjZxSjRSdmlqRjJDM29GTHcwM0JCUWlGRWEK";
 
 /// Runs setup tasks:
@@ -64,15 +64,15 @@ async fn check_for_update(app: tauri::AppHandle) {
         tracing::trace!("checking for updates locally, too");
         vec![
             format!(
-                "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}",
+                "https://releases.syre.ai/check?system={{{{target}}}}&arch={{{{arch}}}}&version={{{{current_version}}}}&channel={update_channel}",
             ),
             format!(
-                "http://localhost:3030/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}",
+                "http://localhost:3030/check?system={{{{target}}}}&arch={{{{arch}}}}&version={{{{current_version}}}}&channel={update_channel}",
             ),
         ]
     } else {
         vec![format!(
-            "https://releases.syre.ai/check?system={{target}}&arch={{arch}}&version={{current_version}}&channel={update_channel}"
+            "https://releases.syre.ai/check?system={{{{target}}}}&arch={{{{arch}}}}&version={{{{current_version}}}}&channel={update_channel}"
         )]
     };
     let endpoints = endpoints

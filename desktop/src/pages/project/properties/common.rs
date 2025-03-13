@@ -153,18 +153,18 @@ pub mod metadata {
         #[prop(into)] onadd: Callback<(String, Value)>,
         /// Reset the state of the form.
         #[prop(optional, into)]
-        reset: Option<ReadSignal<()>>,
+        reset: Option<Trigger>,
         #[prop(optional, into)] id: MaybeProp<String>,
         #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let input_debounce = expect_context::<InputDebounce>();
-        let (key, set_key) = signal("".to_string());
-        let key: Signal<String> = leptos_use::signal_debounced(key, *input_debounce);
+        let (key_input, set_key_input) = signal("".to_string());
+        let key: Signal<String> = leptos_use::signal_debounced(key_input, *input_debounce);
         let (value, set_value) = signal(Value::Number(serde_json::Number::from(0)));
 
         if let Some(reset) = reset {
             let _ = Effect::watch(
-                reset,
+                move || reset,
                 move |_, _, _| set_value(Value::Number(serde_json::Number::from(0))),
                 false,
             );
@@ -175,7 +175,7 @@ pub mod metadata {
             move || {
                 key.with(|key| {
                     let key = key.trim();
-                    keys.with(|keys| keys.iter().any(|k| k == key))
+                    keys.read().iter().any(|k| k == key)
                 })
             }
         };
@@ -187,13 +187,11 @@ pub mod metadata {
             move |e: SubmitEvent| {
                 e.prevent_default();
 
-                if keys
-                    .with_untracked(|keys| key.with_untracked(|key| keys.iter().any(|k| k == key)))
-                {
+                if key_input.with_untracked(|key| keys.read_untracked().iter().any(|k| k == key)) {
                     return;
                 }
 
-                let key = key.with_untracked(|key| key.trim().to_string());
+                let key = key_input.read_untracked().trim().to_string();
                 if key.is_empty() {
                     return;
                 }
@@ -208,7 +206,7 @@ pub mod metadata {
                     Value::Null => unreachable!(),
                 });
 
-                set_key.update(|key| key.clear());
+                set_key_input.write().clear();
                 set_value(Value::Number(serde_json::Number::from(0)));
                 onadd.run((key, value));
             }
@@ -219,8 +217,7 @@ pub mod metadata {
                 <div class="pb-1">
                     <input
                         name="key"
-                        on:input=move |e| set_key(event_target_value(&e))
-                        prop:value=key
+                        bind:value=(key_input, set_key_input)
                         placeholder="Name"
                         minlength="1"
                         class=(["border-red-600", "border-solid", "border-2"], invalid_key.clone())
@@ -229,7 +226,7 @@ pub mod metadata {
                 </div>
                 <ValueEditor value oninput debounce=*input_debounce />
                 <div class="py-1 flex justify-center">
-                    <button class="rounded-xs hover:bg-primary-400 dark:hover:bg-primary-700">
+                    <button class="rounded-xs hover:bg-primary-400 dark:hover:bg-primary-700 cursor-pointer">
                         <Icon icon=components::icon::Add />
                     </button>
                 </div>
@@ -1027,7 +1024,7 @@ pub mod analysis_associations {
                     <button
                         type="button"
                         on:mousedown=add
-                        class="hover:bg-primary-400 dark:hover:bg-primary-700 rounded-xs"
+                        class="hover:bg-primary-400 dark:hover:bg-primary-700 rounded-xs cursor-pointer"
                     >
                         <Icon icon=components::icon::Add />
                     </button>
@@ -1273,7 +1270,7 @@ pub mod bulk {
                                                         type="button"
                                                         on:mousedown=remove(tag.clone())
                                                         class="aspect-square h-full rounded-full hover:bg-secondary-200 \
-                                                        dark:hover:bg-secondary-600"
+                                                        dark:hover:bg-secondary-600 cursor-pointer"
                                                     >
 
                                                         <Icon
@@ -1298,14 +1295,14 @@ pub mod bulk {
             #[prop(into)] onadd: Callback<Vec<String>>,
             /// Reset the state of the form.
             #[prop(optional, into)]
-            reset: Option<ReadSignal<()>>,
+            reset: Option<Trigger>,
             #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             let input_ref = NodeRef::<html::Input>::new();
 
             if let Some(reset) = reset {
                 let _ = Effect::watch(
-                    reset,
+                    move || reset,
                     move |_, _, _| {
                         let input = input_ref.get_untracked().unwrap();
                         let input = input.dyn_ref::<web_sys::HtmlInputElement>().unwrap();
@@ -1353,7 +1350,7 @@ pub mod bulk {
                     <div class="py-1 flex justify-center">
                         <button
                             type="button"
-                            class="rounded-xs hover:bg-primary-400 dark:hover:bg-primary-700"
+                            class="rounded-xs hover:bg-primary-400 dark:hover:bg-primary-700 cursor-pointer"
                         >
                             <Icon icon=components::icon::Add />
                         </button>
@@ -1500,7 +1497,8 @@ pub mod bulk {
                         <button
                             type="button"
                             on:mousedown=move |_| onremove.run(())
-                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700"
+                            class="aspect-square h-full rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-700 \
+                            cursor-pointer"
                         >
 
                             <Icon icon=components::icon::Remove />

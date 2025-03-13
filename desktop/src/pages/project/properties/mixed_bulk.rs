@@ -1,4 +1,4 @@
-use super::{errors_to_list_view, InputDebounce, PopoutPortal};
+use super::{InputDebounce, PopoutPortal, errors_to_list_view};
 use crate::{
     components,
     pages::project::{self, state::workspace_graph},
@@ -7,7 +7,7 @@ use crate::{
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{
-    either::{either, Either},
+    either::{Either, either},
     ev::{Event, MouseEvent},
     html,
     portal::Portal,
@@ -378,7 +378,7 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -425,7 +425,7 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -461,8 +461,8 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, update_properties, ActiveResources,
-        InputDebounce, State,
+        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
+        update_properties,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::{prelude::*, task::spawn_local};
@@ -491,14 +491,14 @@ mod kind {
             });
         });
 
-        view! { <KindEditor value=state.with(|state| { state.kind() }) oninput debounce=*input_debounce /> }
+        view! { <KindEditor value=state.read_untracked().kind() oninput debounce=*input_debounce /> }
     }
 }
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, update_properties,
-        ActiveResources, InputDebounce, State,
+        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
+        InputDebounce, State, update_properties,
     };
     use crate::{pages::project::state, types::Messages};
     use leptos::{prelude::*, task::spawn_local};
@@ -527,7 +527,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=state.with(|state| { state.description() })
+                value=state.read_untracked().description()
                 oninput
                 debounce=*input_debounce
                 class="input-compact w-full align-top"
@@ -539,7 +539,7 @@ mod description {
 mod tags {
     use super::{
         super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        update_properties, ActiveResources, State,
+        ActiveResources, State, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::{prelude::*, task::spawn_local};
@@ -576,7 +576,7 @@ mod tags {
             }
         });
 
-        view! { <TagsEditor value=state.with(|state| { state.tags() }) onremove /> }
+        view! { <TagsEditor value=state.read_untracked().tags() onremove /> }
     }
 
     #[component]
@@ -628,7 +628,7 @@ mod metadata {
         super::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        update_properties, ActiveResources, InputDebounce, State,
+        ActiveResources, InputDebounce, State, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
     use leptos::{prelude::*, task::spawn_local};
@@ -704,13 +704,7 @@ mod metadata {
             false,
         );
 
-        view! {
-            <MetadataEditor
-                value=state.with_untracked(|state| { state.metadata() })
-                onremove
-                onmodify
-            />
-        }
+        view! { <MetadataEditor value=state.read_untracked().metadata() onremove onmodify /> }
     }
 
     #[component]

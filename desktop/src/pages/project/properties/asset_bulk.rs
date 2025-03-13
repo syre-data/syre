@@ -338,7 +338,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -385,7 +385,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
                                         },
                                     )
 
-                                    class="aspect-square w-full rounded-xs"
+                                    class="aspect-square w-full rounded-xs cursor-pointer"
                                 >
                                     <Icon icon=components::icon::Add />
                                 </button>
@@ -473,13 +473,7 @@ mod name {
             })
         });
 
-        view! {
-            <NameEditor
-                value=state.with_untracked(|state| { state.name() })
-                oninput
-                debounce=*input_debounce
-            />
-        }
+        view! { <NameEditor value=state.read_untracked().name() oninput debounce=*input_debounce /> }
     }
 
     #[component]
@@ -599,13 +593,7 @@ mod kind {
             });
         });
 
-        view! {
-            <KindEditor
-                value=state.with_untracked(|state| { state.kind() })
-                oninput
-                debounce=*input_debounce
-            />
-        }
+        view! { <KindEditor value=state.read_untracked().kind() oninput debounce=*input_debounce /> }
     }
 }
 
@@ -664,7 +652,7 @@ mod description {
 
         view! {
             <DescriptionEditor
-                value=state.with_untracked(|state| state.description())
+                value=state.read_untracked().description()
                 oninput
                 debounce=*input_debounce
                 class="input-compact w-full align-top"
@@ -936,13 +924,7 @@ mod metadata {
             false,
         );
 
-        view! {
-            <MetadataEditor
-                value=state.with_untracked(|state| { state.metadata() })
-                onremove
-                onmodify
-            />
-        }
+        view! { <MetadataEditor value=state.read_untracked().metadata() onremove onmodify /> }
     }
 
     #[component]

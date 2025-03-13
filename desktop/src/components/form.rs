@@ -100,7 +100,7 @@ pub mod debounced {
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: Signal<f64>,
     ) -> impl IntoView {
-        let (input_value, set_input_value) = signal(value::State::clean(value()));
+        let (input_value, set_input_value) = signal(value::State::clean(value.get_untracked()));
         let input_value: Signal<value::State<String>> =
             leptos_use::signal_debounced(input_value, debounce);
 
@@ -144,7 +144,7 @@ pub mod debounced {
         #[prop(into)] debounce: Signal<f64>,
         #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
-        let (input_value, set_input_value) = signal(value::State::clean(value()));
+        let (input_value, set_input_value) = signal(value::State::clean(value.get_untracked()));
         let input_value: Signal<value::State<bool>> =
             leptos_use::signal_debounced(input_value, debounce);
 

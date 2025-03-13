@@ -1601,7 +1601,7 @@ fn Asset(asset: state::Asset) -> impl IntoView {
                 <AssetFlags asset=asset.path().read_only() container=(*container).clone() />
                 <button
                     on:mousedown=remove_asset
-                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800"
+                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
                     disabled=remove.pending()
                 >
                     <Icon icon=components::icon::Remove />
@@ -1810,7 +1810,7 @@ fn AnalysisAssociation(association: state::AnalysisAssociation) -> impl IntoView
             <div>
                 <button
                     on:mousedown=remove_association
-                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800"
+                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
                 >
                     <Icon icon=components::icon::Remove />
                 </button>
@@ -2039,7 +2039,8 @@ fn Flag(
         <div class="flex">
             <div class="grow">{flag.message().clone()}</div>
             <div>
-                <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()>
+                <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()
+                class="cursor-pointer">
                     <Icon icon=components::icon::Remove />
                 </button>
             </div>

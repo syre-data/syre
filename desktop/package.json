@@ -9,6 +9,6 @@
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.2.0",
     "@tauri-apps/plugin-store": "^2.2.0",
-    "@tauri-apps/plugin-updater": "^2.5.0"
+    "@tauri-apps/plugin-updater": "^2.6.0"
   }
 }

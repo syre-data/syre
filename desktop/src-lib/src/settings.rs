@@ -3,6 +3,7 @@ pub use project::Settings as Project;
 pub use user::Settings as User;
 
 pub mod user {
+    use super::analysis;
     use serde::{Deserialize, Serialize};
     use std::{io, num::NonZeroUsize, path::PathBuf};
     use syre_local as local;
@@ -11,6 +12,7 @@ pub mod user {
     pub struct Settings {
         pub desktop: Result<Desktop, local::error::IoSerde>,
         pub runner: Result<Runner, local::error::IoSerde>,
+        pub analysis: Result<Analysis, local::error::IoSerde>,
     }
 
     impl Settings {
@@ -34,6 +36,7 @@ pub mod user {
             Self {
                 desktop: Ok(Default::default()),
                 runner: Ok(Default::default()),
+                analysis: Ok(Default::default()),
             }
         }
     }
@@ -58,7 +61,6 @@ pub mod user {
         pub r_path: Option<PathBuf>,
         pub continue_on_error: bool,
         pub max_tasks: Option<NonZeroUsize>,
-        pub disable_analysis_after: local::system::config::runner_settings::DisableAnalysisAfter,
     }
 
     impl From<local::system::config::runner_settings::Settings> for Runner {
@@ -68,7 +70,6 @@ pub mod user {
                 r_path: value.r_path,
                 continue_on_error: value.continue_on_error,
                 max_tasks: value.max_tasks,
-                disable_analysis_after: value.disable_analysis_after,
             }
         }
     }
@@ -80,13 +81,19 @@ pub mod user {
                 r_path: self.r_path,
                 continue_on_error: self.continue_on_error,
                 max_tasks: self.max_tasks,
-                disable_analysis_after: self.disable_analysis_after,
             }
         }
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Default, Debug)]
+    pub struct Analysis {
+        /// Disable an analysis (association) after it is run.
+        pub disable_analysis_after: analysis::DisableAnalysisAfter,
     }
 }
 
 pub mod project {
+    use super::analysis;
     use serde::{Deserialize, Serialize};
     use std::{io, num::NonZeroUsize, path::PathBuf};
     use syre_local as local;
@@ -95,6 +102,7 @@ pub mod project {
     pub struct Settings {
         pub desktop: Result<Desktop, local::error::IoSerde>,
         pub runner: Result<Runner, local::error::IoSerde>,
+        pub analysis: Result<Analysis, local::error::IoSerde>,
     }
 
     impl Settings {
@@ -118,6 +126,7 @@ pub mod project {
             Self {
                 desktop: Ok(Default::default()),
                 runner: Ok(Default::default()),
+                analysis: Ok(Default::default()),
             }
         }
     }
@@ -156,6 +165,12 @@ pub mod project {
             }
         }
     }
+
+    #[derive(Serialize, Deserialize, Clone, Default, Debug)]
+    pub struct Analysis {
+        /// Disable an analysis (association) after it is run.
+        pub disable_analysis_after: Option<analysis::DisableAnalysisAfter>,
+    }
 }
 
 pub mod app {
@@ -192,5 +207,25 @@ pub mod app {
 
             write!(f, "{out}")
         }
+    }
+}
+
+pub mod analysis {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, Clone, Copy, Default, Debug)]
+    pub enum DisableAnalysisAfter {
+        /// Do not disable.
+        #[default]
+        False,
+
+        /// Disable if analysis exits with success code and no flags were raised.
+        SuccessNoFlags,
+
+        /// Disable if the analysis exits with success code.
+        Success,
+
+        /// Always disable.
+        True,
     }
 }

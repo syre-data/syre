@@ -195,6 +195,7 @@ mod project {
                 <div class="px-2">
                     <h2 class="text-md font-primary pb-2">"Runner"</h2>
                     <runner::Settings />
+                    <analysis::Settings />
                 </div>
             </div>
         }
@@ -329,7 +330,7 @@ mod project {
         async fn update_settings(
             project: PathBuf,
             update: lib::settings::project::Desktop,
-        ) -> Result<(), lib::command::error::IoErrorKind> {
+        ) -> Result<(), IoSerde> {
             #[derive(Serialize)]
             struct Args {
                 project: PathBuf,
@@ -369,6 +370,7 @@ mod project {
             let project = expect_context::<state::Project>();
             let project_settings = expect_context::<Store<types::settings::Project>>();
             let settings = project_settings.runner();
+            let analysis_settings = project_settings.analysis();
             let input_debounce = expect_context::<InputDebounce>();
             let messages = expect_context::<types::Messages>();
 
@@ -413,7 +415,7 @@ mod project {
                     .unwrap_or(None),
             );
             let continue_on_error =
-                leptos_use::signal_debounced(continue_on_error, Signal::derive(*input_debounce));
+                leptos_use::signal_debounced(continue_on_error, *input_debounce);
 
             let _ = {
                 let project = project.path().get_untracked();
@@ -481,6 +483,7 @@ mod project {
                     <div class="pb-2">
                         <ContinueOnError value=continue_on_error set_value=set_continue_on_error />
                     </div>
+
                 </form>
             }
         }
@@ -782,6 +785,201 @@ mod project {
 
             tauri_sys::core::invoke_result(
                 "project_settings_runner_update",
+                Args { project, update },
+            )
+            .await
+        }
+    }
+
+    mod analysis {
+        use super::{InputDebounce, state};
+        use crate::{
+            commands,
+            types::{self, settings::project::SettingsStoreFields},
+        };
+        use leptos::{
+            either::Either,
+            ev::{Event, MouseEvent},
+            html,
+            prelude::*,
+            task::spawn_local,
+        };
+        use leptos_icons::*;
+        use reactive_stores::Store;
+        use serde::Serialize;
+        use std::{io, num::NonZeroUsize, path::PathBuf};
+        use syre_desktop_lib as lib;
+        use syre_local::error::IoSerde;
+
+        #[component]
+        pub fn Settings() -> impl IntoView {
+            let project = expect_context::<state::Project>();
+            let project_settings = expect_context::<Store<types::settings::Project>>();
+            let settings = project_settings.analysis();
+            let input_debounce = expect_context::<InputDebounce>();
+            let messages = expect_context::<types::Messages>();
+
+            let (disable_analysis_after, set_disable_analysis_after) = signal(
+                settings
+                    .read_untracked()
+                    .as_ref()
+                    .map(|settings| settings.disable_analysis_after)
+                    .unwrap_or(None),
+            );
+            let disable_analysis_after =
+                leptos_use::signal_debounced(disable_analysis_after, *input_debounce);
+
+            let _ = {
+                let project = project.path().get_untracked();
+                Effect::watch(
+                    move || (disable_analysis_after.get(),),
+                    move |(disable_analysis_after,), _, _| {
+                        let update = match &settings.get_untracked() {
+                            Ok(settings) => Ok(settings.clone()),
+                            Err(err) if matches!(err, IoSerde::Io(io::ErrorKind::NotFound)) => {
+                                Ok(lib::settings::project::Analysis::default().into())
+                            }
+                            Err(err) => Err(err.clone()),
+                        };
+
+                        let mut update = match update {
+                            Ok(update) => update,
+                            Err(err) => {
+                                let mut msg =
+                                    types::message::Builder::error("Could not update settings.");
+                                msg.body(format!("{err:?}"));
+                                messages.update(|messages| messages.push(msg.build()));
+                                return;
+                            }
+                        };
+
+                        update.disable_analysis_after = *disable_analysis_after;
+                        project_settings.update(|settings| {
+                            settings.analysis = Ok(update.clone());
+                        });
+                        let project = project.clone();
+                        spawn_local(async move {
+                            if let Err(err) = update_settings(project, update.into()).await {
+                                let mut msg =
+                                    types::message::Builder::error("Could not update settings.");
+                                msg.body(format!("{err:?}"));
+                                messages.update(|messages| messages.push(msg.build()));
+                            }
+                        });
+                    },
+                    false,
+                )
+            };
+
+            view! {
+                <form on:submit=move |e| e.prevent_default()>
+                    <div class="pb-2">
+                        <DisableAnalysisAfter
+                            value=disable_analysis_after
+                            set_value=set_disable_analysis_after
+                        />
+                    </div>
+                </form>
+            }
+        }
+
+        #[component]
+        fn DisableAnalysisAfter(
+            value: Signal<Option<lib::settings::analysis::DisableAnalysisAfter>>,
+            set_value: WriteSignal<Option<lib::settings::analysis::DisableAnalysisAfter>>,
+        ) -> impl IntoView {
+            use lib::settings::analysis::DisableAnalysisAfter;
+
+            let node_ref = NodeRef::<html::Select>::new();
+            let _ = Effect::watch(
+                move || node_ref.get(),
+                move |node_ref, _, _| {
+                    let Some(input) = node_ref else {
+                        return;
+                    };
+
+                    value.with_untracked(|value| {
+                        let value = match value {
+                            None => "",
+                            Some(value) => diasble_analysis_after_to_str(value),
+                        };
+                        input.set_value(value);
+                    });
+                },
+                true,
+            );
+
+            let on_input = move |e| {
+                let value = event_target_value(&e);
+                let value = if value.is_empty() {
+                    None
+                } else {
+                    Some(disable_analysis_after_from_str(value.as_str()).unwrap())
+                };
+
+                set_value(value);
+            };
+
+            view! {
+                <label title="Automatically disable analysis associations after they run.">
+                    <span class="no-wrap pr-2">"Disable analyses after"</span>
+                    <select node_ref=node_ref on:input=on_input class="input-compact">
+                        <option value="">"-"</option>
+                        <option value=diasble_analysis_after_to_str(
+                            &DisableAnalysisAfter::False,
+                        )>"Never"</option>
+                        <option value=diasble_analysis_after_to_str(
+                            &DisableAnalysisAfter::SuccessNoFlags,
+                        )>"Success without flags"</option>
+                        <option value=diasble_analysis_after_to_str(
+                            &DisableAnalysisAfter::Success,
+                        )>"Success"</option>
+                        <option value=diasble_analysis_after_to_str(
+                            &DisableAnalysisAfter::True,
+                        )>"Always"</option>
+                    </select>
+                </label>
+            }
+        }
+
+        fn diasble_analysis_after_to_str(
+            value: &lib::settings::analysis::DisableAnalysisAfter,
+        ) -> &'static str {
+            use lib::settings::analysis::DisableAnalysisAfter;
+
+            match value {
+                DisableAnalysisAfter::False => "false",
+                DisableAnalysisAfter::SuccessNoFlags => "success_no_flags",
+                DisableAnalysisAfter::Success => "success",
+                DisableAnalysisAfter::True => "true",
+            }
+        }
+
+        fn disable_analysis_after_from_str(
+            value: &str,
+        ) -> Option<lib::settings::analysis::DisableAnalysisAfter> {
+            use lib::settings::analysis::DisableAnalysisAfter;
+
+            match value {
+                "false" => Some(DisableAnalysisAfter::False),
+                "success_no_flags" => Some(DisableAnalysisAfter::SuccessNoFlags),
+                "success" => Some(DisableAnalysisAfter::Success),
+                "true" => Some(DisableAnalysisAfter::True),
+                _ => None,
+            }
+        }
+        async fn update_settings(
+            project: PathBuf,
+            update: lib::settings::project::Analysis,
+        ) -> Result<(), lib::command::error::IoErrorKind> {
+            #[derive(Serialize)]
+            struct Args {
+                project: PathBuf,
+                update: lib::settings::project::Analysis,
+            }
+
+            tauri_sys::core::invoke_result(
+                "project_settings_analysis_update",
                 Args { project, update },
             )
             .await

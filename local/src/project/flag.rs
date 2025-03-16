@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use syre_core::types::ResourceId;
 
 pub type Id = uuid::Uuid;
 
@@ -7,6 +8,9 @@ pub struct Flag {
     id: Id,
     severity: Severity,
     message: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source: Option<Source>,
 }
 
 impl Flag {
@@ -15,6 +19,7 @@ impl Flag {
             id: Id::now_v7(),
             severity,
             message: message.into(),
+            source: None,
         }
     }
 
@@ -30,6 +35,10 @@ impl Flag {
         Self::new(Severity::Error, message)
     }
 
+    pub fn set_source(&mut self, source: Source) {
+        self.source.insert(source);
+    }
+
     pub fn id(&self) -> &Id {
         &self.id
     }
@@ -41,6 +50,17 @@ impl Flag {
     pub fn message(&self) -> &String {
         &self.message
     }
+
+    pub fn source(&self) -> &Option {}
+}
+
+/// Source of the flag.
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+pub struct Source {
+    script: ResourceId,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    line: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]

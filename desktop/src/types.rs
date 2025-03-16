@@ -158,6 +158,7 @@ pub mod settings {
         pub struct Settings {
             pub desktop: Result<Desktop, local::error::IoSerde>,
             pub runner: Result<Runner, local::error::IoSerde>,
+            pub analysis: Result<Analysis, local::error::IoSerde>,
         }
 
         impl Settings {
@@ -168,20 +169,31 @@ pub mod settings {
 
         impl From<lib::settings::User> for Settings {
             fn from(value: lib::settings::User) -> Self {
-                let lib::settings::User { desktop, runner } = value;
+                let lib::settings::User {
+                    desktop,
+                    runner,
+                    analysis,
+                } = value;
+
                 Self {
-                    desktop: desktop.map(|desktop| desktop.into()),
-                    runner: runner.map(|runner| runner.into()),
+                    desktop: desktop.map(|settings| settings.into()),
+                    runner: runner.map(|settings| settings.into()),
+                    analysis: analysis.map(|settings| settings.into()),
                 }
             }
         }
 
         impl Into<lib::settings::User> for Settings {
             fn into(self) -> lib::settings::User {
-                let Self { desktop, runner } = self;
+                let Self {
+                    desktop,
+                    runner,
+                    analysis,
+                } = self;
                 lib::settings::User {
-                    desktop: desktop.map(|desktop| desktop.into()),
-                    runner: runner.map(|runner| runner.into()),
+                    desktop: desktop.map(|settings| settings.into()),
+                    runner: runner.map(|settings| settings.into()),
+                    analysis: analysis.map(|settings| settings.into()),
                 }
             }
         }
@@ -249,6 +261,7 @@ pub mod settings {
                     r_path,
                     continue_on_error,
                     max_tasks,
+                    ..
                 } = self;
 
                 lib::settings::user::Runner {
@@ -256,6 +269,28 @@ pub mod settings {
                     r_path,
                     continue_on_error,
                     max_tasks,
+                }
+            }
+        }
+
+        #[derive(Store, Clone, Debug)]
+        pub struct Analysis {
+            /// Disable an analysis (association) after it is run.
+            pub disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
+        }
+
+        impl Into<lib::settings::user::Analysis> for Analysis {
+            fn into(self) -> lib::settings::user::Analysis {
+                lib::settings::user::Analysis {
+                    disable_analysis_after: self.disable_analysis_after,
+                }
+            }
+        }
+
+        impl From<lib::settings::user::Analysis> for Analysis {
+            fn from(value: lib::settings::user::Analysis) -> Self {
+                Self {
+                    disable_analysis_after: value.disable_analysis_after,
                 }
             }
         }
@@ -273,6 +308,7 @@ pub mod settings {
         pub struct Settings {
             pub desktop: Result<Desktop, local::error::IoSerde>,
             pub runner: Result<Runner, local::error::IoSerde>,
+            pub analysis: Result<Analysis, local::error::IoSerde>,
         }
 
         impl Settings {
@@ -283,20 +319,32 @@ pub mod settings {
 
         impl From<lib::settings::Project> for Settings {
             fn from(value: lib::settings::Project) -> Self {
-                let lib::settings::Project { desktop, runner } = value;
+                let lib::settings::Project {
+                    desktop,
+                    runner,
+                    analysis,
+                } = value;
+
                 Self {
                     desktop: desktop.map(|settings| settings.into()),
                     runner: runner.map(|settings| settings.into()),
+                    analysis: analysis.map(|settings| settings.into()),
                 }
             }
         }
 
         impl Into<lib::settings::Project> for Settings {
             fn into(self) -> lib::settings::Project {
-                let Self { desktop, runner } = self;
+                let Self {
+                    desktop,
+                    runner,
+                    analysis,
+                } = self;
+
                 lib::settings::Project {
                     desktop: desktop.map(|settings| settings.into()),
                     runner: runner.map(|settings| settings.into()),
+                    analysis: analysis.map(|settings| settings.into()),
                 }
             }
         }
@@ -373,6 +421,32 @@ pub mod settings {
                     r_path,
                     continue_on_error,
                     max_tasks,
+                }
+            }
+        }
+
+        #[derive(Store, Clone, Debug)]
+        pub struct Analysis {
+            /// Disable an analysis (association) after it is run.
+            pub disable_analysis_after: Option<lib::settings::analysis::DisableAnalysisAfter>,
+        }
+
+        impl Into<lib::settings::project::Analysis> for Analysis {
+            fn into(self) -> lib::settings::project::Analysis {
+                let Self {
+                    disable_analysis_after,
+                } = self;
+
+                lib::settings::project::Analysis {
+                    disable_analysis_after,
+                }
+            }
+        }
+
+        impl From<lib::settings::project::Analysis> for Analysis {
+            fn from(value: lib::settings::project::Analysis) -> Self {
+                Self {
+                    disable_analysis_after: value.disable_analysis_after,
                 }
             }
         }

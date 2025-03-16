@@ -187,6 +187,10 @@ impl RunnerHooks for Runner {
             .ok_or(format!("could not find analysis {analysis}"))
     }
 
+    fn pre_analysis(&self, ctx: &syre_core::runner::AnalysisExecutionContext) {
+        todo!();
+    }
+
     fn analysis_error(
         &self,
         ctx: &core::runner::AnalysisExecutionContext,

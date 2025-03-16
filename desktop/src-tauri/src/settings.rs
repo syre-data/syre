@@ -47,9 +47,30 @@ pub mod user {
 
     impl Into<lib::settings::User> for Settings {
         fn into(self) -> lib::settings::User {
+            let Self { desktop, runner } = self;
+
+            let desktop = desktop.map(|settings| {
+                let Desktop {
+                    input_debounce_ms,
+                    disable_analysis_after,
+                } = settings;
+
+                let desktop = lib::settings::user::Desktop { input_debounce_ms };
+                let analysis = lib::settings::user::Analysis {
+                    disable_analysis_after,
+                };
+                (desktop, analysis)
+            });
+
+            let (desktop, analysis) = match desktop {
+                Ok((desktop, analysis)) => (Ok(desktop), Ok(analysis)),
+                Err(err) => (Err(err.clone()), Err(err)),
+            };
+
             lib::settings::User {
-                desktop: self.desktop.map(|settings| settings.into()),
-                runner: self.runner.map(|settings| settings.into()),
+                desktop,
+                runner: runner.map(|settings| settings.into()),
+                analysis,
             }
         }
     }
@@ -59,6 +80,10 @@ pub mod user {
     pub struct Desktop {
         /// Input element debounce time in milliseconds.
         pub input_debounce_ms: usize,
+
+        /// Disable an analysis (association) after it is run.
+        #[serde(default)]
+        pub disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
     }
 
     impl Desktop {
@@ -96,6 +121,7 @@ pub mod user {
         fn default() -> Self {
             Self {
                 input_debounce_ms: 250,
+                ..Default::default()
             }
         }
     }
@@ -108,10 +134,10 @@ pub mod user {
         }
     }
 
-    impl From<lib::settings::user::Desktop> for Desktop {
-        fn from(value: lib::settings::user::Desktop) -> Self {
-            Self {
-                input_debounce_ms: value.input_debounce_ms,
+    impl Into<lib::settings::user::Analysis> for Desktop {
+        fn into(self) -> lib::settings::user::Analysis {
+            lib::settings::user::Analysis {
+                disable_analysis_after: self.disable_analysis_after,
             }
         }
     }
@@ -185,16 +211,43 @@ pub mod project {
 
     impl Into<lib::settings::Project> for Settings {
         fn into(self) -> lib::settings::Project {
+            let Self { desktop, runner } = self;
+
+            let desktop = desktop.map(|settings| {
+                let Desktop {
+                    asset_drag_drop_kind,
+                    disable_analysis_after,
+                } = settings;
+
+                let desktop = lib::settings::project::Desktop {
+                    asset_drag_drop_kind,
+                };
+                let analysis = lib::settings::project::Analysis {
+                    disable_analysis_after,
+                };
+                (desktop, analysis)
+            });
+
+            let (desktop, analysis) = match desktop {
+                Ok((desktop, analysis)) => (Ok(desktop), Ok(analysis)),
+                Err(err) => (Err(err.clone()), Err(err)),
+            };
+
             lib::settings::Project {
-                desktop: self.desktop.map(|settings| settings.into()),
-                runner: self.runner.map(|settings| settings.into()),
+                desktop,
+                runner: runner.map(|settings| settings.into()),
+                analysis,
             }
         }
     }
 
     #[derive(Serialize, Deserialize, Default, Debug, Clone)]
+    #[serde(default)]
     pub struct Desktop {
         pub asset_drag_drop_kind: Option<String>,
+
+        /// Disable an analysis (association) after it is run.
+        pub disable_analysis_after: Option<lib::settings::analysis::DisableAnalysisAfter>,
     }
     impl Desktop {
         pub fn load(project: impl AsRef<Path>) -> Result<Desktop, local::error::IoSerde> {
@@ -216,21 +269,10 @@ pub mod project {
         fn into(self) -> lib::settings::project::Desktop {
             let Self {
                 asset_drag_drop_kind,
+                ..
             } = self;
 
             lib::settings::project::Desktop {
-                asset_drag_drop_kind,
-            }
-        }
-    }
-
-    impl From<lib::settings::project::Desktop> for Desktop {
-        fn from(value: lib::settings::project::Desktop) -> Self {
-            let lib::settings::project::Desktop {
-                asset_drag_drop_kind,
-            } = value;
-
-            Self {
                 asset_drag_drop_kind,
             }
         }

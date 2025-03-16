@@ -1,7 +1,8 @@
 use crate::settings;
-use std::path::PathBuf;
+use std::{io, path::PathBuf};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
+use syre_local as local;
 use tauri_plugin_store::StoreExt;
 
 /// Retrieve the desktop settings for the active user.
@@ -24,7 +25,7 @@ pub fn user_settings_desktop_update(
     state: tauri::State<crate::State>,
     user: ResourceId,
     update: lib::settings::user::Desktop,
-) -> Result<(), lib::command::error::IoErrorKind> {
+) -> Result<(), local::error::IoSerde> {
     let state_user = state.user();
     let state_user = state_user.lock().unwrap();
     let Some(ref state_user) = *state_user else {
@@ -32,8 +33,9 @@ pub fn user_settings_desktop_update(
     };
     assert_eq!(user, *state_user.rid());
 
-    let settings: settings::user::Desktop = update.into();
-    settings.save(&user).map_err(|err| err.into())
+    let mut settings = settings::user::Desktop::load(&user)?;
+    settings.input_debounce_ms = update.input_debounce_ms;
+    settings.save(&user).map_err(|err| err.kind().into())
 }
 
 /// Update the runner settings for the active user.
@@ -50,7 +52,26 @@ pub fn user_settings_runner_update(
     };
     assert_eq!(user, *state_user.rid());
 
-    settings::user::Runner::save(&user, update).map_err(|err| err.into())
+    settings::user::Runner::save(&user, update).map_err(|err| err.kind().into())
+}
+
+/// Update the analysis settings for the active user.
+#[tauri::command]
+pub fn user_settings_analysis_update(
+    state: tauri::State<crate::State>,
+    user: ResourceId,
+    update: lib::settings::user::Analysis,
+) -> Result<(), local::error::IoSerde> {
+    let state_user = state.user();
+    let state_user = state_user.lock().unwrap();
+    let Some(ref state_user) = *state_user else {
+        panic!("invalid state");
+    };
+    assert_eq!(user, *state_user.rid());
+
+    let mut settings = settings::user::Desktop::load(&user)?;
+    settings.disable_analysis_after = update.disable_analysis_after;
+    settings.save(&user).map_err(|err| err.kind().into())
 }
 
 /// Retrieve the project settings.
@@ -67,8 +88,18 @@ pub fn project_settings(project: PathBuf) -> lib::settings::Project {
 pub fn project_settings_desktop_update(
     project: PathBuf,
     update: lib::settings::project::Desktop,
-) -> Result<(), lib::command::error::IoErrorKind> {
-    settings::project::Desktop::save(&project, update).map_err(|err| err.into())
+) -> Result<(), local::error::IoSerde> {
+    let mut settings = settings::project::Desktop::load(&project).or_else(|err| {
+        if let local::error::IoSerde::Io(err) = err {
+            if matches!(err, io::ErrorKind::NotFound) {
+                return Ok(settings::project::Desktop::default());
+            }
+        }
+
+        Err(err)
+    })?;
+    settings.asset_drag_drop_kind = update.asset_drag_drop_kind;
+    settings::project::Desktop::save(&project, settings).map_err(|err| err.kind().into())
 }
 
 /// Update the runner settings for the project.
@@ -78,6 +109,26 @@ pub fn project_settings_runner_update(
     update: lib::settings::project::Runner,
 ) -> Result<(), lib::command::error::IoErrorKind> {
     settings::project::Runner::save(&project, update).map_err(|err| err.into())
+}
+
+/// Update the desktop settings for the project.
+#[tauri::command]
+pub fn project_settings_analysis_update(
+    project: PathBuf,
+    update: lib::settings::project::Analysis,
+) -> Result<(), local::error::IoSerde> {
+    let mut settings = settings::project::Desktop::load(&project).or_else(|err| {
+        if let local::error::IoSerde::Io(err) = err {
+            if matches!(err, io::ErrorKind::NotFound) {
+                return Ok(settings::project::Desktop::default());
+            }
+        }
+
+        Err(err)
+    })?;
+
+    settings.disable_analysis_after = update.disable_analysis_after;
+    settings::project::Desktop::save(&project, settings).map_err(|err| err.kind().into())
 }
 
 #[tauri::command]

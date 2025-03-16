@@ -81,23 +81,4 @@ pub struct Settings {
 
     /// Maximum number of tasks to allow during analysis.
     pub max_tasks: Option<NonZeroUsize>,
-
-    /// Disable an analysis (association) after it is run.
-    pub disable_analysis_after: DisableAnalysisAfter,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, derive_more::Default Debug)]
-pub enum DisableAnalysisAfter {
-    /// Do not disable.
-    #[default]
-    False,
-
-    /// Disable if analysis exits with success code and no flags were raised.
-    SuccessNoFlags,
-
-    /// Disable if the analysis exits with success code.
-    Success,
-
-    /// Always disable.
-    True,
 }

@@ -555,6 +555,7 @@ flag <- function(db, resource, message, severity = c("warning", "info", "error")
     severity = severity
   )
   # TODO: Add source.
+  # See https://stackoverflow.com/questions/59537482/how-to-get-line-number-of-a-function-call-in-r.
 
   resource_flags <- flags[[resource_container_path]]
   if (is.null(resource_flags[[1]])) {

@@ -1,5 +1,5 @@
 use super::{
-    common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
+    common::{SelectionAction, asset_title_closure, interpret_resource_selection_action},
     state,
     workspace::ViewboxState,
 };
@@ -1126,9 +1126,11 @@ fn ContainerOk(
     container: state::graph::Node,
     flags_display_state: FlagsDisplayState,
 ) -> impl IntoView {
-    assert!(container
-        .properties()
-        .with_untracked(|properties| properties.is_ok()));
+    assert!(
+        container
+            .properties()
+            .with_untracked(|properties| properties.is_ok())
+    );
 
     let project = expect_context::<state::Project>();
     let graph = expect_context::<state::Graph>();
@@ -2039,8 +2041,11 @@ fn Flag(
         <div class="flex">
             <div class="grow">{flag.message().clone()}</div>
             <div>
-                <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()
-                class="cursor-pointer">
+                <button
+                    on:mousedown=trigger_remove_flag
+                    disabled=remove_flag_action.pending()
+                    class="cursor-pointer"
+                >
                     <Icon icon=components::icon::Remove />
                 </button>
             </div>
@@ -2413,7 +2418,7 @@ async fn handle_context_menu_container_events_container_open(
         .join(project.properties().data_root().get_untracked());
 
     let container_path = graph.path(container).unwrap();
-    let path = common::container_system_path(data_root, container_path);
+    let path = common::container_system_path(&data_root, &container_path);
 
     if let Err(err) = commands::fs::open_file(path).await {
         messages.update(|messages| {

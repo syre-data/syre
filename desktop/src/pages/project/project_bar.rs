@@ -2,7 +2,7 @@ use super::{properties, state};
 use crate::{components, types};
 use leptos::{ev::MouseEvent, html, prelude::*};
 use leptos_icons::Icon;
-use wasm_bindgen::{closure::Closure, JsCast};
+use wasm_bindgen::{JsCast, closure::Closure};
 
 #[component]
 pub fn ProjectBar(
@@ -138,7 +138,7 @@ fn PreviewSelector() -> impl IntoView {
             >
                 <form on:submit=move |e| e.prevent_default()>
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="assets"
@@ -155,7 +155,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
 
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="analyses"
@@ -173,7 +173,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
 
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="kind"
@@ -188,7 +188,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
 
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="description"
@@ -206,7 +206,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
 
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="tags"
@@ -221,7 +221,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
 
                     <div class=CLASS_FORM_DIV>
-                        <label>
+                        <label class="cursor-pointer">
                             <input
                                 type="checkbox"
                                 name="metadata"
@@ -238,7 +238,7 @@ fn PreviewSelector() -> impl IntoView {
                     </div>
                     <hr class="border-secondary-900 dark:border-secondary-200" />
                     <div class="px-2 text-center dark:border-secondary-200">
-                        <button on:mousedown=clear class="w-full h-full">
+                        <button on:mousedown=clear class="w-full h-full cursor-pointer">
                             "Clear"
                         </button>
                     </div>

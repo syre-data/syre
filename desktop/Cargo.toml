@@ -34,7 +34,7 @@ serde_json.workspace = true
 serde-wasm-bindgen = "0.6"
 syre-core = { workspace = true, features = ["serde"] }
 syre-desktop-lib = { path = "src-lib" }
-syre-local = { workspace = true }
+syre-local.workspace = true
 syre-project-watcher.workspace = true
 syre-resource-db = { path = "resource_db", default-features = false }
 tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2", features = [

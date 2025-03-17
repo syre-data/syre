@@ -104,7 +104,7 @@ pub async fn project_add_analyses(
 
     let mut fs_results = tokio::task::JoinSet::new();
     for resource in fs_resources {
-        let to = lib::utils::join_path_absolute(&analysis_root, &resource.parent);
+        let to = local::common::join_path_absolute(&analysis_root, &resource.parent);
         let to = to.join(resource.path.file_name().unwrap());
         let to = match local::common::unique_file_name(&to) {
             Ok(path) => path,

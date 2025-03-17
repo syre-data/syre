@@ -438,10 +438,20 @@ fn ProjectNav() -> impl IntoView {
 
 mod analyze {
     use super::state;
-    use crate::{components, types};
+    use crate::{
+        components,
+        types::{
+            self,
+            settings::{
+                project::SettingsStoreFields as ProjectSettingsStoreFields,
+                user::SettingsStoreFields as UserSettingsStoreFields,
+            },
+        },
+    };
     use futures::stream::StreamExt;
     use leptos::{ev::MouseEvent, prelude::*, task::spawn_local};
     use leptos_icons::*;
+    use reactive_stores::Store;
     use std::path::PathBuf;
     use syre_core::types::ResourceId;
     use syre_desktop_lib as lib;
@@ -476,8 +486,29 @@ mod analyze {
         let project = expect_context::<state::Project>();
         let graph = expect_context::<state::Graph>();
         let messages = expect_context::<types::Messages>();
+        let user_settings = expect_context::<Store<types::settings::User>>();
+        let project_settings = expect_context::<Store<types::settings::Project>>();
         let analysis_state = RwSignal::new(AnalysisState::Idle);
         provide_context(analysis_state);
+
+        let disable_analysis_after = {
+            let user_settings = user_settings.analysis();
+            let project_settings = project_settings.analysis();
+            move || {
+                project_settings
+                    .read_untracked()
+                    .as_ref()
+                    .ok()
+                    .map(|settings| settings.disable_analysis_after)
+                    .flatten()
+                    .or(user_settings
+                        .read_untracked()
+                        .as_ref()
+                        .ok()
+                        .map(|settings| settings.disable_analysis_after))
+                    .unwrap_or(lib::settings::analysis::DisableAnalysisAfter::default())
+            }
+        };
 
         let action: Action<_, _> = Action::new_unsync({
             let analyses = project.analyses();
@@ -488,7 +519,13 @@ mod analyze {
                 async move {
                     analysis_state.set(AnalysisState::Pending);
                     let rx: tauri_sys::core::Channel<lib::event::analysis::Update> =
-                        match trigger_analysis(project.get_untracked(), root).await {
+                        match trigger_analysis(
+                            project.get_untracked(),
+                            root,
+                            disable_analysis_after(),
+                        )
+                        .await
+                        {
                             Ok(rx) => rx,
                             Err(err) => {
                                 tracing::error!(?err);
@@ -809,6 +846,7 @@ mod analyze {
     async fn trigger_analysis(
         project: ResourceId,
         root: impl Into<PathBuf>,
+        disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
     ) -> Result<
         tauri_sys::core::Channel<lib::event::analysis::Update>,
         lib::command::project::error::TriggerAnalysis,
@@ -818,6 +856,7 @@ mod analyze {
             rx: &'a tauri_sys::core::Channel<lib::event::analysis::Update>,
             project: ResourceId,
             root: PathBuf,
+            disableAnalysisAfter: lib::settings::analysis::DisableAnalysisAfter,
         }
 
         let rx = tauri_sys::core::Channel::new();
@@ -827,6 +866,7 @@ mod analyze {
                 rx: &rx,
                 project,
                 root: root.into(),
+                disableAnalysisAfter: disable_analysis_after,
             },
         )
         .await?;

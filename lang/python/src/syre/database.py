@@ -281,7 +281,7 @@ class Database:
 
         self._socket.send_json({"Config": "Id"})
         resp = self._socket.recv_json()
-        return resp == "syre local database"
+        return resp == "syre local project watcher" # DATABASE_ID
 
     @property
     def root(self) -> Container:
@@ -588,12 +588,21 @@ class Database:
                 flags = json.load(f)
                 if type(flags) != dict:
                     raise RuntimeError("Invalid flags file.")
-
+        
         flag = {
             "id": str(uuid()),
             "message": message,
             "severity": severity,
         }
+        
+        if "Script" in self._creator:
+            stack = inspect.stack()
+            caller = stack[1]
+            flag["source"] = {
+                "script": self._creator["Script"],
+                "line": caller.lineno
+            }
+        
         if resource_container_path in flags:
             flags[resource_container_path].append(flag)
         else:

@@ -4,7 +4,9 @@ pub mod runner;
 pub mod tree;
 
 pub use env::{ANALYSIS_ID_KEY, CONTAINER_ID_KEY, PROJECT_ID_KEY};
-pub use runner::{error, AnalysisExecutionContext, Builder, ErrorResponse, Runner, RunnerHooks};
+pub use runner::{
+    AnalysisExecutionContext, AnalysisState, Builder, ErrorResponse, Runner, RunnerHooks, error,
+};
 pub use tree::Tree;
 
 use crate::types::ResourceId;

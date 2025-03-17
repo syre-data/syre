@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use syre_desktop_lib as lib;
+use syre_local as local;
 
 pub const APPLICATION_JSON: &'static str = "application/json";
 pub const PATH_SEP_WINDOW: &'static str = "\\";
@@ -38,7 +39,7 @@ where
 /// # See also
 /// + [`syre_project_watcher::common::container_system_path`]
 pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<Path>) -> PathBuf {
-    lib::utils::join_path_absolute(data_root, container)
+    local::common::join_path_absolute(data_root, container)
 }
 
 /// Normalize path separators to `/`.

@@ -190,7 +190,7 @@ pub fn asset_remove_file(
     let (project_path, project_data) = db.project().get_by_id(project).unwrap().unwrap();
     let data_root = &project_data.properties().as_ref().unwrap().data_root;
     let data_root = project_path.join(data_root);
-    let container_path = lib::utils::join_path_absolute(data_root, container);
+    let container_path = local::common::join_path_absolute(data_root, container);
     let asset_path = container_path.join(&asset);
 
     if asset_path.exists() {

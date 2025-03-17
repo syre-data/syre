@@ -119,7 +119,7 @@ async fn add_file_system_resource(
     let data_root = data_root.as_ref();
     let to_name = resource.path.file_name().unwrap();
     let data_root_path = project.as_ref().join(data_root);
-    let parent_path = lib::utils::join_path_absolute(data_root_path, &resource.parent);
+    let parent_path = local::common::join_path_absolute(data_root_path, &resource.parent);
     let to_path = parent_path.join(to_name);
     match resource.action {
         FsResourceAction::Move => {
@@ -479,15 +479,14 @@ mod duplicate {
                     if matches!(err.kind(), io::ErrorKind::PermissionDenied)
                         && attempt < MOVE_DUPLICATED_TREE_ATTEMPTS =>
                 {
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        MOVE_DUPLICATED_TREE_DELAY_MS,
+                    ))
+                    .await;
                     continue;
                 }
                 Err(err) => return Err(error::Error::Move(err.kind())),
             }
-
-            tokio::time::sleep(std::time::Duration::from_millis(
-                MOVE_DUPLICATED_TREE_DELAY_MS,
-            ))
-            .await;
         }
         unreachable!("fn terminated in loop above");
     }

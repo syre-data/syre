@@ -8,9 +8,9 @@ use syre_core::{
     self as core,
     types::{ResourceId, UserId, UserPermissions},
 };
-use syre_desktop_lib as lib;
+use syre_desktop_lib::{self as lib};
 use syre_local::{
-    self as local, common,
+    self as local, 
     file_resource::SystemResource,
     project::{
         Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject, project,
@@ -180,7 +180,7 @@ pub async fn duplicate_project(
         let mut settings =
             local::project::Project::load_from_settings_only(&dst).map_err(|error| {
                 error::Duplicate::DuplicateDesktop {
-                    path: common::project_settings_file_of(&dst),
+                    path: local::common::project_settings_file_of(&dst),
                     error,
                 }
             })?;
@@ -192,7 +192,7 @@ pub async fn duplicate_project(
         settings
             .save(&dst)
             .map_err(|err| error::Duplicate::DuplicateDesktop {
-                path: common::project_settings_file_of(&dst),
+                path: local::common::project_settings_file_of(&dst),
                 error: err.into(),
             })?;
     }
@@ -200,14 +200,14 @@ pub async fn duplicate_project(
 
     let runner_settings = settings::project::Runner::load(&src).map_err(|error| {
         error::Duplicate::DuplicateDesktop {
-            path: common::project_runner_settings_file_of(&src),
+            path: local::common::project_runner_settings_file_of(&src),
             error,
         }
     })?;
     runner_settings
         .save(&dst)
         .map_err(|err| error::Duplicate::DuplicateDesktop {
-            path: common::project_runner_settings_file_of(&dst),
+            path: local::common::project_runner_settings_file_of(&dst),
             error: err.into(),
         })?;
 
@@ -326,9 +326,11 @@ pub async fn trigger_analysis(
     rx: tauri::ipc::Channel<lib::event::analysis::Update>,
     project: ResourceId,
     root: PathBuf,
+    disableAnalysisAfter: lib::settings::analysis::DisableAnalysisAfter,
 ) -> Result<(), lib::command::project::error::TriggerAnalysis> {
     use crate::state;
-    use lib::command::project::error;
+    use lib::{command::project::error, settings::analysis::DisableAnalysisAfter};
+
     const PROGRESS_DELAY_MS: u64 = 100;
 
     let (project_path, project_data, graph) =
@@ -354,7 +356,7 @@ pub async fn trigger_analysis(
             .find(|child| child.properties.name == name)
             .unwrap();
     }
-    let root = root.rid().clone();
+    let root = root.clone();
 
     let mut runner_settings = state
         .user()
@@ -398,7 +400,27 @@ pub async fn trigger_analysis(
     }
     let runner = runner.build();
 
-    let handle = runner.from(project, graph, &root).unwrap();
+    let disable_analysis_after_data =
+        if !matches!(disableAnalysisAfter, DisableAnalysisAfter::False) {
+            project_data
+                .properties()
+                .map(|properties| {
+                    let data_root = project_path.join(&properties.data_root);
+
+                    let container_map = graph
+                        .descendants(&root)
+                        .into_iter()
+                        .map(|node| (node.rid().clone(), graph.path(&node).unwrap()))
+                        .collect::<Vec<_>>();
+
+                    (data_root, container_map)
+                })
+                .ok()
+        } else {
+            None
+        };
+
+    let handle = runner.from(project, graph, root.rid()).unwrap();
     tauri::async_runtime::spawn({
         let analyzer_action = (*analyzer_action).clone();
         async move {
@@ -433,6 +455,118 @@ pub async fn trigger_analysis(
             }
 
             let status = handle.status();
+
+            if let Some((data_root, container_map)) = disable_analysis_after_data {
+                let mut container_analyses =
+                    Vec::<(&ResourceId, Vec<&core::runner::AnalysisState>)>::new();
+
+                status.iter().for_each(|status| {
+                    if let Some(entries) =
+                        container_analyses
+                            .iter_mut()
+                            .find_map(|(container, entries)| {
+                                (*container == status.container()).then_some(entries)
+                            })
+                    {
+                        entries.push(status);
+                    } else {
+                        container_analyses.push((status.container(), vec![status]));
+                    }
+                });
+
+                container_analyses
+                    .into_iter()
+                    .for_each(|(container, container_statuses)| {
+                        let container_path = container_map
+                            .iter()
+                            .find_map(|(rid, path)| (rid == container).then_some(path))
+                            .unwrap();
+
+                        let container_path_fs =
+                            local::common::join_path_absolute(&data_root, container_path);
+
+                        let disable_associations = match disableAnalysisAfter {
+                            DisableAnalysisAfter::False => {
+                                unreachable!("should not have entered scope, checked above")
+                            }
+                            DisableAnalysisAfter::True => container_statuses
+                                .iter()
+                                .map(|status| status.analysis())
+                                .collect::<Vec<_>>(),
+                            DisableAnalysisAfter::Success => container_statuses
+                                .iter()
+                                .filter_map(|status| {
+                                    status
+                                        .output()
+                                        .map(|output| output.status.success())
+                                        .unwrap_or(true)
+                                        .then_some(status.analysis())
+                                })
+                                .collect::<Vec<_>>(),
+                            DisableAnalysisAfter::SuccessNoFlags => {
+                                let flags = match local::loader::container::flags::Loader::load(
+                                    &container_path_fs,
+                                ) {
+                                    Ok(flags) => flags,
+                                    Err(err) => {
+                                        // TODO: Return error?
+                                        tracing::error!(?err);
+                                        return;
+                                    }
+                                };
+
+                                let all_flags = flags
+                                    .iter()
+                                    .map(|(_, resource_flags)| resource_flags)
+                                    .flatten();
+
+                                container_statuses
+                                    .iter()
+                                    .filter_map(|status| {
+                                        (!all_flags.clone().any(|flag| {
+                                            if let Some(source) = flag.source() {
+                                                // CHECK NO FLAGS FROM THE STATUS ANALYSIS
+                                                source.script() == status.analysis()
+                                            } else {
+                                                false
+                                            }
+                                        }))
+                                        .then_some(status.analysis())
+                                    })
+                                    .collect::<Vec<_>>()
+                            }
+                        };
+
+                        if !disable_associations.is_empty() {
+                            let mut properties =
+                                match local::loader::container::Loader::load_from_only_properties(
+                                    &container_path_fs,
+                                ) {
+                                    Ok(properties) => properties,
+                                    Err(err) => {
+                                        // TODO: Return error?
+                                        tracing::error!(?err);
+                                        return;
+                                    }
+                                };
+
+                            properties
+                                .analyses
+                                .iter_mut()
+                                .filter(|association| {
+                                    disable_associations.contains(&association.analysis())
+                                })
+                                .for_each(|association| {
+                                    association.autorun = false;
+                                });
+
+                            if let Err(err) = properties.save(container_path_fs) {
+                                tracing::error!(?err);
+                            }
+                        }
+                    });
+            }
+
             rx.send(lib::event::analysis::Update::Done(status)).unwrap();
         }
     });

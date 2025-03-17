@@ -1,15 +1,20 @@
 //! Local runner hooks.
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 use syre_core::{
     self as core,
     project::{ExcelTemplate, Script, ScriptLang},
     runner::{Runnable, RunnerHooks},
     types::ResourceId,
 };
-use syre_local::{system::config, types::AnalysisKind};
+use syre_local::{self as local, system::config, types::AnalysisKind};
 use syre_project_watcher as db;
 
 pub struct Builder<'a> {
+    /// Project's base directory.
     path: &'a dyn AsRef<Path>,
     project: &'a db::state::ProjectData,
     settings: Option<&'a config::runner_settings::Settings>,
@@ -17,7 +22,7 @@ pub struct Builder<'a> {
 
 impl<'a> Builder<'a> {
     /// # Arguments
-    /// `path`: Path to the projects base directory.
+    /// `path`: Project's base directory.
     pub fn new(path: &'a impl AsRef<Path>, project: &'a db::state::ProjectData) -> Self {
         Self {
             path,
@@ -35,9 +40,17 @@ impl<'a> Builder<'a> {
             .settings
             .map(|settings| settings.continue_on_error)
             .unwrap_or(false);
+
+        let properties = self
+            .project
+            .properties()
+            .map_err(|_err| error::From::InvalidPropertiesState)?;
+        let data_root = self.path.as_ref().join(&properties.data_root);
+
         let analyses = Self::create_analyses(self.path, self.project, self.settings)?;
         Ok(Runner {
             analyses,
+            data_root,
             ignore_errors,
         })
     }
@@ -148,13 +161,19 @@ impl<'a> Builder<'a> {
 #[derive(Debug)]
 pub struct Runner {
     analyses: Vec<(ResourceId, AnalysisKind)>,
+    data_root: PathBuf,
     ignore_errors: bool,
 }
 
 impl Runner {
-    pub fn new(analyses: Vec<(ResourceId, AnalysisKind)>, ignore_errors: bool) -> Self {
+    pub fn new(
+        analyses: Vec<(ResourceId, AnalysisKind)>,
+        data_root: PathBuf,
+        ignore_errors: bool,
+    ) -> Self {
         Self {
             analyses,
+            data_root,
             ignore_errors,
         }
     }
@@ -164,7 +183,7 @@ impl RunnerHooks for Runner {
     /// Retrieves a local [`Script`](CoreScript) given its [`ResourceId`].
     fn get_analysis(
         &self,
-        project: ResourceId,
+        _project: ResourceId,
         analysis: ResourceId,
     ) -> Result<Box<dyn Runnable + Send + Sync>, String> {
         self.analyses
@@ -188,7 +207,32 @@ impl RunnerHooks for Runner {
     }
 
     fn pre_analysis(&self, ctx: &syre_core::runner::AnalysisExecutionContext) {
-        todo!();
+        let container_path = local::common::join_path_absolute(&self.data_root, &ctx.container);
+        let mut flags = match local::loader::container::flags::Loader::load(&container_path) {
+            Ok(flags) => flags,
+            Err(err) => {
+                tracing::error!("`pre_analysis` runner hook could not load flags: {err:?}");
+                return;
+            }
+        };
+
+        flags.iter_mut().for_each(|(_resource, resource_flags)| {
+            resource_flags.retain(|flag| {
+                if let Some(source) = flag.source() {
+                    *source.script() != ctx.analysis
+                } else {
+                    true
+                }
+            });
+        });
+
+        let flags_map = flags.into_iter().collect::<HashMap<_, _>>();
+        if let Err(err) = fs::write(
+            local::common::flags_file_of(&container_path),
+            serde_json::to_string_pretty(&flags_map).unwrap(),
+        ) {
+            tracing::error!("could not save flags: {err:?}");
+        };
     }
 
     fn analysis_error(
@@ -197,6 +241,12 @@ impl RunnerHooks for Runner {
         exit_code: i32,
         err: &str,
     ) -> core::runner::ErrorResponse {
+        tracing::trace!(
+            "analysis `{}` running on container `{:?}` in project `{:?}` exited with code {exit_code}: {err}",
+            ctx.analysis,
+            ctx.container,
+            ctx.project
+        );
         if self.ignore_errors {
             core::runner::ErrorResponse::Continue
         } else {

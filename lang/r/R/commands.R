@@ -49,7 +49,7 @@ database_available <- function() {
   # check if database is responsive
   cmd <- '{"Config": "Id"}'
   id <- send_cmd(zmq_socket(), cmd, result = FALSE)
-  id == "syre local database"
+  id == "syre local project watcher" # DATABASE_ID
 }
 
 #' Loads a Syre project.

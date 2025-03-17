@@ -121,7 +121,7 @@ pub mod user {
         fn default() -> Self {
             Self {
                 input_debounce_ms: 250,
-                ..Default::default()
+                disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter::default(),
             }
         }
     }

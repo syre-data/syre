@@ -554,6 +554,8 @@ flag <- function(db, resource, message, severity = c("warning", "info", "error")
     message = message,
     severity = severity
   )
+  # TODO: Add source.
+
   resource_flags <- flags[[resource_container_path]]
   if (is.null(resource_flags[[1]])) {
     flags[[resource_container_path]] <- list(flag)

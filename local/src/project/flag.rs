@@ -3,7 +3,7 @@ use syre_core::types::ResourceId;
 
 pub type Id = uuid::Uuid;
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Flag {
     id: Id,
     severity: Severity,
@@ -36,7 +36,7 @@ impl Flag {
     }
 
     pub fn set_source(&mut self, source: Source) {
-        self.source.insert(source);
+        let _ = self.source.insert(source);
     }
 
     pub fn id(&self) -> &Id {
@@ -51,16 +51,24 @@ impl Flag {
         &self.message
     }
 
-    pub fn source(&self) -> &Option {}
+    pub fn source(&self) -> &Option<Source> {
+        &self.source
+    }
 }
 
 /// Source of the flag.
-#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Source {
     script: ResourceId,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     line: Option<usize>,
+}
+
+impl Source {
+    pub fn script(&self) -> &ResourceId {
+        &self.script
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]

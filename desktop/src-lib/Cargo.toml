@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop-lib"
-version = "0.11.6"
+version = "0.11.7"
 edition = "2024"
 
 [dependencies]
@@ -16,6 +16,7 @@ uuid = { workspace = true, features = ["v7", "serde"] }
 
 [features]
 server = ["dep:trash"]
+
 
 
 

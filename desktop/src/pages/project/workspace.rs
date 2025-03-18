@@ -852,11 +852,12 @@ mod analyze {
         lib::command::project::error::TriggerAnalysis,
     > {
         #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
         struct Args<'a> {
             rx: &'a tauri_sys::core::Channel<lib::event::analysis::Update>,
             project: ResourceId,
             root: PathBuf,
-            disableAnalysisAfter: lib::settings::analysis::DisableAnalysisAfter,
+            disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
         }
 
         let rx = tauri_sys::core::Channel::new();
@@ -866,7 +867,7 @@ mod analyze {
                 rx: &rx,
                 project,
                 root: root.into(),
-                disableAnalysisAfter: disable_analysis_after,
+                disable_analysis_after,
             },
         )
         .await?;

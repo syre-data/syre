@@ -10,7 +10,7 @@ use syre_core::{
 };
 use syre_desktop_lib::{self as lib};
 use syre_local::{
-    self as local, 
+    self as local,
     file_resource::SystemResource,
     project::{
         Analyses as LocalAnalyses, Container as LocalContainer, Project as LocalProject, project,
@@ -326,7 +326,7 @@ pub async fn trigger_analysis(
     rx: tauri::ipc::Channel<lib::event::analysis::Update>,
     project: ResourceId,
     root: PathBuf,
-    disableAnalysisAfter: lib::settings::analysis::DisableAnalysisAfter,
+    disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
 ) -> Result<(), lib::command::project::error::TriggerAnalysis> {
     use crate::state;
     use lib::{command::project::error, settings::analysis::DisableAnalysisAfter};
@@ -401,7 +401,7 @@ pub async fn trigger_analysis(
     let runner = runner.build();
 
     let disable_analysis_after_data =
-        if !matches!(disableAnalysisAfter, DisableAnalysisAfter::False) {
+        if !matches!(disable_analysis_after, DisableAnalysisAfter::False) {
             project_data
                 .properties()
                 .map(|properties| {
@@ -485,7 +485,7 @@ pub async fn trigger_analysis(
                         let container_path_fs =
                             local::common::join_path_absolute(&data_root, container_path);
 
-                        let disable_associations = match disableAnalysisAfter {
+                        let disable_associations = match disable_analysis_after {
                             DisableAnalysisAfter::False => {
                                 unreachable!("should not have entered scope, checked above")
                             }

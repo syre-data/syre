@@ -57,7 +57,7 @@ impl Flag {
 }
 
 /// Source of the flag.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Source {
     script: ResourceId,
 
@@ -68,6 +68,10 @@ pub struct Source {
 impl Source {
     pub fn script(&self) -> &ResourceId {
         &self.script
+    }
+
+    pub fn line(&self) -> &Option<usize> {
+        &self.line
     }
 }
 

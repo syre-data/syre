@@ -1,11 +1,11 @@
 use crate::{
-    common,
+    Watcher, common,
     event::{self as update, Update},
-    server, state, Watcher,
+    server, state,
 };
-use std::{assert_matches::assert_matches, io};
-use syre_fs_watcher::{event, EventKind};
-use syre_local::{error::IoSerde, loader, TryReducible};
+use std::{assert_matches::assert_matches, io, path::PathBuf};
+use syre_fs_watcher::{EventKind, event};
+use syre_local::{TryReducible, error::IoSerde, loader};
 
 impl Watcher {
     pub(super) fn handle_fs_event_container(
@@ -1769,8 +1769,7 @@ impl Watcher {
         let project_id = project_properties.rid().clone();
         let (flags, update) = match (&container_state.flags, flags) {
             (Ok(state), Ok(flags)) => {
-                if flags == *state {
-                    // TODO: Ignore order for comparison.
+                if flags_eq(state, &flags) {
                     return vec![];
                 }
 
@@ -1852,4 +1851,33 @@ impl Watcher {
             .unwrap();
         vec![update]
     }
+}
+
+fn flags_eq(
+    a: &Vec<(PathBuf, Vec<syre_local::project::Flag>)>,
+    b: &Vec<(PathBuf, Vec<syre_local::project::Flag>)>,
+) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    a.iter().all(|(a_path, a_flags)| {
+        b.iter().any(|(b_path, b_flags)| {
+            if b_path != a_path {
+                return false;
+            }
+            if b_flags.len() != a_flags.len() {
+                return false;
+            }
+
+            a_flags.iter().all(|a_flag| {
+                b_flags.iter().any(|b_flag| {
+                    a_flag.id() == b_flag.id()
+                        && a_flag.severity() == b_flag.severity()
+                        && a_flag.message() == b_flag.message()
+                        && a_flag.source() == b_flag.source()
+                })
+            })
+        })
+    })
 }

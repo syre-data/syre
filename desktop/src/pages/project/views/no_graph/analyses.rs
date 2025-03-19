@@ -1,4 +1,4 @@
-use super::super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
+use super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
 use crate::{
     commands, common, components,
     pages::project::{actions, state},
@@ -19,6 +19,9 @@ use syre_desktop_lib as lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
+
+/// Id for the analyses properties bar.
+pub const ANALYSES_ID: &'static str = "analyses";
 
 /// Context menu for analyses that are `Ok`.
 #[derive(derive_more::Deref, Clone)]

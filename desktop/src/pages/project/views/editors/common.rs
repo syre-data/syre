@@ -1,3 +1,13 @@
+use leptos::prelude::Signal;
+
+#[derive(derive_more::Deref, Clone, Copy)]
+pub struct InputDebounce(Signal<f64>);
+impl InputDebounce {
+    pub fn new(signal: Signal<f64>) -> Self {
+        Self(signal)
+    }
+}
+
 pub mod kind {
     use crate::components::form::debounced::InputText;
     use leptos::prelude::*;
@@ -132,7 +142,7 @@ pub mod tags {
 
 pub mod metadata {
     //! Common components for editing metadata
-    use super::super::InputDebounce;
+    use super::InputDebounce;
     use crate::components::{
         self,
         form::{InputNumber, debounced},
@@ -1362,7 +1372,7 @@ pub mod bulk {
 
     pub mod metadata {
         use super::super::{
-            super::InputDebounce,
+            InputDebounce,
             metadata::{convert_value_kind, kind_to_str, string_to_kind, value_to_kind_str},
         };
         use crate::components::{self, form::InputNumber};

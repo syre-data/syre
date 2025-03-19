@@ -1,4 +1,4 @@
-use super::{InputDebounce, PopoutPortal, errors_to_list_view};
+use super::{PopoutPortal, errors_to_list_view, super::super::editors::{self, common::InputDebounce}};
 use crate::{
     components,
     pages::project::{self, state::workspace_graph},
@@ -29,7 +29,7 @@ enum Widget {
 }
 
 mod state {
-    use super::super::common::bulk;
+    use super::editors::common::bulk;
     use crate::pages::project::state::{self, workspace_graph};
     use leptos::prelude::*;
     use std::collections::HashMap;
@@ -461,7 +461,7 @@ pub fn Editor(resources: ReadSignal<Vec<workspace_graph::Resource>>) -> impl Int
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
+        editors::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
         update_properties,
     };
     use crate::{pages::project::state, types::Messages};
@@ -497,7 +497,7 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
+        editors::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
         InputDebounce, State, update_properties,
     };
     use crate::{pages::project::state, types::Messages};
@@ -538,7 +538,7 @@ mod description {
 
 mod tags {
     use super::{
-        super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
+        editors::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
         ActiveResources, State, update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types::Messages};
@@ -625,7 +625,7 @@ mod tags {
 
 mod metadata {
     use super::{
-        super::common::{
+        editors::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
         ActiveResources, InputDebounce, State, update_properties,

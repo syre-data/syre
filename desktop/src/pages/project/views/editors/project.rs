@@ -1,4 +1,4 @@
-use super::InputDebounce;
+use super::common::InputDebounce;
 use crate::{
     components::{ModalDialog, TruncateLeft},
     pages::project::state,

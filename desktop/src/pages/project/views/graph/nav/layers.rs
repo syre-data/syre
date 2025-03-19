@@ -1,9 +1,8 @@
 use super::super::{
-    common::{asset_title_closure, interpret_resource_selection_action, SelectionAction},
-    state,
     workspace::ViewboxState,
 };
 use crate::{
+    pages::project::{state,common::{asset_title_closure, interpret_resource_selection_action, SelectionAction}},
     commands, common,
     components::{self, ToggleExpand, TruncateLeft},
     types,

@@ -1,4 +1,4 @@
-use super::detail_popout_top;
+use super::{super::super::editors, detail_popout_top};
 use crate::{components, pages::project::state, types};
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
@@ -72,7 +72,10 @@ fn Header() -> impl IntoView {
 }
 
 mod properties {
-    use super::super::{InputDebounce, PopoutPortal, common};
+    use super::{
+        super::{ PopoutPortal},
+        editors::common::{self, InputDebounce},
+    };
     use crate::{components, pages::project::state, types};
     use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
     use description::Editor as Description;
@@ -550,7 +553,7 @@ mod properties {
 
     mod kind {
         use super::{
-            super::super::common::kind::Editor as KindEditor, InputDebounce, update_properties,
+            common::kind::Editor as KindEditor, InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -609,7 +612,7 @@ mod properties {
 
     mod description {
         use super::{
-            super::super::common::description::Editor as DescriptionEditor, InputDebounce,
+            common::description::Editor as DescriptionEditor, InputDebounce,
             update_properties,
         };
         use crate::{pages::project::state, types};
@@ -672,7 +675,7 @@ mod properties {
 
     mod tags {
         use super::{
-            super::super::common::tags::Editor as TagsEditor, InputDebounce, update_properties,
+            common::tags::Editor as TagsEditor, InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
         use leptos::{prelude::*, task::spawn_local};
@@ -734,7 +737,7 @@ mod properties {
 
     mod metadata {
         use super::{
-            super::super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
+            common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
             InputDebounce, update_properties,
         };
         use crate::{
@@ -976,16 +979,17 @@ mod properties {
     }
 
     mod analysis_associations {
-        use super::super::{
-            super::common::analysis_associations::{
+        use super::{
+            common::analysis_associations::{
                 AddAssociation as AddAssociationEditor, AnalysisInfo,
             },
+            super::{
+            properties::InputDebounce,
             state,
-        };
+        }}  ;
         use crate::{
             commands,
             components::{self, DetailPopout},
-            pages::project::properties::InputDebounce,
             types,
         };
         use has_id::HasId;

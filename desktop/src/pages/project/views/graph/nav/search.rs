@@ -1,4 +1,4 @@
-use super::super::{
+use crate::pages::project::{
     common::{SelectionAction, interpret_resource_selection_action},
     state,
 };

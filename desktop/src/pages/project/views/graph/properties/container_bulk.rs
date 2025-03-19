@@ -1,4 +1,7 @@
-use super::{InputDebounce, PopoutPortal};
+use super::{
+    super::super::editors::{self, common::InputDebounce},
+    PopoutPortal,
+};
 use crate::{components, pages::project, types};
 use analysis_associations::{AddAssociation, Editor as AnalysisAssociations};
 use description::Editor as Description;
@@ -28,7 +31,7 @@ enum Widget {
 }
 
 mod state {
-    use super::{super::common::bulk, analysis_associations};
+    use super::{analysis_associations, editors::common::bulk};
     use crate::pages::project::state;
     use leptos::prelude::*;
     use std::collections::HashMap;
@@ -563,7 +566,7 @@ pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
 }
 
 mod name {
-    use super::{super::common::bulk::Value, ActiveResources, InputDebounce, State};
+    use super::{ActiveResources, InputDebounce, State, editors::common::bulk::Value};
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
     use serde::Serialize;
@@ -779,8 +782,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
-        UpdatePropertiesErrors, update_properties,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        editors::common::bulk::kind::Editor as KindEditor, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -842,8 +845,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
-        InputDebounce, State, UpdatePropertiesErrors, update_properties,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        editors::common::bulk::description::Editor as DescriptionEditor, update_properties,
     };
     use crate::{
         pages::project::state,
@@ -916,8 +919,9 @@ mod description {
 
 mod tags {
     use super::{
-        super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        ActiveResources, State, UpdatePropertiesErrors, update_properties,
+        ActiveResources, State, UpdatePropertiesErrors,
+        editors::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
+        update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -1067,10 +1071,11 @@ mod tags {
 
 mod metadata {
     use super::{
-        super::common::{
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
+        editors::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, update_properties,
+        update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -1303,15 +1308,15 @@ mod metadata {
 
 mod analysis_associations {
     use super::{
-        super::{
-            InputDebounce,
-            common::{self, analysis_associations::AddAssociation as AddAssociationEditor},
-        },
+        super::InputDebounce,
         ActiveResources,
+        editors::common::{
+            self, analysis_associations::AddAssociation as AddAssociationEditor, bulk,
+        },
     };
     use crate::{
         components::{self, DetailPopout},
-        pages::project::{properties::common::bulk, state},
+        pages::project::state,
         types,
     };
     use has_id::HasId;

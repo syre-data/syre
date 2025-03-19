@@ -1,4 +1,7 @@
-use super::{InputDebounce, PopoutPortal};
+use super::{
+    super::super::editors::{self, common::InputDebounce},
+    PopoutPortal,
+};
 use crate::{components, pages::project, types};
 use description::Editor as Description;
 use kind::Editor as Kind;
@@ -26,7 +29,7 @@ enum Widget {
 }
 
 mod state {
-    use super::super::common::bulk;
+    use super::editors::common::bulk;
     use crate::pages::project::state;
     use leptos::prelude::*;
     use std::collections::HashMap;
@@ -422,8 +425,8 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 
 mod name {
     use super::{
-        super::common::bulk::Value, ActiveResources, InputDebounce, State, UpdatePropertiesErrors,
-        container_assets, update_properties,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
+        editors::common::bulk::Value, update_properties,
     };
     use crate::{components::form::debounced::InputText, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -542,8 +545,8 @@ mod name {
 
 mod kind {
     use super::{
-        super::common::bulk::kind::Editor as KindEditor, ActiveResources, InputDebounce, State,
-        UpdatePropertiesErrors, container_assets, update_properties,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
+        editors::common::bulk::kind::Editor as KindEditor, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -599,8 +602,8 @@ mod kind {
 
 mod description {
     use super::{
-        super::common::bulk::description::Editor as DescriptionEditor, ActiveResources,
-        InputDebounce, State, UpdatePropertiesErrors, container_assets, update_properties,
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
+        editors::common::bulk::description::Editor as DescriptionEditor, update_properties,
     };
     use crate::{pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -663,8 +666,9 @@ mod description {
 
 mod tags {
     use super::{
-        super::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
+        ActiveResources, State, UpdatePropertiesErrors, container_assets,
+        editors::common::bulk::tags::{AddTags as AddTagsEditor, Editor as TagsEditor},
+        update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};
     use leptos::{prelude::*, task::spawn_local};
@@ -797,10 +801,10 @@ mod tags {
 
 mod metadata {
     use super::{
-        super::common::{
+        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
+        editors::common::{
             bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor,
         },
-        ActiveResources, InputDebounce, State, UpdatePropertiesErrors, container_assets,
         update_properties,
     };
     use crate::{components::DetailPopout, pages::project::state, types};

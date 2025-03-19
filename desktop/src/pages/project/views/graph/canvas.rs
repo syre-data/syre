@@ -1,12 +1,12 @@
-use super::{
-    common::{SelectionAction, asset_title_closure, interpret_resource_selection_action},
-    state,
-    workspace::ViewboxState,
-};
+use super::workspace::ViewboxState;
 use crate::{
     commands, common,
     components::{self, ModalDialog, ToggleExpand},
-    pages::project::actions,
+    pages::project::{
+        actions,
+        common::{SelectionAction, asset_title_closure, interpret_resource_selection_action},
+        state,
+    },
     types,
 };
 use futures::StreamExt;
@@ -2435,6 +2435,8 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
     graph: &state::Graph,
     messages: types::Messages,
 ) {
+    use super::super::super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD;
+
     let container = active_container.get_untracked().unwrap();
     let container_path = graph.path(&container).unwrap();
     let path = common::normalize_path_sep(&container_path);
@@ -2457,7 +2459,7 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
         }
     };
 
-    if size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+    if size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
         let msg = types::message::Builder::info(format!("Duplicating tree {container_path:?}."));
         let msg = msg.build();
         messages.update(|messages| messages.push(msg))
@@ -2465,7 +2467,7 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
 
     match duplicate_container(project_id, path).await {
         Ok(_) => {
-            if size > super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
+            if size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
                 let msg = types::message::Builder::success(format!(
                     "Completed duplicating {container_path:?}."
                 ));

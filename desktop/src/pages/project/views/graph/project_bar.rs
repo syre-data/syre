@@ -1,5 +1,5 @@
-use super::{properties, state};
-use crate::{components, types};
+use super::properties;
+use crate::{components, types, pages::project::{ state}};
 use leptos::{ev::MouseEvent, html, prelude::*};
 use leptos_icons::Icon;
 use wasm_bindgen::{JsCast, closure::Closure};

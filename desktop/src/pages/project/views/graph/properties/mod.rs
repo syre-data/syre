@@ -1,29 +1,27 @@
-use super::state::{self, workspace_graph};
-use crate::types;
+use super::super::editors::common::InputDebounce;
+use crate::{
+    pages::project::state::{self, workspace_graph},
+    types,
+};
 use leptos::{either::EitherOf7, html, prelude::*};
 use reactive_stores::Store;
 use std::fmt;
 use syre_desktop_lib as lib;
 
-mod analyses;
+pub(super) mod analyses;
 mod asset;
 mod asset_bulk;
-mod common;
 mod container;
 mod container_bulk;
 mod mixed_bulk;
-mod project;
 
-use analyses::Editor as Analyses;
+use super::super::editors::project::Editor as Project;
+use analyses::{ANALYSES_ID, Editor as Analyses};
 use asset::Editor as Asset;
 use asset_bulk::Editor as AssetBulk;
 use container::Editor as Container;
 use container_bulk::Editor as ContainerBulk;
 use mixed_bulk::Editor as MixedBulk;
-use project::Editor as Project;
-
-/// Id for the analyses properties bar.
-pub const ANALYSES_ID: &'static str = "analyses";
 
 #[derive(Clone, Copy, derive_more::Deref)]
 struct PopoutPortal(NodeRef<html::Div>);
@@ -45,9 +43,6 @@ impl Default for EditorKind {
     }
 }
 
-#[derive(derive_more::Deref, Clone, Copy)]
-pub struct InputDebounce(Signal<f64>);
-
 #[component]
 pub fn PropertiesBar() -> impl IntoView {
     let user_settings = expect_context::<Store<types::settings::User>>();
@@ -56,7 +51,7 @@ pub fn PropertiesBar() -> impl IntoView {
     let active_editor = expect_context::<RwSignal<EditorKind>>();
     let popout_portal = NodeRef::<html::Div>::new();
     provide_context(PopoutPortal(popout_portal));
-    provide_context(InputDebounce(Signal::derive(move || {
+    provide_context(InputDebounce::new(Signal::derive(move || {
         user_settings.with(|settings| {
             let debounce = match &settings.desktop {
                 Ok(settings) => settings.input_debounce_ms,

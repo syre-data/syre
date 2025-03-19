@@ -1,4 +1,4 @@
-use super::detail_popout_top;
+use super::{super::super::editors, detail_popout_top};
 use crate::{components, pages::project::state, types};
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
@@ -72,7 +72,7 @@ fn Header() -> impl IntoView {
 }
 
 mod properties {
-    use super::super::{InputDebounce, PopoutPortal};
+    use super::{super::PopoutPortal, editors::common::InputDebounce};
     use crate::{components, pages::project::state, types};
     use description::Editor as Description;
     use kind::Editor as Kind;
@@ -277,7 +277,7 @@ mod properties {
 
     mod kind {
         use super::{
-            super::super::common::kind::Editor as KindEditor, ActiveAsset, InputDebounce,
+            super::editors::common::kind::Editor as KindEditor, ActiveAsset, InputDebounce,
             update_properties,
         };
         use crate::{pages::project::state, types};
@@ -331,7 +331,7 @@ mod properties {
 
     mod description {
         use super::{
-            super::super::common::description::Editor as DescriptionEditor, ActiveAsset,
+            super::editors::common::description::Editor as DescriptionEditor, ActiveAsset,
             InputDebounce, update_properties,
         };
         use crate::{pages::project::state, types};
@@ -385,7 +385,7 @@ mod properties {
 
     mod tags {
         use super::{
-            super::super::common::tags::Editor as TagsEditor, ActiveAsset, InputDebounce,
+            super::editors::common::tags::Editor as TagsEditor, ActiveAsset, InputDebounce,
             update_properties,
         };
         use crate::{pages::project::state, types};
@@ -439,7 +439,7 @@ mod properties {
 
     mod metadata {
         use super::{
-            super::super::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
+            super::editors::common::metadata::{AddDatum as AddDatumEditor, ValueEditor},
             ActiveAsset, InputDebounce, update_properties,
         };
         use crate::{
@@ -854,8 +854,11 @@ mod flags {
                     <div>{flag.message().clone()}</div>
                 </div>
                 <div>
-                    <button on:mousedown=trigger_remove_flag disabled=remove_flag_action.pending()
-                    class="cursor-pointer">
+                    <button
+                        on:mousedown=trigger_remove_flag
+                        disabled=remove_flag_action.pending()
+                        class="cursor-pointer"
+                    >
                         <Icon icon=components::icon::Remove />
                     </button>
                 </div>

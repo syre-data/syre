@@ -1,19 +1,16 @@
 use super::properties;
-use crate::{components, types, pages::project::{ state}};
+use crate::{components, pages::project::state, types};
 use leptos::{ev::MouseEvent, html, prelude::*};
 use leptos_icons::Icon;
 use wasm_bindgen::{JsCast, closure::Closure};
 
 #[component]
-pub fn ProjectBar(
-    /// DOM node ref for analyze portal.
-    analyze_node: NodeRef<html::Div>,
-) -> impl IntoView {
+pub fn ProjectBar() -> impl IntoView {
     view! {
         <div class="flex px-2 py-1">
             <div class="w-1/3 inline-flex gap-2">
                 <PreviewSelector />
-                <div node_ref=analyze_node></div>
+                <analyze::Analyze />
             </div>
             <div class="w-1/3 text-center">
                 <ProjectInfo />
@@ -294,5 +291,581 @@ fn Controls() -> impl IntoView {
         >
             <Icon icon=components::icon::Refresh />
         </button>
+    }
+}
+
+mod analyze {
+    use super::state;
+    use crate::{
+        components,
+        types::{
+            self,
+            settings::{
+                project::SettingsStoreFields as ProjectSettingsStoreFields,
+                user::SettingsStoreFields as UserSettingsStoreFields,
+            },
+        },
+    };
+    use futures::stream::StreamExt;
+    use leptos::{ev::MouseEvent, prelude::*, task::spawn_local};
+    use leptos_icons::*;
+    use reactive_stores::Store;
+    use std::path::PathBuf;
+    use syre_core::types::ResourceId;
+    use syre_desktop_lib as lib;
+    use syre_local::types::AnalysisKind;
+    use syre_project_watcher as db;
+
+    enum AnalysisState {
+        Idle,
+        Pending,
+        Running { completed: usize, remaining: usize },
+        Cancelling { completed: usize, remaining: usize },
+        Killing { completed: usize, remaining: usize },
+    }
+
+    impl AnalysisState {
+        pub fn active(&self) -> bool {
+            match self {
+                AnalysisState::Idle | AnalysisState::Pending => false,
+                AnalysisState::Running { .. }
+                | AnalysisState::Cancelling { .. }
+                | AnalysisState::Killing { .. } => true,
+            }
+        }
+
+        pub fn running(&self) -> bool {
+            matches!(self, AnalysisState::Running { .. })
+        }
+    }
+
+    #[component]
+    pub fn Analyze() -> impl IntoView {
+        let project = expect_context::<state::Project>();
+        let graph = expect_context::<state::Graph>();
+        let messages = expect_context::<types::Messages>();
+        let user_settings = expect_context::<Store<types::settings::User>>();
+        let project_settings = expect_context::<Store<types::settings::Project>>();
+        let analysis_state = RwSignal::new(AnalysisState::Idle);
+        provide_context(analysis_state);
+
+        let disable_analysis_after = {
+            let user_settings = user_settings.analysis();
+            let project_settings = project_settings.analysis();
+            move || {
+                project_settings
+                    .read_untracked()
+                    .as_ref()
+                    .ok()
+                    .map(|settings| settings.disable_analysis_after)
+                    .flatten()
+                    .or(user_settings
+                        .read_untracked()
+                        .as_ref()
+                        .ok()
+                        .map(|settings| settings.disable_analysis_after))
+                    .unwrap_or(lib::settings::analysis::DisableAnalysisAfter::default())
+            }
+        };
+
+        let action: Action<_, _> = Action::new_unsync({
+            let analyses = project.analyses();
+            let project = project.rid().read_only();
+            move |root: &PathBuf| {
+                let graph = graph.clone();
+                let root = root.clone();
+                async move {
+                    analysis_state.set(AnalysisState::Pending);
+                    let rx: tauri_sys::core::Channel<lib::event::analysis::Update> =
+                        match trigger_analysis(
+                            project.get_untracked(),
+                            root,
+                            disable_analysis_after(),
+                        )
+                        .await
+                        {
+                            Ok(rx) => rx,
+                            Err(err) => {
+                                tracing::error!(?err);
+                                analysis_state.set(AnalysisState::Idle);
+                                let mut msg = types::message::Builder::error(
+                                    "Could not initialize analysis.",
+                                );
+                                msg.body(format!("{err:?}"));
+                                messages.update(|messages| messages.push(msg.build()));
+                                return;
+                            }
+                        };
+
+                    spawn_local(handle_analysis_updates(
+                        rx,
+                        analysis_state,
+                        analyses,
+                        graph.clone(),
+                        messages,
+                    ));
+                }
+            }
+        });
+
+        view! {
+            <Show
+                when=move || analysis_state.with(|state| state.active())
+                fallback=move || view! { <Trigger action /> }
+            >
+                <Analyzing />
+            </Show>
+        }
+    }
+
+    #[component]
+    fn Trigger(action: Action<PathBuf, ()>) -> impl IntoView {
+        let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+        let graph = expect_context::<state::Graph>();
+
+        let single_container_selected = {
+            let selected_resources = workspace_graph_state.selection_resources().selected();
+            move || {
+                selected_resources.with(|resources| {
+                    resources.len() == 1
+                        && matches!(
+                            resources[0].kind(),
+                            state::workspace_graph::ResourceKind::Container
+                        )
+                        && resources[0].rid().with_untracked(|rid| {
+                            graph.root().properties().with_untracked(|properties| {
+                                properties.as_ref().map_or(true, |properties| {
+                                    properties.rid().with_untracked(|root| root != rid)
+                                })
+                            })
+                        })
+                })
+            }
+        };
+
+        let trigger_analysis = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            action.dispatch(PathBuf::from("/"));
+        };
+
+        view! {
+            <div class="flex">
+                <button
+                    on:mousedown=trigger_analysis
+                    class:rounded-r={
+                        let single_container_selected = single_container_selected.clone();
+                        move || !single_container_selected()
+                    }
+                    class="flex gap-2 items-center btn-primary rounded-l px-4 \
+                    disabled:bg-primary-800 dark:disabled:bg-primary-400 \
+                    disabled:cursor-not-allowed"
+                    disabled={
+                        let pending = action.pending();
+                        move || pending.get()
+                    }
+                >
+                    "Analyze"
+                </button>
+                <Show when=single_container_selected fallback=|| ()>
+                    <TriggerActions action />
+                </Show>
+            </div>
+        }
+    }
+
+    #[component]
+    fn TriggerActions(action: Action<PathBuf, ()>) -> impl IntoView {
+        let workspace_graph_state = expect_context::<state::WorkspaceGraph>();
+        let graph = expect_context::<state::Graph>();
+        let selected_resources = workspace_graph_state.selection_resources().selected();
+
+        let trigger_analysis_from_root = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            action.dispatch(PathBuf::from("/"));
+        };
+
+        let trigger_analysis_from_container = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            let root = selected_resources.with_untracked(|resources| {
+                resources[0].rid().with_untracked(|rid| {
+                    let root = graph.find_by_id(rid).unwrap();
+                    graph.path(&root).unwrap()
+                })
+            });
+
+            action.dispatch(PathBuf::from(root));
+        };
+
+        view! {
+            <div class="group relative">
+                <div class="flex items-center h-full btn-primary rounded-r px-1 border-l border-l-primary-800">
+                    <Icon icon=components::icon::ChevronDown />
+                </div>
+                <div class="absolute top-full left-0 group-[&:not(:hover)]:hidden \
+                z-10 rounded-b rounded-r border border-secondary-800 dark:border-secondary-200 \
+                bg-white dark:bg-secondary-700">
+                    <ul>
+                        <li class="hover:bg-100 dark:hover:bg-secondary-800">
+                            <button
+                                on:click=trigger_analysis_from_container
+                                class="px-2 text-nowrap"
+                                title="Only analyze the subtree from the selected root container."
+                            >
+                                "From container"
+                            </button>
+                        </li>
+                        <li class="hover:bg-100 dark:hover:bg-secondary-800">
+                            <button
+                                on:click=trigger_analysis_from_root
+                                class="px-2"
+                                title="Aanlyze the entire project."
+                            >
+                                "Project"
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        }
+    }
+
+    #[component]
+    fn Analyzing() -> impl IntoView {
+        let analysis_state = expect_context::<RwSignal<AnalysisState>>();
+        let title = move || {
+            analysis_state.with(|state| match state {
+                AnalysisState::Idle | AnalysisState::Pending => unreachable!(),
+                AnalysisState::Running {
+                    completed,
+                    remaining,
+                }
+                | AnalysisState::Cancelling {
+                    completed,
+                    remaining,
+                }
+                | AnalysisState::Killing {
+                    completed,
+                    remaining,
+                } => format!("{} of {} remaining", remaining, completed + remaining),
+            })
+        };
+
+        let percent_complete = move || {
+            analysis_state.with(|state| match state {
+                AnalysisState::Idle | AnalysisState::Pending => unreachable!(),
+                AnalysisState::Running {
+                    completed,
+                    remaining,
+                }
+                | AnalysisState::Cancelling {
+                    completed,
+                    remaining,
+                }
+                | AnalysisState::Killing {
+                    completed,
+                    remaining,
+                } => {
+                    let total = completed + remaining;
+                    if total == 0 {
+                        "100%".to_string()
+                    } else {
+                        let percent_complete = 100 * completed / total;
+                        format!("{percent_complete}%")
+                    }
+                }
+            })
+        };
+
+        let text = move || {
+            analysis_state.with(|state| match state {
+                AnalysisState::Running { .. } => "Analyzing",
+                AnalysisState::Cancelling { .. } => "Cancelling",
+                AnalysisState::Killing { .. } => "Killing",
+                _ => panic!("invalid state"),
+            })
+        };
+
+        view! {
+            <div class="flex">
+                <button
+                    class="relative btn-primary rounded-l px-4 cursor-not-allowed"
+                    class:rounded-r=move || analysis_state.with(|state| !state.running())
+                    title=title
+                    disabled=true
+                >
+                    <div class="flex gap-2 items-center">
+                        {text} <span class="animate-spin">
+                            <Icon icon=components::icon::Refresh />
+                        </span>
+                    </div>
+                    <div class="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-primary-800 dark:bg-primary-700">
+                        <span
+                            class="h-full block rounded-full bg-syre-green-800 dark:bg-syre-green-500"
+                            style:width=percent_complete
+                        ></span>
+                    </div>
+                </button>
+                <Show when=move || analysis_state.with(|state| state.running()) fallback=|| ()>
+                    <AnalyzingActions />
+                </Show>
+            </div>
+        }
+    }
+
+    #[component]
+    fn AnalyzingActions() -> impl IntoView {
+        let analysis_state = expect_context::<RwSignal<AnalysisState>>();
+        let cancel_analysis = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            analysis_state.update(|state| {
+                let AnalysisState::Running {
+                    completed,
+                    remaining,
+                } = state
+                else {
+                    panic!("invalid state");
+                };
+
+                *state = AnalysisState::Cancelling {
+                    completed: *completed,
+                    remaining: *remaining,
+                }
+            });
+            spawn_local(async { cancel_analysis().await });
+        };
+
+        let kill_analysis = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            analysis_state.update(|state| {
+                let AnalysisState::Running {
+                    completed,
+                    remaining,
+                } = state
+                else {
+                    panic!("invalid state");
+                };
+
+                *state = AnalysisState::Killing {
+                    completed: *completed,
+                    remaining: *remaining,
+                }
+            });
+            spawn_local(async { kill_analysis().await });
+        };
+
+        view! {
+            <div class="group relative">
+                <div class="flex items-center h-full btn-primary rounded-r px-1 border-l border-l-primary-800">
+                    <Icon icon=components::icon::ChevronDown />
+                </div>
+                <div class="absolute top-full left-0 group-[&:not(:hover)]:hidden \
+                z-10 rounded-b rounded-r border border-secondary-800 dark:border-secondary-200 \
+                bg-white dark:bg-secondary-700">
+                    <ul>
+                        <li class="hover:bg-100 dark:hover:bg-secondary-800">
+                            <button
+                                on:click=cancel_analysis
+                                class="px-2"
+                                title="Cancel all remaining analyses, allowing those currently running to finish."
+                            >
+                                "Cancel"
+                            </button>
+                        </li>
+                        <li class="hover:bg-100 dark:hover:bg-secondary-800">
+                            <button
+                                on:click=kill_analysis
+                                class="px-2"
+                                title="Immediately kill all analyses, even those currently running."
+                            >
+                                "Kill"
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        }
+    }
+
+    async fn trigger_analysis(
+        project: ResourceId,
+        root: impl Into<PathBuf>,
+        disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
+    ) -> Result<
+        tauri_sys::core::Channel<lib::event::analysis::Update>,
+        lib::command::project::error::TriggerAnalysis,
+    > {
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Args<'a> {
+            rx: &'a tauri_sys::core::Channel<lib::event::analysis::Update>,
+            project: ResourceId,
+            root: PathBuf,
+            disable_analysis_after: lib::settings::analysis::DisableAnalysisAfter,
+        }
+
+        let rx = tauri_sys::core::Channel::new();
+        tauri_sys::core::invoke_result::<(), lib::command::project::error::TriggerAnalysis>(
+            "trigger_analysis",
+            Args {
+                rx: &rx,
+                project,
+                root: root.into(),
+                disable_analysis_after,
+            },
+        )
+        .await?;
+
+        Ok(rx)
+    }
+
+    async fn handle_analysis_updates(
+        mut rx: tauri_sys::core::Channel<lib::event::analysis::Update>,
+        analysis_state: RwSignal<AnalysisState>,
+        analyses: RwSignal<db::state::DataResource<RwSignal<Vec<state::Analysis>>>>,
+        graph: state::Graph,
+        messages: types::Messages,
+    ) {
+        while let Some(event) = rx.next().await {
+            match event {
+                lib::event::analysis::Update::Progress {
+                    completed: update_completed,
+                    remaining: update_remaining,
+                } => analysis_state.update(|state| match state {
+                    AnalysisState::Idle => panic!("invalid state"),
+
+                    AnalysisState::Pending => {
+                        *state = AnalysisState::Running {
+                            completed: update_completed,
+                            remaining: update_remaining,
+                        }
+                    }
+
+                    AnalysisState::Running {
+                        completed,
+                        remaining,
+                    }
+                    | AnalysisState::Cancelling {
+                        completed,
+                        remaining,
+                    }
+                    | AnalysisState::Killing {
+                        completed,
+                        remaining,
+                    } => {
+                        *completed = update_completed;
+                        *remaining = update_remaining;
+                    }
+                }),
+
+                lib::event::analysis::Update::Done(status) => {
+                    analysis_state.set(AnalysisState::Idle);
+                    let errors = status
+                        .iter()
+                        .filter(|status| {
+                            status
+                                .output()
+                                .map(|output| !output.status.success())
+                                .unwrap_or(false)
+                        })
+                        .collect::<Vec<_>>();
+
+                    if errors.is_empty() {
+                        let msg = types::message::Builder::success("Analysis complete.");
+                        messages.update(|messages| messages.push(msg.build()));
+                    } else {
+                        let mut msg =
+                            types::message::Builder::error("Errors occurred during analysis.");
+                        msg.body(view! {
+                            <ol class="list-decimal">
+                                {errors
+                                    .iter()
+                                    .map(|err| {
+                                        let analysis = analyses
+                                            .with_untracked(|analyses| {
+                                                analyses
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .with_untracked(|analyses| {
+                                                        analyses
+                                                            .iter()
+                                                            .find_map(|analysis| {
+                                                                analysis
+                                                                    .properties()
+                                                                    .with_untracked(|analysis| {
+                                                                        match analysis {
+                                                                            AnalysisKind::Script(script) => {
+                                                                                (script.rid() == err.analysis())
+                                                                                    .then_some(script.path.to_string_lossy().to_string())
+                                                                            }
+                                                                            AnalysisKind::ExcelTemplate(template) => {
+                                                                                (template.rid() == err.analysis())
+                                                                                    .then_some(
+                                                                                        template.template.path.to_string_lossy().to_string(),
+                                                                                    )
+                                                                            }
+                                                                        }
+                                                                    })
+                                                            })
+                                                            .unwrap()
+                                                    })
+                                            });
+                                        let container = graph.find_by_id(err.container()).unwrap();
+                                        let container = graph
+                                            .path(&container)
+                                            .unwrap()
+                                            .to_string_lossy()
+                                            .to_string();
+                                        let stderr = err
+                                            .output()
+                                            .map_or(
+                                                "Could not retrieve error message".to_string(),
+                                                |output| {
+                                                    String::from_utf8(output.stderr.clone()).unwrap()
+                                                },
+                                            );
+                                        view! {
+                                            <li class="pb-4">
+                                                <div>
+                                                    <strong>{analysis}</strong>
+                                                    " running on "
+                                                    <strong>{container}</strong>
+                                                </div>
+                                                ": "
+                                                <div>{stderr}</div>
+                                            </li>
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()}
+                            </ol>
+                        });
+                        messages.update(|messages| messages.push(msg.build()));
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn cancel_analysis() {
+        tauri_sys::core::invoke::<()>("cancel_analysis", ()).await
+    }
+
+    async fn kill_analysis() {
+        tauri_sys::core::invoke::<()>("kill_analysis", ()).await
     }
 }

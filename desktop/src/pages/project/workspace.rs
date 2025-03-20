@@ -276,11 +276,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         }
     });
 
-    view! {
-        <div>
-            <views::graph::Workspace />
-        </div>
-    }
+    view! { <views::graph::Workspace /> }
 }
 
 #[component]

@@ -118,7 +118,7 @@ pub fn Search() -> impl IntoView {
     view! {
         <div>
             <form>
-                <div class="p-1">
+                <div class="px-1">
                     <input
                         bind:value=(input, set_input)
                         class="input-compact"

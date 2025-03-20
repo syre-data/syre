@@ -97,7 +97,7 @@ pub fn Workspace() -> impl IntoView {
     });
 
     view! {
-        <div>
+        <div class="flex flex-col h-full">
             <div class="border-b not-dark:border-b-secondary-900">
                 <ProjectBar />
             </div>

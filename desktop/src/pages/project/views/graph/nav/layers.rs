@@ -1,10 +1,11 @@
-use super::super::{
-    workspace::ViewboxState,
-};
+use super::super::workspace::ViewboxState;
 use crate::{
-    pages::project::{state,common::{asset_title_closure, interpret_resource_selection_action, SelectionAction}},
     commands, common,
     components::{self, ToggleExpand, TruncateLeft},
+    pages::project::{
+        common::{SelectionAction, asset_title_closure, interpret_resource_selection_action},
+        state,
+    },
     types,
 };
 use futures::StreamExt;
@@ -140,7 +141,7 @@ pub fn LayersNav() -> impl IntoView {
 
 #[component]
 fn LayersNavLoading() -> impl IntoView {
-    view! { <div class="text-center pt-4">"Setting up layers navigation"</div> }
+    view! { <div class="text-center pt-4">"Setting up layers navigation."</div> }
 }
 
 #[component]
@@ -153,7 +154,7 @@ pub fn LayersNavView(
     provide_context(ContextMenuAsset::new(context_menu_asset));
 
     view! {
-        <div class="h-full pt-2 overflow-auto scrollbar-thin dark:scrollbar-track-secondary-800">
+        <div class="h-full">
             <ContainerLayer root=graph.root().clone() />
         </div>
     }

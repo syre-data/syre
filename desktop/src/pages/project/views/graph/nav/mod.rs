@@ -26,8 +26,8 @@ pub fn NavBar() -> impl IntoView {
     };
 
     view! {
-        <div>
-            <div class="flex gap-1 px-1 pt-px">
+        <div class="flex flex-col h-full pb-8">
+            <div class="flex gap-1 px-1 pt-px pb-2">
                 <button
                     on:mousedown=move |e| mousedown(e, Widget::Layers)
                     class=(
@@ -52,9 +52,10 @@ pub fn NavBar() -> impl IntoView {
                     <Icon icon=icon::Search />
                 </button>
             </div>
-            <div>
+            <div class="grow overflow-auto rtl scrollbar-thin dark:scrollbar-track-secondary-800">
                 <layers::LayersNav
                     {..}
+                    class="ltr"
                     class=(
                         "hidden",
                         move || widget.with(|widget| !matches!(widget, Widget::Layers)),
@@ -62,6 +63,7 @@ pub fn NavBar() -> impl IntoView {
                 />
                 <search::Search
                     {..}
+                    class="ltr"
                     class=(
                         "hidden",
                         move || widget.with(|widget| !matches!(widget, Widget::Search)),

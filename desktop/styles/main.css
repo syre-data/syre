@@ -124,13 +124,17 @@
   }
 }
 
-@utility truncate-rtl {
-  @apply truncate text-left;
+@utility rtl {
   direction: rtl;
 }
 
 @utility ltr {
   direction: ltr;
+}
+
+@utility truncate-rtl {
+  @apply truncate text-left;
+  direction: rtl;
 }
 
 @layer base {

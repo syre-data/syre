@@ -276,7 +276,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         }
     });
 
-    view! { <views::graph::Workspace /> }
+    view! { <main class="h-full"><views::graph::Workspace /></main> }
 }
 
 #[component]

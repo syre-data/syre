@@ -1150,6 +1150,9 @@
   .ltr {
     direction: ltr;
   }
+  .rtl {
+    direction: rtl;
+  }
   .not-dark\:border-r-secondary-900 {
     &:not(*:where(.dark, .dark *)) {
       border-right-color: var(--color-secondary-900);

@@ -61,13 +61,13 @@ pub fn Workspace() -> impl IntoView {
     });
 
     view! {
-        <div>
+        <div class="grow flex flex-col">
             <div class="border-b not-dark:border-b-secondary-900">
                 <ProjectBar />
             </div>
             <div class="flex grow min-h-0">
                 <div class="grow flex min-h-0 relative overflow-hidden">
-                    <div class="text-center pt-4">"Data graph does not exist."</div>
+                    <div class="grow text-center pt-4">"Data graph does not exist."</div>
                     <Drawer
                         dock=drawer::Dock::West
                         absolute=true

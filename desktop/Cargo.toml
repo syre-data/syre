@@ -21,14 +21,14 @@ futures.workspace = true
 has_id.workspace = true
 icondata = "0.5"
 js-sys = "0.3"
-leptos = { version = "0.7", features = ["nightly", "csr"] }
+leptos = { version = "0.8.0-beta", features = ["nightly", "csr"] }
 leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
-leptos_meta = { version = "0.7" }
-leptos_router = { version = "0.7", features = ["nightly"] }
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "leptos-0.7", features = [
+leptos_meta = { version = "0.8.0-beta" }
+leptos_router = { version = "0.8.0-beta", features = ["nightly"] }
+leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main", features = [
 	"storage",
 ] }
-reactive_stores = "0.1.2"
+reactive_stores = "0.2.0-beta"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde-wasm-bindgen = "0.6"

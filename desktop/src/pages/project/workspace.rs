@@ -37,6 +37,13 @@ impl ShowSettings {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+enum DataView {
+    #[default]
+    Graph,
+    Database,
+}
+
 #[component]
 pub fn Workspace() -> impl IntoView {
     let params = use_params_map();
@@ -194,17 +201,21 @@ fn WorkspaceView(
 
     view! {
         <div class="select-none flex flex-col h-full relative">
-            <ProjectNav />
             {move || {
                 either!(
                     graph.as_ref(),
-                    db::state::FolderResource::Absent => views::no_graph::Workspace,
-                    db::state::FolderResource::Present(graph) => {
-                        view! { <WorkspaceGraph graph=graph.clone() /> }
+                    db::state::FolderResource::Absent => view! {
+                        <project_nav::NoGraph />
+                        <views::no_graph::Workspace />
                     },
+                    db::state::FolderResource::Present(graph) => {
+                        let data_view = create_rw_signal(DataView::default());
+                        view! {
+                            <project_nav::Graph data_view/>
+                            <WorkspaceGraph graph=graph.clone() data_view=data_view.read_only() />
+                    }},
                 )
             }}
-
             <div
                 class=(["-right-full", "left-full"], move || !show_settings())
                 class=(["right-0", "left-0"], move || show_settings())
@@ -217,7 +228,7 @@ fn WorkspaceView(
 }
 
 #[component]
-fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
+fn WorkspaceGraph(graph: db::state::Graph, data_view: ReadSignal<DataView>) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();
     let flags = state::Flags::new(&graph);
@@ -276,42 +287,143 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         }
     });
 
-    view! { <main class="h-full"><views::graph::Workspace /></main> }
+    view! {
+        <main class="h-full">
+            <views::graph::Workspace class:hidden=move || {
+                !matches!(data_view(), DataView::Graph)
+            } />
+            <views::db::Workspace class:hidden=move || {
+                !matches!(data_view(), DataView::Database)
+            } />
+        </main>
+    }
 }
 
-#[component]
-fn ProjectNav() -> impl IntoView {
-    let show_settings = expect_context::<ShowSettings>();
-    let open_settings = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary {
-            return;
-        }
-
-        show_settings.set(true);
+mod project_nav {
+    use super::{DataView, ShowSettings};
+    use crate::{
+        components::{Logo, icon},
+        types,
     };
+    use leptos::{ev::MouseEvent, prelude::*};
+    use leptos_icons::Icon;
+    use leptos_router::components::A;
 
-    view! {
-        <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
-            <ol class="flex grow">
-                <li>
-                    <A href="/">
-                        <Logo attr:class="h-4" />
-                    </A>
-                </li>
-            </ol>
-            <ol>
-                <li>
-                    <button
-                        on:mousedown=open_settings
-                        type="button"
-                        class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
-                        border border-transparent hover:border-black dark:hover:border-white"
-                    >
-                        <Icon icon=components::icon::Settings />
-                    </button>
-                </li>
-            </ol>
-        </nav>
+    #[component]
+    pub fn NoGraph() -> impl IntoView {
+        let show_settings = expect_context::<ShowSettings>();
+        let open_settings = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            show_settings.set(true);
+        };
+
+        view! {
+            <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
+                <ol class="flex grow">
+                    <li>
+                        <A href="/">
+                            <Logo attr:class="h-4" />
+                        </A>
+                    </li>
+                </ol>
+                <ol>
+                    <li>
+                        <button
+                            on:mousedown=open_settings
+                            type="button"
+                            class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
+                            border border-transparent hover:border-black dark:hover:border-white"
+                        >
+                            <Icon icon=icon::Settings />
+                        </button>
+                    </li>
+                </ol>
+            </nav>
+        }
+    }
+
+    #[component]
+    pub fn Graph(data_view: RwSignal<DataView>) -> impl IntoView {
+        const COMMAND_BUTTON_CLASS: &str = "align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
+                                            border border-transparent hover:border-black dark:hover:border-white cursor-pointer";
+        const TOGGLE_DATA_VIEW_TITLE: &str = "Toggle data view.";
+
+        let toggle_data_view = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            match data_view() {
+                DataView::Database => data_view.set(DataView::Graph),
+                DataView::Graph => data_view.set(DataView::Database),
+            }
+        };
+
+        let show_settings = expect_context::<ShowSettings>();
+        let open_settings = move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            show_settings.set(true);
+        };
+
+        view! {
+            <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
+                <ol class="flex grow">
+                    <li>
+                        <A href="/">
+                            <Logo attr:class="h-4" />
+                        </A>
+                    </li>
+                </ol>
+                <ol class="flex gap-2">
+                    <li>
+                        {move || {
+                            match data_view() {
+                                DataView::Graph => {
+                                    view! {
+                                        <button
+                                            on:mousedown=toggle_data_view
+                                            type="button"
+                                            class=COMMAND_BUTTON_CLASS
+                                            title=TOGGLE_DATA_VIEW_TITLE
+                                        >
+                                            <Icon icon=icondata::ImTree />
+                                        </button>
+                                    }
+                                }
+                                DataView::Database => {
+                                    view! {
+                                        <button
+                                            on:mousedown=toggle_data_view
+                                            type="button"
+                                            class=COMMAND_BUTTON_CLASS
+                                            title=TOGGLE_DATA_VIEW_TITLE
+                                        >
+                                            <Icon icon=icondata::VsBrowser />
+                                        </button>
+                                    }
+                                }
+                            }
+                        }}
+                    </li>
+                    <li>
+                        <button
+                            on:mousedown=open_settings
+                            type="button"
+                            class=COMMAND_BUTTON_CLASS
+                            title="Open settings."
+                        >
+                            <Icon icon=icon::Settings />
+                        </button>
+                    </li>
+                </ol>
+            </nav>
+        }
     }
 }
 

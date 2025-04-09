@@ -1,4 +1,4 @@
-use super::properties;
+use super::{super::super::DataView, properties};
 use crate::{components, pages::project::state, types};
 use leptos::{ev::MouseEvent, html, prelude::*};
 use leptos_icons::Icon;
@@ -273,6 +273,18 @@ fn ProjectInfo() -> impl IntoView {
 
 #[component]
 fn Controls() -> impl IntoView {
+    const COMMAND_BUTTON_CLASS: &str = "btn-secondary p-1 rounded-xs cursor-pointer";
+
+    let data_view = expect_context::<RwSignal<DataView>>();
+
+    let toggle_data_view = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+
+        data_view.set(DataView::Database)
+    };
+
     let refresh = move |e: MouseEvent| {
         if e.button() != types::MouseButton::Primary {
             return;
@@ -283,14 +295,28 @@ fn Controls() -> impl IntoView {
     };
 
     view! {
-        <button
-            on:mousedown=refresh
-            type="button"
-            class="btn-secondary p-1 rounded-xs cursor-pointer"
-            title="Refresh"
-        >
-            <Icon icon=components::icon::Refresh />
-        </button>
+        <ol class="flex gap-1 justify-end">
+            <li>
+                <button
+                    on:mousedown=toggle_data_view
+                    type="button"
+                    class=COMMAND_BUTTON_CLASS
+                    title="Toggle data view"
+                >
+                    <Icon icon=icondata::VsBrowser />
+                </button>
+            </li>
+            <li>
+                <button
+                    on:mousedown=refresh
+                    type="button"
+                    class=COMMAND_BUTTON_CLASS
+                    title="Refresh"
+                >
+                    <Icon icon=components::icon::Refresh />
+                </button>
+            </li>
+        </ol>
     }
 }
 

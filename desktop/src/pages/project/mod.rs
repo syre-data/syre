@@ -7,3 +7,10 @@ mod workspace;
 
 pub(self) use settings::Settings;
 pub use workspace::Workspace;
+
+#[derive(Clone, Copy, Default)]
+pub(self) enum DataView {
+    #[default]
+    Graph,
+    Database,
+}

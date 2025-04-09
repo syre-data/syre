@@ -36,6 +36,7 @@ pub fn NavBar() -> impl IntoView {
                     )
                     class="p-px hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded-xs \
                     cursor-pointer"
+                    title="Layers view"
                 >
                     <Icon icon=icondata::TbListTree />
                 // <Icon icon=icondata::BsLayers />
@@ -48,6 +49,7 @@ pub fn NavBar() -> impl IntoView {
                     )
                     class="p-px hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded-xs \
                     cursor-pointer"
+                    title="Search"
                 >
                     <Icon icon=icon::Search />
                 </button>

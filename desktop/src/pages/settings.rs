@@ -40,6 +40,7 @@ pub fn Settings(
                     on:mousedown=trigger_close
                     type="button"
                     class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700 cursor-pointer"
+                    title="Close settings."
                 >
                     <Icon icon=icon::Close />
                 </button>

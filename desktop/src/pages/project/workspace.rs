@@ -1,4 +1,4 @@
-use super::{Settings, state, views, views::graph::ProjectBar};
+use super::{DataView, Settings, state, views, views::graph::ProjectBar};
 use crate::{
     commands, common,
     components::{self, Drawer, Logo, drawer},
@@ -35,13 +35,6 @@ impl ShowSettings {
     pub fn new() -> Self {
         Self(RwSignal::new(false))
     }
-}
-
-#[derive(Clone, Copy, Default)]
-enum DataView {
-    #[default]
-    Graph,
-    Database,
 }
 
 #[component]
@@ -209,10 +202,9 @@ fn WorkspaceView(
                         <views::no_graph::Workspace />
                     },
                     db::state::FolderResource::Present(graph) => {
-                        let data_view = create_rw_signal(DataView::default());
                         view! {
-                            <project_nav::Graph data_view/>
-                            <WorkspaceGraph graph=graph.clone() data_view=data_view.read_only() />
+                            <project_nav::Graph/>
+                            <WorkspaceGraph graph=graph.clone() />
                     }},
                 )
             }}
@@ -228,7 +220,7 @@ fn WorkspaceView(
 }
 
 #[component]
-fn WorkspaceGraph(graph: db::state::Graph, data_view: ReadSignal<DataView>) -> impl IntoView {
+fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     let project = expect_context::<state::Project>();
     let messages = expect_context::<types::Messages>();
     let flags = state::Flags::new(&graph);
@@ -238,11 +230,13 @@ fn WorkspaceGraph(graph: db::state::Graph, data_view: ReadSignal<DataView>) -> i
         &graph,
         workspace_graph_state.container_visiblity().read_only(),
     );
+    let data_view = RwSignal::new(DataView::default());
 
     provide_context(graph.clone());
     provide_context(flags);
     provide_context(workspace_graph_state.clone());
     provide_context(display_state.clone());
+    provide_context(data_view);
 
     spawn_local({
         let project = project.clone();
@@ -346,22 +340,7 @@ mod project_nav {
     }
 
     #[component]
-    pub fn Graph(data_view: RwSignal<DataView>) -> impl IntoView {
-        const COMMAND_BUTTON_CLASS: &str = "align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
-                                            border border-transparent hover:border-black dark:hover:border-white cursor-pointer";
-        const TOGGLE_DATA_VIEW_TITLE: &str = "Toggle data view.";
-
-        let toggle_data_view = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
-                return;
-            }
-
-            match data_view() {
-                DataView::Database => data_view.set(DataView::Graph),
-                DataView::Graph => data_view.set(DataView::Database),
-            }
-        };
-
+    pub fn Graph() -> impl IntoView {
         let show_settings = expect_context::<ShowSettings>();
         let open_settings = move |e: MouseEvent| {
             if e.button() != types::MouseButton::Primary {
@@ -382,40 +361,11 @@ mod project_nav {
                 </ol>
                 <ol class="flex gap-2">
                     <li>
-                        {move || {
-                            match data_view() {
-                                DataView::Graph => {
-                                    view! {
-                                        <button
-                                            on:mousedown=toggle_data_view
-                                            type="button"
-                                            class=COMMAND_BUTTON_CLASS
-                                            title=TOGGLE_DATA_VIEW_TITLE
-                                        >
-                                            <Icon icon=icondata::ImTree />
-                                        </button>
-                                    }
-                                }
-                                DataView::Database => {
-                                    view! {
-                                        <button
-                                            on:mousedown=toggle_data_view
-                                            type="button"
-                                            class=COMMAND_BUTTON_CLASS
-                                            title=TOGGLE_DATA_VIEW_TITLE
-                                        >
-                                            <Icon icon=icondata::VsBrowser />
-                                        </button>
-                                    }
-                                }
-                            }
-                        }}
-                    </li>
-                    <li>
                         <button
                             on:mousedown=open_settings
                             type="button"
-                            class=COMMAND_BUTTON_CLASS
+                            class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
+                                border border-transparent hover:border-black dark:hover:border-white cursor-pointer"
                             title="Open settings."
                         >
                             <Icon icon=icon::Settings />

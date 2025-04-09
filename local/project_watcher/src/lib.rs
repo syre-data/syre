@@ -1,8 +1,8 @@
 #![feature(io_error_more)]
 #![feature(assert_matches)]
 #![feature(result_flattening)]
-//! # Syre Local Database
-//! Implements a local database for Syre.
+//! # Syre Project Watcher
+//! Implements a local project watcher daemon for Syre.
 pub mod common;
 pub mod event;
 pub mod query;
@@ -37,7 +37,7 @@ pub use server::Watcher;
 
 // #[cfg(target_arch = "wasm32")]
 pub mod serde_os_string {
-    use serde::{de::Visitor, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de::Visitor};
     use std::{ffi::OsString, fmt, str::FromStr};
 
     pub fn serialize<S>(value: &OsString, serializer: S) -> Result<S::Ok, S::Error>

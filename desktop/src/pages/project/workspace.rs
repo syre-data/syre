@@ -282,7 +282,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     });
 
     view! {
-        <main class="h-full">
+        <main class="grow min-h-0">
             <views::graph::Workspace class:hidden=move || {
                 !matches!(data_view(), DataView::Graph)
             } />
@@ -318,7 +318,7 @@ mod project_nav {
             <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
                 <ol class="flex grow">
                     <li>
-                        <A href="/">
+                        <A href="/" attr:title="Dashboard">
                             <Logo attr:class="h-4" />
                         </A>
                     </li>
@@ -354,7 +354,7 @@ mod project_nav {
             <nav class="px-2 border-b dark:bg-secondary-900 flex items-center">
                 <ol class="flex grow">
                     <li>
-                        <A href="/">
+                        <A href="/" attr:title="Dashboard">
                             <Logo attr:class="h-4" />
                         </A>
                     </li>
@@ -365,8 +365,8 @@ mod project_nav {
                             on:mousedown=open_settings
                             type="button"
                             class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
-                                border border-transparent hover:border-black dark:hover:border-white cursor-pointer"
-                            title="Open settings."
+                            border border-transparent hover:border-black dark:hover:border-white cursor-pointer"
+                            title="Settings"
                         >
                             <Icon icon=icon::Settings />
                         </button>

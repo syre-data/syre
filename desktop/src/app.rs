@@ -17,7 +17,7 @@ use message::Messages;
 /// For Tailwind to include classes
 /// they must appear as string literals in at least one place.
 /// This array is used to include them when needed.
-static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden", "invisible"];
+static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden", "invisible", "collapse"];
 
 /// User prefers dark theme.
 #[derive(derive_more::Deref, Clone, Copy)]

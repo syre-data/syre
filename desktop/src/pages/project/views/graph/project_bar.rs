@@ -24,7 +24,7 @@ pub fn ProjectBar() -> impl IntoView {
 
 #[component]
 fn PreviewSelector() -> impl IntoView {
-    const MENU_ID: &str = "workspace-preview-menu";
+    const MENU_ID: &str = "graph-workspace-preview-menu";
 
     let workspace_state = expect_context::<state::Workspace>();
     let state = workspace_state.preview().clone();
@@ -120,7 +120,8 @@ fn PreviewSelector() -> impl IntoView {
             <div
                 on:mousedown=activate
                 class=("rounded-b-none", move || active.read().is_some())
-                class="cursor-pointer inline-flex w-40 px-2 rounded-sm border border-secondary-600 dark:border-secondary-200"
+                class="cursor-pointer inline-flex w-40 px-2 rounded-sm border \
+                border-secondary-600 dark:border-secondary-200"
             >
                 <span class="grow truncate">{preview_list}</span>
                 <span class="pl-2 inline-flex items-center">
@@ -142,11 +143,9 @@ fn PreviewSelector() -> impl IntoView {
                                 on:input=move |_| {
                                     state.update(|state| state.assets = !state.assets)
                                 }
-
                                 prop:checked=move || state.with(|state| state.assets)
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Data"</span>
                         </label>
                     </div>
@@ -159,12 +158,9 @@ fn PreviewSelector() -> impl IntoView {
                                 on:input=move |_| {
                                     state.update(|state| state.analyses = !state.analyses)
                                 }
-
                                 prop:checked=move || { state.with(|state| state.analyses) }
-
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Analyses"</span>
                         </label>
                     </div>
@@ -175,11 +171,9 @@ fn PreviewSelector() -> impl IntoView {
                                 type="checkbox"
                                 name="kind"
                                 on:input=move |_| { state.update(|state| state.kind = !state.kind) }
-
                                 prop:checked=move || state.with(|state| state.kind)
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Type"</span>
                         </label>
                     </div>
@@ -192,12 +186,9 @@ fn PreviewSelector() -> impl IntoView {
                                 on:input=move |_| {
                                     state.update(|state| state.description = !state.description)
                                 }
-
                                 prop:checked=move || { state.with(|state| state.description) }
-
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Description"</span>
                         </label>
                     </div>
@@ -208,11 +199,9 @@ fn PreviewSelector() -> impl IntoView {
                                 type="checkbox"
                                 name="tags"
                                 on:input=move |_| { state.update(|state| state.tags = !state.tags) }
-
                                 prop:checked=move || state.with(|state| state.tags)
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Tags"</span>
                         </label>
                     </div>
@@ -225,11 +214,9 @@ fn PreviewSelector() -> impl IntoView {
                                 on:input=move |_| {
                                     state.update(|state| state.metadata = !state.metadata)
                                 }
-
                                 prop:checked=move || { state.with(|state| state.metadata) }
                                 class=CLASS_CHECKBOX
                             />
-
                             <span class=CLASS_LABEL>"Metadata"</span>
                         </label>
                     </div>

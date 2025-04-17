@@ -1,22 +1,35 @@
+mod project_bar;
+mod state;
+
 use crate::{components, pages::project, types};
 use leptos::{
     either::Either,
     ev::{MouseEvent, SubmitEvent},
+    html,
     prelude::*,
     task::spawn_local,
 };
 use leptos_icons::Icon;
 use project_bar::ProjectBar;
-use state::State;
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
 use syre_project_watcher::{self as db, state::Graph};
+use wasm_bindgen::{JsCast, prelude::Closure};
+
+const MIN_COL_WIDTH: u32 = 100;
+const MAX_COL_WIDTH_RATIO: f64 = 0.8;
 
 #[derive(derive_more::Deref, Clone, Copy)]
 struct GraphRootName(ReadSignal<OsString>);
 
 #[component]
 pub fn Workspace() -> impl IntoView {
+    let graph = expect_context::<project::state::Graph>();
+    let state = state::data::State::from(graph);
+    let display_state = state::display::State::new();
+    provide_context(state);
+    provide_context(display_state);
+
     view! {
         <div class="flex flex-col h-full">
             <div class="border-b not-dark:border-b-secondary-900">
@@ -32,53 +45,17 @@ pub fn Workspace() -> impl IntoView {
 #[component]
 fn DataView() -> impl IntoView {
     let graph = expect_context::<project::state::Graph>();
+    let state = expect_context::<state::data::State>();
+    let display_state = expect_context::<state::display::State>();
     provide_context(GraphRootName(graph.root().name().read_only()));
-    let state = State::from(graph);
 
-    let toggle_sort = {
-        let state = state.clone();
-        move |property: &'static str| {
-            let state = state.clone();
-            move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary {
-                    return;
-                }
-
-                let current_field = state.sort().read_untracked().field();
-                match property {
-                    "path" => {
-                        if matches!(current_field, state::SortField::Path) {
-                            state.toggle_sort_direction();
-                        } else {
-                            state.sort_by(state::SortField::Path);
-                        }
-                    }
-                    "file" => {
-                        if matches!(current_field, state::SortField::File) {
-                            state.toggle_sort_direction();
-                        } else {
-                            state.sort_by(state::SortField::File);
-                        }
-                    }
-                    "name" => {
-                        if matches!(current_field, state::SortField::Name) {
-                            state.toggle_sort_direction();
-                        } else {
-                            state.sort_by(state::SortField::Name);
-                        }
-                    }
-                    "kind" => {
-                        if matches!(current_field, state::SortField::Kind) {
-                            state.toggle_sort_direction();
-                        } else {
-                            state.sort_by(state::SortField::Kind);
-                        }
-                    }
-                    field => panic!("invalid field `{field}`"),
-                }
-            }
-        }
-    };
+    let table_node = NodeRef::<html::Table>::new();
+    let col_node_path = display_state.columns().path().node_ref();
+    let col_node_file = display_state.columns().file().node_ref();
+    let col_node_name = display_state.columns().name().node_ref();
+    let col_node_kind = display_state.columns().kind().node_ref();
+    let col_node_description = display_state.columns().description().node_ref();
+    let col_node_tags = display_state.columns().tags().node_ref();
 
     view! {
         <Show
@@ -88,118 +65,92 @@ fn DataView() -> impl IntoView {
             }
             fallback=NoData
         >
-            <div class="overflow-auto w-full h-full">
-                <table class="w-full">
+            <div class="overflow-auto scrollbar-thin w-full h-full">
+                <table node_ref=table_node class="relative min-w-full">
+                    <colgroup>
+                        <col
+                            node_ref=col_node_path
+                            class:collapse={
+                                let visible = display_state.columns().path().visible().read_only();
+                                move || !visible()
+                            }
+                        />
+                        <col
+                            node_ref=col_node_file
+                            class:collapse={
+                                let visible = display_state.columns().file().visible().read_only();
+                                move || !visible()
+                            }
+                        />
+                        <col
+                            node_ref=col_node_name
+                            class:collapse={
+                                let visible = display_state.columns().name().visible().read_only();
+                                move || !visible()
+                            }
+                        />
+                        <col
+                            node_ref=col_node_kind
+                            class:collapse={
+                                let visible = display_state.columns().kind().visible().read_only();
+                                move || !visible()
+                            }
+                        />
+                        <col
+                            node_ref=col_node_description
+                            class:collapse={
+                                let visible = display_state
+                                    .columns()
+                                    .description()
+                                    .visible()
+                                    .read_only();
+                                move || !visible()
+                            }
+                        />
+                        <col
+                            node_ref=col_node_tags
+                            class:collapse={
+                                let visible = display_state.columns().tags().visible().read_only();
+                                move || !visible()
+                            }
+                        />
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th
-                                scope="col"
-                                class="sticky px-2 text-left cursor-pointer"
-                                on:mousedown=toggle_sort("path")
-                            >
-                                <span class="font-primary bold">"Path"</span>
-                                <span
-                                    class:invisible={
-                                        let sort = state.sort();
-                                        move || {
-                                            !matches!(sort.get().field(), state::SortField::Path)
-                                        }
-                                    }
-                                    class="pl-2 inline-block align-middle"
-                                >
-                                    {
-                                        let sort = state.sort();
-                                        move || {
-                                            let icon = match sort.get().direction() {
-                                                state::SortDirection::Asc => components::icon::CaretDown,
-                                                state::SortDirection::Des => components::icon::CaretUp,
-                                            };
-                                            view! { <Icon icon /> }
-                                        }
-                                    }
-                                </span>
-                            </th>
-                            <th
-                                scope="col"
-                                class="sticky px-2 text-left cursor-pointer"
-                                on:mousedown=toggle_sort("file")
-                            >
-                                <span class="font-primary bold">"File"</span>
-                                <span
-                                    class:invisible={
-                                        let sort = state.sort();
-                                        move || {
-                                            !matches!(sort.get().field(), state::SortField::File)
-                                        }
-                                    }
-                                    class="pl-2 inline-block align-middle"
-                                >
-                                    {
-                                        let sort = state.sort();
-                                        move || {
-                                            let icon = match sort.get().direction() {
-                                                state::SortDirection::Asc => components::icon::CaretDown,
-                                                state::SortDirection::Des => components::icon::CaretUp,
-                                            };
-                                            view! { <Icon icon /> }
-                                        }
-                                    }
-                                </span>
-                            </th>
-                            <th
-                                scope="col"
-                                class="sticky px-2 text-left cursor-pointer"
-                                on:mousedown=toggle_sort("name")
-                            >
-                                <span class="font-primary bold">"Name"</span>
-                                <span
-                                    class:invisible={
-                                        let sort = state.sort();
-                                        move || {
-                                            !matches!(sort.get().field(), state::SortField::Name)
-                                        }
-                                    }
-                                    class="pl-2 inline-block align-middle"
-                                >
-                                    {
-                                        let sort = state.sort();
-                                        move || {
-                                            let icon = match sort.get().direction() {
-                                                state::SortDirection::Asc => components::icon::CaretDown,
-                                                state::SortDirection::Des => components::icon::CaretUp,
-                                            };
-                                            view! { <Icon icon /> }
-                                        }
-                                    }
-                                </span>
-                            </th>
-                            <th
-                                scope="col"
-                                class="sticky px-2 text-left cursor-pointer"
-                                on:mousedown=toggle_sort("kind")
-                            >
-                                <span class="font-primary bold">"Type"</span>
-                                <span
-                                    class:invisible={
-                                        let sort = state.sort();
-                                        move || {
-                                            !matches!(sort.get().field(), state::SortField::Kind)
-                                        }
-                                    }
-                                    class="pl-2 inline-block align-middle"
-                                >
-                                    {
-                                        let sort = state.sort();
-                                        move || {
-                                            let icon = match sort.get().direction() {
-                                                state::SortDirection::Asc => components::icon::CaretDown,
-                                                state::SortDirection::Des => components::icon::CaretUp,
-                                            };
-                                            view! { <Icon icon /> }
-                                        }
-                                    }
-                                </span>
-                            </th>
+                            <TableHeaderSortable
+                                display_name="Path"
+                                sort_field=state::data::SortField::Path
+                                col_node=col_node_path
+                                table_node=table_node
+                            />
+                            <TableHeaderSortable
+                                display_name="File"
+                                sort_field=state::data::SortField::File
+                                col_node=col_node_file
+                                table_node=table_node
+                            />
+                            <TableHeaderSortable
+                                display_name="Name"
+                                sort_field=state::data::SortField::Name
+                                col_node=col_node_name
+                                table_node=table_node
+                            />
+                            <TableHeaderSortable
+                                display_name="Type"
+                                sort_field=state::data::SortField::Kind
+                                col_node=col_node_kind
+                                table_node=table_node
+                            />
+                            <TableHeader
+                                display_name="Description"
+                                col_node=col_node_description
+                                table_node=table_node
+                            />
+                            <TableHeader
+                                display_name="Tags"
+                                col_node=col_node_tags
+                                table_node=table_node
+                            />
                         </tr>
                     </thead>
                     <tbody class="h-full overflow-y-auto">
@@ -218,16 +169,299 @@ fn NoData() -> impl IntoView {
     view! { <div class="pt-2 text-center">"(no data)"</div> }
 }
 
+enum Col {
+    Path,
+}
+
 #[component]
-fn DataRow(datum: state::Datum) -> impl IntoView {
+fn TableHeaderSortable(
+    display_name: &'static str,
+    sort_field: state::data::SortField,
+    col_node: NodeRef<html::Col>,
+    table_node: NodeRef<html::Table>,
+) -> impl IntoView {
+    let state = expect_context::<state::data::State>();
+    let (is_resizing, set_is_resizing) = signal(false);
+    let root_node = NodeRef::<html::Th>::new();
+    let drag_handle_node = NodeRef::<html::Div>::new();
+
+    let resize_start = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+        e.stop_propagation();
+
+        let document = web_sys::window().unwrap().document().unwrap();
+        let body = document.body().unwrap();
+        let cursor_style = body.style().get_property_value("cursor").unwrap();
+        body.style().set_property("cursor", "col-resize").unwrap();
+        set_is_resizing(true);
+
+        let resize_cb = Closure::<dyn Fn(MouseEvent)>::new({
+            move |e: MouseEvent| {
+                let table_node = table_node.get_untracked().unwrap();
+                let root_node = root_node.get_untracked().unwrap();
+                let col_node = col_node.get_untracked().unwrap();
+
+                let table_bb = table_node.get_bounding_client_rect();
+                let root_bb = root_node.get_bounding_client_rect();
+                let col_bb = col_node.get_bounding_client_rect();
+
+                let window_width = web_sys::window()
+                    .unwrap()
+                    .inner_width()
+                    .unwrap()
+                    .as_f64()
+                    .unwrap();
+                let col_width = i32::clamp(
+                    e.x() - root_bb.x() as i32,
+                    MIN_COL_WIDTH as i32,
+                    (window_width * MAX_COL_WIDTH_RATIO) as i32,
+                );
+                let delta_width = col_width - col_bb.width() as i32;
+
+                let table_width = table_bb.width() as i32 + delta_width;
+                (*table_node)
+                    .style()
+                    .set_property("width", &format!("{table_width}px"))
+                    .unwrap();
+
+                // col_node.style("width", &format!("{width}px"));
+                (*col_node)
+                    .style()
+                    .set_property("width", &format!("{col_width}px"))
+                    .unwrap();
+            }
+        });
+
+        document
+            .add_event_listener_with_callback("mousemove", resize_cb.as_ref().unchecked_ref())
+            .unwrap();
+
+        let resize_end = Closure::<dyn Fn(MouseEvent)>::new({
+            let document = document.clone();
+            move |_e: MouseEvent| {
+                let body = document.body().unwrap();
+                body.style()
+                    .set_property("cursor", cursor_style.as_str())
+                    .unwrap();
+                set_is_resizing(false);
+
+                document
+                    .remove_event_listener_with_callback(
+                        "mousemove",
+                        resize_cb.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+            }
+        });
+
+        document
+            .add_event_listener_with_callback("mouseup", resize_end.as_ref().unchecked_ref())
+            .unwrap();
+
+        resize_end.forget();
+    };
+
+    let toggle_sort = {
+        let state = state.clone();
+        move |e: MouseEvent| {
+            if e.button() != types::MouseButton::Primary {
+                return;
+            }
+
+            if sort_field == state.sort().read_untracked().field() {
+                state.toggle_sort_direction();
+            } else {
+                state.sort_by(sort_field);
+            }
+        }
+    };
+
+    view! {
+        <th
+            node_ref=root_node
+            scope="col"
+            on:mousedown=toggle_sort
+            class="sticky top-0 cursor-pointer pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800"
+        >
+            <div class="inline-flex w-full">
+                <div class="grow">
+                    <span class="font-primary bold">{display_name}</span>
+                    <span
+                        class:invisible={
+                            let sort = state.sort();
+                            move || { sort_field != sort.get().field() }
+                        }
+                        class="pl-2 inline-block align-middle"
+                    >
+                        {
+                            let sort = state.sort();
+                            move || {
+                                let icon = match sort.get().direction() {
+                                    state::data::SortDirection::Asc => components::icon::CaretDown,
+                                    state::data::SortDirection::Des => components::icon::CaretUp,
+                                };
+                                view! { <Icon icon /> }
+                            }
+                        }
+                    </span>
+                </div>
+                <div
+                    node_ref=drag_handle_node
+                    on:mousedown=resize_start
+                    class="cursor-col-resize hover:bg-primary-700 hover:delay-100 hover:duration-200 hover:w-[4px] transition-width"
+                    class=("w-[2px]", move || !is_resizing())
+                    class=(["bg-primary-700", "w-[4px]"], is_resizing)
+                ></div>
+            </div>
+        </th>
+    }
+}
+
+#[component]
+fn TableHeader(
+    display_name: &'static str,
+    col_node: NodeRef<html::Col>,
+    table_node: NodeRef<html::Table>,
+) -> impl IntoView {
+    let state = expect_context::<state::data::State>();
+    let (is_resizing, set_is_resizing) = signal(false);
+    let root_node = NodeRef::<html::Th>::new();
+    let drag_handle_node = NodeRef::<html::Div>::new();
+
+    let resize_start = move |e: MouseEvent| {
+        if e.button() != types::MouseButton::Primary {
+            return;
+        }
+        e.stop_propagation();
+
+        let document = web_sys::window().unwrap().document().unwrap();
+        let body = document.body().unwrap();
+        let cursor_style = body.style().get_property_value("cursor").unwrap();
+        body.style().set_property("cursor", "col-resize").unwrap();
+        set_is_resizing(true);
+
+        let resize_cb = Closure::<dyn Fn(MouseEvent)>::new({
+            move |e: MouseEvent| {
+                let table_node = table_node.get_untracked().unwrap();
+                let root_node = root_node.get_untracked().unwrap();
+                let col_node = col_node.get_untracked().unwrap();
+
+                let table_bb = table_node.get_bounding_client_rect();
+                let root_bb = root_node.get_bounding_client_rect();
+                let col_bb = col_node.get_bounding_client_rect();
+
+                let window_width = web_sys::window()
+                    .unwrap()
+                    .inner_width()
+                    .unwrap()
+                    .as_f64()
+                    .unwrap();
+                let col_width = i32::clamp(
+                    e.x() - root_bb.x() as i32,
+                    MIN_COL_WIDTH as i32,
+                    (window_width * MAX_COL_WIDTH_RATIO) as i32,
+                );
+                let delta_width = col_width - col_bb.width() as i32;
+
+                let table_width = table_bb.width() as i32 + delta_width;
+                (*table_node)
+                    .style()
+                    .set_property("width", &format!("{table_width}px"))
+                    .unwrap();
+
+                // col_node.style("width", &format!("{width}px"));
+                (*col_node)
+                    .style()
+                    .set_property("width", &format!("{col_width}px"))
+                    .unwrap();
+            }
+        });
+
+        document
+            .add_event_listener_with_callback("mousemove", resize_cb.as_ref().unchecked_ref())
+            .unwrap();
+
+        let resize_end = Closure::<dyn Fn(MouseEvent)>::new({
+            let document = document.clone();
+            move |_e: MouseEvent| {
+                let body = document.body().unwrap();
+                body.style()
+                    .set_property("cursor", cursor_style.as_str())
+                    .unwrap();
+                set_is_resizing(false);
+
+                document
+                    .remove_event_listener_with_callback(
+                        "mousemove",
+                        resize_cb.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+            }
+        });
+
+        document
+            .add_event_listener_with_callback("mouseup", resize_end.as_ref().unchecked_ref())
+            .unwrap();
+
+        resize_end.forget();
+    };
+
+    view! {
+        <th
+            node_ref=root_node
+            scope="col"
+            class="sticky top-0 pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800"
+        >
+            <div class="inline-flex w-full">
+                <div class="grow">
+                    <span class="font-primary bold">{display_name}</span>
+                </div>
+                <div
+                    node_ref=drag_handle_node
+                    on:mousedown=resize_start
+                    class="cursor-col-resize hover:bg-primary-700 hover:delay-100 hover:duration-200 hover:w-[4px] transition-width"
+                    class=("w-[2px]", move || !is_resizing())
+                    class=(["bg-primary-700", "w-[4px]"], is_resizing)
+                ></div>
+            </div>
+        </th>
+    }
+}
+
+#[component]
+fn DataRow(datum: state::data::Datum) -> impl IntoView {
     let project = expect_context::<project::state::Project>();
     let graph_root_name = expect_context::<GraphRootName>();
     let messages = expect_context::<types::Messages>();
     let asset = datum.asset();
 
-    let update_name = Callback::new({
+    let update_properties = {
         let project = project.rid().read_only();
         let container = datum.path();
+        let path = asset.path().read_only();
+        move |update: core::project::AssetProperties| {
+            spawn_local(async move {
+                if let Err(err) = update_asset_properties(
+                    project.get_untracked(),
+                    container.get_untracked(),
+                    path.get_untracked(),
+                    update,
+                )
+                .await
+                {
+                    tracing::error!(?err);
+                    let mut msg = types::message::Builder::error("Could not save asset.");
+                    msg.body(format!("{err:?}"));
+                    messages.update(|messages| messages.push(msg.build()));
+                }
+            });
+        }
+    };
+
+    let update_name = Callback::new({
+        let update_properties = update_properties.clone();
         let asset = asset.clone();
         move |value: Option<String>| {
             if asset.name().get_untracked() == value {
@@ -236,30 +470,58 @@ fn DataRow(datum: state::Datum) -> impl IntoView {
 
             let mut update = asset.as_properties();
             update.name = value;
-            spawn_local({
-                let path = asset.path().read_only();
-                async move {
-                    if let Err(err) = update_asset_properties(
-                        project.get_untracked(),
-                        container.get_untracked(),
-                        path.get_untracked(),
-                        update,
-                    )
-                    .await
-                    {
-                        tracing::error!(?err);
-                        let mut msg = types::message::Builder::error("Could not save asset.");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
-                    }
-                }
-            });
+            update_properties(update);
         }
     });
 
+    let update_kind = Callback::new({
+        let update_properties = update_properties.clone();
+        let asset = asset.clone();
+        move |value: Option<String>| {
+            if asset.kind().get_untracked() == value {
+                return;
+            }
+
+            let mut update = asset.as_properties();
+            update.kind = value;
+            update_properties(update);
+        }
+    });
+
+    let update_description = Callback::new({
+        let update_properties = update_properties.clone();
+        let asset = asset.clone();
+        move |value: Option<String>| {
+            if asset.description().get_untracked() == value {
+                return;
+            }
+
+            let mut update = asset.as_properties();
+            update.description = value;
+            update_properties(update);
+        }
+    });
+
+    let update_tags = Callback::new({
+        let update_properties = update_properties.clone();
+        let asset = asset.clone();
+        move |value: Vec<String>| {
+            let tags = asset.tags().get_untracked();
+            if value.iter().all(|tag| tags.contains(tag)) {
+                return;
+            }
+
+            let mut update = asset.as_properties();
+            update.tags = value;
+            update_properties(update);
+        }
+    });
+
+    const TH_CLASS: &str = "pl-1 pr-2 align-top text-left";
+    const TD_CLASS: &str = "pl-1 pr-2 align-top";
     view! {
         <tr>
-            <th scope="row" class="px-2 text-left">
+            <th scope="row" class=TH_CLASS>
                 {
                     let path = datum.path();
                     move || {
@@ -271,20 +533,26 @@ fn DataRow(datum: state::Datum) -> impl IntoView {
                     }
                 }
             </th>
-            <th scope="row" class="px-2 text-left">
+            <th scope="row" class=TH_CLASS>
                 {
                     let path = asset.path().read_only();
                     move || { path.get().to_string_lossy().to_string() }
                 }
             </th>
-            <td class="px-2">
+            <td class=TD_CLASS>
                 <properties::Name value=asset.name().read_only() on_change=update_name />
             </td>
-            <td class="px-2">
-                {
-                    let kind = asset.kind().read_only();
-                    move || { kind.get().unwrap_or("(no type)".to_string()) }
-                }
+            <td class=TD_CLASS>
+                <properties::Kind value=asset.kind().read_only() on_change=update_kind />
+            </td>
+            <td class=TD_CLASS>
+                <properties::Description
+                    value=asset.description().read_only()
+                    on_change=update_description
+                />
+            </td>
+            <td class=TD_CLASS>
+                <properties::Tags value=asset.tags().read_only() on_change=update_tags />
             </td>
         </tr>
     }
@@ -294,7 +562,7 @@ async fn update_asset_properties(
     project: ResourceId,
     container: impl Into<PathBuf>,
     asset: impl Into<PathBuf>,
-    properties: syre_core::project::AssetProperties,
+    properties: core::project::AssetProperties,
 ) -> Result<(), ()> {
     #[derive(serde::Serialize)]
     struct Args {
@@ -335,6 +603,58 @@ pub(self) mod properties {
         });
 
         view! { <editor::Input value=input_value on_change=change empty_value="(no name)".to_string() /> }
+    }
+
+    #[component]
+    pub fn Kind(
+        value: ReadSignal<Option<String>>,
+        on_change: Callback<Option<String>>,
+    ) -> impl IntoView {
+        let input_value = Signal::derive(move || value.get().unwrap_or_default());
+
+        let change = Callback::new(move |value: String| {
+            let value = if value.is_empty() { None } else { Some(value) };
+            on_change.run(value);
+        });
+
+        view! { <editor::Input value=input_value on_change=change empty_value="(no type)".to_string() /> }
+    }
+
+    #[component]
+    pub fn Description(
+        value: ReadSignal<Option<String>>,
+        on_change: Callback<Option<String>>,
+    ) -> impl IntoView {
+        let input_value = Signal::derive(move || value.get().unwrap_or_default());
+
+        let change = Callback::new(move |value: String| {
+            let value = if value.is_empty() { None } else { Some(value) };
+            on_change.run(value);
+        });
+
+        view! {
+            <editor::TextArea
+                value=input_value
+                on_change=change
+                empty_value="(no description)".to_string()
+            />
+        }
+    }
+
+    #[component]
+    pub fn Tags(value: ReadSignal<Vec<String>>, on_change: Callback<Vec<String>>) -> impl IntoView {
+        let input_value = Signal::derive(move || value.get().join(", "));
+
+        let change = Callback::new(move |value: String| {
+            let value = value
+                .split(",")
+                .map(|tag| tag.trim())
+                .filter_map(|tag| (!tag.is_empty()).then_some(tag.to_string()))
+                .collect();
+            on_change.run(value);
+        });
+
+        view! { <editor::Input value=input_value on_change=change empty_value="(no tags)".to_string() /> }
     }
 }
 
@@ -468,7 +788,15 @@ pub(self) mod editor {
             } else {
                 Either::Right(view! {
                     <div class="flex group">
-                        <div class="grow">{display_value.clone()}</div>
+                        <div
+                            class=(
+                                ["text-nowrap", "text-secondary-600", "dark:text-secondary-400"],
+                                move || value.read().is_empty(),
+                            )
+                            class="grow"
+                        >
+                            {display_value.clone()}
+                        </div>
                         <div class="pl-2 not-group-hover:invisible">
                             <button class="cursor-pointer" on:mousedown=enable_editing>
                                 <Icon icon=icon::Edit />
@@ -479,361 +807,144 @@ pub(self) mod editor {
             }
         }
     }
-}
-
-mod project_bar {
-    use super::super::super::DataView;
-    use crate::{components, pages::project::state, types};
-    use leptos::{ev::MouseEvent, prelude::*};
-    use leptos_icons::Icon;
 
     #[component]
-    pub fn ProjectBar() -> impl IntoView {
-        view! {
-            <div class="flex px-2 py-1">
-                <div class="w-1/3 inline-flex gap-2"></div>
-                <div class="w-1/3 text-center">
-                    <ProjectInfo />
-                </div>
-                <div class="w-1/3 text-right">
-                    <Controls />
-                </div>
-            </div>
-        }
-    }
+    pub fn TextArea(
+        value: Signal<String>,
+        on_change: Callback<String>,
 
-    #[component]
-    fn ProjectInfo() -> impl IntoView {
-        let project = expect_context::<state::Project>();
+        /// Displayed if `value` is empty and not in editing mode.
+        empty_value: String,
 
-        view! { <div class="grow text-center font-primary">{project.properties().name()}</div> }
-    }
+        /// `<input>` placeholder.
+        #[prop(optional)]
+        placeholder: Option<String>,
+    ) -> impl IntoView {
+        let (editing, set_editing) = signal(false);
+        let (input_value, set_input_value) = signal(value.get_untracked());
+        let input_node = NodeRef::<html::Textarea>::new();
 
-    #[component]
-    fn Controls() -> impl IntoView {
-        const COMMAND_BUTTON_CLASS: &str = "btn-secondary p-1 rounded-xs cursor-pointer";
+        let enable_editing = {
+            move |e: MouseEvent| {
+                if e.button() != types::MouseButton::Primary {
+                    return;
+                }
 
-        let data_view = expect_context::<RwSignal<DataView>>();
+                set_input_value(value.get_untracked());
+                set_editing(true);
+            }
+        };
 
-        let toggle_data_view = move |e: MouseEvent| {
+        let disable_editing = move |e: MouseEvent| {
             if e.button() != types::MouseButton::Primary {
                 return;
             }
 
-            data_view.set(DataView::Graph)
+            set_editing(false);
         };
 
-        let refresh = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
-                return;
+        let handle_escape = move |e: KeyboardEvent| {
+            if e.key() == ESCAPE_KEY_CODE {
+                set_editing(false);
             }
-
-            let window = web_sys::window().unwrap();
-            window.location().reload().unwrap();
         };
 
-        view! {
-            <ol class="flex gap-1 justify-end">
-                <li>
-                    <button
-                        on:mousedown=toggle_data_view
-                        type="button"
-                        class=COMMAND_BUTTON_CLASS
-                        title="Toggle data view"
-                    >
-                        <Icon icon=icondata::ImTree />
-                    </button>
+        let trigger_change = move || {
+            set_editing(false);
+            on_change.run(input_value.get_untracked());
+        };
 
-                </li>
-                <li>
-                    <button
-                        on:mousedown=refresh
-                        type="button"
-                        class="btn-secondary p-1 rounded-xs cursor-pointer"
-                        title="Refresh"
-                    >
-                        <Icon icon=components::icon::Refresh />
-                    </button>
-                </li>
-            </ol>
-        }
-    }
-}
-
-mod state {
-    use crate::pages::project::state;
-    use leptos::prelude::*;
-    use std::{assert_matches::assert_matches, path::PathBuf};
-    use syre_project_watcher as db;
-
-    #[derive(Clone, Copy, Default, Debug)]
-    pub enum SortDirection {
-        /// Ascending.
-        #[default]
-        Asc,
-        /// Descending.
-        Des,
-    }
-
-    #[derive(Clone, Copy, Default, PartialEq, Debug)]
-    pub enum SortField {
-        #[default]
-        Path,
-        File,
-        Name,
-        Kind,
-    }
-
-    #[derive(Clone)]
-    pub struct Sort {
-        field: SortField,
-        direction: SortDirection,
-    }
-
-    impl Sort {
-        pub fn field(&self) -> SortField {
-            self.field
-        }
-
-        pub fn direction(&self) -> SortDirection {
-            self.direction
-        }
-    }
-
-    impl Default for Sort {
-        fn default() -> Self {
-            Self {
-                field: Default::default(),
-                direction: Default::default(),
+        let submit = {
+            let trigger_change = trigger_change.clone();
+            move |e: SubmitEvent| {
+                e.prevent_default();
+                trigger_change();
             }
-        }
-    }
+        };
 
-    #[derive(Clone)]
-    pub struct Datum {
-        container: RwSignal<state::graph::Node>,
-        path: RwSignal<PathBuf>,
-        asset: state::Asset,
-    }
+        let change = {
+            let trigger_change = trigger_change.clone();
+            move |e: MouseEvent| {
+                if e.button() != types::MouseButton::Primary {
+                    return;
+                }
 
-    impl Datum {
-        /// Container path.
-        pub fn path(&self) -> ReadSignal<PathBuf> {
-            self.path.read_only()
-        }
+                trigger_change();
+            }
+        };
 
-        pub fn asset(&self) -> &state::Asset {
-            &self.asset
-        }
-    }
+        let display_value = {
+            let empty_value = empty_value.clone();
+            move || {
+                if value.read().is_empty() {
+                    empty_value.clone()
+                } else {
+                    value.get()
+                }
+            }
+        };
 
-    #[derive(Clone)]
-    pub struct State {
-        /// Graph state.
-        graph: state::Graph,
-
-        /// Containers' assets state.
-        node_states: RwSignal<Vec<ReadSignal<state::container::AssetsState>>>,
-
-        /// Containers' assets' states.
-        node_assets: RwSignal<Vec<ReadSignal<Vec<state::Asset>>>>,
-
-        /// Individual assets.
-        data: RwSignal<Vec<Datum>>,
-
-        sort: RwSignal<Sort>,
-    }
-
-    impl State {
-        pub fn from(graph: state::Graph) -> Self {
-            let node_states = graph
-                .nodes()
-                .read_untracked()
-                .iter()
-                .map(|node| node.assets().read_only())
-                .collect::<Vec<_>>();
-
-            let node_assets = node_states
-                .iter()
-                .filter_map(|state| {
-                    if let db::state::DataResource::Ok(assets) = state.get_untracked() {
-                        Some(assets.read_only())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            let data = graph
-                .nodes()
-                .read_untracked()
-                .iter()
-                .map(|node| (node, node.assets().read_only()))
-                .filter_map(|(node, assets)| {
-                    if let db::state::DataResource::Ok(assets) = assets.get_untracked() {
-                        Some((node, assets.read_only()))
-                    } else {
-                        None
-                    }
-                })
-                .flat_map(|(node, assets)| {
-                    let path = graph.path(node).expect(&format!(
-                        "container path of `{:?}` should exist",
-                        node.name().get_untracked(),
-                    ));
-
-                    assets
-                        .get_untracked()
-                        .into_iter()
-                        .map(move |asset| (node.clone(), path.clone(), asset))
-                })
-                .map(|(node, path, asset)| Datum {
-                    container: RwSignal::new(node),
-                    path: RwSignal::new(path),
-                    asset,
-                })
-                .collect::<Vec<_>>();
-
-            let node_states = RwSignal::new(node_states);
-            let node_assets = RwSignal::new(node_assets);
-            let data = RwSignal::new(data);
-            let sort = RwSignal::new(Sort::default());
-
-            let _ = Effect::watch(
-                graph.nodes(),
-                move |graph, _, _| {
-                    let update = graph
-                        .iter()
-                        .map(|node| node.assets().read_only())
-                        .collect::<Vec<_>>();
-
-                    node_states.set(update);
-                },
-                false,
-            );
-
-            let _ = Effect::watch(
-                node_states,
-                move |node_states, _, _| {
-                    let update = node_states
-                        .iter()
-                        .filter_map(|node| {
-                            if let db::state::DataResource::Ok(assets) = node.get_untracked() {
-                                Some(assets.read_only())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    node_assets.set(update);
-                },
-                false,
-            );
-
-            let _ = Effect::watch(
-                node_assets,
-                move |node_assets, _, _| {
-                    let update = node_assets
-                        .iter()
-                        .flat_map(|assets| assets.get_untracked())
-                        .collect::<Vec<_>>();
-
-                    todo!();
-                    // data.set(update);
-                },
-                false,
-            );
-
-            let _ = Effect::watch(
-                sort,
-                move |sort, prev, _| {
-                    let field = sort.field();
-                    let needs_sorting = if let Some(prev) = prev {
-                        field != prev.field()
-                    } else {
-                        true
+        Effect::new(move || {
+            if editing() {
+                if let Some(input_node) = input_node.get() {
+                    if let Err(err) = input_node.focus() {
+                        tracing::error!(?err);
                     };
-
-                    if needs_sorting {
-                        assert_matches!(sort.direction(), SortDirection::Asc);
-                        match field {
-                            SortField::Path => data.write().sort_by_key(|datum| {
-                                datum
-                                    .path()
-                                    .get_untracked()
-                                    .to_string_lossy()
-                                    .to_lowercase()
-                            }),
-                            SortField::File => data.write().sort_by_key(|datum| {
-                                datum
-                                    .asset()
-                                    .path()
-                                    .get_untracked()
-                                    .to_string_lossy()
-                                    .to_lowercase()
-                            }),
-                            SortField::Name => {
-                                data.write().sort_by_key(|datum| {
-                                    datum
-                                        .asset()
-                                        .name()
-                                        .get_untracked()
-                                        .map(|value| value.to_lowercase())
-                                });
-                            }
-                            SortField::Kind => {
-                                data.write().sort_by_key(|datum| {
-                                    datum
-                                        .asset()
-                                        .kind()
-                                        .get_untracked()
-                                        .map(|value| value.to_lowercase())
-                                });
-                            }
-                        }
-                    } else {
-                        data.write().reverse();
-                    }
-                },
-                false,
-            );
-
-            Self {
-                graph,
-                node_states,
-                node_assets,
-                data,
-                sort,
+                }
             }
-        }
+        });
 
-        pub fn data(&self) -> ReadSignal<Vec<Datum>> {
-            self.data.read_only()
-        }
-
-        pub fn sort(&self) -> ReadSignal<Sort> {
-            self.sort.read_only()
-        }
-
-        pub fn sort_by(&self, field: SortField) {
-            if field != self.sort.read_untracked().field {
-                self.sort.set(Sort {
-                    field,
-                    direction: SortDirection::default(),
-                });
+        move || {
+            if editing.get() {
+                Either::Left(view! {
+                    <form on:submit=submit class="flex">
+                        <textarea
+                            node_ref=input_node
+                            bind:value=(input_value, set_input_value)
+                            on:keydown=handle_escape
+                            class="input-compact grow"
+                            placeholder=placeholder.clone()
+                        >
+                            {value.get_untracked()}
+                        </textarea>
+                        <div class="pl-2 flex gap-1">
+                            <button
+                                type="submit"
+                                class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
+                                on:mousedown=change
+                            >
+                                <Icon icon=icon::Accept />
+                            </button>
+                            <button
+                                type="button"
+                                class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                                on:mousedown=disable_editing
+                            >
+                                <Icon icon=icon::Close />
+                            </button>
+                        </div>
+                    </form>
+                })
+            } else {
+                Either::Right(view! {
+                    <div class="flex group">
+                        <div
+                            class=(
+                                ["text-nowrap", "text-secondary-600", "dark:text-secondary-400"],
+                                move || value.read().is_empty(),
+                            )
+                            class="grow"
+                        >
+                            {display_value.clone()}
+                        </div>
+                        <div class="pl-2 not-group-hover:invisible">
+                            <button class="cursor-pointer" on:mousedown=enable_editing>
+                                <Icon icon=icon::Edit />
+                            </button>
+                        </div>
+                    </div>
+                })
             }
-        }
-
-        pub fn toggle_sort_direction(&self) {
-            let direction = match self.sort.read_untracked().direction() {
-                SortDirection::Asc => SortDirection::Des,
-                SortDirection::Des => SortDirection::Asc,
-            };
-
-            let mut sort = self.sort().get_untracked();
-            sort.direction = direction;
-            self.sort.set(sort);
         }
     }
 }

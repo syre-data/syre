@@ -173,7 +173,7 @@ pub fn PropertiesBar() -> impl IntoView {
     };
 
     view! {
-        <div class="h-full relative pb-8">
+        <div class="h-full relative">
             {widget}
             <div node_ref=popout_portal class="absolute top-1/3 -left-[105%] right-[105%]"></div>
         </div>

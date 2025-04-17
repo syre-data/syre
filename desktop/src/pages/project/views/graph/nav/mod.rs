@@ -26,7 +26,7 @@ pub fn NavBar() -> impl IntoView {
     };
 
     view! {
-        <div class="flex flex-col h-full pb-8">
+        <div class="flex flex-col h-full">
             <div class="flex gap-1 px-1 pt-px pb-2">
                 <button
                     on:mousedown=move |e| mousedown(e, Widget::Layers)
@@ -39,7 +39,6 @@ pub fn NavBar() -> impl IntoView {
                     title="Layers view"
                 >
                     <Icon icon=icondata::TbListTree />
-                // <Icon icon=icondata::BsLayers />
                 </button>
                 <button
                     on:mousedown=move |e| mousedown(e, Widget::Search)

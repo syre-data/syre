@@ -60,6 +60,7 @@ features = [
 	"AbortSignal",
 	"AddEventListenerOptions",
 	"CssStyleDeclaration",
+	"DomRect",
 	"Element",
 	"Event",
 	"EventInit",

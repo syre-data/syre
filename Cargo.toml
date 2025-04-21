@@ -6,8 +6,13 @@ members = [
     "core",
     "desktop",
     "desktop/src-tauri",
-    "desktop/src-lib",
-    "desktop/resource_db",
+    "desktop/crates/lib",
+    "desktop/crates/resource_db",
+    "desktop/crates/ui_components",
+    "desktop/crates/editors",
+    "desktop/crates/ui_lib",
+    "desktop/crates/workspace_graph",
+    "desktop/crates/workspace_db",
     "file_path_from_id",
     "has_id",
     "has_id/has_id_derive",
@@ -21,9 +26,7 @@ members = [
     "local/runner",
 ]
 
-default-members = [
-    "core"
-]
+default-members = ["core"]
 
 [workspace.dependencies]
 syre-core = { path = "core" }
@@ -49,7 +52,6 @@ futures = "0.3"
 glob = "0.3" 
 ignore = "0.4"
 indexmap = "2.7"
-js-sys = "0.3"
 notify = { version = "8.0", default-features = false }
 notify-debouncer-full = { version = "0.5", default-features = false }
 rayon = "1.8"
@@ -64,10 +66,21 @@ tracing-subscriber = "0.3"
 trash = "5.2"
 uuid = "1.15"
 walkdir = "2.5"
+zmq = "0.10.0"
+
+# desktop
+icondata = "0.5"
+js-sys = "0.3"
+leptos = { version = "0.8.0-beta", features = ["nightly", "csr"] }
+# leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
+leptos_icons = { path = "../leptos-icons" }
+leptos_router = { version = "0.8.0-beta" }
+leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main" }
+reactive_stores = "0.2.0-beta"
+tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
-zmq = "0.10.0"
 
 # dev dependencies
 fake = "4.0"

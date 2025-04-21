@@ -19,26 +19,28 @@ console_error_panic_hook = "0.1.7"
 derive_more = { workspace = true, features = ["debug"] }
 futures.workspace = true
 has_id.workspace = true
-icondata = "0.5"
-js-sys = "0.3"
-leptos = { version = "0.8.0-beta", features = ["nightly", "csr"] }
-# leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
-leptos_icons = { path = "../../leptos-icons" }
+icondata.workspace = true
+js-sys.workspace = true
+leptos.workspace = true
+leptos_icons.workspace = true
 leptos_meta = { version = "0.8.0-beta" }
-leptos_router = { version = "0.8.0-beta", features = ["nightly"] }
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main", features = [
-	"storage",
-] }
-reactive_stores = "0.2.0-beta"
+leptos_router = { workspace = true, features = ["nightly"] }
+leptos-use = { workspace = true, features = ["storage"] }
+reactive_stores.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde-wasm-bindgen = "0.6"
 syre-core = { workspace = true, features = ["serde"] }
-syre-desktop-lib = { path = "src-lib" }
+syre-desktop-lib = { path = "crates/lib" }
+syre-desktop-ui-lib = { path = "crates/ui_lib" }
+syre-desktop-ui-components = { path = "crates/ui_components" }
 syre-local.workspace = true
 syre-project-watcher.workspace = true
-syre-resource-db = { path = "resource_db", default-features = false }
-tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2", features = [
+syre-desktop-editors ={ path = "crates/editors" }
+syre-desktop-resource-db = { path = "crates/resource_db", default-features = false }
+syre-desktop-workspace-db = { path = "crates/workspace_db" }
+syre-desktop-workspace-graph = { path = "crates/workspace_graph" }
+tauri-sys = { workspace = true, features = [
 	"app",
 	"core",
 	"event",
@@ -50,11 +52,11 @@ tracing-subscriber = { workspace = true, features = ["time"] }
 tracing-web = "0.1.3"
 tracing.workspace = true
 uuid = { workspace = true, features = ["js"] }
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
 
 [dependencies.web-sys]
-version = "0.3.70"
+workspace = true
 features = [
 	"AbortController",
 	"AbortSignal",

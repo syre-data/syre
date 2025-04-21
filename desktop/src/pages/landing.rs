@@ -1,4 +1,4 @@
-use crate::components::{Autofocus, Logo};
+use syre_desktop_ui_components::{Autofocus, Logo};
 use leptos::prelude::*;
 use leptos_router::components::A;
 use serde::Serialize;

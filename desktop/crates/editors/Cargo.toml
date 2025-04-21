@@ -1,0 +1,22 @@
+[package]
+name = "syre-desktop-editors"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+derive_more.workspace = true
+leptos.workspace = true
+leptos_icons.workspace = true
+leptos_router = { workspace = true, features = ["nightly"] }
+leptos-use.workspace = true
+serde ={ workspace = true, features = ["derive"] }
+serde_json.workspace = true
+syre-core.workspace = true
+syre-desktop-lib = { path = "../lib" }
+syre-desktop-ui-components = { path = "../ui_components" }
+syre-desktop-ui-lib = { path = "../ui_lib" }
+syre-local.workspace = true
+tauri-sys = { workspace = true, features = ["core"] }
+tracing.workspace = true
+wasm-bindgen.workspace = true
+web-sys = { workspace = true, features = ["HtmlInputElement"] }

@@ -1,9 +1,5 @@
 use super::workspace::{DragOverWorkspaceResource, WorkspaceResource};
-use crate::{
-    commands, common, components,
-    pages::project::{actions, state},
-    types,
-};
+use crate::commands;
 use futures::StreamExt;
 use leptos::{
     either::either,
@@ -16,6 +12,7 @@ use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
@@ -43,7 +40,7 @@ impl ContextMenuActiveAnalysis {
 
 #[component]
 pub fn Editor() -> impl IntoView {
-    let project = expect_context::<state::Project>();
+    let project = expect_context::<ui_lib::state::Project>();
     move || {
         project.analyses().with(|analyses| either!(analyses,
             db::state::DataResource::Ok(analyses) => view! { <AnalysesOk analyses=analyses.read_only() /> },
@@ -67,9 +64,9 @@ fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
 }
 
 #[component]
-fn AnalysesOk(analyses: ReadSignal<Vec<state::project::Analysis>>) -> impl IntoView {
-    let project = expect_context::<state::Project>();
-    let messages = expect_context::<types::Messages>();
+fn AnalysesOk(analyses: ReadSignal<Vec<ui_lib::state::project::Analysis>>) -> impl IntoView {
+    let project = expect_context::<ui_lib::state::Project>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let drag_over_workspace_resource = expect_context::<ReadSignal<DragOverWorkspaceResource>>();
 
     let context_menu_active_analysis = ArcRwSignal::<Option<ContextMenuActiveAnalysis>>::new(None);
@@ -158,7 +155,7 @@ fn AnalysesLoading() -> impl IntoView {
 
 #[component]
 fn AnalysesOkView(
-    analyses: ReadSignal<Vec<state::project::Analysis>>,
+    analyses: ReadSignal<Vec<ui_lib::state::project::Analysis>>,
     context_menu_analyses_ok: Arc<menu::Menu>,
 ) -> impl IntoView {
     provide_context(ContextMenuAnalysesOk::new(context_menu_analyses_ok));
@@ -193,7 +190,7 @@ fn NoAnalyses() -> impl IntoView {
 }
 
 #[component]
-fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
+fn Analysis(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
     move || {
         analysis.properties().with(|analyses| either!(analyses,
             AnalysisKind::Script(_) => view! { <ScriptView analysis=analysis.clone() /> },
@@ -203,9 +200,9 @@ fn Analysis(analysis: state::project::Analysis) -> impl IntoView {
 }
 
 #[component]
-fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
-    let project = expect_context::<state::Project>();
-    let messages = expect_context::<types::Messages>();
+fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
+    let project = expect_context::<ui_lib::state::Project>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let context_menu = expect_context::<ContextMenuAnalysesOk>();
     let context_menu_active_analysis =
         expect_context::<ArcRwSignal<Option<ContextMenuActiveAnalysis>>>();
@@ -242,10 +239,10 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
             data_transfer.clear_data().unwrap();
             data_transfer
                 .set_data(
-                    common::APPLICATION_JSON,
-                    &serde_json::to_string(&actions::container::Action::AddAnalysisAssociation(
-                        script_id,
-                    ))
+                    ui_lib::common::APPLICATION_JSON,
+                    &serde_json::to_string(
+                        &ui_lib::types::container::Action::AddAnalysisAssociation(script_id),
+                    )
                     .unwrap(),
                 )
                 .unwrap();
@@ -257,7 +254,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
         let project = project.clone();
         let messages = messages.clone();
         move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
 
@@ -293,13 +290,13 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                     let msg = match err {
                         AnalysesUpdate::AnalysesFile(err) => {
                             let mut msg =
-                                types::message::Builder::error("Could not save container.");
+                                ui_lib::message::Builder::error("Could not save container.");
                             msg.body(format!("{err:?}"));
                             msg.build()
                         }
                         AnalysesUpdate::RemoveFile(err) => {
                             let mut msg =
-                                types::message::Builder::error("Could not remove analysis file.");
+                                ui_lib::message::Builder::error("Could not remove analysis file.");
                             msg.body(format!("{err:?}"));
                             msg.build()
                         }
@@ -363,7 +360,7 @@ fn ScriptView(analysis: state::project::Analysis) -> impl IntoView {
                     class="align-middle rounded-xs hover:bg-secondary-200 \
                     dark:hover:bg-secondary-900 cursor-pointer"
                 >
-                    <Icon icon=components::icon::Remove />
+                    <Icon icon=ui_lib::icon::Remove />
                 </button>
             </span>
         </div>
@@ -391,8 +388,8 @@ async fn remove_analysis(
 }
 
 async fn handle_context_menu_analyses_events(
-    project: state::Project,
-    messages: types::Messages,
+    project: ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
     context_menu_active_analysis: ArcReadSignal<Option<ContextMenuActiveAnalysis>>,
     analysis_open: Channel<String>,
     analysis_enable_all: Channel<String>,
@@ -440,8 +437,8 @@ async fn handle_context_menu_analyses_events(
 }
 
 async fn handle_context_menu_analyses_events_analysis_open(
-    project: &state::Project,
-    messages: types::Messages,
+    project: &ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
     context_menu_active_analysis: ArcReadSignal<Option<ContextMenuActiveAnalysis>>,
 ) {
     let analysis_root = project.path().get_untracked().join(
@@ -486,8 +483,8 @@ async fn handle_context_menu_analyses_events_analysis_open(
     });
     let path = analysis_root.join(analysis_path);
 
-    if let Err(err) = commands::fs::open_file(path).await {
-        let mut msg = types::message::Builder::error("Could not open analysis file.");
+    if let Err(err) = ui_lib::commands::fs::open_file(path).await {
+        let mut msg = ui_lib::message::Builder::error("Could not open analysis file.");
         msg.body(format!("{err:?}"));
         let msg = msg.build();
         messages.update(move |messages| {
@@ -497,8 +494,8 @@ async fn handle_context_menu_analyses_events_analysis_open(
 }
 
 async fn handle_context_menu_analyses_events_analysis_enable_all(
-    project: &state::Project,
-    messages: types::Messages,
+    project: &ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
     context_menu_active_analysis: ArcReadSignal<Option<ContextMenuActiveAnalysis>>,
 ) {
     let analysis = context_menu_active_analysis
@@ -517,7 +514,7 @@ async fn handle_context_menu_analyses_events_analysis_enable_all(
             | ToggleSubtreeAssociations::RootNotFound => panic!("invalid project state"),
 
             ToggleSubtreeAssociations::Container(errors) => {
-                let mut msg = types::message::Builder::error("Could not update all associations.");
+                let mut msg = ui_lib::message::Builder::error("Could not update all associations.");
                 msg.body(view! {
                     <ul>
                         {errors
@@ -536,8 +533,8 @@ async fn handle_context_menu_analyses_events_analysis_enable_all(
 }
 
 async fn handle_context_menu_analyses_events_analysis_disable_all(
-    project: &state::Project,
-    messages: types::Messages,
+    project: &ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
     context_menu_active_analysis: ArcReadSignal<Option<ContextMenuActiveAnalysis>>,
 ) {
     let analysis = context_menu_active_analysis
@@ -556,7 +553,7 @@ async fn handle_context_menu_analyses_events_analysis_disable_all(
             | ToggleSubtreeAssociations::RootNotFound => panic!("invalid project state"),
 
             ToggleSubtreeAssociations::Container(errors) => {
-                let mut msg = types::message::Builder::error("Could not update all associations.");
+                let mut msg = ui_lib::message::Builder::error("Could not update all associations.");
                 msg.body(view! {
                     <ul>
                         {errors

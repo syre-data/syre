@@ -1,4 +1,4 @@
-use syre_resource_db as db;
+use syre_desktop_resource_db as db;
 use tauri::Manager;
 
 // TODO: Should not reutrn `Result`, but currenlty gives error otherwise.

@@ -1,9 +1,5 @@
-use super::{DataView, Settings, state, views, views::graph::ProjectBar};
-use crate::{
-    commands, common,
-    components::{self, Drawer, Logo, drawer},
-    types,
-};
+use super::{Settings, views};
+use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{
     either::{Either, either},
@@ -24,6 +20,8 @@ use std::{
 };
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components::{Drawer, Logo, drawer};
+use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_watcher as db;
 use tauri_sys::window::DragDropPayload;
@@ -95,10 +93,10 @@ fn Loading() -> impl IntoView {
 
 #[component]
 fn NoUser() -> impl IntoView {
-    let messages = expect_context::<types::Messages>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let navigate = leptos_router::hooks::use_navigate();
 
-    let msg = types::message::Builder::error("You are not logged in.").build();
+    let msg = ui_lib::message::Builder::error("You are not logged in.").build();
     messages.update(|messages| messages.push(msg));
     navigate("login", Default::default());
 
@@ -143,12 +141,13 @@ fn WorkspaceView(
 ) -> impl IntoView {
     assert!(project_data.properties().is_ok());
 
-    let project = state::Project::new(project_path, project_data);
+    let project = ui_lib::state::Project::new(project_path, project_data);
     provide_context(user);
-    provide_context(state::Workspace::new());
+    provide_context(ui_lib::state::Workspace::new());
     provide_context(project.clone());
-    let user_settings = types::settings::User::new_store(lib::settings::User::default());
-    let project_settings = types::settings::Project::new_store(lib::settings::Project::default());
+    let user_settings = ui_lib::state::settings::User::new_store(lib::settings::User::default());
+    let project_settings =
+        ui_lib::state::settings::Project::new_store(lib::settings::Project::default());
     provide_context(user_settings);
     provide_context(project_settings);
 
@@ -221,16 +220,16 @@ fn WorkspaceView(
 
 #[component]
 fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
-    let project = expect_context::<state::Project>();
-    let messages = expect_context::<types::Messages>();
-    let flags = state::Flags::new(&graph);
-    let graph = state::Graph::new(graph);
-    let workspace_graph_state = state::WorkspaceGraph::new(&graph);
-    let display_state = state::Display::from(
+    let project = expect_context::<ui_lib::state::Project>();
+    let messages = expect_context::<ui_lib::message::Messages>();
+    let flags = ui_lib::state::Flags::new(&graph);
+    let graph = ui_lib::state::Graph::new(graph);
+    let workspace_graph_state = ui_lib::state::WorkspaceGraph::new(&graph);
+    let display_state = ui_lib::state::Display::from(
         &graph,
         workspace_graph_state.container_visiblity().read_only(),
     );
-    let data_view = RwSignal::new(DataView::default());
+    let data_view = RwSignal::new(ui_lib::types::DataView::default());
 
     provide_context(graph.clone());
     provide_context(flags);
@@ -283,31 +282,29 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 
     view! {
         <main class="grow min-h-0">
-            <views::graph::Workspace class:hidden=move || {
-                !matches!(data_view(), DataView::Graph)
+            <syre_desktop_workspace_graph::Workspace class:hidden=move || {
+                !matches!(data_view(), ui_lib::types::DataView::Graph)
             } />
-            <views::db::Workspace class:hidden=move || {
-                !matches!(data_view(), DataView::Database)
+            <syre_desktop_workspace_db::Workspace class:hidden=move || {
+                !matches!(data_view(), ui_lib::types::DataView::Database)
             } />
         </main>
     }
 }
 
 mod project_nav {
-    use super::{DataView, ShowSettings};
-    use crate::{
-        components::{Logo, icon},
-        types,
-    };
+    use super::ShowSettings;
     use leptos::{ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
     use leptos_router::components::A;
+    use syre_desktop_ui_components::Logo;
+    use syre_desktop_ui_lib as ui_lib;
 
     #[component]
     pub fn NoGraph() -> impl IntoView {
         let show_settings = expect_context::<ShowSettings>();
         let open_settings = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
 
@@ -331,7 +328,7 @@ mod project_nav {
                             class="align-middle p-1 hover:bg-secondary-100 dark:hover:bg-secondary-800 rounded \
                             border border-transparent hover:border-black dark:hover:border-white"
                         >
-                            <Icon icon=icon::Settings />
+                            <Icon icon=ui_lib::icon::Settings />
                         </button>
                     </li>
                 </ol>
@@ -343,7 +340,7 @@ mod project_nav {
     pub fn Graph() -> impl IntoView {
         let show_settings = expect_context::<ShowSettings>();
         let open_settings = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
 
@@ -368,7 +365,7 @@ mod project_nav {
                             border border-transparent hover:border-black dark:hover:border-white cursor-pointer"
                             title="Settings"
                         >
-                            <Icon icon=icon::Settings />
+                            <Icon icon=ui_lib::icon::Settings />
                         </button>
                     </li>
                 </ol>
@@ -409,7 +406,7 @@ async fn fetch_project_resources(
     resources
 }
 
-fn handle_event_project(event: lib::Event, project: state::Project) {
+fn handle_event_project(event: lib::Event, project: ui_lib::state::Project) {
     let lib::EventKind::Project(update) = event.kind() else {
         panic!("invalid event kind");
     };
@@ -429,7 +426,7 @@ fn handle_event_project(event: lib::Event, project: state::Project) {
     }
 }
 
-fn handle_event_project_properties(event: lib::Event, project: state::Project) {
+fn handle_event_project_properties(event: lib::Event, project: ui_lib::state::Project) {
     let lib::EventKind::Project(db::event::Project::Properties(update)) = event.kind() else {
         panic!("invalid event kind");
     };
@@ -445,7 +442,7 @@ fn handle_event_project_properties(event: lib::Event, project: state::Project) {
     }
 }
 
-fn handle_event_project_properties_modified(event: lib::Event, project: state::Project) {
+fn handle_event_project_properties_modified(event: lib::Event, project: ui_lib::state::Project) {
     let lib::EventKind::Project(db::event::Project::Properties(db::event::DataResource::Modified(
         update,
     ))) = event.kind()
@@ -495,7 +492,7 @@ fn handle_event_project_properties_modified(event: lib::Event, project: state::P
     }
 }
 
-fn handle_event_project_analyses(event: lib::Event, project: state::Project) {
+fn handle_event_project_analyses(event: lib::Event, project: ui_lib::state::Project) {
     let lib::EventKind::Project(db::event::Project::Analyses(update)) = event.kind() else {
         panic!("invalid event kind");
     };
@@ -511,7 +508,7 @@ fn handle_event_project_analyses(event: lib::Event, project: state::Project) {
     }
 }
 
-fn handle_event_project_analyses_modified(event: lib::Event, project: state::Project) {
+fn handle_event_project_analyses_modified(event: lib::Event, project: ui_lib::state::Project) {
     let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Modified(
         update,
     ))) = event.kind()
@@ -564,7 +561,7 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: state::Pro
                     }
                 })
             }) {
-                analyses.push(state::Analysis::from_state(update_analysis));
+                analyses.push(ui_lib::state::Analysis::from_state(update_analysis));
             }
         }
     });
@@ -618,11 +615,11 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: state::Pro
 
 fn handle_event_graph(
     event: lib::Event,
-    graph: state::Graph,
-    workspace_graph_state: state::WorkspaceGraph,
-    display_state: state::Display,
-    flags: state::Flags,
-    messages: types::Messages,
+    graph: ui_lib::state::Graph,
+    workspace_graph_state: ui_lib::state::WorkspaceGraph,
+    display_state: ui_lib::state::Display,
+    flags: ui_lib::state::Flags,
+    messages: ui_lib::message::Messages,
 ) {
     let lib::EventKind::Project(update) = event.kind() else {
         panic!("invalid event kind");
@@ -653,9 +650,9 @@ fn handle_event_graph(
 
 fn handle_event_graph_graph(
     event: lib::Event,
-    graph: state::Graph,
-    workspace_graph_state: state::WorkspaceGraph,
-    display_state: state::Display,
+    graph: ui_lib::state::Graph,
+    workspace_graph_state: ui_lib::state::WorkspaceGraph,
+    display_state: ui_lib::state::Display,
 ) {
     let lib::EventKind::Project(db::event::Project::Graph(update)) = event.kind() else {
         panic!("invalid event kind");
@@ -676,9 +673,9 @@ fn handle_event_graph_graph(
 
 fn handle_event_graph_graph_inserted(
     event: lib::Event,
-    graph: state::Graph,
-    workspace_graph_state: state::WorkspaceGraph,
-    display_state: state::Display,
+    graph: ui_lib::state::Graph,
+    workspace_graph_state: ui_lib::state::WorkspaceGraph,
+    display_state: ui_lib::state::Display,
 ) {
     let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Inserted {
         parent,
@@ -690,7 +687,7 @@ fn handle_event_graph_graph_inserted(
 
     // NB: Must create visibility and selection resource signals first before inserting nodes into graph.
     // Downstream components expect a visibility signal to be present.
-    let subgraph = state::Graph::new(subgraph.clone());
+    let subgraph = ui_lib::state::Graph::new(subgraph.clone());
 
     let selection_resources = subgraph.nodes().with_untracked(|nodes| {
         nodes
@@ -699,9 +696,9 @@ fn handle_event_graph_graph_inserted(
                 let mut resources = vec![];
                 node.properties().with_untracked(|properties| {
                     if let db::state::DataResource::Ok(properties) = properties {
-                        resources.push(state::workspace_graph::ResourceSelection::new(
+                        resources.push(ui_lib::state::workspace_graph::ResourceSelection::new(
                             properties.rid().read_only(),
-                            state::workspace_graph::ResourceKind::Container,
+                            ui_lib::state::workspace_graph::ResourceKind::Container,
                         ))
                     }
                 });
@@ -712,9 +709,9 @@ fn handle_event_graph_graph_inserted(
                             assets
                                 .iter()
                                 .map(|asset| {
-                                    state::workspace_graph::ResourceSelection::new(
+                                    ui_lib::state::workspace_graph::ResourceSelection::new(
                                         asset.rid().read_only(),
-                                        state::workspace_graph::ResourceKind::Asset,
+                                        ui_lib::state::workspace_graph::ResourceKind::Asset,
                                     )
                                 })
                                 .collect::<Vec<_>>()
@@ -747,8 +744,8 @@ fn handle_event_graph_graph_inserted(
             visibilities.extend(visibility_inserted);
         });
 
-    let parent = common::normalize_path_sep(parent);
-    let display_graph = state::Display::from(
+    let parent = ui_lib::utils::normalize_path_sep(parent);
+    let display_graph = ui_lib::state::Display::from(
         &subgraph,
         workspace_graph_state.container_visiblity().read_only(),
     );
@@ -758,7 +755,7 @@ fn handle_event_graph_graph_inserted(
     graph.insert(&parent, subgraph).unwrap();
 }
 
-fn handle_event_graph_graph_renamed(event: lib::Event, graph: state::Graph) {
+fn handle_event_graph_graph_renamed(event: lib::Event, graph: ui_lib::state::Graph) {
     let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Renamed { from, to })) =
         event.kind()
     else {
@@ -770,9 +767,9 @@ fn handle_event_graph_graph_renamed(event: lib::Event, graph: state::Graph) {
 
 fn handle_event_graph_graph_removed(
     event: lib::Event,
-    graph: state::Graph,
-    workspace_graph_state: state::WorkspaceGraph,
-    display_state: state::Display,
+    graph: ui_lib::state::Graph,
+    workspace_graph_state: ui_lib::state::WorkspaceGraph,
+    display_state: ui_lib::state::Display,
 ) {
     let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Removed(path))) =
         event.kind()
@@ -782,7 +779,7 @@ fn handle_event_graph_graph_removed(
 
     // NB: Must remove nodes first, then remove visibility signals.
     // Downstream components expect a visibility signal to be present.
-    let path = common::normalize_path_sep(path);
+    let path = ui_lib::utils::normalize_path_sep(path);
     let root = graph.find(&path).unwrap().unwrap();
     let removed = graph.remove(&path).unwrap();
     display_state.remove(&root).unwrap();
@@ -828,10 +825,10 @@ fn handle_event_graph_graph_removed(
 
 fn handle_event_graph_container(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
-    flags: state::Flags,
-    messages: types::Messages,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
+    flags: ui_lib::state::Flags,
+    messages: ui_lib::message::Messages,
 ) {
     let lib::EventKind::Project(db::event::Project::Container { update, .. }) = event.kind() else {
         panic!("invalid event kind");
@@ -853,8 +850,8 @@ fn handle_event_graph_container(
 
 fn handle_event_graph_container_properties(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         update: db::event::Container::Properties(update),
@@ -883,8 +880,8 @@ fn handle_event_graph_container_properties(
 
 fn handle_event_graph_container_properties_created(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -894,7 +891,7 @@ fn handle_event_graph_container_properties_created(
         panic!("invalid event kind");
     };
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -904,14 +901,14 @@ fn handle_event_graph_container_properties_created(
                 .properties()
                 .with_untracked(|properties| properties.is_err())
             {
-                let properties = state::container::Properties::new(
+                let properties = ui_lib::state::container::Properties::new(
                     update.rid.clone(),
                     update.properties.clone(),
                 );
 
-                selection_resources.push(state::workspace_graph::ResourceSelection::new(
+                selection_resources.push(ui_lib::state::workspace_graph::ResourceSelection::new(
                     properties.rid().read_only(),
-                    state::workspace_graph::ResourceKind::Container,
+                    ui_lib::state::workspace_graph::ResourceKind::Container,
                 ));
 
                 container.properties().update(|container_properties| {
@@ -952,8 +949,8 @@ fn handle_event_graph_container_properties_created(
 
 fn handle_event_graph_container_properties_repaired(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -963,7 +960,7 @@ fn handle_event_graph_container_properties_repaired(
         panic!("invalid event kind");
     };
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -974,11 +971,11 @@ fn handle_event_graph_container_properties_repaired(
     );
 
     let properties =
-        state::container::Properties::new(update.rid.clone(), update.properties.clone());
+        ui_lib::state::container::Properties::new(update.rid.clone(), update.properties.clone());
 
-    selection_resources.push(state::workspace_graph::ResourceSelection::new(
+    selection_resources.push(ui_lib::state::workspace_graph::ResourceSelection::new(
         properties.rid().read_only(),
-        state::workspace_graph::ResourceKind::Container,
+        ui_lib::state::workspace_graph::ResourceKind::Container,
     ));
 
     container.properties().update(|container_properties| {
@@ -988,8 +985,8 @@ fn handle_event_graph_container_properties_repaired(
 
 fn handle_event_graph_container_properties_corrupted(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -999,7 +996,7 @@ fn handle_event_graph_container_properties_corrupted(
         panic!("invalid event kind");
     };
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1019,7 +1016,10 @@ fn handle_event_graph_container_properties_corrupted(
     });
 }
 
-fn handle_event_graph_container_properties_modified(event: lib::Event, graph: state::Graph) {
+fn handle_event_graph_container_properties_modified(
+    event: lib::Event,
+    graph: ui_lib::state::Graph,
+) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
         update: db::event::Container::Properties(db::event::DataResource::Modified(update)),
@@ -1029,7 +1029,7 @@ fn handle_event_graph_container_properties_modified(event: lib::Event, graph: st
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1037,7 +1037,7 @@ fn handle_event_graph_container_properties_modified(event: lib::Event, graph: st
 }
 
 fn update_container_properties(
-    container: state::graph::Node,
+    container: ui_lib::state::graph::Node,
     update: &local::project::container::StoredProperties,
 ) {
     container.properties().with_untracked(|properties| {
@@ -1104,7 +1104,9 @@ fn update_container_properties(
                         .iter()
                         .any(|association| association.analysis() == association_update.analysis())
                     {
-                        Some(state::AnalysisAssociation::new(association_update.clone()))
+                        Some(ui_lib::state::AnalysisAssociation::new(
+                            association_update.clone(),
+                        ))
                     } else {
                         None
                     }
@@ -1141,7 +1143,7 @@ fn update_container_properties(
     });
 }
 
-fn handle_event_graph_container_settings(event: lib::Event, graph: state::Graph) {
+fn handle_event_graph_container_settings(event: lib::Event, graph: ui_lib::state::Graph) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
         update: db::event::Container::Settings(update),
@@ -1151,7 +1153,7 @@ fn handle_event_graph_container_settings(event: lib::Event, graph: state::Graph)
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1169,7 +1171,7 @@ fn handle_event_graph_container_settings(event: lib::Event, graph: state::Graph)
                     .with_untracked(|settings| settings.is_err())
                 {
                     container.settings().set(db::state::DataResource::Ok(
-                        state::container::Settings::new(update.clone()),
+                        ui_lib::state::container::Settings::new(update.clone()),
                     ));
                 } else {
                     container.settings().with_untracked(|settings| {
@@ -1203,8 +1205,8 @@ fn handle_event_graph_container_settings(event: lib::Event, graph: state::Graph)
 
 fn handle_event_graph_container_assets(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path: _path,
@@ -1233,8 +1235,8 @@ fn handle_event_graph_container_assets(
 
 fn handle_event_graph_container_assets_created(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1245,7 +1247,7 @@ fn handle_event_graph_container_assets_created(
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1260,18 +1262,18 @@ fn handle_event_graph_container_assets_created(
             if container.assets().with_untracked(|assets| assets.is_err()) {
                 let assets = update
                     .iter()
-                    .map(|asset| state::Asset::new(asset.clone()))
+                    .map(|asset| ui_lib::state::Asset::new(asset.clone()))
                     .collect::<Vec<_>>();
 
                 let resources = assets
                     .iter()
                     .map(|asset| {
-                        state::workspace_graph::ResourceSelection::new(
+                        ui_lib::state::workspace_graph::ResourceSelection::new(
                             asset.rid().read_only(),
-                            state::workspace_graph::ResourceKind::Asset,
+                            ui_lib::state::workspace_graph::ResourceKind::Asset,
                         )
                     })
-                    .collect::<Vec<state::workspace_graph::ResourceSelection>>();
+                    .collect::<Vec<ui_lib::state::workspace_graph::ResourceSelection>>();
                 selection_resources.extend(resources);
 
                 container
@@ -1304,7 +1306,7 @@ fn handle_event_graph_container_assets_created(
 
                 let added = added
                     .into_iter()
-                    .map(|update| state::Asset::new(update.clone()))
+                    .map(|update| ui_lib::state::Asset::new(update.clone()))
                     .collect::<Vec<_>>();
 
                 let removed_ids = removed.iter().map(|asset| asset.get_untracked()).collect();
@@ -1313,9 +1315,9 @@ fn handle_event_graph_container_assets_created(
                 let added_selection_resources = added
                     .iter()
                     .map(|asset| {
-                        state::workspace_graph::ResourceSelection::new(
+                        ui_lib::state::workspace_graph::ResourceSelection::new(
                             asset.rid().read_only(),
-                            state::workspace_graph::ResourceKind::Asset,
+                            ui_lib::state::workspace_graph::ResourceKind::Asset,
                         )
                     })
                     .collect();
@@ -1355,8 +1357,8 @@ fn handle_event_graph_container_assets_created(
 
 fn handle_event_graph_container_assets_modified(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1367,7 +1369,7 @@ fn handle_event_graph_container_assets_modified(
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1389,7 +1391,7 @@ fn handle_event_graph_container_assets_modified(
 
     let assets_new = assets_new
         .into_iter()
-        .map(|asset| state::Asset::new(asset.clone()))
+        .map(|asset| ui_lib::state::Asset::new(asset.clone()))
         .collect::<Vec<_>>();
 
     let removed = container.assets().with_untracked(|assets| {
@@ -1419,9 +1421,9 @@ fn handle_event_graph_container_assets_modified(
     let selection_resources_new = assets_new
         .iter()
         .map(|asset| {
-            state::workspace_graph::ResourceSelection::new(
+            ui_lib::state::workspace_graph::ResourceSelection::new(
                 asset.rid().read_only(),
-                state::workspace_graph::ResourceKind::Asset,
+                ui_lib::state::workspace_graph::ResourceKind::Asset,
             )
         })
         .collect();
@@ -1465,7 +1467,7 @@ fn handle_event_graph_container_assets_modified(
     }
 }
 
-fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
+fn update_asset(asset: &ui_lib::state::Asset, update: &db::state::Asset) {
     assert!(asset.rid().with_untracked(|rid| rid == update.rid()));
 
     if asset
@@ -1544,8 +1546,8 @@ fn update_asset(asset: &state::Asset, update: &db::state::Asset) {
 
 fn handle_event_graph_container_assets_corrupted(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1556,7 +1558,7 @@ fn handle_event_graph_container_assets_corrupted(
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
@@ -1577,8 +1579,8 @@ fn handle_event_graph_container_assets_corrupted(
 
 fn handle_event_graph_container_assets_repaired(
     event: lib::Event,
-    graph: state::Graph,
-    selection_resources: &state::workspace_graph::SelectionResources,
+    graph: ui_lib::state::Graph,
+    selection_resources: &ui_lib::state::workspace_graph::SelectionResources,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1589,21 +1591,21 @@ fn handle_event_graph_container_assets_repaired(
     };
 
     let container = graph
-        .find(common::normalize_path_sep(path))
+        .find(ui_lib::utils::normalize_path_sep(path))
         .unwrap()
         .unwrap();
 
     let assets = assets
         .into_iter()
-        .map(|asset| state::Asset::new(asset.clone()))
+        .map(|asset| ui_lib::state::Asset::new(asset.clone()))
         .collect::<Vec<_>>();
 
     let selections = assets
         .iter()
         .map(|asset| {
-            state::workspace_graph::ResourceSelection::new(
+            ui_lib::state::workspace_graph::ResourceSelection::new(
                 asset.rid().read_only(),
-                state::workspace_graph::ResourceKind::Asset,
+                ui_lib::state::workspace_graph::ResourceKind::Asset,
             )
         })
         .collect::<Vec<_>>();
@@ -1614,7 +1616,7 @@ fn handle_event_graph_container_assets_repaired(
     });
 }
 
-fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
+fn handle_event_graph_asset(event: lib::Event, graph: ui_lib::state::Graph) {
     let lib::EventKind::Project(db::event::Project::Asset {
         container,
         asset,
@@ -1625,7 +1627,7 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
     };
 
     let container = graph
-        .find(common::normalize_path_sep(container))
+        .find(ui_lib::utils::normalize_path_sep(container))
         .unwrap()
         .unwrap();
 
@@ -1745,7 +1747,7 @@ fn handle_event_graph_asset(event: lib::Event, graph: state::Graph) {
     }
 }
 
-fn handle_event_graph_asset_file(event: lib::Event, graph: state::Graph) {
+fn handle_event_graph_asset_file(event: lib::Event, graph: ui_lib::state::Graph) {
     let lib::EventKind::Project(db::event::Project::AssetFile(kind)) = event.kind() else {
         panic!("invalid event kind");
     };
@@ -1758,7 +1760,10 @@ fn handle_event_graph_asset_file(event: lib::Event, graph: state::Graph) {
     }
 }
 
-fn update_metadata(metadata: RwSignal<state::Metadata>, update: &syre_core::project::Metadata) {
+fn update_metadata(
+    metadata: RwSignal<ui_lib::state::Metadata>,
+    update: &syre_core::project::Metadata,
+) {
     // NB: Can not nest signal updates or borrow error will occur.
     let (keys_update, keys_new): (Vec<_>, Vec<_>) = metadata.with_untracked(|metadata| {
         update
@@ -1803,9 +1808,9 @@ fn update_metadata(metadata: RwSignal<state::Metadata>, update: &syre_core::proj
 
 fn handle_event_graph_container_flags(
     event: lib::Event,
-    graph: state::Graph,
-    flags: state::Flags,
-    messages: types::Messages,
+    graph: ui_lib::state::Graph,
+    flags: ui_lib::state::Flags,
+    messages: ui_lib::message::Messages,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path: _path,
@@ -1834,7 +1839,7 @@ fn handle_event_graph_container_flags(
     }
 }
 
-fn handle_event_graph_container_flags_created(event: lib::Event, flags: state::Flags) {
+fn handle_event_graph_container_flags_created(event: lib::Event, flags: ui_lib::state::Flags) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
         update: db::event::Container::Flags(db::event::DataResource::Created(update)),
@@ -1855,8 +1860,8 @@ fn handle_event_graph_container_flags_created(event: lib::Event, flags: state::F
 
 fn handle_event_graph_container_flags_removed(
     event: lib::Event,
-    graph: state::Graph,
-    flags: state::Flags,
+    graph: ui_lib::state::Graph,
+    flags: ui_lib::state::Flags,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1871,9 +1876,9 @@ fn handle_event_graph_container_flags_removed(
 
 fn handle_event_graph_container_flags_corrupted(
     event: lib::Event,
-    graph: state::Graph,
-    flags: state::Flags,
-    messages: types::Messages,
+    graph: ui_lib::state::Graph,
+    flags: ui_lib::state::Flags,
+    messages: ui_lib::message::Messages,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
@@ -1884,12 +1889,12 @@ fn handle_event_graph_container_flags_corrupted(
     };
 
     remove_graph_container_flags(path, graph, flags);
-    let mut msg = types::message::Builder::error("Flags file corrupted.");
+    let mut msg = ui_lib::message::Builder::error("Flags file corrupted.");
     msg.body(format!("{error:?}"));
     messages.write().push(msg.build());
 }
 
-fn handle_event_graph_container_flags_repaired(event: lib::Event, flags: state::Flags) {
+fn handle_event_graph_container_flags_repaired(event: lib::Event, flags: ui_lib::state::Flags) {
     let lib::EventKind::Project(db::event::Project::Container {
         path,
         update: db::event::Container::Flags(db::event::DataResource::Repaired(update)),
@@ -1903,8 +1908,8 @@ fn handle_event_graph_container_flags_repaired(event: lib::Event, flags: state::
 
 fn handle_event_graph_container_flags_modified(
     event: lib::Event,
-    graph: state::Graph,
-    flags: state::Flags,
+    graph: ui_lib::state::Graph,
+    flags: ui_lib::state::Flags,
 ) {
     let lib::EventKind::Project(db::event::Project::Container {
         path: container_path,
@@ -1924,11 +1929,11 @@ fn handle_event_graph_container_flags_modified(
                 container_path.join(path)
             };
 
-            (common::normalize_path_sep(path), flags)
+            (ui_lib::utils::normalize_path_sep(path), flags)
         })
         .collect::<Vec<_>>();
 
-    let container_path = common::normalize_path_sep(container_path);
+    let container_path = ui_lib::utils::normalize_path_sep(container_path);
     let container = graph.find(&container_path).unwrap().unwrap();
     let asset_paths = container
         .assets()
@@ -1939,14 +1944,18 @@ fn handle_event_graph_container_flags_modified(
                 .read_untracked()
                 .iter()
                 .map(|asset| {
-                    common::normalize_path_sep(container_path.join(asset.path().get_untracked()))
+                    ui_lib::utils::normalize_path_sep(
+                        container_path.join(asset.path().get_untracked()),
+                    )
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or(vec![]);
     let all_paths = asset_paths
         .into_iter()
-        .chain(std::iter::once(common::normalize_path_sep(container_path)))
+        .chain(std::iter::once(ui_lib::utils::normalize_path_sep(
+            container_path,
+        )))
         .collect::<Vec<_>>();
 
     let update_paths = update.iter().map(|(path, _)| path).collect::<Vec<_>>();
@@ -1970,7 +1979,7 @@ fn handle_event_graph_container_flags_modified(
 fn insert_graph_container_flags(
     container: &PathBuf,
     update: &Vec<(PathBuf, Vec<local::project::Flag>)>,
-    flags: state::Flags,
+    flags: ui_lib::state::Flags,
 ) {
     let root_dir = PathBuf::from("/");
 
@@ -1984,7 +1993,7 @@ fn insert_graph_container_flags(
             };
 
             (
-                common::normalize_path_sep(path),
+                ui_lib::utils::normalize_path_sep(path),
                 ArcRwSignal::new(flags.clone()),
             )
         })
@@ -2003,12 +2012,12 @@ fn insert_graph_container_flags(
 
 fn remove_graph_container_flags(
     container: impl AsRef<Path>,
-    graph: state::Graph,
-    flags: state::Flags,
+    graph: ui_lib::state::Graph,
+    flags: ui_lib::state::Flags,
 ) {
     let container_path = container.as_ref();
     let container = graph
-        .find(common::normalize_path_sep(container_path))
+        .find(ui_lib::utils::normalize_path_sep(container_path))
         .unwrap()
         .unwrap();
     let assets = container.assets();
@@ -2020,14 +2029,16 @@ fn remove_graph_container_flags(
                 .read_untracked()
                 .iter()
                 .map(|asset| {
-                    common::normalize_path_sep(container_path.join(&*asset.path().read_untracked()))
+                    ui_lib::utils::normalize_path_sep(
+                        container_path.join(&*asset.path().read_untracked()),
+                    )
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or(vec![]);
-    paths.push(common::normalize_path_sep(container_path));
+    paths.push(ui_lib::utils::normalize_path_sep(container_path));
 
     flags
         .write()
-        .retain(|(path, _)| !paths.contains(&common::normalize_path_sep(path)));
+        .retain(|(path, _)| !paths.contains(&ui_lib::utils::normalize_path_sep(path)));
 }

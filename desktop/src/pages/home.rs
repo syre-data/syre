@@ -1,13 +1,11 @@
-use crate::{
-    components::{self, Logo},
-    pages::{Dashboard, Settings},
-    types,
-};
+use crate::pages::{Dashboard, Settings};
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
 use leptos_router::components::A;
 use syre_core::system::User;
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components::Logo;
+use syre_desktop_ui_lib as ui_lib;
 
 #[derive(Clone, Copy, derive_more::Deref, derive_more::From)]
 struct ShowSettings(RwSignal<bool>);
@@ -41,10 +39,10 @@ fn Loading() -> impl IntoView {
 
 #[component]
 fn NoSettings() -> impl IntoView {
-    let messages = expect_context::<types::Messages>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let navigate = leptos_router::hooks::use_navigate();
 
-    let msg = types::message::Builder::error("Could not get user settings.");
+    let msg = ui_lib::message::Builder::error("Could not get user settings.");
     let msg = msg.build();
     messages.update(|messages| messages.push(msg));
     navigate("/login", Default::default());
@@ -59,25 +57,27 @@ fn NoSettings() -> impl IntoView {
 
 #[component]
 fn HomeView(user_settings: lib::settings::user::Settings) -> impl IntoView {
-    let messages = expect_context::<types::Messages>();
-    provide_context(types::settings::User::new_store(user_settings.clone()));
+    let messages = expect_context::<ui_lib::message::Messages>();
+    provide_context(ui_lib::state::settings::User::new_store(
+        user_settings.clone(),
+    ));
     let show_settings = ShowSettings::new();
     provide_context(show_settings);
 
     match (user_settings.desktop, user_settings.runner) {
         (Ok(_), Ok(_)) => {}
         (Err(err), Ok(_)) => {
-            let mut msg = types::message::Builder::error("Could not load desktop settings.");
+            let mut msg = ui_lib::message::Builder::error("Could not load desktop settings.");
             msg.body(format!("{err:?}"));
             messages.update(|messages| messages.push(msg.build()));
         }
         (Ok(_), Err(err)) => {
-            let mut msg = types::message::Builder::error("Could not load runner settings.");
+            let mut msg = ui_lib::message::Builder::error("Could not load runner settings.");
             msg.body(format!("{err:?}"));
             messages.update(|messages| messages.push(msg.build()));
         }
         (Err(err_desktop), Err(err_runner)) => {
-            let mut msg = types::message::Builder::error("Could not load settings.");
+            let mut msg = ui_lib::message::Builder::error("Could not load settings.");
             msg.body(view! {
                 <ul>
                     <li>"Desktop: " {format!("{err_desktop:?}")}</li>
@@ -109,7 +109,7 @@ fn HomeView(user_settings: lib::settings::user::Settings) -> impl IntoView {
 fn MainNav() -> impl IntoView {
     let show_settings = expect_context::<ShowSettings>();
     let open_settings = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary {
+        if e.button() != ui_lib::types::MouseButton::Primary {
             return;
         }
 
@@ -135,7 +135,7 @@ fn MainNav() -> impl IntoView {
                         border border-transparent hover:border-secondary-200 dark:hover:border-white cursor-pointer"
                         title="Settings"
                     >
-                        <Icon icon=components::icon::Settings />
+                        <Icon icon=ui_lib::icon::Settings />
                     </button>
                 </li>
                 <li>

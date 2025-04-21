@@ -1,8 +1,8 @@
-use crate::components::{Autofocus, Logo};
 use leptos::{prelude::*, task::spawn_local};
 use leptos_router::{components::A, hooks::use_navigate};
 use serde::Serialize;
 use syre_core::system::User;
+use syre_desktop_ui_components::{Autofocus, Logo};
 use web_sys::{FormData, SubmitEvent};
 
 #[component]

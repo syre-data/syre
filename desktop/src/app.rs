@@ -1,10 +1,7 @@
-use crate::{
-    pages::{
-        Index,
-        auth::{Login, Logout, Register},
-        project::Workspace,
-    },
-    types,
+use crate::pages::{
+    Index,
+    auth::{Login, Logout, Register},
+    project::Workspace,
 };
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -13,30 +10,50 @@ use leptos_router::{
     path,
 };
 use message::Messages;
+use syre_desktop_ui_lib as ui_lib;
 
 /// For Tailwind to include classes
 /// they must appear as string literals in at least one place.
 /// This array is used to include them when needed.
-static _TAILWIND_CLASSES: &'static [&'static str] = &["hidden", "invisible", "collapse"];
-
-/// User prefers dark theme.
-#[derive(derive_more::Deref, Clone, Copy)]
-pub struct PrefersDarkTheme(RwSignal<bool>);
-impl PrefersDarkTheme {
-    pub fn new(prefers_dark: bool) -> Self {
-        Self(RwSignal::new(prefers_dark))
-    }
-}
+static _TAILWIND_CLASSES: &'static [&'static str] = &[
+    "hidden",
+    "invisible",
+    "collapse",
+    "dark:text-primary-100",
+    "dark:text-primary-200",
+    "dark:text-primary-400",
+    "dark:text-primary-500",
+    "dark:text-secondary-50",
+    "dark:text-syre-green-200",
+    "dark:text-syre-green-400",
+    "dark:text-syre-red-400",
+    "dark:text-syre-red-500",
+    "dark:text-syre-yellow-400",
+    "dark:text-syre-yellow-500",
+    "dark:text-syre-yellow-600",
+    "text-primary-700",
+    "text-primary-800",
+    "text-primary-900",
+    "text-secondary-900",
+    "text-syre-green-700",
+    "text-syre-green-900",
+    "text-syre-red-700",
+    "text-syre-red-800",
+    "text-syre-yellow-700",
+    "text-syre-yellow-800",
+    "text-syre-yellow-900",
+];
 
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    provide_context(types::Messages::new()); // TODO: Only provide after user is logged in?
+    provide_context(ui_lib::message::Messages::new()); // TODO: Only provide after user is logged in?
     let (stored_prefers_dark, set_stored_prefers_dark, _) = leptos_use::storage::use_local_storage::<
         bool,
         codee::string::FromToStringCodec,
     >("dark_mode");
-    let prefers_dark_theme = PrefersDarkTheme::new(stored_prefers_dark.get_untracked());
+    let prefers_dark_theme =
+        ui_lib::types::PrefersDarkTheme::new(stored_prefers_dark.get_untracked());
     provide_context(prefers_dark_theme);
     Effect::new(move |_| {
         set_stored_prefers_dark(prefers_dark_theme());
@@ -76,16 +93,14 @@ fn NotFound() -> impl IntoView {
 }
 
 mod message {
-    use crate::{
-        components::{self, ToggleExpand},
-        types,
-    };
     use leptos::{ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
+    use syre_desktop_ui_components::ToggleExpand;
+    use syre_desktop_ui_lib as ui_lib;
 
     #[component]
     pub fn Messages() -> impl IntoView {
-        let messages = expect_context::<types::Messages>();
+        let messages = expect_context::<ui_lib::message::Messages>();
         view! {
             <div class="absolute bottom-0 right-2 w-1/3 max-h-[75%] \
             flex flex-col gap-2 scrollbar-thin z-50">
@@ -107,14 +122,14 @@ mod message {
     }
 
     #[component]
-    fn Message(message: types::Message) -> impl IntoView + 'static {
-        let messages = expect_context::<types::Messages>();
+    fn Message(message: ui_lib::message::Message) -> impl IntoView + 'static {
+        let messages = expect_context::<ui_lib::message::Messages>();
         let show_body = RwSignal::new(false);
 
         let close = {
             let message_id = message.id();
             move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary {
+                if e.button() != ui_lib::types::MouseButton::Primary {
                     return;
                 }
 
@@ -123,19 +138,19 @@ mod message {
         };
 
         let (class_main, class_btn) = match message.kind() {
-            types::message::MessageKind::Info => (
+            ui_lib::message::MessageKind::Info => (
                 "flex bg-primary-500 border border-primary-600 rounded-sm",
                 "border-l border-l-primary-600 flex",
             ),
-            types::message::MessageKind::Success => (
+            ui_lib::message::MessageKind::Success => (
                 "flex bg-syre-green-600 border border-syre-green-700 rounded-sm",
                 "border-l border-l-green-700 flex",
             ),
-            types::message::MessageKind::Warning => (
+            ui_lib::message::MessageKind::Warning => (
                 "flex bg-syre-yellow-600 border border-syre-yellow-700 rounded-sm",
                 "border-l border-l-yellow-700 flex",
             ),
-            types::message::MessageKind::Error => (
+            ui_lib::message::MessageKind::Error => (
                 "flex bg-syre-red-500 border border-syre-red-700 rounded-sm",
                 "border-l border-l-red-700 flex",
             ),
@@ -171,7 +186,7 @@ mod message {
                 </div>
                 <div class=class_btn>
                     <button on:mousedown=close class="px-2 w-full h-full cursor-pointer">
-                        <Icon icon=components::icon::Close />
+                        <Icon icon=ui_lib::icon::Close />
                     </button>
                 </div>
             </div>

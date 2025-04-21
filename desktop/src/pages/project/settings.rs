@@ -1,14 +1,11 @@
-use super::{
-    super::settings::{app::Settings as AppSettings, user::Settings as UserSettings},
-    state,
-};
-use crate::{components::icon, types};
+use super::super::settings::{app::Settings as AppSettings, user::Settings as UserSettings};
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::*;
 use reactive_stores::Store;
 use serde::Serialize;
 use std::path::PathBuf;
 use syre_desktop_lib as lib;
+use syre_desktop_ui_lib as ui_lib;
 
 #[derive(Clone, Copy)]
 enum ActiveView {
@@ -31,7 +28,7 @@ pub fn Settings(
 ) -> impl IntoView {
     let active_view = RwSignal::new(ActiveView::default());
     let trigger_close = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary {
+        if e.button() == ui_lib::types::MouseButton::Primary {
             onclose.run(());
         }
     };
@@ -49,7 +46,7 @@ pub fn Settings(
                     class="rounded-sm hover:bg-secondary-100 dark:hover:bg-secondary-700 cursor-pointer"
                     title="Close settings."
                 >
-                    <Icon icon=icon::Close />
+                    <Icon icon=ui_lib::icon::Close />
                 </button>
             </div>
         </div>
@@ -74,7 +71,7 @@ fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
                         on:mousedown=move |_| active_view.set(ActiveView::User)
                         class="text-2xl p-2 cursor-pointer"
                     >
-                        <Icon icon=icon::User />
+                        <Icon icon=ui_lib::icon::User />
                     </button>
                 </li>
                 <li
@@ -108,7 +105,7 @@ fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
                         on:mousedown=move |_| active_view.set(ActiveView::App)
                         class="text-2xl p-2 cursor-pointer"
                     >
-                        <Icon icon=icon::Settings />
+                        <Icon icon=ui_lib::icon::Settings />
                     </button>
                 </li>
             </ul>
@@ -118,9 +115,9 @@ fn Nav(active_view: RwSignal<ActiveView>) -> impl IntoView {
 
 #[component]
 fn SettingsView(active_view: ReadSignal<ActiveView>) -> impl IntoView {
-    let project = expect_context::<state::Project>();
-    let user_settings = expect_context::<Store<types::settings::User>>();
-    let project_settings = expect_context::<Store<types::settings::Project>>();
+    let project = expect_context::<ui_lib::state::Project>();
+    let user_settings = expect_context::<Store<ui_lib::state::settings::User>>();
+    let project_settings = expect_context::<Store<ui_lib::state::settings::Project>>();
     let user_settings_resource = LocalResource::new(fetch_user_settings);
     let project_settings_resource =
         LocalResource::new(move || fetch_project_settings(project.path().get_untracked()));
@@ -164,18 +161,17 @@ async fn fetch_project_settings(project: PathBuf) -> Option<lib::settings::Proje
 }
 
 mod project {
-    use super::super::state;
-    use crate::types;
     use leptos::prelude::*;
     use reactive_stores::Store;
     use syre_desktop_lib as lib;
+    use syre_desktop_ui_lib as ui_lib;
 
     #[derive(derive_more::Deref, Clone, Copy)]
     pub struct InputDebounce(Signal<f64>);
 
     #[component]
     pub fn Settings() -> impl IntoView {
-        let user_settings = expect_context::<Store<types::settings::User>>();
+        let user_settings = expect_context::<Store<ui_lib::state::settings::User>>();
 
         provide_context(InputDebounce(Signal::derive(move || {
             let debounce = match &user_settings.read().desktop {
@@ -203,11 +199,8 @@ mod project {
     }
 
     mod desktop {
-        use super::{InputDebounce, state};
-        use crate::{
-            commands,
-            types::{self, settings::project::SettingsStoreFields},
-        };
+        use super::InputDebounce;
+        use crate::commands;
         use leptos::{
             either::Either,
             ev::{Event, MouseEvent},
@@ -220,15 +213,16 @@ mod project {
         use serde::Serialize;
         use std::{io, num::NonZeroUsize, path::PathBuf};
         use syre_desktop_lib as lib;
+        use syre_desktop_ui_lib::{self as ui_lib, state::settings::project::SettingsStoreFields};
         use syre_local::error::IoSerde;
 
         #[component]
         pub fn Settings() -> impl IntoView {
-            let project = expect_context::<state::Project>();
-            let project_settings = expect_context::<Store<types::settings::Project>>();
+            let project = expect_context::<ui_lib::state::Project>();
+            let project_settings = expect_context::<Store<ui_lib::state::settings::Project>>();
             let settings = project_settings.desktop();
             let input_debounce = expect_context::<InputDebounce>();
-            let messages = expect_context::<types::Messages>();
+            let messages = expect_context::<ui_lib::message::Messages>();
 
             let (asset_drag_drop_kind, set_asset_drag_drop_kind) = signal(
                 settings
@@ -258,7 +252,7 @@ mod project {
                             Ok(update) => update,
                             Err(err) => {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                                 return;
@@ -273,7 +267,7 @@ mod project {
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                             }
@@ -347,11 +341,8 @@ mod project {
     }
 
     mod runner {
-        use super::{InputDebounce, state};
-        use crate::{
-            commands,
-            types::{self, settings::project::SettingsStoreFields},
-        };
+        use super::InputDebounce;
+        use crate::commands;
         use leptos::{
             either::Either,
             ev::{Event, MouseEvent},
@@ -364,16 +355,17 @@ mod project {
         use serde::Serialize;
         use std::{io, num::NonZeroUsize, path::PathBuf};
         use syre_desktop_lib as lib;
+        use syre_desktop_ui_lib::{self as ui_lib, state::settings::project::SettingsStoreFields};
         use syre_local::error::IoSerde;
 
         #[component]
         pub fn Settings() -> impl IntoView {
-            let project = expect_context::<state::Project>();
-            let project_settings = expect_context::<Store<types::settings::Project>>();
+            let project = expect_context::<ui_lib::state::Project>();
+            let project_settings = expect_context::<Store<ui_lib::state::settings::Project>>();
             let settings = project_settings.runner();
             let analysis_settings = project_settings.analysis();
             let input_debounce = expect_context::<InputDebounce>();
-            let messages = expect_context::<types::Messages>();
+            let messages = expect_context::<ui_lib::message::Messages>();
 
             let (python_path, set_python_path) = signal(
                 settings
@@ -442,7 +434,7 @@ mod project {
                             Ok(update) => update,
                             Err(err) => {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                                 return;
@@ -460,7 +452,7 @@ mod project {
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                             }
@@ -509,7 +501,7 @@ mod project {
             };
 
             let select_path = move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary {
+                if e.button() != ui_lib::types::MouseButton::Primary {
                     return;
                 }
 
@@ -523,7 +515,7 @@ mod project {
                     });
 
                     if let Some(p) =
-                        commands::fs::pick_file_with_location("Python path", init_dir).await
+                        ui_lib::commands::fs::pick_file_with_location("Python path", init_dir).await
                     {
                         set_value.update(|path| {
                             let _ = path.insert(p);
@@ -583,7 +575,7 @@ mod project {
             };
 
             let select_path = move |e: MouseEvent| {
-                if e.button() != types::MouseButton::Primary {
+                if e.button() != ui_lib::types::MouseButton::Primary {
                     return;
                 }
 
@@ -596,7 +588,8 @@ mod project {
                             .unwrap_or(PathBuf::new()),
                     });
 
-                    if let Some(p) = commands::fs::pick_file_with_location("R path", init_dir).await
+                    if let Some(p) =
+                        ui_lib::commands::fs::pick_file_with_location("R path", init_dir).await
                     {
                         set_value.update(|path| {
                             let _ = path.insert(p);
@@ -793,11 +786,8 @@ mod project {
     }
 
     mod analysis {
-        use super::{InputDebounce, state};
-        use crate::{
-            commands,
-            types::{self, settings::project::SettingsStoreFields},
-        };
+        use super::InputDebounce;
+        use crate::commands;
         use leptos::{
             either::Either,
             ev::{Event, MouseEvent},
@@ -810,15 +800,16 @@ mod project {
         use serde::Serialize;
         use std::{io, num::NonZeroUsize, path::PathBuf};
         use syre_desktop_lib as lib;
+        use syre_desktop_ui_lib::{self as ui_lib, state::settings::project::SettingsStoreFields};
         use syre_local::error::IoSerde;
 
         #[component]
         pub fn Settings() -> impl IntoView {
-            let project = expect_context::<state::Project>();
-            let project_settings = expect_context::<Store<types::settings::Project>>();
+            let project = expect_context::<ui_lib::state::Project>();
+            let project_settings = expect_context::<Store<ui_lib::state::settings::Project>>();
             let settings = project_settings.analysis();
             let input_debounce = expect_context::<InputDebounce>();
-            let messages = expect_context::<types::Messages>();
+            let messages = expect_context::<ui_lib::message::Messages>();
 
             let (disable_analysis_after, set_disable_analysis_after) = signal(
                 settings
@@ -847,7 +838,7 @@ mod project {
                             Ok(update) => update,
                             Err(err) => {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                                 return;
@@ -862,7 +853,7 @@ mod project {
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
                                 let mut msg =
-                                    types::message::Builder::error("Could not update settings.");
+                                    ui_lib::message::Builder::error("Could not update settings.");
                                 msg.body(format!("{err:?}"));
                                 messages.update(|messages| messages.push(msg.build()));
                             }

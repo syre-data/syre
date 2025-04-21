@@ -27,8 +27,8 @@ syre-core = { workspace = true, features = ["serde"] }
 syre-local = { workspace = true, features = ["fs"] }
 syre-project-watcher = { workspace = true, features = ["client"] }
 syre-local-runner = { workspace = true }
-syre-desktop-lib = { path = "../src-lib", features = ["server"] }
-syre-resource-db = { path = "../resource_db" }
+syre-desktop-lib = { path = "../crates/lib", features = ["server"] }
+syre-desktop-resource-db = { path = "../crates/resource_db" }
 tauri = { version = "2.2", features = [] }
 tauri-plugin-dialog = "2.2"
 tauri-plugin-shell = "2.2"

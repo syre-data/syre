@@ -1,8 +1,4 @@
-use crate::{
-    commands,
-    components::{ModalDialog, TruncateLeft},
-    types,
-};
+use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{either::Either, html, prelude::*, task::spawn_local};
 use leptos_router::components::A;
@@ -10,6 +6,8 @@ use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::{project::Project, system::User, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components::{ModalDialog, TruncateLeft};
+use syre_desktop_ui_lib as ui_lib;
 use syre_local as local;
 use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
@@ -31,7 +29,7 @@ struct ContextMenuActiveProject(PathBuf);
 #[component]
 pub fn Dashboard() -> impl IntoView {
     let user = expect_context::<User>();
-    let messages = expect_context::<types::Messages>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let context_menu_active_project_ok = RwSignal::<Option<ContextMenuActiveProject>>::new(None);
     provide_context(context_menu_active_project_ok.clone());
 
@@ -288,12 +286,12 @@ fn CreateProject(
     let create_project_ref = NodeRef::<html::Dialog>::new();
 
     let show_create_project_dialog = move |e: MouseEvent| {
-        if e.button() != types::MouseButton::Primary {
+        if e.button() != ui_lib::types::MouseButton::Primary {
             return;
         }
 
         spawn_local(async move {
-            if let Some(p) = commands::fs::pick_folder("Create a new project").await {
+            if let Some(p) = ui_lib::commands::fs::pick_folder("Create a new project").await {
                 create_project_path.update(|path| {
                     let _ = path.insert(p);
                 });
@@ -373,7 +371,8 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
             });
 
             if let Some(p) =
-                commands::fs::pick_folder_with_location("Create a new project", init_dir).await
+                ui_lib::commands::fs::pick_folder_with_location("Create a new project", init_dir)
+                    .await
             {
                 path.update(|path| {
                     let _ = path.insert(p);
@@ -439,7 +438,7 @@ fn InitializeProject(
     #[prop(optional, into)] title: MaybeProp<String>,
 ) -> impl IntoView {
     let user = expect_context::<User>();
-    let messages = expect_context::<types::Messages>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     let initialize_project_action: Action<_, _> = Action::new_unsync({
         let user = user.rid().clone();
         let messages = messages.clone();
@@ -448,11 +447,11 @@ fn InitializeProject(
             let messages = messages.clone();
             async move {
                 if let Some(path) =
-                    commands::fs::pick_folder("Initialize an existing directory").await
+                    ui_lib::commands::fs::pick_folder("Initialize an existing directory").await
                 {
                     if let Err(err) = initialize_project(user, path).await {
                         let mut msg =
-                            types::message::Builder::error("Could not initialize project");
+                            ui_lib::message::Builder::error("Could not initialize project");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -462,7 +461,7 @@ fn InitializeProject(
     });
 
     let trigger_initialize_project = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary {
+        if e.button() == ui_lib::types::MouseButton::Primary {
             initialize_project_action.dispatch(());
         }
     };
@@ -481,7 +480,7 @@ fn ImportProject(
     #[prop(optional, into)] title: MaybeProp<String>,
 ) -> impl IntoView {
     let user = expect_context::<User>();
-    let messages = expect_context::<types::Messages>();
+    let messages = expect_context::<ui_lib::message::Messages>();
 
     let import_project_action: Action<_, _> = Action::new_unsync({
         let user = user.rid().clone();
@@ -489,9 +488,9 @@ fn ImportProject(
             let user = user.clone();
             let messages = messages.clone();
             async move {
-                if let Some(path) = commands::fs::pick_folder("Import a project").await {
+                if let Some(path) = ui_lib::commands::fs::pick_folder("Import a project").await {
                     if let Err(err) = import_project(user, path).await {
-                        let mut msg = types::message::Builder::error("Could not import project");
+                        let mut msg = ui_lib::message::Builder::error("Could not import project");
                         msg.body(format!("{err:?}"));
                         messages.update(|messages| messages.push(msg.build()));
                     }
@@ -501,7 +500,7 @@ fn ImportProject(
     });
 
     let trigger_import_project = move |e: MouseEvent| {
-        if e.button() == types::MouseButton::Primary {
+        if e.button() == ui_lib::types::MouseButton::Primary {
             import_project_action.dispatch(());
         }
     };
@@ -587,7 +586,7 @@ async fn import_project(
 }
 
 async fn handle_context_menu_project_ok_events(
-    messages: types::Messages,
+    messages: ui_lib::message::Messages,
     context_menu_active_project: ReadSignal<Option<ContextMenuActiveProject>>,
     project_duplicate: Channel<String>,
     project_remove: Channel<String>,
@@ -601,11 +600,11 @@ async fn handle_context_menu_project_ok_events(
                 Some(_id) => {
                     let project = context_menu_active_project.get_untracked().unwrap();
                     let project_path =(*project).clone();
-                    let msg = types::message::Builder::info(format!("Duplicating project {project_path:?}"));
+                    let msg = ui_lib::message::Builder::info(format!("Duplicating project {project_path:?}"));
                     messages.write().push(msg.build());
                     if let Err(err) =  duplicate_project(project_path).await {
                         messages.update(|messages|{
-                            let mut msg = types::message::Builder::error("Could not duplicate project.");
+                            let mut msg = ui_lib::message::Builder::error("Could not duplicate project.");
                             msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });
@@ -619,7 +618,7 @@ async fn handle_context_menu_project_ok_events(
                     let project = context_menu_active_project.get_untracked().unwrap();
                     if let Err(err) =  remove_project((*project).clone()).await {
                         messages.update(|messages|{
-                            let mut msg = types::message::Builder::error("Could not remove project.");
+                            let mut msg = ui_lib::message::Builder::error("Could not remove project.");
                             msg.body(format!("{err:?}"));
                             messages.push(msg.build());
                         });

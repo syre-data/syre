@@ -7196,10 +7196,10 @@ dependencies = [
  "serde_json",
  "syre-core",
  "syre-desktop-lib",
+ "syre-desktop-resource-db",
  "syre-local",
  "syre-local-runner",
  "syre-project-watcher",
- "syre-resource-db",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -7219,8 +7219,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "syre-desktop-editors"
+version = "0.0.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "leptos",
+ "leptos-use",
+ "leptos_icons",
+ "leptos_router",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-lib",
+ "syre-desktop-ui-components",
+ "syre-desktop-ui-lib",
+ "syre-local",
+ "tauri-sys",
+ "tracing",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "syre-desktop-lib"
-version = "0.11.7"
+version = "0.0.0"
 dependencies = [
  "derive_more 2.0.1",
  "io_error_serde",
@@ -7231,6 +7253,27 @@ dependencies = [
  "syre-project-watcher",
  "trash",
  "uuid",
+]
+
+[[package]]
+name = "syre-desktop-resource-db"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "crossbeam",
+ "derive_more 2.0.1",
+ "futures",
+ "serde",
+ "serde_json",
+ "surrealdb-nightly",
+ "syre-core",
+ "syre-local",
+ "syre-project-watcher",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "zmq",
 ]
 
 [[package]]
@@ -7255,16 +7298,112 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "syre-core",
+ "syre-desktop-editors",
  "syre-desktop-lib",
+ "syre-desktop-resource-db",
+ "syre-desktop-ui-components",
+ "syre-desktop-ui-lib",
+ "syre-desktop-workspace-db",
+ "syre-desktop-workspace-graph",
  "syre-local",
  "syre-project-watcher",
- "syre-resource-db",
  "tauri-sys",
  "time",
  "tracing",
  "tracing-subscriber",
  "tracing-web",
  "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "syre-desktop-ui-components"
+version = "0.0.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "leptos",
+ "leptos-use",
+ "leptos_icons",
+ "leptos_router",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-lib",
+ "syre-desktop-ui-lib",
+ "syre-local",
+ "tauri-sys",
+ "tracing",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "syre-desktop-ui-lib"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "derive_more 2.0.1",
+ "icondata",
+ "js-sys",
+ "leptos",
+ "leptos_icons",
+ "reactive_stores",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-lib",
+ "syre-local",
+ "syre-project-watcher",
+ "tauri-sys",
+ "web-sys",
+]
+
+[[package]]
+name = "syre-desktop-workspace-db"
+version = "0.0.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "icondata",
+ "leptos",
+ "leptos_icons",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-ui-lib",
+ "syre-project-watcher",
+ "tauri-sys",
+ "tracing",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "syre-desktop-workspace-graph"
+version = "0.0.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "futures",
+ "has_id",
+ "icondata",
+ "leptos",
+ "leptos-use",
+ "leptos_icons",
+ "leptos_router",
+ "reactive_stores",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-editors",
+ "syre-desktop-lib",
+ "syre-desktop-resource-db",
+ "syre-desktop-ui-components",
+ "syre-desktop-ui-lib",
+ "syre-local",
+ "syre-project-watcher",
+ "tauri-sys",
+ "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -7416,27 +7555,6 @@ dependencies = [
  "trash",
  "uuid",
  "walkdir",
- "zmq",
-]
-
-[[package]]
-name = "syre-resource-db"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "crossbeam",
- "derive_more 2.0.1",
- "futures",
- "serde",
- "serde_json",
- "surrealdb-nightly",
- "syre-core",
- "syre-local",
- "syre-project-watcher",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
  "zmq",
 ]
 

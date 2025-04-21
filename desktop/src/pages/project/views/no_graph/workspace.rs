@@ -1,10 +1,4 @@
-use super::super::{THROTTLE_DRAG_EVENT, editors};
-use crate::{
-    commands,
-    components::{Drawer, drawer},
-    pages::project::state,
-    types,
-};
+use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{prelude::*, task::spawn_local};
 use project_bar::ProjectBar;
@@ -13,6 +7,8 @@ use serde::Serialize;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components::{Drawer, drawer};
+use syre_desktop_ui_lib as ui_lib;
 use syre_local as local;
 use tauri_sys::window::DragDropPayload;
 use wasm_bindgen::JsCast;
@@ -31,13 +27,14 @@ impl Default for EditorKind {
 
 #[component]
 pub fn Workspace() -> impl IntoView {
-    let project = expect_context::<state::Project>();
-    let messages = expect_context::<types::Messages>();
+    let project = expect_context::<ui_lib::state::Project>();
+    let messages = expect_context::<ui_lib::message::Messages>();
     provide_context(DragOverWorkspaceResource::new());
     provide_context(RwSignal::new(EditorKind::default()));
 
     let (drag_over_event, set_drag_over_event) = signal(tauri_sys::window::DragDropEvent::Leave);
-    let drag_over_event = leptos_use::signal_throttled(drag_over_event, THROTTLE_DRAG_EVENT);
+    let drag_over_event =
+        leptos_use::signal_throttled(drag_over_event, ui_lib::common::THROTTLE_DRAG_EVENT);
     let drag_over_workspace_resource = RwSignal::new(DragOverWorkspaceResource::new());
     provide_context(drag_over_workspace_resource.read_only());
 
@@ -84,9 +81,9 @@ pub fn Workspace() -> impl IntoView {
 
 mod project_bar {
     use super::EditorKind;
-    use crate::{components, pages::project::state, types};
     use leptos::{ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
+    use syre_desktop_ui_lib as ui_lib;
     use wasm_bindgen::{JsCast, closure::Closure};
 
     #[component]
@@ -106,11 +103,11 @@ mod project_bar {
 
     #[component]
     fn ProjectInfo() -> impl IntoView {
-        let project = expect_context::<state::Project>();
+        let project = expect_context::<ui_lib::state::Project>();
         let properties_editor = expect_context::<RwSignal<EditorKind>>();
 
         let mousedown = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
 
@@ -133,7 +130,7 @@ mod project_bar {
     #[component]
     fn Controls() -> impl IntoView {
         let refresh = move |e: MouseEvent| {
-            if e.button() != types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
 
@@ -148,7 +145,7 @@ mod project_bar {
                 class="btn-secondary p-1 rounded-xs cursor-pointer"
                 title="Refresh"
             >
-                <Icon icon=components::icon::Refresh />
+                <Icon icon=ui_lib::icon::Refresh />
             </button>
         }
     }
@@ -157,19 +154,19 @@ mod project_bar {
 mod properties {
     use super::{
         super::analyses::{ANALYSES_ID, Editor as Analyses},
-        EditorKind, editors,
+        EditorKind,
     };
-    use crate::types;
     use leptos::{either::either, prelude::*};
     use reactive_stores::Store;
     use syre_desktop_lib as lib;
+    use syre_desktop_ui_lib as ui_lib;
 
     #[derive(derive_more::Deref, Clone, Copy)]
     pub struct InputDebounce(Signal<f64>);
 
     #[component]
     pub fn PropertiesBar() -> impl IntoView {
-        let user_settings = expect_context::<Store<types::settings::User>>();
+        let user_settings = expect_context::<Store<ui_lib::state::settings::User>>();
         let active_editor = expect_context::<RwSignal<EditorKind>>();
         provide_context(InputDebounce(Signal::derive(move || {
             user_settings.with(|settings| {
@@ -185,7 +182,7 @@ mod properties {
         let widget = {
             move || {
                 either!( *active_editor.read(),
-                    EditorKind::Project => editors::project::Editor,
+                    EditorKind::Project => syre_desktop_editors::project::Editor,
                     EditorKind::Analyses => view! {
                         <div id=ANALYSES_ID class="h-full">
                             <Analyses/>
@@ -259,8 +256,8 @@ fn analyses_from_point(x: isize, y: isize) -> bool {
 fn handle_drag_drop_event(
     event: &tauri_sys::window::DragDropEvent,
     drag_over_workspace_resource: RwSignal<DragOverWorkspaceResource>,
-    project: &state::Project,
-    messages: types::Messages,
+    project: &ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
 ) {
     use tauri_sys::window::DragDropEvent;
 
@@ -318,8 +315,8 @@ fn handle_drag_drop_event(
 async fn handle_drop_event(
     resource: WorkspaceResource,
     payload: DragDropPayload,
-    project: &state::Project,
-    messages: types::Messages,
+    project: &ui_lib::state::Project,
+    messages: ui_lib::message::Messages,
 ) {
     match resource {
         WorkspaceResource::Analyses => {
@@ -332,11 +329,11 @@ async fn handle_drop_event(
 async fn handle_drop_event_analyses(
     payload: DragDropPayload,
     project: ResourceId,
-    messages: types::Messages,
+    messages: ui_lib::message::Messages,
 ) {
-    use super::super::super::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD;
+    use syre_desktop_ui_lib::common::FS_RESOURCE_ACTION_NOTIFY_THRESHOLD;
 
-    let transfer_size = match commands::fs::file_size(payload.paths().clone()).await {
+    let transfer_size = match ui_lib::commands::fs::file_size(payload.paths().clone()).await {
         Ok(sizes) => sizes
             .into_iter()
             .reduce(|total, size| total + size)
@@ -348,7 +345,7 @@ async fn handle_drop_event_analyses(
     };
 
     if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
-        let msg = types::message::Builder::info("Adding analyses.");
+        let msg = ui_lib::message::Builder::info("Adding analyses.");
         let msg = msg.build();
         messages.update(|messages| messages.push(msg));
     }
@@ -356,13 +353,13 @@ async fn handle_drop_event_analyses(
     match add_fs_resources_to_analyses(payload.paths().clone(), project).await {
         Ok(_) => {
             if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
-                let msg = types::message::Builder::success("Analyses added.");
+                let msg = ui_lib::message::Builder::success("Analyses added.");
                 let msg = msg.build();
                 messages.update(|messages| messages.push(msg));
             }
         }
         Err(err) => {
-            let mut msg = types::message::Builder::error("Could not add analyses.");
+            let mut msg = ui_lib::message::Builder::error("Could not add analyses.");
             msg.body(format!("{err:?}"));
             let msg = msg.build();
             messages.update(|messages| messages.push(msg));

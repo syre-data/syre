@@ -1,0 +1,44 @@
+[package]
+name = "syre-desktop-workspace-graph"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+derive_more = { workspace = true, features = ["deref", "from"] }
+futures.workspace = true
+has_id.workspace = true
+icondata.workspace = true
+leptos.workspace = true
+leptos_icons.workspace = true
+leptos_router = { workspace = true, features = ["nightly"] }
+leptos-use = { workspace = true }
+reactive_stores.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+syre-core.workspace = true
+syre-desktop-editors ={ path = "../editors" }
+syre-desktop-lib = { path = "../lib" }
+syre-desktop-resource-db = { path = "../resource_db", default-features = false }
+syre-desktop-ui-components = { path = "../ui_components" }
+syre-desktop-ui-lib = { path = "../ui_lib" }
+syre-local.workspace = true
+syre-project-watcher.workspace = true
+tracing.workspace = true
+tauri-sys = { workspace = true, features = ["core", "menu"] }
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+
+[dependencies.web-sys]
+workspace = true
+features = [
+	"Element",
+	"Event",
+	"EventInit",
+	"EventTarget",
+	"HtmlElement",
+	"InputEvent",
+	"SvgElement",
+	"SvgGraphicsElement",
+	"SvgMatrix",
+	"Window",
+]

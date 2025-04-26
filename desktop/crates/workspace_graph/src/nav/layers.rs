@@ -202,7 +202,7 @@ fn ContainerLayer(
             </div>
         </div>
     }
-    .into_any()
+    .into_any() // TODO: Remove `into_any`
 }
 
 #[component]
@@ -843,16 +843,14 @@ async fn handle_context_menu_container_events(
                     let container_path = graph.path(&container).unwrap();
                     let path = ui_lib::utils::container_system_path(data_root, container_path);
 
-                    if let Err(err) = ui_lib::commands::fs::open_file(path)
-                        .await {
-                            messages.update(|messages|{
-                                let mut msg = ui_lib::message::Builder::error("Could not open container folder.");
-                                msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
+                    if let Err(err) = ui_lib::commands::fs::open_file(path).await {
+                        let msg = ui_lib::message::Builder::error("Could not open container folder.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
             }
-            }
+            },
+            complete => break,
         }
     }
 }
@@ -891,16 +889,14 @@ async fn handle_context_menu_asset_events(
                     })).unwrap();
                     let path = container_path.join(asset_path);
 
-                    if let Err(err) = ui_lib::commands::fs::open_file(path)
-                        .await {
-                            messages.update(|messages|{
-                                let mut msg = ui_lib::message::Builder::error("Could not open asset file.");
-                                msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
+                    if let Err(err) = ui_lib::commands::fs::open_file(path).await {
+                        let msg = ui_lib::message::Builder::error("Could not open asset file.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
             }
-            }
+            },
+            complete => break,
         }
     }
 }

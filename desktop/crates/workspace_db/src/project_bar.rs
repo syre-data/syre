@@ -1,3 +1,4 @@
+use crate::state;
 use leptos::{ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
 use syre_desktop_ui_lib as ui_lib;
@@ -9,6 +10,7 @@ pub fn ProjectBar() -> impl IntoView {
         <div class="flex px-2 py-1">
             <div class="w-1/3 inline-flex gap-2">
                 <ColumnSelector />
+                <DataFilter />
             </div>
             <div class="w-1/3 text-center">
                 <ProjectInfo />
@@ -79,7 +81,7 @@ fn ColumnSelector() -> impl IntoView {
                 return;
             }
 
-            columns.clear();
+            columns.all_visible();
         }
     };
 
@@ -210,6 +212,17 @@ fn ColumnSelector() -> impl IntoView {
                     </div>
                 </form>
             </div>
+        </div>
+    }
+}
+
+#[component]
+fn DataFilter() -> impl IntoView {
+    let state = expect_context::<state::data::State>();
+
+    view! {
+        <div>
+            <input class="input-compact" />
         </div>
     }
 }

@@ -441,19 +441,16 @@ fn InitializeProject(
     let messages = expect_context::<ui_lib::message::Messages>();
     let initialize_project_action: Action<_, _> = Action::new_unsync({
         let user = user.rid().clone();
-        let messages = messages.clone();
         move |_| {
             let user = user.clone();
-            let messages = messages.clone();
             async move {
                 if let Some(path) =
                     ui_lib::commands::fs::pick_folder("Initialize an existing directory").await
                 {
                     if let Err(err) = initialize_project(user, path).await {
-                        let mut msg =
-                            ui_lib::message::Builder::error("Could not initialize project");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                        let msg = ui_lib::message::Builder::error("Could not initialize project");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }
@@ -486,13 +483,12 @@ fn ImportProject(
         let user = user.rid().clone();
         move |_| {
             let user = user.clone();
-            let messages = messages.clone();
             async move {
                 if let Some(path) = ui_lib::commands::fs::pick_folder("Import a project").await {
                     if let Err(err) = import_project(user, path).await {
-                        let mut msg = ui_lib::message::Builder::error("Could not import project");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                        let msg = ui_lib::message::Builder::error("Could not import project");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }
@@ -601,31 +597,26 @@ async fn handle_context_menu_project_ok_events(
                     let project = context_menu_active_project.get_untracked().unwrap();
                     let project_path =(*project).clone();
                     let msg = ui_lib::message::Builder::info(format!("Duplicating project {project_path:?}"));
-                    messages.write().push(msg.build());
+                    messages.push_message(msg.build());
                     if let Err(err) =  duplicate_project(project_path).await {
-                        messages.update(|messages|{
-                            let mut msg = ui_lib::message::Builder::error("Could not duplicate project.");
-                            msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
+                            let  msg = ui_lib::message::Builder::error("Could not duplicate project.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                     }
                 }
             },
-
             event = project_remove.next() => match event {
                 None => continue,
                 Some(_id) => {
                     let project = context_menu_active_project.get_untracked().unwrap();
                     if let Err(err) =  remove_project((*project).clone()).await {
-                        messages.update(|messages|{
-                            let mut msg = ui_lib::message::Builder::error("Could not remove project.");
-                            msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
+                            let  msg = ui_lib::message::Builder::error("Could not remove project.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                     }
                 }
             },
-
+            complete => break,
         }
     }
 }

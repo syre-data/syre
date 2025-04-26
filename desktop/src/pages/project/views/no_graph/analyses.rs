@@ -289,19 +289,16 @@ fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
                     tracing::error!(?err);
                     let msg = match err {
                         AnalysesUpdate::AnalysesFile(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save container.");
-                            msg.body(format!("{err:?}"));
-                            msg.build()
+                            let msg = ui_lib::message::Builder::error("Could not save container.");
+                            msg.body(format!("{err:?}"))
                         }
                         AnalysesUpdate::RemoveFile(err) => {
-                            let mut msg =
+                            let msg =
                                 ui_lib::message::Builder::error("Could not remove analysis file.");
-                            msg.body(format!("{err:?}"));
-                            msg.build()
+                            msg.body(format!("{err:?}"))
                         }
                     };
-                    messages.update(|messages| messages.push(msg));
+                    messages.push_message(msg.build_str());
                 }
             });
         }
@@ -484,12 +481,9 @@ async fn handle_context_menu_analyses_events_analysis_open(
     let path = analysis_root.join(analysis_path);
 
     if let Err(err) = ui_lib::commands::fs::open_file(path).await {
-        let mut msg = ui_lib::message::Builder::error("Could not open analysis file.");
-        msg.body(format!("{err:?}"));
-        let msg = msg.build();
-        messages.update(move |messages| {
-            messages.push(msg);
-        });
+        let msg = ui_lib::message::Builder::error("Could not open analysis file.");
+        let msg = msg.body(format!("{err:?}"));
+        messages.push_message(msg.build_str());
     }
 }
 
@@ -514,19 +508,9 @@ async fn handle_context_menu_analyses_events_analysis_enable_all(
             | ToggleSubtreeAssociations::RootNotFound => panic!("invalid project state"),
 
             ToggleSubtreeAssociations::Container(errors) => {
-                let mut msg = ui_lib::message::Builder::error("Could not update all associations.");
-                msg.body(view! {
-                    <ul>
-                        {errors
-                            .into_iter()
-                            .map(|(path, err)| view! { <li>{format!("{path:?}: {err:?}")}</li> })
-                            .collect::<Vec<_>>()}
-                    </ul>
-                });
-                let msg = msg.build();
-                messages.update(|messages| {
-                    messages.push(msg);
-                });
+                let msg = ui_lib::message::Builder::error("Could not update all associations.");
+                let msg = msg.body(UpdateErrors { errors });
+                messages.push_message(msg.build());
             }
         }
     }
@@ -553,19 +537,9 @@ async fn handle_context_menu_analyses_events_analysis_disable_all(
             | ToggleSubtreeAssociations::RootNotFound => panic!("invalid project state"),
 
             ToggleSubtreeAssociations::Container(errors) => {
-                let mut msg = ui_lib::message::Builder::error("Could not update all associations.");
-                msg.body(view! {
-                    <ul>
-                        {errors
-                            .into_iter()
-                            .map(|(path, err)| view! { <li>{format!("{path:?}: {err:?}")}</li> })
-                            .collect::<Vec<_>>()}
-                    </ul>
-                });
-                let msg = msg.build();
-                messages.update(|messages| {
-                    messages.push(msg);
-                });
+                let msg = ui_lib::message::Builder::error("Could not update all associations.");
+                let msg = msg.body(UpdateErrors { errors });
+                messages.push_message(msg.build());
             }
         }
     }
@@ -594,4 +568,23 @@ async fn analysis_toggle_all_associations(
         },
     )
     .await
+}
+
+#[derive(Clone)]
+struct UpdateErrors {
+    errors: Vec<(PathBuf, local::error::IoSerde)>,
+}
+impl IntoRender for UpdateErrors {
+    type Output = AnyView;
+    fn into_render(self) -> Self::Output {
+        view! {
+            <ul>
+                {self.errors
+                    .into_iter()
+                    .map(|(path, err)| view! { <li>{format!("{path:?}: {err:?}")}</li> })
+                    .collect::<Vec<_>>()}
+            </ul>
+        }
+        .into_any()
+    }
 }

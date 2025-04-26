@@ -793,7 +793,7 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
                 Either::Right(())
             }
         }}
-    }.into_any()
+    }.into_any() // TODO: Remove `into_any`
 }
 
 #[component]
@@ -1395,12 +1395,10 @@ fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl Int
             Ok(assets) => Either::Left(view! { <AssetsPreview assets=assets.read_only() /> }),
             Err(err) => {
                 tracing::error!(?err);
-                messages.update(|messages| {
-                    // TODO: Get path of container.
-                    let mut msg = ui_lib::message::Builder::error("Could not load assets.");
-                    msg.body(format!("{err:?}"));
-                    messages.push(msg.build());
-                });
+                // TODO: Get path of container.
+                let msg = ui_lib::message::Builder::error("Could not load assets.");
+                let msg = msg.body(format!("{err:?}"));
+                messages.push_message(msg.build_str());
 
                 Either::Right(view! { <div class="text-center">"(assets error)"</div> })
             }
@@ -1541,10 +1539,9 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
                 {
                     if fs_resource_present || !matches!(err, io::ErrorKind::NotFound) {
                         tracing::error!(?err);
-                        let mut msg =
-                            ui_lib::message::Builder::error("Could not remove asset file");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                        let msg = ui_lib::message::Builder::error("Could not remove asset file");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 };
             }
@@ -1707,11 +1704,9 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
     let update_associations: Action<_, _> = Action::new_unsync({
         let project = project.clone();
         let container = container.clone();
-        let messages = messages.clone();
         move |associations: &Vec<AnalysisAssociation>| {
             let project = project.rid().get_untracked();
             let container_path = graph.path(&container).unwrap();
-            let messages = messages.clone();
             let associations = associations.clone();
             async move {
                 if let Err(err) = commands::container::update_analysis_associations(
@@ -1722,10 +1717,10 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                 .await
                 {
                     tracing::error!(?err);
-                    let mut msg =
+                    let msg =
                         ui_lib::message::Builder::error("Could not update analysis associations.");
-                    msg.body(format!("{err:?}"));
-                    messages.update(|messages| messages.push(msg.build()));
+                    let msg = msg.body(format!("{err:?}"));
+                    messages.push_message(msg.build_str());
                 }
             }
         }
@@ -2017,9 +2012,9 @@ fn Flag(
                 )
                 .await
                 {
-                    let mut msg = ui_lib::message::Builder::error("Could not remove flag.");
-                    msg.body(format!("{err:?}"));
-                    messages.write().push(msg.build());
+                    let msg = ui_lib::message::Builder::error("Could not remove flag.");
+                    let msg = msg.body(format!("{err:?}"));
+                    messages.push_message(msg.build_str());
                 }
             }
         }
@@ -2287,9 +2282,9 @@ fn handle_container_action_add_analysis_accociation(
                 .await
         {
             tracing::error!(?err);
-            let mut msg = ui_lib::message::Builder::error("Could not save container.");
-            msg.body(format!("{err:?}"));
-            messages.update(|messages| messages.push(msg.build()));
+            let msg = ui_lib::message::Builder::error("Could not save container.");
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
     });
 }
@@ -2307,8 +2302,9 @@ async fn handle_context_menu_container_root_events(
                 None => continue,
                 Some(_id) => {
                    handle_context_menu_container_events_container_open(graph.root(), &project, &graph, messages).await
-                }
+                },
             },
+            complete => break,
         }
     }
 }
@@ -2334,7 +2330,6 @@ async fn handle_context_menu_container_ok_events(
                     handle_context_menu_container_events_container_open(&*container, &project, &graph, messages).await
                 }
             },
-
             event = container_duplicate.next() => match event {
                 None => continue,
                 Some(_id) => {
@@ -2342,7 +2337,6 @@ async fn handle_context_menu_container_ok_events(
 
                 }
             },
-
             event = container_trash.next() => match event {
                 None => continue,
                 Some(_id) => {
@@ -2351,14 +2345,13 @@ async fn handle_context_menu_container_ok_events(
                     let path = ui_lib::utils::normalize_path_sep(container_path);
                     let project_id = project.rid().get_untracked();
                     if let Err(err) =  trash_container(project_id, path).await {
-                            messages.update(|messages|{
-                                let mut msg = ui_lib::message::Builder::error("Could not trash container.");
-                                msg.body(format!("{err:?}"));
-                                messages.push(msg.build());
-                            });
+                                let  msg = ui_lib::message::Builder::error("Could not trash container.");
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                         }
                 }
-            }
+            },
+            complete => break,
         }
     }
 }
@@ -2380,9 +2373,8 @@ async fn handle_context_menu_container_err_events(
                 Some(_id) => {
                     let container = context_menu_active_container.get_untracked().unwrap();
                     handle_context_menu_container_events_container_open(&*container, &project, &graph, messages).await
-                }
+                },
             },
-
             event = container_trash.next() => match event {
                 None => continue,
                 Some(_id) => {
@@ -2391,14 +2383,13 @@ async fn handle_context_menu_container_err_events(
                     let path = ui_lib::utils::normalize_path_sep(container_path);
                     let project_id = project.rid().get_untracked();
                     if let Err(err) =  trash_container(project_id, path).await {
-                            messages.update(|messages|{
-                                let mut msg = ui_lib::message::Builder::error("Could not trash container.");
-                                msg.body(format!("{err:?}"));
-                                messages.push(msg.build());
-                            });
+                                let msg = ui_lib::message::Builder::error("Could not trash container.");
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                         }
                 }
-            }
+            },
+            complete => break,
         }
     }
 }
@@ -2418,11 +2409,9 @@ async fn handle_context_menu_container_events_container_open(
     let path = ui_lib::utils::container_system_path(&data_root, &container_path);
 
     if let Err(err) = ui_lib::commands::fs::open_file(path).await {
-        messages.update(|messages| {
-            let mut msg = ui_lib::message::Builder::error("Could not open container folder.");
-            msg.body(format!("{err:?}"));
-            messages.push(msg.build());
-        });
+        let msg = ui_lib::message::Builder::error("Could not open container folder.");
+        let msg = msg.body(format!("{err:?}"));
+        messages.push_message(msg.build_str());
     }
 }
 
@@ -2458,8 +2447,7 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
 
     if size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
         let msg = ui_lib::message::Builder::info(format!("Duplicating tree {container_path:?}."));
-        let msg = msg.build();
-        messages.update(|messages| messages.push(msg))
+        messages.push_message(msg.build());
     }
 
     match duplicate_container(project_id, path).await {
@@ -2468,21 +2456,15 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
                 let msg = ui_lib::message::Builder::success(format!(
                     "Completed duplicating {container_path:?}."
                 ));
-                let msg = msg.build();
-                messages.update(|messages| {
-                    messages.push(msg);
-                });
+                messages.push_message(msg.build());
             }
         }
 
         Err(err) => {
-            let mut msg =
+            let msg =
                 ui_lib::message::Builder::error(format!("Could not duplicate {container_path:?}."));
-            msg.body(format!("{err:?}"));
-            let msg = msg.build();
-            messages.update(|messages| {
-                messages.push(msg);
-            });
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
     }
 }
@@ -2521,16 +2503,14 @@ async fn handle_context_menu_asset_events(
                     })).unwrap();
                     let path = container_path.join(asset_path);
 
-                    if let Err(err) = ui_lib::commands::fs::open_file(path)
-                        .await {
-                            messages.update(|messages|{
-                                let mut msg = ui_lib::message::Builder::error("Could not open asset file.");
-                                msg.body(format!("{err:?}"));
-                            messages.push(msg.build());
-                        });
+                    if let Err(err) = ui_lib::commands::fs::open_file(path).await {
+                        let msg = ui_lib::message::Builder::error("Could not open asset file.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
-            }
-            }
+                }
+            },
+            complete => break,
         }
     }
 }

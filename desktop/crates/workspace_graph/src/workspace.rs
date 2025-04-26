@@ -398,20 +398,14 @@ async fn handle_drop_event_container(
 
     if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
         let msg = ui_lib::message::Builder::info("Transferring files.");
-        let msg = msg.build();
-        messages.update(|messages| {
-            messages.push(msg);
-        });
+        messages.push_message(msg.build());
     }
 
     match add_fs_resources_to_graph(project, container_path, payload.paths().clone()).await {
         Ok(_) => {
             if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
                 let msg = ui_lib::message::Builder::success("File transfer complete.");
-                let msg = msg.build();
-                messages.update(|messages| {
-                    messages.push(msg);
-                });
+                messages.push_message(msg.build());
             }
         }
         Err(errors) => {
@@ -476,23 +470,20 @@ async fn handle_drop_event_analyses(
 
     if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
         let msg = ui_lib::message::Builder::info("Adding analyses.");
-        let msg = msg.build();
-        messages.update(|messages| messages.push(msg));
+        messages.push_message(msg.build());
     }
 
     match add_fs_resources_to_analyses(payload.paths().clone(), project).await {
         Ok(_) => {
             if transfer_size > FS_RESOURCE_ACTION_NOTIFY_THRESHOLD {
                 let msg = ui_lib::message::Builder::success("Analyses added.");
-                let msg = msg.build();
-                messages.update(|messages| messages.push(msg));
+                messages.push_message(msg.build());
             }
         }
         Err(err) => {
             let mut msg = ui_lib::message::Builder::error("Could not add analyses.");
-            msg.body(format!("{err:?}"));
-            let msg = msg.build();
-            messages.update(|messages| messages.push(msg));
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
     }
 }

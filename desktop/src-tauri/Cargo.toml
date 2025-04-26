@@ -13,7 +13,7 @@ categories = ["gui", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2.0", features = [] }
+tauri-build = { version = "2.2", features = [] }
 
 [dependencies]
 derive_more.workspace = true
@@ -29,7 +29,7 @@ syre-project-watcher = { workspace = true, features = ["client"] }
 syre-local-runner = { workspace = true }
 syre-desktop-lib = { path = "../crates/lib", features = ["server"] }
 syre-desktop-resource-db = { path = "../crates/resource_db" }
-tauri = { version = "2.2", features = [] }
+tauri = { version = "2.5", features = [] }
 tauri-plugin-dialog = "2.2"
 tauri-plugin-shell = "2.2"
 tempfile.workspace = true

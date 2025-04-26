@@ -780,9 +780,9 @@ async fn update_properties(
 
     match update_properties_invoke(project, containers, asset_ids, update).await {
         Err(err) => {
-            let mut msg = ui_lib::message::Builder::error("Could not save properties.");
-            msg.body(format!("{err:?}"));
-            messages.update(|messages| messages.push(msg.build()));
+            let msg = ui_lib::message::Builder::error("Could not save properties.");
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
 
         Ok((container_results, asset_results)) => {
@@ -800,12 +800,14 @@ async fn update_properties(
                 .collect::<Vec<_>>();
 
             if !container_errors.is_empty() || !asset_errors.is_empty() {
-                let mut msg = ui_lib::message::Builder::error("Could not save properties.");
-                msg.body(UpdatePropertiesErrors {
-                    container_errors,
-                    asset_errors,
-                });
-                messages.update(|messages| messages.push(msg.build()));
+                let msg = ui_lib::message::Builder::error("Could not save properties.");
+                let msg = msg.body(
+                    UpdatePropertiesErrors {
+                        container_errors,
+                        asset_errors,
+                    }
+                );
+                messages.push_message(msg.build());
             }
         }
     }
@@ -913,13 +915,15 @@ fn resources_to_update_args(
     (containers, asset_ids)
 }
 
+#[derive(Clone)]
 struct UpdatePropertiesErrors {
     container_errors: Vec<lib::command::container::bulk::error::Update>,
     asset_errors: Vec<lib::command::asset::bulk::error::Update>,
 }
 
-impl ui_lib::message::MessageBody for UpdatePropertiesErrors {
-    fn to_message_body(&self) -> AnyView {
+impl IntoRender for UpdatePropertiesErrors {
+    type Output = AnyView;
+    fn into_render(self) -> Self::Output {
         view! {
             <div>
                 {if !self.container_errors.is_empty() {

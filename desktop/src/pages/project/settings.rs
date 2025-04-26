@@ -251,10 +251,10 @@ mod project {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -266,10 +266,10 @@ mod project {
                         let project = project.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },
@@ -433,10 +433,10 @@ mod project {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -451,10 +451,10 @@ mod project {
                         let project = project.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },
@@ -837,10 +837,10 @@ mod project {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -852,10 +852,10 @@ mod project {
                         let project = project.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(project, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },

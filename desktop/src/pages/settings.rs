@@ -216,10 +216,10 @@ pub mod user {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Can not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -232,10 +232,10 @@ pub mod user {
                         let user = user.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(user, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },
@@ -426,10 +426,10 @@ pub mod user {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Can not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -444,10 +444,10 @@ pub mod user {
                         let user = user.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(user, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },
@@ -771,10 +771,10 @@ pub mod user {
                         let mut update = match update {
                             Ok(update) => update,
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Can not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                                 return;
                             }
                         };
@@ -786,10 +786,10 @@ pub mod user {
                         let user = user.clone();
                         spawn_local(async move {
                             if let Err(err) = update_settings(user, update.into()).await {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not update settings.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         });
                     },
@@ -940,9 +940,9 @@ pub mod app {
                 let settings = settings.clone();
                 async move {
                     if let Err(err) = update_app_settings(settings).await {
-                        let mut msg = ui_lib::message::Builder::error("Could not update settings.");
-                        msg.body(format!("{err:?}"));
-                        messages.write().push(msg.build());
+                        let msg = ui_lib::message::Builder::error("Could not update settings.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             });

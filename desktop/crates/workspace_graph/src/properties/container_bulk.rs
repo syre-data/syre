@@ -631,15 +631,13 @@ mod name {
                                     .collect::<Vec<_>>();
 
                                 if rename_errors.len() > 0 {
-                                    messages.update(|messages| {
-                                        let mut msg = ui_lib::message::Builder::error(
-                                            "An error ocurred when renaming container folders.",
-                                        );
-                                        msg.body(RenameIoErrors {
-                                            errors: rename_errors,
-                                        });
-                                        messages.push(msg.build());
+                                    let msg = ui_lib::message::Builder::error(
+                                        "An error ocurred when renaming container folders.",
+                                    );
+                                    let msg = msg.body(RenameIoErrors {
+                                        errors: rename_errors,
                                     });
+                                    messages.push_message(msg.build());
                                 }
                             }
                             Err(err) => match err {
@@ -650,13 +648,11 @@ mod name {
                                     paths,
                                 ) => {
                                     set_input_error(true);
-                                    messages.update(|messages| {
-                                        let mut msg = ui_lib::message::Builder::error(
-                                            "Could not rename containers",
-                                        );
-                                        msg.body(NameCollisionErrors { paths });
-                                        messages.push(msg.build());
-                                    });
+                                    let msg = ui_lib::message::Builder::error(
+                                        "Could not rename containers",
+                                    );
+                                    let msg = msg.body(NameCollisionErrors { paths });
+                                    messages.push_message(msg.build());
                                 }
                             },
                         }
@@ -717,12 +713,14 @@ mod name {
         .await
     }
 
+    #[derive(Clone)]
     struct NameCollisionErrors {
         paths: Vec<PathBuf>,
     }
 
-    impl ui_lib::message::MessageBody for NameCollisionErrors {
-        fn to_message_body(&self) -> AnyView {
+    impl IntoRender for NameCollisionErrors {
+        type Output = AnyView;
+        fn into_render(self) -> Self::Output {
             view! {
                 <div>
                     <p>
@@ -741,24 +739,25 @@ mod name {
                     <p>"No containers were renamed."</p>
                 </div>
             }
-            .into_view()
             .into_any()
         }
     }
 
+    #[derive(Clone)]
     struct RenameIoErrors {
         errors: Vec<(PathBuf, lib::command::error::IoErrorKind)>,
     }
 
-    impl ui_lib::message::MessageBody for RenameIoErrors {
-        fn to_message_body(&self) -> AnyView {
+    impl IntoRender for RenameIoErrors {
+        type Output = AnyView;
+        fn into_render(self) -> Self::Output {
             view! {
                 <div>
                     <p>
                         <ul>
                             {self
                                 .errors
-                                .iter()
+                                .into_iter()
                                 .map(|(path, err)| {
                                     view! {
                                         <li>
@@ -774,14 +773,13 @@ mod name {
                     <p>"All other containers were renamed."</p>
                 </div>
             }
-            .into_view()
             .into_any()
         }
     }
 }
 
 mod kind {
-    use super::{ActiveResources, InputDebounce, State, UpdatePropertiesErrors, update_properties};
+    use super::{ActiveResources, InputDebounce, State, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::kind::Editor as KindEditor;
     use syre_desktop_lib::command::container::bulk::PropertiesUpdate;
@@ -826,10 +824,10 @@ mod kind {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build())
                             }
                         }
                     }
@@ -842,7 +840,7 @@ mod kind {
 }
 
 mod description {
-    use super::{ActiveResources, InputDebounce, State, UpdatePropertiesErrors, update_properties};
+    use super::{ActiveResources, InputDebounce, State, update_properties};
     use crate::types;
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::description::Editor as DescriptionEditor;
@@ -889,10 +887,10 @@ mod description {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build())
                             }
                         }
                     }
@@ -912,7 +910,7 @@ mod description {
 }
 
 mod tags {
-    use super::{ActiveResources, State, UpdatePropertiesErrors, update_properties};
+    use super::{ActiveResources, State, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::tags::{
         AddTags as AddTagsEditor, Editor as TagsEditor,
@@ -970,11 +968,11 @@ mod tags {
                                     .collect::<Vec<_>>();
 
                                 if !errors.is_empty() {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build())
                                 }
                             }
                         }
@@ -1020,10 +1018,9 @@ mod tags {
                 async move {
                     match update_properties(project, containers, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str())
                         }
 
                         Ok(container_results) => {
@@ -1038,10 +1035,10 @@ mod tags {
                                     onclose.run(());
                                 }
                             } else {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build());
                             }
                         }
                     }
@@ -1064,7 +1061,7 @@ mod tags {
 }
 
 mod metadata {
-    use super::{ActiveResources, InputDebounce, State, UpdatePropertiesErrors, update_properties};
+    use super::{ActiveResources, InputDebounce, State, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_core::types::data;
     use syre_desktop_editors::common::{
@@ -1126,11 +1123,11 @@ mod metadata {
                                     .collect::<Vec<_>>();
 
                                 if !errors.is_empty() {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build());
                                 }
                             }
                         }
@@ -1174,11 +1171,11 @@ mod metadata {
                         async move {
                             match update_properties(project, containers, update).await {
                                 Err(err) => {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str());
                                 }
 
                                 Ok(container_results) => {
@@ -1189,11 +1186,11 @@ mod metadata {
                                         .collect::<Vec<_>>();
 
                                     if !errors.is_empty() {
-                                        let mut msg = ui_lib::message::Builder::error(
+                                        let msg = ui_lib::message::Builder::error(
                                             "Could not save properties.",
                                         );
-                                        msg.body(UpdatePropertiesErrors { errors });
-                                        messages.update(|messages| messages.push(msg.build()));
+                                        let msg = msg.body(super::UpdateErrors { errors });
+                                        messages.push_message(msg.build());
                                     }
                                 }
                             }
@@ -1242,10 +1239,10 @@ mod metadata {
                     async move {
                         match update_properties(project, containers, update).await {
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
 
                             Ok(container_results) => {
@@ -1260,11 +1257,11 @@ mod metadata {
                                         onclose.run(());
                                     }
                                 } else {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build());
                                 }
                             }
                         }
@@ -1411,10 +1408,9 @@ mod analysis_associations {
                 async move {
                     match update_analysis_associations(project, containers, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str())
                         }
 
                         Ok(container_results) => {
@@ -1425,10 +1421,10 @@ mod analysis_associations {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdateAnalysisAssociationErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(UpdateAnalysisAssociationErrors { errors });
+                                messages.push_message(msg.build())
                             }
                         }
                     }
@@ -1516,11 +1512,11 @@ mod analysis_associations {
                         async move {
                             match update_analysis_associations(project, containers, update).await {
                                 Err(err) => {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str())
                                 }
 
                                 Ok(container_results) => {
@@ -1531,11 +1527,12 @@ mod analysis_associations {
                                         .collect::<Vec<_>>();
 
                                     if !errors.is_empty() {
-                                        let mut msg = ui_lib::message::Builder::error(
+                                        let msg = ui_lib::message::Builder::error(
                                             "Could not save properties.",
                                         );
-                                        msg.body(UpdateAnalysisAssociationErrors { errors });
-                                        messages.update(|messages| messages.push(msg.build()));
+                                        let msg =
+                                            msg.body(UpdateAnalysisAssociationErrors { errors });
+                                        messages.push_message(msg.build())
                                     }
                                 }
                             }
@@ -1741,9 +1738,9 @@ mod analysis_associations {
                         add_analysis_association(project, container_paths, association).await
                     {
                         tracing::error!(?err);
-                        let mut msg = ui_lib::message::Builder::error("Could not save container.");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                        let msg = ui_lib::message::Builder::error("Could not save container.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str())
                     };
                 }
             }
@@ -1806,15 +1803,15 @@ mod analysis_associations {
         .await
     }
 
+    #[derive(Clone)]
     struct UpdateAnalysisAssociationErrors {
         errors: Vec<local::error::IoSerde>,
     }
 
-    impl ui_lib::message::MessageBody for UpdateAnalysisAssociationErrors {
-        fn to_message_body(&self) -> AnyView {
+    impl IntoRender for UpdateAnalysisAssociationErrors {
+        type Output = AnyView;
+        fn into_render(self) -> Self::Output {
             super::super::errors_to_list_view(self.errors.clone())
-                .into_view()
-                .into_any()
         }
     }
 }
@@ -1849,14 +1846,13 @@ async fn update_properties(
     .await
 }
 
-struct UpdatePropertiesErrors {
+#[derive(Clone)]
+struct UpdateErrors {
     errors: Vec<lib::command::container::bulk::error::Update>,
 }
-
-impl ui_lib::message::MessageBody for UpdatePropertiesErrors {
-    fn to_message_body(&self) -> AnyView {
-        super::errors_to_list_view(self.errors.clone())
-            .into_view()
-            .into_any()
+impl IntoRender for UpdateErrors {
+    type Output = AnyView;
+    fn into_render(self) -> Self::Output {
+        super::errors_to_list_view(self.errors)
     }
 }

@@ -478,7 +478,6 @@ mod properties {
                     let project = project.clone();
                     let graph = graph.clone();
                     let container = container.clone();
-                    let messages = messages.write_only();
                     move |value, _, _| {
                         if value.is_clean() {
                             return;
@@ -496,15 +495,13 @@ mod properties {
                             let node =
                                 container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
                             let path = graph.path(&node).unwrap();
-                            let messages = messages.clone();
-
                             async move {
                                 if let Err(err) = rename_container(project, path, name).await {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save container.",
                                     );
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str());
                                 }
                             }
                         });
@@ -571,7 +568,6 @@ mod properties {
             let input_debounce = expect_context::<InputDebounce>();
 
             let oninput = move |value: Option<String>| {
-                let messages = messages.write_only();
                 let node = container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
                 let mut properties = node.properties().with_untracked(|properties| {
                     let db::state::DataResource::Ok(properties) = properties else {
@@ -585,15 +581,12 @@ mod properties {
                 spawn_local({
                     let project = project.rid().get_untracked();
                     let path = graph.path(&node).unwrap();
-                    let messages = messages.clone();
-
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
                             tracing::error!(?err);
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save container.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save container.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     }
                 });
@@ -632,7 +625,6 @@ mod properties {
             let input_debounce = expect_context::<InputDebounce>();
 
             let oninput = {
-                let messages = messages.write_only();
                 move |value: Option<String>| {
                     let node = container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
                     let mut properties = node.properties().with_untracked(|properties| {
@@ -647,15 +639,13 @@ mod properties {
                     spawn_local({
                         let project = project.rid().get_untracked();
                         let path = graph.path(&node).unwrap();
-                        let messages = messages.clone();
-
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
                                 tracing::error!(?err);
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         }
                     });
@@ -693,7 +683,6 @@ mod properties {
             let input_debounce = expect_context::<InputDebounce>();
 
             let oninput = {
-                let messages = messages.write_only();
                 move |value: Vec<String>| {
                     let node = container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
                     let mut properties = node.properties().with_untracked(|properties| {
@@ -708,15 +697,13 @@ mod properties {
                     spawn_local({
                         let project = project.rid().get_untracked();
                         let path = graph.path(&node).unwrap();
-                        let messages = messages.clone();
-
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
                                 tracing::error!(?err);
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         }
                     });
@@ -860,9 +847,7 @@ mod properties {
                     let project = project.clone();
                     let graph = graph.clone();
                     let container = container.clone();
-                    let messages = messages.clone();
                     move |value, _, container_id| -> ResourceId {
-                        let messages = messages.write_only();
                         if container.with_untracked(|rid| {
                             if let Some(container_id) = container_id {
                                 *rid != container_id
@@ -897,17 +882,15 @@ mod properties {
 
                         spawn_local({
                             let project = project.rid().get_untracked();
-                            let messages = messages.clone();
-
                             async move {
                                 if let Err(err) = update_properties(project, path, properties).await
                                 {
                                     tracing::error!(?err);
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save container.",
                                     );
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str());
                                 }
                             }
                         });
@@ -922,7 +905,6 @@ mod properties {
             let remove_datum = {
                 let project = project.clone();
                 let graph = graph.clone();
-                let messages = messages.clone();
                 let key = key.clone();
                 move |e: MouseEvent| {
                     if e.button() != ui_lib::types::MouseButton::Primary {
@@ -942,15 +924,13 @@ mod properties {
                     spawn_local({
                         let project = project.rid().get_untracked();
                         let path = graph.path(&node).unwrap();
-                        let messages = messages.clone();
-
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
                                 tracing::error!(?err);
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
                         }
                     });
@@ -1025,7 +1005,6 @@ mod properties {
 
                     let project = project.rid().get_untracked();
                     let container_path = graph.path(&node).unwrap();
-                    let messages = messages.clone();
                     async move {
                         if let Err(err) = commands::container::update_analysis_associations(
                             project,
@@ -1035,10 +1014,9 @@ mod properties {
                         .await
                         {
                             tracing::error!(?err);
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save container.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save container.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         };
                     }
                 });
@@ -1080,14 +1058,12 @@ mod properties {
                 let project = project.rid().read_only();
                 let graph = graph.clone();
                 let container = container.clone();
-                let messages = messages.clone();
                 move |associations: &Vec<AnalysisAssociation>| {
                     let node = container.with_untracked(|rid| graph.find_by_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
 
                     let project = project.get_untracked();
                     let associations = associations.clone();
-                    let messages = messages.clone();
                     async move {
                         if let Err(err) = commands::container::update_analysis_associations(
                             project,
@@ -1097,11 +1073,11 @@ mod properties {
                         .await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error(
+                            let msg = ui_lib::message::Builder::error(
                                 "Could not update analysis associations.",
                             );
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     }
                 }
@@ -1221,11 +1197,11 @@ mod properties {
                         .await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error(
+                            let msg = ui_lib::message::Builder::error(
                                 "Could not update analysis associations.",
                             );
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         };
                     }
                 }
@@ -1419,9 +1395,9 @@ mod flags {
                     )
                     .await
                     {
-                        let mut msg = ui_lib::message::Builder::error("Could not remove flags.");
-                        msg.body(format!("{err:?}"));
-                        messages.write().push(msg.build());
+                        let msg = ui_lib::message::Builder::error("Could not remove flags.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }
@@ -1479,9 +1455,9 @@ mod flags {
                     )
                     .await
                     {
-                        let mut msg = ui_lib::message::Builder::error("Could not remove flag.");
-                        msg.body(format!("{err:?}"));
-                        messages.write().push(msg.build());
+                        let msg = ui_lib::message::Builder::error("Could not remove flag.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }

@@ -245,7 +245,7 @@ pub fn detail_popout_top(
 }
 
 /// Intended to take in a list of errors and produce a `<ul>`.
-fn errors_to_list_view(errors: Vec<impl fmt::Debug>) -> impl IntoView {
+fn errors_to_list_view(errors: Vec<impl fmt::Debug>) -> AnyView {
     view! {
         <ul>
             {errors
@@ -256,4 +256,5 @@ fn errors_to_list_view(errors: Vec<impl fmt::Debug>) -> impl IntoView {
                 .collect::<Vec<_>>()}
         </ul>
     }
+    .into_any()
 }

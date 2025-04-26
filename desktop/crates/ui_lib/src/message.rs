@@ -1,4 +1,7 @@
-use leptos::prelude::*;
+use leptos::{
+    html::{self, Output},
+    prelude::*,
+};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
@@ -9,33 +12,27 @@ pub enum MessageKind {
     Info,
 }
 
-/// Allows display as a [`Message`] body.
-pub trait MessageBody {
-    /// Dispay as a message body.
-    fn to_message_body(&self) -> AnyView;
-}
+// NOTE: Can use [`enum_dispatch` crate](https://crates.io/crates/enum_dispatch) here
+// if manually maintinaing becomes obnoxious.
 
-impl<T> MessageBody for T
-where
-    T: IntoAny + Clone,
-{
-    fn to_message_body(&self) -> AnyView {
-        self.clone().into_any()
-    }
-}
+#[derive(Copy, Clone)]
+pub struct NoBody;
 
-pub struct Builder {
+#[derive(derive_more::Deref, Clone)]
+pub struct Body<B>(B);
+
+pub struct Builder<B> {
     title: String,
-    body: Option<Arc<dyn MessageBody>>,
     kind: MessageKind,
+    body: B,
 }
 
-impl Builder {
+impl Builder<NoBody> {
     fn new(title: impl Into<String>, kind: MessageKind) -> Self {
         Self {
             title: title.into(),
-            body: None,
             kind,
+            body: NoBody,
         }
     }
 
@@ -55,18 +52,46 @@ impl Builder {
         Self::new(title, MessageKind::Info)
     }
 
-    pub fn body(&mut self, body: impl MessageBody + 'static) -> &mut Self {
-        let _ = self.body.insert(Arc::new(body));
-        self
+    pub fn body<B>(self, body: B) -> Builder<Body<B>>
+    where
+        B: IntoRender,
+    {
+        Builder {
+            title: self.title,
+            kind: self.kind,
+            body: Body(body),
+        }
     }
+}
 
-    pub fn build(self) -> Message {
+impl Builder<NoBody> {
+    pub fn build(self) -> Message<NoBody> {
         self.into()
     }
 }
 
-impl Into<Message> for Builder {
-    fn into(self) -> Message {
+// TODO: Could ideally unify the `build` and `build_*` methods
+// into a trait using specialization.
+// I couldn't get this working on initial attempts, though.
+impl Builder<Body<String>> {
+    pub fn build_str(self) -> Message<Body<String>> {
+        self.into()
+    }
+}
+
+impl<B> Builder<Body<B>>
+where
+    B: IntoRender + Sync + Clone,
+{
+    /// # Note
+    /// For `String` bodies use `buid_str`.
+    pub fn build(self) -> Message<Body<Arc<B>>> {
+        self.into()
+    }
+}
+
+impl Into<Message<NoBody>> for Builder<NoBody> {
+    fn into(self) -> Message<NoBody> {
         let id = (js_sys::Math::random() * (usize::MAX as f64)) as usize;
         Message {
             id,
@@ -77,17 +102,43 @@ impl Into<Message> for Builder {
     }
 }
 
-#[derive(derive_more::Debug, Clone)]
-pub struct Message {
+impl Into<Message<Body<String>>> for Builder<Body<String>> {
+    fn into(self) -> Message<Body<String>> {
+        let id = (js_sys::Math::random() * (usize::MAX as f64)) as usize;
+        Message {
+            id,
+            kind: self.kind,
+            title: self.title,
+            body: self.body,
+        }
+    }
+}
+
+impl<B> Into<Message<Body<Arc<B>>>> for Builder<Body<B>>
+where
+    B: IntoRender + Clone,
+{
+    fn into(self) -> Message<Body<Arc<B>>> {
+        let id = (js_sys::Math::random() * (usize::MAX as f64)) as usize;
+        let Body(body) = self.body;
+        Message {
+            id,
+            kind: self.kind,
+            title: self.title,
+            body: Body(Arc::new(body)),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Message<B> {
     id: usize,
     kind: MessageKind,
     title: String,
-
-    #[debug(skip)]
-    body: Option<Arc<dyn MessageBody>>,
+    body: B,
 }
 
-impl Message {
+impl<B> Message<B> {
     pub fn id(&self) -> usize {
         self.id
     }
@@ -100,16 +151,62 @@ impl Message {
         &self.title
     }
 
-    pub fn body(&self) -> Option<AnyView> {
-        self.body.as_ref().map(|body| body.to_message_body())
+    pub fn body(&self) -> &B {
+        &self.body
+    }
+}
+
+trait MessageBody = IntoRender<Output = AnyView>;
+
+#[derive(derive_more::From, Clone)]
+pub enum MessageContainer {
+    NoBody(Message<NoBody>),
+    String(Message<Body<String>>),
+
+    #[from(skip)]
+    AnyView(Message<Body<Arc<dyn MessageBody>>>),
+}
+
+impl MessageContainer {
+    pub fn id(&self) -> usize {
+        match self {
+            Self::NoBody(message) => message.id(),
+            Self::String(message) => message.id(),
+            Self::AnyView(message) => message.id(),
+        }
+    }
+}
+
+impl<B> From<Message<Body<Arc<B>>>> for MessageContainer
+where
+    B: MessageBody + 'static,
+{
+    fn from(message: Message<Body<Arc<B>>>) -> MessageContainer {
+        let Message {
+            id,
+            kind,
+            title,
+            body: Body(body),
+        } = message;
+
+        MessageContainer::AnyView(Message {
+            id,
+            kind,
+            title,
+            body: Body(body as Arc<dyn MessageBody>),
+        })
     }
 }
 
 /// App wide messages.
-#[derive(Clone, derive_more::Deref, Copy)]
-pub struct Messages(RwSignal<Vec<Message>, LocalStorage>);
+#[derive(Clone, Copy, derive_more::Deref)]
+pub struct Messages(RwSignal<Vec<MessageContainer>, LocalStorage>);
 impl Messages {
     pub fn new() -> Self {
         Self(RwSignal::new_local(vec![]))
+    }
+
+    pub fn push_message(&self, message: impl Into<MessageContainer>) {
+        self.0.write().push(message.into());
     }
 }

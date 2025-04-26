@@ -423,9 +423,7 @@ pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
 }
 
 mod name {
-    use super::{
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
-    };
+    use super::{ActiveResources, State, container_assets, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::{common::bulk::Value, types::InputDebounce};
     use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
@@ -451,10 +449,9 @@ mod name {
                 async move {
                     match update_properties(project, asset_ids, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
 
                         Ok(asset_results) => {
@@ -465,10 +462,10 @@ mod name {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build());
                             }
                         }
                     }
@@ -544,9 +541,7 @@ mod name {
 }
 
 mod kind {
-    use super::{
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
-    };
+    use super::{ActiveResources, State, container_assets, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::{common::bulk::kind::Editor as KindEditor, types::InputDebounce};
     use syre_desktop_lib::command::asset::bulk::PropertiesUpdate;
@@ -571,10 +566,9 @@ mod kind {
                 async move {
                     match update_properties(project, asset_ids, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
 
                         Ok(asset_results) => {
@@ -585,10 +579,10 @@ mod kind {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build());
                             }
                         }
                     }
@@ -601,9 +595,7 @@ mod kind {
 }
 
 mod description {
-    use super::{
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
-    };
+    use super::{ActiveResources, State, container_assets, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::description::Editor as DescriptionEditor;
     use syre_desktop_editors::types::InputDebounce;
@@ -629,10 +621,9 @@ mod description {
                 async move {
                     match update_properties(project, asset_ids, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
 
                         Ok(asset_results) => {
@@ -643,10 +634,10 @@ mod description {
                                 .collect::<Vec<_>>();
 
                             if !errors.is_empty() {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build());
                             }
                         }
                     }
@@ -666,9 +657,7 @@ mod description {
 }
 
 mod tags {
-    use super::{
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
-    };
+    use super::{ActiveResources, State, container_assets, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::tags::{
         AddTags as AddTagsEditor, Editor as TagsEditor,
@@ -706,10 +695,10 @@ mod tags {
                     async move {
                         match update_properties(project, asset_ids, update).await {
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
 
                             Ok(asset_results) => {
@@ -720,11 +709,11 @@ mod tags {
                                     .collect::<Vec<_>>();
 
                                 if !errors.is_empty() {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build());
                                 }
                             }
                         }
@@ -759,10 +748,9 @@ mod tags {
                 async move {
                     match update_properties(project, asset_ids, update).await {
                         Err(err) => {
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save properties.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save properties.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
 
                         Ok(asset_results) => {
@@ -777,10 +765,10 @@ mod tags {
                                     onclose.run(());
                                 }
                             } else {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(UpdatePropertiesErrors { errors });
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(super::UpdateErrors { errors });
+                                messages.push_message(msg.build());
                             }
                         }
                     }
@@ -803,9 +791,7 @@ mod tags {
 }
 
 mod metadata {
-    use super::{
-        ActiveResources, State, UpdatePropertiesErrors, container_assets, update_properties,
-    };
+    use super::{ActiveResources, State, container_assets, update_properties};
     use leptos::{prelude::*, task::spawn_local};
     use syre_core::types::data;
     use syre_desktop_editors::{
@@ -848,10 +834,10 @@ mod metadata {
                     async move {
                         match update_properties(project, asset_ids, update).await {
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
 
                             Ok(asset_results) => {
@@ -862,11 +848,11 @@ mod metadata {
                                     .collect::<Vec<_>>();
 
                                 if !errors.is_empty() {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build());
                                 }
                             }
                         }
@@ -902,11 +888,11 @@ mod metadata {
                         async move {
                             match update_properties(project, asset_ids, update).await {
                                 Err(err) => {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str());
                                 }
 
                                 Ok(asset_results) => {
@@ -917,11 +903,11 @@ mod metadata {
                                         .collect::<Vec<_>>();
 
                                     if !errors.is_empty() {
-                                        let mut msg = ui_lib::message::Builder::error(
+                                        let msg = ui_lib::message::Builder::error(
                                             "Could not save properties.",
                                         );
-                                        msg.body(UpdatePropertiesErrors { errors });
-                                        messages.update(|messages| messages.push(msg.build()));
+                                        let msg = msg.body(super::UpdateErrors { errors });
+                                        messages.push_message(msg.build());
                                     }
                                 }
                             }
@@ -962,10 +948,10 @@ mod metadata {
                     async move {
                         match update_properties(project, asset_ids, update).await {
                             Err(err) => {
-                                let mut msg =
+                                let msg =
                                     ui_lib::message::Builder::error("Could not save properties.");
-                                msg.body(format!("{err:?}"));
-                                messages.update(|messages| messages.push(msg.build()));
+                                let msg = msg.body(format!("{err:?}"));
+                                messages.push_message(msg.build_str());
                             }
 
                             Ok(asset_results) => {
@@ -980,11 +966,11 @@ mod metadata {
                                         onclose.run(());
                                     }
                                 } else {
-                                    let mut msg = ui_lib::message::Builder::error(
+                                    let msg = ui_lib::message::Builder::error(
                                         "Could not save properties.",
                                     );
-                                    msg.body(UpdatePropertiesErrors { errors });
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(super::UpdateErrors { errors });
+                                    messages.push_message(msg.build());
                                 }
                             }
                         }
@@ -1071,14 +1057,13 @@ fn container_assets(
     asset_ids.into_iter().map(|ids| ids.into()).collect()
 }
 
-struct UpdatePropertiesErrors {
+#[derive(Clone)]
+struct UpdateErrors {
     errors: Vec<lib::command::asset::bulk::error::Update>,
 }
-
-impl ui_lib::message::MessageBody for UpdatePropertiesErrors {
-    fn to_message_body(&self) -> AnyView {
-        super::errors_to_list_view(self.errors.clone())
-            .into_view()
-            .into_any()
+impl IntoRender for UpdateErrors {
+    type Output = AnyView;
+    fn into_render(self) -> Self::Output {
+        super::errors_to_list_view(self.errors)
     }
 }

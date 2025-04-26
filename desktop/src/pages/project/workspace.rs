@@ -96,8 +96,8 @@ fn NoUser() -> impl IntoView {
     let messages = expect_context::<ui_lib::message::Messages>();
     let navigate = leptos_router::hooks::use_navigate();
 
-    let msg = ui_lib::message::Builder::error("You are not logged in.").build();
-    messages.update(|messages| messages.push(msg));
+    let msg = ui_lib::message::Builder::error("You are not logged in.");
+    messages.push_message(msg.build());
     navigate("login", Default::default());
 
     view! {
@@ -1889,9 +1889,9 @@ fn handle_event_graph_container_flags_corrupted(
     };
 
     remove_graph_container_flags(path, graph, flags);
-    let mut msg = ui_lib::message::Builder::error("Flags file corrupted.");
-    msg.body(format!("{error:?}"));
-    messages.write().push(msg.build());
+    let msg = ui_lib::message::Builder::error("Flags file corrupted.");
+    let msg = msg.body(format!("{error:?}"));
+    messages.push_message(msg.build_str());
 }
 
 fn handle_event_graph_container_flags_repaired(event: lib::Event, flags: ui_lib::state::Flags) {

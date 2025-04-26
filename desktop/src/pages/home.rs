@@ -6,6 +6,7 @@ use syre_core::system::User;
 use syre_desktop_lib as lib;
 use syre_desktop_ui_components::Logo;
 use syre_desktop_ui_lib as ui_lib;
+use syre_local as local;
 
 #[derive(Clone, Copy, derive_more::Deref, derive_more::From)]
 struct ShowSettings(RwSignal<bool>);
@@ -43,8 +44,7 @@ fn NoSettings() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
 
     let msg = ui_lib::message::Builder::error("Could not get user settings.");
-    let msg = msg.build();
-    messages.update(|messages| messages.push(msg));
+    messages.push_message(msg.build());
     navigate("/login", Default::default());
 
     view! {
@@ -67,24 +67,19 @@ fn HomeView(user_settings: lib::settings::user::Settings) -> impl IntoView {
     match (user_settings.desktop, user_settings.runner) {
         (Ok(_), Ok(_)) => {}
         (Err(err), Ok(_)) => {
-            let mut msg = ui_lib::message::Builder::error("Could not load desktop settings.");
-            msg.body(format!("{err:?}"));
-            messages.update(|messages| messages.push(msg.build()));
+            let msg = ui_lib::message::Builder::error("Could not load desktop settings.");
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
         (Ok(_), Err(err)) => {
-            let mut msg = ui_lib::message::Builder::error("Could not load runner settings.");
-            msg.body(format!("{err:?}"));
-            messages.update(|messages| messages.push(msg.build()));
+            let msg = ui_lib::message::Builder::error("Could not load runner settings.");
+            let msg = msg.body(format!("{err:?}"));
+            messages.push_message(msg.build_str());
         }
-        (Err(err_desktop), Err(err_runner)) => {
-            let mut msg = ui_lib::message::Builder::error("Could not load settings.");
-            msg.body(view! {
-                <ul>
-                    <li>"Desktop: " {format!("{err_desktop:?}")}</li>
-                    <li>"Runner: " {format!("{err_runner:?}")}</li>
-                </ul>
-            });
-            messages.update(|messages| messages.push(msg.build()));
+        (Err(desktop), Err(runner)) => {
+            let msg = ui_lib::message::Builder::error("Could not load settings.");
+            let msg = msg.body(LoadSettingsError { desktop, runner });
+            messages.push_message(msg.build());
         }
     }
 
@@ -158,4 +153,22 @@ fn MainNav() -> impl IntoView {
 
 async fn fetch_user_settings() -> Option<lib::settings::user::Settings> {
     tauri_sys::core::invoke("user_settings", ()).await
+}
+
+#[derive(Clone)]
+struct LoadSettingsError {
+    desktop: local::error::IoSerde,
+    runner: local::error::IoSerde,
+}
+impl IntoRender for LoadSettingsError {
+    type Output = AnyView;
+    fn into_render(self) -> Self::Output {
+        view! {
+            <ul>
+                <li>"Desktop: " {format!("{:?}", self.desktop)}</li>
+                <li>"Runner: " {format!("{:?}", self.runner)}</li>
+            </ul>
+        }
+        .into_any()
+    }
 }

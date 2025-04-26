@@ -93,7 +93,7 @@ fn NotFound() -> impl IntoView {
 }
 
 mod message {
-    use leptos::{ev::MouseEvent, prelude::*};
+    use leptos::{either::either, ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
     use syre_desktop_ui_components::ToggleExpand;
     use syre_desktop_ui_lib as ui_lib;
@@ -106,23 +106,85 @@ mod message {
             flex flex-col gap-2 scrollbar-thin z-50">
                 {move || {
                     messages
-                        .with(|messages| {
-                            messages
-                                .iter()
-                                .rev()
-                                .cloned()
-                                .map(|message| {
-                                    view! { <Message message /> }
-                                })
-                                .collect::<Vec<_>>()
+                        .get()
+                        .into_iter()
+                        .rev()
+                        .map(|message| {
+                            view! { <Message message /> }
                         })
+                        .collect::<Vec<_>>()
                 }}
             </div>
         }
     }
 
     #[component]
-    fn Message(message: ui_lib::message::Message) -> impl IntoView + 'static {
+    fn Message(message: ui_lib::message::MessageContainer) -> impl IntoView + 'static {
+        use ui_lib::message::MessageContainer;
+
+        either!( message,
+            MessageContainer::NoBody(message) => view! { <MessageNoBody message /> },
+            MessageContainer::String(message) => view! { <MessageStringBody message /> },
+            MessageContainer::AnyView(message) => view! { <MessageWithBody message /> },
+        )
+    }
+
+    #[component]
+    fn MessageNoBody(
+        message: ui_lib::message::Message<ui_lib::message::NoBody>,
+    ) -> impl IntoView + 'static {
+        let messages = expect_context::<ui_lib::message::Messages>();
+
+        let close = {
+            let message_id = message.id();
+            move |e: MouseEvent| {
+                if e.button() != ui_lib::types::MouseButton::Primary {
+                    return;
+                }
+
+                messages.update(|messages| messages.retain(|msg| msg.id() != message_id));
+            }
+        };
+
+        let (class_main, class_btn) = match message.kind() {
+            ui_lib::message::MessageKind::Info => (
+                "flex bg-primary-500 border border-primary-600 rounded-sm",
+                "border-l border-l-primary-600 flex",
+            ),
+            ui_lib::message::MessageKind::Success => (
+                "flex bg-syre-green-600 border border-syre-green-700 rounded-sm",
+                "border-l border-l-green-700 flex",
+            ),
+            ui_lib::message::MessageKind::Warning => (
+                "flex bg-syre-yellow-600 border border-syre-yellow-700 rounded-sm",
+                "border-l border-l-yellow-700 flex",
+            ),
+            ui_lib::message::MessageKind::Error => (
+                "flex bg-syre-red-500 border border-syre-red-700 rounded-sm",
+                "border-l border-l-red-700 flex",
+            ),
+        };
+
+        view! {
+            <div class=class_main>
+                <div class="grow">
+                    <div class="relative flex gap-2">
+                        <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
+                    </div>
+                </div>
+                <div class=class_btn>
+                    <button on:mousedown=close class="px-2 w-full h-full cursor-pointer">
+                        <Icon icon=ui_lib::icon::Close />
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    #[component]
+    fn MessageStringBody(
+        message: ui_lib::message::Message<ui_lib::message::Body<String>>,
+    ) -> impl IntoView + 'static {
         let messages = expect_context::<ui_lib::message::Messages>();
         let show_body = RwSignal::new(false);
 
@@ -161,28 +223,82 @@ mod message {
                 <div class="grow">
                     <div class="relative flex gap-2">
                         <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
-                        {message
-                            .body()
-                            .map(|_| {
-                                view! {
-                                    <div>
-                                        <ToggleExpand expanded=show_body />
-                                    </div>
-                                }
-                            })}
+
+                        <div>
+                            <ToggleExpand expanded=show_body />
+                        </div>
                     </div>
-                    {message
-                        .body()
-                        .map(|body| {
-                            view! {
-                                <div
-                                    class:hidden=move || !show_body()
-                                    class="pt-2 px-2 max-h-48 overflow-auto select-text scrollbar-thin break-all"
-                                >
-                                    {body}
-                                </div>
-                            }
-                        })}
+
+                    <div
+                        class:hidden=move || !show_body()
+                        class="pt-2 px-2 max-h-48 overflow-auto select-text scrollbar-thin break-all"
+                    >
+                        {(**message.body()).clone()}
+                    </div>
+                </div>
+                <div class=class_btn>
+                    <button on:mousedown=close class="px-2 w-full h-full cursor-pointer">
+                        <Icon icon=ui_lib::icon::Close />
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    #[component]
+    fn MessageWithBody<B: IntoRender<Output = AnyView>>(
+        message: ui_lib::message::Message<ui_lib::message::Body<std::sync::Arc<B>>>,
+    ) -> impl IntoView + 'static {
+        let messages = expect_context::<ui_lib::message::Messages>();
+        let show_body = RwSignal::new(false);
+
+        let close = {
+            let message_id = message.id();
+            move |e: MouseEvent| {
+                if e.button() != ui_lib::types::MouseButton::Primary {
+                    return;
+                }
+
+                messages.update(|messages| messages.retain(|msg| msg.id() != message_id));
+            }
+        };
+
+        let (class_main, class_btn) = match message.kind() {
+            ui_lib::message::MessageKind::Info => (
+                "flex bg-primary-500 border border-primary-600 rounded-sm",
+                "border-l border-l-primary-600 flex",
+            ),
+            ui_lib::message::MessageKind::Success => (
+                "flex bg-syre-green-600 border border-syre-green-700 rounded-sm",
+                "border-l border-l-green-700 flex",
+            ),
+            ui_lib::message::MessageKind::Warning => (
+                "flex bg-syre-yellow-600 border border-syre-yellow-700 rounded-sm",
+                "border-l border-l-yellow-700 flex",
+            ),
+            ui_lib::message::MessageKind::Error => (
+                "flex bg-syre-red-500 border border-syre-red-700 rounded-sm",
+                "border-l border-l-red-700 flex",
+            ),
+        };
+
+        view! {
+            <div class=class_main>
+                <div class="grow">
+                    <div class="relative flex gap-2">
+                        <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
+
+                        <div>
+                            <ToggleExpand expanded=show_body />
+                        </div>
+                    </div>
+
+                    <div
+                        class:hidden=move || !show_body()
+                        class="pt-2 px-2 max-h-48 overflow-auto select-text scrollbar-thin break-all"
+                    >
+                        {(**message.body()).into_render()}
+                    </div>
                 </div>
                 <div class=class_btn>
                     <button on:mousedown=close class="px-2 w-full h-full cursor-pointer">

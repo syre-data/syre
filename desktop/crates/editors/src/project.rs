@@ -117,9 +117,9 @@ fn DeleteProjectConfirmation() -> impl IntoView {
                 let navigate = navigate.clone();
                 async move {
                     if let Err(err) = delete_project(project.get_untracked()).await {
-                        let mut msg = ui_lib::message::Builder::error("Could not delete project.");
-                        msg.body(format!("{err:?}"));
-                        messages.update(|messages| messages.push(msg.build()));
+                        let msg = ui_lib::message::Builder::error("Could not delete project.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     } else {
                         navigate("/", Default::default());
                     }
@@ -193,14 +193,12 @@ mod name {
                 properties.name = value.to_string();
 
                 spawn_local({
-                    let messages = messages.write_only();
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save project.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save project.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     }
                 });
@@ -232,20 +230,17 @@ mod description {
 
         let oninput = {
             let project = project.clone();
-            let messages = messages.write_only();
             move |value: Option<String>| {
                 let mut properties = project.as_properties();
                 properties.description = value;
 
                 spawn_local({
-                    let messages = messages.clone();
                     async move {
                         if let Err(err) = update_properties(properties).await {
                             tracing::error!(?err);
-                            let mut msg =
-                                ui_lib::message::Builder::error("Could not save project.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save project.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     }
                 });

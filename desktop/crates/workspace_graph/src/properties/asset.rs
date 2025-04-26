@@ -237,7 +237,6 @@ mod properties {
             });
 
             let oninput = Callback::new({
-                let messages = messages.write_only();
                 move |value: String| {
                     let mut properties = asset.as_properties();
                     let value = value.trim();
@@ -253,15 +252,14 @@ mod properties {
                         .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
                     let asset_path = asset.path().get_untracked();
-                    let messages = messages.clone();
                     spawn_local(async move {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error("Could not save asset.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save asset.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     });
                 }
@@ -294,7 +292,6 @@ mod properties {
 
             let oninput = Callback::new({
                 let asset = asset.clone();
-                let messages = messages.write_only();
                 move |value: Option<String>| {
                     let mut properties = asset.as_properties();
                     properties.kind = value;
@@ -305,15 +302,14 @@ mod properties {
                         .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
                     let asset_path = asset.path().get_untracked();
-                    let messages = messages.clone();
                     spawn_local(async move {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error("Could not save asset.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save asset.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     });
                 }
@@ -346,7 +342,6 @@ mod properties {
 
             let oninput = Callback::new({
                 let asset = asset.clone();
-                let messages = messages.write_only();
                 move |value: Option<String>| {
                     let mut properties = asset.as_properties();
                     properties.description = value;
@@ -357,15 +352,14 @@ mod properties {
                         .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
                     let asset_path = asset.path().get_untracked();
-                    let messages = messages.clone();
                     spawn_local(async move {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error("Could not save asset.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save asset.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     });
                 }
@@ -398,7 +392,6 @@ mod properties {
 
             let oninput = Callback::new({
                 let asset = asset.clone();
-                let messages = messages.write_only();
                 move |value: Vec<String>| {
                     let mut properties = asset.as_properties();
                     properties.tags = value;
@@ -409,15 +402,14 @@ mod properties {
                         .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
                     let asset_path = asset.path().get_untracked();
-                    let messages = messages.clone();
                     spawn_local(async move {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error("Could not save asset.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save asset.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     });
                 }
@@ -552,7 +544,6 @@ mod properties {
                     let asset = asset.clone();
                     let key = key.clone();
                     move |value, _, asset_id| -> ResourceId {
-                        // let messages = messages.write_only();
                         if asset.rid().with_untracked(|rid| {
                             if let Some(asset_id) = asset_id {
                                 *rid != asset_id
@@ -583,7 +574,6 @@ mod properties {
                                 .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                             let container_path = graph.path(&node).unwrap();
                             let asset_path = asset.path().get_untracked();
-                            let messages = messages.clone();
                             async move {
                                 if let Err(err) = update_properties(
                                     project,
@@ -594,10 +584,10 @@ mod properties {
                                 .await
                                 {
                                     tracing::error!(?err);
-                                    let mut msg =
+                                    let msg =
                                         ui_lib::message::Builder::error("Could not save asset");
-                                    msg.body(format!("{err:?}"));
-                                    messages.update(|messages| messages.push(msg.build()));
+                                    let msg = msg.body(format!("{err:?}"));
+                                    messages.push_message(msg.build_str());
                                 }
                             }
                         });
@@ -613,7 +603,6 @@ mod properties {
                 let project = project.clone();
                 let graph = graph.clone();
                 let asset = asset.clone();
-                let messages = messages.clone();
                 let key = key.clone();
                 move |e: MouseEvent| {
                     if e.button() != ui_lib::types::MouseButton::Primary {
@@ -629,15 +618,14 @@ mod properties {
                         .with_untracked(|rid| graph.find_by_asset_id(rid).unwrap());
                     let container_path = graph.path(&node).unwrap();
                     let asset_path = asset.path().get_untracked();
-                    let messages = messages.clone();
                     spawn_local(async move {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
                             tracing::error!(?err);
-                            let mut msg = ui_lib::message::Builder::error("Could not save asset.");
-                            msg.body(format!("{err:?}"));
-                            messages.update(|messages| messages.push(msg.build()));
+                            let msg = ui_lib::message::Builder::error("Could not save asset.");
+                            let msg = msg.body(format!("{err:?}"));
+                            messages.push_message(msg.build_str());
                         }
                     });
                 }
@@ -763,9 +751,9 @@ mod flags {
                     if let Err(err) =
                         commands::flag::remove_all(project.get_untracked(), container, asset).await
                     {
-                        let mut msg = ui_lib::message::Builder::error("Could not remove flag.");
-                        msg.body(format!("{err:?}"));
-                        messages.write().push(msg.build());
+                        let msg = ui_lib::message::Builder::error("Could not remove flag.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }
@@ -824,9 +812,9 @@ mod flags {
                         commands::flag::remove(project.get_untracked(), container, asset, flag)
                             .await
                     {
-                        let mut msg = ui_lib::message::Builder::error("Could not remove flag.");
-                        msg.body(format!("{err:?}"));
-                        messages.write().push(msg.build());
+                        let msg = ui_lib::message::Builder::error("Could not remove flag.");
+                        let msg = msg.body(format!("{err:?}"));
+                        messages.push_message(msg.build_str());
                     }
                 }
             }

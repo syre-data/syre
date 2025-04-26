@@ -16,4 +16,12 @@ syre-project-watcher.workspace = true
 tauri-sys = { workspace = true, features = ["core"] }
 tracing.workspace = true
 wasm-bindgen.workspace = true
-web-sys.workspace = true
+web-sys = { workspace = true, features = [
+    "CssStyleDeclaration",
+    "Document",
+    "DomRect",
+    "Element",
+    "Event",
+    "HtmlElement",
+    "Window",
+] }

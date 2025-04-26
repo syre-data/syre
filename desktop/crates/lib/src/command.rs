@@ -387,7 +387,7 @@ pub mod error {
     pub struct ProjectNotFound;
 
     /// [`std::io::ErrorKind`] wrapper to allow for serialization.
-    #[derive(Serialize, Deserialize, derive_more::From, Debug)]
+    #[derive(Serialize, Deserialize, derive_more::From, Debug, Clone, Copy)]
     pub struct IoErrorKind(#[serde(with = "io_error_serde::ErrorKind")] pub io::ErrorKind);
     impl Into<io::ErrorKind> for IoErrorKind {
         fn into(self) -> io::ErrorKind {
@@ -453,7 +453,7 @@ pub mod error {
 }
 
 mod serde_opt_opt_str {
-    use serde::{de, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de};
 
     pub fn serialize<S>(value: &Option<Option<String>>, serializer: S) -> Result<S::Ok, S::Error>
     where

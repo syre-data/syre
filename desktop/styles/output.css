@@ -1,4 +1,4 @@
-/*! tailwindcss v4.1.4 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.1.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
 @layer theme {
@@ -899,6 +899,9 @@
   .bg-secondary-100 {
     background-color: var(--color-secondary-100);
   }
+  .bg-secondary-800 {
+    background-color: var(--color-secondary-800);
+  }
   .bg-syre-green-600 {
     background-color: var(--color-syre-green-600);
   }
@@ -1093,9 +1096,6 @@
   .text-secondary-500 {
     color: var(--color-secondary-500);
   }
-  .text-secondary-600 {
-    color: var(--color-secondary-600);
-  }
   .text-secondary-900 {
     color: var(--color-secondary-900);
   }
@@ -1157,7 +1157,7 @@
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
   .transition {
-    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter;
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, visibility, content-visibility, overlay, pointer-events;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
@@ -1220,6 +1220,13 @@
   .not-dark\:border-l-secondary-900 {
     &:not(*:where(.dark, .dark *)) {
       border-left-color: var(--color-secondary-900);
+    }
+  }
+  .group-hover\:visible {
+    &:is(:where(.group):hover *) {
+      @media (hover: hover) {
+        visibility: visible;
+      }
     }
   }
   .group-hover\/assets\:border-secondary-200 {

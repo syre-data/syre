@@ -160,9 +160,8 @@ struct LoadSettingsError {
     desktop: local::error::IoSerde,
     runner: local::error::IoSerde,
 }
-impl IntoRender for LoadSettingsError {
-    type Output = AnyView;
-    fn into_render(self) -> Self::Output {
+impl ui_lib::message::AsAnyView for LoadSettingsError {
+    fn as_any_view(&self) -> AnyView {
         view! {
             <ul>
                 <li>"Desktop: " {format!("{:?}", self.desktop)}</li>

@@ -20,7 +20,6 @@ pub struct NoBody;
 
 #[derive(derive_more::Deref, Clone)]
 pub struct Body<B>(B);
-
 pub struct Builder<B> {
     title: String,
     kind: MessageKind,
@@ -54,7 +53,7 @@ impl Builder<NoBody> {
 
     pub fn body<B>(self, body: B) -> Builder<Body<B>>
     where
-        B: IntoRender,
+        B: AsAnyView,
     {
         Builder {
             title: self.title,
@@ -81,7 +80,7 @@ impl Builder<Body<String>> {
 
 impl<B> Builder<Body<B>>
 where
-    B: IntoRender + Sync + Clone,
+    B: AsAnyView,
 {
     /// # Note
     /// For `String` bodies use `buid_str`.
@@ -116,7 +115,7 @@ impl Into<Message<Body<String>>> for Builder<Body<String>> {
 
 impl<B> Into<Message<Body<Arc<B>>>> for Builder<Body<B>>
 where
-    B: IntoRender + Clone,
+    B: AsAnyView,
 {
     fn into(self) -> Message<Body<Arc<B>>> {
         let id = (js_sys::Math::random() * (usize::MAX as f64)) as usize;
@@ -156,15 +155,13 @@ impl<B> Message<B> {
     }
 }
 
-trait MessageBody = IntoRender<Output = AnyView>;
-
 #[derive(derive_more::From, Clone)]
 pub enum MessageContainer {
     NoBody(Message<NoBody>),
     String(Message<Body<String>>),
 
     #[from(skip)]
-    AnyView(Message<Body<Arc<dyn MessageBody>>>),
+    AnyView(Message<Body<Arc<dyn AsAnyView>>>),
 }
 
 impl MessageContainer {
@@ -179,7 +176,7 @@ impl MessageContainer {
 
 impl<B> From<Message<Body<Arc<B>>>> for MessageContainer
 where
-    B: MessageBody + 'static,
+    B: AsAnyView + 'static,
 {
     fn from(message: Message<Body<Arc<B>>>) -> MessageContainer {
         let Message {
@@ -193,7 +190,7 @@ where
             id,
             kind,
             title,
-            body: Body(body as Arc<dyn MessageBody>),
+            body: Body(body as Arc<dyn AsAnyView>),
         })
     }
 }
@@ -208,5 +205,18 @@ impl Messages {
 
     pub fn push_message(&self, message: impl Into<MessageContainer>) {
         self.0.write().push(message.into());
+    }
+}
+
+pub trait AsAnyView {
+    fn as_any_view(&self) -> AnyView;
+}
+
+impl<T> AsAnyView for T
+where
+    T: IntoAny + Clone,
+{
+    fn as_any_view(&self) -> AnyView {
+        self.clone().into_any()
     }
 }

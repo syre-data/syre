@@ -787,23 +787,21 @@ mod analyze {
                 lib::event::analysis::Update::Done(status) => {
                     analysis_state.set(AnalysisState::Idle);
 
-                    if status.iter().any(|status| {
-                        status
-                            .output()
-                            .map(|output| !output.status.success())
-                            .unwrap_or(false)
-                    }) {
+                    let errors = status
+                        .iter()
+                        .filter(|status| {
+                            status
+                                .output()
+                                .map(|output| !output.status.success())
+                                .unwrap_or(false)
+                        })
+                        .collect::<Vec<_>>();
+                    if errors.is_empty() {
                         let msg = ui_lib::message::Builder::success("Analysis complete.");
                         messages.push_message(msg.build());
                     } else {
-                        let errors = status
+                        let errors = errors
                             .into_iter()
-                            .filter(|status| {
-                                status
-                                    .output()
-                                    .map(|output| !output.status.success())
-                                    .unwrap_or(false)
-                            })
                             .map(|err| {
                                 let analysis = analyses
                                     .read_untracked()
@@ -853,6 +851,7 @@ mod analyze {
                             })
                             .collect();
 
+                        tracing::error!(?errors);
                         let msg =
                             ui_lib::message::Builder::error("Errors occurred during analysis.");
                         let msg = msg.body(UpdateErrors { errors });
@@ -872,7 +871,7 @@ mod analyze {
         tauri_sys::core::invoke::<()>("kill_analysis", ()).await
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct ErrorInfo {
         analysis: String,
         container: String,
@@ -883,24 +882,23 @@ mod analyze {
     struct UpdateErrors {
         errors: Vec<ErrorInfo>,
     }
-    impl IntoRender for UpdateErrors {
-        type Output = AnyView;
-        fn into_render(self) -> Self::Output {
+    impl ui_lib::message::AsAnyView for UpdateErrors {
+        fn as_any_view(&self) -> AnyView {
             view! {
                 <ol class="list-decimal">
                     {self
                         .errors
-                        .into_iter()
+                        .iter()
                         .map(|err| {
                             view! {
                                 <li class="pb-4">
                                     <div>
-                                        <strong>{err.analysis}</strong>
+                                        <strong>{err.analysis.clone()}</strong>
                                         " running on "
-                                        <strong>{err.container}</strong>
+                                        <strong>{err.container.clone()}</strong>
                                     </div>
                                     ": "
-                                    <div>{err.message}</div>
+                                    <div>{err.message.clone()}</div>
                                 </li>
                             }
                         })

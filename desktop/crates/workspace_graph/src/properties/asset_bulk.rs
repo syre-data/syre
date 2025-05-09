@@ -1061,9 +1061,8 @@ fn container_assets(
 struct UpdateErrors {
     errors: Vec<lib::command::asset::bulk::error::Update>,
 }
-impl IntoRender for UpdateErrors {
-    type Output = AnyView;
-    fn into_render(self) -> Self::Output {
-        super::errors_to_list_view(self.errors)
+impl ui_lib::message::AsAnyView for UpdateErrors {
+    fn as_any_view(&self) -> AnyView {
+        super::errors_to_list_view(self.errors.clone())
     }
 }

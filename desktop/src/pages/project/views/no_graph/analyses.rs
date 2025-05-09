@@ -574,13 +574,13 @@ async fn analysis_toggle_all_associations(
 struct UpdateErrors {
     errors: Vec<(PathBuf, local::error::IoSerde)>,
 }
-impl IntoRender for UpdateErrors {
-    type Output = AnyView;
-    fn into_render(self) -> Self::Output {
+impl ui_lib::message::AsAnyView for UpdateErrors {
+    fn as_any_view(&self) -> AnyView {
         view! {
             <ul>
-                {self.errors
-                    .into_iter()
+                {self
+                    .errors
+                    .iter()
                     .map(|(path, err)| view! { <li>{format!("{path:?}: {err:?}")}</li> })
                     .collect::<Vec<_>>()}
             </ul>

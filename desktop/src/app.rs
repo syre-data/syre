@@ -95,6 +95,7 @@ fn NotFound() -> impl IntoView {
 mod message {
     use leptos::{either::either, ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
+    use std::sync::Arc;
     use syre_desktop_ui_components::ToggleExpand;
     use syre_desktop_ui_lib as ui_lib;
 
@@ -125,7 +126,7 @@ mod message {
         either!( message,
             MessageContainer::NoBody(message) => view! { <MessageNoBody message /> },
             MessageContainer::String(message) => view! { <MessageStringBody message /> },
-            MessageContainer::AnyView(message) => view! { <MessageWithBody message /> },
+            MessageContainer::AnyView(message) => view! { <MessageAnyBody message /> },
         )
     }
 
@@ -169,7 +170,7 @@ mod message {
             <div class=class_main>
                 <div class="grow">
                     <div class="relative flex gap-2">
-                        <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
+                        <div class="text-lg grow px-2">{message.title().clone()}</div>
                     </div>
                 </div>
                 <div class=class_btn>
@@ -222,8 +223,7 @@ mod message {
             <div class=class_main>
                 <div class="grow">
                     <div class="relative flex gap-2">
-                        <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
-
+                        <div class="text-lg grow px-2">{message.title().clone()}</div>
                         <div>
                             <ToggleExpand expanded=show_body />
                         </div>
@@ -246,8 +246,8 @@ mod message {
     }
 
     #[component]
-    fn MessageWithBody<B: IntoRender<Output = AnyView>>(
-        message: ui_lib::message::Message<ui_lib::message::Body<std::sync::Arc<B>>>,
+    fn MessageAnyBody<B: ui_lib::message::AsAnyView + ?Sized>(
+        message: ui_lib::message::Message<ui_lib::message::Body<Arc<B>>>,
     ) -> impl IntoView + 'static {
         let messages = expect_context::<ui_lib::message::Messages>();
         let show_body = RwSignal::new(false);
@@ -286,8 +286,7 @@ mod message {
             <div class=class_main>
                 <div class="grow">
                     <div class="relative flex gap-2">
-                        <div class="text-lg grow px-2 break-all">{message.title().clone()}</div>
-
+                        <div class="text-lg grow px-2">{message.title().clone()}</div>
                         <div>
                             <ToggleExpand expanded=show_body />
                         </div>
@@ -297,7 +296,7 @@ mod message {
                         class:hidden=move || !show_body()
                         class="pt-2 px-2 max-h-48 overflow-auto select-text scrollbar-thin break-all"
                     >
-                        {(**message.body()).into_render()}
+                        {message.body().as_any_view()}
                     </div>
                 </div>
                 <div class=class_btn>

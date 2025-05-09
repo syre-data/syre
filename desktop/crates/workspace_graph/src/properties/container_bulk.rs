@@ -717,10 +717,8 @@ mod name {
     struct NameCollisionErrors {
         paths: Vec<PathBuf>,
     }
-
-    impl IntoRender for NameCollisionErrors {
-        type Output = AnyView;
-        fn into_render(self) -> Self::Output {
+    impl ui_lib::message::AsAnyView for NameCollisionErrors {
+        fn as_any_view(&self) -> AnyView {
             view! {
                 <div>
                     <p>
@@ -747,17 +745,15 @@ mod name {
     struct RenameIoErrors {
         errors: Vec<(PathBuf, lib::command::error::IoErrorKind)>,
     }
-
-    impl IntoRender for RenameIoErrors {
-        type Output = AnyView;
-        fn into_render(self) -> Self::Output {
+    impl ui_lib::message::AsAnyView for RenameIoErrors {
+        fn as_any_view(&self) -> AnyView {
             view! {
                 <div>
                     <p>
                         <ul>
                             {self
                                 .errors
-                                .into_iter()
+                                .iter()
                                 .map(|(path, err)| {
                                     view! {
                                         <li>
@@ -1807,10 +1803,8 @@ mod analysis_associations {
     struct UpdateAnalysisAssociationErrors {
         errors: Vec<local::error::IoSerde>,
     }
-
-    impl IntoRender for UpdateAnalysisAssociationErrors {
-        type Output = AnyView;
-        fn into_render(self) -> Self::Output {
+    impl ui_lib::message::AsAnyView for UpdateAnalysisAssociationErrors {
+        fn as_any_view(&self) -> AnyView {
             super::super::errors_to_list_view(self.errors.clone())
         }
     }
@@ -1850,9 +1844,8 @@ async fn update_properties(
 struct UpdateErrors {
     errors: Vec<lib::command::container::bulk::error::Update>,
 }
-impl IntoRender for UpdateErrors {
-    type Output = AnyView;
-    fn into_render(self) -> Self::Output {
-        super::errors_to_list_view(self.errors)
+impl ui_lib::message::AsAnyView for UpdateErrors {
+    fn as_any_view(&self) -> AnyView {
+        super::errors_to_list_view(self.errors.clone())
     }
 }

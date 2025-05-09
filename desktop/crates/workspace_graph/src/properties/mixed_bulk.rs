@@ -921,9 +921,8 @@ struct UpdatePropertiesErrors {
     asset_errors: Vec<lib::command::asset::bulk::error::Update>,
 }
 
-impl IntoRender for UpdatePropertiesErrors {
-    type Output = AnyView;
-    fn into_render(self) -> Self::Output {
+impl ui_lib::message::AsAnyView for UpdatePropertiesErrors {
+    fn as_any_view(&self) -> AnyView{
         view! {
             <div>
                 {if !self.container_errors.is_empty() {

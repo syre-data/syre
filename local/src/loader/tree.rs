@@ -1,4 +1,4 @@
-use crate::{common, project::project, project::Container};
+use crate::{common, project::Container, project::project};
 use rayon::prelude::*;
 use std::{io, path::Path, sync::Arc};
 use syre_core::graph::{ResourceNode, ResourceTree};
@@ -28,6 +28,15 @@ impl Loader {
                 ignore.build().map_err(|err| (ignore_path, err))
             })
             .transpose()
+            .or_else(|err| {
+                if let Some(err) = err.1.io_error() {
+                    if matches!(err.kind(), io::ErrorKind::NotFound) {
+                        return Ok(None);
+                    }
+                }
+
+                Err(err)
+            })
             .map_err(|(path, err)| error::Error::Ignore { path, err })?;
 
         let state = rayon::ThreadPoolBuilder::new()
@@ -130,10 +139,10 @@ mod state {
     use crate::{
         error::IoSerde,
         project::{
+            Container as LocalContainer,
             container::{
                 Settings as ContainerSettings, StoredProperties as StoredContainerProperties,
             },
-            Container as LocalContainer,
         },
     };
     use std::{
@@ -173,7 +182,7 @@ mod state {
                     return Err(Self {
                         path,
                         data: Err(err.kind()),
-                    })
+                    });
                 }
             };
             if !path.is_dir() {

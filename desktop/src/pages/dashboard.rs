@@ -621,18 +621,15 @@ async fn handle_context_menu_project_ok_events(
     }
 }
 
-async fn duplicate_project(project: PathBuf) -> Result<(), error::Duplicate> {
+async fn duplicate_project(
+    project: PathBuf,
+) -> Result<(), lib::command::project::error::Duplicate> {
     #[derive(Serialize)]
     struct Args {
         project: PathBuf,
     }
 
-    tauri_sys::core::invoke_result::<(), local::project::project::duplicate::Error>(
-        "duplicate_project",
-        Args { project },
-    )
-    .await
-    .map_err(|err| error::Duplicate::Duplicate(err))
+    tauri_sys::core::invoke_result("duplicate_project", Args { project }).await
 }
 
 async fn remove_project(project: PathBuf) -> Result<(), local::error::IoSerde> {
@@ -642,15 +639,4 @@ async fn remove_project(project: PathBuf) -> Result<(), local::error::IoSerde> {
     }
 
     tauri_sys::core::invoke_result("deregister_project", Args { project }).await
-}
-
-mod error {
-    use std::io;
-    use syre_local::project::project::duplicate;
-
-    #[derive(Debug)]
-    pub enum Duplicate {
-        Filename(io::ErrorKind),
-        Duplicate(duplicate::Error),
-    }
 }

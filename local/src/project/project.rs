@@ -322,11 +322,10 @@ pub struct LoadError {
 /// Functionality and resources related to projects.
 #[cfg(feature = "fs")]
 pub mod functions {
-    use super::{super::Analyses, error, Project};
+    use super::{super::Analyses, Project, error};
     use crate::{
-        common,
+        Result, common,
         system::{collections::ProjectManifest, project_manifest},
-        Result,
     };
     use std::{
         fs, io,
@@ -556,7 +555,7 @@ pub mod functions {
 #[cfg(feature = "fs")]
 pub mod converter {
     use super::{
-        super::{container, Analyses},
+        super::{Analyses, container},
         Project,
     };
     use crate::{common, loader::container::Loader as ContainerLoader, system::config};
@@ -815,7 +814,7 @@ pub mod converter {
 #[cfg(feature = "fs")]
 pub mod duplicate {
     use super::{
-        super::{container, Analyses, Container},
+        super::{Analyses, Container, container},
         Project,
     };
     use crate::{common, loader, types};
@@ -863,10 +862,12 @@ pub mod duplicate {
             return Err(Error::DestinationAlreadyExists);
         }
         let mut tmp = dst.clone();
-        tmp.set_file_name(format!(
-            ".{}.tmp",
-            tmp.file_name().unwrap().to_string_lossy()
-        ));
+        let tmp_file_name = format!(
+            ".{}.{}.tmp",
+            tmp.file_name().unwrap().to_string_lossy(),
+            chrono::Utc::now().format("%Y%m%d%H%M%S%3f")
+        );
+        tmp.set_file_name(tmp_file_name);
         fs::create_dir_all(&tmp).map_err(|err| Error::CreateDestinationFolder(err.kind()))?;
 
         #[cfg(target_os = "windows")]
@@ -934,7 +935,10 @@ pub mod duplicate {
         let graph_src =
             loader::tree::Loader::load(project_src.data_root_path()).map_err(|err| match err {
                 loader::tree::error::Error::Root(_) => panic!("can not access graph root"),
-                loader::tree::error::Error::Ignore { .. } => todo!("invalid ignore file"),
+                loader::tree::error::Error::Ignore { path, err } => {
+                    tracing::error!(?path, ?err);
+                    todo!("invalid ignore file")
+                }
                 loader::tree::error::Error::State(tree) => {
                     let (nodes, _, _) = tree.to_parts();
                     let errors = nodes

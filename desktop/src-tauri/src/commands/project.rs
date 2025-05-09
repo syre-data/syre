@@ -198,12 +198,18 @@ pub async fn duplicate_project(
     }
     drop(user);
 
-    let runner_settings = settings::project::Runner::load(&src).map_err(|error| {
-        error::Duplicate::DuplicateDesktop {
+    let runner_settings = settings::project::Runner::load(&src)
+        .or_else(|err| {
+            if matches!(err, local::error::IoSerde::Io(io::ErrorKind::NotFound)) {
+                Ok(local::project::config::RunnerSettings::default())
+            } else {
+                Err(err)
+            }
+        })
+        .map_err(|error| error::Duplicate::DuplicateDesktop {
             path: local::common::project_runner_settings_file_of(&src),
             error,
-        }
-    })?;
+        })?;
     runner_settings
         .save(&dst)
         .map_err(|err| error::Duplicate::DuplicateDesktop {

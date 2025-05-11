@@ -58,9 +58,41 @@ impl SearchResult {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AssetSearchResult {
+    assets: Vec<ResourceId>,
+    scores: Vec<f64>,
+}
+
+impl AssetSearchResult {
+    pub fn new(assets: Vec<ResourceId>, scores: Vec<f64>) -> Self {
+        Self { assets, scores }
+    }
+
+    /// Create a new empty result.
+    pub fn empty() -> Self {
+        Self {
+            assets: vec![],
+            scores: vec![],
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.assets.is_empty()
+    }
+
+    pub fn assets(&self) -> &Vec<ResourceId> {
+        &self.assets
+    }
+
+    pub fn scores(&self) -> &Vec<f64> {
+        &self.scores
+    }
+}
+
 #[cfg(any(feature = "server", feature = "client"))]
 mod inner {
-    use super::SearchResult;
+    use super::{AssetSearchResult, SearchResult};
     use std::path::PathBuf;
     use tokio::sync::oneshot::Sender as Tx;
 
@@ -84,6 +116,14 @@ mod inner {
         SearchProject {
             /// Response channel.
             tx: Tx<surrealdb::Result<SearchResult>>,
+            project: PathBuf,
+            query: String,
+        },
+
+        /// Search for project assets within the database.
+        SearchProjectAssets {
+            /// Response channel.
+            tx: Tx<surrealdb::Result<AssetSearchResult>>,
             project: PathBuf,
             query: String,
         },

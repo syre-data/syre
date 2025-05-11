@@ -273,27 +273,45 @@ pub mod data {
 
 pub mod display {
     use leptos::{html, prelude::*};
+    use syre_core::types::ResourceId;
 
     #[derive(Clone)]
     pub struct State {
         data_source: ReadSignal<Vec<super::data::Datum>>,
+        data_sorted: RwSignal<Vec<super::data::Datum>>,
         data: RwSignal<Vec<super::data::Datum>>,
         columns: Columns,
+        filter_bar: RwSignal<bool>,
         sort: RwSignal<Sort>,
+        filter: RwSignal<Option<Vec<ResourceId>>>,
     }
 
     impl State {
         pub fn new(data: ReadSignal<Vec<super::data::Datum>>) -> Self {
             let data_source = data;
+            let data_sorted = RwSignal::new(data_source.get_untracked());
             let data = RwSignal::new(data_source.get_untracked());
             let sort = RwSignal::new(Sort::default());
+            let filter = RwSignal::new(None);
 
             Effect::watch(
                 sort.read_only(),
                 {
+                    let data_sorted = data_sorted.write_only();
                     let data = data.write_only();
                     move |sort, prev, _| {
-                        Self::sort_effect(sort, prev, data);
+                        Self::sort_effect(sort, prev, data_sorted, data);
+                    }
+                },
+                false,
+            );
+
+            Effect::watch(
+                move || (filter.get(), data_sorted.get()),
+                {
+                    let data = data.write_only();
+                    move |(filter, data_sorted), prev, _| {
+                        Self::filter_effect(filter, data_sorted, data);
                     }
                 },
                 false,
@@ -301,9 +319,12 @@ pub mod display {
 
             Self {
                 data_source,
+                data_sorted,
                 data,
                 columns: Columns::new(),
+                filter_bar: RwSignal::new(false),
                 sort,
+                filter,
             }
         }
     }
@@ -312,72 +333,105 @@ pub mod display {
         fn sort_effect(
             sort: &Sort,
             prev: Option<&Sort>,
+            data_sorted: WriteSignal<Vec<super::data::Datum>>,
             data: WriteSignal<Vec<super::data::Datum>>,
         ) {
-            tracing::debug!("0");
-            let rev_only = prev
-                .map(|prev| sort.field() == prev.field())
-                .unwrap_or(false);
+            enum Action {
+                None,
+                Reverse,
+                Sort,
+            }
 
-            if rev_only {
-                tracing::debug!("1");
-                data.write().reverse();
-                tracing::debug!("2");
-            } else {
-                tracing::debug!("3");
+            let action = prev
+                .map(|prev| {
+                    if sort.field() == prev.field() {
+                        if sort.direction() == prev.direction() {
+                            Action::None
+                        } else {
+                            Action::Reverse
+                        }
+                    } else {
+                        Action::Sort
+                    }
+                })
+                .unwrap_or(Action::Sort);
 
-                match sort.field() {
-                    SortField::Path => data.write().sort_by_key(|datum| {
-                        datum
-                            .path()
-                            .get_untracked()
-                            .to_string_lossy()
-                            .to_lowercase()
-                    }),
-                    SortField::File => data.write().sort_by_key(|datum| {
-                        datum
-                            .asset()
-                            .path()
-                            .get_untracked()
-                            .to_string_lossy()
-                            .to_lowercase()
-                    }),
-                    SortField::Name => {
-                        data.write().sort_by_key(|datum| {
+            match action {
+                Action::None => {}
+                Action::Reverse => {
+                    data_sorted.write().reverse();
+                    data.write().reverse();
+                }
+                Action::Sort => {
+                    match sort.field() {
+                        SortField::Path => data_sorted.write().sort_by_key(|datum| {
+                            datum
+                                .path()
+                                .get_untracked()
+                                .to_string_lossy()
+                                .to_lowercase()
+                        }),
+                        SortField::File => data_sorted.write().sort_by_key(|datum| {
                             datum
                                 .asset()
-                                .name()
+                                .path()
                                 .get_untracked()
-                                .map(|value| value.to_lowercase())
-                        });
-                    }
-                    SortField::Kind => {
-                        data.write().sort_by_key(|datum| {
-                            datum
-                                .asset()
-                                .kind()
-                                .get_untracked()
-                                .map(|value| value.to_lowercase())
-                        });
-                    }
-                    SortField::Metadata(key) => {
-                        data.write().sort_by_key(|datum| {
+                                .to_string_lossy()
+                                .to_lowercase()
+                        }),
+                        SortField::Name => {
+                            data_sorted.write().sort_by_key(|datum| {
+                                datum
+                                    .asset()
+                                    .name()
+                                    .get_untracked()
+                                    .map(|value| value.to_lowercase())
+                            });
+                        }
+                        SortField::Kind => {
+                            data_sorted.write().sort_by_key(|datum| {
+                                datum
+                                    .asset()
+                                    .kind()
+                                    .get_untracked()
+                                    .map(|value| value.to_lowercase())
+                            });
+                        }
+                        SortField::Metadata(key) => data_sorted.write().sort_by_key(|datum| {
                             datum.metadata().read_untracked().iter().find_map(
                                 |(md_key, md_value)| {
                                     (md_key == key).then_some(md_value.get_untracked().to_string())
                                 },
                             )
-                        })
+                        }),
+                    }
+
+                    if matches!(sort.direction(), SortDirection::Des) {
+                        data_sorted.write().reverse();
                     }
                 }
-                tracing::debug!("4");
+            }
+        }
 
-                if matches!(sort.direction(), SortDirection::Des) {
-                    tracing::debug!("5");
+        fn filter_effect(
+            filter: &Option<Vec<ResourceId>>,
+            data_source: &Vec<super::data::Datum>,
+            data: WriteSignal<Vec<super::data::Datum>>,
+        ) {
+            if let Some(filter) = filter {
+                let filtered = data_source
+                    .iter()
+                    .filter(|datum| {
+                        datum
+                            .asset()
+                            .rid()
+                            .with_untracked(|rid| filter.contains(rid))
+                    })
+                    .collect::<Vec<_>>();
 
-                    data.write().reverse();
-                }
-                tracing::debug!("6");
+                data.set(filtered.into_iter().cloned().collect::<Vec<_>>());
+            } else {
+                data.set(data_source.clone())
             }
         }
     }
@@ -391,8 +445,16 @@ pub mod display {
             &self.columns
         }
 
+        pub fn filter_bar(&self) -> RwSignal<bool> {
+            self.filter_bar
+        }
+
         pub fn sort(&self) -> RwSignal<Sort> {
             self.sort
+        }
+
+        pub fn filter(&self) -> RwSignal<Option<Vec<ResourceId>>> {
+            self.filter
         }
     }
 
@@ -529,16 +591,16 @@ pub mod display {
         }
 
         /// Set all visibilities to `true`.
-        pub fn all_visible(&self) {
-            self.path.visible().set(true);
-            self.file.visible().set(true);
-            self.name.visible().set(true);
-            self.kind.visible().set(true);
-            self.description.visible().set(true);
-            self.tags.visible().set(true);
+        pub fn set_visibility_for_all(&self, visible: bool) {
+            self.path.visible().set(visible);
+            self.file.visible().set(visible);
+            self.name.visible().set(visible);
+            self.kind.visible().set(visible);
+            self.description.visible().set(visible);
+            self.tags.visible().set(visible);
 
             for (_, col) in self.metadata.read().iter() {
-                col.visible().set(true);
+                col.visible().set(visible);
             }
         }
     }

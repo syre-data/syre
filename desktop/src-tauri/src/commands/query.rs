@@ -1,7 +1,7 @@
 use syre_desktop_resource_db as db;
 use tauri::Manager;
 
-// TODO: Should not reutrn `Result`, but currenlty gives error otherwise.
+// TODO: Should not return `Result`, but currently gives error otherwise.
 // See [https://github.com/tauri-apps/tauri/issues/2533].
 #[tauri::command]
 pub async fn search_project(
@@ -13,6 +13,26 @@ pub async fn search_project(
         move || {
             let db = app.state::<db::Client>();
             db.search_project(query, project).unwrap()
+        }
+    });
+
+    let result = task.await.unwrap();
+    Ok(result)
+}
+
+
+// TODO: Should not return `Result`, but currently gives error otherwise.
+// See [https://github.com/tauri-apps/tauri/issues/2533].
+#[tauri::command]
+pub async fn search_project_assets(
+    app: tauri::AppHandle,
+    query: String,
+    project: std::path::PathBuf,
+) -> Result<db::AssetSearchResult, ()> {
+    let task = tauri::async_runtime::spawn_blocking({
+        move || {
+            let db = app.state::<db::Client>();
+            db.search_project_assets(query, project).unwrap()
         }
     });
 

@@ -73,6 +73,7 @@ fn main() {
             user::user_count,
             user::user_projects,
             query::search_project,
+            query::search_project_assets,
         ])
         .setup(setup)
         .run(tauri::generate_context!())

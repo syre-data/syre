@@ -82,6 +82,7 @@ impl Database {
                         Command::Query { query, tx } => self.store.handle_query(tx, query).await,
                         Command::Search { tx,  query } => self.store.handle_search(tx, query, None).await,
                         Command::SearchProject { tx, project, query } => self.store.handle_search(tx, query, Some(project)).await,
+                        Command::SearchProjectAssets { tx, project, query } => self.store.handle_search_assets(tx, query, Some(project)).await,
                     }
                 },
             }

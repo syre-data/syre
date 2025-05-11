@@ -8,7 +8,7 @@ pub use {
     icondata::AiUserOutlined as User, icondata::FaFlagRegular as Flag,
     icondata::FaPenSolid as Edit, icondata::IoSettingsSharp as Settings, icondata::TbEye as Eye,
     icondata::TbEyeClosed as EyeClosed, icondata::VsChevronDown as ChevronDown,
-    icondata::VsChevronRight as ChevronRight,
+    icondata::VsChevronRight as ChevronRight, icondata::FaFilterSolid as Filter,
 };
 
 type Color = &'static str;

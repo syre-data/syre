@@ -1,12 +1,14 @@
 use crate::{types, utils};
-use leptos::{ev::MouseEvent, prelude::*};
+use leptos::{
+    ev::{MouseEvent, SubmitEvent},
+    prelude::*,
+};
 use reactive_stores::Store;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_desktop_resource_db as db;
-use syre_desktop_ui_lib as ui_lib;
-use syre_desktop_ui_lib::state;
+use syre_desktop_ui_lib::{self as ui_lib, state};
 
 /// Stores search history.
 ///
@@ -115,7 +117,7 @@ pub fn Search() -> impl IntoView {
 
     view! {
         <div>
-            <form>
+            <form on:sumbit=move |e: SubmitEvent| e.prevent_default()>
                 <div class="px-1">
                     <input
                         bind:value=(input, set_input)

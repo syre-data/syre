@@ -1,8 +1,8 @@
-use crate::command::SearchResult;
+use crate::command::{AssetSearchResult, SearchResult};
 use std::{path::PathBuf, str::FromStr};
 use surrealdb::{
-    engine::local::{Db, Mem},
     Surreal,
+    engine::local::{Db, Mem},
 };
 use syre_core::types::ResourceId;
 use tokio::sync::oneshot;
@@ -398,6 +398,107 @@ impl Store {
         Self::send_response(tx, Ok(results));
     }
 
+    pub async fn handle_search_assets(
+        &self,
+        tx: Tx<AssetSearchResult>,
+        query: String,
+        project: Option<PathBuf>,
+    ) {
+        #[derive(serde::Deserialize, Debug)]
+        struct Record {
+            id: surrealdb::RecordId,
+            score: f64,
+        }
+
+        let query = escape_string(query);
+        let (project_id, project_where) = if let Some(project) = project {
+            let project_id = match self.project_record_id_from_path(project).await {
+                Ok(project_id) => project_id,
+                Err(err) => {
+                    tracing::error!(?err);
+                    Self::send_response(tx, Err(err));
+                    return;
+                }
+            };
+
+            if project_id.is_none() {
+                Self::send_response(tx, Ok(AssetSearchResult::empty()));
+                return;
+            }
+
+            (project_id, "_project=type::thing($project) AND")
+        } else {
+            (None, "")
+        };
+
+        let query = format!(
+            "SELECT
+                id,
+                math::product([
+                    search::score(0) * 3 
+                    + search::score(1) * 3 
+                    + search::score(2) * 1 
+                    + search::score(3) * 2 
+                    + search::score(4) * 2
+                    + search::score(5) * 3,
+                    0.071429 // normalization
+                ]) AS score
+            FROM asset
+            WHERE 
+            {project_where}
+            (
+                name @0@ '{query}'
+                OR kind @1@ '{query}'
+                OR description @2@ '{query}'
+                OR tags @3@ '{query}'
+                OR metadata_search @4@ '{query}'
+                OR path @5@ '{query}'
+            )
+            ORDER BY score DESC"
+        );
+
+        let results = if let Some(project_id) = &project_id {
+            self.db
+                .query(query)
+                .bind(("project", project_id.clone()))
+                .await
+        } else {
+            self.db.query(query).await
+        };
+
+        let mut results = match results {
+            Ok(results) => results,
+            Err(err) => {
+                tracing::error!(?err);
+                Self::send_response(tx, Err(err));
+                return;
+            }
+        };
+
+        let mut results = match results.take::<Vec<Record>>(0) {
+            Ok(results) => results,
+            Err(err) => {
+                tracing::error!(?err);
+                Self::send_response(tx, Err(err));
+                return;
+            }
+        };
+
+        results.sort_by(|ra, rb| rb.score.partial_cmp(&ra.score).unwrap());
+
+        let (assets, scores): (Vec<_>, Vec<_>) = results
+            .into_iter()
+            .map(|record| {
+                let rid = record_id_key_to_resource_id(record.id.key()).unwrap();
+                (rid, record.score)
+            })
+            .unzip();
+
+        let results = AssetSearchResult::new(assets, scores);
+
+        Self::send_response(tx, Ok(results));
+    }
+
     fn send_response<T>(tx: Tx<T>, value: surrealdb::Result<T>) {
         match tx.send(value) {
             Ok(_) => {}
@@ -407,7 +508,7 @@ impl Store {
 }
 
 pub mod project {
-    use super::{cast, IdRecord, Store};
+    use super::{IdRecord, Store, cast};
     use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::path::PathBuf;
@@ -690,7 +791,7 @@ pub mod project {
 }
 
 pub mod container {
-    use super::{cast, IdRecord, Store};
+    use super::{IdRecord, Store, cast};
     use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ffi::OsString, path::PathBuf};
@@ -986,7 +1087,7 @@ pub mod container {
 }
 
 pub mod asset {
-    use super::{cast, IdRecord, Store};
+    use super::{IdRecord, Store, cast};
     use chrono::{DateTime, Utc};
     use serde::Serialize;
     use std::{collections::HashMap, path::PathBuf};

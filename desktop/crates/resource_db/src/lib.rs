@@ -15,4 +15,4 @@ pub use server::Builder;
 #[cfg(feature = "client")]
 pub use client::Client;
 
-pub use command::SearchResult;
+pub use command::{SearchResult, AssetSearchResult};

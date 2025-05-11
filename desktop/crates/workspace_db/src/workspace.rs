@@ -4,6 +4,7 @@ use leptos::{
     ev::{MouseEvent, SubmitEvent},
     html,
     prelude::*,
+    svg::filter,
     task::spawn_local,
 };
 use leptos_icons::Icon;
@@ -32,10 +33,27 @@ pub fn Workspace() -> impl IntoView {
             <div class="border-b not-dark:border-b-secondary-900">
                 <ProjectBar />
             </div>
+            <FilterBar />
             <div class="grow min-h-0">
                 <DataView />
             </div>
         </div>
+    }
+}
+
+#[component]
+pub fn FilterBar() -> impl IntoView {
+    use crate::filter::DataFilter;
+
+    let display_state = expect_context::<state::display::State>();
+    let filter_bar = display_state.filter_bar().read_only();
+    move || {
+        filter_bar.read().then_some(view! {
+            <div class="px-2 py-1 border-b not-dark:border-b-secondary-900 focus-within:inset-shadow-sm \
+            inset-shadow-primary-200/50 dark:inset-shadow-primary-800/50">
+                <DataFilter />
+            </div>
+        })
     }
 }
 
@@ -194,6 +212,10 @@ fn DataView() -> impl IntoView {
                         </For>
                     </tbody>
                 </table>
+                {
+                    let data = display_state.data();
+                    move || { data.read().is_empty().then_some(view! { <EmptyFilter /> }) }
+                }
             </div>
         </Show>
     }
@@ -202,6 +224,11 @@ fn DataView() -> impl IntoView {
 #[component]
 fn NoData() -> impl IntoView {
     view! { <div class="pt-2 text-center">"(no data)"</div> }
+}
+
+#[component]
+fn EmptyFilter() -> impl IntoView {
+    view! { <div class="pt-2 text-center">"(empty filter)"</div> }
 }
 
 #[component]

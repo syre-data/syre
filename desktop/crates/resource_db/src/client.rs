@@ -1,4 +1,4 @@
-use crate::{Command, SearchResult};
+use crate::{AssetSearchResult, Command, SearchResult};
 use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
@@ -40,6 +40,22 @@ impl Client {
     ) -> surrealdb::Result<SearchResult> {
         let (tx, rx) = oneshot::channel();
         let cmd = Command::SearchProject {
+            tx,
+            query: query.into(),
+            project,
+        };
+
+        self.query_tx.send(cmd).unwrap();
+        rx.blocking_recv().unwrap()
+    }
+
+    pub fn search_project_assets(
+        &self,
+        query: impl Into<String>,
+        project: PathBuf,
+    ) -> surrealdb::Result<AssetSearchResult> {
+        let (tx, rx) = oneshot::channel();
+        let cmd = Command::SearchProjectAssets {
             tx,
             query: query.into(),
             project,

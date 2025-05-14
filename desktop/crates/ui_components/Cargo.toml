@@ -22,6 +22,7 @@ wasm-bindgen.workspace = true
 [dependencies.web-sys]
 workspace = true
 features = [
+	"DomRect",
 	"Element",
 	"Event",
 	"EventTarget",

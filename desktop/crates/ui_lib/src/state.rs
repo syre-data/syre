@@ -2036,7 +2036,7 @@ mod metadata {
         pub fn as_properties(&self) -> syre_core::project::Metadata {
             self.0
                 .iter()
-                .map(|(key, value)| (key.clone(), value()))
+                .map(|(key, value)| (key.clone(), value.get_untracked()))
                 .collect()
         }
     }

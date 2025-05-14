@@ -1,5 +1,5 @@
-use syre_desktop_ui_lib as ui_lib;
 use leptos::{ev::MouseEvent, html, prelude::*};
+use syre_desktop_ui_lib as ui_lib;
 use wasm_bindgen::{JsCast, prelude::Closure};
 
 /// Which side the drawer is docked on.
@@ -53,29 +53,17 @@ pub fn Drawer(
         let resize_cb = Closure::<dyn Fn(MouseEvent)>::new({
             move |e: MouseEvent| {
                 let root_node = root_node.get_untracked().unwrap();
-                dock.with(|dock| match dock {
-                    Dock::East => {
-                        let root_bb = root_node.get_bounding_client_rect();
-                        let root_base = root_bb.x();
-                        let width = e.x() - root_base as i32;
-                        // root_node.style("width", &format!("{width}px"));
-                        (*root_node)
-                            .style()
-                            .set_property("width", &format!("{width}px"))
-                            .unwrap();
-                    }
-
-                    Dock::West => {
-                        let root_bb = root_node.get_bounding_client_rect();
-                        let root_base = root_bb.x() + root_bb.width();
-                        let width = root_base as i32 - e.x();
-                        // root_node.style("width", &format!("{width}px"));
-                        (*root_node)
-                            .style()
-                            .set_property("width", &format!("{width}px"))
-                            .unwrap();
-                    }
+                let root_bb = root_node.get_bounding_client_rect();
+                let width = dock.with(|dock| match dock {
+                    Dock::East => e.x() - root_bb.x() as i32,
+                    Dock::West => (root_bb.x() + root_bb.width()) as i32 - e.x(),
                 });
+
+                // root_node.style("width", &format!("{width}px"));
+                (*root_node)
+                    .style()
+                    .set_property("width", &format!("{width}px"))
+                    .unwrap();
             }
         });
 

@@ -24,7 +24,7 @@ struct GraphRootName(ReadSignal<OsString>);
 pub fn Workspace() -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
     let state = state::data::State::from(graph);
-    let display_state = state::display::State::new(state.data());
+    let display_state = state::display::State::new(&state);
     provide_context(state);
     provide_context(display_state);
 
@@ -59,6 +59,11 @@ pub fn FilterBar() -> impl IntoView {
 
 #[component]
 fn DataView() -> impl IntoView {
+    const MAX_COL_LEN: usize = 25;
+    const REM_TO_PX: usize = 10; // NB: This must be manually changed if root font size changes.
+    // Can check with `getComputedStyle(document.documentElement).fontSize`.
+    // May not be accurate for character width, so may have to change from given value.
+
     let graph = expect_context::<ui_lib::state::Graph>();
     let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
@@ -70,13 +75,114 @@ fn DataView() -> impl IntoView {
     let col_node_description = display_state.columns().description().node_ref();
     let col_node_tags = display_state.columns().tags().node_ref();
 
-    state
-        .metadata_keys()
-        .read_untracked()
-        .iter()
-        .for_each(|key| {
-            assert!(display_state.columns().new_metadata(key.clone()));
-        });
+    // NOTE: Must manually set table column widths
+    // because `table-layout: auto` causes errors
+    // when finding the column widths if pinnable columns
+    // are pinned before adjusting their size.
+    // Using `table-layout: fixed` resolves this issue,
+    // but means initial column widths must be
+    // calculated manually.
+    let mut max_width_path = 4; // path
+    let mut max_width_file = 4; // file
+    let mut max_width_name = 4; // name
+    let mut max_width_kind = 4; // type
+    let mut max_width_desc = 11; // description
+    let mut max_width_tags = 4; // tags
+    let mut max_width_md = std::collections::HashMap::new();
+    for datum in state.data().read_untracked().iter() {
+        let path_width = datum
+            .path()
+            .read_untracked()
+            .to_string_lossy()
+            .chars()
+            .count();
+        let file_width = datum
+            .asset()
+            .path()
+            .read_untracked()
+            .to_string_lossy()
+            .chars()
+            .count();
+        let name_width = datum
+            .asset()
+            .name()
+            .read_untracked()
+            .as_ref()
+            .map(|value| value.chars().count())
+            .unwrap_or(0);
+        let kind_width = datum
+            .asset()
+            .kind()
+            .read_untracked()
+            .as_ref()
+            .map(|value| value.chars().count())
+            .unwrap_or(0);
+        let desc_width = datum
+            .asset()
+            .description()
+            .read_untracked()
+            .as_ref()
+            .map(|value| value.chars().count())
+            .unwrap_or(0);
+        let tags_width = datum
+            .asset()
+            .tags()
+            .read_untracked()
+            .iter()
+            .map(|tag| tag.chars().count())
+            .sum();
+        if path_width > max_width_path {
+            max_width_path = path_width;
+        }
+        if file_width > max_width_file {
+            max_width_file = file_width;
+        }
+        if path_width > max_width_path {
+            max_width_path = path_width;
+        }
+        if name_width > max_width_name {
+            max_width_name = name_width;
+        }
+        if kind_width > max_width_kind {
+            max_width_kind = kind_width;
+        }
+        if desc_width > max_width_desc {
+            max_width_desc = desc_width;
+        }
+        if tags_width > max_width_tags {
+            max_width_tags = tags_width;
+        }
+
+        for (key, value) in datum.metadata().read_untracked().iter() {
+            let width = value.with_untracked(|value| metadatum_value_len(value));
+            let entry = max_width_md
+                .entry(key.clone())
+                .or_insert(usize::max(key.chars().count(), 5) + 1); // key length or `(n/a)`, +1 for edit button
+            if width > *entry {
+                *entry = width;
+            }
+        }
+    }
+    let width_path = usize::min(max_width_path, MAX_COL_LEN) * REM_TO_PX;
+    let width_file = usize::min(max_width_file, MAX_COL_LEN) * REM_TO_PX;
+    let width_name = (usize::min(max_width_name + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
+    let width_kind = (usize::min(max_width_kind + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
+    let width_desc = (usize::min(max_width_desc + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
+    let width_tags = (usize::min(max_width_tags + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
+    let width_md = max_width_md
+        .into_iter()
+        .map(|(key, value)| (key, (usize::min(value + 1, MAX_COL_LEN)) * REM_TO_PX)) // +1 for edit button
+        .collect::<Vec<_>>();
+    let width_table = width_path
+        + width_file
+        + width_name
+        + width_kind
+        + width_desc
+        + width_tags
+        + width_md.iter().map(|(_, value)| value).sum::<usize>();
+
+    display_state.columns().path().width().set(width_path);
+    display_state.columns().file().width().set(width_file);
 
     view! {
         <Show
@@ -87,7 +193,11 @@ fn DataView() -> impl IntoView {
             fallback=NoData
         >
             <div class="overflow-auto scrollbar-thin w-full h-full">
-                <table node_ref=table_node class="relative min-w-full">
+                <table
+                    node_ref=table_node
+                    class="table-fixed relative min-w-full"
+                    style:width=format!("{width_table}px")
+                >
                     <colgroup>
                         <col
                             node_ref=display_state.columns().path().node_ref()
@@ -95,6 +205,7 @@ fn DataView() -> impl IntoView {
                                 let visible = display_state.columns().path().visible().read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_path}px")
                         />
                         <col
                             node_ref=display_state.columns().file().node_ref()
@@ -102,6 +213,7 @@ fn DataView() -> impl IntoView {
                                 let visible = display_state.columns().file().visible().read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_file}px")
                         />
                         <col
                             node_ref=col_node_name
@@ -109,6 +221,7 @@ fn DataView() -> impl IntoView {
                                 let visible = display_state.columns().name().visible().read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_name}px")
                         />
                         <col
                             node_ref=col_node_kind
@@ -116,6 +229,7 @@ fn DataView() -> impl IntoView {
                                 let visible = display_state.columns().kind().visible().read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_kind}px")
                         />
                         <col
                             node_ref=col_node_description
@@ -127,6 +241,7 @@ fn DataView() -> impl IntoView {
                                     .read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_desc}px")
                         />
                         <col
                             node_ref=col_node_tags
@@ -134,24 +249,22 @@ fn DataView() -> impl IntoView {
                                 let visible = display_state.columns().tags().visible().read_only();
                                 move || !visible()
                             }
+                            style:width=format!("{width_tags}px")
                         />
                         <For
-                            each=state.metadata_keys()
-                            key=|key| key.clone()
-                            let:key
+                            each=display_state.columns().metadata()
+                            key=|(key, _)| key.clone()
+                            let:((key, column))
                             clone:display_state
+                            clone:width_md
                         >
                             <col
-                                node_ref=display_state.columns().metadata(&key).unwrap().node_ref()
+                                node_ref=column.node_ref()
                                 class:collapse={
-                                    let visible = display_state
-                                        .columns()
-                                        .metadata(&key)
-                                        .unwrap()
-                                        .visible()
-                                        .read_only();
+                                    let visible = column.visible().read_only();
                                     move || !visible()
                                 }
+                                style:width=format!("{}px", width_md.iter().find_map(|(md_key, value)| (*md_key == key).then_some(value)).unwrap())
                             />
                         </For>
                     </colgroup>
@@ -275,6 +388,7 @@ fn TableHeaderSortablePinnable(
                         .unwrap()
                         .as_f64()
                         .unwrap();
+
                     let col_width = i32::clamp(
                         e.x() - root_bb.x() as i32,
                         MIN_COL_WIDTH as i32,
@@ -372,8 +486,7 @@ fn TableHeaderSortablePinnable(
                 .iter()
                 .filter(|ancestor| ancestor.visible().get() && ancestor.pinned().get())
                 .map(|ancestor| ancestor.width().get())
-                .reduce(|width, ancestor| width + ancestor)
-                .unwrap_or(0)
+                .sum::<usize>()
         }
     };
 
@@ -398,18 +511,20 @@ fn TableHeaderSortablePinnable(
         false,
     );
 
+    let display_name = display_name.into();
     view! {
         <th
             node_ref=root_node
             scope="col"
             on:mousedown=toggle_sort
             class=("z-20", column.pinned().read_only())
-            class="group sticky top-0 cursor-pointer pl-1 pr-2 pb-1 text-left \
+            class="group sticky top-0 truncate cursor-pointer pl-1 pr-2 pb-1 text-left \
             bg-white dark:bg-secondary-800"
+            title=display_name.clone()
         >
             <div class="inline-flex w-full">
                 <div class="flex grow items-center pr-1">
-                    <span class="grow font-primary bold">{display_name.into()}</span>
+                    <span class="grow font-primary bold">{display_name.clone()}</span>
                     <span
                         class=(
                             ["not-group-hover:invisible", "group-hover:visible"],
@@ -578,17 +693,19 @@ fn TableHeaderSortable(
         }
     };
 
+    let display_name = display_name.into();
     view! {
         <th
             node_ref=root_node
             scope="col"
             on:mousedown=toggle_sort
-            class="group sticky top-0 cursor-pointer pl-1 pr-2 pb-1 text-left \
+            class="group sticky top-0 truncate cursor-pointer pl-1 pr-2 pb-1 text-left \
             bg-white dark:bg-secondary-800"
+            title=display_name.clone()
         >
             <div class="inline-flex w-full">
                 <div class="flex grow items-center pr-1">
-                    <span class="grow font-primary bold">{display_name.into()}</span>
+                    <span class="grow font-primary bold">{display_name.clone()}</span>
                     <span
                         class=(
                             ["not-group-hover:invisible", "group-hover:visible"],
@@ -723,7 +840,8 @@ fn TableHeader(
         <th
             node_ref=root_node
             scope="col"
-            class="sticky top-0 pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800"
+            class="sticky top-0 truncate pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800"
+            title=display_name
         >
             <div class="inline-flex w-full">
                 <div class="grow">
@@ -831,11 +949,40 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
         }
     });
 
-    let update_metadatum = |key: String| {
-        Callback::new(move |value: core::types::Value| {
-            tracing::debug!(?value);
-        })
+    let update_metadatum = {
+        let update_properties = update_properties.clone();
+        let asset = datum.asset().clone();
+        move |key: String| {
+            Callback::new({
+                let key = key.clone();
+                let update_properties = update_properties.clone();
+                let asset = asset.clone();
+                move |value: core::types::Value| {
+                    let mut update = asset.as_properties();
+                    update
+                        .metadata
+                        .entry(key.clone())
+                        .and_modify(|md_value| *md_value = value.clone())
+                        .or_insert(value);
+
+                    update_properties(update);
+                }
+            })
+        }
     };
+
+    let remove_metadatum = Callback::new({
+        let update_properties = update_properties.clone();
+        let asset = datum.asset().clone();
+        move |key: String| {
+            let mut update = asset.as_properties();
+            update
+                .metadata
+                .remove(&key)
+                .expect("value should be present");
+            update_properties(update);
+        }
+    });
 
     let file_ancestors_width = {
         let ancestors = vec![display_state.columns().path().clone()];
@@ -846,6 +993,20 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                 .map(|ancestor| ancestor.width().get())
                 .reduce(|width, ancestor| width + ancestor)
                 .unwrap_or(0)
+        }
+    };
+
+    let md_title = {
+        let metadata = datum.metadata();
+        move |key: String| {
+            move || {
+                metadata
+                    .read()
+                    .iter()
+                    .find_map(|(datum_key, value)| (datum_key == &key).then_some(value.clone()))
+                    .map(|datum| datum.value())
+                    .map(|value| metadatum_value_to_string(value.get()))
+            }
         }
     };
 
@@ -871,17 +1032,29 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
     );
 
     let metadata = datum.metadata();
-    const TH_CLASS: &str = "pl-1 pr-2 align-top text-left";
-    const TD_CLASS: &str = "pl-1 pr-2 align-top";
+    const TH_CLASS: &str = "pl-1 pr-2 align-top truncate text-left";
+    const TD_CLASS: &str = "pl-1 pr-2 align-top truncate";
     view! {
-        <tr>
+        <tr class="group hover:bg-secondary-100 dark:hover:bg-secondary-700">
             <th
                 scope="row"
                 class=TH_CLASS
                 class=(
-                    ["sticky", "left-0", "z-10", "bg-secondary-800"],
+                    [
+                        "left-0",
+                        "sticky",
+                        "z-10",
+                        "bg-white",
+                        "group-hover:bg-secondary-100",
+                        "dark:bg-secondary-800",
+                        "dark:group-hover:bg-secondary-700",
+                    ],
                     display_state.columns().path().pinned().read_only(),
                 )
+                title={
+                    let path = datum.asset().path().read_only();
+                    move || path.read().to_string_lossy().to_string()
+                }
             >
                 {
                     let path = datum.path();
@@ -893,19 +1066,42 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                 scope="row"
                 class=TH_CLASS
                 class=(
-                    ["sticky", "z-10", "bg-secondary-800"],
+                    [
+                        "sticky",
+                        "z-10",
+                        "bg-white",
+                        "group-hover:bg-secondary-100",
+                        "dark:bg-secondary-800",
+                        "dark:group-hover:bg-secondary-700",
+                    ],
                     display_state.columns().file().pinned().read_only(),
                 )
+                title={
+                    let path = datum.asset().path().read_only();
+                    move || { path.get().to_string_lossy().to_string() }
+                }
             >
                 {
                     let path = datum.asset().path().read_only();
                     move || { path.get().to_string_lossy().to_string() }
                 }
             </th>
-            <td class=TD_CLASS>
+            <td
+                class=TD_CLASS
+                title={
+                    let name = datum.asset().name().read_only();
+                    move || name.get()
+                }
+            >
                 <properties::Name value=datum.asset().name().read_only() on_change=update_name />
             </td>
-            <td class=TD_CLASS>
+            <td
+                class=TD_CLASS
+                title={
+                    let kind = datum.asset().kind().read_only();
+                    move || kind.get()
+                }
+            >
                 <properties::Kind value=datum.asset().kind().read_only() on_change=update_kind />
             </td>
             <td class=TD_CLASS>
@@ -918,33 +1114,13 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                 <properties::Tags value=datum.asset().tags().read_only() on_change=update_tags />
             </td>
             <For each=state.metadata_keys() key=|key| key.clone() let:key>
-                <td class=TD_CLASS>
-                    {move || {
-                        let value = metadata
-                            .read()
-                            .iter()
-                            .find_map(|(datum_key, value)| {
-                                (datum_key == &key).then_some(value.clone())
-                            });
-                        if let Some(value) = value {
-                            Either::Left(
-                                view! {
-                                    <editor::Metadatum
-                                        value
-                                        on_change=update_metadatum(key.clone())
-                                    />
-                                },
-                            )
-                        } else {
-                            Either::Right(
-                                view! {
-                                    <span class="text-nowrap text-secondary-500 dark:text-secondary-400">
-                                        "(n/a)"
-                                    </span>
-                                },
-                            )
-                        }
-                    }}
+                <td class=TD_CLASS title=md_title(key.clone())>
+                    <properties::Metadatum
+                        key=key.clone()
+                        metadata
+                        on_change=update_metadatum(key.clone())
+                        on_remove=remove_metadatum
+                    />
                 </td>
             </For>
         </tr>
@@ -981,7 +1157,9 @@ async fn update_asset_properties(
 
 pub(self) mod properties {
     use super::editor;
+    use crate::state;
     use leptos::prelude::*;
+    use syre_core as core;
 
     #[component]
     pub fn Name(
@@ -1052,25 +1230,36 @@ pub(self) mod properties {
 
     #[component]
     pub fn Metadatum(
-        value: ReadSignal<Vec<String>>,
-        on_change: Callback<Vec<String>>,
+        key: String,
+        metadata: Signal<Vec<(String, state::data::MetadatumValue)>>,
+        on_change: Callback<core::types::Value>,
+        on_remove: Callback<String>,
     ) -> impl IntoView {
-        let input_value = Signal::derive(move || value.get().join(", "));
+        let remove = Trigger::new();
+        Effect::watch(
+            move || remove.track(),
+            {
+                let key = key.clone();
+                move |_, _, _| {
+                    on_remove.run(key.clone());
+                }
+            },
+            false,
+        );
 
-        let change = Callback::new(move |value: String| {
-            let value = value
-                .split(",")
-                .map(|tag| tag.trim())
-                .filter_map(|tag| (!tag.is_empty()).then_some(tag.to_string()))
-                .collect();
-            on_change.run(value);
-        });
+        move || {
+            let value = metadata
+                .read()
+                .iter()
+                .find_map(|(datum_key, value)| (datum_key == &key).then_some(value.clone()));
 
-        view! { <editor::Input value=input_value on_change=change empty_value="(na)".to_string() /> }
+            view! { <editor::Metadatum value on_change on_remove=remove /> }
+        }
     }
 }
 
 pub(self) mod editor {
+    use crate::state;
     use leptos::{
         either::Either,
         ev::{KeyboardEvent, MouseEvent, SubmitEvent},
@@ -1200,7 +1389,7 @@ pub(self) mod editor {
                 })
             } else {
                 Either::Right(view! {
-                    <div class="flex group">
+                    <div class="flex group/editor">
                         <div
                             class=(
                                 ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
@@ -1210,7 +1399,7 @@ pub(self) mod editor {
                         >
                             {display_value.clone()}
                         </div>
-                        <div class="pl-2 not-group-hover:invisible">
+                        <div class="pl-2 invisible group-hover/editor:visible">
                             <button class="cursor-pointer" on:mousedown=enable_editing>
                                 <Icon icon=ui_lib::icon::Edit />
                             </button>
@@ -1340,7 +1529,7 @@ pub(self) mod editor {
                 })
             } else {
                 Either::Right(view! {
-                    <div class="flex group">
+                    <div class="flex group/editor">
                         <div
                             class=(
                                 ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
@@ -1350,7 +1539,7 @@ pub(self) mod editor {
                         >
                             {display_value.clone()}
                         </div>
-                        <div class="pl-2 not-group-hover:invisible">
+                        <div class="pl-2 invisible group-hover/editor:visible">
                             <button class="cursor-pointer" on:mousedown=enable_editing>
                                 <Icon icon=ui_lib::icon::Edit />
                             </button>
@@ -1363,12 +1552,29 @@ pub(self) mod editor {
 
     #[component]
     pub fn Metadatum(
-        value: ReadSignal<core::types::Value>,
+        value: Option<state::data::MetadatumValue>,
         on_change: Callback<core::types::Value>,
+        on_remove: Trigger,
     ) -> impl IntoView {
+        use syre_desktop_editors as editors;
+
         let (editing, set_editing) = signal(false);
-        let (input_value, set_input_value) = signal(value.get_untracked());
-        let input_node = NodeRef::<html::Input>::new();
+        let (input_value, set_input_value) = signal(
+            value
+                .as_ref()
+                .map(|value| value.get_untracked())
+                .unwrap_or(core::types::Value::Number(0.into())),
+        );
+
+        if let Some(value) = value.as_ref() {
+            Effect::watch(
+                value.value(),
+                move |value, _, _| {
+                    set_input_value(value.clone());
+                },
+                false,
+            );
+        }
 
         let enable_editing = {
             move |e: MouseEvent| {
@@ -1376,7 +1582,7 @@ pub(self) mod editor {
                     return;
                 }
 
-                set_input_value(value.get_untracked());
+                // set_input_value(value.get_untracked());
                 set_editing(true);
             }
         };
@@ -1419,61 +1625,90 @@ pub(self) mod editor {
             }
         };
 
-        Effect::new(move || {
-            if editing() {
-                if let Some(input_node) = input_node.get() {
-                    if let Err(err) = input_node.focus() {
-                        tracing::error!(?err);
-                    };
-                }
-            }
+        let oninput = Callback::new(move |value: core::types::Value| {
+            set_input_value(value);
         });
+
+        let is_removeable = value
+            .as_ref()
+            .map(|value| value.is_owned())
+            .unwrap_or(false);
+
+        let remove = move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+
+            on_remove.notify();
+        };
 
         move || {
             if editing.get() {
                 Either::Left(view! {
-                    <form on:submit=submit class="flex">
-                        "todo"
-                        <div class="pl-2 flex gap-1">
-                            <button
-                                type="submit"
-                                class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
-                                on:mousedown=change
-                            >
-                                <Icon icon=ui_lib::icon::Accept />
-                            </button>
-                            <button
-                                type="button"
-                                class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
-                                on:mousedown=disable_editing
-                            >
-                                <Icon icon=ui_lib::icon::Close />
-                            </button>
+                    <div class="relative">
+                        <div class="absolute top-0 left-0 text-primary-600">
+                            <Icon icon=icondata::BsCircleFill />
                         </div>
-                    </form>
+                        <div class="absolute top-2 left-2 w-30 bg-white dark:bg-secondary-800 border rounded-sm">
+                            <div class="p-1">
+                                <form on:submit=submit>
+                                    <editors::common::metadata::ValueEditor
+                                        value=input_value
+                                        oninput
+                                    />
+                                    <div class="flex gap-2 items-center justify-center pt-1">
+                                        <button
+                                            type="submit"
+                                            class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
+                                            on:mousedown=change
+                                        >
+                                            <Icon icon=ui_lib::icon::Accept />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                                            on:mousedown=disable_editing
+                                        >
+                                            <Icon icon=ui_lib::icon::Close />
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            {is_removeable
+                                .then_some(
+                                    view! {
+                                        <hr class="border-secondary-900 dark:border-secondary-200" />
+                                        <div class="text-center">
+                                            <button
+                                                on:click=remove
+                                                class="p-2 cursor-pointer text-center \
+                                                hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                                            >
+                                                <Icon icon=ui_lib::icon::Trash />
+                                            </button>
+                                        </div>
+                                    },
+                                )}
+                        </div>
+                    </div>
                 })
             } else {
                 Either::Right(view! {
-                    <div class="flex group">
+                    <div class="flex group/editor">
                         <div class="grow">
-                            {move || {
-                                match value.get() {
-                                    core::types::Value::String(value) => value,
-                                    core::types::Value::Quantity { magnitude, unit } => {
-                                        format!("{magnitude} {unit}")
-                                    }
-                                    core::types::Value::Bool(value) => {
-                                        if value { "true".to_string() } else { "false".to_string() }
-                                    }
-                                    core::types::Value::Number(value) => value.to_string(),
-                                    core::types::Value::Array(value) => format!("{value:?}"),
-                                    core::types::Value::Null => {
-                                        unreachable!("value can not be null")
-                                    }
-                                }
+                            {if let Some(value) = value.as_ref() {
+                                Either::Left(view! { <MetadatumValue value=value.value() /> })
+                            } else {
+                                Either::Right(
+                                    view! {
+                                        <span class="text-nowrap text-secondary-500 dark:text-secondary-400">
+                                            "(n/a)"
+                                        </span>
+                                    },
+                                )
                             }}
                         </div>
-                        <div class="pl-2 not-group-hover:invisible">
+                        <div class="pl-2 invisible group-hover/editor:visible">
                             <button class="cursor-pointer" on:mousedown=enable_editing>
                                 <Icon icon=ui_lib::icon::Edit />
                             </button>
@@ -1482,5 +1717,45 @@ pub(self) mod editor {
                 })
             }
         }
+    }
+
+    #[component]
+    fn MetadatumValue(value: ReadSignal<core::types::Value>) -> impl IntoView {
+        move || super::metadatum_value_to_string(value.get())
+    }
+}
+
+fn metadatum_value_to_string(value: core::types::Value) -> String {
+    match value {
+        core::types::Value::String(value) => value,
+        core::types::Value::Quantity { magnitude, unit } => {
+            format!("{magnitude} {unit}")
+        }
+        core::types::Value::Bool(value) => {
+            if value {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        core::types::Value::Number(value) => value.to_string(),
+        core::types::Value::Array(value) => format!("{value:?}"),
+        core::types::Value::Null => {
+            unreachable!("value can not be null")
+        }
+    }
+}
+
+fn metadatum_value_len(value: &core::types::Value) -> usize {
+    use core::types::Value;
+    match value {
+        Value::String(value) => value.chars().count(),
+        Value::Number(value) => value.to_string().chars().count(),
+        Value::Quantity { magnitude, unit } => {
+            magnitude.to_string().chars().count() + unit.chars().count()
+        }
+        Value::Array(value) => value.iter().map(|value| metadatum_value_len(value)).sum(),
+        Value::Bool(_) => 5, // `true` or `false`
+        Value::Null => unreachable!("value can not be null"),
     }
 }

@@ -105,6 +105,15 @@ fn ColumnSelector() -> impl IntoView {
         }
     };
 
+    let metadata_columns = {
+        let columns = columns.metadata();
+        move || {
+            let mut columns = columns.get();
+            columns.sort_by_key(|(key, _)| key.clone());
+            columns
+        }
+    };
+
     const CLASS_FORM_DIV: &str = "px-2 w-full";
     const CLASS_CHECKBOX: &str = "w-4 h-4 rounded-sm";
     const CLASS_LABEL: &str = "pl-2";
@@ -228,31 +237,24 @@ fn ColumnSelector() -> impl IntoView {
                         <hr class="border-secondary-900 dark:border-secondary-200" />
                         <div>
                             <For
-                                each=state.metadata_keys()
-                                key=|key| key.clone()
-                                let:key
+                                each=metadata_columns
+                                key=|(key, _)| key.clone()
+                                let:((key, column))
                                 clone:display_state
                             >
                                 <div class=CLASS_FORM_DIV>
                                     <label class="cursor-pointer">
-                                        {
-                                            let column = display_state
-                                                .columns()
-                                                .metadata(&key)
-                                                .unwrap();
-                                            view! {
-                                                <input
-                                                    type="checkbox"
-                                                    name="tags"
-                                                    on:input={
-                                                        let visible = column.visible();
-                                                        move |_| visible.set(!visible())
-                                                    }
-                                                    prop:checked=column.visible().read_only()
-                                                    class=CLASS_CHECKBOX
-                                                />
+                                        <input
+                                            type="checkbox"
+                                            name="tags"
+                                            on:input={
+                                                let visible = column.visible();
+                                                move |_| visible.set(!visible())
                                             }
-                                        } <span class=CLASS_LABEL>{key}</span>
+                                            prop:checked=column.visible().read_only()
+                                            class=CLASS_CHECKBOX
+                                        />
+                                        <span class=CLASS_LABEL>{key}</span>
                                     </label>
                                 </div>
                             </For>

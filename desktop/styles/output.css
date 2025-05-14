@@ -1,4 +1,4 @@
-/*! tailwindcss v4.1.6 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.1.7 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
 @layer theme {
@@ -309,6 +309,9 @@
   .left-1 {
     left: calc(var(--spacing) * 1);
   }
+  .left-2 {
+    left: calc(var(--spacing) * 2);
+  }
   .left-full {
     left: 100%;
   }
@@ -512,6 +515,9 @@
   .w-20 {
     width: calc(var(--spacing) * 20);
   }
+  .w-30 {
+    width: calc(var(--spacing) * 30);
+  }
   .w-40 {
     width: calc(var(--spacing) * 40);
   }
@@ -592,6 +598,9 @@
   }
   .grow {
     flex-grow: 1;
+  }
+  .table-fixed {
+    table-layout: fixed;
   }
   .rotate-90 {
     rotate: 90deg;
@@ -906,9 +915,6 @@
   .bg-secondary-100 {
     background-color: var(--color-secondary-100);
   }
-  .bg-secondary-800 {
-    background-color: var(--color-secondary-800);
-  }
   .bg-syre-green-600 {
     background-color: var(--color-syre-green-600);
   }
@@ -1095,6 +1101,9 @@
   .text-black {
     color: var(--color-black);
   }
+  .text-primary-600 {
+    color: var(--color-primary-600);
+  }
   .text-primary-700 {
     color: var(--color-primary-700);
   }
@@ -1246,10 +1255,24 @@
       }
     }
   }
+  .group-hover\:bg-secondary-100 {
+    &:is(:where(.group):hover *) {
+      @media (hover: hover) {
+        background-color: var(--color-secondary-100);
+      }
+    }
+  }
   .group-hover\/assets\:border-secondary-200 {
     &:is(:where(.group\/assets):hover *) {
       @media (hover: hover) {
         border-color: var(--color-secondary-200);
+      }
+    }
+  }
+  .group-hover\/editor\:visible {
+    &:is(:where(.group\/editor):hover *) {
+      @media (hover: hover) {
+        visibility: visible;
       }
     }
   }
@@ -1666,6 +1689,15 @@
     &:where(.dark, .dark *) {
       :is(& *) {
         stroke: var(--color-white) !important;
+      }
+    }
+  }
+  .dark\:group-hover\:bg-secondary-700 {
+    &:where(.dark, .dark *) {
+      &:is(:where(.group):hover *) {
+        @media (hover: hover) {
+          background-color: var(--color-secondary-700);
+        }
       }
     }
   }

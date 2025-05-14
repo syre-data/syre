@@ -16,7 +16,6 @@ categories = [ "science", "data-structures" ]
 
 [dependencies]
 aquamarine.workspace = true  # TODO Only needed for documentation.
-calamine.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 csv.workspace = true
 derivative = "2.2"

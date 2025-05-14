@@ -1,8 +1,12 @@
 pub mod data {
     use leptos::prelude::*;
-    use std::path;
-    use std::{assert_matches::assert_matches, path::PathBuf};
+    use std::{
+        assert_matches::assert_matches,
+        path::{self, PathBuf},
+        sync::Arc,
+    };
     use syre_core as core;
+    use syre_desktop_lib::command::asset;
     use syre_desktop_ui_lib as ui_lib;
     use syre_project_watcher as db;
 
@@ -30,17 +34,17 @@ pub mod data {
                         .rev()
                         .skip(1)
                         .map(|ancestor| ancestor.name().get())
-                        .collect::<path::PathBuf>();
+                        .collect::<PathBuf>();
 
                     std::iter::once(path::Component::RootDir)
                         .chain(path.components())
-                        .collect::<path::PathBuf>()
+                        .collect::<PathBuf>()
                 }
             })
         }
 
         /// Metadata values including inheritance.
-        pub fn metadata(&self) -> Signal<Vec<(String, ReadSignal<core::types::Value>)>> {
+        pub fn metadata(&self) -> Signal<Vec<(String, MetadatumValue)>> {
             Signal::derive({
                 let ancestors = self.ancestors.read_only();
                 let asset_md = self.asset.metadata().read_only();
@@ -49,25 +53,34 @@ pub mod data {
                     ancestors
                         .read()
                         .iter()
-                        .map(|ancestor| ancestor.properties().read_only())
-                        .filter_map(|properties| {
+                        .filter_map(|ancestor| {
+                            let properties = ancestor.properties().read_only();
                             properties.with(|properties| {
                                 if let db::state::DataResource::Ok(properties) = properties {
-                                    Some(properties.metadata().read_only())
+                                    Some((ancestor.clone(), properties.metadata().read_only()))
                                 } else {
                                     None
                                 }
                             })
                         })
                         .rev()
-                        .for_each(|md| {
+                        .for_each(|(ancestor, md)| {
                             for (md_key, md_value) in md.get() {
                                 if let Some((_, value)) =
                                     metadata.iter_mut().find(|(key, _)| *key == md_key)
                                 {
-                                    *value = md_value.read_only();
+                                    *value = MetadatumValue::inherited(
+                                        md_value.read_only(),
+                                        ancestor.clone(),
+                                    );
                                 } else {
-                                    metadata.push((md_key.clone(), md_value.read_only()))
+                                    metadata.push((
+                                        md_key.clone(),
+                                        MetadatumValue::inherited(
+                                            md_value.read_only(),
+                                            ancestor.clone(),
+                                        ),
+                                    ))
                                 }
                             }
                         });
@@ -75,9 +88,10 @@ pub mod data {
                     for (md_key, md_value) in asset_md.read().iter() {
                         if let Some((_, value)) = metadata.iter_mut().find(|(key, _)| key == md_key)
                         {
-                            *value = md_value.read_only();
+                            *value = MetadatumValue::owned(md_value.read_only());
                         } else {
-                            metadata.push((md_key.clone(), md_value.read_only()))
+                            metadata
+                                .push((md_key.clone(), MetadatumValue::owned(md_value.read_only())))
                         }
                     }
 
@@ -88,16 +102,59 @@ pub mod data {
     }
 
     #[derive(Clone)]
+    pub enum MetadatumSource {
+        Owned,
+        Inherited(ui_lib::state::graph::Node),
+    }
+
+    #[derive(derive_more::Deref, Clone)]
+    pub struct MetadatumValue {
+        #[deref]
+        value: ReadSignal<core::types::Value>,
+        source: MetadatumSource,
+    }
+
+    impl MetadatumValue {
+        pub fn owned(value: ReadSignal<core::types::Value>) -> Self {
+            Self {
+                value,
+                source: MetadatumSource::Owned,
+            }
+        }
+
+        pub fn inherited(
+            value: ReadSignal<core::types::Value>,
+            owner: ui_lib::state::graph::Node,
+        ) -> Self {
+            Self {
+                value,
+                source: MetadatumSource::Inherited(owner),
+            }
+        }
+
+        pub fn value(&self) -> ReadSignal<core::types::Value> {
+            self.value
+        }
+
+        pub fn source(&self) -> &MetadatumSource {
+            &self.source
+        }
+
+        pub fn is_owned(&self) -> bool {
+            matches!(self.source, MetadatumSource::Owned)
+        }
+    }
+
+    #[derive(Clone)]
     pub struct State {
         /// Graph state.
         graph: ui_lib::state::Graph,
 
-        /// Containers' assets state.
-        node_states: RwSignal<Vec<ReadSignal<ui_lib::state::container::AssetsState>>>,
+        // /// Containers' assets state.
+        // node_states: RwSignal<Vec<(ui_lib::state::graph::Node, ReadSignal<ui_lib::state::container::AssetsState>)>>,
 
-        /// Containers' assets' states.
-        node_assets: RwSignal<Vec<ReadSignal<Vec<ui_lib::state::Asset>>>>,
-
+        // /// Containers' assets' states.
+        // node_assets: RwSignal<Vec<(ui_lib::state::graph::Node, ReadSignal<Vec<ui_lib::state::Asset>>)>>,
         /// Individual assets.
         data: RwSignal<Vec<Datum>>,
     }
@@ -108,32 +165,22 @@ pub mod data {
                 .nodes()
                 .read_untracked()
                 .iter()
-                .map(|node| node.assets().read_only())
+                .map(|node| (node.clone(), node.assets().read_only()))
                 .collect::<Vec<_>>();
 
             let node_assets = node_states
                 .iter()
-                .filter_map(|state| {
+                .filter_map(|(node, state)| {
                     if let db::state::DataResource::Ok(assets) = state.get_untracked() {
-                        Some(assets.read_only())
+                        Some((node.clone(), assets.read_only()))
                     } else {
                         None
                     }
                 })
                 .collect::<Vec<_>>();
 
-            let data = graph
-                .nodes()
-                .read_untracked()
+            let data = node_assets
                 .iter()
-                .map(|node| (node, node.assets().read_only()))
-                .filter_map(|(node, assets)| {
-                    if let db::state::DataResource::Ok(assets) = assets.get_untracked() {
-                        Some((node, assets.read_only()))
-                    } else {
-                        None
-                    }
-                })
                 .flat_map(|(node, assets)| {
                     assets
                         .get_untracked()
@@ -155,55 +202,170 @@ pub mod data {
             let data = RwSignal::new(data);
 
             let _ = Effect::watch(
-                graph.nodes(),
-                move |graph, _, _| {
-                    let update = graph
-                        .iter()
-                        .map(|node| node.assets().read_only())
-                        .collect::<Vec<_>>();
+                graph.nodes().read_only(),
+                move |nodes, _, _| {
+                    if nodes.len() == node_states.read_untracked().len() {
+                        return;
+                    }
 
-                    node_states.set(update);
+                    node_states.update(|node_states| {
+                        node_states.retain(|(node_state, _)| {
+                            nodes.iter().any(|node| Arc::ptr_eq(node_state, node))
+                        });
+
+                        let added = nodes
+                            .iter()
+                            .filter(|node| {
+                                !node_states
+                                    .iter()
+                                    .any(|(node_state, _)| Arc::ptr_eq(node, node_state))
+                            })
+                            .map(|node| node.clone())
+                            .collect::<Vec<_>>();
+                        for node in added.into_iter() {
+                            let assets = node.assets().read_only();
+                            node_states.push((node, assets));
+                        }
+                    });
                 },
                 false,
             );
 
             let _ = Effect::watch(
-                node_states,
-                move |node_states, _, _| {
-                    let update = node_states
+                {
+                    let node_states = node_states.read_only();
+                    move || {
+                        node_states
+                            .read()
+                            .iter()
+                            .for_each(|(_, state)| state.track());
+                    }
+                },
+                move |_, _, _| {
+                    let removed = node_assets
+                        .read_untracked()
                         .iter()
-                        .filter_map(|node| {
-                            if let db::state::DataResource::Ok(assets) = node.get_untracked() {
-                                Some(assets.read_only())
+                        .filter(|(assets_node, _)| {
+                            node_states
+                                .read_untracked()
+                                .iter()
+                                .find(|(node, _)| Arc::ptr_eq(node, assets_node))
+                                .map(|(_, state)| state.read_untracked().is_err())
+                                .unwrap_or(true)
+                        })
+                        .map(|(node, _)| node.clone())
+                        .collect::<Vec<_>>();
+
+                    let added = node_states
+                        .read_untracked()
+                        .iter()
+                        .filter(|(node, state)| {
+                            !node_assets
+                                .read_untracked()
+                                .iter()
+                                .any(|(asset_node, _)| Arc::ptr_eq(asset_node, node))
+                        })
+                        .filter_map(|(node, state)| {
+                            if let db::state::DataResource::Ok(assets) = state.get_untracked() {
+                                Some((node.clone(), assets.read_only()))
                             } else {
                                 None
                             }
                         })
                         .collect::<Vec<_>>();
 
-                    node_assets.set(update);
+                    if !added.is_empty() || !removed.is_empty() {
+                        node_assets.update(|node_assets| {
+                            node_assets.retain(|(assets_node, _)| {
+                                removed
+                                    .iter()
+                                    .find(|removed| Arc::ptr_eq(removed, assets_node))
+                                    .is_none()
+                            });
+
+                            for asset in added {
+                                node_assets.push(asset);
+                            }
+                        });
+                    }
                 },
                 false,
             );
 
             let _ = Effect::watch(
-                node_assets,
-                move |node_assets, _, _| {
-                    let update = node_assets
-                        .iter()
-                        .flat_map(|assets| assets.get_untracked())
-                        .collect::<Vec<_>>();
+                {
+                    let node_assets = node_assets.read_only();
+                    move || {
+                        node_assets.read().iter().for_each(|(_, assets)| {
+                            assets.track();
+                        })
+                    }
+                },
+                {
+                    let graph = graph.clone();
+                    move |_, _, _| {
+                        let assets = node_assets
+                            .read_untracked()
+                            .iter()
+                            .flat_map(|(node, assets)| {
+                                assets
+                                    .get_untracked()
+                                    .into_iter()
+                                    .map(|asset| (node.clone(), asset))
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
 
-                    todo!();
-                    // data.set(update);
+                        let mut removed = data
+                            .read_untracked()
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(idx, datum)| {
+                                let rid = datum.asset().rid().get_untracked();
+                                (!assets
+                                    .iter()
+                                    .any(|(_, asset)| asset.rid().get_untracked() == rid))
+                                .then_some(idx)
+                            })
+                            .collect::<Vec<_>>();
+                        removed.sort();
+
+                        let added = assets
+                            .iter()
+                            .filter(|(_, asset)| {
+                                let rid = asset.rid().get_untracked();
+                                !data
+                                    .read_untracked()
+                                    .iter()
+                                    .any(|datum| datum.asset().rid().get_untracked() == rid)
+                            })
+                            .collect::<Vec<_>>();
+
+                        if !removed.is_empty() || !added.is_empty() {
+                            data.update(|data| {
+                                for idx in removed.into_iter().rev() {
+                                    data.swap_remove(idx);
+                                }
+
+                                for (node, asset) in added {
+                                    let ancestors = graph.ancestors(node);
+                                    assert!(!ancestors.is_empty());
+                                    data.push(Datum {
+                                        ancestors: RwSignal::new(ancestors),
+                                        asset: asset.clone(),
+                                    });
+                                }
+                            });
+                        }
+                    }
                 },
                 false,
             );
 
             Self {
                 graph,
-                node_states,
-                node_assets,
+                // node_states,
+                // node_assets,
                 data,
             }
         }
@@ -287,12 +449,107 @@ pub mod display {
     }
 
     impl State {
-        pub fn new(data: ReadSignal<Vec<super::data::Datum>>) -> Self {
-            let data_source = data;
+        pub fn new(source: &super::data::State) -> Self {
+            let data_source = source.data();
             let data_sorted = RwSignal::new(data_source.get_untracked());
             let data = RwSignal::new(data_source.get_untracked());
             let sort = RwSignal::new(Sort::default());
             let filter = RwSignal::new(None);
+            let columns = Columns::new();
+
+            source
+                .metadata_keys()
+                .read_untracked()
+                .iter()
+                .for_each(|key| {
+                    assert!(columns.new_metadata(key.clone()));
+                });
+
+            Effect::watch(
+                data_source,
+                {
+                    let sort = sort.read_only();
+                    let data = data.write_only();
+                    move |data_source, _, _| {
+                        let mut removed = data_sorted
+                            .read_untracked()
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(idx, datum)| {
+                                let rid = datum.asset().rid().read_only();
+                                (!data_source.iter().any(|source_datum| {
+                                    *source_datum.asset().rid().read_untracked()
+                                        == *rid.read_untracked()
+                                }))
+                                .then_some(idx)
+                            })
+                            .collect::<Vec<_>>();
+                        removed.sort();
+
+                        let added = data_source
+                            .iter()
+                            .filter(|source_datum| {
+                                let source_rid = source_datum.asset().rid().read_only();
+                                !data_sorted.read_untracked().iter().any(|datum| {
+                                    *datum.asset().rid().read_untracked()
+                                        == *source_rid.read_untracked()
+                                })
+                            })
+                            .map(|datum| datum.clone())
+                            .collect::<Vec<_>>();
+
+                        assert!(!removed.is_empty() || !added.is_empty());
+                        data_sorted.update(|data_sorted| {
+                            for idx in removed.into_iter().rev() {
+                                data_sorted.swap_remove(idx);
+                            }
+
+                            for datum in added {
+                                data_sorted.push(datum);
+                            }
+                        });
+
+                        sort.with_untracked(|sort| {
+                            Self::sort_data(sort, data_sorted.write_only(), data)
+                        });
+                    }
+                },
+                false,
+            );
+
+            Effect::watch(
+                source.metadata_keys(),
+                {
+                    let columns = columns.metadata;
+                    move |keys, _, _| {
+                        let removed = columns
+                            .read_untracked()
+                            .iter()
+                            .filter_map(|(md_key, _)| {
+                                (!keys.iter().any(|key| md_key == key)).then_some(md_key.clone())
+                            })
+                            .collect::<Vec<_>>();
+
+                        let added = keys
+                            .iter()
+                            .filter(|key| {
+                                !columns
+                                    .read_untracked()
+                                    .iter()
+                                    .any(|(md_key, _)| key == &md_key)
+                            })
+                            .collect::<Vec<_>>();
+
+                        columns.update(|columns| {
+                            columns.retain(|(key, _)| !removed.contains(key));
+                            added
+                                .into_iter()
+                                .for_each(|key| columns.push((key.clone(), Column::new())));
+                        });
+                    }
+                },
+                false,
+            );
 
             Effect::watch(
                 sort.read_only(),
@@ -300,7 +557,7 @@ pub mod display {
                     let data_sorted = data_sorted.write_only();
                     let data = data.write_only();
                     move |sort, prev, _| {
-                        Self::sort_effect(sort, prev, data_sorted, data);
+                        Self::maybe_sort(sort, prev, data_sorted, data);
                     }
                 },
                 false,
@@ -321,7 +578,7 @@ pub mod display {
                 data_source,
                 data_sorted,
                 data,
-                columns: Columns::new(),
+                columns,
                 filter_bar: RwSignal::new(false),
                 sort,
                 filter,
@@ -330,7 +587,62 @@ pub mod display {
     }
 
     impl State {
-        fn sort_effect(
+        fn sort_data(
+            sort: &Sort,
+            data_sorted: WriteSignal<Vec<super::data::Datum>>,
+            data: WriteSignal<Vec<super::data::Datum>>,
+        ) {
+            match sort.field() {
+                SortField::Path => data_sorted.write().sort_by_key(|datum| {
+                    datum
+                        .path()
+                        .get_untracked()
+                        .to_string_lossy()
+                        .to_lowercase()
+                }),
+                SortField::File => data_sorted.write().sort_by_key(|datum| {
+                    datum
+                        .asset()
+                        .path()
+                        .get_untracked()
+                        .to_string_lossy()
+                        .to_lowercase()
+                }),
+                SortField::Name => {
+                    data_sorted.write().sort_by_key(|datum| {
+                        datum
+                            .asset()
+                            .name()
+                            .get_untracked()
+                            .map(|value| value.to_lowercase())
+                    });
+                }
+                SortField::Kind => {
+                    data_sorted.write().sort_by_key(|datum| {
+                        datum
+                            .asset()
+                            .kind()
+                            .get_untracked()
+                            .map(|value| value.to_lowercase())
+                    });
+                }
+                SortField::Metadata(key) => data_sorted.write().sort_by_key(|datum| {
+                    datum
+                        .metadata()
+                        .read_untracked()
+                        .iter()
+                        .find_map(|(md_key, md_value)| {
+                            (md_key == key).then_some(md_value.get_untracked().to_string())
+                        })
+                }),
+            }
+
+            if matches!(sort.direction(), SortDirection::Des) {
+                data_sorted.write().reverse();
+            }
+        }
+
+        fn maybe_sort(
             sort: &Sort,
             prev: Option<&Sort>,
             data_sorted: WriteSignal<Vec<super::data::Datum>>,
@@ -363,52 +675,7 @@ pub mod display {
                     data.write().reverse();
                 }
                 Action::Sort => {
-                    match sort.field() {
-                        SortField::Path => data_sorted.write().sort_by_key(|datum| {
-                            datum
-                                .path()
-                                .get_untracked()
-                                .to_string_lossy()
-                                .to_lowercase()
-                        }),
-                        SortField::File => data_sorted.write().sort_by_key(|datum| {
-                            datum
-                                .asset()
-                                .path()
-                                .get_untracked()
-                                .to_string_lossy()
-                                .to_lowercase()
-                        }),
-                        SortField::Name => {
-                            data_sorted.write().sort_by_key(|datum| {
-                                datum
-                                    .asset()
-                                    .name()
-                                    .get_untracked()
-                                    .map(|value| value.to_lowercase())
-                            });
-                        }
-                        SortField::Kind => {
-                            data_sorted.write().sort_by_key(|datum| {
-                                datum
-                                    .asset()
-                                    .kind()
-                                    .get_untracked()
-                                    .map(|value| value.to_lowercase())
-                            });
-                        }
-                        SortField::Metadata(key) => data_sorted.write().sort_by_key(|datum| {
-                            datum.metadata().read_untracked().iter().find_map(
-                                |(md_key, md_value)| {
-                                    (md_key == key).then_some(md_value.get_untracked().to_string())
-                                },
-                            )
-                        }),
-                    }
-
-                    if matches!(sort.direction(), SortDirection::Des) {
-                        data_sorted.write().reverse();
-                    }
+                    Self::sort_data(sort, data_sorted, data);
                 }
             }
         }
@@ -564,7 +831,11 @@ pub mod display {
             &self.tags
         }
 
-        pub fn metadata(&self, key: &String) -> Option<Column> {
+        pub fn metadata(&self) -> ReadSignal<Vec<(String, Column)>> {
+            self.metadata.read_only()
+        }
+
+        pub fn get_metadata(&self, key: &String) -> Option<Column> {
             self.metadata
                 .read()
                 .iter()

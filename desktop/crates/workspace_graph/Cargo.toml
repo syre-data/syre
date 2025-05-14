@@ -16,7 +16,7 @@ reactive_stores.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 syre-core.workspace = true
-syre-desktop-editors ={ path = "../editors" }
+syre-desktop-editors = { path = "../editors" }
 syre-desktop-lib = { path = "../lib" }
 syre-desktop-resource-db = { path = "../resource_db", default-features = false }
 syre-desktop-ui-components = { path = "../ui_components" }

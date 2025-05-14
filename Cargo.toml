@@ -41,7 +41,6 @@ has_id = { path  = "has_id" }
 io_error_serde = { git = "https://github.com/syre-data/io_error_serde.git" }
 
 aquamarine = "0.6"
-calamine = "0.27"
 chrono = "0.4"
 clap = "4.5"
 crossbeam = "0.8"

@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop-resource-db"
-version = "0.0.1"
+version = "0.0.0"
 edition = "2024"
 
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]

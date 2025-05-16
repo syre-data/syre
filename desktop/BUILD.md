@@ -33,7 +33,7 @@ Make sure XCode is installed, with it comes `altool`, you need to have this in y
 
 ### On Windows
 
-- `./build.bat`
+- `./build.ps1`
 
 ## Add secrets to ENV
 

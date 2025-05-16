@@ -3,4 +3,5 @@
 /bundles
 /node_modules
 /.tauri/syre.key
+/.tauri/syre.key.pwd
 build.out

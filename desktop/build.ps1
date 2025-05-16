@@ -1,6 +1,7 @@
 # Builds a release of the project.
-# Bumps the patch version in `Cargo.toml`, `src-lib/Cargo.toml`, `src-tauri/Cargo.toml`, and `src-tauri/Cargo.toml`.
+# Bumps the patch version in `Cargo.toml` and `src-tauri/Cargo.toml`.
 # Seaches for `.tauri/syre.key` to set the `TAURI_SIGNING_PRIVATE_KEY` environment variable if not already set.
+# Seaches for `.tauri/syre.key.pwd` to set the `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` environment variable if not already set.
 # Copies the binaries to a `bundles` folder renaming the files as 
 # `syre_desktop--<arch>-<vendor>-<system>-<subsystem>--<major_version>_<minor_version>_<patch_version>[--debug]<ext>`.
 #
@@ -14,12 +15,12 @@ $DEBUG_FLAG = "--debug"
 $KEEP_VERSION_FLAG = "--keep-version"
 $SIGNATURE_EXT = ".sig"
 $PRIVATE_KEY_PATH = ".tauri/syre.key"
-$PRIVATE_KEY_KEY = "TAURI_SIGNING_PRIVATE_KEY"
-$PRIVATE_KEY_PASSWORD_KEY = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+$PRIVATE_KEY_PASSWORD_PATH = ".tauri/syre.key.pwd"
+$PRIVATE_KEY_ENV_NAME = "TAURI_SIGNING_PRIVATE_KEY"
+$PRIVATE_KEY_PASSWORD_ENV_NAME = "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
 $DESKTOP_TOML_PATH = "Cargo.toml"
 $TAURI_TOML_PATH = "src-tauri/Cargo.toml"
 $TAURI_CONF_PATH = "src-tauri/tauri.conf.json"
-$LIB_TOML_PATH = "src-lib/Cargo.toml"
 $BUILD_FILE = "build.out"
 
 function Read-File-Lines {
@@ -123,27 +124,33 @@ foreach ($line in $target_output) {
   }
 }
 
-if ($null -eq (Get-Item -Path Env:$PRIVATE_KEY_KEY -ErrorAction SilentlyContinue)) {
+if ($null -eq (Get-Item -Path Env:$PRIVATE_KEY_ENV_NAME -ErrorAction SilentlyContinue)) {
   if (Test-Path $PRIVATE_KEY_PATH) {
     $private_key = Get-Content -Path $PRIVATE_KEY_PATH -Raw
-    Set-Item -Path "Env:$PRIVATE_KEY_KEY" -Value $private_key
+    Set-Item -Path "Env:$PRIVATE_KEY_ENV_NAME" -Value $private_key
   }
   else {
-    Write-Error "Could not find Tauri private signing key file or environment variable '$PRIVATE_KEY_KEY' was not set."
+    Write-Error "Could not find Tauri private signing key file and environment variable '$PRIVATE_KEY_ENV_NAME' was not set."
     exit
   }
 }
 
-if ($null -eq (Get-Item -Path Env:$PRIVATE_KEY_PASSWORD_KEY -ErrorAction SilentlyContinue)) {
-  Write-Error "Environment variable '$PRIVATE_KEY_PASSWORD_KEY' not set."
+if ($null -eq (Get-Item -Path Env:$PRIVATE_KEY_PASSWORD_ENV_NAME -ErrorAction SilentlyContinue)) {
+  if (Test-Path $PRIVATE_KEY_PASSWORD_PATH) {
+    $private_key_password = Get-Content -Path $PRIVATE_KEY_PASSWORD_PATH -Raw
+    Set-Item -Path "Env:$PRIVATE_KEY_PASSWORD_ENV_NAME" -Value $private_key_password
+  }
+  else {
+    Write-Error "Could not find Tauri private signing key password file and environment variable '$PRIVATE_KEY_PASSWORD_ENV_NAME' was not set."
+    exit
+  }
   exit
 }
 
 $desktop_version, $_ = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH
 $tauri_version, $_ = Get-Version-Cargo -filePath $TAURI_TOML_PATH
-$lib_version, $_ = Get-Version-Cargo -filePath $LIB_TOML_PATH
 $node_version, $_ = Get-Version-Node -filePath $TAURI_CONF_PATH
-if ($desktop_version -ne $tauri_version -or $desktop_version -ne $lib_version -or $desktop_version -ne $node_version) {
+if ($desktop_version -ne $tauri_version -or $desktop_version -ne $node_version) {
   Write-Error "Versions do not match."
   exit
 }
@@ -152,7 +159,6 @@ if (-not ($args -contains $KEEP_VERSION_FLAG)) {
   Write-Output "Bumping patch versions"
   Update-Version-Cargo -filePath $DESKTOP_TOML_PATH
   Update-Version-Cargo -filePath $TAURI_TOML_PATH
-  Update-Version-Cargo -filePath $LIB_TOML_PATH
   Update-Version-Node -filePath $TAURI_CONF_PATH
 
   $new_version, $_ = Get-Version-Cargo -filePath $DESKTOP_TOML_PATH

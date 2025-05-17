@@ -93,7 +93,7 @@ debug = true
 opt-level = 3
 debug = false
 
-[profile.release.package.syre-resource-db]
+[profile.release.package.syre-desktop-resource-db]
 strip = true
 opt-level = 3
 codegen-units = 1

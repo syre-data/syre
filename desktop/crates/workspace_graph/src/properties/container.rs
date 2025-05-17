@@ -92,7 +92,6 @@ mod properties {
     use syre_core::types::ResourceId;
     use syre_desktop_editors::{common, types::InputDebounce};
     use syre_desktop_lib as lib;
-    use syre_desktop_ui_components as components;
     use syre_desktop_ui_lib as ui_lib;
     use syre_local as local;
     use syre_project_watcher as db;
@@ -551,7 +550,6 @@ mod properties {
 
     mod kind {
         use super::{InputDebounce, common::kind::Editor as KindEditor, update_properties};
-        use crate::types;
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
@@ -607,7 +605,6 @@ mod properties {
         use super::{
             InputDebounce, common::description::Editor as DescriptionEditor, update_properties,
         };
-        use crate::types;
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
@@ -665,7 +662,6 @@ mod properties {
 
     mod tags {
         use super::{InputDebounce, common::tags::Editor as TagsEditor, update_properties};
-        use crate::types;
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
@@ -961,7 +957,7 @@ mod properties {
             super::properties::InputDebounce,
             common::analysis_associations::{AddAssociation as AddAssociationEditor, AnalysisInfo},
         };
-        use crate::{commands, types};
+        use crate::{commands};
         use has_id::HasId;
         use leptos::{ev::MouseEvent, html, prelude::*};
         use leptos_icons::Icon;

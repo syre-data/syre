@@ -1,8 +1,6 @@
 use super::properties;
-use crate::types;
-use leptos::{ev::MouseEvent, html, prelude::*};
+use leptos::{ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
-use syre_desktop_ui_components as components;
 use syre_desktop_ui_lib as ui_lib;
 use wasm_bindgen::{JsCast, closure::Closure};
 
@@ -315,9 +313,8 @@ mod analyze {
     use leptos_icons::*;
     use reactive_stores::Store;
     use std::path::PathBuf;
-    use syre_core::{self as core, types::ResourceId};
+    use syre_core::{types::ResourceId};
     use syre_desktop_lib as lib;
-    use syre_desktop_ui_components as components;
     use syre_desktop_ui_lib::{
         self as ui_lib,
         state::settings::{

@@ -1,4 +1,3 @@
-#![feature(specialization)]
 #![feature(trait_alias)]
 
 pub mod commands;

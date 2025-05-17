@@ -1,13 +1,18 @@
 /// Asset and Assets.
-use crate::{common, error::IoSerde, file_resource::LocalResource, system::config::Config, Result};
+use crate::{common, file_resource::LocalResource};
 use std::{
-    fs, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    result::Result as StdResult,
 };
+use syre_core::project::Asset as CoreAsset;
+
+#[cfg(feature = "fs")]
+use crate::{Result, error::IoSerde, system::config::Config};
+#[cfg(feature = "fs")]
+use std::{fs, io};
+#[cfg(feature = "fs")]
 use syre_core::{
-    project::{Asset as CoreAsset, AssetProperties as CoreAssetProperties},
+    project::AssetProperties as CoreAssetProperties,
     types::{Creator, UserId},
 };
 
@@ -56,7 +61,7 @@ pub struct Assets {
 
 #[cfg(feature = "fs")]
 impl Assets {
-    pub fn load_from(base_path: impl Into<PathBuf>) -> StdResult<Self, IoSerde> {
+    pub fn load_from(base_path: impl Into<PathBuf>) -> std::result::Result<Self, IoSerde> {
         let base_path = base_path.into();
         let path = base_path.join(Self::rel_path());
         let file = fs::File::open(path)?;
@@ -66,7 +71,7 @@ impl Assets {
         Ok(Self { base_path, assets })
     }
 
-    pub fn save(&self) -> StdResult<(), io::Error> {
+    pub fn save(&self) -> std::result::Result<(), io::Error> {
         let file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)

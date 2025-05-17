@@ -1,11 +1,9 @@
 //! Runner settings.
-use crate::common;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs, io,
-    num::NonZeroUsize,
-    path::{Path, PathBuf},
-};
+use std::{num::NonZeroUsize, path::PathBuf};
+
+#[cfg(feature = "fs")]
+use std::{fs, io, path::Path};
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct Settings {
@@ -28,7 +26,7 @@ impl Settings {
     /// # Arguments
     /// 1. `base_path`: Base path of the project.
     pub fn save(&self, base_path: impl AsRef<Path>) -> Result<(), io::Error> {
-        let path = common::project_runner_settings_file_of(base_path);
+        let path = crate::common::project_runner_settings_file_of(base_path);
         fs::create_dir_all(path.parent().expect("invalid project path"))?;
         fs::write(path, serde_json::to_string_pretty(self).unwrap())?;
         Ok(())

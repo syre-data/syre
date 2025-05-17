@@ -1,16 +1,17 @@
 //! Local [`Script`].
+#[cfg(feature = "fs")]
 use crate::system::config::Config;
-use crate::Result;
+#[cfg(feature = "fs")]
 use std::path::PathBuf;
-use syre_core::error::Error as CoreError;
-use syre_core::project::Script as CoreScript;
+#[cfg(feature = "fs")]
+use syre_core::{error::Error as CoreError, project::Script as CoreScript};
 
 pub struct Script;
 
 #[cfg(feature = "fs")]
 impl Script {
     /// Creates a new [`Script`] with the `creator` field matching the current active creator.
-    pub fn new(path: impl Into<PathBuf>) -> Result<CoreScript> {
+    pub fn new(path: impl Into<PathBuf>) -> crate::Result<CoreScript> {
         let config = Config::load()?;
         let creator = config.user.clone().map(|c| c.into());
 

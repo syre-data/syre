@@ -1,17 +1,14 @@
 use crate::{project_bar::ProjectBar, state};
 use leptos::{
-    either::Either,
-    ev::{MouseEvent, SubmitEvent},
+    ev::{MouseEvent},
     html,
     prelude::*,
-    svg::filter,
     task::spawn_local,
 };
 use leptos_icons::Icon;
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_ui_lib as ui_lib;
-use syre_project_watcher::{self as db, state::Graph};
 use wasm_bindgen::{JsCast, prelude::Closure};
 
 const MIN_COL_WIDTH: u32 = 100;
@@ -255,7 +252,6 @@ fn DataView() -> impl IntoView {
                             each=display_state.columns().metadata()
                             key=|(key, _)| key.clone()
                             let:((key, column))
-                            clone:display_state
                             clone:width_md
                         >
                             <col
@@ -754,7 +750,6 @@ fn TableHeader(
     col_node: NodeRef<html::Col>,
     table_node: NodeRef<html::Table>,
 ) -> impl IntoView {
-    let state = expect_context::<state::data::State>();
     let (is_resizing, set_is_resizing) = signal(false);
     let root_node = NodeRef::<html::Th>::new();
     let drag_handle_node = NodeRef::<html::Div>::new();
@@ -1651,7 +1646,9 @@ pub(self) mod editor {
                         </div>
                         <div class="absolute top-2 left-2 w-30 bg-white dark:bg-secondary-800 border rounded-sm">
                             <div class="p-1">
-                                <form on:submit=submit>
+                                <form on:submit=submit
+                            on:keydown=handle_escape
+                                >
                                     <editors::common::metadata::ValueEditor
                                         value=input_value
                                         oninput

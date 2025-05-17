@@ -1,29 +1,20 @@
 use super::{Canvas, NavBar, ProjectBar, PropertiesBar, canvas, properties};
-use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{
-    either::{Either, either},
-    ev::MouseEvent,
-    html,
-    portal::Portal,
     prelude::*,
     task::spawn_local,
 };
-use leptos_icons::*;
-use leptos_router::{components::A, hooks::use_params_map};
 use serde::Serialize;
 use std::{
     io,
-    path::{Path, PathBuf},
+    path::{PathBuf},
     str::FromStr,
-    sync::Arc,
 };
-use syre_core::{self as core, types::ResourceId};
+use syre_core::{types::ResourceId};
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components::{Drawer, Logo, drawer};
+use syre_desktop_ui_components::{Drawer, drawer};
 use syre_desktop_ui_lib as ui_lib;
-use syre_local::{self as local, types::AnalysisKind};
-use syre_project_watcher as db;
+use syre_local as local;
 use tauri_sys::window::DragDropPayload;
 use wasm_bindgen::JsCast;
 
@@ -481,7 +472,7 @@ async fn handle_drop_event_analyses(
             }
         }
         Err(err) => {
-            let mut msg = ui_lib::message::Builder::error("Could not add analyses.");
+            let msg = ui_lib::message::Builder::error("Could not add analyses.");
             let msg = msg.body(format!("{err:?}"));
             messages.push_message(msg.build_str());
         }

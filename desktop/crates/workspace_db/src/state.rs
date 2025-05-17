@@ -1,12 +1,10 @@
 pub mod data {
     use leptos::prelude::*;
     use std::{
-        assert_matches::assert_matches,
         path::{self, PathBuf},
         sync::Arc,
     };
     use syre_core as core;
-    use syre_desktop_lib::command::asset;
     use syre_desktop_ui_lib as ui_lib;
     use syre_project_watcher as db;
 
@@ -259,7 +257,7 @@ pub mod data {
                     let added = node_states
                         .read_untracked()
                         .iter()
-                        .filter(|(node, state)| {
+                        .filter(|(node, _)| {
                             !node_assets
                                 .read_untracked()
                                 .iter()
@@ -469,7 +467,6 @@ pub mod display {
                 data_source,
                 {
                     let sort = sort.read_only();
-                    let data = data.write_only();
                     move |data_source, _, _| {
                         let mut removed = data_sorted
                             .read_untracked()
@@ -509,9 +506,7 @@ pub mod display {
                             }
                         });
 
-                        sort.with_untracked(|sort| {
-                            Self::sort_data(sort, data_sorted.write_only(), data)
-                        });
+                        sort.with_untracked(|sort| Self::sort_data(sort, data_sorted.write_only()));
                     }
                 },
                 false,
@@ -567,7 +562,7 @@ pub mod display {
                 move || (filter.get(), data_sorted.get()),
                 {
                     let data = data.write_only();
-                    move |(filter, data_sorted), prev, _| {
+                    move |(filter, data_sorted), _, _| {
                         Self::filter_effect(filter, data_sorted, data);
                     }
                 },
@@ -587,11 +582,7 @@ pub mod display {
     }
 
     impl State {
-        fn sort_data(
-            sort: &Sort,
-            data_sorted: WriteSignal<Vec<super::data::Datum>>,
-            data: WriteSignal<Vec<super::data::Datum>>,
-        ) {
+        fn sort_data(sort: &Sort, data_sorted: WriteSignal<Vec<super::data::Datum>>) {
             match sort.field() {
                 SortField::Path => data_sorted.write().sort_by_key(|datum| {
                     datum
@@ -675,7 +666,7 @@ pub mod display {
                     data.write().reverse();
                 }
                 Action::Sort => {
-                    Self::sort_data(sort, data_sorted, data);
+                    Self::sort_data(sort, data_sorted);
                 }
             }
         }

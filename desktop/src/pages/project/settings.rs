@@ -200,18 +200,10 @@ mod project {
 
     mod desktop {
         use super::InputDebounce;
-        use crate::commands;
-        use leptos::{
-            either::Either,
-            ev::{Event, MouseEvent},
-            html,
-            prelude::*,
-            task::spawn_local,
-        };
-        use leptos_icons::*;
+        use leptos::{ev::Event, prelude::*, task::spawn_local};
         use reactive_stores::Store;
         use serde::Serialize;
-        use std::{io, num::NonZeroUsize, path::PathBuf};
+        use std::{io, path::PathBuf};
         use syre_desktop_lib as lib;
         use syre_desktop_ui_lib::{self as ui_lib, state::settings::project::SettingsStoreFields};
         use syre_local::error::IoSerde;
@@ -342,7 +334,6 @@ mod project {
 
     mod runner {
         use super::InputDebounce;
-        use crate::commands;
         use leptos::{
             either::Either,
             ev::{Event, MouseEvent},
@@ -363,7 +354,6 @@ mod project {
             let project = expect_context::<ui_lib::state::Project>();
             let project_settings = expect_context::<Store<ui_lib::state::settings::Project>>();
             let settings = project_settings.runner();
-            let analysis_settings = project_settings.analysis();
             let input_debounce = expect_context::<InputDebounce>();
             let messages = expect_context::<ui_lib::message::Messages>();
 
@@ -787,18 +777,10 @@ mod project {
 
     mod analysis {
         use super::InputDebounce;
-        use crate::commands;
-        use leptos::{
-            either::Either,
-            ev::{Event, MouseEvent},
-            html,
-            prelude::*,
-            task::spawn_local,
-        };
-        use leptos_icons::*;
+        use leptos::{html, prelude::*, task::spawn_local};
         use reactive_stores::Store;
         use serde::Serialize;
-        use std::{io, num::NonZeroUsize, path::PathBuf};
+        use std::{io, path::PathBuf};
         use syre_desktop_lib as lib;
         use syre_desktop_ui_lib::{self as ui_lib, state::settings::project::SettingsStoreFields};
         use syre_local::error::IoSerde;

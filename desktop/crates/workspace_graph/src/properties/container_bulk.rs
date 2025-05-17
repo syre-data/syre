@@ -837,7 +837,6 @@ mod kind {
 
 mod description {
     use super::{ActiveResources, InputDebounce, State, update_properties};
-    use crate::types;
     use leptos::{prelude::*, task::spawn_local};
     use syre_desktop_editors::common::bulk::description::Editor as DescriptionEditor;
     use syre_desktop_lib::command::container::bulk::PropertiesUpdate;
@@ -986,7 +985,6 @@ mod tags {
         let graph = expect_context::<ui_lib::state::Graph>();
         let messages = expect_context::<ui_lib::message::Messages>();
         let containers = expect_context::<ActiveResources>();
-        let state = expect_context::<Signal<State>>();
         let reset_form = Trigger::new();
         let onadd = Callback::new(move |tags: Vec<String>| {
             if tags.is_empty() {

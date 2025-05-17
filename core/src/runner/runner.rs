@@ -1,5 +1,5 @@
 //! Syre project runner.
-use super::{tree, Runnable, Tree, ANALYSIS_ID_KEY, CONTAINER_ID_KEY, PROJECT_ID_KEY};
+use super::{ANALYSIS_ID_KEY, CONTAINER_ID_KEY, PROJECT_ID_KEY, Runnable, Tree, tree};
 use crate::types::ResourceId;
 use core::time;
 use rayon::prelude::*;
@@ -747,8 +747,10 @@ impl Default for ErrorResponse {
 
 pub mod error {
     use crate::types::ResourceId;
-    use serde::{Deserialize, Serialize};
     use std::{io, path::PathBuf};
+
+    #[cfg(feature = "serde")]
+    use serde::{Deserialize, Serialize};
 
     /// The `Container` could not be found in the graph.
     #[derive(thiserror::Error, Debug)]
@@ -764,7 +766,9 @@ pub mod error {
     #[derive(thiserror::Error, Debug)]
     #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     pub enum Evaluation {
-        #[error("error running `{cmd}` from analysis `{analysis}` on container `{container}` in project `{project}`: {err:?}")]
+        #[error(
+            "error running `{cmd}` from analysis `{analysis}` on container `{container}` in project `{project}`: {err:?}"
+        )]
         Command {
             project: ResourceId,
             analysis: ResourceId,
@@ -776,7 +780,9 @@ pub mod error {
         },
 
         /// An error occured when running the analysis on the specified `Container`.
-        #[error("analysis `{analysis}` running over Container `{container}` in project `{project}` errored: {err}")]
+        #[error(
+            "analysis `{analysis}` running over Container `{container}` in project `{project}` errored: {err}"
+        )]
         Analysis {
             project: ResourceId,
             analysis: ResourceId,

@@ -1,4 +1,3 @@
-use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{prelude::*, task::spawn_local};
 use project_bar::ProjectBar;
@@ -84,7 +83,6 @@ mod project_bar {
     use leptos::{ev::MouseEvent, prelude::*};
     use leptos_icons::Icon;
     use syre_desktop_ui_lib as ui_lib;
-    use wasm_bindgen::{JsCast, closure::Closure};
 
     #[component]
     pub fn ProjectBar() -> impl IntoView {
@@ -270,10 +268,9 @@ fn handle_drag_drop_event(
 
             let payload = payload.clone();
             spawn_local(async move {
-                let (resource, elm) = match resource_from_position(payload.position()).await {
-                    None => (None, None),
-                    Some((resource, elm)) => (Some(resource), elm),
-                };
+                let resource = resource_from_position(payload.position())
+                    .await
+                    .map(|(resource, _)| resource);
                 if **drag_over_workspace_resource.read_untracked() != resource {
                     drag_over_workspace_resource.set(resource.into());
                 }

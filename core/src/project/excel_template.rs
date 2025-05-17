@@ -109,7 +109,7 @@ mod runner {
 
             let worksheet = match &replace_range.sheet {
                 WorksheetId::Name(name) => name,
-                WorksheetId::Index(idx) => todo!(),
+                WorksheetId::Index(_idx) => todo!(),
             };
 
             let template_path = template_path.to_str().unwrap().to_string();
@@ -136,7 +136,7 @@ mod runner {
                 name: filter_name,
                 kind: filter_type,
                 tags: filter_tags,
-                metadata: filter_metadata,
+                metadata: _filter_metadata,
             } = asset_filter;
 
             // output parameters
@@ -215,7 +215,7 @@ mod runner {
                 cmd.arg(format!("--filter-type={filter_type}"));
             }
 
-            if let Some(filter_tags) = filter_tags {
+            if let Some(_filter_tags) = filter_tags {
                 todo!();
             }
 
@@ -249,7 +249,7 @@ mod runner {
                 indices.into_iter().map(|idx| idx.to_string()).collect()
             }
 
-            SpreadsheetColumns::Header(header) => todo!(),
+            SpreadsheetColumns::Header(_header) => todo!(),
         }
     }
 }

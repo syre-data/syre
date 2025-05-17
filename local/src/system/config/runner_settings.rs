@@ -1,12 +1,12 @@
 //! Runner settings.
-use crate::{error, file_resource::UserResource};
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    io::{self, BufReader},
-    num::NonZeroUsize,
-    path::{Path, PathBuf},
-};
+use std::{num::NonZeroUsize, path::PathBuf};
+
+#[cfg(feature = "fs")]
+use crate::{error, file_resource::UserResource};
+#[cfg(feature = "fs")]
+use std::{fs, io, path::Path};
+#[cfg(feature = "fs")]
 use syre_core::types::ResourceId;
 
 /// Represents Syre runner settings.
@@ -42,7 +42,7 @@ impl RunnerSettings {
 
         let path_abs = Self::base_path()?.join(&path);
         let file = fs::File::open(&path_abs)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         let inner = serde_json::from_reader(reader)?;
         Ok(Self { path, inner })
     }

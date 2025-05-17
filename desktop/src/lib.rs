@@ -1,5 +1,4 @@
 #![feature(assert_matches)]
-#![feature(extract_if)]
 
 mod app;
 pub(crate) mod commands;

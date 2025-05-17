@@ -1,4 +1,4 @@
-use leptos::{either::either, ev::MouseEvent, prelude::*};
+use leptos::{ ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
 use syre_desktop_ui_lib as ui_lib;
 

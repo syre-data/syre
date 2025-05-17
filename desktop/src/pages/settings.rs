@@ -122,7 +122,6 @@ fn Loading() -> impl IntoView {
 pub mod user {
     use leptos::prelude::*;
     use reactive_stores::Store;
-    use syre_desktop_lib as lib;
     use syre_desktop_ui_lib as ui_lib;
 
     #[component]
@@ -328,11 +327,9 @@ pub mod user {
     }
 
     mod runner {
-        use crate::commands;
         use leptos::{
             either::Either,
             ev::{Event, MouseEvent},
-            html,
             prelude::*,
             task::spawn_local,
         };
@@ -713,18 +710,14 @@ pub mod user {
     }
 
     mod analysis {
-        use crate::commands;
         use leptos::{
-            either::Either,
-            ev::{Event, MouseEvent},
             html,
             prelude::*,
             task::spawn_local,
         };
-        use leptos_icons::*;
         use reactive_stores::Store;
         use serde::Serialize;
-        use std::{io, num::NonZeroUsize, path::PathBuf};
+        use std::{io};
         use syre_core::{self as core, types::ResourceId};
         use syre_desktop_lib as lib;
         use syre_desktop_ui_lib::{self as ui_lib, state::settings::user::SettingsStoreFields};
@@ -904,7 +897,6 @@ pub mod user {
 
 pub mod app {
     use leptos::{html, prelude::*};
-    use reactive_stores::Store;
     use serde::Serialize;
     use syre_desktop_lib as lib;
     use syre_desktop_ui_lib as ui_lib;

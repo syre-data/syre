@@ -1,5 +1,5 @@
 use super::super::workspace::ViewboxState;
-use crate::{commands, types, utils};
+use crate::{types, utils};
 use futures::StreamExt;
 use leptos::{either::Either, ev::MouseEvent, prelude::*, task::spawn_local};
 use leptos_icons::Icon;

@@ -1,5 +1,4 @@
 use super::PopoutPortal;
-use crate::types;
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{
@@ -17,7 +16,6 @@ use state::{ActiveResources, State};
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components as ui_components;
 use syre_desktop_ui_lib as ui_lib;
 use tags::{AddTags, Editor as Tags};
 
@@ -1044,9 +1042,9 @@ fn container_assets(
     for asset in assets {
         let node = graph.find_by_asset_id(asset).unwrap();
         let container = graph.path(&node).unwrap();
-        if let Some((container_id, container_assets)) = asset_ids
+        if let Some(container_assets) = asset_ids
             .iter_mut()
-            .find(|(container_id, _)| *container_id == container)
+            .find(|(container_id, _)| *container_id == container).map(|(_, container_assets)| container_assets)
         {
             container_assets.push(asset.clone());
         } else {

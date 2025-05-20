@@ -3,29 +3,21 @@ use crate::commands;
 use futures::stream::StreamExt;
 use leptos::{
     either::{Either, either},
-    ev::MouseEvent,
-    html,
-    portal::Portal,
     prelude::*,
     task::spawn_local,
 };
-use leptos_icons::*;
 use leptos_router::{components::A, hooks::use_params_map};
 use serde::Serialize;
 use std::{
-    io,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
 };
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components::{Drawer, Logo, drawer};
 use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_watcher as db;
-use tauri_sys::window::DragDropPayload;
-use wasm_bindgen::JsCast;
 
 #[derive(Clone, Copy, derive_more::Deref, derive_more::From)]
 struct ShowSettings(RwSignal<bool>);
@@ -663,7 +655,7 @@ fn handle_event_graph_graph(
         db::event::Graph::Inserted { .. } => {
             handle_event_graph_graph_inserted(event, graph, workspace_graph_state, display_state)
         }
-        db::event::Graph::Renamed { from, to } => handle_event_graph_graph_renamed(event, graph),
+        db::event::Graph::Renamed { .. } => handle_event_graph_graph_renamed(event, graph),
         db::event::Graph::Moved { from, to } => todo!(),
         db::event::Graph::Removed(_) => {
             handle_event_graph_graph_removed(event, graph, workspace_graph_state, display_state)

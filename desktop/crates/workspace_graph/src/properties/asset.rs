@@ -1,5 +1,4 @@
 use super::detail_popout_top;
-use crate::types;
 use leptos::{either::either, ev::MouseEvent, prelude::*};
 use leptos_icons::Icon;
 use syre_desktop_ui_lib as ui_lib;

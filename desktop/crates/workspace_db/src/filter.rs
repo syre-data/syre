@@ -8,7 +8,6 @@ use syre_desktop_ui_lib as ui_lib;
 
 #[component]
 pub fn DataFilter() -> impl IntoView {
-    let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
     let project = expect_context::<ui_lib::state::Project>();
     let user_settings = expect_context::<Store<ui_lib::state::settings::User>>();

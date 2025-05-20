@@ -1,6 +1,5 @@
 use crate::common;
 use std::path::{Path, PathBuf};
-use syre_desktop_lib as lib;
 use syre_local as local;
 
 /// Clamp a value between two others.

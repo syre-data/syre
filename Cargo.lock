@@ -7349,6 +7349,7 @@ dependencies = [
  "syre-desktop-resource-db",
  "syre-desktop-ui-components",
  "syre-desktop-ui-lib",
+ "syre-desktop-workspace-analysis",
  "syre-desktop-workspace-db",
  "syre-desktop-workspace-graph",
  "syre-local",
@@ -7403,6 +7404,28 @@ dependencies = [
  "syre-local",
  "syre-project-watcher",
  "tauri-sys",
+ "web-sys",
+]
+
+[[package]]
+name = "syre-desktop-workspace-analysis"
+version = "0.0.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "icondata",
+ "leptos",
+ "leptos-use",
+ "leptos_icons",
+ "reactive_stores",
+ "serde",
+ "serde_json",
+ "syre-core",
+ "syre-desktop-lib",
+ "syre-desktop-resource-db",
+ "syre-desktop-ui-lib",
+ "tauri-sys",
+ "tracing",
+ "wasm-bindgen",
  "web-sys",
 ]
 

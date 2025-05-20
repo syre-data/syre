@@ -1,12 +1,14 @@
 use super::config::Settings;
 use crate::{common, error::IoSerde as IoSerdeError, file_resource::LocalResource};
 use std::{
-    fs,
-    io::{self, BufReader, Write},
+    io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 use syre_core::project::Project as CoreProject;
+
+#[cfg(feature = "fs")]
+use std::{fs, io::Write};
 
 #[cfg(feature = "fs")]
 pub use duplicate::duplicate;
@@ -133,7 +135,7 @@ impl Project {
                 Err(err) => break 'project Err(err.into()),
             };
 
-            let reader = BufReader::new(file);
+            let reader = io::BufReader::new(file);
             serde_json::from_reader(reader).map_err(|err| err.into())
         };
 
@@ -144,7 +146,7 @@ impl Project {
                 Err(err) => break 'settings Err(err.into()),
             };
 
-            let reader = BufReader::new(file);
+            let reader = io::BufReader::new(file);
             serde_json::from_reader(reader).map_err(|err| err.into())
         };
 
@@ -200,7 +202,7 @@ impl Project {
         let base_path = fs::canonicalize(base_path.into())?;
         let path = base_path.join(<Project as LocalResource<CoreProject>>::rel_path());
         let file = fs::File::open(path)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
     }
 
@@ -221,7 +223,7 @@ impl Project {
         let base_path = fs::canonicalize(base_path.into())?;
         let path = base_path.join(<Project as LocalResource<Settings>>::rel_path());
         let file = fs::File::open(path)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         Ok(serde_json::from_reader(reader)?)
     }
 }
@@ -289,7 +291,7 @@ impl Builder {
         let Self {
             base_path,
             properties,
-            settings,
+            settings: _,
         } = self;
 
         let mut project = Project::new(base_path)?;

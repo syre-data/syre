@@ -2,11 +2,11 @@
 // use super::collections::scripts::Scripts;
 use crate::Result;
 use std::path::Path;
-use std::{fs, io};
 use syre_core::project::Script;
-use syre_core::types::ResourceId;
-use syre_core::Error as CoreError;
 use uuid::Uuid;
+// use std::{fs, io};
+// use syre_core::types::ResourceId;
+// use syre_core::Error as CoreError;
 
 // **************
 // *** Script ***

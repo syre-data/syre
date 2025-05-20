@@ -1,5 +1,4 @@
 use super::{PopoutPortal, errors_to_list_view};
-use crate::types;
 use description::Editor as Description;
 use kind::Editor as Kind;
 use leptos::{

@@ -1,14 +1,11 @@
-use crate::{error::IoSerde, system::resources::Config as ConfigData};
+use crate::system::resources::Config as ConfigData;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
-use std::{
-    fs,
-    io::{self, BufReader},
-    path::PathBuf,
-};
 
 #[cfg(feature = "fs")]
-use crate::{file_resource::SystemResource, system::common::config_dir_path};
+use crate::{error::IoSerde, file_resource::SystemResource, system::common::config_dir_path};
+#[cfg(feature = "fs")]
+use std::{fs, io, path::PathBuf};
 
 /// User settings.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -25,7 +22,7 @@ impl Config {
     pub fn load() -> Result<Self, IoSerde> {
         let path = Self::default_path()?;
         let file = fs::File::open(&path)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         let inner = serde_json::from_reader(reader)?;
         Ok(Self { path, inner })
     }
@@ -34,7 +31,7 @@ impl Config {
         let path = Self::default_path()?;
         match fs::File::open(&path) {
             Ok(file) => {
-                let reader = BufReader::new(file);
+                let reader = io::BufReader::new(file);
                 let inner = serde_json::from_reader(reader)?;
                 Ok(Self { path, inner })
             }
@@ -58,7 +55,7 @@ impl Config {
     pub fn load_from(path: impl Into<PathBuf>) -> Result<Self, IoSerde> {
         let path = path.into();
         let file = fs::File::open(&path)?;
-        let reader = BufReader::new(file);
+        let reader = io::BufReader::new(file);
         Ok(Self {
             inner: serde_json::from_reader(reader)?,
             path,
@@ -70,7 +67,7 @@ impl Config {
         let path = path.into();
         match fs::File::open(&path) {
             Ok(file) => {
-                let reader = BufReader::new(file);
+                let reader = io::BufReader::new(file);
                 Ok(Self {
                     inner: serde_json::from_reader(reader)?,
                     path,

@@ -45,7 +45,6 @@ pub fn ProjectBar() -> impl IntoView {
 fn ColumnSelector() -> impl IntoView {
     const MENU_ID: &str = "db-workspace-column-selection-menu";
 
-    let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
     let (active, set_active) = signal_local::<Option<Closure<dyn FnMut(MouseEvent)>>>(None);
 
@@ -240,7 +239,6 @@ fn ColumnSelector() -> impl IntoView {
                                 each=metadata_columns
                                 key=|(key, _)| key.clone()
                                 let:((key, column))
-                                clone:display_state
                             >
                                 <div class=CLASS_FORM_DIV>
                                     <label class="cursor-pointer">

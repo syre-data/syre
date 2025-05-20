@@ -1,14 +1,14 @@
 //! Common use functions.
 use crate::constants::*;
-use rayon::prelude::*;
-use regex::Regex;
 use std::{
     ffi::OsString,
-    io,
-    path::{Component, Path, PathBuf, Prefix, MAIN_SEPARATOR},
-    sync::{Arc, Mutex},
+    path::{Component, MAIN_SEPARATOR, Path, PathBuf, Prefix},
 };
 
+#[cfg(feature = "fs")]
+use rayon::prelude::*;
+#[cfg(feature = "fs")]
+use std::io;
 
 /// Joins an absolute path as if it were a relative path.
 ///
@@ -65,7 +65,7 @@ pub fn unique_file_name(path: impl AsRef<Path>) -> Result<PathBuf, io::ErrorKind
     };
 
     // get highest counter
-    let name_pattern = Regex::new(&format!(r"{file_prefix} \((\d+)\){ext}$")).unwrap();
+    let name_pattern = regex::Regex::new(&format!(r"{file_prefix} \((\d+)\){ext}$")).unwrap();
     let mut highest = None;
     for entry in std::fs::read_dir(parent).map_err(|err| err.kind())? {
         let entry_path = entry.map(|entry| entry.path()).map_err(|err| err.kind())?;
@@ -195,6 +195,8 @@ pub fn copy_dir(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
 ) -> Result<(), Vec<(PathBuf, io::ErrorKind)>> {
+    use std::sync::{Arc, Mutex};
+
     let src: &Path = src.as_ref();
     let dst: &Path = dst.as_ref();
 

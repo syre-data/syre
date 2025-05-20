@@ -1,9 +1,7 @@
-use crate::types;
 use leptos::{either::EitherOf7, html, prelude::*};
 use reactive_stores::Store;
 use std::fmt;
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components as components;
 use syre_desktop_ui_lib as ui_lib;
 
 pub(super) mod analyses;

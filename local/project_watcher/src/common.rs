@@ -1,9 +1,8 @@
 //! Common functions.
 use std::path::{Component, Path, PathBuf, StripPrefixError};
-use syre_local as local;
 
 #[cfg(any(feature = "client", feature = "server"))]
-use crate::constants::{PortNumber, DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, REQ_REP_PORT};
+use crate::constants::{DATASTORE_PORT, LOCALHOST, PUB_SUB_PORT, PortNumber, REQ_REP_PORT};
 
 /// Returns a localhost tcp address with the given port.
 #[cfg(any(feature = "client", feature = "server"))]

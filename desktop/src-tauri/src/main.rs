@@ -115,10 +115,18 @@ mod logging {
             .pretty()
             .with_filter(filter::EnvFilter::from_default_env());
 
+        #[cfg(debug_assertions)]
+        let timing_layer = tracing_timing::Builder::default()
+            .layer(|| tracing_timing::Histogram::new_with_max(1_000_000, 2).unwrap());
+
         let subscriber = Registry::default().with(file_logger);
 
         #[cfg(debug_assertions)]
         let subscriber = subscriber.with(console_logger);
+
+        #[cfg(debug_assertions)]
+        let subscriber = subscriber.with(timing_layer);
+        // let subscriber = tracing::Dispatch::new(timing_layer.with_subscriber(subscriber));
 
         tracing::subscriber::set_global_default(subscriber).unwrap();
         _log_guard

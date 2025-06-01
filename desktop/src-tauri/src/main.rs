@@ -126,7 +126,6 @@ mod logging {
 
         #[cfg(debug_assertions)]
         let subscriber = subscriber.with(timing_layer);
-        // let subscriber = tracing::Dispatch::new(timing_layer.with_subscriber(subscriber));
 
         tracing::subscriber::set_global_default(subscriber).unwrap();
         _log_guard

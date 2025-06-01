@@ -40,7 +40,6 @@ syre-desktop-editors ={ path = "crates/editors" }
 syre-desktop-resource-db = { path = "crates/resource_db", default-features = false }
 syre-desktop-workspace-db = { path = "crates/workspace_db" }
 syre-desktop-workspace-graph = { path = "crates/workspace_graph" }
-syre-desktop-workspace-analysis = { path = "crates/workspace_analysis" }
 tauri-sys = { workspace = true, features = [
 	"app",
 	"core",

@@ -1389,15 +1389,16 @@ fn ContainerPreview(
 
 #[component]
 fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl IntoView {
+    let graph = expect_context::<ui_lib::state::Graph>();
+    let container = expect_context::<Container>();
     let messages = expect_context::<ui_lib::message::Messages>();
     move || {
         assets.with(|assets| match assets {
             Ok(assets) => Either::Left(view! { <AssetsPreview assets=assets.read_only() /> }),
             Err(err) => {
-                tracing::error!(?err);
-                // TODO: Get path of container.
+                let path = graph.path(&container).unwrap();
                 let msg = ui_lib::message::Builder::error("Could not load assets.");
-                let msg = msg.body(format!("{err:?}"));
+                let msg = msg.body(format!("Container {path:?}: {err:?}"));
                 messages.push_message(msg.build_str());
 
                 Either::Right(view! { <div class="text-center">"(assets error)"</div> })

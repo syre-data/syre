@@ -1,10 +1,5 @@
 use crate::{project_bar::ProjectBar, state};
-use leptos::{
-    ev::{MouseEvent},
-    html,
-    prelude::*,
-    task::spawn_local,
-};
+use leptos::{ev::MouseEvent, html, prelude::*, task::spawn_local};
 use leptos_icons::Icon;
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
@@ -260,7 +255,10 @@ fn DataView() -> impl IntoView {
                                     let visible = column.visible().read_only();
                                     move || !visible()
                                 }
-                                style:width=format!("{}px", width_md.iter().find_map(|(md_key, value)| (*md_key == key).then_some(value)).unwrap())
+                                style:width=format!(
+                                    "{}px",
+                                    width_md.iter().find_map(|(md_key, value)| (*md_key == key).then_some(value)).unwrap() // TODO: May be `None`.
+                                )
                             />
                         </For>
                     </colgroup>
@@ -1026,9 +1024,14 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
         false,
     );
 
+    let file_str = {
+        let path = datum.asset().path().read_only();
+        move || path.get().to_string_lossy().to_string()
+    };
     let metadata = datum.metadata();
     const TH_CLASS: &str = "pl-1 pr-2 align-top truncate text-left";
     const TD_CLASS: &str = "pl-1 pr-2 align-top truncate";
+    const TD_METADATA_CLASS: &str = "pl-1 pr-2 align-top truncate has-[form]:overflow-visible";
     view! {
         <tr class="group hover:bg-secondary-100 dark:hover:bg-secondary-700">
             <th
@@ -1071,15 +1074,9 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                     ],
                     display_state.columns().file().pinned().read_only(),
                 )
-                title={
-                    let path = datum.asset().path().read_only();
-                    move || { path.get().to_string_lossy().to_string() }
-                }
+                title=file_str.clone()
             >
-                {
-                    let path = datum.asset().path().read_only();
-                    move || { path.get().to_string_lossy().to_string() }
-                }
+                {file_str}
             </th>
             <td
                 class=TD_CLASS
@@ -1109,7 +1106,7 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                 <properties::Tags value=datum.asset().tags().read_only() on_change=update_tags />
             </td>
             <For each=state.metadata_keys() key=|key| key.clone() let:key>
-                <td class=TD_CLASS title=md_title(key.clone())>
+                <td class=TD_METADATA_CLASS title=md_title(key.clone())>
                     <properties::Metadatum
                         key=key.clone()
                         metadata
@@ -1254,6 +1251,8 @@ pub(self) mod properties {
 }
 
 pub(self) mod editor {
+    use std::io::empty;
+
     use crate::state;
     use leptos::{
         either::Either,
@@ -1283,16 +1282,30 @@ pub(self) mod editor {
         let (input_value, set_input_value) = signal(value.get_untracked());
         let input_node = NodeRef::<html::Input>::new();
 
-        let enable_editing = {
-            move |e: MouseEvent| {
-                if e.button() != ui_lib::types::MouseButton::Primary {
-                    return;
-                }
-
-                set_input_value(value.get_untracked());
-                set_editing(true);
+        move || {
+            if editing.get() {
+                Either::Left(
+                    view! { <InputEditor value on_change set_editing placeholder=placeholder.clone() /> },
+                )
+            } else {
+                Either::Right(
+                    view! { <InputValue value empty_value=empty_value.clone() set_editing /> },
+                )
             }
-        };
+        }
+    }
+
+    #[component]
+    fn InputEditor(
+        value: Signal<String>,
+        on_change: Callback<String>,
+        set_editing: WriteSignal<bool>,
+
+        /// `<input>` placeholder.
+        placeholder: Option<String>,
+    ) -> impl IntoView {
+        let (input_value, set_input_value) = signal(value.get_untracked());
+        let input_node = NodeRef::<html::Input>::new();
 
         let disable_editing = move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {
@@ -1332,6 +1345,61 @@ pub(self) mod editor {
             }
         };
 
+        Effect::new(move || {
+            if let Some(input_node) = input_node.get() {
+                if let Err(err) = input_node.focus() {
+                    tracing::error!(?err);
+                };
+            }
+        });
+
+        view! {
+            <form on:submit=submit class="flex">
+                <input
+                    node_ref=input_node
+                    bind:value=(input_value, set_input_value)
+                    on:keydown=handle_escape
+                    class="input-compact grow"
+                    placeholder=placeholder.clone()
+                />
+                <div class="pl-2 flex gap-1">
+                    <button
+                        type="submit"
+                        class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
+                        on:mousedown=change
+                    >
+                        <Icon icon=ui_lib::icon::Accept />
+                    </button>
+                    <button
+                        type="button"
+                        class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                        on:mousedown=disable_editing
+                    >
+                        <Icon icon=ui_lib::icon::Close />
+                    </button>
+                </div>
+            </form>
+        }
+    }
+
+    #[component]
+    fn InputValue(
+        value: Signal<String>,
+        set_editing: WriteSignal<bool>,
+
+        /// Displayed if `value` is empty and not in editing mode.
+        empty_value: String,
+    ) -> impl IntoView {
+        let enable_editing = {
+            move |e: MouseEvent| {
+                if e.button() != ui_lib::types::MouseButton::Primary {
+                    return;
+                }
+
+                set_editing(true);
+            }
+        };
+
         let display_value = {
             let empty_value = empty_value.clone();
             move || {
@@ -1343,65 +1411,23 @@ pub(self) mod editor {
             }
         };
 
-        Effect::new(move || {
-            if editing() {
-                if let Some(input_node) = input_node.get() {
-                    if let Err(err) = input_node.focus() {
-                        tracing::error!(?err);
-                    };
-                }
-            }
-        });
-
-        move || {
-            if editing.get() {
-                Either::Left(view! {
-                    <form on:submit=submit class="flex">
-                        <input
-                            node_ref=input_node
-                            bind:value=(input_value, set_input_value)
-                            on:keydown=handle_escape
-                            class="input-compact grow"
-                            placeholder=placeholder.clone()
-                        />
-                        <div class="pl-2 flex gap-1">
-                            <button
-                                type="submit"
-                                class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
-                                on:mousedown=change
-                            >
-                                <Icon icon=ui_lib::icon::Accept />
-                            </button>
-                            <button
-                                type="button"
-                                class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
-                                on:mousedown=disable_editing
-                            >
-                                <Icon icon=ui_lib::icon::Close />
-                            </button>
-                        </div>
-                    </form>
-                })
-            } else {
-                Either::Right(view! {
-                    <div class="flex group/editor">
-                        <div
-                            class=(
-                                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
-                                move || value.read().is_empty(),
-                            )
-                            class="grow"
-                        >
-                            {display_value.clone()}
-                        </div>
-                        <div class="pl-2 invisible group-hover/editor:visible">
-                            <button class="cursor-pointer" on:mousedown=enable_editing>
-                                <Icon icon=ui_lib::icon::Edit />
-                            </button>
-                        </div>
-                    </div>
-                })
-            }
+        view! {
+            <div class="flex group/editor">
+                <div
+                    class=(
+                        ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                        move || value.read().is_empty(),
+                    )
+                    class="grow"
+                >
+                    {display_value.clone()}
+                </div>
+                <div class="pl-2 invisible group-hover/editor:visible">
+                    <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
+                        <Icon icon=ui_lib::icon::Edit />
+                    </button>
+                </div>
+            </div>
         }
     }
 
@@ -1418,19 +1444,31 @@ pub(self) mod editor {
         placeholder: Option<String>,
     ) -> impl IntoView {
         let (editing, set_editing) = signal(false);
+
+        move || {
+            if editing.get() {
+                Either::Left(
+                    view! { <TextAreaEditor value on_change set_editing placeholder=placeholder.clone() /> },
+                )
+            } else {
+                Either::Right(
+                    view! { <TextAreaValue value empty_value=empty_value.clone() set_editing /> },
+                )
+            }
+        }
+    }
+
+    #[component]
+    fn TextAreaEditor(
+        value: Signal<String>,
+        on_change: Callback<String>,
+        set_editing: WriteSignal<bool>,
+
+        /// `<input>` placeholder.
+        placeholder: Option<String>,
+    ) -> impl IntoView {
         let (input_value, set_input_value) = signal(value.get_untracked());
         let input_node = NodeRef::<html::Textarea>::new();
-
-        let enable_editing = {
-            move |e: MouseEvent| {
-                if e.button() != ui_lib::types::MouseButton::Primary {
-                    return;
-                }
-
-                set_input_value(value.get_untracked());
-                set_editing(true);
-            }
-        };
 
         let disable_editing = move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {
@@ -1470,6 +1508,63 @@ pub(self) mod editor {
             }
         };
 
+        Effect::new(move || {
+            if let Some(input_node) = input_node.get() {
+                if let Err(err) = input_node.focus() {
+                    tracing::error!(?err);
+                };
+            }
+        });
+
+        view! {
+            <form on:submit=submit class="flex">
+                <textarea
+                    node_ref=input_node
+                    bind:value=(input_value, set_input_value)
+                    on:keydown=handle_escape
+                    class="input-compact grow"
+                    placeholder=placeholder.clone()
+                >
+                    {value.get_untracked()}
+                </textarea>
+                <div class="pl-2 flex gap-1">
+                    <button
+                        type="submit"
+                        class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
+                        on:mousedown=change
+                    >
+                        <Icon icon=ui_lib::icon::Accept />
+                    </button>
+                    <button
+                        type="button"
+                        class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                        on:mousedown=disable_editing
+                    >
+                        <Icon icon=ui_lib::icon::Close />
+                    </button>
+                </div>
+            </form>
+        }
+    }
+
+    #[component]
+    fn TextAreaValue(
+        value: Signal<String>,
+        set_editing: WriteSignal<bool>,
+
+        /// Displayed if `value` is empty and not in editing mode.
+        empty_value: String,
+    ) -> impl IntoView {
+        let enable_editing = {
+            move |e: MouseEvent| {
+                if e.button() != ui_lib::types::MouseButton::Primary {
+                    return;
+                }
+
+                set_editing(true);
+            }
+        };
+
         let display_value = {
             let empty_value = empty_value.clone();
             move || {
@@ -1481,67 +1576,23 @@ pub(self) mod editor {
             }
         };
 
-        Effect::new(move || {
-            if editing() {
-                if let Some(input_node) = input_node.get() {
-                    if let Err(err) = input_node.focus() {
-                        tracing::error!(?err);
-                    };
-                }
-            }
-        });
-
-        move || {
-            if editing.get() {
-                Either::Left(view! {
-                    <form on:submit=submit class="flex">
-                        <textarea
-                            node_ref=input_node
-                            bind:value=(input_value, set_input_value)
-                            on:keydown=handle_escape
-                            class="input-compact grow"
-                            placeholder=placeholder.clone()
-                        >
-                            {value.get_untracked()}
-                        </textarea>
-                        <div class="pl-2 flex gap-1">
-                            <button
-                                type="submit"
-                                class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
-                                on:mousedown=change
-                            >
-                                <Icon icon=ui_lib::icon::Accept />
-                            </button>
-                            <button
-                                type="button"
-                                class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
-                                on:mousedown=disable_editing
-                            >
-                                <Icon icon=ui_lib::icon::Close />
-                            </button>
-                        </div>
-                    </form>
-                })
-            } else {
-                Either::Right(view! {
-                    <div class="flex group/editor">
-                        <div
-                            class=(
-                                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
-                                move || value.read().is_empty(),
-                            )
-                            class="grow"
-                        >
-                            {display_value.clone()}
-                        </div>
-                        <div class="pl-2 invisible group-hover/editor:visible">
-                            <button class="cursor-pointer" on:mousedown=enable_editing>
-                                <Icon icon=ui_lib::icon::Edit />
-                            </button>
-                        </div>
-                    </div>
-                })
-            }
+        view! {
+            <div class="flex group/editor">
+                <div
+                    class=(
+                        ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                        move || value.read().is_empty(),
+                    )
+                    class="grow"
+                >
+                    {display_value.clone()}
+                </div>
+                <div class="pl-2 invisible group-hover/editor:visible">
+                    <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
+                        <Icon icon=ui_lib::icon::Edit />
+                    </button>
+                </div>
+            </div>
         }
     }
 
@@ -1551,9 +1602,28 @@ pub(self) mod editor {
         on_change: Callback<core::types::Value>,
         on_remove: Trigger,
     ) -> impl IntoView {
+        let (editing, set_editing) = signal(false);
+
+        move || {
+            if editing.get() {
+                Either::Left(
+                    view! { <MetadatumEditor value=value.clone() on_change on_remove set_editing /> },
+                )
+            } else {
+                Either::Right(view! { <MetadatumValue value=value.clone() set_editing /> })
+            }
+        }
+    }
+
+    #[component]
+    fn MetadatumEditor(
+        value: Option<state::data::MetadatumValue>,
+        on_change: Callback<core::types::Value>,
+        on_remove: Trigger,
+        set_editing: WriteSignal<bool>,
+    ) -> impl IntoView {
         use syre_desktop_editors as editors;
 
-        let (editing, set_editing) = signal(false);
         let (input_value, set_input_value) = signal(
             value
                 .as_ref()
@@ -1570,17 +1640,6 @@ pub(self) mod editor {
                 false,
             );
         }
-
-        let enable_editing = {
-            move |e: MouseEvent| {
-                if e.button() != ui_lib::types::MouseButton::Primary {
-                    return;
-                }
-
-                // set_input_value(value.get_untracked());
-                set_editing(true);
-            }
-        };
 
         let disable_editing = move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {
@@ -1637,88 +1696,91 @@ pub(self) mod editor {
             on_remove.notify();
         };
 
-        move || {
-            if editing.get() {
-                Either::Left(view! {
-                    <div class="relative">
-                        <div class="absolute top-0 left-0 text-primary-600">
-                            <Icon icon=icondata::BsCircleFill />
-                        </div>
-                        <div class="absolute top-2 left-2 w-30 bg-white dark:bg-secondary-800 border rounded-sm">
-                            <div class="p-1">
-                                <form on:submit=submit
-                            on:keydown=handle_escape
+        view! {
+            <div class="relative">
+                <div class="absolute top-0 left-0 text-primary-600">
+                    <Icon icon=icondata::BsCircleFill />
+                </div>
+                <div class="absolute top-2 left-2 w-30 bg-white dark:bg-secondary-800 border rounded-sm">
+                    <div class="p-1">
+                        <form on:submit=submit on:keydown=handle_escape>
+                            <editors::common::metadata::ValueEditor value=input_value oninput />
+                            <div class="flex gap-2 items-center justify-center pt-1">
+                                <button
+                                    type="submit"
+                                    class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
+                                    on:mousedown=change
                                 >
-                                    <editors::common::metadata::ValueEditor
-                                        value=input_value
-                                        oninput
-                                    />
-                                    <div class="flex gap-2 items-center justify-center pt-1">
-                                        <button
-                                            type="submit"
-                                            class="cursor-pointer text-lg hover:text-syre-green-700 dark:hover:text-syre-green-400"
-                                            on:mousedown=change
-                                        >
-                                            <Icon icon=ui_lib::icon::Accept />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
-                                            on:mousedown=disable_editing
-                                        >
-                                            <Icon icon=ui_lib::icon::Close />
-                                        </button>
-                                    </div>
-                                </form>
+                                    <Icon icon=ui_lib::icon::Accept />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="cursor-pointer text-lg hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                                    on:mousedown=disable_editing
+                                >
+                                    <Icon icon=ui_lib::icon::Close />
+                                </button>
                             </div>
-                            {is_removeable
-                                .then_some(
-                                    view! {
-                                        <hr class="border-secondary-900 dark:border-secondary-200" />
-                                        <div class="text-center">
-                                            <button
-                                                on:click=remove
-                                                class="p-2 cursor-pointer text-center \
-                                                hover:text-syre-red-700 dark:hover:text-syre-red-600"
-                                            >
-                                                <Icon icon=ui_lib::icon::Trash />
-                                            </button>
-                                        </div>
-                                    },
-                                )}
-                        </div>
+                        </form>
                     </div>
-                })
-            } else {
-                Either::Right(view! {
-                    <div class="flex group/editor">
-                        <div class="grow">
-                            {if let Some(value) = value.as_ref() {
-                                Either::Left(view! { <MetadatumValue value=value.value() /> })
-                            } else {
-                                Either::Right(
-                                    view! {
-                                        <span class="text-nowrap text-secondary-500 dark:text-secondary-400">
-                                            "(n/a)"
-                                        </span>
-                                    },
-                                )
-                            }}
-                        </div>
-                        <div class="pl-2 invisible group-hover/editor:visible">
-                            <button class="cursor-pointer" on:mousedown=enable_editing>
-                                <Icon icon=ui_lib::icon::Edit />
-                            </button>
-                        </div>
-                    </div>
-                })
-            }
+                    {is_removeable
+                        .then_some(
+                            view! {
+                                <hr class="border-secondary-900 dark:border-secondary-200" />
+                                <div class="text-center">
+                                    <button
+                                        on:click=remove
+                                        class="p-2 cursor-pointer text-center \
+                                        hover:text-syre-red-700 dark:hover:text-syre-red-600"
+                                    >
+                                        <Icon icon=ui_lib::icon::Trash />
+                                    </button>
+                                </div>
+                            },
+                        )}
+                </div>
+            </div>
         }
     }
 
     #[component]
-    fn MetadatumValue(value: ReadSignal<core::types::Value>) -> impl IntoView {
-        move || super::metadatum_value_to_string(value.get())
+    fn MetadatumValue(
+        value: Option<state::data::MetadatumValue>,
+        set_editing: WriteSignal<bool>,
+    ) -> impl IntoView {
+        let enable_editing = {
+            move |e: MouseEvent| {
+                if e.button() != ui_lib::types::MouseButton::Primary {
+                    return;
+                }
+
+                set_editing(true);
+            }
+        };
+
+        view! {
+            <div class="flex group/editor">
+                <div class="grow">
+                    {if let Some(value) = value.as_ref() {
+                        let value = value.value();
+                        Either::Left(move || super::metadatum_value_to_string(value.get()))
+                    } else {
+                        Either::Right(
+                            view! {
+                                <span class="text-nowrap text-secondary-500 dark:text-secondary-400">
+                                    "(n/a)"
+                                </span>
+                            },
+                        )
+                    }}
+                </div>
+                <div class="pl-2 invisible group-hover/editor:visible">
+                    <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
+                        <Icon icon=ui_lib::icon::Edit />
+                    </button>
+                </div>
+            </div>
+        }
     }
 }
 

@@ -148,13 +148,11 @@ pub mod data {
         /// Graph state.
         graph: ui_lib::state::Graph,
 
-        // /// Containers' assets state.
-        // node_states: RwSignal<Vec<(ui_lib::state::graph::Node, ReadSignal<ui_lib::state::container::AssetsState>)>>,
-
-        // /// Containers' assets' states.
-        // node_assets: RwSignal<Vec<(ui_lib::state::graph::Node, ReadSignal<Vec<ui_lib::state::Asset>>)>>,
         /// Individual assets.
         data: RwSignal<Vec<Datum>>,
+
+        /// All metdata keys.
+        metadata_keys: ReadSignal<Vec<String>>,
     }
 
     impl State {
@@ -360,11 +358,71 @@ pub mod data {
                 false,
             );
 
+            let (metadata_keys, set_metadata_keys) = signal(vec![]);
+            Effect::new({
+                let nodes = graph.nodes().read_only();
+                move |_| {
+                    let mut keys = std::collections::HashSet::new();
+                    nodes
+                        .read()
+                        .iter()
+                        .filter_map(|node| {
+                            node.properties().with(|properties| {
+                                if let db::state::DataResource::Ok(properties) = properties {
+                                    Some(properties.metadata().read_only())
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .for_each(|metadata| {
+                            metadata.read().iter().for_each(|(md_key, _)| {
+                                if !keys.contains(md_key) {
+                                    keys.insert(md_key.clone());
+                                }
+                            });
+                        });
+
+                    nodes
+                        .read()
+                        .iter()
+                        .filter_map(|node| {
+                            node.assets().with(|assets| {
+                                if let db::state::DataResource::Ok(assets) = assets {
+                                    Some(assets.read_only())
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .flat_map(|assets| {
+                            assets
+                                .read()
+                                .iter()
+                                .map(|asset| asset.metadata().read_only())
+                                .collect::<Vec<_>>()
+                        })
+                        .for_each(|metadata| {
+                            metadata.read().iter().for_each(|(md_key, _)| {
+                                if !keys.contains(md_key) {
+                                    keys.insert(md_key.clone());
+                                }
+                            });
+                        });
+
+                    let mut keys = keys.into_iter().collect::<Vec<_>>();
+                    keys.sort();
+
+                    if metadata_keys.with_untracked(|metadata_keys| *metadata_keys != keys) {
+                        set_metadata_keys(keys);
+                    }
+                }
+            });
+
             Self {
                 graph,
-                // node_states,
-                // node_assets,
                 data,
+                metadata_keys,
             }
         }
 
@@ -372,61 +430,8 @@ pub mod data {
             self.data.read_only()
         }
 
-        pub fn metadata_keys(&self) -> Signal<Vec<String>> {
-            let nodes = self.graph.nodes().read_only();
-            Signal::derive(move || {
-                // TODO: Memoize.
-                let mut keys = vec![];
-                nodes
-                    .read()
-                    .iter()
-                    .filter_map(|node| {
-                        node.properties().with(|properties| {
-                            if let db::state::DataResource::Ok(properties) = properties {
-                                Some(properties.metadata().read_only())
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .for_each(|metadata| {
-                        metadata.read().iter().for_each(|(md_key, _)| {
-                            if !keys.iter().any(|key| md_key == key) {
-                                keys.push(md_key.clone())
-                            }
-                        })
-                    });
-
-                nodes
-                    .read()
-                    .iter()
-                    .filter_map(|node| {
-                        node.assets().with(|assets| {
-                            if let db::state::DataResource::Ok(assets) = assets {
-                                Some(assets.read_only())
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .flat_map(|assets| {
-                        assets
-                            .read()
-                            .iter()
-                            .map(|asset| asset.metadata().read_only())
-                            .collect::<Vec<_>>()
-                    })
-                    .for_each(|metadata| {
-                        metadata.read().iter().for_each(|(md_key, _)| {
-                            if !keys.iter().any(|key| md_key == key) {
-                                keys.push(md_key.clone())
-                            }
-                        })
-                    });
-
-                keys.sort();
-                keys
-            })
+        pub fn metadata_keys(&self) -> ReadSignal<Vec<String>> {
+            self.metadata_keys
         }
     }
 }

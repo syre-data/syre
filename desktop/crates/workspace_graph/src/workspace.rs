@@ -1,16 +1,9 @@
 use super::{Canvas, NavBar, ProjectBar, PropertiesBar, canvas, properties};
 use futures::stream::StreamExt;
-use leptos::{
-    prelude::*,
-    task::spawn_local,
-};
+use leptos::{prelude::*, task::spawn_local};
 use serde::Serialize;
-use std::{
-    io,
-    path::{PathBuf},
-    str::FromStr,
-};
-use syre_core::{types::ResourceId};
+use std::{io, path::PathBuf, str::FromStr};
+use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_desktop_ui_components::{Drawer, drawer};
 use syre_desktop_ui_lib as ui_lib;

@@ -369,7 +369,7 @@ pub mod metadata {
         view! {
             <input
                 type="checkbox"
-                prop:value=move || { input_value.with(|value| { value.value().clone() }) }
+                prop:checked=move || { input_value.read().value().clone() }
                 on:input=move |e| {
                     let v = event_target_checked(&e);
                     set_input_value(debounced::value::State::dirty(v))

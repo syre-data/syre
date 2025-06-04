@@ -70,7 +70,7 @@ zmq = "0.10.0"
 # desktop
 icondata = "0.5"
 js-sys = "0.3"
-leptos = { version = "0.8", features = ["nightly", "csr"] }
+leptos = { version = "0.8", features = ["nightly", "csr", "tracing"] }
 leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
 leptos_router = { version = "0.8" }
 leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main" }

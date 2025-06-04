@@ -12,18 +12,34 @@ pub mod data {
     pub struct Datum {
         ancestors: RwSignal<Vec<ui_lib::state::graph::Node>>,
         asset: ui_lib::state::Asset,
+        path: ReadSignal<PathBuf>,
+        metadata: ReadSignal<Vec<(String, MetadatumValue)>>,
     }
 
     impl Datum {
-        pub fn asset(&self) -> &ui_lib::state::Asset {
-            &self.asset
-        }
+        pub fn new(
+            ancestors: RwSignal<Vec<ui_lib::state::graph::Node>>,
+            asset: ui_lib::state::Asset,
+        ) -> Self {
+            let (path, set_path) = signal({
+                let ancestors = ancestors.read_only();
+                assert!(!ancestors.read_untracked().is_empty());
 
-        /// Container path.
-        pub fn path(&self) -> Signal<PathBuf> {
-            Signal::derive({
-                let ancestors = self.ancestors.read_only();
-                move || {
+                let path = ancestors
+                    .read_untracked()
+                    .iter()
+                    .rev()
+                    .skip(1)
+                    .map(|ancestor| ancestor.name().get_untracked())
+                    .collect::<PathBuf>();
+
+                std::iter::once(path::Component::RootDir)
+                    .chain(path.components())
+                    .collect::<PathBuf>()
+            });
+            Effect::new({
+                let ancestors = ancestors.read_only();
+                move |_| {
                     assert!(!ancestors.read().is_empty());
 
                     let path = ancestors
@@ -34,19 +50,68 @@ pub mod data {
                         .map(|ancestor| ancestor.name().get())
                         .collect::<PathBuf>();
 
-                    std::iter::once(path::Component::RootDir)
+                    let path = std::iter::once(path::Component::RootDir)
                         .chain(path.components())
-                        .collect::<PathBuf>()
-                }
-            })
-        }
+                        .collect::<PathBuf>();
 
-        /// Metadata values including inheritance.
-        pub fn metadata(&self) -> Signal<Vec<(String, MetadatumValue)>> {
-            Signal::derive({
-                let ancestors = self.ancestors.read_only();
-                let asset_md = self.asset.metadata().read_only();
-                move || {
+                    set_path(path);
+                }
+            });
+
+            let (metadata, set_metadata) = signal({
+                let ancestors = ancestors.read_only();
+                let asset_md = asset.metadata().read_only();
+                let mut metadata = vec![];
+                ancestors
+                    .read_untracked()
+                    .iter()
+                    .filter_map(|ancestor| {
+                        let properties = ancestor.properties().read_only();
+                        properties.with_untracked(|properties| {
+                            if let db::state::DataResource::Ok(properties) = properties {
+                                Some((ancestor.clone(), properties.metadata().read_only()))
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .rev()
+                    .for_each(|(ancestor, md)| {
+                        for (md_key, md_value) in md.read_untracked().iter() {
+                            if let Some((_, value)) =
+                                metadata.iter_mut().find(|(key, _)| key == md_key)
+                            {
+                                *value = MetadatumValue::inherited(
+                                    md_value.read_only(),
+                                    ancestor.clone(),
+                                );
+                            } else {
+                                metadata.push((
+                                    md_key.clone(),
+                                    MetadatumValue::inherited(
+                                        md_value.read_only(),
+                                        ancestor.clone(),
+                                    ),
+                                ))
+                            }
+                        }
+                    });
+
+                for (md_key, md_value) in asset_md.read_untracked().iter() {
+                    if let Some((_, value)) = metadata.iter_mut().find(|(key, _)| key == md_key) {
+                        *value = MetadatumValue::owned(md_value.read_only());
+                    } else {
+                        metadata.push((md_key.clone(), MetadatumValue::owned(md_value.read_only())))
+                    }
+                }
+
+                metadata
+            });
+
+            Effect::new({
+                let ancestors = ancestors.read_only();
+                let asset_md = asset.metadata().read_only();
+                move |_| {
                     let mut metadata = vec![];
                     ancestors
                         .read()
@@ -63,9 +128,9 @@ pub mod data {
                         })
                         .rev()
                         .for_each(|(ancestor, md)| {
-                            for (md_key, md_value) in md.get() {
+                            for (md_key, md_value) in md.read().iter() {
                                 if let Some((_, value)) =
-                                    metadata.iter_mut().find(|(key, _)| *key == md_key)
+                                    metadata.iter_mut().find(|(key, _)| key == md_key)
                                 {
                                     *value = MetadatumValue::inherited(
                                         md_value.read_only(),
@@ -93,9 +158,30 @@ pub mod data {
                         }
                     }
 
-                    metadata
+                    set_metadata(metadata);
                 }
-            })
+            });
+
+            Self {
+                ancestors,
+                asset,
+                path,
+                metadata,
+            }
+        }
+
+        pub fn asset(&self) -> &ui_lib::state::Asset {
+            &self.asset
+        }
+
+        /// Container path.
+        pub fn path(&self) -> ReadSignal<PathBuf> {
+            self.path
+        }
+
+        /// Metadata values including inheritance.
+        pub fn metadata(&self) -> ReadSignal<Vec<(String, MetadatumValue)>> {
+            self.metadata
         }
     }
 
@@ -186,10 +272,7 @@ pub mod data {
                 .map(|(node, asset)| {
                     let ancestors = graph.ancestors(&node);
                     assert!(!ancestors.is_empty());
-                    Datum {
-                        ancestors: RwSignal::new(ancestors),
-                        asset,
-                    }
+                    Datum::new(RwSignal::new(ancestors), asset)
                 })
                 .collect::<Vec<_>>();
 
@@ -346,10 +429,7 @@ pub mod data {
                                 for (node, asset) in added {
                                     let ancestors = graph.ancestors(node);
                                     assert!(!ancestors.is_empty());
-                                    data.push(Datum {
-                                        ancestors: RwSignal::new(ancestors),
-                                        asset: asset.clone(),
-                                    });
+                                    data.push(Datum::new(RwSignal::new(ancestors), asset.clone()));
                                 }
                             });
                         }
@@ -548,7 +628,7 @@ pub mod display {
                         });
                     }
                 },
-                false,
+                true,
             );
 
             Effect::watch(

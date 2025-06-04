@@ -52,9 +52,11 @@ pub fn FilterBar() -> impl IntoView {
 #[component]
 fn DataView() -> impl IntoView {
     const MAX_COL_LEN: usize = 25;
-    const REM_TO_PX: usize = 10; // NB: This must be manually changed if root font size changes.
+    // NB: This must be manually changed if root font size changes.
     // Can check with `getComputedStyle(document.documentElement).fontSize`.
     // May not be accurate for character width, so may have to change from given value.
+    const REM_TO_PX: usize = 10;
+    const EDIT_BUTTON_WIDTH: usize = 1;
 
     let graph = expect_context::<ui_lib::state::Graph>();
     let state = expect_context::<state::data::State>();
@@ -74,12 +76,12 @@ fn DataView() -> impl IntoView {
     // Using `table-layout: fixed` resolves this issue,
     // but means initial column widths must be
     // calculated manually.
-    let mut max_width_path = 4; // path
-    let mut max_width_file = 4; // file
-    let mut max_width_name = 4; // name
-    let mut max_width_kind = 4; // type
-    let mut max_width_desc = 11; // description
-    let mut max_width_tags = 4; // tags
+    let mut max_width_path = 9; // (no path)
+    let mut max_width_file = 9; // (no file)
+    let mut max_width_name = 9; // (no name)
+    let mut max_width_kind = 9; // (no type)
+    let mut max_width_desc = 16; // (no description)
+    let mut max_width_tags = 9; // (no tags)
     let mut max_width_md = std::collections::HashMap::new();
     for datum in state.data().read_untracked().iter() {
         let path_width = datum
@@ -149,7 +151,7 @@ fn DataView() -> impl IntoView {
             let width = value.with_untracked(|value| metadatum_value_len(value));
             let entry = max_width_md
                 .entry(key.clone())
-                .or_insert(usize::max(key.chars().count(), 5) + 1); // key length or `(n/a)`, +1 for edit button
+                .or_insert(usize::max(key.chars().count(), 5) + EDIT_BUTTON_WIDTH); // key length or `(n/a)`, +1 for edit button
             if width > *entry {
                 *entry = width;
             }
@@ -157,13 +159,18 @@ fn DataView() -> impl IntoView {
     }
     let width_path = usize::min(max_width_path, MAX_COL_LEN) * REM_TO_PX;
     let width_file = usize::min(max_width_file, MAX_COL_LEN) * REM_TO_PX;
-    let width_name = (usize::min(max_width_name + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
-    let width_kind = (usize::min(max_width_kind + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
-    let width_desc = (usize::min(max_width_desc + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
-    let width_tags = (usize::min(max_width_tags + 1, MAX_COL_LEN)) * REM_TO_PX; // +1 for edit button
+    let width_name = (usize::min(max_width_name + EDIT_BUTTON_WIDTH, MAX_COL_LEN)) * REM_TO_PX;
+    let width_kind = (usize::min(max_width_kind + EDIT_BUTTON_WIDTH, MAX_COL_LEN)) * REM_TO_PX;
+    let width_desc = (usize::min(max_width_desc + EDIT_BUTTON_WIDTH, MAX_COL_LEN)) * REM_TO_PX;
+    let width_tags = (usize::min(max_width_tags + EDIT_BUTTON_WIDTH, MAX_COL_LEN)) * REM_TO_PX;
     let width_md = max_width_md
         .into_iter()
-        .map(|(key, value)| (key, (usize::min(value + 1, MAX_COL_LEN)) * REM_TO_PX)) // +1 for edit button
+        .map(|(key, value)| {
+            (
+                key,
+                (usize::min(value + EDIT_BUTTON_WIDTH, MAX_COL_LEN)) * REM_TO_PX,
+            )
+        })
         .collect::<Vec<_>>();
     let width_table = width_path
         + width_file
@@ -1223,7 +1230,7 @@ pub(self) mod properties {
     #[component]
     pub fn Metadatum(
         key: String,
-        metadata: Signal<Vec<(String, state::data::MetadatumValue)>>,
+        metadata: ReadSignal<Vec<(String, state::data::MetadatumValue)>>,
         on_change: Callback<core::types::Value>,
         on_remove: Callback<String>,
     ) -> impl IntoView {
@@ -1251,8 +1258,6 @@ pub(self) mod properties {
 }
 
 pub(self) mod editor {
-    use std::io::empty;
-
     use crate::state;
     use leptos::{
         either::Either,
@@ -1270,10 +1275,8 @@ pub(self) mod editor {
     pub fn Input(
         value: Signal<String>,
         on_change: Callback<String>,
-
         /// Displayed if `value` is empty and not in editing mode.
         empty_value: String,
-
         /// `<input>` placeholder.
         #[prop(optional)]
         placeholder: Option<String>,
@@ -1300,7 +1303,6 @@ pub(self) mod editor {
         value: Signal<String>,
         on_change: Callback<String>,
         set_editing: WriteSignal<bool>,
-
         /// `<input>` placeholder.
         placeholder: Option<String>,
     ) -> impl IntoView {
@@ -1463,7 +1465,6 @@ pub(self) mod editor {
         value: Signal<String>,
         on_change: Callback<String>,
         set_editing: WriteSignal<bool>,
-
         /// `<input>` placeholder.
         placeholder: Option<String>,
     ) -> impl IntoView {
@@ -1550,10 +1551,9 @@ pub(self) mod editor {
     #[component]
     fn TextAreaValue(
         value: Signal<String>,
-        set_editing: WriteSignal<bool>,
-
         /// Displayed if `value` is empty and not in editing mode.
         empty_value: String,
+        set_editing: WriteSignal<bool>,
     ) -> impl IntoView {
         let enable_editing = {
             move |e: MouseEvent| {

@@ -274,9 +274,9 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
 
     view! {
         <main class="grow min-h-0">
-            // <syre_desktop_workspace_graph::Workspace class:hidden=move || {
-            // !matches!(data_view(), ui_lib::types::DataView::Graph)
-            // } />
+            <syre_desktop_workspace_graph::Workspace class:hidden=move || {
+                !matches!(data_view(), ui_lib::types::DataView::Graph)
+            } />
             <syre_desktop_workspace_db::Workspace class:hidden=move || {
                 !matches!(data_view(), ui_lib::types::DataView::Database)
             } />

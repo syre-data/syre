@@ -184,6 +184,7 @@ mod state {
     pub struct ActiveResources(ReadSignal<Vec<ui_lib::state::workspace_graph::Resource>>);
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Editor(
     resources: ReadSignal<Vec<ui_lib::state::workspace_graph::Resource>>,

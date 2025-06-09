@@ -44,6 +44,7 @@ static _TAILWIND_CLASSES: &'static [&'static str] = &[
     "text-syre-yellow-900",
 ];
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();

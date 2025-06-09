@@ -37,6 +37,7 @@ impl ContextMenuActiveAnalysis {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Editor() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -48,6 +49,7 @@ pub fn Editor() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
     view! {
@@ -62,6 +64,7 @@ fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AnalysesOk(analyses: ReadSignal<Vec<ui_lib::state::project::Analysis>>) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -144,11 +147,13 @@ fn AnalysesOk(analyses: ReadSignal<Vec<ui_lib::state::project::Analysis>>) -> im
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AnalysesLoading() -> impl IntoView {
     view! { <div class="text-center">"Loading analyses"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AnalysesOkView(
     analyses: ReadSignal<Vec<ui_lib::state::project::Analysis>>,
@@ -180,11 +185,13 @@ fn AnalysesOkView(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn NoAnalyses() -> impl IntoView {
     view! { <div class="text-center">"(no analyses)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Analysis(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
     move || {
@@ -195,6 +202,7 @@ fn Analysis(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -360,6 +368,7 @@ fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ExcelTemplateView(template: core::project::ExcelTemplate) -> impl IntoView {
     view! { <div>"template"</div> }

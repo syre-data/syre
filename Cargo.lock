@@ -3754,8 +3754,8 @@ dependencies = [
 
 [[package]]
 name = "leptos-use"
-version = "0.16.0-rc1"
-source = "git+https://github.com/Synphonyte/leptos-use.git?branch=main#c358541e13aa6c8a7a993b0de9a3e80b56170368"
+version = "0.16.0-beta2"
+source = "git+https://github.com/Synphonyte/leptos-use.git?branch=main#0edff4bed2adb2afaee3887644c78d67ab9571ef"
 dependencies = [
  "cfg-if",
  "chrono",
@@ -7642,9 +7642,9 @@ dependencies = [
 
 [[package]]
 name = "tachys"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac1d6bcb12a286928f53c269412d3e515d37583cb90d8daf4bc1b35d65104883"
+checksum = "51a9a5d6436e532fd27b49bcca005a038bf510fc369687de830121a74811ccf4"
 dependencies = [
  "any_spawner",
  "async-trait",

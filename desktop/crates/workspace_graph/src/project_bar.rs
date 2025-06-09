@@ -4,6 +4,7 @@ use leptos_icons::Icon;
 use syre_desktop_ui_lib as ui_lib;
 use wasm_bindgen::{JsCast, closure::Closure};
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn ProjectBar() -> impl IntoView {
     view! {
@@ -22,6 +23,7 @@ pub fn ProjectBar() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn PreviewSelector() -> impl IntoView {
     const MENU_ID: &str = "graph-workspace-preview-menu";
@@ -232,6 +234,7 @@ fn PreviewSelector() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ProjectInfo() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -258,6 +261,7 @@ fn ProjectInfo() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Controls() -> impl IntoView {
     const COMMAND_BUTTON_CLASS: &str = "btn-secondary p-1 rounded-xs cursor-pointer";
@@ -348,6 +352,7 @@ mod analyze {
         }
     }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     #[component]
     pub fn Analyze() -> impl IntoView {
         let project = expect_context::<ui_lib::state::Project>();
@@ -427,6 +432,7 @@ mod analyze {
         }
     }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     #[component]
     fn Trigger(action: Action<PathBuf, ()>) -> impl IntoView {
         let workspace_graph_state = expect_context::<ui_lib::state::WorkspaceGraph>();
@@ -485,6 +491,7 @@ mod analyze {
         }
     }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     #[component]
     fn TriggerActions(action: Action<PathBuf, ()>) -> impl IntoView {
         let workspace_graph_state = expect_context::<ui_lib::state::WorkspaceGraph>();
@@ -547,6 +554,7 @@ mod analyze {
         }
     }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     #[component]
     fn Analyzing() -> impl IntoView {
         let analysis_state = expect_context::<RwSignal<AnalysisState>>();
@@ -630,6 +638,7 @@ mod analyze {
         }
     }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     #[component]
     fn AnalyzingActions() -> impl IntoView {
         let analysis_state = expect_context::<RwSignal<AnalysisState>>();

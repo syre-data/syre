@@ -21,13 +21,15 @@ mod tracing {
             .pretty()
             .with_writer(tracing_web::MakeWebConsoleWriter::new()); // write events to the console
 
+        #[cfg(feature = "perf")]
         let perf_layer = tracing_web::performance_layer()
             .with_details_from_fields(tracing_subscriber::fmt::format::Pretty::default());
 
-        tracing_subscriber::registry()
-            .with(fmt_layer)
-            .with(perf_layer)
-            .with(target_filter)
-            .init();
+        let layers = tracing_subscriber::registry().with(fmt_layer);
+
+        #[cfg(feature = "perf")]
+        let layers = layers.with(perf_layer);
+
+        layers.with(target_filter).init();
     }
 }

@@ -1,5 +1,10 @@
 use crate::{project_bar::ProjectBar, state};
-use leptos::{ev::MouseEvent, html, prelude::*, task::spawn_local};
+use leptos::{
+    ev::{Event, MouseEvent},
+    html,
+    prelude::*,
+    task::spawn_local,
+};
 use leptos_icons::Icon;
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
@@ -12,6 +17,7 @@ const MAX_COL_WIDTH_RATIO: f64 = 0.8;
 #[derive(derive_more::Deref, Clone, Copy)]
 struct GraphRootName(ReadSignal<OsString>);
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Workspace() -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
@@ -335,16 +341,19 @@ fn DataView() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn NoData() -> impl IntoView {
     view! { <div class="pt-2 text-center">"(no data)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn EmptyFilter() -> impl IntoView {
     view! { <div class="pt-2 text-center">"(empty filter)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn TableHeaderSortablePinnable(
     display_name: impl Into<String>,
@@ -579,6 +588,7 @@ fn TableHeaderSortablePinnable(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn TableHeaderSortable(
     display_name: impl Into<String>,
@@ -749,6 +759,7 @@ fn TableHeaderSortable(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn TableHeader(
     display_name: &'static str,
@@ -860,6 +871,7 @@ fn TableHeader(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn DataRow(datum: state::data::Datum) -> impl IntoView {
     let state = expect_context::<state::data::State>();

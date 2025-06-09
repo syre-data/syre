@@ -9,6 +9,7 @@ enum EditorView {
     Flags,
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Editor(asset: ui_lib::state::Asset) -> impl IntoView {
     let editor_view = RwSignal::new(EditorView::Properties);

@@ -27,6 +27,7 @@ impl ShowSettings {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Workspace() -> impl IntoView {
     let params = use_params_map();
@@ -124,6 +125,7 @@ fn NoProject() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn WorkspaceView(
     user: core::system::User,
@@ -210,6 +212,7 @@ fn WorkspaceView(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();

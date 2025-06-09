@@ -2,8 +2,8 @@
 rustflags = ["-Z", "threads=8"]
 target-dir = "target"
 
-# [target.'cfg(debug_assertions)']
-# rustflags = [
-#   "--cfg",
-#   "erase_components",
-# ]
+[target.'cfg(all(debug_assertions, not(feature = "perf"))']
+rustflags = [
+  "--cfg",
+  "erase_components",
+]

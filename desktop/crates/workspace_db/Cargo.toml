@@ -30,3 +30,6 @@ web-sys = { workspace = true, features = [
     "HtmlElement",
     "Window",
 ] }
+
+[features]
+tracing = ["leptos/tracing"]

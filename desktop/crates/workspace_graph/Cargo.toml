@@ -42,3 +42,6 @@ features = [
 	"SvgMatrix",
 	"Window",
 ]
+
+[features]
+tracing = ["leptos/tracing"]

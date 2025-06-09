@@ -255,6 +255,7 @@ mod state {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Editor(containers: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(containers.read_untracked().len() > 1);

@@ -182,6 +182,7 @@ mod state {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Editor(assets: Signal<Vec<ResourceId>>) -> impl IntoView {
     assert!(assets.with_untracked(|assets| assets.len()) > 1);

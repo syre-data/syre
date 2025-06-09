@@ -136,6 +136,7 @@ impl FlagsDisplayState {
 #[derive(Clone, derive_more::Deref)]
 pub struct PortalRef(NodeRef<html::Div>);
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Canvas() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -332,11 +333,13 @@ pub fn Canvas() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn CanvasLoading() -> impl IntoView {
     view! { <div class="text-center pt-4">"Setting up canvas"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn CanvasView(
     /// Context menu for the root container.
@@ -546,6 +549,7 @@ fn CanvasView(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Graph() -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
@@ -558,6 +562,7 @@ fn Graph() -> impl IntoView {
     view! { <GraphView root=graph.root().clone() /> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
@@ -796,6 +801,7 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
     }.into_any() // TODO: Remove `into_any`
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn GraphEdges(
     x_node: Signal<usize>,
@@ -987,6 +993,7 @@ fn GraphEdges(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn CreateChildContainer(
     parent: ui_lib::state::graph::Node,
@@ -1088,6 +1095,7 @@ fn CreateChildContainer(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ContainerView(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
@@ -1113,6 +1121,7 @@ fn ContainerView(
 
 /// A container whose properties are valid.
 /// The state of analyses and assets is unknown.
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ContainerOk(
     #[prop(optional)] node_ref: NodeRef<html::Div>,
@@ -1333,6 +1342,7 @@ fn ContainerOk(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ContainerPreview(
     properties: ReadSignal<ui_lib::state::container::PropertiesState>,
@@ -1387,6 +1397,7 @@ fn ContainerPreview(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
@@ -1407,6 +1418,7 @@ fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl Int
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AssetsPreview(assets: ReadSignal<Vec<ui_lib::state::Asset>>) -> impl IntoView {
     let workspace_state = expect_context::<ui_lib::state::Workspace>();
@@ -1439,11 +1451,13 @@ fn AssetsPreview(assets: ReadSignal<Vec<ui_lib::state::Asset>>) -> impl IntoView
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn NoData() -> impl IntoView {
     view! { <div class="px-2">"(no data)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -1605,6 +1619,7 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Analyses(analyses: ReadSignal<Vec<ui_lib::state::AnalysisAssociation>>) -> impl IntoView {
     let workspace_state = expect_context::<ui_lib::state::Workspace>();
@@ -1636,11 +1651,13 @@ fn Analyses(analyses: ReadSignal<Vec<ui_lib::state::AnalysisAssociation>>) -> im
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn NoAnalyses() -> impl IntoView {
     view! { <div class="px-2">"(no analyses)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
@@ -1811,6 +1828,7 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Metadata(metadata: ReadSignal<ui_lib::state::Metadata>) -> impl IntoView {
     let workspace_state = expect_context::<ui_lib::state::Workspace>();
@@ -1840,11 +1858,13 @@ fn Metadata(metadata: ReadSignal<ui_lib::state::Metadata>) -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn NoMetadata() -> impl IntoView {
     view! { <div class="px-2">"(no metadata)"</div> }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ContainerFlags(
     container: ui_lib::state::graph::Node,
@@ -1942,6 +1962,7 @@ fn ContainerFlags(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn AssetFlags(asset: ReadSignal<PathBuf>, container: ui_lib::state::graph::Node) -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
@@ -1988,6 +2009,7 @@ fn AssetFlags(asset: ReadSignal<PathBuf>, container: ui_lib::state::graph::Node)
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Flag(
     container_path: impl Fn() -> PathBuf + 'static,
@@ -2046,6 +2068,7 @@ fn Flag(
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn ContainerErr(
     #[prop(optional)] node_ref: NodeRef<html::Div>,

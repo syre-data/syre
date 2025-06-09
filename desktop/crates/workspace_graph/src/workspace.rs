@@ -11,6 +11,7 @@ use syre_local as local;
 use tauri_sys::window::DragDropPayload;
 use wasm_bindgen::JsCast;
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Workspace() -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();

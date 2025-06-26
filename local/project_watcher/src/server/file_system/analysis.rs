@@ -1,8 +1,8 @@
-use crate::{event as update, server, state, Update, Watcher};
+use crate::{Update, Watcher, event as update, server, state};
 use std::assert_matches::assert_matches;
 use syre_core as core;
-use syre_fs_watcher::{event, EventKind};
-use syre_local::{self as local, project::analysis, TryReducible};
+use syre_fs_watcher::{EventKind, event};
+use syre_local::{self as local, TryReducible, project::analysis};
 
 impl Watcher {
     pub(super) fn handle_fs_event_analysis_file(
@@ -195,7 +195,7 @@ impl Watcher {
             if self.config.handle_fs_resource_changes() {
                 let analysis_root = project_path.join(analysis_root.unwrap());
                 let mut analyses = local::project::Analyses::load_from(project_path).unwrap();
-                let mut analysis = analyses
+                let analysis = analyses
                     .iter_mut()
                     .find_map(|(rid, analysis)| (rid == &analysis_id).then_some(analysis))
                     .unwrap();

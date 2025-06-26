@@ -11,7 +11,7 @@ use leptos::{
     svg,
     task::spawn_local,
 };
-use leptos_icons::*;
+use leptos_icons::{Icon, Symbol};
 use serde::Serialize;
 use std::{cmp, io, num::NonZeroUsize, path::PathBuf, sync::Arc};
 use syre_core::{project::AnalysisAssociation, types::ResourceId};
@@ -42,8 +42,13 @@ const VB_WIDTH_MIN: usize = 500;
 const VB_WIDTH_MAX: usize = 10_000;
 const VB_HEIGHT_MIN: usize = 500;
 const VB_HEIGHT_MAX: usize = 10_000;
+pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str= "workspace_graph-canvas"; 
 pub const DATA_KEY_CONTAINER: &str = "container";
 pub const DATA_KEY_ASSET: &str = "asset";
+
+pub fn file_type_icon_symbol_anchor(id: &'static str) -> String {
+    format!("#{FILE_TYPE_ICON_SYMBOL_PREFIX}-{id}")
+}
 
 /// Context menu for root container.
 #[derive(derive_more::Deref, Clone)]
@@ -524,6 +529,7 @@ fn CanvasView(
 
     view! {
         <div id="canvas">
+            <IconSymbols />
             <svg
                 on:mousedown=mousedown
                 on:mouseup=mouseup
@@ -549,6 +555,80 @@ fn CanvasView(
     }
 }
 
+
+#[component]
+fn IconSymbols() -> impl IntoView {
+    view! {
+        <Symbol id="workspace_graph-canvas-add" icon=ui_lib::icon::Add />
+        <Symbol id="workspace_graph-canvas-eye" icon=ui_lib::icon::Eye />
+        <Symbol id="workspace_graph-canvas-eye_closed" icon=ui_lib::icon::EyeClosed />
+        <Symbol id="workspace_graph-canvas-remove" icon=ui_lib::icon::Remove />
+        <Symbol id="workspace_graph-canvas-star" icon=icondata::BsStar />
+        <Symbol id="workspace_graph-canvas-star_fill" icon=icondata::BsStarFill />
+        <ui_lib::icon::file_type::IconSymbols prefix=FILE_TYPE_ICON_SYMBOL_PREFIX/>
+        <VisibilityIndicatorSymbol />
+    }
+}
+
+#[component]
+fn VisibilityIndicatorSymbol() -> impl IntoView {
+    view! {
+        <symbol id="workspace_graph-canvas-visibility_indicator-visible">
+            <circle
+                r=TOGGLE_VIEW_INDICATOR_RADIUS
+                cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
+                dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+            ></circle>
+            <g class="group-[:not(:hover)]:hidden">
+                <circle
+                    r=CANVAS_BUTTON_RADIUS
+                    cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    class="stroke-black dark:stroke-white fill-white \
+                    dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
+                    opacity:0 hover:opacity-1"
+                ></circle>
+                <use
+                    href="#workspace_graph-canvas-eye"
+                    x=CANVAS_BUTTON_STROKE
+                    y=CANVAS_BUTTON_STROKE
+                    width=CANVAS_BUTTON_RADIUS * 2
+                    height=CANVAS_BUTTON_RADIUS * 2
+                />
+            </g>
+        </symbol>
+
+        <symbol id="workspace_graph-canvas-visibility_indicator-hidden">
+            <circle
+                r=TOGGLE_VIEW_INDICATOR_RADIUS
+                cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
+                dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+            ></circle>
+            <g class="group-[:not(:hover)]:hidden">
+                <circle
+                    r=CANVAS_BUTTON_RADIUS
+                    cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    class="stroke-black dark:stroke-white fill-white \
+                    dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
+                    opacity:0 hover:opacity-1"
+                ></circle>
+                <use
+                    href="#workspace_graph-canvas-eye_closed"
+                    x=CANVAS_BUTTON_STROKE
+                    y=CANVAS_BUTTON_STROKE
+                    width=CANVAS_BUTTON_RADIUS * 2
+                    height=CANVAS_BUTTON_RADIUS * 2
+                />
+            </g>
+        </symbol>
+    }
+}
+
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Graph() -> impl IntoView {
@@ -560,6 +640,36 @@ fn Graph() -> impl IntoView {
     provide_context(display_state.clone());
 
     view! { <GraphView root=graph.root().clone() /> }
+}
+
+#[component]
+fn AddChildIcon(#[prop(into)] x: Signal<usize>, #[prop(into)] y: Signal<usize>) -> impl IntoView {
+    view! {
+        <svg
+            x=x
+            y=y
+            width=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
+            height=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
+            class="group-[:not(:hover)]:hidden cursor-pointer"
+        >
+            {
+                template! {
+                    <circle
+                    r=CANVAS_BUTTON_RADIUS
+                    cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                    class="stroke-black dark:stroke-white fill-white dark:fill-secondary-700 stroke-2"
+                ></circle>
+                <use href="#workspace_graph-canvas-add"
+                    x=CANVAS_BUTTON_STROKE
+                    y=CANVAS_BUTTON_STROKE
+                    width=CANVAS_BUTTON_RADIUS * 2
+                    height=CANVAS_BUTTON_RADIUS * 2
+                />
+                }
+            }
+        </svg>
+    }
 }
 
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
@@ -717,42 +827,20 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
                         flags_display_state=flags_display_state.clone()
                     />
                 </foreignObject>
-                <svg
-                    x=move || {
+                <AddChildIcon
+                    x=Signal::derive(move || {
                         x_node
                             .with(|x| {
                                 x + CONTAINER_WIDTH / 2 - CANVAS_BUTTON_RADIUS
                                     - CANVAS_BUTTON_STROKE
                             })
-                    }
-                    y=move || container_height.get() - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
-                    width=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
-                    height=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
+                    })
+                    y=Signal::derive(move || {
+                        container_height.get() - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
+                    })
+                    {..}
                     on:mousedown=create_child_dialog_show
-                    class="group-[:not(:hover)]:hidden cursor-pointer"
-                >
-                    <circle
-                        r=CANVAS_BUTTON_RADIUS
-                        cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                        cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                        class="stroke-black dark:stroke-white fill-white dark:fill-secondary-700 stroke-2"
-                    ></circle>
-                    <svg
-                        x=CANVAS_BUTTON_STROKE as f64
-                            + CANVAS_BUTTON_RADIUS as f64 * (1.0 - ICON_SCALE)
-                        y=CANVAS_BUTTON_STROKE as f64
-                            + CANVAS_BUTTON_RADIUS as f64 * (1.0 - ICON_SCALE)
-                        width=CANVAS_BUTTON_RADIUS * 2
-                        height=CANVAS_BUTTON_RADIUS * 2
-                    >
-                        <Icon
-                            icon=ui_lib::icon::Add
-                            width=(CANVAS_BUTTON_RADIUS as f64 * 2.0 * ICON_SCALE).to_string()
-                            height=(CANVAS_BUTTON_RADIUS as f64 * 2.0 * ICON_SCALE).to_string()
-                            attr:class="stroke-black dark:stroke-white stroke-2 linecap-round"
-                        />
-                    </svg>
-                </svg>
+                />
                 <foreignObject
                     node_ref=flags_display_state.portal_ref
                     width=flags_display_state.width()
@@ -798,7 +886,8 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
                 Either::Right(())
             }
         }}
-    }.into_any() // TODO: Remove `into_any`
+    }
+    .into_any() // TODO: Remove `into_any`
 }
 
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
@@ -838,32 +927,10 @@ fn GraphEdges(
         }
     };
 
-    let visibility_toggle_line_coordiantes = move || {
-        let x = x_node.get() + CONTAINER_WIDTH / 2;
-        let y1 = container_height.get();
-        let y2 = cmp::max(container_height.get() + (PADDING_Y_CHILDREN / 2), 0);
-
-        (x.to_string(), y1.to_string(), x.to_string(), y2.to_string())
-    };
-
-    let connector_lines_center = Signal::derive(move || {
-        let x = x_node.get() + CONTAINER_WIDTH / 2;
-        let y = cmp::max(container_height.get() + (PADDING_Y_CHILDREN / 2), 0);
-
-        (x, y)
-    });
-
-    let toggle_container_visibility = {
-        let container_visibility = container_visibility.clone();
-        move |e: MouseEvent| {
-            if e.button() != ui_lib::types::MouseButton::Primary {
-                return;
-            }
-            e.stop_propagation();
-
-            container_visibility.set(!container_visibility());
-        }
-    };
+    let x_line = Signal::derive(move || x_node.get() + CONTAINER_WIDTH / 2);
+    let y_line_top = container_height.clone();
+    let y_line_bottom =
+        Signal::derive(move || cmp::max(container_height.get() + (PADDING_Y_CHILDREN / 2), 0));
 
     let x_children = Signal::derive({
         let children_widths = children_widths.clone();
@@ -907,89 +974,96 @@ fn GraphEdges(
                 }}
             </g>
             <g>
-                {
-                    let container_visibility = container_visibility.clone();
-                    let toggle_container_visibility = toggle_container_visibility.clone();
-                    move || {
-                        if children_widths.with(|children| children.len()) > 0 {
-                            let (x1, y1, x2, y2) = visibility_toggle_line_coordiantes();
-                            Either::Left(
-                                view! {
-                                    <line
-                                        x1=x1
-                                        y1=y1
-                                        x2=x2
-                                        y2=y2
-                                        class="stroke-secondary-400 dark:stroke-secondary-500"
-                                    ></line>
-
-                                    {
-                                        let container_visibility = container_visibility.clone();
-                                        let toggle_container_visibility = toggle_container_visibility
-                                            .clone();
-                                        move || {
-                                            let (cx, cy) = connector_lines_center.get();
-                                            view! {
-                                                <svg
-                                                    x=move || cx - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
-                                                    y=move || cy - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
-                                                    width=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
-                                                    height=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
-                                                    on:mousedown=toggle_container_visibility.clone()
-                                                    class="group cursor-pointer"
-                                                >
-                                                    <circle
-                                                        r=TOGGLE_VIEW_INDICATOR_RADIUS
-                                                        cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                                                        cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                                                        class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
-                                                        dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
-                                                    ></circle>
-                                                    <g class="group-[:not(:hover)]:hidden">
-                                                        <circle
-                                                            r=CANVAS_BUTTON_RADIUS
-                                                            cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                                                            cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                                                            class="stroke-black dark:stroke-white fill-white \
-                                                            dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
-                                                            opacity:0 hover:opacity-1"
-                                                        ></circle>
-
-                                                        <svg
-                                                            x=CANVAS_BUTTON_STROKE
-                                                            y=CANVAS_BUTTON_STROKE
-                                                            width=CANVAS_BUTTON_RADIUS * 2
-                                                            height=CANVAS_BUTTON_RADIUS * 2
-                                                        >
-                                                            <Icon
-                                                                icon=Signal::derive({
-                                                                    let container_visibility = container_visibility.clone();
-                                                                    move || {
-                                                                        if container_visibility() {
-                                                                            ui_lib::icon::Eye
-                                                                        } else {
-                                                                            ui_lib::icon::EyeClosed
-                                                                        }
-                                                                    }
-                                                                })
-                                                                width=(CANVAS_BUTTON_RADIUS * 2).to_string()
-                                                                height=(CANVAS_BUTTON_RADIUS * 2).to_string()
-                                                            />
-                                                        </svg>
-                                                    </g>
-                                                </svg>
-                                            }
-                                        }
-                                    }
-                                },
-                            )
-                        } else {
-                            Either::Right(())
-                        }
-                    }
-                }
+                {move || {
+                    (children_widths.read().len() > 0)
+                        .then_some(
+                            view! {
+                                <ChildVisibilityIndicator
+                                    container_visibility=container_visibility.clone()
+                                    x=x_line
+                                    y_top=y_line_top
+                                    y_bottom=y_line_bottom
+                                />
+                            },
+                        )
+                }}
             </g>
         </g>
+    }
+}
+
+#[component]
+fn ChildVisibilityIndicator(
+    container_visibility: ArcRwSignal<bool>,
+    x: Signal<usize>,
+    y_top: Signal<usize>,
+    y_bottom: Signal<usize>,
+) -> impl IntoView {
+    let toggle_container_visibility = {
+        let container_visibility = container_visibility.clone();
+        move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+            e.stop_propagation();
+
+            container_visibility.set(!container_visibility());
+        }
+    };
+
+    let visibility_icon = Signal::derive({
+        let container_visibility = container_visibility.clone();
+        move || {
+            if container_visibility() {
+                "#workspace_graph-canvas-visibility_indicator-visible"
+            } else {
+                "#workspace_graph-canvas-visibility_indicator-hidden"
+            }
+        }
+    });
+
+    view! {
+        <line
+            x1=x
+            y1=y_top
+            x2=x
+            y2=y_bottom
+            class="stroke-secondary-400 dark:stroke-secondary-500"
+        ></line>
+        <svg
+            x=move || x.get() - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
+            y=move || y_bottom.get() - CANVAS_BUTTON_RADIUS - CANVAS_BUTTON_STROKE
+            width=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
+            height=(CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE) * 2
+            on:mousedown=toggle_container_visibility.clone()
+            class="group cursor-pointer"
+        >
+            <use href=visibility_icon />
+            // <circle
+            //     r=TOGGLE_VIEW_INDICATOR_RADIUS
+            //     cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+            //     cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+            //     class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
+            //     dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+            // ></circle>
+            // <g class="group-[:not(:hover)]:hidden">
+            //     <circle
+            //         r=CANVAS_BUTTON_RADIUS
+            //         cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+            //         cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+            //         class="stroke-black dark:stroke-white fill-white \
+            //         dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
+            //         opacity:0 hover:opacity-1"
+            //     ></circle>
+            //     <use
+            //         href=icon
+            //         x=CANVAS_BUTTON_STROKE
+            //         y=CANVAS_BUTTON_STROKE
+            //         width=CANVAS_BUTTON_RADIUS * 2
+            //         height=CANVAS_BUTTON_RADIUS * 2
+            //     />
+            // </g>
+        </svg>
     }
 }
 
@@ -1397,6 +1471,8 @@ fn ContainerPreview(
     }
 }
 
+
+
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl IntoView {
@@ -1576,16 +1652,12 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
         remove.dispatch(());
     };
 
-    let icon = Signal::derive({
+    let icon_data = Signal::derive({
         let path = asset.path().read_only();
-        move || path.with(|path| ui_lib::icon::file_type_icon(path))
-    });
-    let icon_color = Signal::derive({
-        let path = asset.path().read_only();
-        move || path.with(|path| ui_lib::icon::file_type_icon_color(path))
+        move || path.with(|path| ui_lib::icon::file_type::IconData::from_path(path))
     });
     let icon_class = Signal::derive(move || {
-        icon_color.with(|color| format!("inline-flex items-center {color}"))
+        icon_data.with(|data| format!("inline-flex items-center {}", data.color()))
     });
 
     view! {
@@ -1601,19 +1673,29 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
         >
             <div class="grow inline-flex gap-1 w-0 items-center">
                 <span class=icon_class>
-                    <Icon icon />
+                    <svg width="1em" height="1em">
+                        <use 
+                            href=move || icon_data.with(|data| {
+                                file_type_icon_symbol_anchor(data.symbol_id())
+                            }) 
+                        />
+                    </svg>
                 </span>
                 <span class="truncate">{title}</span>
             </div>
             <div class="flex gap-2 items-center">
                 <AssetFlags asset=asset.path().read_only() container=(*container).clone() />
-                <button
-                    on:mousedown=remove_asset
-                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
-                    disabled=remove.pending()
-                >
-                    <Icon icon=ui_lib::icon::Remove />
-                </button>
+                { template! {
+                    <button
+                        on:mousedown=remove_asset
+                        class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
+                        disabled=remove.pending()
+                    >
+                        <svg width="1em" height="1em">
+                            <use href="#workspace_graph-canvas-remove" />
+                        </svg>
+                    </button>
+                }}
             </div>
         </div>
     }
@@ -1802,28 +1884,40 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                 <div title=hover_title class="grow">
                     {move || title().unwrap_or("(no title)".to_string())}
                 </div>
-                <div class="inline-flex gap-1">
-                    <span>"(" {association.priority()} ")"</span>
-                    <span on:mousedown=autorun_toggle class="inline-flex items-center">
-                        {move || {
-                            if association.autorun().get() {
-                                view! { <Icon icon=icondata::BsStarFill /> }
-                            } else {
-                                view! { <Icon icon=icondata::BsStar /> }
-                            }
-                        }}
-
-                    </span>
+                {template! {
+                    <div class="inline-flex gap-1">
+                        <span>"(" {association.priority()} ")"</span>
+                        <span
+                            on:mousedown=autorun_toggle
+                            class="inline-flex items-center"
+                        >
+                            <svg width="1em" height="1em">
+                                <use 
+                                    href=move || {
+                                        if association.autorun().get() {
+                                            "#workspace_graph-canvas-star_fill"
+                                        } else {
+                                            "#workspace_graph-canvas-star"
+                                        }
+                                    } 
+                                />
+                            </svg>
+                        </span>
+                    </div>
+                }}
+            </div>
+            {template! {
+                <div>
+                    <button
+                        on:mousedown=remove_association
+                        class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
+                    >
+                        <svg width="1em" height="1em">
+                            <use href="#workspace_graph-canvas-remove" />
+                        </svg>
+                    </button>
                 </div>
-            </div>
-            <div>
-                <button
-                    on:mousedown=remove_association
-                    class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
-                >
-                    <Icon icon=ui_lib::icon::Remove />
-                </button>
-            </div>
+            }}
         </div>
     }
 }

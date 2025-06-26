@@ -2,16 +2,21 @@ use super::super::workspace::ViewboxState;
 use crate::{types, utils};
 use futures::StreamExt;
 use leptos::{either::Either, ev::MouseEvent, prelude::*, task::spawn_local};
-use leptos_icons::Icon;
+use leptos_icons::{Icon, Symbol};
 use std::{path::PathBuf, sync::Arc};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components::{ToggleExpand, TruncateLeft};
+use syre_desktop_ui_components::{ToggleExpandSymbol, TruncateLeft};
 use syre_desktop_ui_lib as ui_lib;
 use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
 
 const FLAGS_INDICATOR_RADIUS: usize = 4;
+pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str= "workspace_graph-nav-layers"; 
+
+pub fn file_type_icon_symbol_anchor(id: &'static str) -> String {
+    format!("#{FILE_TYPE_ICON_SYMBOL_PREFIX}-{id}")
+}
 
 /// Context menu for containers that are `Ok`.
 #[derive(derive_more::Deref, Clone)]
@@ -149,8 +154,23 @@ pub fn LayersNavView(
 
     view! {
         <div class="h-full">
+            <IconSymbols />
             <ContainerLayer root=graph.root().clone() />
         </div>
+    }
+}
+
+
+#[component]
+fn IconSymbols() -> impl IntoView {
+    view! {
+        <Symbol id="workspace_graph-nav-layers-eye" icon=ui_lib::icon::Eye />
+        <Symbol id="workspace_graph-nav-layers-eye_closed" icon=ui_lib::icon::EyeClosed />
+        <Symbol id="workspace_graph-nav-layers-remove" icon=ui_lib::icon::Remove />
+        <Symbol id="workspace_graph-nav-layers-circle" icon=icondata::BsCircleFill />
+        <Symbol id="workspace_graph-nav-layers-files" icon=icondata::BsFiles />
+        <Symbol id="workspace_graph-nav-layers-chevron" icon=ui_lib::icon::ChevronRight />
+        <ui_lib::icon::file_type::IconSymbols prefix=FILE_TYPE_ICON_SYMBOL_PREFIX />
     }
 }
 
@@ -407,7 +427,7 @@ fn ContainerLayerTitleOk(
         >
             <div class="inline-flex gap-1">
                 <span>
-                    <ToggleExpand expanded />
+                    <ToggleExpandSymbol symbol_id="workspace_graph-nav-layers-chevron" expanded />
                 </span>
             </div>
             <div class="grow inline-flex gap-2 pr-px">
@@ -462,36 +482,31 @@ fn ContainerLayerTitleVisibilityToggle(container: ui_lib::state::graph::Node) ->
             {
                 let container_visibility = container_visibility.clone();
                 let toggle_container_visibility = toggle_container_visibility.clone();
-                move || {
-                    if num_children() > 0 {
-                        let visibility_icon = Signal::derive({
-                            let container_visibility = container_visibility.clone();
-                            move || {
-                                container_visibility
-                                    .with(|visible| {
-                                        if *visible {
-                                            ui_lib::icon::Eye
-                                        } else {
-                                            ui_lib::icon::EyeClosed
-                                        }
-                                    })
-                            }
-                        });
-                        Either::Left(
-                            view! {
-                                <button
-                                    type="button"
-                                    on:mousedown=toggle_container_visibility.clone()
-                                    class="align-middle cursor-pointer p-px rounded-xs \
-                                    hover:bg-secondary-100 dark:hover:bg-secondary-900"
-                                >
-                                    <Icon icon=visibility_icon />
-                                </button>
-                            },
-                        )
-                    } else {
-                        Either::Right(())
+                let icon = Signal::derive({
+                    let container_visibility = container_visibility.clone();
+                    move || {
+                        if container_visibility() {
+                            "#workspace_graph-canvas-eye"
+                        } else {
+                            "#workspace_graph-canvas-eye_closed"
+                        }
                     }
+                });
+                move || {
+                    (num_children() > 0).then_some(
+                        template! {
+                            <button
+                                type="button"
+                                on:mousedown=toggle_container_visibility.clone()
+                                class="align-middle cursor-pointer p-px rounded-xs \
+                                hover:bg-secondary-100 dark:hover:bg-secondary-900"
+                            >
+                                <svg width="1em" height="1em">
+                                    <use href=icon />
+                                </svg>
+                            </button>
+                        }
+                    )
                 }
             }
         </div>
@@ -538,12 +553,7 @@ fn ContainerFlags(container: ui_lib::state::graph::Node) -> impl IntoView {
 
             Either::Right(view! {
                 <div title=title>
-                    <Icon
-                        icon=icondata::BsCircleFill
-                        width=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        height=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        attr:class="text-syre-yellow-500 dark:text-syre-yellow-600"
-                    />
+                    <FlagIndicator />
                 </div>
             })
         }
@@ -589,13 +599,17 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<ui_lib::state::Asset>>, depth: usize) ->
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex pr-px">
                     <div class="inline-flex gap-1">
                         <span>
-                            <ToggleExpand expanded />
+                            <ToggleExpandSymbol symbol_id="workspace_graph-nav-layers-chevron" expanded />
                         </span>
                     </div>
                     <div class="inline-flex grow items-center">
-                        <span class="pr-1">
-                            <Icon icon=icondata::BsFiles />
-                        </span>
+                        {template! {
+                            <span class="pr-1">
+                                <svg width="1em" height="1em">
+                                    <use href="#workspace_graph-nav-layers-files" />
+                                </svg>
+                            </span>
+                        }}
                         <span class="grow">"Assets"</span>
                         <span>
                             <AssetsFlags container=container.clone() />
@@ -671,16 +685,12 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
         }
     };
 
-    let icon = Signal::derive({
+    let icon_data = Signal::derive({
         let path = asset.path().read_only();
-        move || path.with(|path| ui_lib::icon::file_type_icon(path))
-    });
-    let icon_color = Signal::derive({
-        let path = asset.path().read_only();
-        move || path.with(|path| ui_lib::icon::file_type_icon_color(path))
+        move || path.with(|path| ui_lib::icon::file_type::IconData::from_path(path))
     });
     let icon_class = Signal::derive(move || {
-        icon_color.with(|color| format!("inline-flex items-center {color}"))
+        icon_data.with(|data| format!("inline-flex items-center {}", data.color()))
     });
 
     view! {
@@ -697,9 +707,17 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
                 class="flex gap-1 items-center border-l border-transparent \
                 group-hover/assets:border-secondary-200 dark:group-hover/assets:border-secondary-600"
             >
-                <div class=icon_class>
-                    <Icon icon />
-                </div>
+                {template! {
+                    <div class=icon_class>
+                        <svg width="1em" height="1em">
+                            <use 
+                                href=move || icon_data.with(|data| {
+                                    file_type_icon_symbol_anchor(data.symbol_id())
+                                }) 
+                            />
+                        </svg>
+                    </div>
+                }}
                 <div class="grow">
                     <TruncateLeft class="align-center" inner_class="align-middle">
                         {title}
@@ -710,6 +728,19 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
                 </div>
             </div>
         </div>
+    }
+}
+
+#[component]
+fn FlagIndicator() -> impl IntoView {
+    template! {
+        <svg 
+            width=FLAGS_INDICATOR_RADIUS * 2 
+            height=FLAGS_INDICATOR_RADIUS * 2
+            attr:class="text-syre-yellow-500 dark:text-syre-yellow-600"
+        >
+            <use href="#workspace_graph-nav-layers-circle" />
+        </svg>
     }
 }
 
@@ -739,33 +770,24 @@ fn AssetsFlags(container: ui_lib::state::graph::Node) -> impl IntoView {
                 .collect::<Vec<_>>()
         }
     };
-    let num_assets_with_flags = move || {
+    let num_assets_with_flags = Signal::derive(move || {
         let paths = asset_paths();
         let flags = flags_state.read();
         flags
             .iter()
             .filter(|(path, flags)| paths.contains(path) && !flags.read().is_empty())
             .count()
-    };
+    });
+    let title = move || format!("{} flagged asset(s)", num_assets_with_flags.read());
 
     move || {
-        let assets_with_flags = num_assets_with_flags();
-        if assets_with_flags == 0 {
-            Either::Left(())
-        } else {
-            let title = { move || format!("{} flagged asset(s)", assets_with_flags) };
-
-            Either::Right(view! {
-                <div title=title>
-                    <Icon
-                        icon=icondata::BsCircleFill
-                        width=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        height=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        attr:class="text-syre-yellow-500 dark:text-syre-yellow-600"
-                    />
+        (*num_assets_with_flags.read() > 0).then_some(
+            view! {
+                <div title=title.clone()>
+                    <FlagIndicator />
                 </div>
-            })
-        }
+            }
+        )
     }
 }
 
@@ -783,35 +805,33 @@ fn AssetFlags(asset: ReadSignal<PathBuf>, container: ui_lib::state::graph::Node)
         }
     };
     let flags = move || flags_state.find(asset_path());
+    let title = {
+        let flags = flags.clone();
+        move || {
+            let num_flags = flags()
+                .read()
+                .as_ref()
+                .unwrap()
+                .read()
+                .len();
+            format!("{} flag(s)", num_flags)
+        }
+    };
 
     move || {
-        if flags()
+        flags()
             .read()
             .as_ref()
             .map(|flags| flags.read().is_empty())
-            .unwrap_or(true)
-        {
-            Either::Left(())
-        } else {
-            let title = {
-                let flags = flags.clone();
-                move || {
-                    let flags_data = flags().read();
-                    format!("{} flag(s)", flags_data.as_ref().unwrap().read().len())
+            .unwrap_or(false)
+            .then_some(
+                view! {
+                    <div title=title.clone()>
+                        <FlagIndicator />
+                    </div>
                 }
-            };
-
-            Either::Right(view! {
-                <div title=title>
-                    <Icon
-                        icon=icondata::BsCircleFill
-                        width=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        height=(FLAGS_INDICATOR_RADIUS * 2).to_string()
-                        attr:class="text-syre-yellow-500 dark:text-syre-yellow-600"
-                    />
-                </div>
-            })
-        }
+            )
+        
     }
 }
 

@@ -1,5 +1,5 @@
 use super::{
-    super::{event as fs_event, ConversionError, ConversionResult},
+    super::{ConversionError, ConversionResult, event as fs_event},
     FsWatcher,
 };
 use crate::error;
@@ -667,7 +667,7 @@ impl FsWatcher {
     fn convert_event(
         &self,
         event: &DebouncedEvent,
-    ) -> Result<Option<fs_event::Event>, error::Process> {
+    ) -> Result<Option<fs_event::Event<'_>>, error::Process> {
         let time = event.time;
         let event = match event.kind {
             NotifyEventKind::Create(CreateKind::File) => {

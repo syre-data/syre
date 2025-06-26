@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop-ui"
-version = "0.11.8"
+version = "0.11.9"
 edition = "2024"
 
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
@@ -23,7 +23,8 @@ icondata.workspace = true
 js-sys.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true
-leptos_meta = { version = "0.8" }
+leptos_meta = { path = "../../leptos/meta" }
+# leptos_meta = { version = "0.8" }
 leptos_router = { workspace = true, features = ["nightly"] }
 leptos-use = { workspace = true, features = ["storage"] }
 reactive_stores.workspace = true

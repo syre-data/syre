@@ -325,7 +325,7 @@ fn Container(rid: ResourceId) -> impl IntoView {
             hover:border-y-black dark:hover:border-y-secondary-400"
             class=(["bg-secondary-100", "dark:bg-secondary-900"], selection_resource.clone())
         >
-            {name.get()}
+            {name}
         </div>
     }
 }
@@ -422,7 +422,7 @@ fn Asset(rid: ResourceId) -> impl IntoView {
             hover:border-y-black dark:hover:border-y-secondary-400"
             class=(["bg-secondary-100", "dark:bg-secondary-900"], selection_resource.clone())
         >
-            {name()}
+            {name}
         </div>
     }
 }

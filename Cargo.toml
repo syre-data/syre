@@ -70,11 +70,17 @@ zmq = "0.10.0"
 # desktop
 icondata = "0.5"
 js-sys = "0.3"
-leptos = { version = "0.8", features = ["nightly", "csr"] }
-leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
-leptos_router = { version = "0.8" }
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main" }
-reactive_stores = "0.2"
+# leptos = { version = "0.8", features = ["nightly", "csr"] }
+# leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
+# leptos_router = "0.8"
+# leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "main" }
+# reactive_stores = "0.2"
+leptos = { path = "../leptos/leptos", features = ["nightly", "csr"]}
+leptos_icons = { path = "../leptos-icons" }
+leptos_router = { path = "../leptos/router" }
+leptos-use = { path = "../leptos-use" }
+reactive_stores = { path = "../leptos/reactive_stores" }
+# end leptos
 tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

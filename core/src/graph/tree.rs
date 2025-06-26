@@ -1,17 +1,17 @@
 //! A tree graph
 use super::ResourceNode;
 use crate::{
+    Result,
     error::{Graph as GraphError, Resource as ResourceError},
     project::Container,
     types::{ResourceId, ResourceMap},
-    Result,
 };
 use has_id::HasId;
 use indexmap::IndexSet;
 use std::{
     collections::{
-        hash_map::{Iter, IterMut},
         HashSet,
+        hash_map::{Iter, IterMut},
     },
     fmt,
     path::{Component, Path, PathBuf},
@@ -133,12 +133,12 @@ where
     }
 
     /// Returns an iterator over the graph's nodes.
-    pub fn iter_nodes(&self) -> Iter<ResourceId, ResourceNode<D>> {
+    pub fn iter_nodes(&self) -> Iter<'_, ResourceId, ResourceNode<D>> {
         self.nodes.iter()
     }
 
     /// Returns a `mut`able iterator over the graph's nodes.
-    pub fn iter_nodes_mut(&mut self) -> IterMut<ResourceId, ResourceNode<D>> {
+    pub fn iter_nodes_mut(&mut self) -> IterMut<'_, ResourceId, ResourceNode<D>> {
         self.nodes.iter_mut()
     }
 

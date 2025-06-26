@@ -1,6 +1,5 @@
 #![feature(io_error_more)]
 #![feature(assert_matches)]
-#![feature(result_flattening)]
 //! # Syre Project Watcher
 //! Implements a local project watcher daemon for Syre.
 pub mod common;

@@ -5,7 +5,7 @@ use leptos::{
     prelude::*,
     task::spawn_local,
 };
-use leptos_icons::Icon;
+use leptos_icons::{Icon, Symbol};
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_ui_lib as ui_lib;
@@ -198,6 +198,7 @@ fn DataView() -> impl IntoView {
             fallback=NoData
         >
             <div class="overflow-auto scrollbar-thin w-full h-full">
+                <Symbol icon=ui_lib::icon::Edit id="workspace_db-data_view-edit"/>
                 <table
                     node_ref=table_node
                     class="table-fixed relative min-w-full"
@@ -1283,6 +1284,16 @@ pub(self) mod editor {
 
     const ESCAPE_KEY_CODE: &str = "Escape";
 
+    
+    #[component]
+    fn EditIcon() -> impl IntoView {
+        template! {
+            <svg width="1em" height="1em">
+                <use href="#workspace_db-data_view-edit" />
+            </svg>
+        }
+    }
+
     #[component]
     pub fn Input(
         value: Signal<String>,
@@ -1438,7 +1449,8 @@ pub(self) mod editor {
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        <Icon icon=ui_lib::icon::Edit />
+                        // <Icon icon=ui_lib::icon::Edit />
+                        <EditIcon />
                     </button>
                 </div>
             </div>
@@ -1601,7 +1613,8 @@ pub(self) mod editor {
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        <Icon icon=ui_lib::icon::Edit />
+                        // <Icon icon=ui_lib::icon::Edit />
+                        <EditIcon />
                     </button>
                 </div>
             </div>
@@ -1788,7 +1801,8 @@ pub(self) mod editor {
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        <Icon icon=ui_lib::icon::Edit />
+                        // <Icon icon=ui_lib::icon::Edit />
+                        <EditIcon />
                     </button>
                 </div>
             </div>

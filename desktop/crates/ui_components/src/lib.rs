@@ -12,5 +12,5 @@ pub use detail_popout::DetailPopout;
 pub use drawer::Drawer;
 pub use logo::Logo;
 pub use modal::ModalDialog;
-pub use toggle_expand::ToggleExpand;
+pub use toggle_expand::{ToggleExpand, ToggleExpandSymbol};
 pub use truncate_left::TruncateLeft;

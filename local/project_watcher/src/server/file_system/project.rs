@@ -1,16 +1,15 @@
 use crate::{
-    common,
+    Watcher, common,
     event::{self as update, Update},
-    server, state, Watcher,
+    server, state,
 };
 use std::{assert_matches::assert_matches, io, path};
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_watcher::{EventKind, event};
 use syre_local::{
-    self as local,
+    self as local, TryReducible,
     error::IoSerde,
-    project::{project::LoadError, Analyses, Project},
+    project::{Analyses, Project, project::LoadError},
     types::AnalysisKind,
-    TryReducible,
 };
 
 impl Watcher {
@@ -1481,8 +1480,8 @@ impl Watcher {
                 );
 
                 if self.config.handle_fs_resource_changes() {
-                    let mut updates = vec![update];
-
+                    let updates = vec![update];
+                    // TODO: Should something be done here?
                     updates
                 } else {
                     vec![update]

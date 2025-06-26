@@ -16,10 +16,7 @@ mod windows {
     use crate::command::WatcherCommand as Command;
     use crossbeam::channel::{Receiver, Sender};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdMap};
-    use std::{
-        io,
-        path::{Path, PathBuf},
-    };
+    use std::path::{Path, PathBuf};
 
     type FileSystemWatcher = notify::RecommendedWatcher;
     pub struct FileSystemActor {
@@ -129,7 +126,7 @@ mod macos {
     use super::DEBOUNCE_TIMEOUT;
     use crate::command::WatcherCommand as Command;
     use crossbeam::channel::{Receiver, Sender};
-    use notify::{notify::RecursiveMode, Watcher};
+    use notify::{Watcher, notify::RecursiveMode};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::Path;
 
@@ -217,7 +214,7 @@ mod linux {
     use super::DEBOUNCE_TIMEOUT;
     use crate::command::WatcherCommand as Command;
     use crossbeam::channel::{Receiver, Sender};
-    use notify::{self, notify::RecursiveMode, Watcher};
+    use notify::{self, Watcher, notify::RecursiveMode};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::{Path, PathBuf};
 

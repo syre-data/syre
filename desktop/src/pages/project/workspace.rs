@@ -225,12 +225,25 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         workspace_graph_state.container_visiblity().read_only(),
     );
     let data_view = RwSignal::new(ui_lib::types::DataView::default());
+    let (db_loaded, set_db_loaded) = signal(false);
 
     provide_context(graph.clone());
     provide_context(flags);
     provide_context(workspace_graph_state.clone());
     provide_context(display_state.clone());
     provide_context(data_view);
+
+    Effect::watch(
+        data_view,
+        move |view, _, _| {
+            if !db_loaded.get_untracked() {
+                if matches!(view, ui_lib::types::DataView::Database) {
+                    set_db_loaded(true);
+                }
+            }
+        },
+        false,
+    );
 
     spawn_local({
         let project = project.clone();
@@ -280,9 +293,17 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
             <syre_desktop_workspace_graph::Workspace class:hidden=move || {
                 !matches!(data_view(), ui_lib::types::DataView::Graph)
             } />
-            <syre_desktop_workspace_db::Workspace class:hidden=move || {
-                !matches!(data_view(), ui_lib::types::DataView::Database)
-            } />
+            {move || {
+                db_loaded
+                    .get()
+                    .then_some(
+                        view! {
+                            <syre_desktop_workspace_db::Workspace class:hidden=move || {
+                                !matches!(data_view(), ui_lib::types::DataView::Database)
+                            } />
+                        },
+                    )
+            }}
         </main>
     }
 }

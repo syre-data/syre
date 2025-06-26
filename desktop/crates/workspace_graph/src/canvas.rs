@@ -42,7 +42,7 @@ const VB_WIDTH_MIN: usize = 500;
 const VB_WIDTH_MAX: usize = 10_000;
 const VB_HEIGHT_MIN: usize = 500;
 const VB_HEIGHT_MAX: usize = 10_000;
-pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str= "workspace_graph-canvas"; 
+pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str = "workspace_graph-canvas";
 pub const DATA_KEY_CONTAINER: &str = "container";
 pub const DATA_KEY_ASSET: &str = "asset";
 
@@ -555,7 +555,6 @@ fn CanvasView(
     }
 }
 
-
 #[component]
 fn IconSymbols() -> impl IntoView {
     view! {
@@ -565,7 +564,7 @@ fn IconSymbols() -> impl IntoView {
         <Symbol id="workspace_graph-canvas-remove" icon=ui_lib::icon::Remove />
         <Symbol id="workspace_graph-canvas-star" icon=icondata::BsStar />
         <Symbol id="workspace_graph-canvas-star_fill" icon=icondata::BsStarFill />
-        <ui_lib::icon::file_type::IconSymbols prefix=FILE_TYPE_ICON_SYMBOL_PREFIX/>
+        <ui_lib::icon::file_type::IconSymbols prefix=FILE_TYPE_ICON_SYMBOL_PREFIX />
         <VisibilityIndicatorSymbol />
     }
 }
@@ -1039,30 +1038,6 @@ fn ChildVisibilityIndicator(
             class="group cursor-pointer"
         >
             <use href=visibility_icon />
-            // <circle
-            //     r=TOGGLE_VIEW_INDICATOR_RADIUS
-            //     cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-            //     cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-            //     class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
-            //     dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
-            // ></circle>
-            // <g class="group-[:not(:hover)]:hidden">
-            //     <circle
-            //         r=CANVAS_BUTTON_RADIUS
-            //         cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-            //         cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-            //         class="stroke-black dark:stroke-white fill-white \
-            //         dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
-            //         opacity:0 hover:opacity-1"
-            //     ></circle>
-            //     <use
-            //         href=icon
-            //         x=CANVAS_BUTTON_STROKE
-            //         y=CANVAS_BUTTON_STROKE
-            //         width=CANVAS_BUTTON_RADIUS * 2
-            //         height=CANVAS_BUTTON_RADIUS * 2
-            //     />
-            // </g>
         </svg>
     }
 }
@@ -1471,8 +1446,6 @@ fn ContainerPreview(
     }
 }
 
-
-
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 fn Assets(assets: ReadSignal<ui_lib::state::container::AssetsState>) -> impl IntoView {
@@ -1674,19 +1647,19 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
             <div class="grow inline-flex gap-1 w-0 items-center">
                 <span class=icon_class>
                     <svg width="1em" height="1em">
-                        <use 
-                            href=move || icon_data.with(|data| {
-                                file_type_icon_symbol_anchor(data.symbol_id())
-                            }) 
-                        />
+                        <use href=move || {
+                            icon_data
+                                .with(|data| { file_type_icon_symbol_anchor(data.symbol_id()) })
+                        } />
                     </svg>
                 </span>
                 <span class="truncate">{title}</span>
             </div>
             <div class="flex gap-2 items-center">
                 <AssetFlags asset=asset.path().read_only() container=(*container).clone() />
-                { template! {
-                    <button
+                {
+                    template! {
+                        <button
                         on:mousedown=remove_asset
                         class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
                         disabled=remove.pending()
@@ -1695,7 +1668,8 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
                             <use href="#workspace_graph-canvas-remove" />
                         </svg>
                     </button>
-                }}
+                    }
+                }
             </div>
         </div>
     }
@@ -1884,30 +1858,33 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                 <div title=hover_title class="grow">
                     {move || title().unwrap_or("(no title)".to_string())}
                 </div>
-                {template! {
-                    <div class="inline-flex gap-1">
+                {
+                    template! {
+                        <div class="inline-flex gap-1">
                         <span>"(" {association.priority()} ")"</span>
                         <span
                             on:mousedown=autorun_toggle
                             class="inline-flex items-center"
                         >
                             <svg width="1em" height="1em">
-                                <use 
+                                <use
                                     href=move || {
                                         if association.autorun().get() {
                                             "#workspace_graph-canvas-star_fill"
                                         } else {
                                             "#workspace_graph-canvas-star"
                                         }
-                                    } 
+                                    }
                                 />
                             </svg>
                         </span>
                     </div>
-                }}
+                    }
+                }
             </div>
-            {template! {
-                <div>
+            {
+                template! {
+                    <div>
                     <button
                         on:mousedown=remove_association
                         class="align-middle rounded-xs hover:bg-secondary-200 dark:hover:bg-secondary-800 cursor-pointer"
@@ -1917,7 +1894,8 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                         </svg>
                     </button>
                 </div>
-            }}
+                }
+            }
         </div>
     }
 }

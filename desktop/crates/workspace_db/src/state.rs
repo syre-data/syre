@@ -17,6 +17,7 @@ pub mod data {
     }
 
     impl Datum {
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub fn new(
             ancestors: RwSignal<Vec<ui_lib::state::graph::Node>>,
             asset: ui_lib::state::Asset,
@@ -532,6 +533,7 @@ pub mod display {
     }
 
     impl State {
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub fn new(source: &super::data::State) -> Self {
             let data_source = source.data();
             let data_sorted = RwSignal::new(data_source.get_untracked());
@@ -923,6 +925,7 @@ pub mod display {
         /// # Returns
         /// Whether the column was successfully created.
         /// This fails if the key is already present.
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub fn new_metadata(&self, key: String) -> bool {
             if self
                 .metadata

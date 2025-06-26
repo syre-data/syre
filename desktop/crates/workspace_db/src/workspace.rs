@@ -1284,7 +1284,6 @@ pub(self) mod editor {
 
     const ESCAPE_KEY_CODE: &str = "Escape";
 
-    
     #[component]
     fn EditIcon() -> impl IntoView {
         template! {

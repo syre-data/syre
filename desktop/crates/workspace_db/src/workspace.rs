@@ -13,6 +13,32 @@ use wasm_bindgen::{JsCast, prelude::Closure};
 
 const MIN_COL_WIDTH: u32 = 100;
 const MAX_COL_WIDTH_RATIO: f64 = 0.8;
+const VIRTUALIZATION_WINDOW: usize = 40; // number of elements that nominally fit on screen.
+const VIRTUALIZATION_OVERSCAN: usize = 20;
+const TABLE_HEADER_LINE_HEIGHT: usize = 24; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
+const TABLE_ROW_LINE_HEIGHT: usize = 24; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
+
+#[derive(Clone)]
+struct VirtualizationRange {
+    /// Start of data, including overscan.
+    pub start: RwSignal<usize>,
+    pub length: RwSignal<usize>,
+}
+
+impl VirtualizationRange {
+    pub fn new() -> Self {
+        Self {
+            start: RwSignal::new(0),
+            length: RwSignal::new(VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN),
+        }
+    }
+
+    pub fn end(&self) -> Signal<usize> {
+        let start = self.start.read_only();
+        let length = self.length.read_only();
+        Signal::derive(move || start.get() + length.get())
+    }
+}
 
 #[derive(derive_more::Deref, Clone, Copy)]
 struct GraphRootName(ReadSignal<OsString>);
@@ -67,6 +93,9 @@ fn DataView() -> impl IntoView {
     let graph = expect_context::<ui_lib::state::Graph>();
     let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
+    let root_node = NodeRef::<html::Div>::new();
+    let vrange = VirtualizationRange::new();
+    let (scroll_top, set_scroll_top) = signal(0);
     provide_context(GraphRootName(graph.root().name().read_only()));
 
     let table_node = NodeRef::<html::Table>::new();
@@ -189,6 +218,72 @@ fn DataView() -> impl IntoView {
     display_state.columns().path().width().set(width_path);
     display_state.columns().file().width().set(width_file);
 
+    let table_height = {
+        let data = display_state.data();
+        move || {
+            format!(
+                "{}px",
+                TABLE_HEADER_LINE_HEIGHT + data.read().len() * TABLE_ROW_LINE_HEIGHT
+            )
+        }
+    };
+
+    let table_buffer_top = {
+        let data = display_state.data();
+        move || {
+            let max = data
+                .read()
+                .len()
+                .checked_sub(VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN)
+                .unwrap_or(0);
+            let top = (scroll_top.get() as usize)
+                .checked_sub(VIRTUALIZATION_OVERSCAN * TABLE_ROW_LINE_HEIGHT)
+                .unwrap_or(0);
+            let buffer = usize::min(top, max * TABLE_ROW_LINE_HEIGHT);
+            format!("{}px", buffer)
+        }
+    };
+
+    let table_buffer_bottom = {
+        let data = display_state.data();
+        move || {
+            let max = data.read().len() * TABLE_ROW_LINE_HEIGHT;
+            let bottom = (scroll_top.get() as usize)
+                .checked_add(
+                    (VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN) * TABLE_ROW_LINE_HEIGHT,
+                )
+                .unwrap();
+            let buffer = max.checked_sub(bottom).unwrap_or(0);
+            format!("{}px", buffer)
+        }
+    };
+
+    let scroll = {
+        let start = vrange.start.write_only();
+        let data = display_state.data();
+        move |e: leptos::ev::Targeted<Event, web_sys::HtmlDivElement>| {
+            let top = e.target().scroll_top();
+            set_scroll_top(top);
+
+            let idx = (top as usize) / TABLE_ROW_LINE_HEIGHT;
+            let idx = idx.checked_sub(VIRTUALIZATION_OVERSCAN).unwrap_or(0);
+            start.set(idx);
+        }
+    };
+
+    let virtualized_data = {
+        let data = display_state.data();
+        let vrange = vrange.clone();
+        move || {
+            data.read()
+                .iter()
+                .skip(vrange.start.get())
+                .take(vrange.length.get())
+                .cloned()
+                .collect::<Vec<_>>()
+        }
+    };
+
     view! {
         <Show
             when={
@@ -197,12 +292,17 @@ fn DataView() -> impl IntoView {
             }
             fallback=NoData
         >
-            <div class="overflow-auto scrollbar-thin w-full h-full">
+            <div
+                node_ref=root_node
+                class="overflow-auto scrollbar-thin w-full h-full"
+                on:scroll:target=scroll
+            >
                 <Symbol icon=ui_lib::icon::Edit id="workspace_db-data_view-edit"/>
                 <table
                     node_ref=table_node
                     class="table-fixed relative min-w-full"
                     style:width=format!("{width_table}px")
+                    style:height=table_height
                 >
                     <colgroup>
                         <col
@@ -323,14 +423,19 @@ fn DataView() -> impl IntoView {
                             </For>
                         </tr>
                     </thead>
-                    <tbody class="h-full overflow-y-auto">
+                    <tbody
+                        class="overflow-y-auto"
+                        // style:transform=tbody_transform
+                    >
+                        <tr class="block" style:height=table_buffer_top></tr>
                         <For
-                            each=display_state.data()
+                            each=virtualized_data
                             key=|datum| datum.asset().rid().get()
                             let:datum
                         >
-                            <DataRow datum />
+                            <DataRow datum {..} style:height="1em" />
                         </For>
+                        <tr class="block" style:height=table_buffer_bottom></tr>
                     </tbody>
                 </table>
                 {
@@ -530,7 +635,7 @@ fn TableHeaderSortablePinnable(
             on:mousedown=toggle_sort
             class=("z-20", column.pinned().read_only())
             class="group sticky top-0 truncate cursor-pointer pl-1 pr-2 pb-1 text-left \
-            bg-white dark:bg-secondary-800"
+            bg-white dark:bg-secondary-800 z-10"
             title=display_name.clone()
         >
             <div class="inline-flex w-full">
@@ -712,7 +817,7 @@ fn TableHeaderSortable(
             scope="col"
             on:mousedown=toggle_sort
             class="group sticky top-0 truncate cursor-pointer pl-1 pr-2 pb-1 text-left \
-            bg-white dark:bg-secondary-800"
+            bg-white dark:bg-secondary-800 z-10"
             title=display_name.clone()
         >
             <div class="inline-flex w-full">
@@ -852,7 +957,7 @@ fn TableHeader(
         <th
             node_ref=root_node
             scope="col"
-            class="sticky top-0 truncate pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800"
+            class="sticky top-0 truncate pl-1 pr-2 pb-1 text-left bg-white dark:bg-secondary-800 z-10"
             title=display_name
         >
             <div class="inline-flex w-full">

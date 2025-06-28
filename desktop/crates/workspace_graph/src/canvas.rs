@@ -574,56 +574,38 @@ fn VisibilityIndicatorSymbol() -> impl IntoView {
     view! {
         <symbol id="workspace_graph-canvas-visibility_indicator-visible">
             <circle
-                r=TOGGLE_VIEW_INDICATOR_RADIUS
+                r=CANVAS_BUTTON_RADIUS
                 cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
                 cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
-                dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+                class="stroke-black dark:stroke-white fill-white \
+                dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
+                opacity:0 hover:opacity-1"
             ></circle>
-            <g class="group-[:not(:hover)]:hidden">
-                <circle
-                    r=CANVAS_BUTTON_RADIUS
-                    cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                    cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                    class="stroke-black dark:stroke-white fill-white \
-                    dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
-                    opacity:0 hover:opacity-1"
-                ></circle>
-                <use
-                    href="#workspace_graph-canvas-eye"
-                    x=CANVAS_BUTTON_STROKE
-                    y=CANVAS_BUTTON_STROKE
-                    width=CANVAS_BUTTON_RADIUS * 2
-                    height=CANVAS_BUTTON_RADIUS * 2
-                />
-            </g>
+            <use
+                href="#workspace_graph-canvas-eye"
+                x=CANVAS_BUTTON_STROKE
+                y=CANVAS_BUTTON_STROKE
+                width=CANVAS_BUTTON_RADIUS * 2
+                height=CANVAS_BUTTON_RADIUS * 2
+            />
         </symbol>
 
         <symbol id="workspace_graph-canvas-visibility_indicator-hidden">
             <circle
-                r=TOGGLE_VIEW_INDICATOR_RADIUS
+                r=CANVAS_BUTTON_RADIUS
                 cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
                 cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
-                dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+                class="stroke-black dark:stroke-white fill-white \
+                dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
+                opacity:0 hover:opacity-1"
             ></circle>
-            <g class="group-[:not(:hover)]:hidden">
-                <circle
-                    r=CANVAS_BUTTON_RADIUS
-                    cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                    cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
-                    class="stroke-black dark:stroke-white fill-white \
-                    dark:fill-secondary-700 stroke-2 transition-opacity transition-delay-200 \
-                    opacity:0 hover:opacity-1"
-                ></circle>
-                <use
-                    href="#workspace_graph-canvas-eye_closed"
-                    x=CANVAS_BUTTON_STROKE
-                    y=CANVAS_BUTTON_STROKE
-                    width=CANVAS_BUTTON_RADIUS * 2
-                    height=CANVAS_BUTTON_RADIUS * 2
-                />
-            </g>
+            <use
+                href="#workspace_graph-canvas-eye_closed"
+                x=CANVAS_BUTTON_STROKE
+                y=CANVAS_BUTTON_STROKE
+                width=CANVAS_BUTTON_RADIUS * 2
+                height=CANVAS_BUTTON_RADIUS * 2
+            />
         </symbol>
     }
 }
@@ -1037,7 +1019,14 @@ fn ChildVisibilityIndicator(
             on:mousedown=toggle_container_visibility.clone()
             class="group cursor-pointer"
         >
-            <use href=visibility_icon />
+            <circle
+                r=TOGGLE_VIEW_INDICATOR_RADIUS
+                cx=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                cy=CANVAS_BUTTON_RADIUS + CANVAS_BUTTON_STROKE
+                class="stroke-secondary-400 fill-secondary-400 dark:stroke-secondary-500 \
+                dark:fill-secondary-500 transition-opacity transition-delay-200 hover:opacity-0"
+            ></circle>
+            <use href=visibility_icon class="group-[:not(:hover)]:hidden" />
         </svg>
     }
 }

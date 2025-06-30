@@ -15,28 +15,60 @@ const MIN_COL_WIDTH: u32 = 100;
 const MAX_COL_WIDTH_RATIO: f64 = 0.8;
 const VIRTUALIZATION_WINDOW: usize = 40; // number of elements that nominally fit on screen.
 const VIRTUALIZATION_OVERSCAN: usize = 20;
-const TABLE_HEADER_LINE_HEIGHT: usize = 24; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
+const TABLE_HEADER_LINE_HEIGHT: usize = 28; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
 const TABLE_ROW_LINE_HEIGHT: usize = 24; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
 
 #[derive(Clone)]
 struct VirtualizationRange {
-    /// Start of data, including overscan.
-    pub start: RwSignal<usize>,
-    pub length: RwSignal<usize>,
+    /// Scroll top.
+    pub top: Signal<f64>,
+    /// Start index
+    start: Signal<usize>,
+    /// End index
+    end: Signal<usize>,
+    /// Number of items
+    length: Signal<usize>,
 }
 
 impl VirtualizationRange {
-    pub fn new() -> Self {
+    pub fn new(top: Signal<f64>, data: ReadSignal<Vec<state::data::Datum>>) -> Self {
+        let start = Signal::derive(move || {
+            let data_top = (top.get() as usize).checked_sub(TABLE_HEADER_LINE_HEIGHT).unwrap_or(0) / TABLE_ROW_LINE_HEIGHT;
+            data_top
+                .checked_sub(VIRTUALIZATION_OVERSCAN)
+                .unwrap_or(0)
+        });
+
+        let end = Signal::derive(move || {
+            let data_top = (top.get() as usize).checked_sub(TABLE_HEADER_LINE_HEIGHT).unwrap_or(0) / TABLE_ROW_LINE_HEIGHT;
+            let end = data_top + VIRTUALIZATION_WINDOW + VIRTUALIZATION_OVERSCAN;
+            usize::min(end, data.read().len())
+        });
+
+        let length = Signal::derive(move || {
+            end.get() - start.get()
+        });
+
         Self {
-            start: RwSignal::new(0),
-            length: RwSignal::new(VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN),
+            top,
+            start,
+            end,
+            length,
         }
     }
 
+    /// Start of data including overscan.
+    pub fn start(&self) -> Signal<usize> {
+        self.start
+    }
+
+    /// End of data including overscan.
     pub fn end(&self) -> Signal<usize> {
-        let start = self.start.read_only();
-        let length = self.length.read_only();
-        Signal::derive(move || start.get() + length.get())
+        self.end
+    }
+
+    pub fn length(&self) -> Signal<usize> {
+        self.length
     }
 }
 
@@ -94,8 +126,13 @@ fn DataView() -> impl IntoView {
     let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
     let root_node = NodeRef::<html::Div>::new();
-    let vrange = VirtualizationRange::new();
-    let (scroll_top, set_scroll_top) = signal(0);
+    let scroll = leptos_use::use_scroll_with_options(
+        root_node, 
+        leptos_use::UseScrollOptions::default()
+            .behavior(leptos_use::ScrollBehavior::Smooth)
+            .throttle(50.0)
+    );
+    let vrange = VirtualizationRange::new(scroll.y, display_state.data());
     provide_context(GraphRootName(graph.root().name().read_only()));
 
     let table_node = NodeRef::<html::Table>::new();
@@ -228,57 +265,33 @@ fn DataView() -> impl IntoView {
         }
     };
 
-    let table_buffer_top = {
-        let data = display_state.data();
+    let table_buffer_top = { 
+        let start = vrange.start();
         move || {
-            let max = data
-                .read()
-                .len()
-                .checked_sub(VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN)
-                .unwrap_or(0);
-            let top = (scroll_top.get() as usize)
-                .checked_sub(VIRTUALIZATION_OVERSCAN * TABLE_ROW_LINE_HEIGHT)
-                .unwrap_or(0);
-            let buffer = usize::min(top, max * TABLE_ROW_LINE_HEIGHT);
-            format!("{}px", buffer)
+            format!("{}px", start.get() * TABLE_ROW_LINE_HEIGHT)
         }
     };
 
     let table_buffer_bottom = {
+        let end = vrange.end();
         let data = display_state.data();
         move || {
-            let max = data.read().len() * TABLE_ROW_LINE_HEIGHT;
-            let bottom = (scroll_top.get() as usize)
-                .checked_add(
-                    (VIRTUALIZATION_WINDOW + 2 * VIRTUALIZATION_OVERSCAN) * TABLE_ROW_LINE_HEIGHT,
-                )
-                .unwrap();
-            let buffer = max.checked_sub(bottom).unwrap_or(0);
-            format!("{}px", buffer)
-        }
-    };
+            let buffer = (data.read().len() - end.get()) * TABLE_ROW_LINE_HEIGHT;
+            format!("{buffer}px")
 
-    let scroll = {
-        let start = vrange.start.write_only();
-        let data = display_state.data();
-        move |e: leptos::ev::Targeted<Event, web_sys::HtmlDivElement>| {
-            let top = e.target().scroll_top();
-            set_scroll_top(top);
 
-            let idx = (top as usize) / TABLE_ROW_LINE_HEIGHT;
-            let idx = idx.checked_sub(VIRTUALIZATION_OVERSCAN).unwrap_or(0);
-            start.set(idx);
         }
     };
 
     let virtualized_data = {
         let data = display_state.data();
-        let vrange = vrange.clone();
+        let start = vrange.start();
+        let length = vrange.length();
         move || {
             data.read()
                 .iter()
-                .skip(vrange.start.get())
-                .take(vrange.length.get())
+                .skip(start.get())
+                .take(length.get())
                 .cloned()
                 .collect::<Vec<_>>()
         }
@@ -295,7 +308,6 @@ fn DataView() -> impl IntoView {
             <div
                 node_ref=root_node
                 class="overflow-auto scrollbar-thin w-full h-full"
-                on:scroll:target=scroll
             >
                 <Symbol icon=ui_lib::icon::Edit id="workspace_db-data_view-edit"/>
                 <table
@@ -423,10 +435,7 @@ fn DataView() -> impl IntoView {
                             </For>
                         </tr>
                     </thead>
-                    <tbody
-                        class="overflow-y-auto"
-                        // style:transform=tbody_transform
-                    >
+                    <tbody class="overflow-y-auto">
                         <tr class="block" style:height=table_buffer_top></tr>
                         <For
                             each=virtualized_data
@@ -1547,13 +1556,12 @@ pub(self) mod editor {
                         ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
                         move || value.read().is_empty(),
                     )
-                    class="grow"
+                    class="grow truncate"
                 >
                     {display_value.clone()}
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        // <Icon icon=ui_lib::icon::Edit />
                         <EditIcon />
                     </button>
                 </div>
@@ -1711,13 +1719,12 @@ pub(self) mod editor {
                         ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
                         move || value.read().is_empty(),
                     )
-                    class="grow"
+                    class="grow truncate"
                 >
                     {display_value.clone()}
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        // <Icon icon=ui_lib::icon::Edit />
                         <EditIcon />
                     </button>
                 </div>
@@ -1889,7 +1896,7 @@ pub(self) mod editor {
 
         view! {
             <div class="flex group/editor">
-                <div class="grow">
+                <div class="grow truncate">
                     {if let Some(value) = value.as_ref() {
                         let value = value.value();
                         Either::Left(move || super::metadatum_value_to_string(value.get()))
@@ -1905,7 +1912,6 @@ pub(self) mod editor {
                 </div>
                 <div class="pl-2 invisible group-hover/editor:visible">
                     <button class="cursor-pointer align-middle" on:mousedown=enable_editing>
-                        // <Icon icon=ui_lib::icon::Edit />
                         <EditIcon />
                     </button>
                 </div>

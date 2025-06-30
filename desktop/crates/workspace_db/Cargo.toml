@@ -7,7 +7,7 @@ edition = "2024"
 derive_more.workspace = true
 icondata.workspace = true
 leptos_icons.workspace = true
-leptos-use.workspace = true
+leptos-use = { workspace = true, features = ["use_scroll"] }
 leptos.workspace = true
 reactive_stores.workspace = true
 serde = { workspace = true, features = ["derive"] }

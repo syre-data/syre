@@ -193,7 +193,7 @@ DEFINE INDEX asset_metadata     ON asset COLUMNS metadata_search SEARCH ANALYZER
 DEFINE INDEX asset_path         ON asset COLUMNS path SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
 ";
 
-#[derive(derive_more::Deref)]
+#[derive(derive_more::Deref, Clone)]
 pub struct Store {
     db: Surreal<Db>,
 }
@@ -254,6 +254,7 @@ impl Store {
             let project_id = match self.project_record_id_from_path(project).await {
                 Ok(project_id) => project_id,
                 Err(err) => {
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?err);
                     Self::send_response(tx, Err(err));
                     return;
@@ -332,6 +333,7 @@ impl Store {
         let mut container_results = match container_results {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -350,6 +352,7 @@ impl Store {
         let mut asset_results = match asset_results {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -359,6 +362,7 @@ impl Store {
         let mut container_results = match container_results.take::<Vec<Record>>(0) {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -368,6 +372,7 @@ impl Store {
         let mut asset_results = match asset_results.take::<Vec<Record>>(0) {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -415,6 +420,7 @@ impl Store {
             let project_id = match self.project_record_id_from_path(project).await {
                 Ok(project_id) => project_id,
                 Err(err) => {
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?err);
                     Self::send_response(tx, Err(err));
                     return;
@@ -469,6 +475,7 @@ impl Store {
         let mut results = match results {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -478,6 +485,7 @@ impl Store {
         let mut results = match results.take::<Vec<Record>>(0) {
             Ok(results) => results,
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!(?err);
                 Self::send_response(tx, Err(err));
                 return;
@@ -495,14 +503,16 @@ impl Store {
             .unzip();
 
         let results = AssetSearchResult::new(assets, scores);
-
         Self::send_response(tx, Ok(results));
     }
 
     fn send_response<T>(tx: Tx<T>, value: surrealdb::Result<T>) {
         match tx.send(value) {
             Ok(_) => {}
-            Err(_) => tracing::error!("could not send response"),
+            Err(_) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("could not send response")
+            }
         }
     }
 }
@@ -581,6 +591,7 @@ pub mod project {
         ///
         /// # Panics
         /// If the insertion or subsequent query to obtain the id fails.
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_project_properties(
             &self,
             project_id: surrealdb::RecordId,
@@ -626,6 +637,7 @@ pub mod project {
         ///
         /// # Panics
         /// If the insertion or subsequent query to obtain the id fails.
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_project_settings(
             &self,
             project_id: surrealdb::RecordId,
@@ -806,6 +818,7 @@ pub mod container {
     }
 
     impl Store {
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_container(
             &self,
             project_id: surrealdb::RecordId,
@@ -826,6 +839,7 @@ pub mod container {
             Ok(record.id)
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn container_record_id_from_path(
             &self,
             project: surrealdb::RecordId,
@@ -916,6 +930,10 @@ pub mod container {
             Ok(record.into_iter().map(|record| record.id).collect())
         }
 
+        #[cfg_attr(
+            feature = "tracing",
+            tracing::instrument(level = "trace", skip(self, project_id, container_id, properties))
+        )]
         pub async fn insert_container_properties(
             &self,
             project_id: surrealdb::RecordId,
@@ -991,6 +1009,7 @@ pub mod container {
             Ok(())
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_container_settings(
             &self,
             project_id: surrealdb::RecordId,
@@ -1095,6 +1114,7 @@ pub mod asset {
     use syre_project_watcher as project_watcher;
 
     impl Store {
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_asset(
             &self,
             project_id: surrealdb::RecordId,
@@ -1164,6 +1184,83 @@ pub mod asset {
             Ok(record.id)
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
+        pub async fn insert_assets(
+            &self,
+            project_id: surrealdb::RecordId,
+            container_id: surrealdb::RecordId,
+            assets: Vec<project_watcher::state::Asset>,
+        ) -> surrealdb::Result<Vec<surrealdb::RecordId>> {
+            #[derive(Serialize)]
+            struct Record {
+                id: surrealdb::RecordId,
+                _project: surrealdb::RecordId,
+                _container: surrealdb::RecordId,
+                name: Option<String>,
+                kind: Option<String>,
+                description: Option<String>,
+                tags: Vec<String>,
+                metadata: HashMap<String, core::types::Value>,
+                path: PathBuf,
+                fs_resource_present: bool,
+
+                creator: core::types::Creator,
+
+                #[serde(serialize_with = "cast::chrono_as_sql_datetime")]
+                created: DateTime<Utc>,
+
+                metadata_search: String,
+            }
+
+            let asset_to_record = move |asset: project_watcher::state::Asset| {
+                let fs_resource_present = asset.is_present();
+                let rid = asset.rid().clone().to_string();
+                let created = asset.properties.created().clone();
+                let core::project::Asset {
+                    properties:
+                        core::project::AssetProperties {
+                            creator,
+                            name,
+                            kind,
+                            description,
+                            tags,
+                            metadata,
+                            ..
+                        },
+                    path,
+                    ..
+                } = asset.into_inner();
+
+                Record {
+                    id: ("asset", rid).into(),
+                    _project: project_id.clone(),
+                    _container: container_id.clone(),
+                    name,
+                    kind,
+                    description,
+                    tags,
+                    metadata,
+                    path,
+                    fs_resource_present,
+                    creator,
+                    created,
+                    metadata_search: "".to_string(),
+                }
+            };
+
+            let records = assets.into_iter().map(asset_to_record).collect::<Vec<_>>();
+            let records = self
+                .db
+                .insert::<Vec<IdRecord>>("asset")
+                .content(records)
+                .await?
+                .into_iter()
+                .map(|record| record.id)
+                .collect::<Vec<_>>();
+
+            Ok(records)
+        }
+
         pub async fn asset_record_id_from_path(
             &self,
             container: surrealdb::RecordId,
@@ -1215,6 +1312,7 @@ pub mod flag {
     use syre_local as local;
 
     impl Store {
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
         pub async fn insert_flag(
             &self,
             project_id: surrealdb::RecordId,

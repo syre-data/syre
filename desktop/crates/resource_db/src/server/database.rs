@@ -1,9 +1,11 @@
-use super::{store, Store};
+use super::{Store, store};
 use crate::Command;
 use std::{path::PathBuf, thread};
 use syre_core::types::ResourceId;
 use syre_project_watcher as project_watcher;
 use tokio::sync::mpsc;
+
+const DB_TRANSACTION_MAX_ATTEMPTS: usize = 100;
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
 pub enum ResourceKind {
@@ -58,24 +60,30 @@ impl Database {
     }
 
     async fn run(&mut self) {
+        tracing::trace!("initializing database state");
         self.init_state().await.unwrap();
+        tracing::debug!("database state initialized");
 
         loop {
             tokio::select! {
                 events = self.project_event_rx.recv() => {
                     let Some(events) = events else {
+                    #[cfg(feature = "tracing")]
                         tracing::debug!("`project_event` channel closed");
                         break;
                     };
+                    #[cfg(feature = "tracing")]
                     tracing::debug!(?events);
 
                     self.handle_update_events(events).await;
                 }
                 cmd = self.query_rx.recv() => {
                     let Some(cmd) = cmd else {
+                    #[cfg(feature = "tracing")]
                         tracing::debug!("`query` channel closed");
                         break;
                     };
+                    #[cfg(feature = "tracing")]
                     tracing::debug!(?cmd);
 
                     match cmd {
@@ -88,9 +96,11 @@ impl Database {
             }
         }
 
+        #[cfg(feature = "tracing")]
         tracing::trace!("shutting down");
     }
 
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     async fn init_state(&self) -> surrealdb::Result<()> {
         let projects = self
             .pw_client
@@ -100,6 +110,7 @@ impl Database {
 
         for project in projects.iter() {
             if let Err(err) = self.init_project(project).await {
+                #[cfg(feature = "tracing")]
                 tracing::error!("could not load project {:?}: {err:?}", project.path());
             }
         }
@@ -107,6 +118,7 @@ impl Database {
         Ok(())
     }
 
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all, fields(project.path = ?project.path())))]
     async fn init_project(
         &self,
         project: &project_watcher::state::Project,
@@ -125,6 +137,7 @@ impl Database {
 
         let project_watcher::state::FolderResource::Present(project_data) = project.fs_resource()
         else {
+            #[cfg(feature = "tracing")]
             tracing::trace!(
                 "project {:?} file system resource is absent",
                 project.path()
@@ -133,6 +146,7 @@ impl Database {
         };
 
         let project_watcher::state::DataResource::Ok(properties) = project_data.properties() else {
+            #[cfg(feature = "tracing")]
             tracing::trace!("project {:?} properties is corrupt", project.path());
             return Err(error::ProjectInit::PropertiesCorrupt);
         };
@@ -157,6 +171,7 @@ impl Database {
                 Some(id)
             }
             Err(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::trace!("project {:?} settings is corrupt: {err:?}", project.path());
                 None
             }
@@ -188,6 +203,7 @@ impl Database {
     ///
     /// # Returns
     /// `(container record ids, asset record ids)`
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     async fn init_project_resources(
         &self,
         project_id: surrealdb::RecordId,
@@ -207,6 +223,7 @@ impl Database {
 
     /// # Returns
     /// `(container record ids, asset record ids)`
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
     async fn insert_graph_resources(
         &self,
         project_id: surrealdb::RecordId,
@@ -214,12 +231,6 @@ impl Database {
         graph: project_watcher::state::Graph,
     ) -> Result<(Vec<surrealdb::RecordId>, Vec<surrealdb::RecordId>), error::ProjectResourcesInit>
     {
-        #[derive(serde::Serialize)]
-        struct ContainerRecordLinks {
-            properties: Option<surrealdb::RecordId>,
-            settings: Option<surrealdb::RecordId>,
-        }
-
         let paths = paths_from_graph_data(&graph);
         let paths = if let Some(parent) = parent.as_ref() {
             paths
@@ -230,28 +241,93 @@ impl Database {
             paths
         };
 
-        let mut containers = Vec::with_capacity(graph.nodes.len());
+        let mut tasks = Vec::with_capacity(graph.nodes.len());
+        for (path, container) in std::iter::zip(paths, graph.nodes.into_iter()) {
+            tasks.push(tokio::spawn(Self::insert_container_resources(
+                self.store.clone(),
+                project_id.clone(),
+                path,
+                container,
+            )));
+        }
+
+        let mut containers = Vec::with_capacity(tasks.len());
         let mut assets = vec![];
-        for (path, container) in std::iter::zip(paths, graph.nodes.iter()) {
-            let container_record_id = self
-                .store
-                .insert_container(project_id.clone(), container.name().clone(), path)
-                .await
-                .unwrap();
+        for task in tasks {
+            let (container_record_id, asset_record_ids) = task.await.unwrap();
 
             containers.push(container_record_id.clone());
+            if let Some(asset_record_ids) = asset_record_ids {
+                assets.extend(asset_record_ids);
+            }
+        }
 
-            let properties_record_id = if let project_watcher::state::DataResource::Ok(properties) =
-                container.properties()
-            {
+        Ok((containers, assets))
+    }
+
+    /// Insert a container and all its resources.
+    ///
+    /// # Returns
+    /// `(container_id, asset_ids)` where `asset_ids` is `None` if
+    /// the container's assets could not be loaded.
+    ///
+    /// # Notes
+    /// + Because this function is intended to run in parallel, sometimes a transaction will fail
+    /// due to a write contention. Transactions that cause this to occur have been wrapped to allow retrying.
+    #[cfg_attr(
+        feature = "tracing",
+        tracing::instrument(level = "trace", skip(store, project_id, container))
+    )]
+    async fn insert_container_resources(
+        store: Store,
+        project_id: surrealdb::RecordId,
+        path: PathBuf,
+        container: project_watcher::state::Container,
+    ) -> (surrealdb::RecordId, Option<Vec<surrealdb::RecordId>>) {
+        #[derive(serde::Serialize)]
+        struct ContainerRecordLinks {
+            properties: Option<surrealdb::RecordId>,
+            settings: Option<surrealdb::RecordId>,
+        }
+
+        let container_record_id = store
+            .insert_container(project_id.clone(), container.name().clone(), path)
+            .await
+            .unwrap();
+
+        let properties_record_id =
+            if let project_watcher::state::DataResource::Ok(properties) = container.properties() {
                 let rid = container.rid().unwrap();
-                let record_id = self
-                    .store
-                    .insert_container_properties(
+                let mut transaction_attempts = 0;
+                loop {
+                    transaction_attempts += 1;
+                    let result = store
+                        .insert_container_properties(
+                            project_id.clone(),
+                            container_record_id.clone(),
+                            rid.clone(),
+                            properties.clone(),
+                        )
+                        .await;
+
+                    if result.is_ok() {
+                        let record_id = result.unwrap();
+                        break Some(record_id);
+                    } else if transaction_attempts >= DB_TRANSACTION_MAX_ATTEMPTS {
+                        result.unwrap();
+                    }
+                }
+            } else {
+                None
+            };
+
+        let settings_record_id =
+            if let project_watcher::state::DataResource::Ok(settings) = container.settings() {
+                let record_id = store
+                    .insert_container_settings(
                         project_id.clone(),
                         container_record_id.clone(),
-                        rid.clone(),
-                        properties.clone(),
+                        settings.clone(),
                     )
                     .await
                     .unwrap();
@@ -261,82 +337,99 @@ impl Database {
                 None
             };
 
-            let settings_record_id =
-                if let project_watcher::state::DataResource::Ok(settings) = container.settings() {
-                    let record_id = self
-                        .store
-                        .insert_container_settings(
-                            project_id.clone(),
-                            container_record_id.clone(),
-                            settings.clone(),
-                        )
-                        .await
-                        .unwrap();
+        let _update: Option<store::container::Record> = store
+            .update(&container_record_id)
+            .merge(ContainerRecordLinks {
+                properties: properties_record_id,
+                settings: settings_record_id,
+            })
+            .await
+            .unwrap();
+        assert!(_update.is_some());
 
-                    Some(record_id)
+        let mut asset_record_ids = None;
+        if let project_watcher::state::DataResource::Ok(assets) = container.assets() {
+            let mut transaction_attempts = 0;
+            let record_ids = loop {
+                transaction_attempts += 1;
+                let result = store
+                    .insert_assets(
+                        project_id.clone(),
+                        container_record_id.clone(),
+                        assets.clone(),
+                    )
+                    .await;
+
+                if result.is_ok() {
+                    break result.unwrap();
+                } else if transaction_attempts >= DB_TRANSACTION_MAX_ATTEMPTS {
+                    result.unwrap();
+                }
+            };
+            assert_eq!(assets.len(), record_ids.len());
+
+            let paths = assets.iter().map(|asset| &asset.path).cloned();
+            let record_ids = std::iter::zip(paths, record_ids.into_iter()).collect::<Vec<_>>();
+            let _ = asset_record_ids.insert(record_ids);
+        }
+
+        if let project_watcher::state::DataResource::Ok(flags) = container.flags() {
+            let root_dir = PathBuf::from("/");
+            for (path, resource_flags) in flags {
+                let resource = if *path == root_dir {
+                    Some(container_record_id.clone())
                 } else {
-                    None
+                    asset_record_ids
+                        .as_ref()
+                        .map(|asset_record_ids| {
+                            asset_record_ids.iter().find_map(|(asset_path, record_id)| {
+                                (asset_path == path).then_some(record_id.clone())
+                            })
+                        })
+                        .flatten()
                 };
 
-            let _update: Option<store::container::Record> = self
-                .store
-                .update(&container_record_id)
-                .merge(ContainerRecordLinks {
-                    properties: properties_record_id,
-                    settings: settings_record_id,
-                })
-                .await
-                .unwrap();
-            assert!(_update.is_some());
-
-            let mut asset_record_ids = Vec::with_capacity(assets.len());
-            if let project_watcher::state::DataResource::Ok(assets) = container.assets() {
-                for asset in assets {
-                    let record_id = self
-                        .store
-                        .insert_asset(
+                for flag in resource_flags {
+                    let record_id = store
+                        .insert_flag(
                             project_id.clone(),
                             container_record_id.clone(),
-                            asset.clone(),
+                            resource.clone(),
+                            path.clone(),
+                            flag,
                         )
                         .await
                         .unwrap();
-
-                    asset_record_ids.push((asset.path.clone(), record_id));
-                }
-            }
-
-            if let project_watcher::state::DataResource::Ok(flags) = container.flags() {
-                let root_dir = PathBuf::from("/");
-                for (path, resource_flags) in flags {
-                    let resource = if *path == root_dir {
-                        Some(container_record_id.clone())
-                    } else {
-                        asset_record_ids.iter().find_map(|(asset_path, record_id)| {
-                            (asset_path == path).then_some(record_id.clone())
-                        })
-                    };
-
-                    for flag in resource_flags {
-                        let record_id = self
-                            .store
-                            .insert_flag(
-                                project_id.clone(),
-                                container_record_id.clone(),
-                                resource.clone(),
-                                path.clone(),
-                                flag,
-                            )
-                            .await
-                            .unwrap();
-                    }
                 }
             }
         }
 
-        Ok((containers, assets))
+        let asset_record_ids = asset_record_ids.map(|asset_record_ids| {
+            asset_record_ids
+                .into_iter()
+                .map(|(_, record_id)| record_id)
+                .collect()
+        });
+        (container_record_id, asset_record_ids)
     }
 }
+
+// TODO: Make transaction retries work.
+// async fn try_transaction<F, Fut, T, E>(transaction: F, max_attempts: usize) -> Result<T, E>
+// where
+//     F: Fn() -> Fut,
+//     Fut: std::future::Future<Output = Result<T, E>>,
+// {
+//     let mut attempts = 0;
+//     loop {
+//         attempts += 1;
+//         match transaction().await {
+//             Ok(res) => return Ok(res),
+//             Err(err) if attempts >= max_attempts => return Err(err),
+//             Err(err) => {}
+//         };
+//     }
+// }
 
 fn paths_from_graph_data(graph: &project_watcher::state::Graph) -> Vec<PathBuf> {
     fn inner(
@@ -381,17 +474,18 @@ pub mod error {
 }
 
 mod project_events {
-    use super::{store, Database};
+    use super::{Database, store};
     use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, path::PathBuf};
     use syre_core as core;
     use syre_local as local;
-    use syre_project_watcher::{event, state, Update};
+    use syre_project_watcher::{Update, event, state};
 
     impl Database {
         pub(super) async fn handle_update_events(&self, events: Vec<Update>) {
             for event in events {
+                #[cfg(feature = "tracing")]
                 tracing::trace!(?event);
                 match event.kind() {
                     event::UpdateKind::App(_) => self.handle_event_update_app(event).await,
@@ -475,6 +569,7 @@ mod project_events {
 
             for project in projects.iter() {
                 if let Err(err) = self.init_project(project).await {
+                    #[cfg(feature = "tracing")]
                     tracing::error!("could not load project {:?}: {err:?}", project.path());
                 }
             }
@@ -490,6 +585,7 @@ mod project_events {
 
             for project in projects {
                 if let Err(err) = self.store.remove_project_by_path(project.clone()).await {
+                    #[cfg(feature = "tracing")]
                     tracing::debug!("could not remove project {project:?}: {err:?}");
                 };
             }

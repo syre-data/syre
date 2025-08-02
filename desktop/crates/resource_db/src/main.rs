@@ -10,7 +10,8 @@ use syre_desktop_resource_db as db;
 /// # Notes
 /// + Must run with the `server` and `client` features enabled.
 fn main() {
-    logging::enable();
+    #[cfg(feature = "tracing")]
+    let _log_guard = logging::enable();
 
     let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -53,23 +54,52 @@ fn main() {
     }
 }
 
+#[cfg(feature = "tracing")]
 mod logging {
     use std::io;
     use tracing_subscriber::{
         fmt::{self, time::UtcTime},
         prelude::*,
-        EnvFilter, Layer, Registry,
+        EnvFilter, Registry,
     };
 
     /// Enable logging.
+    /// 
+    /// # Returns
+    /// Log guard.
+    #[cfg(not(feature = "perf"))]
     pub fn enable() {
         let console_logger = fmt::layer()
             .with_writer(io::stdout)
             .with_timer(UtcTime::rfc_3339())
-            .pretty()
-            .with_filter(EnvFilter::from_default_env());
-
-        let subscriber = Registry::default().with(console_logger);
+            .pretty();
+        
+        let subscriber = Registry::default()
+            .with(EnvFilter::from_default_env())
+            .with(console_logger);
         tracing::subscriber::set_global_default(subscriber).unwrap();
+    }
+
+    /// Enable logging.
+    /// 
+    /// # Returns
+    /// Log guard.
+    #[cfg(feature = "perf")]
+    pub fn enable() -> impl Drop {
+        let console_logger = fmt::layer()
+            .with_writer(io::stdout)
+            .with_timer(UtcTime::rfc_3339())
+            .pretty();
+        
+        let (flame_layer, _guard) = tracing_flame::FlameLayer::with_file("./tracing.folded")
+            .unwrap();
+            
+        let subscriber = Registry::default()
+            .with(EnvFilter::from_default_env())
+            .with(console_logger)
+            .with(flame_layer);
+        
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+        _guard
     }
 }

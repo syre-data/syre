@@ -53,6 +53,7 @@ impl Actor {
             let messages = match self.zmq_socket.recv_multipart(0) {
                 Ok(msg) => msg,
                 Err(err) => {
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?err);
                     continue;
                 }
@@ -64,11 +65,13 @@ impl Actor {
                 .collect::<Vec<_>>();
 
             let Some(topic) = messages.get(0) else {
+                #[cfg(feature = "tracing")]
                 tracing::error!("could not get topic from message {messages:?}");
                 continue;
             };
 
             let Some(topic) = topic.as_str() else {
+                #[cfg(feature = "tracing")]
                 tracing::error!("could not convert topic to str");
                 continue;
             };
@@ -76,6 +79,7 @@ impl Actor {
             let mut message = String::new();
             for msg in messages.iter().skip(1) {
                 let Some(msg) = msg.as_str() else {
+                    #[cfg(feature = "tracing")]
                     tracing::error!("could not convert message to str");
                     continue 'main;
                 };
@@ -86,18 +90,22 @@ impl Actor {
             let updates: Vec<project_watcher::Update> = match serde_json::from_str(&message) {
                 Ok(events) => events,
                 Err(err) => {
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?message);
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?err);
                     continue;
                 }
             };
 
+            #[cfg(feature = "tracing")]
             tracing::debug!(?updates);
             if let Err(_) = self.event_tx.send(updates) {
                 break;
             };
         }
 
+        #[cfg(feature = "tracing")]
         tracing::trace!("shutting down");
     }
 }

@@ -1,0 +1,11 @@
+[package]
+name = "erase_asset_files"
+version = "0.1.0"
+edition = "2024"
+
+authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
+description = "Erase all asset files, setting their file size to zero. This does not remove the files."
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+walkdir.workspace = true

@@ -6,6 +6,7 @@
     },
     "rust-analyzer.cargo.features": "all",
     "rust-analyzer.rustfmt.overrideCommand": ["leptosfmt", "--stdin", "--rustfmt"],
+    "rust-analyzer.checkOnSave": false,
     "[python]": {
         "editor.formatOnType": true
     },

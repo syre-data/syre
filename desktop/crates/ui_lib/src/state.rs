@@ -263,6 +263,63 @@ pub mod workspace_graph {
                 .ok_or(())
         }
 
+        /// Set whether multiple resource are selected.
+        ///
+        /// # Returns
+        /// `Err` if any resource with the given id is not found.
+        pub fn set_many<'a>(&self, rids: &'a Vec<ResourceId>, selected: bool) -> Result<(), Vec<&'a ResourceId>> {
+            let mut resources = Vec::with_capacity(rids.len());
+            let mut not_found = Vec::new();
+            for rid in rids.iter() {
+                if let Some(resource) = self.resources
+                    .read_untracked()
+                    .iter()
+                    .find(|resource| {
+                        resource
+                            .rid
+                            .with_untracked(|resource_id| resource_id == rid)
+                }).cloned() {
+                    resources.push(resource);
+                } else {
+                    not_found.push(rid);
+                }
+            }
+
+            if !not_found.is_empty() {
+                return Err(not_found);
+            }
+
+            let resources = resources
+                .into_iter()
+                .filter(|resource| {
+                    resource.selected.get_untracked() != selected
+                })
+                .collect::<Vec<_>>();
+
+            for resource in resources.iter() {
+                resource.selected.set(selected);
+            }
+
+            self.selected.update(|selected_resources| {
+                if selected {
+                    let resources = resources
+                        .into_iter()
+                        .map(|resource| Resource {
+                            rid: resource.rid,
+                            kind: resource.kind,
+                        });
+
+                    selected_resources.extend(resources);
+                } else {
+                    selected_resources.retain(|selected| {
+                        selected.rid.with_untracked(|selected| !rids.contains(selected))
+                    })
+                }
+            });
+
+            Ok(())
+        }
+
         /// Set all resources to be unselected.
         pub fn clear(&self) {
             self.resources
@@ -635,7 +692,7 @@ pub mod graph {
 
     #[derive(Clone)]
     pub struct State {
-        nodes: RwSignal<Vec<Node>>, // TODO: `nodes` is redundant with `children`, could be removed.
+        nodes: RwSignal<Vec<Node>>, // TODO: `nodes` is redundant with `children`, could be removed, but may be more efficient to keep.
         root: Node,
         children: RwSignal<Children>, // TODO: Rename to `edges`.
         parents: Arc<Mutex<Vec<(Node, RwSignal<Node>)>>>,

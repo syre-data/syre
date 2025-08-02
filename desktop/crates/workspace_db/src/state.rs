@@ -915,7 +915,7 @@ pub mod display {
 
         pub fn get_metadata(&self, key: &String) -> Option<Column> {
             self.metadata
-                .read()
+                .read_untracked()
                 .iter()
                 .find_map(|(col_key, col)| (key == col_key).then_some(col.clone()))
         }

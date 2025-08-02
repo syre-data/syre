@@ -1,9 +1,22 @@
-[build]
-rustflags = ["-Z", "threads=8"]
-target-dir = "target"
-
-[target.'cfg(all(debug_assertions, not(feature = "perf"))']
+# [target.'cfg(all(debug_assertions, not(feature = "perf"))']
+[target.wasm32-unknown-unknown]
 rustflags = [
-  "--cfg",
-  "erase_components",
+   "--cfg",
+   "erase_components",
 ]
+
+[target.x86_64-pc-windows-msvc]
+# LLD linker
+#
+# You may need to install it:
+#
+# ```
+# cargo install -f cargo-binutils
+# rustup component add llvm-tools
+# ```
+linker = "rust-lld.exe"
+rustdocflags = ["-Clinker=rust-lld.exe"]
+rustflags = [
+  # "-Zshare-generics=n", # This needs to be off if you use dynamic linking on Windows.
+]
+

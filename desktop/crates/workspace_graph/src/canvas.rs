@@ -746,7 +746,7 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
         }
     };
 
-    let x_node = Signal::derive(move || (width.with(|width| (width - CONTAINER_WIDTH) / 2)));
+    let x_node = Signal::derive(move || width.with(|width| (width - CONTAINER_WIDTH) / 2));
 
     let _ = Effect::watch(
         container_visibility.read_only(),
@@ -1228,7 +1228,7 @@ fn ContainerOk(
     let mousedown = {
         let rid = container
             .properties()
-            .with_untracked(|properties| properties.as_ref().unwrap().rid().read_only());
+            .read_untracked().as_ref().unwrap().rid().read_only();
         let selection_resources = workspace_graph_state.selection_resources().clone();
         move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {

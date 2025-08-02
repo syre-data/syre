@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
-icondata.workspace = true
 js-sys.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true
@@ -19,3 +18,17 @@ syre-local.workspace = true
 syre-project-watcher.workspace = true
 tauri-sys = { workspace = true, features = ["core"] }
 web-sys = { workspace = true, features = ["Window"] }
+
+[dependencies.icondata]
+workspace = true
+default-features = false
+features = [
+    "ant-design-icons",
+    "bootstrap-icons",
+    "font-awesome",
+    "ionicons",
+    "lucide",
+    "github-octicons",
+    "tabler-icons",
+    "vs-code-icons",
+] 

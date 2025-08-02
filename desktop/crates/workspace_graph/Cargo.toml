@@ -7,7 +7,6 @@ edition = "2024"
 derive_more = { workspace = true, features = ["deref", "from"] }
 futures.workspace = true
 has_id.workspace = true
-icondata.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true
 leptos_router = { workspace = true, features = ["nightly"] }
@@ -28,6 +27,15 @@ tauri-sys = { workspace = true, features = ["core", "menu"] }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 
+[dependencies.icondata]
+workspace = true
+features = [
+	"bootstrap-icons", 
+	"font-awesome", 
+	"tabler-icons",
+	"vs-code-icons",
+]
+
 [dependencies.web-sys]
 workspace = true
 features = [
@@ -42,6 +50,7 @@ features = [
 	"SvgMatrix",
 	"Window",
 ]
+
 
 [features]
 tracing = ["leptos/tracing"]

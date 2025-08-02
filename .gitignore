@@ -11,6 +11,12 @@ rusty-tags.vi
 .DS_Store
 rustc-ice*
 
+# profiling data
+*.mm_profdata
+chrome_profiler.json
+tracing-flamegraph.svg
+tracing.folded
+
 # github
 .github/act/secrets
 

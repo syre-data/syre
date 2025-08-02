@@ -34,8 +34,10 @@ pub fn DataFilter() -> impl IntoView {
                 if query.trim().is_empty() {
                     filter.set(None);
                 } else {
+                    let query = query.trim().to_string();
+                    tracing::trace!("querying `{query}`");
                     let results =
-                        search_assets(query.trim().to_string(), project.get_untracked()).await;
+                        search_assets(query, project.get_untracked()).await;
                     tracing::trace!(?results);
                     filter.set(Some(results.assets().clone()));
                 }

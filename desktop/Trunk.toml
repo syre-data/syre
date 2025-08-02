@@ -4,7 +4,10 @@
 target = "./index.html"
 
 [watch]
-ignore = []
+ignore = [
+    "**/*.mm_profdata",
+    "src-tauri/target",
+]
 
 [serve]
 addresses = ["0.0.0.0"]

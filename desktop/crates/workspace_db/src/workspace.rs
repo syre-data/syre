@@ -1,5 +1,6 @@
-use crate::{project_bar::ProjectBar, state};
+use crate::{project_bar::ProjectBar, state, types, utils};
 use leptos::{
+    either::Either,
     ev::{Event, MouseEvent},
     html,
     prelude::*,
@@ -18,42 +19,80 @@ const VIRTUALIZATION_OVERSCAN: usize = 20;
 const TABLE_HEADER_LINE_HEIGHT: usize = 28; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
 const TABLE_ROW_LINE_HEIGHT: usize = 24; // NB: Acqired manually via DOM inspection. Should match height of `<DataRow>`.
 
+const CLASS_EMPTY_VALUE: &str = "text-nowrap text-secondary-500 dark:text-secondary-400";
+const CLASS_EMPTY_VALUE_ARR: &[&str] = &[
+    "text-nowrap",
+    "text-secondary-500",
+    "dark:text-secondary-400",
+];
+const EMPTY_NAME: &str = "(no name)";
+const EMPTY_KIND: &str = "(no type)";
+const EMPTY_DESCRIPTION: &str = "(no description)";
+const EMPTY_TAGS: &str = "(no tags)";
+const EMPTY_METADATUM: &str = "(n/a)";
+
 #[derive(Clone)]
 struct VirtualizationRange {
-    /// Scroll top.
-    pub top: Signal<f64>,
     /// Start index
     start: Signal<usize>,
     /// End index
     end: Signal<usize>,
     /// Number of items
     length: Signal<usize>,
+
+    active: Vec<RwSignal<bool>>,
 }
 
 impl VirtualizationRange {
     pub fn new(top: Signal<f64>, data: ReadSignal<Vec<state::data::Datum>>) -> Self {
         let start = Signal::derive(move || {
-            let data_top = (top.get() as usize).checked_sub(TABLE_HEADER_LINE_HEIGHT).unwrap_or(0) / TABLE_ROW_LINE_HEIGHT;
-            data_top
-                .checked_sub(VIRTUALIZATION_OVERSCAN)
+            let data_top = (top.get() as usize)
+                .checked_sub(TABLE_HEADER_LINE_HEIGHT)
                 .unwrap_or(0)
+                / TABLE_ROW_LINE_HEIGHT;
+            data_top.checked_sub(VIRTUALIZATION_OVERSCAN).unwrap_or(0)
         });
 
         let end = Signal::derive(move || {
-            let data_top = (top.get() as usize).checked_sub(TABLE_HEADER_LINE_HEIGHT).unwrap_or(0) / TABLE_ROW_LINE_HEIGHT;
+            let data_top = (top.get() as usize)
+                .checked_sub(TABLE_HEADER_LINE_HEIGHT)
+                .unwrap_or(0)
+                / TABLE_ROW_LINE_HEIGHT;
             let end = data_top + VIRTUALIZATION_WINDOW + VIRTUALIZATION_OVERSCAN;
             usize::min(end, data.read().len())
         });
 
-        let length = Signal::derive(move || {
-            end.get() - start.get()
+        let length = Signal::derive(move || end.get() - start.get());
+
+        let active = data
+            .read_untracked()
+            .iter()
+            .map(|_| RwSignal::new(false))
+            .collect::<Vec<_>>();
+        Effect::new({
+            let active = active.clone();
+            move || {
+                let data_top = (top.get() as usize)
+                    .checked_sub(TABLE_HEADER_LINE_HEIGHT)
+                    .unwrap_or(0)
+                    / TABLE_ROW_LINE_HEIGHT;
+                let start = data_top.checked_sub(VIRTUALIZATION_OVERSCAN).unwrap_or(0);
+                let end = data_top + VIRTUALIZATION_WINDOW + VIRTUALIZATION_OVERSCAN;
+                let end = usize::min(end, data.read().len());
+                active.iter().enumerate().for_each(|(idx, active)| {
+                    let val = idx >= start && idx <= end;
+                    if active.with_untracked(|active| *active != val) {
+                        active.set(val);
+                    }
+                });
+            }
         });
 
         Self {
-            top,
             start,
             end,
             length,
+            active,
         }
     }
 
@@ -69,6 +108,10 @@ impl VirtualizationRange {
 
     pub fn length(&self) -> Signal<usize> {
         self.length
+    }
+
+    pub fn active(&self, idx: usize) -> ReadSignal<bool> {
+        self.active[idx].read_only()
     }
 }
 
@@ -98,18 +141,114 @@ pub fn Workspace() -> impl IntoView {
 }
 
 #[component]
+fn Loading() -> impl IntoView {
+    view! { <div class="text-center">"Preparing database view"</div> }
+}
+
+#[component]
 pub fn FilterBar() -> impl IntoView {
     use crate::filter::DataFilter;
 
     let display_state = expect_context::<state::display::State>();
-    let filter_bar = display_state.filter_bar().read_only();
-    move || {
-        filter_bar.read().then_some(view! {
-            <div class="px-2 py-1 border-b not-dark:border-b-secondary-900 focus-within:inset-shadow-sm \
-            inset-shadow-primary-200/50 dark:inset-shadow-primary-800/50">
+    let workspace_graph_state = expect_context::<ui_lib::state::WorkspaceGraph>();
+    
+    let select_all = {
+        let selection_resources = workspace_graph_state.selection_resources().clone();
+        let data = display_state.data();
+        move |e: MouseEvent| {
+             if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+            e.stop_propagation();
+
+            let rids = data.read_untracked().iter().map(|datum| {
+                datum.asset().rid().get_untracked()
+            }).collect();
+            selection_resources.set_many(&rids, true).unwrap();
+        }
+    };
+
+    let clear_all = {
+        let selection_resources = workspace_graph_state.selection_resources().clone();
+        let data = display_state.data();
+        move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+            e.stop_propagation();
+
+            let rids = data.read_untracked().iter().map(|datum| {
+                datum.asset().rid().get_untracked()
+            }).collect();
+            selection_resources.set_many(&rids, false).unwrap();
+        }
+    };
+    
+    let all_selected = {
+        let selected = workspace_graph_state.selection_resources().selected();
+        let data = display_state.data();
+        move || {
+            data.read()
+                .iter()
+                .all(|datum| {
+                    datum.asset().rid().with_untracked(|rid| {
+                    selected
+                        .read()
+                        .iter()
+                        .find(|resource| {
+                            resource
+                                .rid()
+                                .with_untracked(|selected| selected == rid)
+                        })
+                        .is_some()
+                    })
+                })
+        }
+    };
+    
+    view! {
+        <div 
+            class="flex gap-1 px-2 py-1 border-b not-dark:border-b-secondary-900 focus-within:inset-shadow-sm \
+            inset-shadow-primary-200/50 dark:inset-shadow-primary-800/50"
+            class:hidden={
+                let visible = display_state.filter_bar().read_only();
+                move || !visible()
+            }
+        >
+            <div class="grow">
                 <DataFilter />
             </div>
-        })
+            <div>
+                {
+                    let all_selected = all_selected.clone();
+                    let select_all = select_all.clone();
+                    let clear_all = clear_all.clone();
+                    move || {
+                        if all_selected() {
+                            view! {
+                                <button
+                                    on:mousedown=clear_all.clone()
+                                    class="btn-secondary p-1 rounded-xs cursor-pointer"
+                                    title="Clear selection"
+                                >
+                                    <Icon icon=icondata::RiCheckboxMultipleSystemFill />
+                                </button>
+                            }
+                        } else {
+                            view! {
+                                <button
+                                    on:mousedown=select_all.clone()
+                                    class="btn-secondary p-1 rounded-xs cursor-pointer"
+                                    title="Select all"
+                                >
+                                    <Icon icon=icondata::RiCheckboxMultipleSystemLine />
+                                </button>
+                            }
+                        }
+                    }
+                }
+            </div>
+        </div>
     }
 }
 
@@ -127,12 +266,13 @@ fn DataView() -> impl IntoView {
     let display_state = expect_context::<state::display::State>();
     let root_node = NodeRef::<html::Div>::new();
     let scroll = leptos_use::use_scroll_with_options(
-        root_node, 
+        root_node,
         leptos_use::UseScrollOptions::default()
             .behavior(leptos_use::ScrollBehavior::Smooth)
-            .throttle(50.0)
+            .throttle(50.0),
     );
     let vrange = VirtualizationRange::new(scroll.y, display_state.data());
+    provide_context(vrange.clone());
     provide_context(GraphRootName(graph.root().name().read_only()));
 
     let table_node = NodeRef::<html::Table>::new();
@@ -265,11 +405,9 @@ fn DataView() -> impl IntoView {
         }
     };
 
-    let table_buffer_top = { 
+    let table_buffer_top = {
         let start = vrange.start();
-        move || {
-            format!("{}px", start.get() * TABLE_ROW_LINE_HEIGHT)
-        }
+        move || format!("{}px", start.get() * TABLE_ROW_LINE_HEIGHT)
     };
 
     let table_buffer_bottom = {
@@ -278,22 +416,6 @@ fn DataView() -> impl IntoView {
         move || {
             let buffer = (data.read().len() - end.get()) * TABLE_ROW_LINE_HEIGHT;
             format!("{buffer}px")
-
-
-        }
-    };
-
-    let virtualized_data = {
-        let data = display_state.data();
-        let start = vrange.start();
-        let length = vrange.length();
-        move || {
-            data.read()
-                .iter()
-                .skip(start.get())
-                .take(length.get())
-                .cloned()
-                .collect::<Vec<_>>()
         }
     };
 
@@ -425,26 +547,28 @@ fn DataView() -> impl IntoView {
                                 col_node=col_node_tags
                                 table_node=table_node
                             />
-                            <For each=state.metadata_keys() key=|key| key.clone() let:key>
+                            <For each=state.metadata_keys() key=|key| key.clone() let:key clone:display_state>
                                 <TableHeaderSortable
                                     display_name=key.clone()
                                     sort_field=state::display::SortField::Metadata(key.clone())
-                                    col_node=col_node_kind
+                                    col_node=display_state.columns().get_metadata(&key).map(|col| col.node_ref()).unwrap()
                                     table_node=table_node
                                 />
                             </For>
                         </tr>
                     </thead>
                     <tbody class="overflow-y-auto">
-                        <tr class="block" style:height=table_buffer_top></tr>
-                        <For
-                            each=virtualized_data
+                        <ForEnumerate
+                            each=display_state.data()
                             key=|datum| datum.asset().rid().get()
-                            let:datum
+                            let(idx, datum)
+                            clone:vrange
                         >
-                            <DataRow datum {..} style:height="1em" />
-                        </For>
-                        <tr class="block" style:height=table_buffer_bottom></tr>
+                        {
+                            let active = vrange.active(idx.get_untracked());
+                            view! { <DataRow datum active {..} style:height="1em" /> }
+                        }
+                        </ForEnumerate>
                     </tbody>
                 </table>
                 {
@@ -648,8 +772,8 @@ fn TableHeaderSortablePinnable(
             title=display_name.clone()
         >
             <div class="inline-flex w-full">
-                <div class="flex grow items-center pr-1">
-                    <span class="grow font-primary bold">{display_name.clone()}</span>
+                <div class="flex grow items-center pr-1 truncate">
+                    <span class="grow font-primary bold truncate">{display_name.clone()}</span>
                     <span
                         class=(
                             ["not-group-hover:invisible", "group-hover:visible"],
@@ -830,8 +954,8 @@ fn TableHeaderSortable(
             title=display_name.clone()
         >
             <div class="inline-flex w-full">
-                <div class="flex grow items-center pr-1">
-                    <span class="grow font-primary bold">{display_name.clone()}</span>
+                <div class="flex grow items-center pr-1 truncate">
+                    <span class="grow font-primary bold truncate">{display_name.clone()}</span>
                     <span
                         class=(
                             ["not-group-hover:invisible", "group-hover:visible"],
@@ -988,13 +1112,262 @@ fn TableHeader(
 
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
-fn DataRow(datum: state::data::Datum) -> impl IntoView {
+fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView {
+    let workspace_graph_state = expect_context::<ui_lib::state::WorkspaceGraph>();
+    let display_state = expect_context::<state::display::State>();
+    let file_node_ref = NodeRef::<html::Th>::new();
+
+    let selection_resource = datum.asset()
+        .rid()
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
+        .unwrap();
+
+    let file_ancestors_width = {
+        let ancestors = vec![display_state.columns().path().clone()];
+        move || {
+            ancestors
+                .iter()
+                .filter(|ancestor| ancestor.visible().get() && ancestor.pinned().get())
+                .map(|ancestor| ancestor.width().get())
+                .reduce(|width, ancestor| width + ancestor)
+                .unwrap_or(0)
+        }
+    };
+    
+    Effect::watch(
+        {
+            let pinned = display_state.columns().file().pinned().read_only();
+            move || (pinned(), file_ancestors_width())
+        },
+        {
+            move |(pinned, left), _, _| {
+                let node = file_node_ref.get_untracked().unwrap();
+                if *pinned {
+                    (*node)
+                        .style()
+                        .set_property("left", &format!("{left}px"))
+                        .unwrap();
+                } else {
+                    (*node).style().remove_property("left").unwrap();
+                }
+            }
+        },
+        false,
+    );
+
+    let mousedown = {
+        let selection_resources = workspace_graph_state.selection_resources().clone(); 
+        let rid = datum.asset().rid().read_only(); 
+        move |e:MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+            e.stop_propagation();
+
+            let action = rid.with_untracked(|rid| {
+                selection_resources.selected().with_untracked(|selected| {
+                    utils::interpret_resource_selection_action(rid, selected, e.shift_key())
+                })
+            });
+            match action {
+                types::SelectionAction::Unselect => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                }
+                types::SelectionAction::Select => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                }
+                types::SelectionAction::SelectOnly => {
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                }
+                types::SelectionAction::Clear => selection_resources.clear(),
+            }
+    }};
+
+     let path = {
+        let path = datum.path();
+        move || { path.read().to_string_lossy().to_string() }
+    };
+
+    let file_str = {
+        let path = datum.asset().path().read_only();
+        move || { path.read().to_string_lossy().to_string() }
+    };
+    
+    const TH_CLASS: &str = "pl-1 pr-2 align-top truncate text-left";
+    view! {
+        <tr 
+            on:mousedown=mousedown
+            class="group hover:bg-secondary-100 dark:hover:bg-secondary-700"
+            class=(
+                [
+                    "bg-secondary-100",
+                    "dark:bg-secondary-700",
+                ],
+                selection_resource.clone()
+            )
+        >
+            <th
+                scope="row"
+                class=TH_CLASS
+                class=(
+                    [
+                        "left-0",
+                        "sticky",
+                        "z-10",
+                        "bg-white",
+                        "group-hover:bg-secondary-100",
+                        "dark:bg-secondary-800",
+                        "dark:group-hover:bg-secondary-700",
+                    ],
+                    display_state.columns().path().pinned().read_only(),
+                )
+                title=path.clone()
+            >
+                {path}
+            </th>
+            <th
+                node_ref=file_node_ref
+                scope="row"
+                class=TH_CLASS
+                class=(
+                    [
+                        "sticky",
+                        "z-10",
+                        "bg-white",
+                        "group-hover:bg-secondary-100",
+                        "dark:bg-secondary-800",
+                        "dark:group-hover:bg-secondary-700",
+                    ],
+                    display_state.columns().file().pinned().read_only(),
+                )
+                title=file_str.clone()
+            >
+                {file_str}
+            </th>
+            {
+                let datum = datum.clone();
+                move || {
+                    if active.get() {
+                        Either::Left(view! { <DataRowActive datum=datum.clone() /> })
+                    } else {
+                        Either::Right(view! { <DataRowStatic datum=datum.clone() /> })
+                    }
+                }
+            }
+        </tr>
+    }
+}
+
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
+#[component]
+fn DataRowStatic(datum: state::data::Datum) -> impl IntoView {
+    let state = expect_context::<state::data::State>();
+    let display_state = expect_context::<state::display::State>();
+    let project = expect_context::<ui_lib::state::Project>();
+    let graph_root_name = expect_context::<GraphRootName>();
+
+
+    let md_title = {
+        let metadata = datum.metadata();
+        move |key: String| {
+            move || {
+                metadata
+                    .read()
+                    .iter()
+                    .find_map(|(datum_key, value)| (datum_key == &key).then_some(value.clone()))
+                    .map(|datum| datum.value())
+                    .map(|value| metadatum_value_to_string(value.get()))
+            }
+        }
+    };
+
+    let name = datum.asset().name().read_only();
+    let kind = datum.asset().kind().read_only();
+    let description = datum.asset().description().read_only();
+    let tags = datum.asset().tags().read_only();
+    let metadata = datum.metadata();
+
+    const TD_CLASS: &str = "pl-1 pr-2 align-top truncate";
+    const TD_METADATA_CLASS: &str = "pl-1 pr-2 align-top truncate has-[form]:overflow-visible";
+    view! {
+        <td
+            class=TD_CLASS
+            class=(
+                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                move || name.read().is_none(),
+            )
+            title=move || name.get()
+        >
+            {move || name.get().unwrap_or(EMPTY_NAME.to_string())}
+        </td>
+        <td
+            class=TD_CLASS
+            class=(
+                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                move || kind.read().is_none(),
+            )
+            title=move || kind.get()
+        >
+            {move || kind.get().unwrap_or(EMPTY_KIND.to_string())}
+        </td>
+        <td
+            class=TD_CLASS
+            class=(
+                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                move || description.read().is_none(),
+            )
+        >
+            {move || description.get().unwrap_or(EMPTY_DESCRIPTION.to_string())}
+        </td>
+        <td
+            class=TD_CLASS
+            class=(
+                ["text-nowrap", "text-secondary-500", "dark:text-secondary-400"],
+                move || tags.read().is_empty(),
+            )
+        >
+            {move || {
+                if tags.read().is_empty() {
+                    EMPTY_TAGS.to_string()
+                } else {
+                    tags.get().join(", ")
+                }
+            }}
+        </td>
+        <For each=state.metadata_keys() key=|key| key.clone() let:key>
+            <td class=TD_METADATA_CLASS title=md_title(key.clone())>
+                {
+                    let key = key.clone();
+                    move || {
+                        let value = metadata
+                            .read()
+                            .iter()
+                            .find_map(|(datum_key, value)| {
+                                (datum_key == &key).then_some(value.clone())
+                            });
+                        if let Some(value) = value.as_ref() {
+                            let value = value.value();
+                            Either::Left(move || metadatum_value_to_string(value.get()))
+                        } else {
+                            Either::Right(
+                                view! { <span class=CLASS_EMPTY_VALUE>{EMPTY_METADATUM}</span> },
+                            )
+                        }
+                    }
+                }
+            </td>
+        </For>
+    }
+}
+
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
+#[component]
+fn DataRowActive(datum: state::data::Datum) -> impl IntoView {
     let state = expect_context::<state::data::State>();
     let display_state = expect_context::<state::display::State>();
     let project = expect_context::<ui_lib::state::Project>();
     let graph_root_name = expect_context::<GraphRootName>();
     let messages = expect_context::<ui_lib::message::Messages>();
-    let file_node_ref = NodeRef::<html::Th>::new();
 
     let update_properties = {
         let project = project.rid().read_only();
@@ -1111,18 +1484,6 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
         }
     });
 
-    let file_ancestors_width = {
-        let ancestors = vec![display_state.columns().path().clone()];
-        move || {
-            ancestors
-                .iter()
-                .filter(|ancestor| ancestor.visible().get() && ancestor.pinned().get())
-                .map(|ancestor| ancestor.width().get())
-                .reduce(|width, ancestor| width + ancestor)
-                .unwrap_or(0)
-        }
-    };
-
     let md_title = {
         let metadata = datum.metadata();
         move |key: String| {
@@ -1136,82 +1497,11 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
             }
         }
     };
-
-    Effect::watch(
-        {
-            let pinned = display_state.columns().file().pinned().read_only();
-            move || (pinned(), file_ancestors_width())
-        },
-        {
-            move |(pinned, left), _, _| {
-                let node = file_node_ref.get_untracked().unwrap();
-                if *pinned {
-                    (*node)
-                        .style()
-                        .set_property("left", &format!("{left}px"))
-                        .unwrap();
-                } else {
-                    (*node).style().remove_property("left").unwrap();
-                }
-            }
-        },
-        false,
-    );
-
-    let file_str = {
-        let path = datum.asset().path().read_only();
-        move || path.get().to_string_lossy().to_string()
-    };
+   
     let metadata = datum.metadata();
-    const TH_CLASS: &str = "pl-1 pr-2 align-top truncate text-left";
     const TD_CLASS: &str = "pl-1 pr-2 align-top truncate";
     const TD_METADATA_CLASS: &str = "pl-1 pr-2 align-top truncate has-[form]:overflow-visible";
     view! {
-        <tr class="group hover:bg-secondary-100 dark:hover:bg-secondary-700">
-            <th
-                scope="row"
-                class=TH_CLASS
-                class=(
-                    [
-                        "left-0",
-                        "sticky",
-                        "z-10",
-                        "bg-white",
-                        "group-hover:bg-secondary-100",
-                        "dark:bg-secondary-800",
-                        "dark:group-hover:bg-secondary-700",
-                    ],
-                    display_state.columns().path().pinned().read_only(),
-                )
-                title={
-                    let path = datum.asset().path().read_only();
-                    move || path.read().to_string_lossy().to_string()
-                }
-            >
-                {
-                    let path = datum.path();
-                    move || { path.read().to_string_lossy().to_string() }
-                }
-            </th>
-            <th
-                node_ref=file_node_ref
-                scope="row"
-                class=TH_CLASS
-                class=(
-                    [
-                        "sticky",
-                        "z-10",
-                        "bg-white",
-                        "group-hover:bg-secondary-100",
-                        "dark:bg-secondary-800",
-                        "dark:group-hover:bg-secondary-700",
-                    ],
-                    display_state.columns().file().pinned().read_only(),
-                )
-                title=file_str.clone()
-            >
-                {file_str}
-            </th>
             <td
                 class=TD_CLASS
                 title={
@@ -1249,7 +1539,6 @@ fn DataRow(datum: state::data::Datum) -> impl IntoView {
                     />
                 </td>
             </For>
-        </tr>
     }
 }
 
@@ -1299,7 +1588,7 @@ pub(self) mod properties {
             on_change.run(value);
         });
 
-        view! { <editor::Input value=input_value on_change=change empty_value="(no name)".to_string() /> }
+        view! { <editor::Input value=input_value on_change=change empty_value=super::EMPTY_NAME /> }
     }
 
     #[component]
@@ -1314,7 +1603,7 @@ pub(self) mod properties {
             on_change.run(value);
         });
 
-        view! { <editor::Input value=input_value on_change=change empty_value="(no type)".to_string() /> }
+        view! { <editor::Input value=input_value on_change=change empty_value=super::EMPTY_KIND /> }
     }
 
     #[component]
@@ -1333,7 +1622,7 @@ pub(self) mod properties {
             <editor::TextArea
                 value=input_value
                 on_change=change
-                empty_value="(no description)".to_string()
+                empty_value=super::EMPTY_DESCRIPTION
             />
         }
     }
@@ -1341,7 +1630,6 @@ pub(self) mod properties {
     #[component]
     pub fn Tags(value: ReadSignal<Vec<String>>, on_change: Callback<Vec<String>>) -> impl IntoView {
         let input_value = Signal::derive(move || value.get().join(", "));
-
         let change = Callback::new(move |value: String| {
             let value = value
                 .split(",")
@@ -1351,7 +1639,7 @@ pub(self) mod properties {
             on_change.run(value);
         });
 
-        view! { <editor::Input value=input_value on_change=change empty_value="(no tags)".to_string() /> }
+        view! { <editor::Input value=input_value on_change=change empty_value=super::EMPTY_TAGS /> }
     }
 
     #[component]
@@ -1412,6 +1700,7 @@ pub(self) mod editor {
         value: Signal<String>,
         on_change: Callback<String>,
         /// Displayed if `value` is empty and not in editing mode.
+        #[prop(into)]
         empty_value: String,
         /// `<input>` placeholder.
         #[prop(optional)]
@@ -1526,6 +1815,7 @@ pub(self) mod editor {
         set_editing: WriteSignal<bool>,
 
         /// Displayed if `value` is empty and not in editing mode.
+        #[prop(into)]
         empty_value: String,
     ) -> impl IntoView {
         let enable_editing = {
@@ -1575,6 +1865,7 @@ pub(self) mod editor {
         on_change: Callback<String>,
 
         /// Displayed if `value` is empty and not in editing mode.
+        #[prop(into)]
         empty_value: String,
 
         /// `<input>` placeholder.
@@ -1688,6 +1979,7 @@ pub(self) mod editor {
     fn TextAreaValue(
         value: Signal<String>,
         /// Displayed if `value` is empty and not in editing mode.
+        #[prop(into)]
         empty_value: String,
         set_editing: WriteSignal<bool>,
     ) -> impl IntoView {
@@ -1904,7 +2196,7 @@ pub(self) mod editor {
                         Either::Right(
                             view! {
                                 <span class="text-nowrap text-secondary-500 dark:text-secondary-400">
-                                    "(n/a)"
+                                    {super::EMPTY_METADATUM}
                                 </span>
                             },
                         )

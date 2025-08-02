@@ -19,12 +19,10 @@ console_error_panic_hook = "0.1.7"
 derive_more = { workspace = true, features = ["debug"] }
 futures.workspace = true
 has_id.workspace = true
-icondata.workspace = true
 js-sys.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true
-leptos_meta = { path = "../../leptos/meta" }
-# leptos_meta = { version = "0.8" }
+leptos_meta = { version = "0.8" }
 leptos_router = { workspace = true, features = ["nightly"] }
 leptos-use = { workspace = true, features = ["storage"] }
 reactive_stores.workspace = true
@@ -55,6 +53,15 @@ tracing.workspace = true
 uuid = { workspace = true, features = ["js"] }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
+
+[dependencies.icondata]
+workspace = true
+features = [
+	"bootstrap-icons",
+	"font-awesome",
+	"ionicons",
+	"lucide",
+]
 
 [dependencies.web-sys]
 workspace = true

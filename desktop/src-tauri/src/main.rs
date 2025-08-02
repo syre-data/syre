@@ -112,14 +112,15 @@ mod logging {
         let console_logger = fmt::layer()
             .with_writer(std::io::stdout)
             .with_timer(time::UtcTime::rfc_3339())
-            .pretty()
-            .with_filter(filter::EnvFilter::from_default_env());
-
+            .pretty();
+            
         #[cfg(debug_assertions)]
         let timing_layer = tracing_timing::Builder::default()
             .layer(|| tracing_timing::Histogram::new_with_max(1_000_000, 2).unwrap());
 
-        let subscriber = Registry::default().with(file_logger);
+        let subscriber = Registry::default()
+            .with(filter::EnvFilter::from_default_env());
+            .with(file_logger);
 
         #[cfg(debug_assertions)]
         let subscriber = subscriber.with(console_logger);

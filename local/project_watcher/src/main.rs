@@ -75,16 +75,18 @@ mod server {
             let file_logger = fmt::layer()
                 .with_writer(file_logger)
                 .with_timer(UtcTime::rfc_3339())
-                .json()
-                .with_filter(EnvFilter::from_default_env());
+                .json();
 
             let console_logger = fmt::layer()
                 .with_writer(io::stdout)
                 .with_timer(UtcTime::rfc_3339())
-                .pretty()
-                .with_filter(EnvFilter::from_default_env());
+                .pretty();
 
-            let subscriber = Registry::default().with(console_logger).with(file_logger);
+            let subscriber = Registry::default()
+                .with(EnvFilter::from_default_env());
+                .with(console_logger)
+                .with(file_logger);
+            
             tracing::subscriber::set_global_default(subscriber).unwrap();
         }
     }

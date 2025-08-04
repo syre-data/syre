@@ -179,18 +179,18 @@ DEFINE ANALYZER properties_analyzer
     TOKENIZERS blank, class, punct 
     FILTERS lowercase, ascii, snowball(english), ngram(1, 15);
 
-DEFINE INDEX container_name         ON container_properties COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_kind         ON container_properties COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_description  ON container_properties COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_tags         ON container_properties COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX container_metadata     ON container_properties COLUMNS metadata_search SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_name         ON container_properties COLUMNS name FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_kind         ON container_properties COLUMNS kind FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_description  ON container_properties COLUMNS description FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_tags         ON container_properties COLUMNS tags FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX container_metadata     ON container_properties COLUMNS metadata_search FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
 
-DEFINE INDEX asset_name         ON asset COLUMNS name SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_kind         ON asset COLUMNS kind SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_description  ON asset COLUMNS description SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_tags         ON asset COLUMNS tags SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_metadata     ON asset COLUMNS metadata_search SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
-DEFINE INDEX asset_path         ON asset COLUMNS path SEARCH ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_name         ON asset COLUMNS name FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_kind         ON asset COLUMNS kind FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_description  ON asset COLUMNS description FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_tags         ON asset COLUMNS tags FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_metadata     ON asset COLUMNS metadata_search FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
+DEFINE INDEX asset_path         ON asset COLUMNS path FULLTEXT ANALYZER properties_analyzer BM25(1.2, 0.75);
 ";
 
 #[derive(derive_more::Deref, Clone)]

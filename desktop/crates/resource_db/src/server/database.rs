@@ -5,8 +5,6 @@ use syre_core::types::ResourceId;
 use syre_project_watcher as project_watcher;
 use tokio::sync::mpsc;
 
-const DB_TRANSACTION_MAX_ATTEMPTS: usize = 100;
-
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
 pub enum ResourceKind {
     Container,
@@ -290,36 +288,31 @@ impl Database {
             settings: Option<surrealdb::RecordId>,
         }
 
+        tracing::trace!("a");
         let container_record_id = store
             .insert_container(project_id.clone(), container.name().clone(), path)
             .await
             .unwrap();
+        tracing::trace!("b");
 
         let properties_record_id =
             if let project_watcher::state::DataResource::Ok(properties) = container.properties() {
                 let rid = container.rid().unwrap();
-                let mut transaction_attempts = 0;
-                loop {
-                    transaction_attempts += 1;
-                    let result = store
-                        .insert_container_properties(
-                            project_id.clone(),
-                            container_record_id.clone(),
-                            rid.clone(),
-                            properties.clone(),
-                        )
-                        .await;
+                let record_id = store
+                    .insert_container_properties(
+                        project_id.clone(),
+                        container_record_id.clone(),
+                        rid.clone(),
+                        properties.clone(),
+                    )
+                    .await
+                    .unwrap();
 
-                    if result.is_ok() {
-                        let record_id = result.unwrap();
-                        break Some(record_id);
-                    } else if transaction_attempts >= DB_TRANSACTION_MAX_ATTEMPTS {
-                        result.unwrap();
-                    }
-                }
+                Some(record_id)
             } else {
                 None
             };
+        tracing::trace!("c");
 
         let settings_record_id =
             if let project_watcher::state::DataResource::Ok(settings) = container.settings() {
@@ -336,6 +329,7 @@ impl Database {
             } else {
                 None
             };
+        tracing::trace!("d");
 
         let _update: Option<store::container::Record> = store
             .update(&container_record_id)
@@ -346,32 +340,25 @@ impl Database {
             .await
             .unwrap();
         assert!(_update.is_some());
+        tracing::trace!("e");
 
         let mut asset_record_ids = None;
         if let project_watcher::state::DataResource::Ok(assets) = container.assets() {
-            let mut transaction_attempts = 0;
-            let record_ids = loop {
-                transaction_attempts += 1;
-                let result = store
-                    .insert_assets(
-                        project_id.clone(),
-                        container_record_id.clone(),
-                        assets.clone(),
-                    )
-                    .await;
-
-                if result.is_ok() {
-                    break result.unwrap();
-                } else if transaction_attempts >= DB_TRANSACTION_MAX_ATTEMPTS {
-                    result.unwrap();
-                }
-            };
+            let record_ids = store
+                .insert_assets(
+                    project_id.clone(),
+                    container_record_id.clone(),
+                    assets.clone(),
+                )
+                .await
+                .unwrap();
             assert_eq!(assets.len(), record_ids.len());
 
             let paths = assets.iter().map(|asset| &asset.path).cloned();
             let record_ids = std::iter::zip(paths, record_ids.into_iter()).collect::<Vec<_>>();
             let _ = asset_record_ids.insert(record_ids);
         }
+        tracing::trace!("f");
 
         if let project_watcher::state::DataResource::Ok(flags) = container.flags() {
             let root_dir = PathBuf::from("/");

@@ -119,7 +119,7 @@ mod logging {
             .layer(|| tracing_timing::Histogram::new_with_max(1_000_000, 2).unwrap());
 
         let subscriber = Registry::default()
-            .with(filter::EnvFilter::from_default_env());
+            .with(filter::EnvFilter::from_default_env())
             .with(file_logger);
 
         #[cfg(debug_assertions)]

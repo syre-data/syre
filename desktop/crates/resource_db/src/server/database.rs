@@ -58,10 +58,7 @@ impl Database {
     }
 
     async fn run(&mut self) {
-        tracing::trace!("initializing database state");
         self.init_state().await.unwrap();
-        tracing::debug!("database state initialized");
-
         loop {
             tokio::select! {
                 events = self.project_event_rx.recv() => {
@@ -241,18 +238,22 @@ impl Database {
 
         let mut tasks = Vec::with_capacity(graph.nodes.len());
         for (path, container) in std::iter::zip(paths, graph.nodes.into_iter()) {
-            tasks.push(tokio::spawn(Self::insert_container_resources(
-                self.store.clone(),
-                project_id.clone(),
-                path,
-                container,
-            )));
+            tasks.push(
+                tokio::spawn(Self::insert_container_resources(
+                    self.store.clone(),
+                    project_id.clone(),
+                    path,
+                    container,
+                ))
+                .await, // TODO: Should await in loop below. See https://github.com/surrealdb/surrealdb/issues/6218.
+            );
         }
 
         let mut containers = Vec::with_capacity(tasks.len());
         let mut assets = vec![];
         for task in tasks {
-            let (container_record_id, asset_record_ids) = task.await.unwrap();
+            // let (container_record_id, asset_record_ids) = task.await.unwrap();
+            let (container_record_id, asset_record_ids) = task.unwrap();
 
             containers.push(container_record_id.clone());
             if let Some(asset_record_ids) = asset_record_ids {
@@ -288,12 +289,10 @@ impl Database {
             settings: Option<surrealdb::RecordId>,
         }
 
-        tracing::trace!("a");
         let container_record_id = store
             .insert_container(project_id.clone(), container.name().clone(), path)
             .await
             .unwrap();
-        tracing::trace!("b");
 
         let properties_record_id =
             if let project_watcher::state::DataResource::Ok(properties) = container.properties() {
@@ -312,7 +311,6 @@ impl Database {
             } else {
                 None
             };
-        tracing::trace!("c");
 
         let settings_record_id =
             if let project_watcher::state::DataResource::Ok(settings) = container.settings() {
@@ -329,7 +327,6 @@ impl Database {
             } else {
                 None
             };
-        tracing::trace!("d");
 
         let _update: Option<store::container::Record> = store
             .update(&container_record_id)
@@ -340,7 +337,6 @@ impl Database {
             .await
             .unwrap();
         assert!(_update.is_some());
-        tracing::trace!("e");
 
         let mut asset_record_ids = None;
         if let project_watcher::state::DataResource::Ok(assets) = container.assets() {
@@ -358,7 +354,6 @@ impl Database {
             let record_ids = std::iter::zip(paths, record_ids.into_iter()).collect::<Vec<_>>();
             let _ = asset_record_ids.insert(record_ids);
         }
-        tracing::trace!("f");
 
         if let project_watcher::state::DataResource::Ok(flags) = container.flags() {
             let root_dir = PathBuf::from("/");

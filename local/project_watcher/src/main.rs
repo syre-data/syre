@@ -83,10 +83,10 @@ mod server {
                 .pretty();
 
             let subscriber = Registry::default()
-                .with(EnvFilter::from_default_env());
+                .with(EnvFilter::from_default_env())
                 .with(console_logger)
                 .with(file_logger);
-            
+
             tracing::subscriber::set_global_default(subscriber).unwrap();
         }
     }

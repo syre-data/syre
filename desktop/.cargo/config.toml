@@ -1,4 +1,3 @@
-# [target.'cfg(all(debug_assertions, not(feature = "perf"))']
 [target.wasm32-unknown-unknown]
 rustflags = [
    "--cfg",

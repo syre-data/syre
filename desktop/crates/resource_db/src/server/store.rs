@@ -93,7 +93,7 @@ DEFINE FIELD metadata_search                    ON TABLE container_properties TY
 DEFINE EVENT container_update_metadata_search   ON TABLE container_properties
     WHEN ($event = "CREATE" || $event = "UPDATE") && $after.metadata != $before.metadata
     THEN {
-        $search = $value.metadata.entries().fold(
+        LET $search = $value.metadata.entries().fold(
             "",
             |$search, $field| string::concat(
                 $search,
@@ -137,7 +137,7 @@ DEFINE FIELD metadata_search                ON TABLE asset TYPE string;
 DEFINE EVENT asset_update_metadata_search   ON TABLE asset
     WHEN ($event = "CREATE" || $event = "UPDATE") && $after.metadata != $before.metadata
     THEN {
-        $search = $value.metadata.entries().fold(
+        LET $search = $value.metadata.entries().fold(
             "", 
             |$search, $field| string::concat(
                 $search,
@@ -1408,6 +1408,6 @@ pub mod cast {
     where
         S: Serializer,
     {
-        Into::<surrealdb::sql::Datetime>::into(*t).serialize(s)
+        Into::<surrealdb::Datetime>::into(*t).serialize(s)
     }
 }

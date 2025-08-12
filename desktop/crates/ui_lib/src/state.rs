@@ -122,16 +122,9 @@ pub mod workspace_graph {
 
                     node.assets().with_untracked(|assets| {
                         if let db::state::DataResource::Ok(assets) = assets {
-                            resources.extend(assets
-                                .read_untracked()
-                                .iter()
-                                .map(|asset| {
-                                    ResourceSelection::new(
-                                        asset.rid().read_only(),
-                                        ResourceKind::Asset,
-                                    )
-                                })
-                            );
+                            resources.extend(assets.read_untracked().iter().map(|asset| {
+                                ResourceSelection::new(asset.rid().read_only(), ResourceKind::Asset)
+                            }));
                         }
                     });
 
@@ -146,7 +139,7 @@ pub mod workspace_graph {
                 .cloned()
                 .map(|node| (node.clone(), ArcRwSignal::new(true)))
                 .collect::<Vec<_>>();
-            
+
             Self {
                 selection_resources: SelectionResources::new(selection_resources),
                 container_visibility: RwSignal::new(container_visibility),
@@ -216,15 +209,12 @@ pub mod workspace_graph {
 
         /// Get a resources selection state.
         pub fn get(&self, rid: &ResourceId) -> Option<ArcReadSignal<bool>> {
-            self.resources
-                .read_untracked()
-                .iter()
-                .find_map(|resource| {
-                    resource
-                        .rid
-                        .with_untracked(|resource_id| resource_id == rid)
-                        .then_some(resource.selected.read_only())
-                })
+            self.resources.read_untracked().iter().find_map(|resource| {
+                resource
+                    .rid
+                    .with_untracked(|resource_id| resource_id == rid)
+                    .then_some(resource.selected.read_only())
+            })
         }
 
         /// Set whether a resource is selected.
@@ -267,18 +257,25 @@ pub mod workspace_graph {
         ///
         /// # Returns
         /// `Err` if any resource with the given id is not found.
-        pub fn set_many<'a>(&self, rids: &'a Vec<ResourceId>, selected: bool) -> Result<(), Vec<&'a ResourceId>> {
+        pub fn set_many<'a>(
+            &self,
+            rids: &'a Vec<ResourceId>,
+            selected: bool,
+        ) -> Result<(), Vec<&'a ResourceId>> {
             let mut resources = Vec::with_capacity(rids.len());
             let mut not_found = Vec::new();
             for rid in rids.iter() {
-                if let Some(resource) = self.resources
+                if let Some(resource) = self
+                    .resources
                     .read_untracked()
                     .iter()
                     .find(|resource| {
                         resource
                             .rid
                             .with_untracked(|resource_id| resource_id == rid)
-                }).cloned() {
+                    })
+                    .cloned()
+                {
                     resources.push(resource);
                 } else {
                     not_found.push(rid);
@@ -291,9 +288,7 @@ pub mod workspace_graph {
 
             let resources = resources
                 .into_iter()
-                .filter(|resource| {
-                    resource.selected.get_untracked() != selected
-                })
+                .filter(|resource| resource.selected.get_untracked() != selected)
                 .collect::<Vec<_>>();
 
             for resource in resources.iter() {
@@ -302,17 +297,17 @@ pub mod workspace_graph {
 
             self.selected.update(|selected_resources| {
                 if selected {
-                    let resources = resources
-                        .into_iter()
-                        .map(|resource| Resource {
-                            rid: resource.rid,
-                            kind: resource.kind,
-                        });
+                    let resources = resources.into_iter().map(|resource| Resource {
+                        rid: resource.rid,
+                        kind: resource.kind,
+                    });
 
                     selected_resources.extend(resources);
                 } else {
                     selected_resources.retain(|selected| {
-                        selected.rid.with_untracked(|selected| !rids.contains(selected))
+                        selected
+                            .rid
+                            .with_untracked(|selected| !rids.contains(selected))
                     })
                 }
             });
@@ -322,14 +317,11 @@ pub mod workspace_graph {
 
         /// Set all resources to be unselected.
         pub fn clear(&self) {
-            self.resources
-                .read_untracked()
-                .iter()
-                .for_each(|resource| {
-                    if resource.selected.get_untracked() {
-                        resource.selected.set(false);
-                    }
-                });
+            self.resources.read_untracked().iter().for_each(|resource| {
+                if resource.selected.get_untracked() {
+                    resource.selected.set(false);
+                }
+            });
 
             self.selected.update(|selected| selected.clear());
         }

@@ -1228,7 +1228,11 @@ fn ContainerOk(
     let mousedown = {
         let rid = container
             .properties()
-            .read_untracked().as_ref().unwrap().rid().read_only();
+            .read_untracked()
+            .as_ref()
+            .unwrap()
+            .rid()
+            .read_only();
         let selection_resources = workspace_graph_state.selection_resources().clone();
         move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {

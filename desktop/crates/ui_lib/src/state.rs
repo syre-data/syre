@@ -208,28 +208,22 @@ pub mod workspace_graph {
         }
 
         /// Get a resources selection state.
-        pub fn get(&self, rid: &ResourceId) -> Option<ArcReadSignal<bool>> {
-            self.resources.read_untracked().iter().find_map(|resource| {
-                resource
-                    .rid
-                    .with_untracked(|resource_id| resource_id == rid)
-                    .then_some(resource.selected.read_only())
-            })
+        pub fn get(&self, rid: ReadSignal<ResourceId>) -> Option<ArcReadSignal<bool>> {
+            self.resources
+                .read_untracked()
+                .iter()
+                .find_map(|resource| (resource.rid == rid).then_some(resource.selected.read_only()))
         }
 
         /// Set whether a resource is selected.
         ///
         /// # Returns
         /// `Err` if a resource with the given id is not found.
-        pub fn set(&self, rid: &ResourceId, selected: bool) -> Result<(), ()> {
+        pub fn set(&self, rid: ReadSignal<ResourceId>, selected: bool) -> Result<(), ()> {
             self.resources
                 .read_untracked()
                 .iter()
-                .find(|resource| {
-                    resource
-                        .rid
-                        .with_untracked(|resource_id| resource_id == rid)
-                })
+                .find(|resource| resource.rid == rid)
                 .map(|resource| {
                     if resource
                         .selected
@@ -259,9 +253,9 @@ pub mod workspace_graph {
         /// `Err` if any resource with the given id is not found.
         pub fn set_many<'a>(
             &self,
-            rids: &'a Vec<ResourceId>,
+            rids: &'a Vec<ReadSignal<ResourceId>>,
             selected: bool,
-        ) -> Result<(), Vec<&'a ResourceId>> {
+        ) -> Result<(), Vec<&'a ReadSignal<ResourceId>>> {
             let mut resources = Vec::with_capacity(rids.len());
             let mut not_found = Vec::new();
             for rid in rids.iter() {
@@ -269,11 +263,7 @@ pub mod workspace_graph {
                     .resources
                     .read_untracked()
                     .iter()
-                    .find(|resource| {
-                        resource
-                            .rid
-                            .with_untracked(|resource_id| resource_id == rid)
-                    })
+                    .find(|resource| resource.rid == rid)
                     .cloned()
                 {
                     resources.push(resource);
@@ -331,24 +321,22 @@ pub mod workspace_graph {
         /// # Returns
         /// `Err` if a resource with the given id is not found.
         /// REgardless of whether the resource is found or not, all other resources are deselected.
-        pub fn select_only(&self, rid: &ResourceId) -> Result<(), ()> {
+        pub fn select_only(&self, rid: ReadSignal<ResourceId>) -> Result<(), ()> {
             let resource = self
                 .resources
                 .with_untracked(|resources| {
                     let mut found_resource = None;
                     resources.iter().for_each(|resource| {
                         let is_selected = resource.selected.get_untracked();
-                        resource.rid.with_untracked(|resource_id| {
-                            if resource_id != rid && is_selected {
-                                resource.selected.set(false);
-                            } else if resource_id == rid {
-                                if !is_selected {
-                                    resource.selected.set(true);
-                                }
-
-                                let _ = found_resource.insert(resource);
+                        if resource.rid != rid && is_selected {
+                            resource.selected.set(false);
+                        } else if resource.rid == rid {
+                            if !is_selected {
+                                resource.selected.set(true);
                             }
-                        })
+
+                            let _ = found_resource.insert(resource);
+                        }
                     });
 
                     found_resource.cloned()

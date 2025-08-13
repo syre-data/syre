@@ -151,19 +151,21 @@ pub fn FilterBar() -> impl IntoView {
 
     let display_state = expect_context::<state::display::State>();
     let workspace_graph_state = expect_context::<ui_lib::state::WorkspaceGraph>();
-    
+
     let select_all = {
         let selection_resources = workspace_graph_state.selection_resources().clone();
         let data = display_state.data();
         move |e: MouseEvent| {
-             if e.button() != ui_lib::types::MouseButton::Primary {
+            if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
             e.stop_propagation();
 
-            let rids = data.read_untracked().iter().map(|datum| {
-                datum.asset().rid().get_untracked()
-            }).collect();
+            let rids = data
+                .read_untracked()
+                .iter()
+                .map(|datum| datum.asset().rid())
+                .collect();
             selection_resources.set_many(&rids, true).unwrap();
         }
     };
@@ -177,37 +179,33 @@ pub fn FilterBar() -> impl IntoView {
             }
             e.stop_propagation();
 
-            let rids = data.read_untracked().iter().map(|datum| {
-                datum.asset().rid().get_untracked()
-            }).collect();
+            let rids = data
+                .read_untracked()
+                .iter()
+                .map(|datum| datum.asset().rid())
+                .collect();
             selection_resources.set_many(&rids, false).unwrap();
         }
     };
-    
+
     let all_selected = {
         let selected = workspace_graph_state.selection_resources().selected();
         let data = display_state.data();
         move || {
-            data.read()
-                .iter()
-                .all(|datum| {
-                    datum.asset().rid().with_untracked(|rid| {
+            data.read().iter().all(|datum| {
+                datum.asset().rid().with_untracked(|rid| {
                     selected
                         .read()
                         .iter()
-                        .find(|resource| {
-                            resource
-                                .rid()
-                                .with_untracked(|selected| selected == rid)
-                        })
+                        .find(|resource| resource.rid().with_untracked(|selected| selected == rid))
                         .is_some()
-                    })
                 })
+            })
         }
     };
-    
+
     view! {
-        <div 
+        <div
             class="flex gap-1 px-2 py-1 border-b not-dark:border-b-secondary-900 focus-within:inset-shadow-sm \
             inset-shadow-primary-200/50 dark:inset-shadow-primary-800/50"
             class:hidden={
@@ -1117,9 +1115,9 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
     let display_state = expect_context::<state::display::State>();
     let file_node_ref = NodeRef::<html::Th>::new();
 
-    let selection_resource = datum.asset()
-        .rid()
-        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
+    let selection_resource = workspace_graph_state
+        .selection_resources()
+        .get(datum.asset().rid())
         .unwrap();
 
     let file_ancestors_width = {
@@ -1133,7 +1131,7 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
                 .unwrap_or(0)
         }
     };
-    
+
     Effect::watch(
         {
             let pinned = display_state.columns().file().pinned().read_only();
@@ -1156,9 +1154,9 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
     );
 
     let mousedown = {
-        let selection_resources = workspace_graph_state.selection_resources().clone(); 
-        let rid = datum.asset().rid().read_only(); 
-        move |e:MouseEvent| {
+        let selection_resources = workspace_graph_state.selection_resources().clone();
+        let rid = datum.asset().rid().read_only();
+        move |e: MouseEvent| {
             if e.button() != ui_lib::types::MouseButton::Primary {
                 return;
             }
@@ -1170,41 +1168,30 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
                 })
             });
             match action {
-                types::SelectionAction::Unselect => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
-                }
-                types::SelectionAction::Select => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
-                }
-                types::SelectionAction::SelectOnly => {
-                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
-                }
+                types::SelectionAction::Unselect => selection_resources.set(rid, false).unwrap(),
+                types::SelectionAction::Select => selection_resources.set(rid, true).unwrap(),
+                types::SelectionAction::SelectOnly => selection_resources.select_only(rid).unwrap(),
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
-    }};
+        }
+    };
 
-     let path = {
+    let path = {
         let path = datum.path();
-        move || { path.read().to_string_lossy().to_string() }
+        move || path.read().to_string_lossy().to_string()
     };
 
     let file_str = {
         let path = datum.asset().path().read_only();
-        move || { path.read().to_string_lossy().to_string() }
+        move || path.read().to_string_lossy().to_string()
     };
-    
+
     const TH_CLASS: &str = "pl-1 pr-2 align-top truncate text-left";
     view! {
-        <tr 
+        <tr
             on:mousedown=mousedown
             class="group hover:bg-secondary-100 dark:hover:bg-secondary-700"
-            class=(
-                [
-                    "bg-secondary-100",
-                    "dark:bg-secondary-700",
-                ],
-                selection_resource.clone()
-            )
+            class=(["bg-secondary-100", "dark:bg-secondary-700"], selection_resource.clone())
         >
             <th
                 scope="row"
@@ -1266,7 +1253,6 @@ fn DataRowStatic(datum: state::data::Datum) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
     let graph_root_name = expect_context::<GraphRootName>();
 
-
     let md_title = {
         let metadata = datum.metadata();
         move |key: String| {
@@ -1327,11 +1313,7 @@ fn DataRowStatic(datum: state::data::Datum) -> impl IntoView {
             )
         >
             {move || {
-                if tags.read().is_empty() {
-                    EMPTY_TAGS.to_string()
-                } else {
-                    tags.get().join(", ")
-                }
+                if tags.read().is_empty() { EMPTY_TAGS.to_string() } else { tags.get().join(", ") }
             }}
         </td>
         <For each=state.metadata_keys() key=|key| key.clone() let:key>
@@ -1497,48 +1479,48 @@ fn DataRowActive(datum: state::data::Datum) -> impl IntoView {
             }
         }
     };
-   
+
     let metadata = datum.metadata();
     const TD_CLASS: &str = "pl-1 pr-2 align-top truncate";
     const TD_METADATA_CLASS: &str = "pl-1 pr-2 align-top truncate has-[form]:overflow-visible";
     view! {
-            <td
-                class=TD_CLASS
-                title={
-                    let name = datum.asset().name().read_only();
-                    move || name.get()
-                }
-            >
-                <properties::Name value=datum.asset().name().read_only() on_change=update_name />
-            </td>
-            <td
-                class=TD_CLASS
-                title={
-                    let kind = datum.asset().kind().read_only();
-                    move || kind.get()
-                }
-            >
-                <properties::Kind value=datum.asset().kind().read_only() on_change=update_kind />
-            </td>
-            <td class=TD_CLASS>
-                <properties::Description
-                    value=datum.asset().description().read_only()
-                    on_change=update_description
+        <td
+            class=TD_CLASS
+            title={
+                let name = datum.asset().name().read_only();
+                move || name.get()
+            }
+        >
+            <properties::Name value=datum.asset().name().read_only() on_change=update_name />
+        </td>
+        <td
+            class=TD_CLASS
+            title={
+                let kind = datum.asset().kind().read_only();
+                move || kind.get()
+            }
+        >
+            <properties::Kind value=datum.asset().kind().read_only() on_change=update_kind />
+        </td>
+        <td class=TD_CLASS>
+            <properties::Description
+                value=datum.asset().description().read_only()
+                on_change=update_description
+            />
+        </td>
+        <td class=TD_CLASS>
+            <properties::Tags value=datum.asset().tags().read_only() on_change=update_tags />
+        </td>
+        <For each=state.metadata_keys() key=|key| key.clone() let:key>
+            <td class=TD_METADATA_CLASS title=md_title(key.clone())>
+                <properties::Metadatum
+                    key=key.clone()
+                    metadata
+                    on_change=update_metadatum(key.clone())
+                    on_remove=remove_metadatum
                 />
             </td>
-            <td class=TD_CLASS>
-                <properties::Tags value=datum.asset().tags().read_only() on_change=update_tags />
-            </td>
-            <For each=state.metadata_keys() key=|key| key.clone() let:key>
-                <td class=TD_METADATA_CLASS title=md_title(key.clone())>
-                    <properties::Metadatum
-                        key=key.clone()
-                        metadata
-                        on_change=update_metadatum(key.clone())
-                        on_remove=remove_metadatum
-                    />
-                </td>
-            </For>
+        </For>
     }
 }
 

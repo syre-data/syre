@@ -257,14 +257,17 @@ fn ContainerLayerTitleOk(
         }
     };
 
-    let selected = container.properties().with_untracked(|properties| {
+    let selected = 
+    workspace_graph_state.selection_resources().get(
+container.properties().with_untracked(|properties| {
         properties
             .as_ref()
             .unwrap()
-            .rid()
-            .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
-            .unwrap()
-    });
+            .rid().read_only()
+    
+    
+          
+    })).unwrap();
 
     let title = {
         let properties = properties.clone();
@@ -299,13 +302,13 @@ fn ContainerLayerTitleOk(
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                    selection_resources.set(rid, false).unwrap()
                 }
                 types::SelectionAction::Select => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                    selection_resources.set(rid, true).unwrap()
                 }
                 types::SelectionAction::SelectOnly => {
-                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                    selection_resources.select_only(rid).unwrap()
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
@@ -635,9 +638,13 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
 
     let title = utils::asset_title_closure(&asset);
 
-    let selected = asset
+    let selected =
+    workspace_graph_state.selection_resources().get(
+asset
         .rid()
-        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
+
+    )
+     
         .unwrap();
 
     let mousedown = {
@@ -656,13 +663,13 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                    selection_resources.set(rid, false).unwrap()
                 }
                 types::SelectionAction::Select => {
-                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                    selection_resources.set(rid, true).unwrap()
                 }
                 types::SelectionAction::SelectOnly => {
-                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                    selection_resources.select_only(rid).unwrap()
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }

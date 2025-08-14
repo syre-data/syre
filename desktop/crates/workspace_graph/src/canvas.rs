@@ -1215,13 +1215,11 @@ fn ContainerOk(
 
     let selection_resource = container
         .properties()
-        .with_untracked(|properties| {
-            let properties = properties.as_ref().unwrap();
-             workspace_graph_state
-                    .selection_resources()
-                    .get(properties.rid())
-            
-        })
+        .read_untracked()
+        .as_ref()
+        .unwrap()
+        .rid()
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
         .unwrap();
 
     let mousedown = {
@@ -1246,13 +1244,13 @@ fn ContainerOk(
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    selection_resources.set(rid, false).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
                 }
                 types::SelectionAction::Select => {
-                    selection_resources.set(rid, true).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
                 }
                 types::SelectionAction::SelectOnly => {
-                    selection_resources.select_only(rid).unwrap()
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
@@ -1514,9 +1512,9 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
         move || rid.with(|rid| rid.to_string())
     };
 
-    let selection_resource = 
-    workspace_graph_state.selection_resources().get( asset
-        .rid())
+    let selection_resource = asset
+        .rid()
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
         .unwrap();
 
     let title = utils::asset_title_closure(&asset);
@@ -1537,13 +1535,13 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    selection_resources.set(rid, false).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
                 }
                 types::SelectionAction::Select => {
-                    selection_resources.set(rid, true).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
                 }
                 types::SelectionAction::SelectOnly => {
-                    selection_resources.select_only(rid).unwrap()
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }

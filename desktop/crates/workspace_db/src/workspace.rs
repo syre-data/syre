@@ -164,7 +164,7 @@ pub fn FilterBar() -> impl IntoView {
             let rids = data
                 .read_untracked()
                 .iter()
-                .map(|datum| datum.asset().rid())
+                .map(|datum| datum.asset().rid().get_untracked())
                 .collect();
             selection_resources.set_many(&rids, true).unwrap();
         }
@@ -182,7 +182,7 @@ pub fn FilterBar() -> impl IntoView {
             let rids = data
                 .read_untracked()
                 .iter()
-                .map(|datum| datum.asset().rid())
+                .map(|datum| datum.asset().rid().get_untracked())
                 .collect();
             selection_resources.set_many(&rids, false).unwrap();
         }
@@ -193,13 +193,11 @@ pub fn FilterBar() -> impl IntoView {
         let data = display_state.data();
         move || {
             data.read().iter().all(|datum| {
-                datum.asset().rid().with_untracked(|rid| {
-                    selected
-                        .read()
-                        .iter()
-                        .find(|resource| resource.rid().with_untracked(|selected| selected == rid))
-                        .is_some()
-                })
+                selected
+                    .read()
+                    .iter()
+                    .find(|resource| *resource.rid() == datum.asset().rid().read_only())
+                    .is_some()
             })
         }
     };
@@ -223,25 +221,29 @@ pub fn FilterBar() -> impl IntoView {
                     let clear_all = clear_all.clone();
                     move || {
                         if all_selected() {
-                            view! {
-                                <button
-                                    on:mousedown=clear_all.clone()
-                                    class="btn-secondary p-1 rounded-xs cursor-pointer"
-                                    title="Clear selection"
-                                >
-                                    <Icon icon=icondata::RiCheckboxMultipleSystemFill />
-                                </button>
-                            }
+                            Either::Left(
+                                view! {
+                                    <button
+                                        on:mousedown=clear_all.clone()
+                                        class="btn-secondary p-1 rounded-xs cursor-pointer"
+                                        title="Clear selection"
+                                    >
+                                        <Icon icon=icondata::RiCheckboxMultipleSystemFill />
+                                    </button>
+                                },
+                            )
                         } else {
-                            view! {
-                                <button
-                                    on:mousedown=select_all.clone()
-                                    class="btn-secondary p-1 rounded-xs cursor-pointer"
-                                    title="Select all"
-                                >
-                                    <Icon icon=icondata::RiCheckboxMultipleSystemLine />
-                                </button>
-                            }
+                            Either::Right(
+                                view! {
+                                    <button
+                                        on:mousedown=select_all.clone()
+                                        class="btn-secondary p-1 rounded-xs cursor-pointer"
+                                        title="Select all"
+                                    >
+                                        <Icon icon=icondata::RiCheckboxMultipleSystemLine />
+                                    </button>
+                                },
+                            )
                         }
                     }
                 }
@@ -1115,9 +1117,10 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
     let display_state = expect_context::<state::display::State>();
     let file_node_ref = NodeRef::<html::Th>::new();
 
-    let selection_resource = workspace_graph_state
-        .selection_resources()
-        .get(datum.asset().rid())
+    let selection_resource = datum
+        .asset()
+        .rid()
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
         .unwrap();
 
     let file_ancestors_width = {
@@ -1168,9 +1171,15 @@ fn DataRow(datum: state::data::Datum, active: ReadSignal<bool>) -> impl IntoView
                 })
             });
             match action {
-                types::SelectionAction::Unselect => selection_resources.set(rid, false).unwrap(),
-                types::SelectionAction::Select => selection_resources.set(rid, true).unwrap(),
-                types::SelectionAction::SelectOnly => selection_resources.select_only(rid).unwrap(),
+                types::SelectionAction::Unselect => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                }
+                types::SelectionAction::Select => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                }
+                types::SelectionAction::SelectOnly => {
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
         }

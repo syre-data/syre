@@ -12,7 +12,7 @@ use syre_project_watcher as db;
 use tauri_sys::{core::Channel, menu};
 
 const FLAGS_INDICATOR_RADIUS: usize = 4;
-pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str= "workspace_graph-nav-layers"; 
+pub const FILE_TYPE_ICON_SYMBOL_PREFIX: &str = "workspace_graph-nav-layers";
 
 pub fn file_type_icon_symbol_anchor(id: &'static str) -> String {
     format!("#{FILE_TYPE_ICON_SYMBOL_PREFIX}-{id}")
@@ -160,7 +160,6 @@ pub fn LayersNavView(
     }
 }
 
-
 #[component]
 fn IconSymbols() -> impl IntoView {
     view! {
@@ -245,9 +244,9 @@ fn ContainerLayerTitleOk(
         leptos_use::signal_debounced_local(click_event, CLICK_DEBOUNCE);
 
     let properties = {
-        let container = container.clone();
+        let properties = container.properties().read_only();
         move || {
-            container.properties().with(|properties| {
+            properties.with(|properties| {
                 let db::state::DataResource::Ok(properties) = properties else {
                     panic!("invalid state");
                 };
@@ -257,17 +256,14 @@ fn ContainerLayerTitleOk(
         }
     };
 
-    let selected = 
-    workspace_graph_state.selection_resources().get(
-container.properties().with_untracked(|properties| {
-        properties
-            .as_ref()
-            .unwrap()
-            .rid().read_only()
-    
-    
-          
-    })).unwrap();
+    let selected = container
+        .properties()
+        .read_untracked()
+        .as_ref()
+        .unwrap()
+        .rid()
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
+        .unwrap();
 
     let title = {
         let properties = properties.clone();
@@ -302,13 +298,13 @@ container.properties().with_untracked(|properties| {
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    selection_resources.set(rid, false).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
                 }
                 types::SelectionAction::Select => {
-                    selection_resources.set(rid, true).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
                 }
                 types::SelectionAction::SelectOnly => {
-                    selection_resources.select_only(rid).unwrap()
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
@@ -496,9 +492,10 @@ fn ContainerLayerTitleVisibilityToggle(container: ui_lib::state::graph::Node) ->
                     }
                 });
                 move || {
-                    (num_children() > 0).then_some(
-                        template! {
-                            <button
+                    (num_children() > 0)
+                        .then_some(
+                            template! {
+                                <button
                                 type="button"
                                 on:mousedown=toggle_container_visibility.clone()
                                 class="align-middle cursor-pointer p-px rounded-xs \
@@ -508,8 +505,8 @@ fn ContainerLayerTitleVisibilityToggle(container: ui_lib::state::graph::Node) ->
                                     <use href=icon />
                                 </svg>
                             </button>
-                        }
-                    )
+                            },
+                        )
                 }
             }
         </div>
@@ -602,19 +599,22 @@ fn AssetsLayerOk(assets: ReadSignal<Vec<ui_lib::state::Asset>>, depth: usize) ->
                 <div style:padding-left=move || { depth_to_padding(depth + 1) } class="flex pr-px">
                     <div class="inline-flex gap-1">
                         <span>
-                            <ToggleExpandSymbol symbol_id="workspace_graph-nav-layers-chevron" expanded />
+                            <ToggleExpandSymbol
+                                symbol_id="workspace_graph-nav-layers-chevron"
+                                expanded
+                            />
                         </span>
                     </div>
                     <div class="inline-flex grow items-center">
-                        {template! {
-                            <span class="pr-1">
+                        {
+                            template! {
+                                <span class="pr-1">
                                 <svg width="1em" height="1em">
                                     <use href="#workspace_graph-nav-layers-files" />
                                 </svg>
                             </span>
-                        }}
-                        <span class="grow">"Assets"</span>
-                        <span>
+                            }
+                        } <span class="grow">"Assets"</span> <span>
                             <AssetsFlags container=container.clone() />
                         </span>
                     </div>
@@ -638,13 +638,9 @@ fn AssetLayer(asset: ui_lib::state::Asset, depth: usize) -> impl IntoView {
 
     let title = utils::asset_title_closure(&asset);
 
-    let selected =
-    workspace_graph_state.selection_resources().get(
-asset
+    let selected = asset
         .rid()
-
-    )
-     
+        .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
         .unwrap();
 
     let mousedown = {
@@ -663,13 +659,13 @@ asset
             });
             match action {
                 types::SelectionAction::Unselect => {
-                    selection_resources.set(rid, false).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
                 }
                 types::SelectionAction::Select => {
-                    selection_resources.set(rid, true).unwrap()
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
                 }
                 types::SelectionAction::SelectOnly => {
-                    selection_resources.select_only(rid).unwrap()
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
                 }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
@@ -714,17 +710,19 @@ asset
                 class="flex gap-1 items-center border-l border-transparent \
                 group-hover/assets:border-secondary-200 dark:group-hover/assets:border-secondary-600"
             >
-                {template! {
-                    <div class=icon_class>
+                {
+                    template! {
+                        <div class=icon_class>
                         <svg width="1em" height="1em">
-                            <use 
+                            <use
                                 href=move || icon_data.with(|data| {
                                     file_type_icon_symbol_anchor(data.symbol_id())
-                                }) 
+                                })
                             />
                         </svg>
                     </div>
-                }}
+                    }
+                }
                 <div class="grow">
                     <TruncateLeft class="align-center" inner_class="align-middle">
                         {title}
@@ -741,8 +739,8 @@ asset
 #[component]
 fn FlagIndicator() -> impl IntoView {
     template! {
-        <svg 
-            width=FLAGS_INDICATOR_RADIUS * 2 
+        <svg
+            width=FLAGS_INDICATOR_RADIUS * 2
             height=FLAGS_INDICATOR_RADIUS * 2
             attr:class="text-syre-yellow-500 dark:text-syre-yellow-600"
         >
@@ -788,13 +786,11 @@ fn AssetsFlags(container: ui_lib::state::graph::Node) -> impl IntoView {
     let title = move || format!("{} flagged asset(s)", num_assets_with_flags.read());
 
     move || {
-        (*num_assets_with_flags.read() > 0).then_some(
-            view! {
-                <div title=title.clone()>
-                    <FlagIndicator />
-                </div>
-            }
-        )
+        (*num_assets_with_flags.read() > 0).then_some(view! {
+            <div title=title.clone()>
+                <FlagIndicator />
+            </div>
+        })
     }
 }
 
@@ -815,12 +811,7 @@ fn AssetFlags(asset: ReadSignal<PathBuf>, container: ui_lib::state::graph::Node)
     let title = {
         let flags = flags.clone();
         move || {
-            let num_flags = flags()
-                .read()
-                .as_ref()
-                .unwrap()
-                .read()
-                .len();
+            let num_flags = flags().read().as_ref().unwrap().read().len();
             format!("{} flag(s)", num_flags)
         }
     };
@@ -831,14 +822,11 @@ fn AssetFlags(asset: ReadSignal<PathBuf>, container: ui_lib::state::graph::Node)
             .as_ref()
             .map(|flags| flags.read().is_empty())
             .unwrap_or(false)
-            .then_some(
-                view! {
-                    <div title=title.clone()>
-                        <FlagIndicator />
-                    </div>
-                }
-            )
-        
+            .then_some(view! {
+                <div title=title.clone()>
+                    <FlagIndicator />
+                </div>
+            })
     }
 }
 

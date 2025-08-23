@@ -1,5 +1,10 @@
 use futures::stream::StreamExt;
-use leptos::{either::Either, html, prelude::*, task::spawn_local};
+use leptos::{
+    either::Either,
+    html,
+    prelude::*,
+    task::{spawn_local, spawn_local_scoped_with_cancellation},
+};
 use leptos_router::components::A;
 use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
@@ -25,6 +30,7 @@ impl ContextMenuProjectOk {
 #[derive(derive_more::Deref, derive_more::From, Clone)]
 struct ContextMenuActiveProject(PathBuf);
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
 pub fn Dashboard() -> impl IntoView {
     let user = expect_context::<User>();
@@ -104,7 +110,7 @@ fn DashboardView(
             .collect::<Vec<_>>(),
     );
 
-    spawn_local(async move {
+    spawn_local_scoped_with_cancellation(async move {
         let mut listener =
             tauri_sys::event::listen::<Vec<lib::Event>>(lib::event::topic::PROJECT_MANIFEST)
                 .await
@@ -119,7 +125,7 @@ fn DashboardView(
 
     view! {
         <Show
-            when=move || projects.with(|projects| !projects.is_empty())
+            when=move || !projects.read().is_empty()
             fallback=|| view! { <DashboardNoProjects /> }
         >
             <DashboardProjects projects />

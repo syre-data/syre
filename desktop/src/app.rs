@@ -46,7 +46,7 @@ static _TAILWIND_CLASSES: &'static [&'static str] = &[
 
 #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
-pub fn App() -> impl IntoView { 
+pub fn App() -> impl IntoView {
     provide_meta_context();
     provide_context(ui_lib::message::Messages::new()); // TODO: Only provide after user is logged in?
     let (stored_prefers_dark, set_stored_prefers_dark, _) = leptos_use::storage::use_local_storage::<

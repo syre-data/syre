@@ -4,7 +4,7 @@ use futures::stream::StreamExt;
 use leptos::{
     either::{Either, either},
     prelude::*,
-    task::spawn_local,
+    task::spawn_local_scoped_with_cancellation,
 };
 use leptos_router::{components::A, hooks::use_params_map};
 use serde::Serialize;
@@ -148,7 +148,7 @@ fn WorkspaceView(
     let show_settings = ShowSettings::new();
     provide_context(show_settings);
 
-    spawn_local({
+    spawn_local_scoped_with_cancellation({
         let project = project.clone();
         async move {
             let rid = &project
@@ -245,7 +245,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
         false,
     );
 
-    spawn_local({
+    spawn_local_scoped_with_cancellation({
         let project = project.clone();
         let graph = graph.clone();
         let workspace_graph_state = workspace_graph_state.clone();

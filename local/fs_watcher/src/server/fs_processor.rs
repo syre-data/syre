@@ -265,12 +265,48 @@ impl FsWatcher {
                             .add_path(path.clone())
                     }
 
-                    (Ok(_), Ok(_)) => Event::with_time(
-                        app::GraphResource::Removed.into(),
+                    (Ok(None), Ok(resources::DirKind::None { project })) => Event::with_time(
+                        app::Nonresource::Removed.into(),
                         event.time,
                         event.id().clone(),
                     )
                     .add_path(path.clone()),
+
+                    (Ok(None), Ok(resources::DirKind::Project { .. })) => todo!(),
+
+                    (Ok(None), Ok(resources::DirKind::Container { .. }))
+                    | (Ok(None), Ok(resources::DirKind::ContainerLike { .. }))
+                    | (Ok(None), Ok(resources::DirKind::ContainerConfig { .. })) => {
+                        Event::with_time(
+                            app::GraphResource::Removed.into(),
+                            event.time,
+                            event.id().clone(),
+                        )
+                        .add_path(path.clone())
+                    }
+
+                    (Ok(Some(resources::ResourceEvent::Config(_))), Ok(_))
+                    | (Ok(Some(resources::ResourceEvent::Project { .. })), Ok(_))
+                    | (Ok(Some(resources::ResourceEvent::Asset { .. })), Ok(_)) => {
+                        Event::with_time(
+                            app::GraphResource::Removed.into(),
+                            event.time,
+                            event.id().clone(),
+                        )
+                        .add_path(path.clone())
+                    }
+
+                    (Ok(None), Ok(resources::DirKind::AppConfig)) => {
+                        unreachable!("incompatible resource determination");
+                    }
+
+                    (Ok(Some(_)), Ok(resources::DirKind::None { .. })) => {
+                        todo!();
+                    }
+
+                    (Ok(Some(_)), Ok(_)) => {
+                        unreachable!("incompatible resource determination");
+                    }
 
                     (Ok(file_kind), Err(_)) => {
                         if let Ok(kind) = self.convert_file_removed(path, Ok(file_kind)) {
@@ -293,10 +329,12 @@ impl FsWatcher {
                     )
                     .add_path(path.clone()),
 
-                    (Err(_), Err(_)) => {
-                        Event::with_time(app::Any::Removed.into(), event.time, event.id().clone())
-                            .add_path(path.clone())
-                    }
+                    (Err(_), Err(_)) => Event::with_time(
+                        app::EventKind::Any(app::Any::Removed),
+                        event.time,
+                        event.id().clone(),
+                    )
+                    .add_path(path.clone()),
                 };
 
                 vec![event]

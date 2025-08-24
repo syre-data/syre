@@ -36,8 +36,34 @@ impl Watcher {
             EventKind::AnalysisFile(_) => self.handle_fs_event_analysis_file(event),
             EventKind::File(_) => self.handle_fs_event_file(event),
             EventKind::Folder(_) => self.handle_fs_event_folder(event),
-            EventKind::Any(_) => todo!(),
+            EventKind::Nonresource(_) => self.handle_fs_event_nonresource(event),
+            EventKind::Any(_) => self.handle_fs_event_any(event),
             EventKind::OutOfSync => todo!(),
+        }
+    }
+}
+
+impl Watcher {
+    pub(super) fn handle_fs_event_nonresource(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        let EventKind::Nonresource(kind) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::Nonresource::Removed => vec![],
+        }
+    }
+
+    pub(super) fn handle_fs_event_any(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        let EventKind::Any(kind) = event.kind() else {
+            panic!("invalid event kind");
+        };
+
+        match kind {
+            event::Any::Removed => todo!(),
         }
     }
 }

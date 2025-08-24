@@ -116,6 +116,10 @@ pub enum EventKind {
     /// resource.
     Folder(ResourceEvent),
 
+    /// An file or folder that is not an app or project resource was modified.
+    #[from]
+    Nonresource(Nonresource),
+
     /// An unknown resource was modified.
     #[from]
     Any(Any),
@@ -285,6 +289,11 @@ pub enum Container {
 
     /// The container's assets file was modified.
     Flags(StaticResourceEvent),
+}
+
+#[derive(Debug)]
+pub enum Nonresource {
+    Removed,
 }
 
 #[derive(Debug)]

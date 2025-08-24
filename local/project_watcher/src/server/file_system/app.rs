@@ -368,7 +368,7 @@ impl Watcher {
             }
             event::StaticResourceEvent::Modified(kind) => match kind {
                 event::ModifiedKind::Data => self.handle_fs_event_app_user_manifest_modified(event),
-                event::ModifiedKind::Other => todo!(),
+                event::ModifiedKind::Other => self.handle_fs_event_app_user_manifest_other(event),
             },
         }
     }
@@ -440,8 +440,6 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
-
         assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::UserManifest(
@@ -450,6 +448,28 @@ impl Watcher {
         );
         assert_eq!(event.paths().len(), 1);
         assert_eq!(event.paths()[0], *self.config.user_manifest());
+
+        self.update_user_manifest(event.id().clone())
+    }
+
+    fn handle_fs_event_app_user_manifest_other(
+        &mut self,
+        event: syre_fs_watcher::Event,
+    ) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Config(event::Config::UserManifest(
+                event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
+            ))
+        );
+        assert_eq!(event.paths().len(), 1);
+        assert_eq!(event.paths()[0], *self.config.user_manifest());
+
+        self.update_user_manifest(event.id().clone())
+    }
+
+    fn update_user_manifest(&mut self, event_id: uuid::Uuid) -> Vec<Update> {
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         let manifest =
             syre_local::system::collections::UserManifest::load_from(self.config.user_manifest());
@@ -481,14 +501,14 @@ impl Watcher {
                 if added.len() > 0 {
                     updates.push(Update::app(
                         update::UserManifest::Added(added),
-                        event.id().clone(),
+                        event_id.clone(),
                     ));
                 }
 
                 if removed.len() > 0 {
                     updates.push(Update::app(
                         update::UserManifest::Removed(removed),
-                        event.id().clone(),
+                        event_id.clone(),
                     ));
                 }
 
@@ -504,7 +524,7 @@ impl Watcher {
 
                 vec![Update::app(
                     update::UserManifest::Ok(manifest.to_vec()),
-                    event.id().clone(),
+                    event_id.clone(),
                 )]
             }
 
@@ -513,7 +533,7 @@ impl Watcher {
                     .try_reduce(ConfigAction::UserManifest(DataAction::SetErr(manifest)).into())
                     .unwrap();
 
-                vec![Update::app(update::UserManifest::Error, event.id().clone())]
+                vec![Update::app(update::UserManifest::Error, event_id.clone())]
             }
 
             (Err(manifest), Err(_state)) => {

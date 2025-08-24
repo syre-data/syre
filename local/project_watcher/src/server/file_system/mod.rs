@@ -7,9 +7,9 @@ mod folder;
 mod graph;
 mod project;
 
-use crate::{Watcher, Update};
+use crate::{Update, Watcher};
 use std::path::Path;
-use syre_fs_watcher::EventKind;
+use syre_fs_watcher::{EventKind, event};
 use syre_local as local;
 
 impl Watcher {

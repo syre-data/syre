@@ -1,10 +1,10 @@
 use crate::{
+    Watcher,
     event::{self as update, Update},
     server::state,
-    Watcher,
 };
 use std::{assert_matches::assert_matches, io};
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_watcher::{EventKind, event};
 use syre_local::TryReducible;
 
 impl Watcher {
@@ -55,7 +55,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         assert_matches!(
             event.kind(),
@@ -115,7 +115,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
@@ -181,7 +181,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         assert_eq!(event.paths().len(), 1);
         assert_eq!(event.paths()[0], *self.config.project_manifest());
@@ -377,7 +377,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         assert_matches!(
             event.kind(),
@@ -415,7 +415,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
@@ -564,7 +564,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         assert_matches!(
             event.kind(),
@@ -601,7 +601,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
@@ -626,7 +626,7 @@ impl Watcher {
         &mut self,
         event: syre_fs_watcher::Event,
     ) -> Vec<Update> {
-        use state::config::{action::DataResource as DataAction, Action as ConfigAction};
+        use state::config::{Action as ConfigAction, action::DataResource as DataAction};
         #[cfg(target_os = "windows")]
         assert_matches!(
             event.kind(),

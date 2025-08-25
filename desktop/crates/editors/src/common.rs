@@ -1393,22 +1393,16 @@ pub mod bulk {
         #[derive(Clone, Debug)]
         pub struct Metadatum {
             key: String,
-            values: Vec<ReadSignal<syre_core::types::Value>>,
+            base_values: Vec<ReadSignal<syre_core::types::Value>>,
+            value: Signal<Value>,
         }
 
         impl Metadatum {
             pub fn new(key: String, values: Vec<ReadSignal<syre_core::types::Value>>) -> Self {
                 assert!(values.len() > 1);
-                Self { key, values }
-            }
 
-            pub fn key(&self) -> &String {
-                &self.key
-            }
-
-            pub fn value(&self) -> Signal<Value> {
-                Signal::derive({
-                    let values = self.values.clone();
+                let value = Signal::derive({
+                    let values = values.clone();
                     move || {
                         let mut values = values.iter();
                         let value = values.next().unwrap();
@@ -1435,7 +1429,21 @@ pub mod bulk {
                             })
                             .unwrap_or(Value::MixedKind)
                     }
-                })
+                });
+
+                Self {
+                    key,
+                    base_values: values,
+                    value,
+                }
+            }
+
+            pub fn key(&self) -> &String {
+                &self.key
+            }
+
+            pub fn value(&self) -> Signal<Value> {
+                self.value.clone()
             }
         }
 

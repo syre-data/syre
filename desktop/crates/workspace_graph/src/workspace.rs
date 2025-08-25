@@ -1,6 +1,9 @@
 use super::{Canvas, NavBar, ProjectBar, PropertiesBar, canvas, properties};
 use futures::stream::StreamExt;
-use leptos::{prelude::*, task::spawn_local};
+use leptos::{
+    prelude::*,
+    task::{spawn_local, spawn_local_scoped_with_cancellation},
+};
 use serde::Serialize;
 use std::{io, path::PathBuf, str::FromStr};
 use syre_core::types::ResourceId;
@@ -68,7 +71,7 @@ pub fn Workspace() -> impl IntoView {
         false,
     );
 
-    spawn_local(async move {
+    spawn_local_scoped_with_cancellation(async move {
         let window = tauri_sys::window::get_current();
         let mut listener = window.on_drag_drop_event().await.unwrap();
         while let Some(event) = listener.next().await {

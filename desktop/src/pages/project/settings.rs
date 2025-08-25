@@ -613,7 +613,7 @@ mod project {
                         }
                         on:input=update_path
                         class="input-simple grow"
-                        placeholder="R executable path"
+                        placeholder="Rscript executable path"
                     />
                 </label>
             }

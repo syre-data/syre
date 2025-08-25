@@ -612,7 +612,7 @@ pub mod user {
                         }
                         on:input=update_path
                         class="input-simple grow"
-                        placeholder="R executable path"
+                        placeholder="Rscript executable path"
                     />
                 </label>
             }
@@ -710,14 +710,10 @@ pub mod user {
     }
 
     mod analysis {
-        use leptos::{
-            html,
-            prelude::*,
-            task::spawn_local,
-        };
+        use leptos::{html, prelude::*, task::spawn_local};
         use reactive_stores::Store;
         use serde::Serialize;
-        use std::{io};
+        use std::io;
         use syre_core::{self as core, types::ResourceId};
         use syre_desktop_lib as lib;
         use syre_desktop_ui_lib::{self as ui_lib, state::settings::user::SettingsStoreFields};

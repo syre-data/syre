@@ -1755,7 +1755,7 @@ mod analysis_associations {
         };
 
         view! {
-            <DetailPopout title="Add metadata" onclose=Callback::new(close)>
+            <DetailPopout title="Add analysis" onclose=Callback::new(close)>
                 <AddAssociationEditor
                     available_analyses
                     onadd=Callback::new(onadd)

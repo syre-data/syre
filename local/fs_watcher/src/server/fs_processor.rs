@@ -300,10 +300,6 @@ impl FsWatcher {
                         unreachable!("incompatible resource determination");
                     }
 
-                    (Ok(Some(_)), Ok(resources::DirKind::None { .. })) => {
-                        todo!();
-                    }
-
                     (Ok(Some(_)), Ok(_)) => {
                         unreachable!("incompatible resource determination");
                     }

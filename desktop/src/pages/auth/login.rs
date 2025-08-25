@@ -50,7 +50,7 @@ pub fn Login() -> impl IntoView {
                 <Logo attr:class="w-full" />
                 <h1 class="font-primary text-4xl">"Syre"</h1>
             </div>
-            <div class="w-1/2">
+            <div class="flex justify-center w-1/2">
                 <form node_ref=form_ref on:submit=login_user>
                     <div>
                         <label>

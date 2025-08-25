@@ -53,10 +53,9 @@ pub fn NavBar() -> impl IntoView {
                     <Icon icon=ui_lib::icon::Search />
                 </button>
             </div>
-            <div class="grow overflow-auto rtl scrollbar-thin dark:scrollbar-track-secondary-800">
+            <div class="grow overflow-auto scrollbar-thin dark:scrollbar-track-secondary-800">
                 <layers::LayersNav
                     {..}
-                    class="ltr"
                     class=(
                         "hidden",
                         move || widget.with(|widget| !matches!(widget, Widget::Layers)),
@@ -64,7 +63,6 @@ pub fn NavBar() -> impl IntoView {
                 />
                 <search::Search
                     {..}
-                    class="ltr"
                     class=(
                         "hidden",
                         move || widget.with(|widget| !matches!(widget, Widget::Search)),

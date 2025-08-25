@@ -1222,9 +1222,6 @@
   .ltr {
     direction: ltr;
   }
-  .rtl {
-    direction: rtl;
-  }
   .not-group-hover\:invisible {
     &:not(*:is(:where(.group):hover *)) {
       visibility: hidden;

@@ -693,7 +693,16 @@ impl FsWatcher {
                     panic!("invalid paths");
                 };
 
-                let path = fs::canonicalize(path).unwrap();
+                let path = match fs::canonicalize(path) {
+                    Ok(path) => path,
+                    Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => {
+                        // NB: File system resource no longer exists.
+                        // The event for it no longer existing should come later
+                        // and will be handled.
+                        return Ok(None);
+                    }
+                    Err(err) => todo!("could not canonicalize path: {err:?}"),
+                };
                 if path.is_file() {
                     Some(fs_event::Event::new(fs_event::File::Created(path), time))
                 } else if path.is_dir() {

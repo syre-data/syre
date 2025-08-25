@@ -45,3 +45,11 @@ pub fn normalize_path_sep(path: impl AsRef<Path>) -> PathBuf {
         .replace(common::PATH_SEP_WINDOW, common::PATH_SEP_NIX)
         .into()
 }
+
+/// Remove the Windows UNC prefix (`\\?\`) if it exists.
+pub fn strip_windows_unc(path: impl AsRef<Path>) -> PathBuf {
+    let path = path.as_ref().to_string_lossy();
+    path.strip_prefix(local::constants::WINDOWS_UNC_PREFIX)
+        .unwrap_or(&path)
+        .into()
+}

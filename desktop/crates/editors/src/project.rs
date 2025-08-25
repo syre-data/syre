@@ -22,9 +22,9 @@ pub fn Editor() -> impl IntoView {
     let project_path_str = {
         let project = project.clone();
         move || {
-            project
-                .path()
-                .with(|path| path.to_string_lossy().to_string())
+            ui_lib::utils::strip_windows_unc(project.path().get())
+                .to_string_lossy()
+                .to_string()
         }
     };
 
@@ -60,8 +60,11 @@ pub fn Editor() -> impl IntoView {
                             </label>
                         </div>
                     </form>
-                    <div title=project_path_str>
-                        <TruncateLeft clone:project_path_str>{project_path_str}</TruncateLeft>
+                    <div
+                        class="scrollbar-thin overflow-x-auto px-1 select-all"
+                        title=project_path_str.clone()
+                    >
+                        {project_path_str.clone()}
                     </div>
                 </div>
             </div>

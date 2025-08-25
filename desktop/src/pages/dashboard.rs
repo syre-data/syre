@@ -233,7 +233,7 @@ fn ProjectCardOk(project: Project, path: PathBuf) -> impl IntoView {
     let context_menu = expect_context::<ContextMenuProjectOk>();
     let context_menu_active_project =
         expect_context::<RwSignal<Option<ContextMenuActiveProject>>>();
-    let path_string = local::common::strip_windows_unc(&path)
+    let path_string = ui_lib::utils::strip_windows_unc(&path)
         .to_string_lossy()
         .to_string();
 

@@ -1,10 +1,10 @@
 use crate::{
-    common,
+    Watcher, common,
     event::{self as update, Update},
-    server, state, Watcher,
+    server, state,
 };
 use std::assert_matches::assert_matches;
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_watcher::{EventKind, event};
 use syre_local::{self as local, TryReducible};
 
 impl Watcher {

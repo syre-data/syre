@@ -6,18 +6,18 @@ pub(super) mod query;
 mod file_system;
 
 use crate::{common, constants, event::Update};
-use crossbeam::channel::{select, Receiver};
+use crossbeam::channel::{Receiver, select};
 use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, io, path::PathBuf, thread};
 use syre_fs_watcher as watcher;
 use syre_local::{
+    TryReducible,
     system::{
         collections::{ProjectManifest, UserManifest},
         config::Config as LocalConfig,
         resources::Config as ConfigData,
     },
-    TryReducible,
 };
 
 pub use config::Config;
@@ -585,7 +585,7 @@ mod linux {
 }
 
 pub mod config {
-    use crate::constants::{PortNumber, PUB_SUB_PORT};
+    use crate::constants::{PUB_SUB_PORT, PortNumber};
     use std::{io, path::PathBuf};
     use syre_local::{
         common,
@@ -694,7 +694,7 @@ pub mod config {
         /// Port over which updates should be sent.
         update_port: PortNumber,
 
-        /// If `true` any file system resource modifi are automatically handled.
+        /// If `true` any file system resource modifications are automatically handled.
         /// If `false` this task is left to the client applications.
         /// Resource modifications include:
         /// 1. Analysis-like files inserted in the analysis directory of a project.

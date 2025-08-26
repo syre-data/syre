@@ -16,8 +16,10 @@ impl Watcher {
         match kind {
             event::ResourceEvent::Created => self.handle_fs_event_folder_created(event),
             event::ResourceEvent::Modified(_) => self.handle_fs_event_folder_modified(event),
+            event::ResourceEvent::Renamed => self.handle_fs_event_folder_renamed(event),
+            event::ResourceEvent::Removed => todo!(),
             event::ResourceEvent::Moved => todo!(),
-            _ => todo!(),
+            event::ResourceEvent::MovedProject => todo!(),
         }
     }
 }
@@ -151,5 +153,18 @@ impl Watcher {
             event::ModifiedKind::Data => todo!(),
             event::ModifiedKind::Other => vec![],
         }
+    }
+
+    fn handle_fs_event_folder_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+        assert_matches!(
+            event.kind(),
+            EventKind::Folder(event::ResourceEvent::Renamed)
+        );
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        todo!();
     }
 }

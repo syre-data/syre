@@ -2015,7 +2015,8 @@ impl FsWatcher {
                 )
                 .into(),
                 resources::ProjectDir::Data => {
-                    app::Project::DataDir(app::ResourceEvent::Created).into()
+                    app::Project::DataDir(app::ResourceEvent::Modified(app::ModifiedKind::Other))
+                        .into()
                 }
             },
             resources::DirKind::ContainerLike { .. } => {

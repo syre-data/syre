@@ -446,15 +446,9 @@ impl Watcher {
             panic!("invalid event kind");
         };
 
-        let (path, from) = match &event.paths()[..] {
-            [path] => (path, None),
-            [from, to] => (to, Some(from)),
-            _ => panic!("invalid paths"),
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
         };
-
-        if let Some(from) = from {
-            tracing::trace!("folder renamed as project's data root");
-        }
 
         let project = self.state.find_resource_project_by_path(path).unwrap();
         let state::FolderResource::Present(project_state) = project.fs_resource() else {

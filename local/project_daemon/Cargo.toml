@@ -40,7 +40,7 @@ zmq = { workspace = true, optional = true }
 
 syre-core.workspace = true
 syre-local.workspace = true
-syre-fs-watcher = { workspace = true, optional = true }
+syre-fs-daemon = { workspace = true, optional = true }
 has_id = { workspace = true, optional = true }
 file_path_from_id = { workspace = true, optional = true }
 
@@ -56,7 +56,7 @@ zmq.workspace = true
 default = ["error"]
 server = [
 	"syre-local/fs",
-	"dep:syre-fs-watcher",
+	"dep:syre-fs-daemon",
 	"dep:crossbeam",
 	"dep:file_path_from_id",
 	"dep:file-id",

@@ -1,10 +1,10 @@
 [package]
-name = "syre-fs-watcher"
+name = "syre-fs-daemon"
 version = "0.0.1"
 edition = "2024"
 
 authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
-description = "Local file system watcher for Syre resources."
+description = "Local file system daemon for Syre resources."
 license = "MIT OR Apache-2.0"
 
 homepage = "https://syre.ai"

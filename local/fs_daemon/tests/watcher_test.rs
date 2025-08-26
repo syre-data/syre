@@ -7,7 +7,7 @@ use std::{
     thread,
     time::Duration,
 };
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::common;
 
 const TIMEOUT: Duration = Duration::from_millis(1000);
@@ -28,17 +28,17 @@ fn test_watcher_app() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config = syre_fs_watcher::server::Config::new(
+    let fs_daemon_config = syre_fs_daemon::server::Config::new(
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
     );
 
-    let mut fs_watcher =
-        syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+    let mut fs_daemon =
+        syre_fs_daemon::server::Builder::new(fs_command_rx, fs_event_tx, fs_daemon_config);
 
-    fs_watcher.add_path(config_dir.path());
-    thread::spawn(move || fs_watcher.run());
+    fs_daemon.add_path(config_dir.path());
+    thread::spawn(move || fs_daemon.run());
     thread::sleep(Duration::from_millis(500)); // let thread start
 
     let mut user_manifest = Manifest::new(user_manifest.path());
@@ -161,24 +161,24 @@ fn test_watcher_project() {
     let (fs_event_tx, fs_event_rx) = crossbeam::channel::unbounded();
     let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
 
-    let fs_watcher_config = syre_fs_watcher::server::Config::new(
+    let fs_daemon_config = syre_fs_daemon::server::Config::new(
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
     );
 
-    let mut fs_watcher =
-        syre_fs_watcher::server::Builder::new(fs_command_rx, fs_event_tx, fs_watcher_config);
+    let mut fs_daemon =
+        syre_fs_daemon::server::Builder::new(fs_command_rx, fs_event_tx, fs_daemon_config);
 
-    fs_watcher.add_path(config_dir.path());
-    thread::spawn(move || fs_watcher.run());
+    fs_daemon.add_path(config_dir.path());
+    thread::spawn(move || fs_daemon.run());
     thread::sleep(Duration::from_millis(500)); // let thread start
 
     let mut project_manifest = Manifest::new(project_manifest.path());
 
     let prj = tempfile::tempdir_in(dir.path()).unwrap();
     fs_command_tx
-        .send(syre_fs_watcher::Command::Watch(prj.path().to_path_buf()))
+        .send(syre_fs_daemon::Command::Watch(prj.path().to_path_buf()))
         .unwrap();
 
     project_manifest.push(prj.path().to_path_buf());

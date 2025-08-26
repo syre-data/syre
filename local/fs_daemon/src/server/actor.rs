@@ -1,4 +1,4 @@
-//! File system watcher.
+//! File system daemon.
 const DEBOUNCE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(100);
 
 #[cfg(target_os = "windows")]

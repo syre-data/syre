@@ -1,17 +1,17 @@
-use crossbeam::channel::{select, Receiver, Sender};
-use syre_fs_watcher::{Event, EventResult};
+use crossbeam::channel::{Receiver, Sender, select};
+use syre_fs_daemon::{Event, EventResult};
 
 pub struct EventValidator {
     expected: Vec<Event>,
     received: Vec<Event>,
     expected_rx: Receiver<Vec<Event>>,
-    watcher_rx: Receiver<EventResult>,
+    daemon_rx: Receiver<EventResult>,
     validation_tx: Sender<error::Validation>,
 }
 
 impl EventValidator {
     pub fn new(
-        watcher_rx: Receiver<EventResult>,
+        daemon_rx: Receiver<EventResult>,
         expected_rx: Receiver<Vec<Event>>,
         validation_tx: Sender<error::Validation>,
     ) -> Self {
@@ -19,7 +19,7 @@ impl EventValidator {
             expected: vec![],
             received: vec![],
             expected_rx,
-            watcher_rx,
+            daemon_rx,
             validation_tx,
         }
     }
@@ -27,10 +27,10 @@ impl EventValidator {
     pub fn run(&mut self) -> Result<(), ()> {
         loop {
             select! {
-                recv(self.watcher_rx) -> events => match events {
-                    Ok(events) => self.handle_watcher_events(events)?,
+                recv(self.daemon_rx) -> events => match events {
+                    Ok(events) => self.handle_daemon_events(events)?,
                     Err(err) => {
-                        tracing::error!("watcher: {err:}");
+                        tracing::error!("daemon: {err:}");
                         return Err(());
                     }
                 },
@@ -50,7 +50,7 @@ impl EventValidator {
 }
 
 impl EventValidator {
-    fn handle_watcher_events(&mut self, events: EventResult) -> Result<(), ()> {
+    fn handle_daemon_events(&mut self, events: EventResult) -> Result<(), ()> {
         match events {
             Ok(mut events) => {
                 self.received.append(&mut events);
@@ -74,7 +74,7 @@ impl EventValidator {
 }
 
 pub mod error {
-    use syre_fs_watcher::Event;
+    use syre_fs_daemon::Event;
 
     #[derive(Debug)]
     pub struct Validation {

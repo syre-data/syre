@@ -7,15 +7,15 @@ mod folder;
 mod graph;
 mod project;
 
-use crate::{Update, Daemon};
+use crate::{Daemon, Update};
 use std::path::Path;
-use syre_fs_watcher::{EventKind, event};
+use syre_fs_daemon::{EventKind, event};
 use syre_local as local;
 
 impl Daemon {
     pub fn process_file_system_events(
         &mut self,
-        events: Vec<syre_fs_watcher::Event>,
+        events: Vec<syre_fs_daemon::Event>,
     ) -> Vec<Update> {
         events
             .into_iter()
@@ -24,7 +24,7 @@ impl Daemon {
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
-    fn process_event(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn process_event(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         tracing::trace!(?event);
         match event.kind() {
             EventKind::Config(_) => self.handle_fs_event_config(event),
@@ -46,7 +46,7 @@ impl Daemon {
 impl Daemon {
     pub(super) fn handle_fs_event_nonresource(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Nonresource(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -57,7 +57,7 @@ impl Daemon {
         }
     }
 
-    pub(super) fn handle_fs_event_any(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_any(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Any(kind) = event.kind() else {
             panic!("invalid event kind");
         };

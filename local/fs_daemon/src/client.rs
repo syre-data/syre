@@ -1,9 +1,9 @@
-//! Client to communicate with the watcher server.
+//! Client to communicate with the daemon server.
 use crate::Command;
 use crossbeam::channel::{self, Sender};
 use std::path::PathBuf;
 
-/// Communicate with the file system watcher.
+/// Communicate with the file system daemon.
 pub struct Client {
     tx: Sender<Command>,
 }
@@ -68,7 +68,7 @@ impl Client {
         res.map_err(|err| error::FinalPath::Retrieval(err))
     }
 
-    /// Shutdown the file system watcher.
+    /// Shutdown the file system daemon.
     ///
     /// # Notes
     /// + Consumes self to close receiver.

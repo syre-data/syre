@@ -4,11 +4,11 @@ use crate::{
     server, state,
 };
 use std::assert_matches::assert_matches;
-use syre_fs_watcher::{EventKind, event};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible};
 
 impl Daemon {
-    pub(super) fn handle_fs_event_folder(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_folder(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Folder(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -25,7 +25,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_folder_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_folder_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::Folder(event::ResourceEvent::Created)
@@ -58,7 +58,7 @@ impl Daemon {
         }
     }
 
-    fn handle_folder_created_container(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_folder_created_container(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::Folder(event::ResourceEvent::Created)
@@ -140,7 +140,7 @@ impl Daemon {
         )]
     }
 
-    fn handle_fs_event_folder_modified(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_folder_modified(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Folder(event::ResourceEvent::Modified(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -155,7 +155,7 @@ impl Daemon {
         }
     }
 
-    fn handle_fs_event_folder_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_folder_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::Folder(event::ResourceEvent::Renamed)

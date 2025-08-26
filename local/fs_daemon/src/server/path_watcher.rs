@@ -1,6 +1,6 @@
 //! File system watcher used to check if paths exist.
 //! Used because `notify` watchers require the path to
-//! exist before wathcing it.
+//! exist before watching it.
 use crossbeam::channel::{Receiver, Sender};
 use std::{
     path::{Path, PathBuf},

@@ -10,7 +10,7 @@ use crossbeam::channel::{Receiver, select};
 use query::Query;
 use serde_json::Value as JsValue;
 use std::{collections::HashMap, io, path::PathBuf, thread};
-use syre_fs_watcher as watcher;
+use syre_fs_daemon as daemon;
 use syre_local::{
     TryReducible,
     system::{
@@ -29,7 +29,7 @@ pub struct Builder {
     /// Usually project paths.
     paths: Vec<PathBuf>,
 
-    /// Path patterns to treat as outside the watcher's scope.
+    /// Path patterns to treat as outside the daemon's scope.
     ignore_paths: Vec<glob::Pattern>,
 }
 
@@ -54,21 +54,21 @@ impl Builder {
         let (fs_command_tx, fs_command_rx) = crossbeam::channel::unbounded();
         let query_actor = query::Actor::new(query_tx.clone());
 
-        let mut watcher_config = watcher::server::config::Builder::new(
+        let mut daemon_config = daemon::server::config::Builder::new(
             self.config.user_manifest().clone(),
             self.config.project_manifest().clone(),
             self.config.local_config().clone(),
         );
-        watcher_config.add_ignore_patterns(self.ignore_paths);
+        daemon_config.add_ignore_patterns(self.ignore_paths);
 
-        let fs_command_client = watcher::Client::new(fs_command_tx);
-        let mut fs_watcher =
-            watcher::server::Builder::new(fs_command_rx, fs_event_tx, watcher_config.build());
-        fs_watcher.add_paths(self.paths);
+        let fs_command_client = daemon::Client::new(fs_command_tx);
+        let mut fs_daemon =
+            daemon::server::Builder::new(fs_command_rx, fs_event_tx, daemon_config.build());
+        fs_daemon.add_paths(self.paths);
 
         thread::Builder::new()
-            .name("syre local database file system watcher".to_string())
-            .spawn(move || fs_watcher.run())
+            .name("syre local database file system daemon".to_string())
+            .spawn(move || fs_daemon.run())
             .unwrap();
 
         thread::Builder::new()
@@ -86,7 +86,7 @@ impl Builder {
         if let Err(errors) = fs_event_rx.recv().unwrap() {
             for err in errors {
                 match err {
-                    watcher::Error::Watch(err) => {
+                    daemon::Error::Watch(err) => {
                         if let [path] = &err.paths[..] {
                             if path == self.config.user_manifest() {
                                 let err = match err.kind {
@@ -126,7 +126,7 @@ impl Builder {
                             }
                         }
                     }
-                    watcher::Error::Processing { events, kind } => {
+                    daemon::Error::Processing { events, kind } => {
                         tracing::error!(?events, ?kind);
                         todo!()
                     }
@@ -235,8 +235,8 @@ pub struct Daemon {
     config: Config,
     state: super::State,
     query_rx: Receiver<Query>,
-    fs_event_rx: Receiver<watcher::EventResult>,
-    fs_command_client: watcher::Client,
+    fs_event_rx: Receiver<daemon::EventResult>,
+    fs_command_client: daemon::Client,
 
     /// Publication socket to broadcast updates.
     update_tx: zmq::Socket,
@@ -284,7 +284,7 @@ impl Daemon {
         self.fs_command_client.unwatch(path).unwrap();
     }
 
-    /// Gets the final path of a file from the file system watcher.
+    /// Gets the final path of a file from the file system daemon.
     fn get_final_path(
         &self,
         path: impl Into<PathBuf>,
@@ -294,8 +294,8 @@ impl Daemon {
         self.fs_command_client
             .final_path(path)
             .map_err(|err| match err {
-                watcher::client::error::FinalPath::InvalidPath => unreachable!(),
-                watcher::client::error::FinalPath::Retrieval(err) => err,
+                daemon::client::error::FinalPath::InvalidPath => unreachable!(),
+                daemon::client::error::FinalPath::Retrieval(err) => err,
             })
     }
 
@@ -378,10 +378,10 @@ mod windows {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
-        pub fn handle_file_system_events(&mut self, events: watcher::EventResult) -> crate::Result {
+        pub fn handle_file_system_events(&mut self, events: daemon::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
-                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
+                Err(errs) => self.handle_file_system_daemon_errors(errs)?,
             };
 
             let updates = self.process_file_system_events(events);
@@ -391,10 +391,10 @@ mod windows {
             Ok(())
         }
 
-        fn handle_file_system_watcher_errors(
+        fn handle_file_system_daemon_errors(
             &self,
-            errors: Vec<watcher::Error>,
-        ) -> crate::Result<Vec<watcher::Event>> {
+            errors: Vec<daemon::Error>,
+        ) -> crate::Result<Vec<daemon::Event>> {
             tracing::error!(?errors);
             todo!();
         }
@@ -421,7 +421,7 @@ mod macos {
         pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
             let events = match events {
                 Ok(events) => events,
-                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
+                Err(errs) => self.handle_file_system_daemon_errors(errs)?,
             };
 
             let mut events = FileSystemEventProcessor::process(events);
@@ -431,7 +431,7 @@ mod macos {
             Ok(())
         }
 
-        fn handle_file_system_watcher_errors(
+        fn handle_file_system_daemon_errors(
             &self,
             errors: Vec<notify::Error>,
         ) -> Result<Vec<DebouncedEvent>> {
@@ -558,10 +558,10 @@ mod linux {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
-        pub fn handle_file_system_events(&mut self, events: watcher::EventResult) -> crate::Result {
+        pub fn handle_file_system_events(&mut self, events: daemon::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
-                Err(errs) => self.handle_file_system_watcher_errors(errs)?,
+                Err(errs) => self.handle_file_system_daemon_errors(errs)?,
             };
 
             let updates = self.process_file_system_events(events);
@@ -570,10 +570,10 @@ mod linux {
             Ok(())
         }
 
-        fn handle_file_system_watcher_errors(
+        fn handle_file_system_daemon_errors(
             &self,
-            errors: Vec<watcher::Error>,
-        ) -> crate::Result<Vec<watcher::Event>> {
+            errors: Vec<daemon::Error>,
+        ) -> crate::Result<Vec<daemon::Event>> {
             tracing::error!(?errors);
             todo!();
         }

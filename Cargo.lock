@@ -7512,7 +7512,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "syre-fs-watcher"
+name = "syre-fs-daemon"
 version = "0.0.1"
 dependencies = [
  "crossbeam",
@@ -7539,7 +7539,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "syre-fs-watcher-simulator"
+name = "syre-fs-daemon-simulator"
 version = "0.0.1"
 dependencies = [
  "crossbeam",
@@ -7550,7 +7550,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syre-core",
- "syre-fs-watcher",
+ "syre-fs-daemon",
  "syre-local",
  "tempfile",
  "test-log",
@@ -7645,7 +7645,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syre-core",
- "syre-fs-watcher",
+ "syre-fs-daemon",
  "syre-local",
  "tempfile",
  "test-log",

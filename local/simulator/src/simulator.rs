@@ -15,10 +15,10 @@ use std::{
     path::{Component, Path, PathBuf},
     thread,
 };
-use syre_fs_watcher::{self as watcher};
+use syre_fs_daemon::{self as daemon};
 use syre_local::{
-    project::{config, container},
     Reducible,
+    project::{config, container},
 };
 
 type Result<T = ()> = std::result::Result<T, error::Error>;
@@ -28,9 +28,9 @@ pub struct Simulator {
     state: State,
     rng: ChaCha8Rng,
     validation_rx: Receiver<event_validator::error::Validation>,
-    command_tx: Sender<watcher::Command>,
-    event_expect_tx: Sender<Vec<watcher::Event>>,
-    watcher_thread: thread::JoinHandle<()>,
+    command_tx: Sender<daemon::Command>,
+    event_expect_tx: Sender<Vec<daemon::Event>>,
+    daemon_thread: thread::JoinHandle<()>,
     validation_thread: thread::JoinHandle<()>,
 }
 
@@ -42,19 +42,19 @@ impl Simulator {
         let (validation_tx, validation_rx) = crossbeam::channel::unbounded();
 
         let rng = ChaCha8Rng::seed_from_u64(options.seed());
-        let watcher =
-            watcher::server::Builder::new(command_rx, event_tx, options.app_config().clone());
-        let watcher_thread = thread::Builder::new()
-            .name("syre fs watcher simulator watcher".into())
+        let daemon =
+            daemon::server::Builder::new(command_rx, event_tx, options.app_config().clone());
+        let daemon_thread = thread::Builder::new()
+            .name("syre fs daemon simulator daemon".into())
             .spawn(move || {
-                watcher.run().unwrap();
+                daemon.run().unwrap();
             })
             .unwrap();
 
         let mut validator =
             event_validator::EventValidator::new(event_rx, event_expect_rx, validation_tx);
         let validation_thread = thread::Builder::new()
-            .name("syre fs watcher simulator event validation".into())
+            .name("syre fs daemon simulator event validation".into())
             .spawn(move || {
                 validator.run().unwrap();
             })
@@ -69,7 +69,7 @@ impl Simulator {
             command_tx,
             validation_rx,
             event_expect_tx,
-            watcher_thread,
+            daemon_thread,
             validation_thread,
         }
     }
@@ -108,8 +108,8 @@ impl Simulator {
             tracing::debug!("simulation complete");
         }
 
-        self.command_tx.send(watcher::Command::Shutdown).unwrap();
-        // self.watcher_thread.join();
+        self.command_tx.send(daemon::Command::Shutdown).unwrap();
+        // self.daemon_thread.join();
         // self.validation_thread.join();
     }
 }
@@ -1346,17 +1346,17 @@ impl Simulator {
     fn watch(
         &self,
         path: impl AsRef<Path>,
-    ) -> std::result::Result<(), crossbeam::channel::SendError<watcher::Command>> {
+    ) -> std::result::Result<(), crossbeam::channel::SendError<daemon::Command>> {
         let path = self.options.base_path().join(path);
-        self.command_tx.send(watcher::Command::Watch(path))
+        self.command_tx.send(daemon::Command::Watch(path))
     }
 
     fn unwatch(
         &self,
         path: impl AsRef<Path>,
-    ) -> std::result::Result<(), crossbeam::channel::SendError<watcher::Command>> {
+    ) -> std::result::Result<(), crossbeam::channel::SendError<daemon::Command>> {
         let path = self.options.base_path().join(path);
-        self.command_tx.send(watcher::Command::Unwatch(path))
+        self.command_tx.send(daemon::Command::Unwatch(path))
     }
 }
 
@@ -1366,7 +1366,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(path: impl Into<PathBuf>, app_config: &watcher::server::Config) -> Self {
+    pub fn new(path: impl Into<PathBuf>, app_config: &daemon::server::Config) -> Self {
         Self {
             current_tick: 0,
             app: state::State::new(
@@ -1543,7 +1543,7 @@ mod utils {
 
 pub mod options {
     use std::{ops::Range, path::PathBuf};
-    use syre_fs_watcher::server::Config;
+    use syre_fs_daemon::server::Config;
 
     pub struct Options {
         seed: u64,

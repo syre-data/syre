@@ -1,5 +1,5 @@
 use std::path::{Component, Path, PathBuf};
-use syre_fs_watcher_simulator as simulator;
+use syre_fs_daemon_simulator as simulator;
 
 #[test_log::test]
 fn test_simulator() {

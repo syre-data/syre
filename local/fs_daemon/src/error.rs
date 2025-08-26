@@ -4,7 +4,7 @@ pub type Result<T = ()> = std::result::Result<T, Error>;
 
 #[derive(Debug, derive_more::From)]
 pub enum Error {
-    /// An error occurred with the underlying watcher.
+    /// An error occurred with the underlying daemon.
     Watch(notify::Error),
 
     /// A file system event could not be processed into an app event.

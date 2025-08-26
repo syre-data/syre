@@ -4,5 +4,5 @@ pub enum Event {
         tx: crossbeam::channel::Sender<serde_json::Value>,
     },
 
-    FileSystem(syre_fs_watcher::EventResult),
+    FileSystem(syre_fs_daemon::EventResult),
 }

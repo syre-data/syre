@@ -1,5 +1,5 @@
 [package]
-name = "syre-fs-watcher-simulator"
+name = "syre-fs-daemon-simulator"
 version = "0.0.1"
 edition = "2024"
 
@@ -14,7 +14,7 @@ tracing-subscriber.workspace = true
 walkdir.workspace = true
 
 syre-local = { workspace = true }
-syre-fs-watcher = { workspace = true }
+syre-fs-daemon = { workspace = true }
 has_id = { workspace = true, features = ["derive"] }
 syre-core.workspace = true
 serde_json.workspace = true

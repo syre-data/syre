@@ -4,11 +4,11 @@ use crate::{
     server::state,
 };
 use std::{assert_matches::assert_matches, io};
-use syre_fs_watcher::{EventKind, event};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::TryReducible;
 
 impl Daemon {
-    pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Config(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -27,7 +27,7 @@ impl Daemon {
 impl Daemon {
     fn handle_fs_event_app_project_manifest(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Config(event::Config::ProjectManifest(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -53,7 +53,7 @@ impl Daemon {
 
     fn handle_fs_event_app_project_manifest_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -113,7 +113,7 @@ impl Daemon {
 
     fn handle_fs_event_app_project_manifest_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -147,7 +147,7 @@ impl Daemon {
 
     fn handle_fs_event_app_project_manifest_modified_data(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -161,7 +161,7 @@ impl Daemon {
 
     fn handle_fs_event_app_project_manifest_modified_other(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -179,7 +179,7 @@ impl Daemon {
 
     fn handle_app_project_manifest_modified_data(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -354,7 +354,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_app_user_manifest(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_app_user_manifest(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::UserManifest(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -375,7 +375,7 @@ impl Daemon {
 
     fn handle_fs_event_app_user_manifest_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -413,7 +413,7 @@ impl Daemon {
 
     fn handle_fs_event_app_user_manifest_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -438,7 +438,7 @@ impl Daemon {
 
     fn handle_fs_event_app_user_manifest_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -454,7 +454,7 @@ impl Daemon {
 
     fn handle_fs_event_app_user_manifest_other(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -548,7 +548,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_app_local_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_app_local_config(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::LocalConfig(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -582,7 +582,7 @@ impl Daemon {
 
     fn handle_fs_event_app_local_config_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -619,7 +619,7 @@ impl Daemon {
 
     fn handle_fs_event_app_local_config_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
@@ -644,7 +644,7 @@ impl Daemon {
 
     fn handle_fs_event_app_local_config_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
         #[cfg(target_os = "windows")]

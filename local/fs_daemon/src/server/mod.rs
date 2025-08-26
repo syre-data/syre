@@ -2,10 +2,10 @@
 mod actor;
 pub mod event;
 mod path_watcher;
-pub(crate) mod watcher;
+pub(crate) mod daemon;
 
 pub use event::{Event, EventKind};
-pub use watcher::{config, Builder, Config, FsWatcher};
+pub use daemon::{config, Builder, Config, FsWatcher};
 
 pub enum ConversionResult<'a> {
     Ok(event::Event<'a>),

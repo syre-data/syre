@@ -4,7 +4,7 @@ use crate::{
     server, state,
 };
 use std::{assert_matches::assert_matches, io, path};
-use syre_fs_watcher::{EventKind, event};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::{
     self as local, TryReducible,
     error::IoSerde,
@@ -13,7 +13,7 @@ use syre_local::{
 };
 
 impl Daemon {
-    pub(super) fn handle_fs_event_project(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_project(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -36,7 +36,7 @@ impl Daemon {
 impl Daemon {
     fn handle_fs_event_project_folder_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -79,7 +79,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_project_config_dir(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_project_config_dir(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::ConfigDir(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -97,7 +97,7 @@ impl Daemon {
 
     fn handle_fs_event_project_config_dir_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -255,7 +255,7 @@ impl Daemon {
 
     fn handle_fs_event_project_config_dir_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -329,7 +329,7 @@ impl Daemon {
 impl Daemon {
     fn handle_fs_event_project_analysis_dir(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::AnalysisDir(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -349,7 +349,7 @@ impl Daemon {
 
     fn handle_fs_event_project_analysis_dir_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use syre_local::types::AnalysisKind;
 
@@ -419,7 +419,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_project_data_dir(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_project_data_dir(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::DataDir(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -438,7 +438,7 @@ impl Daemon {
 
     fn handle_fs_event_project_data_dir_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Created)) =
             event.kind()
@@ -487,7 +487,7 @@ impl Daemon {
 
     fn handle_fs_event_project_data_dir_renamed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Renamed)) =
             event.kind()
@@ -574,7 +574,7 @@ impl Daemon {
 
     fn handle_fs_event_project_data_dir_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Modified(kind))) =
             event.kind()
@@ -592,7 +592,7 @@ impl Daemon {
 
     fn handle_fs_event_project_data_dir_modified_other(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -632,7 +632,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_project_properties(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_project_properties(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::Properties(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -650,7 +650,7 @@ impl Daemon {
         }
     }
 
-    fn handle_fs_event_project_settings(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_project_settings(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::Settings(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -670,7 +670,7 @@ impl Daemon {
 
     fn handle_fs_event_project_properties_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Properties(event::StaticResourceEvent::Created)) =
             event.kind()
@@ -734,7 +734,7 @@ impl Daemon {
 
     fn handle_fs_event_project_properties_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Properties(event::StaticResourceEvent::Removed)) =
             event.kind()
@@ -782,7 +782,7 @@ impl Daemon {
 
     fn handle_fs_event_project_properties_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Properties(event::StaticResourceEvent::Modified(
             kind,
@@ -803,7 +803,7 @@ impl Daemon {
 
     fn handle_fs_event_project_properties_modified_data(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -817,7 +817,7 @@ impl Daemon {
 
     fn handle_fs_event_project_properties_modified_other(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -842,7 +842,7 @@ impl Daemon {
         }
     }
 
-    fn handle_project_properties_modified(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_project_properties_modified(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -941,7 +941,7 @@ impl Daemon {
 
     fn handle_fs_event_project_settings_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Settings(event::StaticResourceEvent::Created)) =
             event.kind()
@@ -1012,7 +1012,7 @@ impl Daemon {
 
     fn handle_fs_event_project_settings_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Settings(event::StaticResourceEvent::Removed)) =
             event.kind()
@@ -1060,7 +1060,7 @@ impl Daemon {
 
     fn handle_fs_event_project_settings_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Settings(event::StaticResourceEvent::Modified(
             kind,
@@ -1159,7 +1159,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_project_analyses(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_project_analyses(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::Analyses(kind)) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -1179,7 +1179,7 @@ impl Daemon {
 
     fn handle_fs_event_project_analyses_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Created)) =
             event.kind()
@@ -1259,7 +1259,7 @@ impl Daemon {
 
     fn handle_fs_event_project_analyses_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Removed)) =
             event.kind()
@@ -1307,7 +1307,7 @@ impl Daemon {
 
     fn handle_fs_event_project_analyses_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::Project(event::Project::Analyses(event::StaticResourceEvent::Modified(
             kind,

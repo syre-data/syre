@@ -1,32 +1,32 @@
 use crate::{Update, Daemon, event as update, server, state};
 use std::assert_matches::assert_matches;
 use syre_core as core;
-use syre_fs_watcher::{EventKind, event};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible, project::analysis};
 
 impl Daemon {
     pub(super) fn handle_fs_event_analysis_file(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::AnalysisFile(kind) = event.kind() else {
             panic!("invalid event kind");
         };
 
         match kind {
-            syre_fs_watcher::event::ResourceEvent::Created => {
+            syre_fs_daemon::event::ResourceEvent::Created => {
                 self.handle_fs_event_analysis_file_created(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Removed => {
+            syre_fs_daemon::event::ResourceEvent::Removed => {
                 self.handle_fs_event_analysis_file_removed(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Renamed => {
+            syre_fs_daemon::event::ResourceEvent::Renamed => {
                 self.handle_fs_event_analysis_file_renamed(event)
             }
 
-            syre_fs_watcher::event::ResourceEvent::Moved => todo!(),
-            syre_fs_watcher::event::ResourceEvent::MovedProject => todo!(),
-            syre_fs_watcher::event::ResourceEvent::Modified(_) => {
+            syre_fs_daemon::event::ResourceEvent::Moved => todo!(),
+            syre_fs_daemon::event::ResourceEvent::MovedProject => todo!(),
+            syre_fs_daemon::event::ResourceEvent::Modified(_) => {
                 self.handle_fs_event_analysis_file_modified(event)
             }
         }
@@ -36,7 +36,7 @@ impl Daemon {
 impl Daemon {
     fn handle_fs_event_analysis_file_created(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -48,7 +48,7 @@ impl Daemon {
 
     fn handle_fs_event_analysis_file_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -129,7 +129,7 @@ impl Daemon {
 
     fn handle_fs_event_analysis_file_renamed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use syre_local::types::AnalysisKind;
 
@@ -238,7 +238,7 @@ impl Daemon {
 
     fn handle_fs_event_analysis_file_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::AnalysisFile(event::ResourceEvent::Modified(kind)) = event.kind() else {
             panic!("invalid kind");
@@ -252,7 +252,7 @@ impl Daemon {
 
     fn handle_fs_event_analysis_file_modified_other(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -308,7 +308,7 @@ impl Daemon {
         }
     }
 
-    fn handle_analysis_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_analysis_file_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let path = match &event.paths()[..] {
             [path] => path,
             [_from, to] => to,

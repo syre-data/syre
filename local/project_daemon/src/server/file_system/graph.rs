@@ -1,8 +1,8 @@
 use crate::{
-    common,
+    Daemon, common,
     event::{self as update, Update},
     server::{self, state::project::graph},
-    state, Daemon,
+    state,
 };
 use std::{
     assert_matches::assert_matches,
@@ -10,11 +10,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use syre_core::{self as core, types::ResourceId};
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible};
 
 impl Daemon {
-    pub(super) fn handle_fs_event_graph(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_graph(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Graph(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -29,7 +29,7 @@ impl Daemon {
 
     pub(super) fn handle_fs_event_graph_resource(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::GraphResource(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -43,7 +43,7 @@ impl Daemon {
 
 impl Daemon {
     #[cfg(target_os = "windows")]
-    fn handle_fs_event_graph_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_graph_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         use std::fs;
 
         use local::{loader::container, project};
@@ -184,7 +184,7 @@ impl Daemon {
     }
 
     #[cfg(not(target_os = "windows"))]
-    fn handle_fs_event_graph_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_graph_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
@@ -232,7 +232,7 @@ impl Daemon {
         )]
     }
 
-    fn handle_fs_event_graph_moved(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_graph_moved(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::Graph(event::Graph::Moved) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -284,7 +284,7 @@ impl Daemon {
 impl Daemon {
     fn handle_fs_event_graph_resource_removed(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         assert_matches!(
             event.kind(),

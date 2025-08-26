@@ -1,4 +1,4 @@
-//! File system watcher.
+//! File system daemon.
 // NB: `notify_debouncer_full` does a pretty good job of eliminating intermediate events.
 // e.g. If a folder was created then moved, `notify_debouncer_full` will only emit
 // a folder created event at the final path.

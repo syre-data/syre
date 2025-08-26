@@ -16,7 +16,7 @@ use test_utils::project::{Build, Fireworks, Options, Project};
 type ContainerTree = ResourceTree<Container>;
 
 #[test_log::test]
-fn watcher_convert_fs_events_should_work() {
+fn daemon_convert_fs_events_should_work() {
     let options = Options::new()
         .with_fs()
         .with_assets()

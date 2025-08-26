@@ -1,31 +1,31 @@
 use crate::{common, event as update, server, state, Update, Daemon};
 use std::{assert_matches::assert_matches, path::PathBuf};
 use syre_core as core;
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_daemon::{event, EventKind};
 use syre_local::{self as local, TryReducible};
 
 impl Daemon {
     pub(super) fn handle_fs_event_asset_file(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         let EventKind::AssetFile(kind) = event.kind() else {
             panic!("invalid event kind");
         };
 
         match kind {
-            syre_fs_watcher::event::ResourceEvent::Created => {
+            syre_fs_daemon::event::ResourceEvent::Created => {
                 self.handle_fs_event_asset_file_created(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Removed => {
+            syre_fs_daemon::event::ResourceEvent::Removed => {
                 self.handle_fs_event_asset_file_removed(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Renamed => {
+            syre_fs_daemon::event::ResourceEvent::Renamed => {
                 self.handle_fs_event_asset_file_renamed(event)
             }
-            syre_fs_watcher::event::ResourceEvent::Moved => todo!(),
-            syre_fs_watcher::event::ResourceEvent::MovedProject => todo!(),
-            syre_fs_watcher::event::ResourceEvent::Modified(_) => {
+            syre_fs_daemon::event::ResourceEvent::Moved => todo!(),
+            syre_fs_daemon::event::ResourceEvent::MovedProject => todo!(),
+            syre_fs_daemon::event::ResourceEvent::Modified(_) => {
                 self.handle_fs_event_asset_file_modified(event)
             }
         }
@@ -33,7 +33,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_asset_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_asset_file_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Created)
@@ -131,7 +131,7 @@ impl Daemon {
         )]
     }
 
-    fn handle_fs_event_asset_file_removed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_asset_file_removed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Removed)
@@ -237,7 +237,7 @@ impl Daemon {
         )]
     }
 
-    fn handle_fs_event_asset_file_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_asset_file_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Renamed)
@@ -345,7 +345,7 @@ impl Daemon {
 
     fn handle_fs_event_asset_file_modified(
         &mut self,
-        event: syre_fs_watcher::Event,
+        event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
         use event::ModifiedKind;
 

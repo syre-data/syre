@@ -24,7 +24,7 @@ pub enum Command {
         tx: Sender<Result<Option<PathBuf>, file_path_from_id::Error>>,
     },
 
-    /// Shutdown the watcher.
+    /// Shutdown the daemon.
     Shutdown,
 }
 

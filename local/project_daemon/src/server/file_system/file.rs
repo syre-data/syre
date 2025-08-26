@@ -1,9 +1,9 @@
 use crate::{event::Update, Daemon};
 use std::assert_matches::assert_matches;
-use syre_fs_watcher::{event, EventKind};
+use syre_fs_daemon::{event, EventKind};
 
 impl Daemon {
-    pub(super) fn handle_fs_event_file(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    pub(super) fn handle_fs_event_file(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::File(kind) = event.kind() else {
             panic!("invalid event kind");
         };
@@ -20,7 +20,7 @@ impl Daemon {
 }
 
 impl Daemon {
-    fn handle_fs_event_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_file_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Created));
 
         let [path] = &event.paths()[..] else {
@@ -31,7 +31,7 @@ impl Daemon {
         vec![]
     }
 
-    fn handle_fs_event_file_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_file_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Renamed));
 
         let [from, to] = &event.paths()[..] else {
@@ -43,7 +43,7 @@ impl Daemon {
         vec![]
     }
 
-    fn handle_fs_event_file_removed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_file_removed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Removed));
 
         let [path] = &event.paths()[..] else {
@@ -55,7 +55,7 @@ impl Daemon {
         vec![]
     }
 
-    fn handle_fs_event_file_modified(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
+    fn handle_fs_event_file_modified(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         let EventKind::File(event::ResourceEvent::Modified(kind)) = event.kind() else {
             panic!("invalid event kind");
         };

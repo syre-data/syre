@@ -7,7 +7,7 @@ pub mod commands;
 pub mod common;
 pub mod constants;
 mod fs_action;
-pub(crate) mod project_watcher;
+pub(crate) mod project_daemon;
 pub mod settings;
 mod setup;
 pub mod state;

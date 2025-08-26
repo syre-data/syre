@@ -1,5 +1,5 @@
 use crate::{
-    Watcher,
+    Daemon,
     event::{self as update, Update},
     server::state,
 };
@@ -7,7 +7,7 @@ use std::{assert_matches::assert_matches, io};
 use syre_fs_watcher::{EventKind, event};
 use syre_local::TryReducible;
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -24,7 +24,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_app_project_manifest(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -353,7 +353,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_app_user_manifest(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::UserManifest(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -547,7 +547,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_app_local_config(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Config(event::Config::LocalConfig(kind)) = event.kind() else {
             panic!("invalid event kind");

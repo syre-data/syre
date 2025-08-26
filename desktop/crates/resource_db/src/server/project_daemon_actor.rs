@@ -1,14 +1,14 @@
 //! Actor for listening to project updates.
-use syre_project_daemon as project_watcher;
+use syre_project_daemon as project_daemon;
 use tokio::sync::mpsc;
 
 /// Builder for [`Actor`].
 pub struct Builder {
-    event_tx: mpsc::UnboundedSender<Vec<project_watcher::Update>>,
+    event_tx: mpsc::UnboundedSender<Vec<project_daemon::Update>>,
 }
 
 impl Builder {
-    pub fn new(event_tx: mpsc::UnboundedSender<Vec<project_watcher::Update>>) -> Self {
+    pub fn new(event_tx: mpsc::UnboundedSender<Vec<project_daemon::Update>>) -> Self {
         Self { event_tx }
     }
 
@@ -18,11 +18,11 @@ impl Builder {
         let zmq_context = zmq::Context::new();
         let zmq_socket = zmq_context.socket(zmq::SUB).unwrap();
         zmq_socket
-            .set_subscribe(project_watcher::constants::PUB_SUB_TOPIC.as_bytes())
+            .set_subscribe(project_daemon::constants::PUB_SUB_TOPIC.as_bytes())
             .unwrap();
 
         zmq_socket
-            .connect(&project_watcher::common::zmq_url(zmq::SUB).unwrap())
+            .connect(&project_daemon::common::zmq_url(zmq::SUB).unwrap())
             .unwrap();
 
         let actor = Actor {
@@ -39,13 +39,13 @@ pub struct Actor {
     /// Socket to listen for updates on.
     zmq_socket: zmq::Socket,
 
-    event_tx: mpsc::UnboundedSender<Vec<project_watcher::Update>>,
+    event_tx: mpsc::UnboundedSender<Vec<project_daemon::Update>>,
 }
 
 impl Actor {
     /// Listen for database updates and send them to main window.
     fn run(&self) {
-        if !project_watcher::Client::server_available() {
+        if !project_daemon::Client::server_available() {
             panic!("`syre-project-daemon` not available");
         }
 
@@ -87,7 +87,7 @@ impl Actor {
                 message.push_str(msg);
             }
 
-            let updates: Vec<project_watcher::Update> = match serde_json::from_str(&message) {
+            let updates: Vec<project_daemon::Update> = match serde_json::from_str(&message) {
                 Ok(events) => events,
                 Err(err) => {
                     #[cfg(feature = "tracing")]

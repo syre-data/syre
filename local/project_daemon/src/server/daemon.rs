@@ -184,7 +184,7 @@ impl Builder {
         }
 
         tracing::trace!(target: "syre::local::database::state", ?state);
-        let mut db = Watcher {
+        let mut db = Daemon {
             config: self.config,
             state,
             query_rx,
@@ -231,7 +231,7 @@ impl Builder {
 /// + [`crate::constants::pub_sub_topic::PROJECT_UNKNOWN`]: Changes to a project whose id could not be obtained.
 ///     It is left to the client application to infer the project based on the paths.
 /// + `[crate::constants::pub_sub_topic::PROJECT_PREFIX]/{id}`: Changes made to the project with resource id `id`.
-pub struct Watcher {
+pub struct Daemon {
     config: Config,
     state: super::State,
     query_rx: Receiver<Query>,
@@ -242,7 +242,7 @@ pub struct Watcher {
     update_tx: zmq::Socket,
 }
 
-impl Watcher {
+impl Daemon {
     /// Begin responding to events.
     pub fn start(&mut self) {
         self.listen_for_events();
@@ -374,7 +374,7 @@ mod windows {
     use super::*;
     use std::path::Path;
 
-    impl Watcher {
+    impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
@@ -414,7 +414,7 @@ mod macos {
 
     const TRASH_PATH: &str = ".Trash";
 
-    impl Watcher {
+    impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]
@@ -554,7 +554,7 @@ mod linux {
     use super::*;
     use std::path::Path;
 
-    impl Watcher {
+    impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[tracing::instrument(skip(self))]

@@ -1,5 +1,5 @@
 use crate::{
-    Watcher, common,
+    Daemon, common,
     event::{self as update, Update},
     server, state,
 };
@@ -7,7 +7,7 @@ use std::{assert_matches::assert_matches, io, path::PathBuf};
 use syre_fs_watcher::{EventKind, event};
 use syre_local::{TryReducible, error::IoSerde, loader};
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_container(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -27,7 +27,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_renamed(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),
@@ -107,7 +107,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_config_dir(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -411,7 +411,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_properties(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -761,7 +761,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_settings(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Settings(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -1093,7 +1093,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_assets(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Assets(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -1497,7 +1497,7 @@ mod assets {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_container_flags(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Container(event::Container::Flags(kind)) = event.kind() else {
             panic!("invalid event kind");

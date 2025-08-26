@@ -1,5 +1,5 @@
 use crate::{
-    Watcher, common,
+    Daemon, common,
     event::{self as update, Update},
     server, state,
 };
@@ -7,7 +7,7 @@ use std::assert_matches::assert_matches;
 use syre_fs_watcher::{EventKind, event};
 use syre_local::{self as local, TryReducible};
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_folder(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Folder(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -24,7 +24,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_folder_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(
             event.kind(),

@@ -2,7 +2,7 @@ use super::{Store, store};
 use crate::Command;
 use std::{path::PathBuf, thread};
 use syre_core::types::ResourceId;
-use syre_project_daemon as project_watcher;
+use syre_project_daemon as project_daemon;
 use tokio::sync::mpsc;
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
@@ -23,13 +23,13 @@ impl Builder {
     #[tokio::main]
     pub async fn run(self) -> surrealdb::Result<()> {
         let (project_event_tx, project_event_rx) = mpsc::unbounded_channel();
-        let project_actor = super::project_watcher_actor::Builder::new(project_event_tx);
+        let project_actor = super::project_daemon_actor::Builder::new(project_event_tx);
         thread::Builder::new()
-            .name("syre desktop resource db project watcher actor".to_string())
+            .name("syre desktop resource db project daemon actor".to_string())
             .spawn(move || {
                 project_actor.run();
             })
-            .expect("could not launch project watcher actor");
+            .expect("could not launch project daemon actor");
 
         let mut db = Database::new(self.query_rx, project_event_rx).await?;
         db.run().await;
@@ -38,19 +38,19 @@ impl Builder {
 }
 
 struct Database {
-    pw_client: project_watcher::Client,
+    pw_client: project_daemon::Client,
     store: Store,
     query_rx: mpsc::UnboundedReceiver<Command>,
-    project_event_rx: mpsc::UnboundedReceiver<Vec<project_watcher::Update>>,
+    project_event_rx: mpsc::UnboundedReceiver<Vec<project_daemon::Update>>,
 }
 
 impl Database {
     async fn new(
         query_rx: mpsc::UnboundedReceiver<Command>,
-        project_event_rx: mpsc::UnboundedReceiver<Vec<project_watcher::Update>>,
+        project_event_rx: mpsc::UnboundedReceiver<Vec<project_daemon::Update>>,
     ) -> surrealdb::Result<Self> {
         Ok(Self {
-            pw_client: project_watcher::Client::new(),
+            pw_client: project_daemon::Client::new(),
             store: Store::new().await?,
             query_rx,
             project_event_rx,
@@ -116,7 +116,7 @@ impl Database {
     #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all, fields(project.path = ?project.path())))]
     async fn init_project(
         &self,
-        project: &project_watcher::state::Project,
+        project: &project_daemon::state::Project,
     ) -> Result<(), error::ProjectInit> {
         #[derive(serde::Serialize)]
         struct ProjectRecordLinks {
@@ -130,7 +130,7 @@ impl Database {
             .await
             .unwrap();
 
-        let project_watcher::state::FolderResource::Present(project_data) = project.fs_resource()
+        let project_daemon::state::FolderResource::Present(project_data) = project.fs_resource()
         else {
             #[cfg(feature = "tracing")]
             tracing::trace!(
@@ -140,7 +140,7 @@ impl Database {
             return Ok(());
         };
 
-        let project_watcher::state::DataResource::Ok(properties) = project_data.properties() else {
+        let project_daemon::state::DataResource::Ok(properties) = project_data.properties() else {
             #[cfg(feature = "tracing")]
             tracing::trace!("project {:?} properties is corrupt", project.path());
             return Err(error::ProjectInit::PropertiesCorrupt);
@@ -152,7 +152,7 @@ impl Database {
             .unwrap();
 
         let settings_record_id = match project_data.settings() {
-            project_watcher::state::DataResource::Ok(settings) => {
+            project_daemon::state::DataResource::Ok(settings) => {
                 let id = self
                     .store
                     .insert_project_settings(
@@ -209,7 +209,7 @@ impl Database {
             return Err(error::ProjectResourcesInit::ProjectNotFound);
         };
 
-        let project_watcher::state::FolderResource::Present(graph) = graph else {
+        let project_daemon::state::FolderResource::Present(graph) = graph else {
             return Ok((vec![], vec![]));
         };
 
@@ -223,7 +223,7 @@ impl Database {
         &self,
         project_id: surrealdb::RecordId,
         parent: Option<PathBuf>,
-        graph: project_watcher::state::Graph,
+        graph: project_daemon::state::Graph,
     ) -> Result<(Vec<surrealdb::RecordId>, Vec<surrealdb::RecordId>), error::ProjectResourcesInit>
     {
         let paths = paths_from_graph_data(&graph);
@@ -281,7 +281,7 @@ impl Database {
         store: Store,
         project_id: surrealdb::RecordId,
         path: PathBuf,
-        container: project_watcher::state::Container,
+        container: project_daemon::state::Container,
     ) -> (surrealdb::RecordId, Option<Vec<surrealdb::RecordId>>) {
         #[derive(serde::Serialize)]
         struct ContainerRecordLinks {
@@ -295,7 +295,7 @@ impl Database {
             .unwrap();
 
         let properties_record_id =
-            if let project_watcher::state::DataResource::Ok(properties) = container.properties() {
+            if let project_daemon::state::DataResource::Ok(properties) = container.properties() {
                 let rid = container.rid().unwrap();
                 let record_id = store
                     .insert_container_properties(
@@ -313,7 +313,7 @@ impl Database {
             };
 
         let settings_record_id =
-            if let project_watcher::state::DataResource::Ok(settings) = container.settings() {
+            if let project_daemon::state::DataResource::Ok(settings) = container.settings() {
                 let record_id = store
                     .insert_container_settings(
                         project_id.clone(),
@@ -339,7 +339,7 @@ impl Database {
         assert!(_update.is_some());
 
         let mut asset_record_ids = None;
-        if let project_watcher::state::DataResource::Ok(assets) = container.assets() {
+        if let project_daemon::state::DataResource::Ok(assets) = container.assets() {
             let record_ids = store
                 .insert_assets(
                     project_id.clone(),
@@ -355,7 +355,7 @@ impl Database {
             let _ = asset_record_ids.insert(record_ids);
         }
 
-        if let project_watcher::state::DataResource::Ok(flags) = container.flags() {
+        if let project_daemon::state::DataResource::Ok(flags) = container.flags() {
             let root_dir = PathBuf::from("/");
             for (path, resource_flags) in flags {
                 let resource = if *path == root_dir {
@@ -413,9 +413,9 @@ impl Database {
 //     }
 // }
 
-fn paths_from_graph_data(graph: &project_watcher::state::Graph) -> Vec<PathBuf> {
+fn paths_from_graph_data(graph: &project_daemon::state::Graph) -> Vec<PathBuf> {
     fn inner(
-        graph: &project_watcher::state::Graph,
+        graph: &project_daemon::state::Graph,
         paths: &mut Vec<PathBuf>,
         idx: usize,
         root: PathBuf,

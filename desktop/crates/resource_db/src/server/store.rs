@@ -1111,7 +1111,7 @@ pub mod asset {
     use serde::Serialize;
     use std::{collections::HashMap, path::PathBuf};
     use syre_core as core;
-    use syre_project_daemon as project_watcher;
+    use syre_project_daemon as project_daemon;
 
     impl Store {
         #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
@@ -1119,7 +1119,7 @@ pub mod asset {
             &self,
             project_id: surrealdb::RecordId,
             container_id: surrealdb::RecordId,
-            asset: project_watcher::state::Asset,
+            asset: project_daemon::state::Asset,
         ) -> surrealdb::Result<surrealdb::RecordId> {
             #[derive(Serialize)]
             struct Record {
@@ -1189,7 +1189,7 @@ pub mod asset {
             &self,
             project_id: surrealdb::RecordId,
             container_id: surrealdb::RecordId,
-            assets: Vec<project_watcher::state::Asset>,
+            assets: Vec<project_daemon::state::Asset>,
         ) -> surrealdb::Result<Vec<surrealdb::RecordId>> {
             #[derive(Serialize)]
             struct Record {
@@ -1212,7 +1212,7 @@ pub mod asset {
                 metadata_search: String,
             }
 
-            let asset_to_record = move |asset: project_watcher::state::Asset| {
+            let asset_to_record = move |asset: project_daemon::state::Asset| {
                 let fs_resource_present = asset.is_present();
                 let rid = asset.rid().clone().to_string();
                 let created = asset.properties.created().clone();

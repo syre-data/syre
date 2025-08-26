@@ -1,5 +1,5 @@
 mod database;
-mod project_watcher_actor;
+mod project_daemon_actor;
 pub(self) mod store;
 
 pub use database::Builder;

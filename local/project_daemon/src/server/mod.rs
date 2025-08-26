@@ -1,7 +1,7 @@
 //! Database that watches file system for changes, publishing them for clients.
+pub(self) mod daemon;
 mod state;
 mod types;
-pub(self) mod watcher;
 
+pub use daemon::{Builder, Config, Daemon, config};
 use state::State;
-pub use watcher::{config, Builder, Config, Watcher};

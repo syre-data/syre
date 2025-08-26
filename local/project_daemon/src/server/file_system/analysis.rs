@@ -1,10 +1,10 @@
-use crate::{Update, Watcher, event as update, server, state};
+use crate::{Update, Daemon, event as update, server, state};
 use std::assert_matches::assert_matches;
 use syre_core as core;
 use syre_fs_watcher::{EventKind, event};
 use syre_local::{self as local, TryReducible, project::analysis};
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_analysis_file(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -33,7 +33,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_analysis_file_created(
         &mut self,
         event: syre_fs_watcher::Event,

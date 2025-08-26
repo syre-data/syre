@@ -7,12 +7,12 @@ mod folder;
 mod graph;
 mod project;
 
-use crate::{Update, Watcher};
+use crate::{Update, Daemon};
 use std::path::Path;
 use syre_fs_watcher::{EventKind, event};
 use syre_local as local;
 
-impl Watcher {
+impl Daemon {
     pub fn process_file_system_events(
         &mut self,
         events: Vec<syre_fs_watcher::Event>,
@@ -43,7 +43,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_nonresource(
         &mut self,
         event: syre_fs_watcher::Event,

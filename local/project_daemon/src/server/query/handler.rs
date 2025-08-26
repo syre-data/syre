@@ -1,4 +1,4 @@
-use crate::{Watcher, common, constants, error, query, server, state};
+use crate::{Daemon, common, constants, error, query, server, state};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde_json::Value as JsValue;
 use std::{
@@ -8,7 +8,7 @@ use std::{
 use syre_core::{db::SearchFilter, system::User, types::ResourceId};
 use syre_local as local;
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_config(&self, query: query::Config) -> JsValue {
         match query {
             query::Config::Id => constants::DATABASE_ID.into(),
@@ -16,7 +16,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_state(&self, query: query::State) -> JsValue {
         match query {
             query::State::UserManifest => {
@@ -114,7 +114,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_user(&self, query: query::User) -> JsValue {
         match query {
             query::User::Info(id) => {
@@ -160,7 +160,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_project(&self, query: query::Project) -> JsValue {
         match query {
             query::Project::Get(project) => {
@@ -298,7 +298,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_graph(&self, query: query::Graph) -> JsValue {
         match query {
             query::Graph::Parent {
@@ -447,7 +447,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_container(&self, query: query::Container) -> JsValue {
         match query {
             query::Container::Get { project, container } => {
@@ -793,7 +793,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     pub fn handle_query_asset(&self, query: query::Asset) -> JsValue {
         match query {
             query::Asset::Parent { project, asset } => {

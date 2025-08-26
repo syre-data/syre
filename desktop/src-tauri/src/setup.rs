@@ -3,18 +3,18 @@ use crate::state;
 use std::thread;
 use syre_desktop_lib as lib;
 use syre_desktop_resource_db as resource_db;
-use syre_project_daemon::{self as project_watcher, Update};
+use syre_project_daemon::{self as project_daemon, Update};
 use tauri::{Listener, Manager};
 use tauri_plugin_store::StoreExt;
 use tauri_plugin_updater::UpdaterExt;
 
-const PROJECT_WATCHER_CONNECTION_ATTEMPTS: usize = 50;
-const PROJECT_WATCHER_CONNECTION_DELAY_MS: u64 = 100;
+const PROJECT_DAEMON_CONNECTION_ATTEMPTS: usize = 50;
+const PROJECT_DAEMON_CONNECTION_DELAY_MS: u64 = 100;
 const UPDATE_CHECK_TIMEOUT: u64 = 10; // seconds
 const TAURI_SIGNING_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBM0MxNjdEMjRBRDc5MTgKUldRWWVhMGtmUlk4K293RjN3MWpUcitrd1l5QVRPbjZxSjRSdmlqRjJDM29GTHcwM0JCUWlGRWEK";
 
 /// Runs setup tasks:
-/// 1. Launches `local/project_watcher` if needed.
+/// 1. Launches `local/project_daemon` if needed.
 /// 2. Launches `resource_db`.
 /// 3. Launches the update listener.
 /// 4. Creates the inital app state.
@@ -30,12 +30,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tauri::async_runtime::block_on(update).unwrap();
     }
 
-    setup_project_watcher(app);
+    setup_project_daemon(app);
     setup_resource_db(app);
     setup_state(app);
 
     let main = app.get_webview_window("main").unwrap();
-    main.listen(crate::project_watcher::FS_EVENT_TOPIC, move |event| {
+    main.listen(crate::project_daemon::FS_EVENT_TOPIC, move |event| {
         tracing::debug!(?event);
     });
 
@@ -126,31 +126,30 @@ async fn check_for_update(app: tauri::AppHandle) {
     }
 }
 
-fn setup_project_watcher(app: &mut tauri::App) {
-    if let Some((_rx, _child)) =
-        crate::project_watcher::start_project_watcher_if_needed(app.handle())
+fn setup_project_daemon(app: &mut tauri::App) {
+    if let Some((_rx, _child)) = crate::project_daemon::start_project_daemon_if_needed(app.handle())
     {
-        tracing::trace!("initializing project watcher");
+        tracing::trace!("initializing project daemon");
         let mut attempt = 0;
-        while !project_watcher::Client::server_available() {
+        while !project_daemon::Client::server_available() {
             attempt += 1;
-            if attempt > PROJECT_WATCHER_CONNECTION_ATTEMPTS {
-                panic!("could not connect to project watcher");
+            if attempt > PROJECT_DAEMON_CONNECTION_ATTEMPTS {
+                panic!("could not connect to project daemon");
             }
 
             std::thread::sleep(std::time::Duration::from_millis(
-                PROJECT_WATCHER_CONNECTION_DELAY_MS,
+                PROJECT_DAEMON_CONNECTION_DELAY_MS,
             ));
         }
 
-        tracing::debug!("initialized project watcher");
+        tracing::debug!("initialized project daemon");
     } else {
-        tracing::debug!("project watcher already running");
+        tracing::debug!("project daemon already running");
     };
 
-    let actor = crate::project_watcher::actor::Builder::new(app.handle().clone());
+    let actor = crate::project_daemon::actor::Builder::new(app.handle().clone());
     std::thread::Builder::new()
-        .name("syre desktop project watcher event listener".to_string())
+        .name("syre desktop project daemon event listener".to_string())
         .spawn(move || actor.run())
         .unwrap();
 }
@@ -169,9 +168,9 @@ fn setup_resource_db(app: &mut tauri::App) {
 }
 
 fn setup_state(app: &mut tauri::App) {
-    let project_client = app.state::<project_watcher::Client>();
+    let project_client = app.state::<project_daemon::Client>();
     let state = crate::State::new();
-    if let project_watcher::state::ConfigState::Ok(local_config) =
+    if let project_daemon::state::ConfigState::Ok(local_config) =
         project_client.state().local_config().unwrap()
     {
         if let Some(user) = local_config.user {

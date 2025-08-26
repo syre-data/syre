@@ -107,7 +107,7 @@ impl Actor {
 impl Actor {
     fn handle_updates(&self, topic: &str, updates: Vec<db::event::Update>) {
         tracing::debug!(?updates);
-        let topic = topic.replace("local-project-watcher", "project-watcher/update");
+        let topic = topic.replace("local-project-daemon", "project-daemon/update");
 
         let events = updates
             .into_iter()

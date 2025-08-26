@@ -14,7 +14,7 @@ pub const PUB_SUB_PORT: PortNumber = 7048;
 pub const DATASTORE_PORT: PortNumber = 7049;
 
 /// PUB-SUB topic
-pub const PUB_SUB_TOPIC: &str = "syre://local-project-watcher";
+pub const PUB_SUB_TOPIC: &str = "syre://local-project-daemon";
 
 /// Identifier string for the database
 ///
@@ -22,7 +22,7 @@ pub const PUB_SUB_TOPIC: &str = "syre://local-project-watcher";
 /// This value is hardcoded in the language bindings.
 /// If it changes you **must** change it there as well.
 /// They should be marked with `DATABASE_ID`.
-pub const DATABASE_ID: &str = "syre local project watcher";
+pub const DATABASE_ID: &str = "syre local project daemon";
 
 pub mod pub_sub_topic {
     pub const APP_USER_MANIFEST: &str = "app/user_manifest";

@@ -53,7 +53,7 @@ mod server {
         };
 
         let location = panic_info.location().map(|location| location.to_string());
-        tracing::error!("local/project_watcher panicked: {location:?} : {payload:?}");
+        tracing::error!("local/project_daemon panicked: {location:?} : {payload:?}");
     }
 
     mod logging {
@@ -65,7 +65,7 @@ mod server {
             prelude::*,
         };
 
-        const LOG_PREFIX: &str = "project_watcher.local.log";
+        const LOG_PREFIX: &str = "project_daemon.local.log";
 
         /// Enable logging.
         pub fn enable() {

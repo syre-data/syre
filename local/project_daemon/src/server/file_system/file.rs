@@ -1,8 +1,8 @@
-use crate::{event::Update, Watcher};
+use crate::{event::Update, Daemon};
 use std::assert_matches::assert_matches;
 use syre_fs_watcher::{event, EventKind};
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_file(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::File(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -19,7 +19,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_file_created(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Created));
 

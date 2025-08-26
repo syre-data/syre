@@ -1,7 +1,7 @@
 #![feature(io_error_more)]
 #![feature(assert_matches)]
-//! # Syre Project Watcher
-//! Implements a local project watcher daemon for Syre.
+//! # Syre Project Daemon
+//! Implements a local project daemon daemon for Syre.
 pub mod common;
 pub mod event;
 pub mod query;
@@ -32,7 +32,7 @@ pub use error::{Error, Result};
 pub use client::Client;
 
 #[cfg(feature = "server")]
-pub use server::Watcher;
+pub use server::Daemon;
 
 // #[cfg(target_arch = "wasm32")]
 pub mod serde_os_string {

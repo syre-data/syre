@@ -1,5 +1,5 @@
 use crate::{
-    Watcher, common,
+    Daemon, common,
     event::{self as update, Update},
     server, state,
 };
@@ -12,7 +12,7 @@ use syre_local::{
     types::AnalysisKind,
 };
 
-impl Watcher {
+impl Daemon {
     pub(super) fn handle_fs_event_project(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(kind) = event.kind() else {
             panic!("invalid event kind");
@@ -33,7 +33,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_folder_removed(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -78,7 +78,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_config_dir(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::ConfigDir(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -326,7 +326,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_analysis_dir(
         &mut self,
         event: syre_fs_watcher::Event,
@@ -418,7 +418,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_data_dir(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::DataDir(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -631,7 +631,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_properties(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::Properties(kind)) = event.kind() else {
             panic!("invalid event kind");
@@ -1158,7 +1158,7 @@ impl Watcher {
     }
 }
 
-impl Watcher {
+impl Daemon {
     fn handle_fs_event_project_analyses(&mut self, event: syre_fs_watcher::Event) -> Vec<Update> {
         let EventKind::Project(event::Project::Analyses(kind)) = event.kind() else {
             panic!("invalid event kind");

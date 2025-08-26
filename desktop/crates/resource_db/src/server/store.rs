@@ -1111,7 +1111,7 @@ pub mod asset {
     use serde::Serialize;
     use std::{collections::HashMap, path::PathBuf};
     use syre_core as core;
-    use syre_project_watcher as project_watcher;
+    use syre_project_daemon as project_watcher;
 
     impl Store {
         #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]

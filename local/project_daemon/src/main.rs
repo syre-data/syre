@@ -12,7 +12,7 @@ fn main() {
 #[cfg(feature = "server")]
 mod server {
     use syre_local::{self as local, system::collections::ProjectManifest};
-    use syre_project_watcher::server;
+    use syre_project_daemon::server;
 
     /// Run the database with the default config.
     ///

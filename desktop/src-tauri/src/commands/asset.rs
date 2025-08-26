@@ -11,7 +11,7 @@ use syre_desktop_lib::{
     command::asset::{bulk, error},
 };
 use syre_local as local;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 /// Update a container's properties.
 #[tauri::command]

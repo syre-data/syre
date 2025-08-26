@@ -33,7 +33,7 @@ where
 /// ```
 ///
 /// # See also
-/// + [`syre_project_watcher::common::container_system_path`]
+/// + [`syre_project_daemon::common::container_system_path`]
 pub fn container_system_path(data_root: impl AsRef<Path>, container: impl AsRef<Path>) -> PathBuf {
     local::common::join_path_absolute(data_root, container)
 }

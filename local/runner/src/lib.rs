@@ -11,7 +11,7 @@ use syre_core::{
     types::ResourceId,
 };
 use syre_local::{self as local, system::config, types::AnalysisKind};
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 pub struct Builder<'a> {
     /// Project's base directory.

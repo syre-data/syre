@@ -17,7 +17,7 @@ use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 #[derive(Clone, Copy, derive_more::Deref, derive_more::From)]
 struct ShowSettings(RwSignal<bool>);

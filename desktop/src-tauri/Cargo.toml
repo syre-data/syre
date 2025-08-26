@@ -25,7 +25,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 syre-core = { workspace = true, features = ["serde"] }
 syre-local = { workspace = true, features = ["fs"] }
-syre-project-watcher = { workspace = true, features = ["client"] }
+syre-project-daemon = { workspace = true, features = ["client"] }
 syre-local-runner = { workspace = true }
 syre-desktop-lib = { path = "../crates/lib", features = ["server"] }
 syre-desktop-resource-db = { path = "../crates/resource_db" }

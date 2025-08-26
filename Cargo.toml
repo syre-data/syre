@@ -20,8 +20,8 @@ members = [
     "local",
 	"local/fs_watcher",
 	"local/fs_watcher/test_utils",
-    "local/project_watcher",
-    "local/project_watcher/cli",
+    "local/project_daemon",
+    "local/project_daemon/cli",
 	"local/simulator",
     "local/runner", 
     "utils/erase_asset_files",
@@ -32,7 +32,7 @@ default-members = ["core"]
 [workspace.dependencies]
 syre-core = { path = "core" }
 syre-local = { path = "local" }
-syre-project-watcher = { path = "local/project_watcher" }
+syre-project-daemon = { path = "local/project_daemon" }
 syre-fs-watcher = { path = "local/fs_watcher" }
 syre-local-runner = { path = "local/runner" }
 dev_utils = { path = "dev_utils" }

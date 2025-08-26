@@ -7294,7 +7294,7 @@ dependencies = [
  "syre-desktop-resource-db",
  "syre-local",
  "syre-local-runner",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -7346,7 +7346,7 @@ dependencies = [
  "syre-core",
  "syre-local",
  "syre-local-runner",
- "syre-project-watcher",
+ "syre-project-daemon",
  "trash",
  "uuid",
 ]
@@ -7364,7 +7364,7 @@ dependencies = [
  "surrealdb-nightly",
  "syre-core",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tokio",
  "tracing",
  "tracing-flame",
@@ -7403,7 +7403,7 @@ dependencies = [
  "syre-desktop-workspace-db",
  "syre-desktop-workspace-graph",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tauri-sys",
  "time",
  "tracing",
@@ -7452,7 +7452,7 @@ dependencies = [
  "syre-core",
  "syre-desktop-lib",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tauri-sys",
  "web-sys",
 ]
@@ -7474,7 +7474,7 @@ dependencies = [
  "syre-desktop-lib",
  "syre-desktop-resource-db",
  "syre-desktop-ui-lib",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tauri-sys",
  "tracing",
  "wasm-bindgen",
@@ -7503,7 +7503,7 @@ dependencies = [
  "syre-desktop-ui-components",
  "syre-desktop-ui-lib",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tauri-sys",
  "tracing",
  "wasm-bindgen",
@@ -7594,8 +7594,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "syre-local-project-watcher-cli"
-version = "0.0.1"
+name = "syre-local-project-daemon-cli"
+version = "0.0.0"
 dependencies = [
  "clap",
  "notify",
@@ -7604,7 +7604,7 @@ dependencies = [
  "serde_json",
  "syre-core",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -7619,12 +7619,12 @@ dependencies = [
  "serde_json",
  "syre-core",
  "syre-local",
- "syre-project-watcher",
+ "syre-project-daemon",
  "tracing",
 ]
 
 [[package]]
-name = "syre-project-watcher"
+name = "syre-project-daemon"
 version = "0.0.3"
 dependencies = [
  "chrono",

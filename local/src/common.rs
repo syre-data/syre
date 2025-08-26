@@ -26,7 +26,7 @@ use std::io;
 /// ```
 ///
 /// # See also
-/// + [`syre_project_watcher::common::container_system_path`]
+/// + [`syre_project_daemon::common::container_system_path`]
 pub fn join_path_absolute(root: impl AsRef<Path>, child: impl AsRef<Path>) -> PathBuf {
     root.as_ref()
         .components()

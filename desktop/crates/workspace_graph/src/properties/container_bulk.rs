@@ -35,7 +35,7 @@ mod state {
     use syre_core::types::ResourceId;
     use syre_desktop_editors::common::bulk;
     use syre_desktop_ui_lib as ui_lib;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
 
     #[derive(Clone, Debug)]
     pub struct State {
@@ -574,7 +574,7 @@ mod name {
     use syre_desktop_editors::common::bulk::Value;
     use syre_desktop_lib as lib;
     use syre_desktop_ui_lib as ui_lib;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
 
     #[component]
     pub fn Editor() -> impl IntoView {
@@ -1309,7 +1309,7 @@ mod analysis_associations {
     use syre_desktop_ui_components::DetailPopout;
     use syre_desktop_ui_lib as ui_lib;
     use syre_local as local;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
 
     #[derive(Clone)]
     pub struct State {

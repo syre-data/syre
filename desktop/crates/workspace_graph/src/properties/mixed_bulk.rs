@@ -30,7 +30,7 @@ mod state {
     use std::collections::HashMap;
     use syre_desktop_editors::common::bulk;
     use syre_desktop_ui_lib as ui_lib;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
 
     #[derive(Clone, Debug)]
     pub struct State {

@@ -1,5 +1,5 @@
 //! Initialization functionality with a [`Database`].
-use syre_project_watcher::Client as WatcherClient;
+use syre_project_daemon::Client as WatcherClient;
 use tauri::async_runtime::Receiver;
 use tauri_plugin_shell::{
     ShellExt,
@@ -25,8 +25,8 @@ pub fn start_project_watcher_if_needed(
 /// Initializes a [`Database`] as a sidecar process.
 fn init_project_watcher(app: &tauri::AppHandle) -> (Receiver<CommandEvent>, CommandChild) {
     app.shell()
-        .sidecar("syre-project-watcher")
-        .expect("failed to create `syre-project-watcher` binary command")
+        .sidecar("syre-project-daemon")
+        .expect("failed to create `syre-project-daemon` binary command")
         .spawn()
         .expect("failed to spawn sidecar")
 }

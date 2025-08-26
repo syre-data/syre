@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use syre_core::types::ResourceId;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 /// App state.
 pub struct State {

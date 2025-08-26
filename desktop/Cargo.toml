@@ -34,7 +34,7 @@ syre-desktop-lib = { path = "crates/lib" }
 syre-desktop-ui-lib = { path = "crates/ui_lib" }
 syre-desktop-ui-components = { path = "crates/ui_components" }
 syre-local.workspace = true
-syre-project-watcher.workspace = true
+syre-project-daemon.workspace = true
 syre-desktop-editors ={ path = "crates/editors" }
 syre-desktop-resource-db = { path = "crates/resource_db", default-features = false }
 syre-desktop-workspace-db = { path = "crates/workspace_db" }

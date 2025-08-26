@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use syre_core::system::User;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -13,7 +13,7 @@ use syre_desktop_lib as lib;
 use syre_desktop_ui_components::{ModalDialog, TruncateLeft};
 use syre_desktop_ui_lib as ui_lib;
 use syre_local as local;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 use tauri_sys::{core::Channel, menu};
 use web_sys::{MouseEvent, SubmitEvent};
 

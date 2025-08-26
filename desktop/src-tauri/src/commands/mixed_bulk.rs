@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use syre_core::{project::Asset, types::ResourceId};
 use syre_desktop_lib::command;
 use syre_local as local;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 /// # Returns
 /// Results each resources update as (containers, assets).

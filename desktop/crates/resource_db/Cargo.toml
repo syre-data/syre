@@ -21,7 +21,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 syre-core.workspace = true
 syre-local = { workspace = true, optional = true }
-syre-project-watcher = { workspace = true, optional = true }
+syre-project-daemon = { workspace = true, optional = true }
 tokio = { version = "1.36", features = ["sync", "rt"], optional = true }
 tracing = { workspace = true, optional = true }
 tracing-flame = { workspace = true, optional = true }
@@ -47,7 +47,7 @@ default = ["server", "client"]
 server = [
     "dep:zmq",
     "surrealdb/kv-mem",
-    "syre-project-watcher/client",
+    "syre-project-daemon/client",
     "syre-local",
     "tokio/macros",
     "tokio/rt-multi-thread",

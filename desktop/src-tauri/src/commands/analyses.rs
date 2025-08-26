@@ -3,7 +3,7 @@ use std::{assert_matches::assert_matches, fs, io, path::PathBuf};
 use syre_core::{project::ScriptLang, types::ResourceId};
 use syre_desktop_lib::{self as lib};
 use syre_local as local;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 
 #[tauri::command]
 pub async fn project_add_analyses(

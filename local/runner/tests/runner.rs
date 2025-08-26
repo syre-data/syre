@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use syre_core::project::{Container, Project, Script};
 use syre_core::types::ResourceMap;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 use syre_local_runner::Runner;
 
 #[test]

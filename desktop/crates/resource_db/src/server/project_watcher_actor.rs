@@ -1,5 +1,5 @@
 //! Actor for listening to project updates.
-use syre_project_watcher as project_watcher;
+use syre_project_daemon as project_watcher;
 use tokio::sync::mpsc;
 
 /// Builder for [`Actor`].
@@ -46,7 +46,7 @@ impl Actor {
     /// Listen for database updates and send them to main window.
     fn run(&self) {
         if !project_watcher::Client::server_available() {
-            panic!("`syre-project-watcher` not available");
+            panic!("`syre-project-daemon` not available");
         }
 
         'main: loop {

@@ -72,7 +72,7 @@ class Database:
         self._socket.setsockopt(zmq.RCVTIMEO, SOCKET_TIMEOUT)
         self._socket.connect(f"tcp://{LOCALHOST}:{SYRE_PORT}")
         if not self._is_database_available():
-            exe_basename = "syre-project-watcher"
+            exe_basename = "syre-project-daemon"
             os_name = platform.system()
             if os_name == "Linux":
                 exe_name = f"{exe_basename}-x86_64-unknown-linux-gnu"

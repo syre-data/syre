@@ -7,7 +7,7 @@ use std::{
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
 use syre_local as local;
-use syre_project_watcher::{self as db, common::is_root_path};
+use syre_project_daemon::{self as db, common::is_root_path};
 
 #[tauri::command]
 pub fn create_child_container(

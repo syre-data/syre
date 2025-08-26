@@ -1,6 +1,6 @@
 [package]
-name = "syre-local-project-watcher-cli"
-version = "0.0.1"
+name = "syre-local-project-daemon-cli"
+version = "0.0.0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,6 +16,6 @@ zmq = { workspace = true }
 
 syre-core = { workspace = true, features=["clap"] }
 syre-local = { workspace = true }
-syre-project-watcher = { workspace = true, features = ["client"] }
+syre-project-daemon = { workspace = true, features = ["client"] }
 notify-debouncer-full = "0.5"
 notify = "8.0"

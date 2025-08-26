@@ -21,7 +21,7 @@ syre-desktop-resource-db = { path = "../resource_db", default-features = false }
 syre-desktop-ui-components = { path = "../ui_components" }
 syre-desktop-ui-lib = { path = "../ui_lib" }
 syre-local.workspace = true
-syre-project-watcher.workspace = true
+syre-project-daemon.workspace = true
 tracing.workspace = true
 tauri-sys = { workspace = true, features = ["core", "menu"] }
 wasm-bindgen.workspace = true

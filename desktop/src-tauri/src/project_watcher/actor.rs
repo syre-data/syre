@@ -4,7 +4,7 @@ use crate::state;
 use std::collections::HashMap;
 use syre_desktop_lib as lib;
 use syre_local as local;
-use syre_project_watcher as db;
+use syre_project_daemon as db;
 use tauri::{Emitter, EventTarget, Manager};
 use uuid::Uuid;
 

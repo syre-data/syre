@@ -1,4 +1,4 @@
-//! Interaction with a [`project watcher`](syre_project_watcher::server::Watcher).
+//! Interaction with a [`project watcher`](syre_project_daemon::server::Watcher).
 pub mod actor;
 mod init;
 

@@ -17,7 +17,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build());
 
     builder
-        .manage(syre_project_watcher::Client::new())
+        .manage(syre_project_daemon::Client::new())
         .manage(state::new_slice(Option::<state::AnalyzerAction>::None))
         .invoke_handler(tauri::generate_handler![
             analyses::project_add_analyses,

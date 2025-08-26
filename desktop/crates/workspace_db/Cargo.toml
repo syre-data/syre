@@ -15,7 +15,7 @@ syre-core.workspace = true
 syre-desktop-lib = { path = "../lib" }
 syre-desktop-resource-db = { path = "../resource_db", default-features = false }
 syre-desktop-ui-lib = { path = "../ui_lib" }
-syre-project-watcher.workspace = true
+syre-project-daemon.workspace = true
 syre-desktop-editors = { path = "../editors" }
 tauri-sys = { workspace = true, features = ["core"] }
 tracing.workspace = true

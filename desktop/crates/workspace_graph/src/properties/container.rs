@@ -95,7 +95,7 @@ mod properties {
     use syre_desktop_lib as lib;
     use syre_desktop_ui_lib as ui_lib;
     use syre_local as local;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
     use tags::Editor as Tags;
 
     #[derive(Clone, Copy)]
@@ -446,7 +446,7 @@ mod properties {
         use syre_desktop_lib as lib;
         use syre_desktop_ui_components::form::debounced::value;
         use syre_desktop_ui_lib as ui_lib;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[component]
         pub fn Editor(
@@ -554,7 +554,7 @@ mod properties {
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[component]
         pub fn Editor(
@@ -609,7 +609,7 @@ mod properties {
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[component]
         pub fn Editor(
@@ -666,7 +666,7 @@ mod properties {
         use leptos::{prelude::*, task::spawn_local};
         use syre_core::types::ResourceId;
         use syre_desktop_ui_lib as ui_lib;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[component]
         pub fn Editor(
@@ -729,7 +729,7 @@ mod properties {
         use syre_core::types::{ResourceId, Value};
         use syre_desktop_ui_components::DetailPopout;
         use syre_desktop_ui_lib as ui_lib;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[derive(Clone, derive_more::Deref)]
         struct ActiveResource(ReadSignal<ResourceId>);
@@ -966,7 +966,7 @@ mod properties {
         use syre_desktop_ui_components::DetailPopout;
         use syre_desktop_ui_lib as ui_lib;
         use syre_local as local;
-        use syre_project_watcher as db;
+        use syre_project_daemon as db;
 
         #[component]
         pub fn AddAssociation(

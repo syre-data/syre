@@ -2,7 +2,7 @@ use super::{Store, store};
 use crate::Command;
 use std::{path::PathBuf, thread};
 use syre_core::types::ResourceId;
-use syre_project_watcher as project_watcher;
+use syre_project_daemon as project_watcher;
 use tokio::sync::mpsc;
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
@@ -462,7 +462,7 @@ mod project_events {
     use std::{collections::HashMap, path::PathBuf};
     use syre_core as core;
     use syre_local as local;
-    use syre_project_watcher::{Update, event, state};
+    use syre_project_daemon::{Update, event, state};
 
     impl Database {
         pub(super) async fn handle_update_events(&self, events: Vec<Update>) {

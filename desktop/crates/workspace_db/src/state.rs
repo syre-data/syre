@@ -6,7 +6,7 @@ pub mod data {
     };
     use syre_core as core;
     use syre_desktop_ui_lib as ui_lib;
-    use syre_project_watcher as db;
+    use syre_project_daemon as db;
 
     #[derive(Clone)]
     pub struct Datum {

@@ -15,7 +15,7 @@ serde_json.workspace = true
 syre-core = { workspace = true, features = ["serde"] }
 syre-desktop-lib ={ path = "../lib"}
 syre-local.workspace = true
-syre-project-watcher.workspace = true
+syre-project-daemon.workspace = true
 tauri-sys = { workspace = true, features = ["core"] }
 web-sys = { workspace = true, features = ["Window"] }
 

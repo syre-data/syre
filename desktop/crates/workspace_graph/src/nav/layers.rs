@@ -2,7 +2,7 @@ use super::super::workspace::ViewboxState;
 use crate::{types, utils};
 use futures::StreamExt;
 use leptos::{either::Either, ev::MouseEvent, prelude::*, task::spawn_local};
-use leptos_icons::{Icon, Symbol};
+use leptos_icons::Symbol;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;

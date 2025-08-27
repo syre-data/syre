@@ -20,7 +20,7 @@ mod windows;
 mod linux;
 
 use super::{actor::FileSystemActor, path_watcher};
-use crate::{command::WatcherCommand, event::EventResult, Command, Error, Event, EventKind};
+use crate::{Command, Error, Event, EventKind, command::WatcherCommand, event::EventResult};
 use crossbeam::channel::{Receiver, Sender};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, FileIdCache, FileIdMap};
 use std::{
@@ -316,7 +316,7 @@ impl FsWatcher {
         let path = path.as_ref();
         let id = {
             let file_ids = self.file_ids.lock().unwrap();
-            let Some(id) = file_ids.cached_file_id(path).cloned() else {
+            let Some(id) = file_ids.cached_file_id(path).map(|id| id.as_ref().clone()) else {
                 tx.send(Ok(None)).unwrap();
                 return;
             };

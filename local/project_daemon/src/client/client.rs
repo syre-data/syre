@@ -1,5 +1,5 @@
 //! Client to interact with a [`Database`].
-use crate::{common, constants::LOCALHOST, types::PortNumber, Query};
+use crate::{Query, common, constants::LOCALHOST, types::PortNumber};
 use serde_json::Value as JsValue;
 use std::net::TcpListener;
 
@@ -121,9 +121,8 @@ impl Client {
 mod state {
     use super::Config;
     use crate::{
-        common, query,
+        Query, common, query,
         state::{self, ConfigState, ManifestState},
-        Query,
     };
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
@@ -253,7 +252,7 @@ mod state {
 
 mod user {
     use super::Config;
-    use crate::{common, query, state, Query};
+    use crate::{Query, common, query, state};
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::{system::User, types::ResourceId};
@@ -321,11 +320,7 @@ mod user {
 
 mod project {
     use super::Config;
-    use crate::{
-        common, query,
-        state::{self, Analysis},
-        Query,
-    };
+    use crate::{Query, common, query, state};
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::types::ResourceId;
@@ -434,7 +429,7 @@ mod project {
 
 mod container {
     use super::Config;
-    use crate::{common, error, query, state, Query};
+    use crate::{Query, common, error, query, state};
     use serde_json::Value as JsValue;
     use std::path::PathBuf;
     use syre_core::types::ResourceId;

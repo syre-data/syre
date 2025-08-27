@@ -1393,7 +1393,6 @@ pub mod bulk {
         #[derive(Clone, Debug)]
         pub struct Metadatum {
             key: String,
-            base_values: Vec<ReadSignal<syre_core::types::Value>>,
             value: Signal<Value>,
         }
 
@@ -1431,11 +1430,7 @@ pub mod bulk {
                     }
                 });
 
-                Self {
-                    key,
-                    base_values: values,
-                    value,
-                }
+                Self { key, value }
             }
 
             pub fn key(&self) -> &String {

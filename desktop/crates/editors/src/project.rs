@@ -10,7 +10,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use syre_core as core;
 use syre_desktop_lib as lib;
-use syre_desktop_ui_components::{ModalDialog, TruncateLeft};
+use syre_desktop_ui_components::ModalDialog;
 use syre_desktop_ui_lib as ui_lib;
 use syre_local as local;
 

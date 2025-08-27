@@ -51,9 +51,9 @@ directories = "6.0"
 futures = "0.3"
 glob = "0.3" 
 ignore = "0.4"
-indexmap = "2.10"
+indexmap = "2.11"
 notify = { version = "8.0", default-features = false }
-notify-debouncer-full = { version = "0.5", default-features = false }
+notify-debouncer-full = { version = "0.6", default-features = false }
 rayon = "1.8"
 regex = "1.11"
 serde = "1.0"
@@ -83,7 +83,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
 
 # dev dependencies
-fake = "4.3"
+fake = "4.4"
 rand = "0.9"
 tempfile = "3.14"
 

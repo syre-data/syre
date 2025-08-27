@@ -1,11 +1,5 @@
 use crate::{project_bar::ProjectBar, state, types, utils};
-use leptos::{
-    either::Either,
-    ev::{Event, MouseEvent},
-    html,
-    prelude::*,
-    task::spawn_local,
-};
+use leptos::{either::Either, ev::MouseEvent, html, prelude::*, task::spawn_local};
 use leptos_icons::{Icon, Symbol};
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};

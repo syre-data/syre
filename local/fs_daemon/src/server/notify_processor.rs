@@ -189,7 +189,10 @@ impl FsWatcher {
             match event.kind {
                 NotifyEventKind::Remove(_) => {
                     let file_ids = self.file_ids.lock().unwrap();
-                    if let Some(id) = file_ids.cached_file_id(&event.paths[0]).cloned() {
+                    if let Some(id) = file_ids
+                        .cached_file_id(&event.paths[0])
+                        .map(|id| id.as_ref().clone())
+                    {
                         let entry = grouped_id.entry(id).or_insert(vec![]);
                         entry.push(event);
                         tracing::trace!("{event:?} added to grouped id");
@@ -234,7 +237,10 @@ impl FsWatcher {
 
                 NotifyEventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
                     let file_ids = self.file_ids.lock().unwrap();
-                    let Some(id) = file_ids.cached_file_id(&event.paths[0]).cloned() else {
+                    let Some(id) = file_ids
+                        .cached_file_id(&event.paths[0])
+                        .map(|id| id.as_ref().clone())
+                    else {
                         remaining.push(event);
                         tracing::trace!("{event:?} added to remaining");
                         continue;
@@ -282,7 +288,10 @@ impl FsWatcher {
                         tracing::trace!("{event:?} added to grouped id");
                     } else {
                         let file_ids = self.file_ids.lock().unwrap();
-                        let Some(id) = file_ids.cached_file_id(&event.paths[0]).cloned() else {
+                        let Some(id) = file_ids
+                            .cached_file_id(&event.paths[0])
+                            .map(|id| id.as_ref().clone())
+                        else {
                             remaining.push(event);
                             tracing::trace!("{event:?} added to remaining");
                             continue;

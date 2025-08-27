@@ -3,7 +3,7 @@ use crate::state;
 use std::thread;
 use syre_desktop_lib as lib;
 use syre_desktop_resource_db as resource_db;
-use syre_project_daemon::{self as project_daemon, Update};
+use syre_project_daemon as project_daemon;
 use tauri::{Listener, Manager};
 use tauri_plugin_store::StoreExt;
 use tauri_plugin_updater::UpdaterExt;

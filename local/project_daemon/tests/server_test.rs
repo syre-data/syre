@@ -610,7 +610,7 @@ fn test_server_state_and_updates_basics() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Created(graph)) = update else {
+    let event::Project::Subgraph(event::Subgraph::Created(graph)) = update else {
         panic!();
     };
     assert_eq!(graph.nodes.len(), 1);
@@ -1304,7 +1304,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Created(graph)) = update else {
+    let event::Project::Subgraph(event::Subgraph::Created(graph)) = update else {
         panic!();
     };
     assert_eq!(graph.nodes.len(), 1);
@@ -1344,7 +1344,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Inserted { parent, graph }) = update else {
+    let event::Project::Subgraph(event::Subgraph::Inserted { parent, graph }) = update else {
         panic!();
     };
     assert_eq!(parent.as_os_str(), "/");
@@ -1388,7 +1388,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Inserted { parent, graph }) = update else {
+    let event::Project::Subgraph(event::Subgraph::Inserted { parent, graph }) = update else {
         panic!();
     };
     assert_eq!(parent.as_os_str(), "/");
@@ -1445,7 +1445,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Renamed { from, to }) = update else {
+    let event::Project::Subgraph(event::Subgraph::Renamed { from, to }) = update else {
         panic!();
     };
     assert_eq!(*from, c2_graph_path);
@@ -1527,7 +1527,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Graph(event::Graph::Moved { from, to }) = update else {
+    let event::Project::Subgraph(event::Subgraph::Moved { from, to }) = update else {
         panic!();
     };
 

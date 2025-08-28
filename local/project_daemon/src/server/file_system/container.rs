@@ -80,7 +80,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id.clone(),
             project_path.clone(),
-            update::Graph::Renamed {
+            update::Subgraph::Renamed {
                 from: container_graph_path,
                 to: to_name,
             }

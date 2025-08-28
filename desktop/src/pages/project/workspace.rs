@@ -175,7 +175,7 @@ fn WorkspaceView(
                             handle_event_project(event, project.clone())
                         }
 
-                        db::event::Project::Graph(_)
+                        db::event::Project::Subgraph(_)
                         | db::event::Project::Container { .. }
                         | db::event::Project::Asset { .. }
                         | db::event::Project::AssetFile(_) => continue, // handled elsewhere
@@ -271,7 +271,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                         | db::event::Project::Analyses(_)
                         | db::event::Project::AnalysisFile(_) => continue, // handled elsewhere
 
-                        db::event::Project::Graph(_)
+                        db::event::Project::Subgraph(_)
                         | db::event::Project::Container { .. }
                         | db::event::Project::Asset { .. }
                         | db::event::Project::AssetFile(_) => handle_event_graph(
@@ -428,7 +428,7 @@ fn handle_event_project(event: lib::Event, project: ui_lib::state::Project) {
     };
 
     match update {
-        db::event::Project::Graph(_)
+        db::event::Project::Subgraph(_)
         | db::event::Project::Container { .. }
         | db::event::Project::Asset { .. }
         | db::event::Project::AssetFile(_) => unreachable!("handled elsewhere"),
@@ -649,8 +649,8 @@ fn handle_event_graph(
         | db::event::Project::Analyses(_)
         | db::event::Project::AnalysisFile(_) => unreachable!("handled elsewhere"),
 
-        db::event::Project::Graph(_) => {
-            handle_event_graph_graph(event, graph, workspace_graph_state, display_state)
+        db::event::Project::Subgraph(_) => {
+            handle_event_graph_subgraph(event, graph, workspace_graph_state, display_state)
         }
         db::event::Project::Container { .. } => handle_event_graph_container(
             event,
@@ -664,36 +664,36 @@ fn handle_event_graph(
     }
 }
 
-fn handle_event_graph_graph(
+fn handle_event_graph_subgraph(
     event: lib::Event,
     graph: ui_lib::state::Graph,
     workspace_graph_state: ui_lib::state::WorkspaceGraph,
     display_state: ui_lib::state::Display,
 ) {
-    let lib::EventKind::Project(db::event::Project::Graph(update)) = event.kind() else {
+    let lib::EventKind::Project(db::event::Project::Subgraph(update)) = event.kind() else {
         panic!("invalid event kind");
     };
 
     match update {
-        db::event::Graph::Created(_) => todo!(),
-        db::event::Graph::Inserted { .. } => {
-            handle_event_graph_graph_inserted(event, graph, workspace_graph_state, display_state)
+        db::event::Subgraph::Created(_) => todo!(),
+        db::event::Subgraph::Inserted { .. } => {
+            handle_event_graph_subgraph_inserted(event, graph, workspace_graph_state, display_state)
         }
-        db::event::Graph::Renamed { .. } => handle_event_graph_graph_renamed(event, graph),
-        db::event::Graph::Moved { from, to } => todo!(),
-        db::event::Graph::Removed(_) => {
-            handle_event_graph_graph_removed(event, graph, workspace_graph_state, display_state)
+        db::event::Subgraph::Renamed { .. } => handle_event_graph_subgraph_renamed(event, graph),
+        db::event::Subgraph::Moved { from, to } => todo!(),
+        db::event::Subgraph::Removed(_) => {
+            handle_event_graph_subgraph_removed(event, graph, workspace_graph_state, display_state)
         }
     }
 }
 
-fn handle_event_graph_graph_inserted(
+fn handle_event_graph_subgraph_inserted(
     event: lib::Event,
     graph: ui_lib::state::Graph,
     workspace_graph_state: ui_lib::state::WorkspaceGraph,
     display_state: ui_lib::state::Display,
 ) {
-    let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Inserted {
+    let lib::EventKind::Project(db::event::Project::Subgraph(db::event::Subgraph::Inserted {
         parent,
         graph: subgraph,
     })) = event.kind()
@@ -771,9 +771,11 @@ fn handle_event_graph_graph_inserted(
     graph.insert(&parent, subgraph).unwrap();
 }
 
-fn handle_event_graph_graph_renamed(event: lib::Event, graph: ui_lib::state::Graph) {
-    let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Renamed { from, to })) =
-        event.kind()
+fn handle_event_graph_subgraph_renamed(event: lib::Event, graph: ui_lib::state::Graph) {
+    let lib::EventKind::Project(db::event::Project::Subgraph(db::event::Subgraph::Renamed {
+        from,
+        to,
+    })) = event.kind()
     else {
         panic!("invalid event kind");
     };
@@ -781,13 +783,13 @@ fn handle_event_graph_graph_renamed(event: lib::Event, graph: ui_lib::state::Gra
     graph.rename(from, to).unwrap();
 }
 
-fn handle_event_graph_graph_removed(
+fn handle_event_graph_subgraph_removed(
     event: lib::Event,
     graph: ui_lib::state::Graph,
     workspace_graph_state: ui_lib::state::WorkspaceGraph,
     display_state: ui_lib::state::Display,
 ) {
-    let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Removed(path))) =
+    let lib::EventKind::Project(db::event::Project::Subgraph(db::event::Subgraph::Removed(path))) =
         event.kind()
     else {
         panic!("invalid event kind");

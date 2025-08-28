@@ -626,7 +626,9 @@ mod project_events {
                 event::Project::Analyses(_) => {
                     self.handle_event_update_project_analyses(event).await
                 }
-                event::Project::Graph(..) => self.handle_event_update_project_graph(event).await,
+                event::Project::Subgraph(..) => {
+                    self.handle_event_update_project_subgraph(event).await
+                }
                 event::Project::Container { .. } => {
                     self.handle_event_update_project_container(event).await
                 }
@@ -989,9 +991,9 @@ mod project_events {
             };
         }
 
-        async fn handle_event_update_project_graph(&self, event: Update) {
+        async fn handle_event_update_project_subgraph(&self, event: Update) {
             let event::UpdateKind::Project {
-                update: event::Project::Graph(update),
+                update: event::Project::Subgraph(update),
                 ..
             } = event.kind()
             else {
@@ -999,28 +1001,32 @@ mod project_events {
             };
 
             match update {
-                event::Graph::Created(graph) => {
-                    self.handle_event_update_project_graph_created(event).await
+                event::Subgraph::Created(graph) => {
+                    self.handle_event_update_project_subgraph_created(event)
+                        .await
                 }
-                event::Graph::Inserted { parent, graph } => {
-                    self.handle_event_update_project_graph_inserted(event).await
+                event::Subgraph::Inserted { parent, graph } => {
+                    self.handle_event_update_project_subgraph_inserted(event)
+                        .await
                 }
-                event::Graph::Renamed { from, to } => {
-                    self.handle_event_update_project_graph_renamed(event).await
+                event::Subgraph::Renamed { from, to } => {
+                    self.handle_event_update_project_subgraph_renamed(event)
+                        .await
                 }
-                event::Graph::Moved { from, to } => {
-                    self.handle_event_update_project_graph_moved(event).await
+                event::Subgraph::Moved { from, to } => {
+                    self.handle_event_update_project_subgraph_moved(event).await
                 }
-                event::Graph::Removed(path_buf) => {
-                    self.handle_event_update_project_graph_removed(event).await
+                event::Subgraph::Removed(path_buf) => {
+                    self.handle_event_update_project_subgraph_removed(event)
+                        .await
                 }
             }
         }
 
-        async fn handle_event_update_project_graph_created(&self, event: Update) {
+        async fn handle_event_update_project_subgraph_created(&self, event: Update) {
             let event::UpdateKind::Project {
                 path,
-                update: event::Project::Graph(event::Graph::Created(update)),
+                update: event::Project::Subgraph(event::Subgraph::Created(update)),
                 ..
             } = event.kind()
             else {
@@ -1040,11 +1046,11 @@ mod project_events {
                 .unwrap();
         }
 
-        async fn handle_event_update_project_graph_inserted(&self, event: Update) {
+        async fn handle_event_update_project_subgraph_inserted(&self, event: Update) {
             let event::UpdateKind::Project {
                 path,
                 update:
-                    event::Project::Graph(event::Graph::Inserted {
+                    event::Project::Subgraph(event::Subgraph::Inserted {
                         parent,
                         graph: update,
                     }),
@@ -1067,10 +1073,10 @@ mod project_events {
                 .unwrap();
         }
 
-        async fn handle_event_update_project_graph_renamed(&self, event: Update) {
+        async fn handle_event_update_project_subgraph_renamed(&self, event: Update) {
             let event::UpdateKind::Project {
                 path,
-                update: event::Project::Graph(event::Graph::Renamed { from, to: update }),
+                update: event::Project::Subgraph(event::Subgraph::Renamed { from, to: update }),
                 ..
             } = event.kind()
             else {
@@ -1104,10 +1110,10 @@ mod project_events {
             }
         }
 
-        async fn handle_event_update_project_graph_moved(&self, event: Update) {
+        async fn handle_event_update_project_subgraph_moved(&self, event: Update) {
             let event::UpdateKind::Project {
                 path,
-                update: event::Project::Graph(event::Graph::Moved { from, to }),
+                update: event::Project::Subgraph(event::Subgraph::Moved { from, to }),
                 ..
             } = event.kind()
             else {
@@ -1145,10 +1151,10 @@ mod project_events {
             }
         }
 
-        async fn handle_event_update_project_graph_removed(&self, event: Update) {
+        async fn handle_event_update_project_subgraph_removed(&self, event: Update) {
             let event::UpdateKind::Project {
                 path,
-                update: event::Project::Graph(event::Graph::Removed(root)),
+                update: event::Project::Subgraph(event::Subgraph::Removed(root)),
                 ..
             } = event.kind()
             else {

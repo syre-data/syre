@@ -187,7 +187,7 @@ pub enum Project {
     Analyses(DataResource<Vec<state::Analysis>>),
 
     #[from]
-    Graph(Graph),
+    Subgraph(Subgraph),
 
     #[from]
     Container {
@@ -219,7 +219,7 @@ pub enum Project {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Graph {
+pub enum Subgraph {
     /// The root graph was created.
     Created(state::Graph),
 

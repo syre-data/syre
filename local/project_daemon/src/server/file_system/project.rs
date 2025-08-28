@@ -563,7 +563,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Project::Graph(update::Graph::Renamed {
+            update::Project::Subgraph(update::Subgraph::Renamed {
                 from: from_path,
                 to: name,
             })

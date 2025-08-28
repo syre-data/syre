@@ -174,7 +174,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Graph::Inserted {
+            update::Subgraph::Inserted {
                 parent: parent_path,
                 graph: subgraph_state,
             }
@@ -271,7 +271,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id.clone(),
             project_path.clone(),
-            update::Graph::Moved {
+            update::Subgraph::Moved {
                 from: from_path,
                 to: to_path,
             }
@@ -332,7 +332,7 @@ impl Daemon {
             return vec![Update::project_with_id(
                 project_id.clone(),
                 project_path.clone(),
-                update::Graph::Removed(graph_path).into(),
+                update::Subgraph::Removed(graph_path).into(),
                 event.id().clone(),
             )];
         }

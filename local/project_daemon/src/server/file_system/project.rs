@@ -339,8 +339,12 @@ impl Daemon {
             event::ResourceEvent::Created => {
                 self.handle_fs_event_project_analysis_dir_created(event)
             }
-            event::ResourceEvent::Removed => todo!(),
-            event::ResourceEvent::Renamed => todo!(),
+            event::ResourceEvent::Removed => {
+                self.handle_fs_event_project_analysis_dir_removed(event)
+            }
+            event::ResourceEvent::Renamed => {
+                self.handle_fs_event_project_analysis_dir_renamed(event)
+            }
             event::ResourceEvent::Moved => todo!(),
             event::ResourceEvent::MovedProject => todo!(),
             event::ResourceEvent::Modified(_) => todo!(),
@@ -416,6 +420,114 @@ impl Daemon {
             event.id().clone(),
         )]
     }
+
+    fn handle_fs_event_project_analysis_dir_removed(
+        &mut self,
+        event: syre_fs_daemon::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Removed)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(path).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let Some(analysis_root) = &properties.analysis_root else {
+            panic!("invalid state");
+        };
+
+        let data_analysis_path = project.path().join(analysis_root);
+        assert_eq!(*path, data_analysis_path);
+
+        let project_path = project.path().clone();
+        let project_id = properties.rid().clone();
+
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Action::SetAnalysesAbsent.into(),
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Project::Analyses(update::DataResource::Removed).into(),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_project_analysis_dir_renamed(
+        &mut self,
+        event: syre_fs_daemon::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Renamed)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [from, to] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(from).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let Some(analysis_root) = &properties.analysis_root else {
+            panic!("invalid state");
+        };
+
+        let data_analysis_path = project.path().join(analysis_root);
+        assert_eq!(*from, data_analysis_path);
+
+        let project_path = project.path().clone();
+        let project_id = properties.rid().clone();
+        let mut properties = properties.clone();
+        let to_path = to.strip_prefix(&project_path).unwrap();
+
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Action::SetAnalysesAbsent.into(),
+            })
+            .unwrap();
+
+        if self.config.handle_fs_resource_changes() {
+            let _ = properties.analysis_root.insert(to_path.to_owned());
+            if let Err(err) =
+                local::project::Project::save_properties_only(&project_path, &properties)
+            {
+                tracing::error!(?err);
+                todo!();
+            }
+        }
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Project::Analyses(update::DataResource::Removed).into(),
+            event.id().clone(),
+        )]
+    }
 }
 
 impl Daemon {
@@ -426,7 +538,7 @@ impl Daemon {
 
         match kind {
             event::ResourceEvent::Created => self.handle_fs_event_project_data_dir_created(event),
-            event::ResourceEvent::Removed => todo!(),
+            event::ResourceEvent::Removed => self.handle_fs_event_project_data_dir_removed(event),
             event::ResourceEvent::Renamed => self.handle_fs_event_project_data_dir_renamed(event),
             event::ResourceEvent::Moved => todo!(),
             event::ResourceEvent::MovedProject => todo!(),
@@ -481,6 +593,54 @@ impl Daemon {
             project_id,
             project_path,
             update::Graph::Created(graph_state).into(),
+            event.id().clone(),
+        )]
+    }
+
+    fn handle_fs_event_project_data_dir_removed(
+        &mut self,
+        event: syre_fs_daemon::Event,
+    ) -> Vec<Update> {
+        let EventKind::Project(event::Project::DataDir(event::ResourceEvent::Removed)) =
+            event.kind()
+        else {
+            panic!("invalid event kind");
+        };
+
+        let [path] = &event.paths()[..] else {
+            panic!("invalid paths");
+        };
+
+        let project = self.state.find_resource_project_by_path(path).unwrap();
+        let state::FolderResource::Present(project_state) = project.fs_resource() else {
+            panic!("invalid state");
+        };
+
+        let state::DataResource::Ok(properties) = project_state.properties() else {
+            panic!("invalid state");
+        };
+
+        let data_root_path = project.path().join(&properties.data_root);
+        assert_eq!(*path, data_root_path);
+        assert!(project_state.graph().is_present());
+
+        let project_path = project.path().clone();
+        let project_id = properties.rid().clone();
+
+        self.state
+            .try_reduce(server::state::Action::Project {
+                path: project_path.clone(),
+                action: server::state::project::action::Action::Graph(
+                    server::state::project::action::Graph::Set(state::FolderResource::Absent),
+                )
+                .into(),
+            })
+            .unwrap();
+
+        vec![Update::project_with_id(
+            project_id,
+            project_path,
+            update::Project::Graph(update::Graph::Removed).into(),
             event.id().clone(),
         )]
     }

@@ -136,6 +136,7 @@ fn WorkspaceView(
     assert!(project_data.properties().is_ok());
 
     let project = ui_lib::state::Project::new(project_path, project_data);
+    let graph = RwSignal::new(graph);
     provide_context(user);
     provide_context(ui_lib::state::Workspace::new());
     provide_context(project.clone());
@@ -175,6 +176,8 @@ fn WorkspaceView(
                             handle_event_project(event, project.clone())
                         }
 
+                        db::event::Project::Graph(_) => handle_event_project_graph(event, graph),
+
                         db::event::Project::Subgraph(_)
                         | db::event::Project::Container { .. }
                         | db::event::Project::Asset { .. }
@@ -189,7 +192,7 @@ fn WorkspaceView(
         <div class="select-none flex flex-col h-full relative">
             {move || {
                 either!(
-                    graph.as_ref(),
+                    graph.read().as_ref(),
                     db::state::FolderResource::Absent => view! {
                         <project_nav::NoGraph />
                         <views::no_graph::Workspace />
@@ -269,12 +272,13 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
                         | db::event::Project::Properties(_)
                         | db::event::Project::Settings(_)
                         | db::event::Project::Analyses(_)
-                        | db::event::Project::AnalysisFile(_) => continue, // handled elsewhere
+                        | db::event::Project::AnalysisFile(_)
+                        | db::event::Project::Graph(_) => continue, // handled elsewhere
 
                         db::event::Project::Subgraph(_)
                         | db::event::Project::Container { .. }
                         | db::event::Project::Asset { .. }
-                        | db::event::Project::AssetFile(_) => handle_event_graph(
+                        | db::event::Project::AssetFile(_) => handle_event_graph_resource(
                             event,
                             graph.clone(),
                             workspace_graph_state.clone(),
@@ -431,7 +435,8 @@ fn handle_event_project(event: lib::Event, project: ui_lib::state::Project) {
         db::event::Project::Subgraph(_)
         | db::event::Project::Container { .. }
         | db::event::Project::Asset { .. }
-        | db::event::Project::AssetFile(_) => unreachable!("handled elsewhere"),
+        | db::event::Project::AssetFile(_)
+        | db::event::Project::Graph(_) => unreachable!("handled elsewhere"),
 
         db::event::Project::FolderRemoved => todo!(),
         db::event::Project::Moved(_) => todo!(),
@@ -629,7 +634,49 @@ fn handle_event_project_analyses_modified(event: lib::Event, project: ui_lib::st
     });
 }
 
-fn handle_event_graph(
+fn handle_event_project_graph(
+    event: lib::Event,
+    graph: RwSignal<db::state::FolderResource<db::state::Graph>>,
+) {
+    let lib::EventKind::Project(db::event::Project::Graph(update)) = event.kind() else {
+        panic!("invalid event kind");
+    };
+
+    match update {
+        db::event::Graph::Created(_) => handle_event_project_graph_created(event, graph),
+        db::event::Graph::Removed => handle_event_project_graph_removed(event, graph),
+    }
+}
+
+fn handle_event_project_graph_created(
+    event: lib::Event,
+    graph: RwSignal<db::state::FolderResource<db::state::Graph>>,
+) {
+    let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Created(update))) =
+        event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    assert!(!graph.read_untracked().is_present());
+
+    graph.set(db::state::FolderResource::Present(update.clone()));
+}
+
+fn handle_event_project_graph_removed(
+    event: lib::Event,
+    graph: RwSignal<db::state::FolderResource<db::state::Graph>>,
+) {
+    let lib::EventKind::Project(db::event::Project::Graph(db::event::Graph::Removed)) =
+        event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    assert!(graph.read_untracked().is_present());
+
+    graph.set(db::state::FolderResource::Absent);
+}
+
+fn handle_event_graph_resource(
     event: lib::Event,
     graph: ui_lib::state::Graph,
     workspace_graph_state: ui_lib::state::WorkspaceGraph,
@@ -647,7 +694,8 @@ fn handle_event_graph(
         | db::event::Project::Properties(_)
         | db::event::Project::Settings(_)
         | db::event::Project::Analyses(_)
-        | db::event::Project::AnalysisFile(_) => unreachable!("handled elsewhere"),
+        | db::event::Project::AnalysisFile(_)
+        | db::event::Project::Graph(_) => unreachable!("handled elsewhere"),
 
         db::event::Project::Subgraph(_) => {
             handle_event_graph_subgraph(event, graph, workspace_graph_state, display_state)
@@ -675,7 +723,6 @@ fn handle_event_graph_subgraph(
     };
 
     match update {
-        db::event::Subgraph::Created(_) => todo!(),
         db::event::Subgraph::Inserted { .. } => {
             handle_event_graph_subgraph_inserted(event, graph, workspace_graph_state, display_state)
         }

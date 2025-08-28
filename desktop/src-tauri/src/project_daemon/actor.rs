@@ -488,6 +488,7 @@ impl Actor {
             )],
 
             db::event::Project::Analyses(_)
+            | db::event::Project::Graph(_)
             | db::event::Project::Subgraph(_)
             | db::event::Project::Container { .. }
             | db::event::Project::Asset { .. }

@@ -399,7 +399,9 @@ pub mod project {
                             tracing::error!("node not found");
                             Error::DoesNotExist
                         }
-                        graph::error::Remove::Root => panic!(),
+                        graph::error::Remove::Root => {
+                            panic!("can not remove graph root, use `Set` action instead")
+                        }
                     })
                 }
                 action::Graph::Move { from, to } => {

@@ -187,6 +187,9 @@ pub enum Project {
     Analyses(DataResource<Vec<state::Analysis>>),
 
     #[from]
+    Graph(Graph),
+
+    #[from]
     Subgraph(Subgraph),
 
     #[from]
@@ -218,11 +221,22 @@ pub enum Project {
     AnalysisFile(AnalysisFile),
 }
 
+/// Events effecting the project's graph state.
+///
+/// # Note
+/// These are events like the graph being created or destroyed,
+/// regardless of its content.
+///
+/// # See also
+/// + [`Subgraph`] for events affecting the graph's properties and content.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Graph {
+    Created(state::Graph),
+    Removed,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Subgraph {
-    /// The root graph was created.
-    Created(state::Graph),
-
     /// A subgraph was created.
     Inserted {
         /// Absolute path from the project's data root to the parent container.

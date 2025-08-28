@@ -165,6 +165,6 @@ impl Daemon {
             panic!("invalid paths");
         };
 
-        todo!();
+        vec![]
     }
 }

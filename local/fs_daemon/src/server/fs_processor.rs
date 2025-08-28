@@ -272,7 +272,23 @@ impl FsWatcher {
                     )
                     .add_path(path.clone()),
 
-                    (Ok(None), Ok(resources::DirKind::Project { .. })) => todo!(),
+                    (Ok(None), Ok(resources::DirKind::Project { project, kind })) => {
+                        let kind = match kind {
+                            resources::ProjectDir::Root => app::Project::FolderRemoved.into(),
+                            resources::ProjectDir::Config => {
+                                app::Project::ConfigDir(app::StaticResourceEvent::Removed).into()
+                            }
+                            resources::ProjectDir::Data => {
+                                app::Project::DataDir(app::ResourceEvent::Removed).into()
+                            }
+                            resources::ProjectDir::Analysis => {
+                                app::Project::AnalysisDir(app::ResourceEvent::Removed).into()
+                            }
+                        };
+
+                        Event::with_time(kind, event.time, event.id().clone())
+                            .add_path(path.clone())
+                    }
 
                     (Ok(None), Ok(resources::DirKind::Container { .. }))
                     | (Ok(None), Ok(resources::DirKind::ContainerLike { .. }))
@@ -2397,14 +2413,15 @@ mod resources {
         }
 
         if let Some(analysis_root) = project.analysis_root_path().as_ref() {
-            if path.starts_with(analysis_root) {
+            if path != analysis_root && path.starts_with(analysis_root) {
                 return Ok(is_analysis(path).then_some(ResourceEvent::Analysis {
                     project: project.rid().clone(),
                 }));
             }
         }
 
-        if path.starts_with(project.data_root_path()) {
+        let data_root = project.data_root_path();
+        if *path != data_root && path.starts_with(&data_root) {
             let kind = handle_file_data(path, &project);
             return Ok(kind);
         }

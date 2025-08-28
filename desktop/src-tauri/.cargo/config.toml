@@ -1,2 +1,2 @@
 [build]
-rustflags = []
+target-dir = "../target"

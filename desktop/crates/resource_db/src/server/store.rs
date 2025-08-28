@@ -1075,12 +1075,16 @@ pub mod container {
         }
 
         /// Remove a container, all its children, and all related resources.
-        /// i.e. From `container`, `container_properties`, `container_settings`, and `asset`
+        /// i.e. From `container`, `container_properties`, `container_settings`, and `asset`.
+        ///
+        /// # Not implemented
+        /// + Remove associated flags.
         pub async fn remove_subgraph_by_path(
             &self,
             project: surrealdb::RecordId,
             root: PathBuf,
         ) -> surrealdb::Result<()> {
+            // TODO: Remove all associated flags
             self.db.query(
                 r#"
                 $containers = SELECT id FROM container 

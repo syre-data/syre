@@ -60,7 +60,7 @@ mod server {
         use std::io;
         use syre_local::system::common;
         use tracing_subscriber::{
-            EnvFilter, Layer, Registry,
+            EnvFilter, Registry,
             fmt::{self, time::UtcTime},
             prelude::*,
         };

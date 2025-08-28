@@ -6,7 +6,9 @@ target = "./index.html"
 [watch]
 ignore = [
     "**/*.mm_profdata",
+    "target",
     "src-tauri/target",
+    "styles/output.css"
 ]
 
 [serve]

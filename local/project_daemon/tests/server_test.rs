@@ -16,7 +16,7 @@ use syre_local::{
     },
     types::AnalysisKind,
 };
-use syre_project_daemon::{self as db, event, server::config, state, types::PortNumber, Update};
+use syre_project_daemon::{self as db, Update, event, server::config, state, types::PortNumber};
 
 const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
@@ -1411,12 +1411,13 @@ fn test_server_state_and_updates_graph() {
         syre_project_daemon::common::container_graph_path(project.data_root_path(), &c2_new_path)
             .unwrap();
 
-    assert!(db
-        .container()
-        .get(project.rid().clone(), &c2_graph_path)
-        .unwrap()
-        .unwrap()
-        .is_none());
+    assert!(
+        db.container()
+            .get(project.rid().clone(), &c2_graph_path)
+            .unwrap()
+            .unwrap()
+            .is_none()
+    );
 
     let container_state = db
         .container()

@@ -54,8 +54,8 @@ pub fn Workspace() -> impl IntoView {
                                             move || Suspend::new({
                                                 let user = user.clone();
                                                 async move {
-                                                    let resources = resources.await;
                                                     resources
+                                                        .await
                                                         .map(|(project_path, project_data, graph)| {
                                                             Either::Left(
                                                                 view! {
@@ -704,7 +704,6 @@ fn handle_event_graph_subgraph_inserted(
     // NB: Must create visibility and selection resource signals first before inserting nodes into graph.
     // Downstream components expect a visibility signal to be present.
     let subgraph = ui_lib::state::Graph::new(subgraph.clone());
-
     let selection_resources = subgraph.nodes().with_untracked(|nodes| {
         nodes
             .iter()

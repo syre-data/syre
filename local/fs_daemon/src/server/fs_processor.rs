@@ -300,7 +300,7 @@ impl FsWatcher {
                         unreachable!("incompatible resource determination");
                     }
 
-                    (Ok(Some(_)), Ok(_)) => {
+                    (Ok(Some(_file_kind)), Ok(_dir_kind)) => {
                         unreachable!("incompatible resource determination");
                     }
 

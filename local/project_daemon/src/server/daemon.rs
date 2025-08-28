@@ -183,7 +183,7 @@ impl Builder {
             }
         }
 
-        tracing::trace!(target: "syre::local::database::state", ?state);
+        tracing::trace!(target: "syre-project-daemon::state", ?state);
         let mut db = Daemon {
             config: self.config,
             state,
@@ -387,7 +387,7 @@ mod windows {
             let updates = self.process_file_system_events(events);
             tracing::debug!(?updates);
             self.publish_updates(&updates);
-            tracing::trace!(target: "syre::local::database::state", state = ?self.state);
+            tracing::trace!(target: "syre-project-daemon::state", state = ?self.state);
             Ok(())
         }
 

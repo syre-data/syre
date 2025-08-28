@@ -427,7 +427,9 @@ async fn handle_context_menu_analyses_events(
                         context_menu_active_analysis.clone()
                     ).await;
                 }
-            }
+            },
+
+            complete => break
         }
     }
 }

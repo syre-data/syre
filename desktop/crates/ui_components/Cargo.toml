@@ -16,7 +16,7 @@ syre-desktop-lib = { path = "../lib" }
 syre-desktop-ui-lib = { path = "../ui_lib" }
 syre-local.workspace = true
 tauri-sys = { workspace = true, features = ["core"] }
-tracing.workspace = true
+tracing = { workspace = true, optional = true }
 wasm-bindgen.workspace = true
 
 [dependencies.web-sys]
@@ -30,3 +30,6 @@ features = [
 	"HtmlDialogElement",
 	"HtmlElement",
 ]
+
+[features]
+tracing = ["dep:tracing"]

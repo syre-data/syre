@@ -17,7 +17,20 @@ use syre_local as local;
 #[component]
 pub fn Editor() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
+    let on_cancel_delete = Trigger::new();
     let delete_project_modal = NodeRef::<html::Dialog>::new();
+
+    Effect::watch(
+        move || on_cancel_delete.track(),
+        move |_, _, _| {
+            let Some(modal) = delete_project_modal.get_untracked() else {
+                return;
+            };
+
+            modal.close();
+        },
+        false,
+    );
 
     let project_path_str = {
         let project = project.clone();
@@ -33,10 +46,8 @@ pub fn Editor() -> impl IntoView {
             return;
         }
 
-        spawn_local(async move {
-            let dialog = delete_project_modal.get_untracked().unwrap();
-            dialog.show_modal().unwrap();
-        });
+        let dialog = delete_project_modal.get_untracked().unwrap();
+        dialog.show_modal().unwrap();
     };
 
     view! {
@@ -76,7 +87,7 @@ pub fn Editor() -> impl IntoView {
                     "Delete"
                 </button>
                 <ModalDialog node_ref=delete_project_modal>
-                    <DeleteProjectConfirmation />
+                    <DeleteProjectConfirmation on_cancel=on_cancel_delete />
                 </ModalDialog>
             </div>
         </div>
@@ -84,7 +95,7 @@ pub fn Editor() -> impl IntoView {
 }
 
 #[component]
-fn DeleteProjectConfirmation() -> impl IntoView {
+fn DeleteProjectConfirmation(on_cancel: Trigger) -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
     let messages = expect_context::<ui_lib::message::Messages>();
     let navigate = leptos_router::hooks::use_navigate();
@@ -130,6 +141,15 @@ fn DeleteProjectConfirmation() -> impl IntoView {
         }
     };
 
+    let cancel = move |e: MouseEvent| {
+        if e.button() != ui_lib::types::MouseButton::Primary {
+            return;
+        }
+        e.stop_propagation();
+
+        on_cancel.notify();
+    };
+
     view! {
         <div class="bg-white border border-black rounded dark:bg-secondary-800 \
         dark:border-secondary-400 dark:text-white px-4 py-2">
@@ -160,7 +180,7 @@ fn DeleteProjectConfirmation() -> impl IntoView {
                         >
                             "Confirm"
                         </button>
-                        <button type="button" class="btn btn-secondary">
+                        <button on:mousedown=cancel type="button" class="btn btn-secondary">
                             "Cancel"
                         </button>
                     </div>

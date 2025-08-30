@@ -483,8 +483,6 @@ mod from {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     #[cfg(feature = "serde")]
     #[test]
     fn value_serialize() {

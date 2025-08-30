@@ -537,11 +537,11 @@ pub mod project {
         }
 
         pub fn path(&self) -> RwSignal<PathBuf> {
-            self.path.clone()
+            self.path
         }
 
         pub fn rid(&self) -> RwSignal<ResourceId> {
-            self.rid.clone()
+            self.rid
         }
 
         pub fn properties(&self) -> &Properties {
@@ -549,7 +549,7 @@ pub mod project {
         }
 
         pub fn analyses(&self) -> RwSignal<AnalysesState> {
-            self.analyses.clone()
+            self.analyses
         }
     }
 

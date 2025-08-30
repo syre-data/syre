@@ -99,6 +99,7 @@ features = [
 [features]
 tracing = [
 	"leptos/tracing", 
+	"syre-desktop-ui-components/tracing",
 	"syre-desktop-workspace-graph/tracing",
 	"syre-desktop-workspace-db/tracing",
 ]

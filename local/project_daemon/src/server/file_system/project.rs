@@ -416,7 +416,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Project::Analyses(update::DataResource::Modified(analyses.clone())),
+            update::Project::Analyses(update::DataResource::Modified(analyses)),
             event.id().clone(),
         )]
     }

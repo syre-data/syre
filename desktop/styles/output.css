@@ -1113,6 +1113,9 @@
   .text-primary-900 {
     color: var(--color-primary-900);
   }
+  .text-secondary-400 {
+    color: var(--color-secondary-400);
+  }
   .text-secondary-500 {
     color: var(--color-secondary-500);
   }

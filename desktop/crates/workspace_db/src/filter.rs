@@ -35,10 +35,15 @@ pub fn DataFilter() -> impl IntoView {
                     filter.set(None);
                 } else {
                     let query = query.trim().to_string();
+
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("querying `{query}`");
-                    let results =
-                        search_assets(query, project.get_untracked()).await;
+
+                    let results = search_assets(query, project.get_untracked()).await;
+
+                    #[cfg(feature = "tracing")]
                     tracing::trace!(?results);
+
                     filter.set(Some(results.assets().clone()));
                 }
             }

@@ -11,6 +11,7 @@ use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components as components;
 use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_daemon as db;

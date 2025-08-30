@@ -451,6 +451,23 @@ impl Daemon {
         let data_analysis_path = project.path().join(analysis_root);
         assert_eq!(*path, data_analysis_path);
 
+        let state::DataResource::Ok(analyses) = project_state.analyses() else {
+            return vec![];
+        };
+
+        let mut modified = vec![];
+        for analysis in analyses.iter() {
+            if analysis.is_present() {
+                let mut analysis = analysis.clone();
+                analysis.set_absent();
+                modified.push(analysis);
+            }
+        }
+
+        if modified.is_empty() {
+            return vec![];
+        }
+
         let project_path = project.path().clone();
         let project_id = properties.rid().clone();
 
@@ -464,7 +481,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Project::Analyses(update::DataResource::Removed).into(),
+            update::Project::Analyses(update::DataResource::Modified(modified)).into(),
             event.id().clone(),
         )]
     }

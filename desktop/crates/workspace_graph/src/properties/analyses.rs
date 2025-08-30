@@ -42,26 +42,13 @@ impl ContextMenuActiveAnalysis {
 #[component]
 pub fn Editor() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
+    let graph = expect_context::<ui_lib::state::Graph>();
+
     move || {
         project.analyses().with(|analyses| either!(analyses,
             db::state::DataResource::Ok(analyses) => view! { <AnalysesOk analyses=analyses.read_only() /> },
-            db::state::DataResource::Err(err) => view! { <AnalysesErr error=err.clone() /> },
+            db::state::DataResource::Err(err) => view! { <error::AnalysesError error=err.clone() /> },
         ))
-    }
-}
-
-#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
-#[component]
-fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
-    view! {
-        <div>
-            <h3>"Analyses"</h3>
-            <div>
-                "Analyses could not be loaded" <div>
-                    <small>{move || format!("{error:?}")}</small>
-                </div>
-            </div>
-        </div>
     }
 }
 
@@ -591,5 +578,149 @@ impl ui_lib::message::AsAnyView for UpdateErrors {
             </ul>
         }
         .into_any()
+    }
+}
+
+mod error {
+    use leptos::{ev::MouseEvent, html, prelude::*};
+    use serde::Serialize;
+    use syre_core::types::ResourceId;
+    use syre_desktop_lib as lib;
+    use syre_desktop_ui_components as components;
+    use syre_desktop_ui_lib as ui_lib;
+    use syre_local as local;
+
+    #[derive(Clone, Copy, Debug)]
+    enum ConfirmationAction {
+        Confirm,
+        Cancel,
+    }
+
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
+    #[component]
+    pub fn AnalysesError(error: local::error::IoSerde) -> impl IntoView {
+        let project = expect_context::<ui_lib::state::Project>();
+
+        let clear_associations_modal = NodeRef::<html::Dialog>::new();
+        let (confirmation_action, set_confirmation_action) =
+            signal(Option::<ConfirmationAction>::None);
+
+        let show_clear_associations_confirmation = move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+
+            let dialog = clear_associations_modal.get_untracked().unwrap();
+            dialog.show_modal().unwrap();
+        };
+
+        let clear_associations = Action::new_local({
+            let project = project.rid().read_only();
+            move |_| async move {
+                if let Err(err) = clear_all_analyses(project.get_untracked()).await {
+                    todo!("{err:?}");
+                }
+            }
+        });
+
+        Effect::watch(
+            confirmation_action,
+            move |confirmation_action, _, _| {
+                let Some(action) = confirmation_action else {
+                    return;
+                };
+
+                let dialog = clear_associations_modal.get_untracked().unwrap();
+                dialog.close();
+
+                if matches!(action, ConfirmationAction::Confirm) {
+                    clear_associations.dispatch(());
+                }
+            },
+            false,
+        );
+
+        view! {
+            <div class="px-1">
+                <h3>"Analyses"</h3>
+                <div>
+                    <div class="text-sm/4 text-secondary-400">
+                        "Analyses could not be loaded" <div>
+                            <small>{move || format!("{error:?}")}</small>
+                        </div>
+                    </div>
+                    <div class="pt-4">
+                        <button
+                            class="btn btn-secondary text-sm"
+                            on:mousedown=show_clear_associations_confirmation
+                            disabled=clear_associations.pending()
+                        >
+                            "Clear all associations"
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <components::ModalDialog node_ref=clear_associations_modal>
+                <ClearAssociationsConfirmation on_action=set_confirmation_action />
+            </components::ModalDialog>
+        }
+    }
+
+    #[component]
+    fn ClearAssociationsConfirmation(
+        on_action: WriteSignal<Option<ConfirmationAction>>,
+    ) -> impl IntoView {
+        let confirm = move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+
+            on_action.set(Some(ConfirmationAction::Confirm))
+        };
+
+        let close = move |e: MouseEvent| {
+            if e.button() != ui_lib::types::MouseButton::Primary {
+                return;
+            }
+
+            on_action.set(Some(ConfirmationAction::Cancel))
+        };
+
+        view! {
+            <div class="bg-white border border-black rounded dark:bg-secondary-800 \
+            dark:border-secondary-400 dark:text-white px-4 py-2">
+                <div class="text-2xl pb-2">
+                    "Are you sure you want to clear all analysis associations?"
+                </div>
+                <div class="pb-2">
+                    <div class="flex gap-4 justify-center">
+                        <button
+                            on:mousedown=confirm
+                            class="btn bg;syre-red-700 dark:bg-syre-red-500"
+                        >
+                            "Confirm"
+                        </button>
+                        <button on:mousedown=close class="btn btn-secondary">
+                            "Cancel"
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    pub async fn clear_all_analyses(
+        project: ResourceId,
+    ) -> Result<(), lib::command::container::error::RemoveProjectAnalysisAssociations> {
+        #[derive(Serialize)]
+        struct Args {
+            project: ResourceId,
+        }
+
+        tauri_sys::core::invoke_result::<
+            (),
+            lib::command::container::error::RemoveProjectAnalysisAssociations,
+        >("remove_all_project_analysis_associations", Args { project })
+        .await
     }
 }

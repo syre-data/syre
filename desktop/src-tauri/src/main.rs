@@ -39,6 +39,7 @@ fn main() {
             container::container_rename,
             container::remove_flag,
             container::remove_all_flags,
+            container::remove_all_project_analysis_associations,
             fs::pick_file_with_location,
             fs::pick_folder_with_location,
             fs::pick_folder,

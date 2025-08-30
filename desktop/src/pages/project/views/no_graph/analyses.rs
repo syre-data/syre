@@ -11,6 +11,7 @@ use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};
 use syre_core::{self as core, types::ResourceId};
 use syre_desktop_lib as lib;
+use syre_desktop_ui_components as components;
 use syre_desktop_ui_lib as ui_lib;
 use syre_local::{self as local, types::AnalysisKind};
 use syre_project_daemon as db;
@@ -40,22 +41,28 @@ impl ContextMenuActiveAnalysis {
 #[component]
 pub fn Editor() -> impl IntoView {
     let project = expect_context::<ui_lib::state::Project>();
+
     move || {
         project.analyses().with(|analyses| either!(analyses,
             db::state::DataResource::Ok(analyses) => view! { <AnalysesOk analyses=analyses.read_only() /> },
-            db::state::DataResource::Err(err) => view! { <AnalysesErr error=err.clone() /> },
+            db::state::DataResource::Err(err) => view! { <AnalysesError error=err.clone() /> },
         ))
     }
 }
 
+
 #[component]
-fn AnalysesErr(error: local::error::IoSerde) -> impl IntoView {
+pub fn AnalysesError(
+    error: local::error::IoSerde,
+) -> impl IntoView {
     view! {
-        <div>
+        <div class="px-1">
             <h3>"Analyses"</h3>
             <div>
-                "Analyses could not be loaded" <div>
-                    <small>{move || format!("{error:?}")}</small>
+                <div class="text-sm/4 text-secondary-400">
+                    "Analyses could not be loaded" <div>
+                        <small>{move || format!("{error:?}")}</small>
+                    </div>
                 </div>
             </div>
         </div>

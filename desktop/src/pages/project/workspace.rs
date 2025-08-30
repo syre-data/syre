@@ -9,6 +9,7 @@ use leptos::{
 use leptos_router::{components::A, hooks::use_params_map};
 use serde::Serialize;
 use std::{
+    io,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -519,14 +520,83 @@ fn handle_event_project_analyses(event: lib::Event, project: ui_lib::state::Proj
     };
 
     match update {
-        db::event::DataResource::Created(_) => todo!(),
-        db::event::DataResource::Removed => todo!(),
-        db::event::DataResource::Corrupted(_) => todo!(),
-        db::event::DataResource::Repaired(_) => todo!(),
+        db::event::DataResource::Created(_) => {
+            handle_event_project_analyses_created(event, project)
+        }
+        db::event::DataResource::Removed => handle_event_project_analyses_removed(event, project),
+        db::event::DataResource::Corrupted(_) => {
+            handle_event_project_analyses_corrupted(event, project)
+        }
+        db::event::DataResource::Repaired(_) => {
+            handle_event_project_analyses_repaired(event, project)
+        }
         db::event::DataResource::Modified(_) => {
             handle_event_project_analyses_modified(event, project)
         }
     }
+}
+
+fn handle_event_project_analyses_created(event: lib::Event, project: ui_lib::state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Created(
+        update,
+    ))) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    assert!(project.analyses().read_untracked().is_err());
+
+    let update = update
+        .as_ref()
+        .map(|analyses| {
+            let analyses = analyses
+                .iter()
+                .map(|analysis| ui_lib::state::Analysis::from_state(analysis))
+                .collect();
+
+            RwSignal::new(analyses)
+        })
+        .map_err(|err| err.clone());
+
+    project.analyses().set(update);
+}
+
+fn handle_event_project_analyses_removed(event: lib::Event, project: ui_lib::state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Removed)) =
+        event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    project.analyses().set(Err(io::ErrorKind::NotFound.into()));
+}
+
+fn handle_event_project_analyses_corrupted(event: lib::Event, project: ui_lib::state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Corrupted(
+        err,
+    ))) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+
+    project.analyses().set(Err(err.clone()));
+}
+
+fn handle_event_project_analyses_repaired(event: lib::Event, project: ui_lib::state::Project) {
+    let lib::EventKind::Project(db::event::Project::Analyses(db::event::DataResource::Repaired(
+        update,
+    ))) = event.kind()
+    else {
+        panic!("invalid event kind");
+    };
+    assert!(project.analyses().read_untracked().is_err());
+
+    let update = update
+        .iter()
+        .map(|analysis| ui_lib::state::Analysis::from_state(analysis))
+        .collect();
+    let update = RwSignal::new(update);
+
+    project.analyses().set(Ok(update));
 }
 
 fn handle_event_project_analyses_modified(event: lib::Event, project: ui_lib::state::Project) {

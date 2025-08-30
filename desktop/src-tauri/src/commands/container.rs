@@ -409,3 +409,46 @@ pub fn remove_all_flags(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn remove_all_project_analysis_associations(
+    db: tauri::State<'_, db::Client>,
+    project: ResourceId,
+) -> Result<(), error::RemoveProjectAnalysisAssociations> {
+    let (project_path, project_data, graph) =
+        db.project().resources(project.clone()).unwrap().unwrap();
+
+    let db::state::FolderResource::Present(graph) = graph else {
+        return Err(error::RemoveProjectAnalysisAssociations::GraphNotPresent);
+    };
+
+    let mut results = tokio::task::JoinSet::new();
+    for container_path in graph.paths() {
+        let base_path = project_path.join(&container_path);
+        results.spawn(async move {
+            match local::loader::container::Loader::load_from_only_properties(&base_path) {
+                Ok(mut properties) => {
+                    properties.analyses.clear();
+                    tokio::fs::write(
+                        local::common::container_file_of(&base_path),
+                        serde_json::to_string_pretty(&properties).unwrap(),
+                    )
+                    .await
+                    .map_err(|err| local::error::IoSerde::Io(err.kind().into()))
+                }
+                Err(err) => Err(err),
+            }
+        });
+    }
+    let results = results.join_all().await;
+
+    let errors = results
+        .into_iter()
+        .filter_map(|result| result.err())
+        .collect::<Vec<_>>();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(error::RemoveProjectAnalysisAssociations::Update(errors))
+    }
+}

@@ -301,6 +301,28 @@ impl FsWatcher {
                         .add_path(path.clone())
                     }
 
+                    (
+                        Ok(Some(resources::ResourceEvent::Project { project, kind })),
+                        Ok(resources::DirKind::None {
+                            project: project_dir,
+                        }),
+                    ) => {
+                        let kind = match kind {
+                            resources::Project::Properties => {
+                                app::Project::Properties(app::StaticResourceEvent::Removed).into()
+                            }
+                            resources::Project::Settings => {
+                                app::Project::Settings(app::StaticResourceEvent::Removed).into()
+                            }
+                            resources::Project::Analyses => {
+                                app::Project::Analyses(app::StaticResourceEvent::Removed).into()
+                            }
+                        };
+
+                        Event::with_time(kind, event.time, event.id().clone())
+                            .add_path(path.clone())
+                    }
+
                     (Ok(Some(resources::ResourceEvent::Config(_))), Ok(_))
                     | (Ok(Some(resources::ResourceEvent::Project { .. })), Ok(_))
                     | (Ok(Some(resources::ResourceEvent::Asset { .. })), Ok(_)) => {

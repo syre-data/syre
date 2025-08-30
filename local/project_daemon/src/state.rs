@@ -204,6 +204,47 @@ pub struct Graph {
     pub children: Vec<Vec<usize>>,
 }
 
+impl Graph {
+    /// Construct all container paths.
+    ///
+    /// # Returns
+    /// `Vec` of paths corresonding to `nodes`.
+    pub fn paths(&self) -> Vec<PathBuf> {
+        if self.nodes.is_empty() {
+            return vec![];
+        }
+
+        let mut paths = vec![vec![]; self.nodes.len()];
+        let mut pending = Vec::with_capacity(self.nodes.len());
+        let mut idx = 0;
+        paths[0].push(0);
+        pending.push(0);
+        while idx < pending.len() {
+            let active = pending[idx];
+            let children = &self.children[active];
+            let root_path = paths[active].clone();
+            for child_idx in children {
+                let mut child_path = root_path.clone();
+                child_path.push(*child_idx);
+                paths[*child_idx] = child_path;
+            }
+
+            pending.append(&mut children.clone());
+            idx += 1;
+        }
+
+        paths
+            .into_iter()
+            .map(|sequence| {
+                sequence
+                    .into_iter()
+                    .map(|idx| &self.nodes[idx].name)
+                    .collect::<PathBuf>()
+            })
+            .collect()
+    }
+}
+
 pub type DataResource<T> = Result<T, IoSerde>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -265,5 +306,40 @@ pub enum FileResource {
 impl FileResource {
     pub fn is_present(&self) -> bool {
         matches!(self, FileResource::Present)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Container, Graph};
+    use std::{ffi::OsString, io, path::PathBuf};
+    use syre_local::error::IoSerde;
+
+    #[test]
+    fn graph_path() {
+        let c0 = container_with_name("0");
+        let c00 = container_with_name("0.0");
+        let c01 = container_with_name("0.1");
+        let c001 = container_with_name("0.0.1");
+
+        let nodes = vec![c0, c00, c01, c001];
+        let children = vec![vec![1, 2], vec![3], vec![], vec![]];
+        let graph = Graph { nodes, children };
+
+        let paths = graph.paths();
+        assert_eq!(paths[0], PathBuf::from("0"));
+        assert_eq!(paths[1], PathBuf::from("0/0.0"));
+        assert_eq!(paths[2], PathBuf::from("0/0.1"));
+        assert_eq!(paths[3], PathBuf::from("0/0.0/0.0.1"));
+    }
+
+    fn container_with_name(name: impl Into<OsString>) -> Container {
+        Container {
+            name: name.into(),
+            properties: Err(IoSerde::Io(io::ErrorKind::NotFound)),
+            settings: Err(IoSerde::Io(io::ErrorKind::NotFound)),
+            assets: Err(IoSerde::Io(io::ErrorKind::NotFound)),
+            flags: Err(IoSerde::Io(io::ErrorKind::NotFound)),
+        }
     }
 }

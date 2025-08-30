@@ -273,6 +273,16 @@ pub mod container {
             Load(IoSerde),
             Save(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
         }
+
+        /// Error removing all assocaition analyses from project containers.
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum RemoveProjectAnalysisAssociations {
+            /// Project's graph is not present.
+            GraphNotPresent,
+
+            /// Error updating containers.
+            Update(Vec<IoSerde>),
+        }
     }
 }
 

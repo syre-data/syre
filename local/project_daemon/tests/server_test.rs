@@ -21,9 +21,10 @@ use syre_project_daemon::{self as db, Update, event, server::config, state, type
 const RECV_TIMEOUT: Duration = Duration::from_millis(500);
 const ACTION_SLEEP_TIME: Duration = Duration::from_millis(200);
 
+#[cfg(all(feature = "server", feature = "client"))]
 #[test_log::test]
 fn test_server_state_and_updates_basics() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
@@ -32,7 +33,7 @@ fn test_server_state_and_updates_basics() {
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
-        rng.gen_range(1024..PortNumber::max_value()),
+        rng.random_range(1024..PortNumber::max_value()),
     );
     config.set_handle_fs_resource_changes(false);
     let config = config.build();
@@ -610,7 +611,7 @@ fn test_server_state_and_updates_basics() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Subgraph(event::Subgraph::Created(graph)) = update else {
+    let event::Project::Graph(event::Graph::Created(graph)) = update else {
         panic!();
     };
     assert_eq!(graph.nodes.len(), 1);
@@ -1167,7 +1168,7 @@ fn test_server_state_and_updates_basics() {
 
 #[test_log::test]
 fn test_server_state_and_updates_graph() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let dir = tempfile::tempdir().unwrap();
     let user_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
     let project_manifest = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
@@ -1179,7 +1180,7 @@ fn test_server_state_and_updates_graph() {
         user_manifest.path(),
         project_manifest.path(),
         local_config.path(),
-        rng.gen_range(1024..PortNumber::max_value()),
+        rng.random_range(1024..PortNumber::max_value()),
     );
     config.set_handle_fs_resource_changes(false);
     let config = config.build();
@@ -1304,7 +1305,7 @@ fn test_server_state_and_updates_graph() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    let event::Project::Subgraph(event::Subgraph::Created(graph)) = update else {
+    let event::Project::Graph(event::Graph::Created(graph)) = update else {
         panic!();
     };
     assert_eq!(graph.nodes.len(), 1);
@@ -1593,7 +1594,7 @@ mod common {
     pub fn init_project() -> PathBuf {
         let project_dir = tempfile::tempdir().unwrap();
         project::init(project_dir.path()).unwrap();
-        project_dir.into_path()
+        project_dir.keep()
     }
 
     pub fn init_project_graph(prj: LocalProject) {

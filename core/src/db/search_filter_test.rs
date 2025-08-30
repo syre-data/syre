@@ -70,8 +70,8 @@ fn standard_search_filter_container_matches_should_work() {
     if include.iter().all(|&x| !x) {
         // no true values for include
         // force one to be true
-        let mut rng = rand::thread_rng();
-        include[rng.gen_range(0..f_len)] = true;
+        let mut rng = rand::rng();
+        include[rng.random_range(0..f_len)] = true;
     }
 
     let mut i = 0;
@@ -188,8 +188,8 @@ fn standard_search_filter_asset_matches_should_work() {
     if include.iter().all(|&x| !x) {
         // no true values for include
         // force one to be true
-        let mut rng = rand::thread_rng();
-        include[rng.gen_range(0..f_len)] = true;
+        let mut rng = rand::rng();
+        include[rng.random_range(0..f_len)] = true;
     }
 
     let mut i = 0;

@@ -526,11 +526,11 @@ struct Data {
 
 impl Data {
     pub fn new() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         Self {
             id: ResourceId::new(),
-            inner: rng.gen(),
+            inner: rng.random(),
         }
     }
 

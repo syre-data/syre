@@ -79,7 +79,7 @@ impl Simulator {
     pub fn run(&mut self) {
         while self.state.current_tick < self.options.max_ticks() {
             tracing::debug!(?self.state.current_tick);
-            let action_count = self.rng.gen_range(self.options.action_count_range());
+            let action_count = self.rng.random_range(self.options.action_count_range());
             let (actions, _app_state_final) =
                 Self::choose_actions(action_count, self.state.app.clone(), &mut self.rng);
 
@@ -173,7 +173,7 @@ impl Simulator {
             ));
         }
 
-        let folder = &all_folders[rng.gen_range(0..all_folders.len())];
+        let folder = &all_folders[rng.random_range(0..all_folders.len())];
         let folder_path = state.fs().graph().path(&folder).unwrap();
         let mut filename = PathBuf::from(utils::random_file_name(rng));
         if rng.gen_bool(0.5) {
@@ -214,7 +214,7 @@ impl Simulator {
         };
 
         let mut actions = Vec::with_capacity(16);
-        let folder = &folders[rng.gen_range(0..folders.len())];
+        let folder = &folders[rng.random_range(0..folders.len())];
         let user_manifest = state.app().app_state().user_manifest();
         actions.extend(Self::valid_actions_app_manifest(
             user_manifest,
@@ -258,7 +258,7 @@ impl Simulator {
                     ));
 
                     if manifest.len() > 0 {
-                        let remove_index = rng.gen_range(0..manifest.len());
+                        let remove_index = rng.random_range(0..manifest.len());
                         actions.push((
                             Action::Modify {
                                 file: user_manifest.path().clone(),
@@ -271,7 +271,7 @@ impl Simulator {
             }
         }
 
-        let folder = &folders[rng.gen_range(0..folders.len())];
+        let folder = &folders[rng.random_range(0..folders.len())];
         let project_manifest = state.app().app_state().project_manifest();
         actions.extend(Self::valid_actions_app_manifest(
             project_manifest,
@@ -339,7 +339,7 @@ impl Simulator {
                             state::fs::Action::Modify {
                                 file: file_path.clone(),
                                 kind: state::fs::ModifyKind::ManifestRemove(
-                                    rng.gen_range(0..manifest.len()),
+                                    rng.random_range(0..manifest.len()),
                                 ),
                             },
                             1,
@@ -363,7 +363,7 @@ impl Simulator {
                         .collect::<Vec<_>>();
 
                     if project_folders.len() > 0 {
-                        let folder = project_folders[rng.gen_range(0..project_folders.len())];
+                        let folder = project_folders[rng.random_range(0..project_folders.len())];
                         let path = state.fs().graph().path(folder).unwrap();
                         if !state
                             .app()
@@ -429,7 +429,7 @@ impl Simulator {
                 2,
             )),
             Some(folder) => {
-                let mv = &folders[rng.gen_range(0..folders.len())];
+                let mv = &folders[rng.random_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(mv).unwrap();
                 actions.extend([
                     (Action::Remove(project.path().clone()), 1),
@@ -478,7 +478,7 @@ impl Simulator {
                     Resource::Present(config_ptr) => {
                         let config = config_ptr.borrow();
                         let path = state.app().project_config_path(config_ptr).unwrap();
-                        let mv = &folders[rng.gen_range(0..folders.len())];
+                        let mv = &folders[rng.random_range(0..folders.len())];
                         let mv_path = state.fs().graph().path(mv).unwrap();
 
                         actions.extend([
@@ -514,7 +514,7 @@ impl Simulator {
                             }
                         }
 
-                        let mv = &folders[rng.gen_range(0..folders.len())];
+                        let mv = &folders[rng.random_range(0..folders.len())];
                         let mv_path = state.fs().graph().path(mv).unwrap();
                         actions.extend(Self::valid_actions_project_config_resource::<
                             syre_core::project::Project,
@@ -527,7 +527,7 @@ impl Simulator {
                             rng,
                         ));
 
-                        let mv = &folders[rng.gen_range(0..folders.len())];
+                        let mv = &folders[rng.random_range(0..folders.len())];
                         let mv_path = state.fs().graph().path(mv).unwrap();
                         actions.extend(Self::valid_actions_project_config_resource::<
                             config::Settings,
@@ -540,7 +540,7 @@ impl Simulator {
                             rng,
                         ));
 
-                        let mv = &folders[rng.gen_range(0..folders.len())];
+                        let mv = &folders[rng.random_range(0..folders.len())];
                         let mv_path = state.fs().graph().path(mv).unwrap();
                         actions.extend(Self::valid_actions_project_resource_manifest(
                             config.analyses(),
@@ -565,7 +565,7 @@ impl Simulator {
                             2,
                         )),
                         true => {
-                            let mv = &folders[rng.gen_range(0..folders.len())];
+                            let mv = &folders[rng.random_range(0..folders.len())];
                             let mv_path = state.fs().graph().path(mv).unwrap();
                             actions.extend([
                                 (Action::Remove(path.clone()), 1),
@@ -609,7 +609,7 @@ impl Simulator {
                                 .collect::<Vec<_>>();
 
                             let analysis_file =
-                                &analysis_files[rng.gen_range(0..analysis_files.len())];
+                                &analysis_files[rng.random_range(0..analysis_files.len())];
                             let analysis_path = state.fs().file_path(&analysis_file).unwrap();
                             let rel_path = analysis_path.strip_prefix(analyses.path()).unwrap();
                             actions.push((
@@ -839,7 +839,7 @@ impl Simulator {
                         ]);
 
                         if manifest.len() > 0 {
-                            let remove_index = rng.gen_range(0..manifest.len());
+                            let remove_index = rng.random_range(0..manifest.len());
                             actions.push((
                                 Action::Modify {
                                     file: path.clone(),
@@ -983,7 +983,7 @@ impl Simulator {
             .app()
             .resource_path(state::app::FolderResource::Container(Ptr::downgrade(container)).into())
             .unwrap();
-        let mv = &folders[rng.gen_range(0..folders.len())];
+        let mv = &folders[rng.random_range(0..folders.len())];
         let mv_path = state.fs().graph().path(&mv).unwrap();
 
         actions.extend([
@@ -1072,7 +1072,7 @@ impl Simulator {
                     ),
                 ]);
 
-                let folder = &folders[rng.gen_range(0..folders.len())];
+                let folder = &folders[rng.random_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource::<
                     container::StoredProperties,
@@ -1085,7 +1085,7 @@ impl Simulator {
                     rng,
                 ));
 
-                let folder = &folders[rng.gen_range(0..folders.len())];
+                let folder = &folders[rng.random_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_config_resource::<
                     container::Settings,
@@ -1098,7 +1098,7 @@ impl Simulator {
                     rng,
                 ));
 
-                let folder = &folders[rng.gen_range(0..folders.len())];
+                let folder = &folders[rng.random_range(0..folders.len())];
                 let mv_path = state.fs().graph().path(folder).unwrap();
                 actions.extend(Self::valid_actions_project_resource_manifest(
                     config.assets(),
@@ -1411,7 +1411,7 @@ mod utils {
             .collect::<Vec<_>>();
 
         exts.push(distributions::Alphanumeric.sample_string(rng, 3).into());
-        exts.swap_remove(rng.gen_range(0..exts.len()))
+        exts.swap_remove(rng.random_range(0..exts.len()))
     }
 
     /// Gets a random path within the root path.

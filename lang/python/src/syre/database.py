@@ -281,7 +281,7 @@ class Database:
 
         self._socket.send_json({"Config": "Id"})
         resp = self._socket.recv_json()
-        return resp == "syre local project watcher" # DATABASE_ID
+        return resp == "syre local project daemon" # DATABASE_ID
 
     @property
     def root(self) -> Container:

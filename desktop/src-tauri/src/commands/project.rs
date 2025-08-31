@@ -461,116 +461,13 @@ pub async fn trigger_analysis(
             }
 
             let status = handle.status();
-
             if let Some((data_root, container_map)) = disable_analysis_after_data {
-                let mut container_analyses =
-                    Vec::<(&ResourceId, Vec<&core::runner::AnalysisState>)>::new();
-
-                status.iter().for_each(|status| {
-                    if let Some(entries) =
-                        container_analyses
-                            .iter_mut()
-                            .find_map(|(container, entries)| {
-                                (*container == status.container()).then_some(entries)
-                            })
-                    {
-                        entries.push(status);
-                    } else {
-                        container_analyses.push((status.container(), vec![status]));
-                    }
-                });
-
-                container_analyses
-                    .into_iter()
-                    .for_each(|(container, container_statuses)| {
-                        let container_path = container_map
-                            .iter()
-                            .find_map(|(rid, path)| (rid == container).then_some(path))
-                            .unwrap();
-
-                        let container_path_fs =
-                            local::common::join_path_absolute(&data_root, container_path);
-
-                        let disable_associations = match disable_analysis_after {
-                            DisableAnalysisAfter::False => {
-                                unreachable!("should not have entered scope, checked above")
-                            }
-                            DisableAnalysisAfter::True => container_statuses
-                                .iter()
-                                .map(|status| status.analysis())
-                                .collect::<Vec<_>>(),
-                            DisableAnalysisAfter::Success => container_statuses
-                                .iter()
-                                .filter_map(|status| {
-                                    status
-                                        .output()
-                                        .map(|output| output.status.success())
-                                        .unwrap_or(true)
-                                        .then_some(status.analysis())
-                                })
-                                .collect::<Vec<_>>(),
-                            DisableAnalysisAfter::SuccessNoFlags => {
-                                let flags = match local::loader::container::flags::Loader::load(
-                                    &container_path_fs,
-                                ) {
-                                    Ok(flags) => flags,
-                                    Err(err) => {
-                                        // TODO: Return error?
-                                        tracing::error!(?err);
-                                        return;
-                                    }
-                                };
-
-                                let all_flags = flags
-                                    .iter()
-                                    .map(|(_, resource_flags)| resource_flags)
-                                    .flatten();
-
-                                container_statuses
-                                    .iter()
-                                    .filter_map(|status| {
-                                        (!all_flags.clone().any(|flag| {
-                                            if let Some(source) = flag.source() {
-                                                // CHECK NO FLAGS FROM THE STATUS ANALYSIS
-                                                source.script() == status.analysis()
-                                            } else {
-                                                false
-                                            }
-                                        }))
-                                        .then_some(status.analysis())
-                                    })
-                                    .collect::<Vec<_>>()
-                            }
-                        };
-
-                        if !disable_associations.is_empty() {
-                            let mut properties =
-                                match local::loader::container::Loader::load_from_only_properties(
-                                    &container_path_fs,
-                                ) {
-                                    Ok(properties) => properties,
-                                    Err(err) => {
-                                        // TODO: Return error?
-                                        tracing::error!(?err);
-                                        return;
-                                    }
-                                };
-
-                            properties
-                                .analyses
-                                .iter_mut()
-                                .filter(|association| {
-                                    disable_associations.contains(&association.analysis())
-                                })
-                                .for_each(|association| {
-                                    association.autorun = false;
-                                });
-
-                            if let Err(err) = properties.save(container_path_fs) {
-                                tracing::error!(?err);
-                            }
-                        }
-                    });
+                handle_post_analysis_actions(
+                    disable_analysis_after,
+                    &status,
+                    data_root,
+                    container_map,
+                );
             }
 
             rx.send(lib::event::analysis::Update::Done(status)).unwrap();
@@ -578,6 +475,121 @@ pub async fn trigger_analysis(
     });
 
     Ok(())
+}
+
+// TODO: Return errors?
+fn handle_post_analysis_actions(
+    action: lib::settings::analysis::DisableAnalysisAfter,
+    status: &Vec<core::runner::AnalysisState>,
+    data_root: PathBuf,
+    container_map: Vec<(ResourceId, PathBuf)>,
+) {
+    use lib::settings::analysis::DisableAnalysisAfter;
+
+    if matches!(action, DisableAnalysisAfter::False) {
+        return;
+    }
+
+    let mut container_analyses = Vec::<(&ResourceId, Vec<&core::runner::AnalysisState>)>::new();
+
+    status.iter().for_each(|status| {
+        if let Some(entries) = container_analyses
+            .iter_mut()
+            .find_map(|(container, entries)| (*container == status.container()).then_some(entries))
+        {
+            entries.push(status);
+        } else {
+            container_analyses.push((status.container(), vec![status]));
+        }
+    });
+
+    container_analyses
+        .into_iter()
+        .for_each(|(container, container_statuses)| {
+            let container_path = container_map
+                .iter()
+                .find_map(|(rid, path)| (rid == container).then_some(path))
+                .unwrap();
+
+            let container_path_fs = local::common::join_path_absolute(&data_root, container_path);
+
+            let disable_associations = match action {
+                DisableAnalysisAfter::False => {
+                    unreachable!("should not have entered scope")
+                }
+                DisableAnalysisAfter::True => container_statuses
+                    .iter()
+                    .map(|status| status.analysis())
+                    .collect::<Vec<_>>(),
+                DisableAnalysisAfter::Success => container_statuses
+                    .iter()
+                    .filter_map(|status| {
+                        status
+                            .output()
+                            .map(|output| output.status.success())
+                            .unwrap_or(true)
+                            .then_some(status.analysis())
+                    })
+                    .collect::<Vec<_>>(),
+                DisableAnalysisAfter::SuccessNoFlags => {
+                    let flags =
+                        match local::loader::container::flags::Loader::load(&container_path_fs) {
+                            Ok(flags) => flags,
+                            Err(err) => {
+                                // TODO: Return error?
+                                tracing::error!(?err);
+                                return;
+                            }
+                        };
+
+                    let all_flags = flags
+                        .iter()
+                        .map(|(_, resource_flags)| resource_flags)
+                        .flatten();
+
+                    container_statuses
+                        .iter()
+                        .filter_map(|status| {
+                            (!all_flags.clone().any(|flag| {
+                                if let Some(source) = flag.source() {
+                                    // CHECK NO FLAGS FROM THE STATUS ANALYSIS
+                                    source.script() == status.analysis()
+                                } else {
+                                    false
+                                }
+                            }))
+                            .then_some(status.analysis())
+                        })
+                        .collect::<Vec<_>>()
+                }
+            };
+
+            if !disable_associations.is_empty() {
+                let mut properties =
+                    match local::loader::container::Loader::load_from_only_properties(
+                        &container_path_fs,
+                    ) {
+                        Ok(properties) => properties,
+                        Err(err) => {
+                            // TODO: Return error?
+                            tracing::error!(?err);
+                            return;
+                        }
+                    };
+
+                properties
+                    .analyses
+                    .iter_mut()
+                    .filter(|association| disable_associations.contains(&association.analysis()))
+                    .for_each(|association| {
+                        association.autorun = false;
+                    });
+
+                if let Err(err) = properties.save(container_path_fs) {
+                    tracing::error!(?err);
+                }
+            }
+        });
 }
 
 #[tauri::command]

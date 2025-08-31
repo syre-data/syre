@@ -317,7 +317,7 @@ mod analyze {
     use leptos_icons::*;
     use reactive_stores::Store;
     use std::path::PathBuf;
-    use syre_core::types::ResourceId;
+    use syre_core::{self as core, types::ResourceId};
     use syre_desktop_lib as lib;
     use syre_desktop_ui_lib::{
         self as ui_lib,
@@ -424,7 +424,7 @@ mod analyze {
 
         view! {
             <Show
-                when=move || analysis_state.with(|state| state.active())
+                when=move || analysis_state.read().active()
                 fallback=move || view! { <Trigger action /> }
             >
                 <Analyzing />
@@ -759,6 +759,7 @@ mod analyze {
         messages: ui_lib::message::Messages,
     ) {
         while let Some(event) = rx.next().await {
+            tracing::trace!(?event);
             match event {
                 lib::event::analysis::Update::Progress {
                     completed: update_completed,
@@ -791,81 +792,85 @@ mod analyze {
                 }),
 
                 lib::event::analysis::Update::Done(status) => {
+                    tracing::trace!("done");
                     analysis_state.set(AnalysisState::Idle);
-
-                    let errors = status
-                        .iter()
-                        .filter(|status| {
-                            status
-                                .output()
-                                .map(|output| !output.status.success())
-                                .unwrap_or(false)
-                        })
-                        .collect::<Vec<_>>();
-                    if errors.is_empty() {
-                        let msg = ui_lib::message::Builder::success("Analysis complete.");
-                        messages.push_message(msg.build());
-                    } else {
-                        let errors = errors
-                            .into_iter()
-                            .map(|err| {
-                                let analysis = analyses
-                                    .read_untracked()
-                                    .as_ref()
-                                    .unwrap()
-                                    .read_untracked()
-                                    .iter()
-                                    .find_map(|analysis| {
-                                        analysis.properties().with_untracked(|analysis| {
-                                            match analysis {
-                                                AnalysisKind::Script(script) => {
-                                                    (script.rid() == err.analysis()).then_some(
-                                                        script.path.to_string_lossy().to_string(),
-                                                    )
-                                                }
-                                                AnalysisKind::ExcelTemplate(template) => {
-                                                    (template.rid() == err.analysis()).then_some(
-                                                        template
-                                                            .template
-                                                            .path
-                                                            .to_string_lossy()
-                                                            .to_string(),
-                                                    )
-                                                }
-                                            }
-                                        })
-                                    })
-                                    .unwrap();
-
-                                let container = graph.find_by_id(err.container()).unwrap();
-                                let container = graph
-                                    .path(&container)
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .to_string();
-
-                                let stderr = err.output().map_or(
-                                    "Could not retrieve error message".to_string(),
-                                    |output| String::from_utf8(output.stderr.clone()).unwrap(),
-                                );
-
-                                ErrorInfo {
-                                    analysis,
-                                    container,
-                                    message: stderr,
-                                }
-                            })
-                            .collect();
-
-                        tracing::error!(?errors);
-                        let msg =
-                            ui_lib::message::Builder::error("Errors occurred during analysis.");
-                        let msg = msg.body(UpdateErrors { errors });
-                        messages.push_message(msg.build());
-                    }
+                    handle_analysis_update_done(status, analyses.read_only(), graph, messages);
                     break;
                 }
             }
+        }
+    }
+
+    fn handle_analysis_update_done(
+        status: Vec<core::runner::AnalysisState>,
+        analyses: ReadSignal<db::state::DataResource<RwSignal<Vec<ui_lib::state::Analysis>>>>,
+        graph: ui_lib::state::Graph,
+        messages: ui_lib::message::Messages,
+    ) {
+        let errors = status
+            .iter()
+            .filter(|status| {
+                status
+                    .output()
+                    .map(|output| !output.status.success())
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+
+        if errors.is_empty() {
+            let msg = ui_lib::message::Builder::success("Analysis complete.");
+            messages.push_message(msg.build());
+        } else {
+            let errors = errors
+                .into_iter()
+                .map(|err| {
+                    let analysis = analyses
+                        .read_untracked()
+                        .as_ref()
+                        .unwrap()
+                        .read_untracked()
+                        .iter()
+                        .find_map(|analysis| {
+                            analysis
+                                .properties()
+                                .with_untracked(|analysis| match analysis {
+                                    AnalysisKind::Script(script) => (script.rid()
+                                        == err.analysis())
+                                    .then_some(script.path.to_string_lossy().to_string()),
+                                    AnalysisKind::ExcelTemplate(template) => {
+                                        (template.rid() == err.analysis()).then_some(
+                                            template.template.path.to_string_lossy().to_string(),
+                                        )
+                                    }
+                                })
+                        })
+                        .unwrap();
+
+                    let container = graph.find_by_id(err.container()).unwrap();
+                    let container = graph
+                        .path(&container)
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+
+                    let stderr = err
+                        .output()
+                        .map_or("Could not retrieve error message".to_string(), |output| {
+                            String::from_utf8(output.stderr.clone()).unwrap()
+                        });
+
+                    ErrorInfo {
+                        analysis,
+                        container,
+                        message: stderr,
+                    }
+                })
+                .collect();
+
+            tracing::error!(?errors);
+            let msg = ui_lib::message::Builder::error("Errors occurred during analysis.");
+            let msg = msg.body(UpdateErrors { errors });
+            messages.push_message(msg.build());
         }
     }
 

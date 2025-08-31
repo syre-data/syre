@@ -213,6 +213,7 @@ pub mod app {
 pub mod analysis {
     use serde::{Deserialize, Serialize};
 
+    /// Action to perform on the analysis association after it completes its run.
     #[derive(Serialize, Deserialize, Clone, Copy, Default, Debug)]
     pub enum DisableAnalysisAfter {
         /// Do not disable.

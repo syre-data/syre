@@ -391,12 +391,52 @@ mod windows {
             Ok(())
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
         fn handle_file_system_daemon_errors(
             &self,
             errors: Vec<daemon::Error>,
         ) -> crate::Result<Vec<daemon::Event>> {
-            tracing::error!(?errors);
-            todo!();
+            let (events, errors) = errors
+                .into_iter()
+                .map(|error| match error {
+                    daemon::Error::Watch(error) => todo!("{error:?}"),
+                    daemon::Error::Processing { .. } => {
+                        self.handle_file_system_daemon_error_processing(error)
+                    }
+                })
+                .partition::<Vec<_>, _>(|result| result.is_ok());
+
+            if errors.is_empty() {
+                let events = events
+                    .into_iter()
+                    .flat_map(|event| event.unwrap())
+                    .collect();
+                Ok(events)
+            } else {
+                todo!("{errors:?}");
+            }
+        }
+
+        fn handle_file_system_daemon_error_processing(
+            &self,
+            error: daemon::Error,
+        ) -> crate::Result<Vec<daemon::Event>> {
+            let daemon::Error::Processing { events, kind } = &error else {
+                panic!("invalid event kind");
+            };
+
+            match *kind {
+                daemon::error::Process::NotFound => {
+                    tracing::trace!(
+                        "could not process events because resource was not found, they are being ignored: {events:?}"
+                    );
+                    Ok(vec![])
+                }
+                daemon::error::Process::UnknownFileType => todo!("{error:?}"),
+                daemon::error::Process::Canonicalize => todo!("{error:?}"),
+                daemon::error::Process::LoadProject => todo!("{error:?}"),
+                daemon::error::Process::InvalidState => todo!("{error:?}"),
+            }
         }
     }
 

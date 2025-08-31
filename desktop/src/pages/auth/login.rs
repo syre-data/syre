@@ -2,7 +2,9 @@ use leptos::{prelude::*, task::spawn_local};
 use leptos_router::{components::A, hooks::use_navigate};
 use serde::Serialize;
 use syre_core::system::User;
+use syre_desktop_lib::command::auth::error;
 use syre_desktop_ui_components::{Autofocus, Logo};
+use syre_local as local;
 use web_sys::{FormData, SubmitEvent};
 
 #[component]
@@ -23,7 +25,7 @@ pub fn Login() -> impl IntoView {
             let email = data.get("email").as_string().unwrap();
 
             if email.trim().is_empty() {
-                set_error(Some("Email is required.".to_string()));
+                set_error(Some("Email is required".to_string()));
                 return;
             }
             let email = email.trim().to_string();
@@ -36,7 +38,16 @@ pub fn Login() -> impl IntoView {
                     }
 
                     Err(err) => {
-                        set_error(Some(err));
+                        let msg = match err {
+                            error::Login::GetUser(err) => {
+                                format!("Could not get user: {err:?}.")
+                            }
+                            error::Login::InvalidCredentials => "Invalid credentials.".to_string(),
+                            error::Login::SetActiveUser(err) => {
+                                format!("Could not set active user: {err:?}.")
+                            }
+                        };
+                        set_error(Some(msg));
                         set_loading(false);
                     }
                 }
@@ -54,7 +65,8 @@ pub fn Login() -> impl IntoView {
                 <form node_ref=form_ref on:submit=login_user>
                     <div>
                         <label>
-                            "Email" <Autofocus>
+                            <span class="block">"Email"</span>
+                            <Autofocus>
                                 <input
                                     type="email"
                                     name="email"
@@ -65,7 +77,7 @@ pub fn Login() -> impl IntoView {
                             </Autofocus>
                         </label>
                     </div>
-
+                    <div class="text-sm">{error}</div>
                     <div class="pt-4 flex gap-x-4 justify-center">
                         <button disabled=loading class="btn btn-primary">
                             "Login"
@@ -75,13 +87,12 @@ pub fn Login() -> impl IntoView {
                         </A>
                     </div>
                 </form>
-                <div>{error}</div>
             </div>
         </div>
     }
 }
 
-async fn login(email: String) -> Result<User, String> {
+async fn login(email: String) -> Result<User, error::Login> {
     tauri_sys::core::invoke_result("login", LoginArgs { email }).await
 }
 

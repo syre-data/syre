@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_router::{components::A, hooks::use_navigate};
 use serde::Serialize;
 use syre_core::system::User;
+use syre_desktop_lib::command::auth::error;
 use syre_desktop_ui_components::{Autofocus, Logo};
 use web_sys::{FormData, SubmitEvent};
 
@@ -22,8 +23,8 @@ pub fn Register() -> impl IntoView {
                         navigate("/", Default::default());
                     }
 
-                    Err(err) => {
-                        set_error(Some(err));
+                    Err(msg) => {
+                        set_error(Some(msg));
                     }
                 }
             }
@@ -82,6 +83,7 @@ pub fn Register() -> impl IntoView {
                             <input name="name" class="input-simple" />
                         </label>
                     </div>
+                    <div class="text-sm">{error}</div>
                     <div class="pt-4 flex justify-center gap-x-4">
                         <button disabled=register_user_action.pending() class="btn btn-primary">
                             "Sign up"
@@ -90,7 +92,6 @@ pub fn Register() -> impl IntoView {
                             "Log in"
                         </A>
                     </div>
-                    <div>{error}</div>
                 </form>
             </div>
         </div>
@@ -98,28 +99,42 @@ pub fn Register() -> impl IntoView {
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
+    use syre_local::system::user_manifest;
+
     #[derive(Serialize)]
     struct Args {
         email: String,
         name: Option<String>,
     }
 
-    tauri_sys::core::invoke_result("register_user", Args { email, name })
+    tauri_sys::core::invoke_result::<User, error::Register>("register_user", Args { email, name })
         .await
         .map_err(|err| match err {
-            syre_local::Error::IoSerde(err) => {
-                tracing::debug!(?err);
-                "Could not load user manifest.".to_string()
-            }
-            syre_local::Error::Users(syre_local::error::Users::InvalidEmail(_)) => {
-                "Invalid email.".to_string()
-            }
-            syre_local::Error::Users(syre_local::error::Users::DuplicateEmail(_)) => {
-                "Email is already registered.".to_string()
-            }
-            err => {
-                tracing::debug!(?err);
-                "Could not create user.".to_string()
-            }
+            error::Register::AddUser(err) => match err {
+                user_manifest::error::AddUser::InvalidEmail => "Invalid email.".to_string(),
+                user_manifest::error::AddUser::LoadUserManifest(err) => {
+                    format!("Could not load user maniest: {err:?}")
+                }
+                user_manifest::error::AddUser::EmailAlreadyExists => {
+                    "Email already registered.".to_string()
+                }
+                user_manifest::error::AddUser::SaveUserManifest(err) => {
+                    format!("Could not save user manifest: {err:?}")
+                }
+            },
+            error::Register::SetActiveUser(err) => match err {
+                user_manifest::error::SetActiveUser::LoadUserManifest(err) => {
+                    format!("Could not load user maniest: {err:?}")
+                }
+                user_manifest::error::SetActiveUser::UserDoesNotExist => {
+                    "User does not exist".to_string()
+                }
+                user_manifest::error::SetActiveUser::LoadLocalConfig(err) => {
+                    format!("Could not load local config: {err:?}")
+                }
+                user_manifest::error::SetActiveUser::SaveLocalConfig(err) => {
+                    format!("Could not save local config: {err:?}")
+                }
+            },
         })
 }

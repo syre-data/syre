@@ -1,4 +1,26 @@
 //! Shared types between the desktop ui and tauri commands.
+
+pub mod auth {
+    pub mod error {
+        use serde::{Deserialize, Serialize};
+        use syre_local::{error::IoSerde, system::user_manifest};
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum Register {
+            AddUser(user_manifest::error::AddUser),
+            SetActiveUser(user_manifest::error::SetActiveUser),
+        }
+
+        #[derive(Serialize, Deserialize, Debug)]
+        pub enum Login {
+            GetUser(user_manifest::error::UserByEmail),
+            InvalidCredentials,
+            /// Could not set active user.
+            SetActiveUser(user_manifest::error::SetActiveUser),
+        }
+    }
+}
+
 pub mod project {
     pub mod error {
         use serde::{Deserialize, Serialize};

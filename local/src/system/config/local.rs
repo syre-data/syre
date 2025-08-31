@@ -43,8 +43,8 @@ impl Config {
         }
     }
 
-    pub fn save(&self) -> Result<(), IoSerde> {
-        fs::write(self.path(), serde_json::to_string_pretty(&self)?)?;
+    pub fn save(&self) -> Result<(), io::Error> {
+        fs::write(self.path(), serde_json::to_string_pretty(&self).unwrap())?;
         Ok(())
     }
 }

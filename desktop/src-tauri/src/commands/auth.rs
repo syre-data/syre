@@ -1,31 +1,28 @@
 use syre_core::system::User;
-use syre_local::{error::IoSerde, system::user_manifest};
+use syre_desktop_lib::command::auth::error;
+use syre_local::{self as local, error::IoSerde, system::user_manifest};
 
 #[tauri::command]
-pub fn register_user(email: String, name: Option<String>) -> syre_local::Result<User> {
+pub fn register_user(email: String, name: Option<String>) -> Result<User, error::Register> {
     let user = if let Some(name) = name {
         User::with_name(email, name)
     } else {
         User::new(email)
     };
 
-    user_manifest::add_user(user.clone())?;
-    user_manifest::set_active_user(user.rid())?;
-
+    user_manifest::add_user(user.clone()).map_err(error::Register::AddUser)?;
+    user_manifest::set_active_user(user.rid()).map_err(error::Register::SetActiveUser)?;
     Ok(user)
 }
 
 #[tauri::command]
-pub fn login(email: String) -> syre_local::Result<User> {
-    let user = user_manifest::user_by_email(&email)?;
+pub fn login(email: String) -> Result<User, error::Login> {
+    let user = user_manifest::user_by_email(&email).map_err(error::Login::GetUser)?;
     let Some(user) = user else {
-        return Err(syre_core::error::Error::Resource(
-            syre_core::error::Resource::DoesNotExist(email).into(),
-        )
-        .into());
+        return Err(error::Login::InvalidCredentials);
     };
 
-    user_manifest::set_active_user(user.rid())?;
+    user_manifest::set_active_user(user.rid()).map_err(error::Login::SetActiveUser)?;
     Ok(user)
 }
 

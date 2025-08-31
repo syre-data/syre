@@ -1,10 +1,13 @@
 use super::collections::user_manifest::UserManifest;
 use super::config::Config;
-use crate::error::{Error, IoSerde, Result, Users as UsersError};
+use crate::error::{IoSerde, Result, Users as UsersError};
 use std::result::Result as StdResult;
-use syre_core::error::{Error as CoreError, Resource as ResourceError};
-use syre_core::system::User;
-use syre_core::types::ResourceId;
+use syre_core::{
+    self as core,
+    error::{Error as CoreError, Resource as ResourceError},
+    system::User,
+    types::ResourceId,
+};
 
 // *************
 // *** Users ***
@@ -20,63 +23,73 @@ pub fn user_by_id(rid: &ResourceId) -> StdResult<Option<User>, IoSerde> {
 ///
 /// # Errors
 /// + [`UsersError::DuplicateEmail`]: If multiple users are registered with the given email.
-pub fn user_by_email(email: impl Into<String>) -> Result<Option<User>> {
+pub fn user_by_email(email: impl Into<String>) -> StdResult<Option<User>, error::UserByEmail> {
     let email = email.into();
-    let users = UserManifest::load()?;
+    let users = UserManifest::load().map_err(error::UserByEmail::LoadUserManifest)?;
     let users: Vec<&User> = users.iter().filter(|user| user.email == email).collect();
 
     match users.len() {
         0 => Ok(None),
         1 => Ok(Some(users[0].clone())),
-        _ => Err(Error::Users(UsersError::DuplicateEmail(email))),
+        _ => Err(error::UserByEmail::DuplicateEmail),
     }
 }
 
 /// Adds a user to the system settings.
-pub fn add_user(user: User) -> Result {
+pub fn add_user(user: User) -> StdResult<(), error::AddUser> {
     // validate email
     if !validator::ValidateEmail::validate_email(&user.email) {
-        return Err(UsersError::InvalidEmail(user.email).into());
+        return Err(error::AddUser::InvalidEmail);
     }
 
-    let mut users = UserManifest::load_or_default()?;
+    let mut users = UserManifest::load_or_default().map_err(error::AddUser::LoadUserManifest)?;
 
     // check if email already exists
     let user_count = user_count_by_email(&user.email, &users);
     if user_count > 0 {
         // same email already exists
-        return Err(UsersError::DuplicateEmail(user.email.to_string()).into());
+        return Err(error::AddUser::EmailAlreadyExists);
     }
 
     // add user
     users.push(user);
-    users.save()?;
+    users
+        .save()
+        .map_err(|err| error::AddUser::SaveUserManifest(err.kind()))?;
     Ok(())
 }
 
 /// Delete a user by id.
-pub fn delete_user(rid: &ResourceId) -> StdResult<(), IoSerde> {
-    let mut users = UserManifest::load()?;
-    let mut config = Config::load()?;
+pub fn delete_user(rid: &ResourceId) -> StdResult<(), error::DeleteUser> {
+    let mut users = UserManifest::load().map_err(error::DeleteUser::LoadUserManifest)?;
+    let mut config = Config::load().map_err(error::DeleteUser::LoadLocalConfig)?;
 
     users.remove(&rid);
 
     // unset as active user, if required
     if config.user.as_ref() == Some(rid) {
         config.user = None;
-        config.save()?;
+        config
+            .save()
+            .map_err(|err| error::DeleteUser::SaveLocalConfig(err.kind()))?;
     }
 
-    users.save()?;
+    users
+        .save()
+        .map_err(|err| error::DeleteUser::SaveUserManifest(err.kind()))?;
     Ok(())
 }
 
-pub fn delete_user_by_email(email: &str) -> Result {
-    let Some(user) = user_by_email(email)? else {
+/// Delete a user by their email.
+///
+/// # Notes
+/// + If the user is not found, no action is taken and `Ok` is returned.
+pub fn delete_user_by_email(email: &str) -> StdResult<(), error::DeleteUserByEmail> {
+    let Some(user) = user_by_email(email).map_err(error::DeleteUserByEmail::GetUser)? else {
         return Ok(());
     };
 
-    delete_user(user.rid())?;
+    delete_user(user.rid()).map_err(error::DeleteUserByEmail::DeleteUser)?;
     Ok(())
 }
 
@@ -92,7 +105,11 @@ pub fn update_user(user: User) -> Result {
     }
 
     let mut users = UserManifest::load()?;
-    validate_id_is_present(user.rid(), &users)?;
+    if users.get(user.rid()).is_none() {
+        return Err(
+            CoreError::Resource(ResourceError::does_not_exist("`User` does not exist.")).into(),
+        );
+    }
 
     users.push(user);
     users.save()?;
@@ -113,15 +130,19 @@ pub fn get_active_user() -> StdResult<Option<User>, IoSerde> {
 ///
 /// # Errors
 /// + If the user represented by the id is not registered.
-pub fn set_active_user(rid: &ResourceId) -> Result {
+pub fn set_active_user(rid: &ResourceId) -> StdResult<(), error::SetActiveUser> {
     // ensure valid users
-    let users = UserManifest::load()?;
-    validate_id_is_present(rid, &users)?;
+    let users = UserManifest::load().map_err(error::SetActiveUser::LoadUserManifest)?;
+    if users.get(rid).is_none() {
+        return Err(error::SetActiveUser::UserDoesNotExist);
+    }
 
     // set active user
-    let mut config = Config::load_or_default()?;
+    let mut config = Config::load_or_default().map_err(error::SetActiveUser::LoadLocalConfig)?;
     config.user = Some(rid.clone());
-    config.save()?;
+    config
+        .save()
+        .map_err(|err| error::SetActiveUser::SaveLocalConfig(err.kind()))?;
     Ok(())
 }
 
@@ -129,17 +150,17 @@ pub fn set_active_user(rid: &ResourceId) -> Result {
 ///
 /// # Errors
 /// + If the user represented by the email is not registered.
-pub fn set_active_user_by_email(email: &str) -> Result {
-    let user = user_by_email(email)?;
+pub fn set_active_user_by_email(email: &str) -> StdResult<(), error::SetActiveUserByEmail> {
+    let user = user_by_email(email).map_err(error::SetActiveUserByEmail::GetUser)?;
     let Some(user) = user else {
-        return Err(
-            CoreError::Resource(ResourceError::does_not_exist("email does not exist")).into(),
-        );
+        return Err(error::SetActiveUserByEmail::UserDoesNotExist);
     };
 
-    let mut config = Config::load()?;
+    let mut config = Config::load().map_err(error::SetActiveUserByEmail::LoadLocalConfig)?;
     config.user = Some(user.rid().clone());
-    config.save()?;
+    config
+        .save()
+        .map_err(|err| error::SetActiveUserByEmail::SaveLocalConfig(err.kind()))?;
     Ok(())
 }
 
@@ -151,10 +172,6 @@ pub fn unset_active_user() -> StdResult<(), IoSerde> {
     Ok(())
 }
 
-// *************************
-// *** private functions ***
-// *************************
-
 /// Returns the number of users with the given email.
 fn user_count_by_email(email: &str, users: &UserManifest) -> usize {
     // ensure valid users
@@ -165,15 +182,55 @@ fn user_count_by_email(email: &str, users: &UserManifest) -> usize {
         .len()
 }
 
-/// Validates that a user exists.
-fn validate_id_is_present(rid: &ResourceId, store: &UserManifest) -> Result {
-    if store.get(rid).is_none() {
-        return Err(
-            CoreError::Resource(ResourceError::does_not_exist("`User` does not exist.")).into(),
-        );
+pub mod error {
+    use crate::error::IoSerde;
+    use serde::{Deserialize, Serialize};
+    use std::io;
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum AddUser {
+        InvalidEmail,
+        LoadUserManifest(IoSerde),
+        EmailAlreadyExists,
+        SaveUserManifest(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
     }
 
-    Ok(())
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum UserByEmail {
+        LoadUserManifest(IoSerde),
+        DuplicateEmail,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum SetActiveUser {
+        LoadUserManifest(IoSerde),
+        /// User does not exist in the user manifest.
+        UserDoesNotExist,
+        LoadLocalConfig(IoSerde),
+        SaveLocalConfig(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum SetActiveUserByEmail {
+        GetUser(UserByEmail),
+        UserDoesNotExist,
+        LoadLocalConfig(IoSerde),
+        SaveLocalConfig(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum DeleteUser {
+        LoadUserManifest(IoSerde),
+        LoadLocalConfig(IoSerde),
+        SaveUserManifest(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
+        SaveLocalConfig(#[serde(with = "io_error_serde::ErrorKind")] io::ErrorKind),
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum DeleteUserByEmail {
+        GetUser(UserByEmail),
+        DeleteUser(DeleteUser),
+    }
 }
 
 #[cfg(test)]

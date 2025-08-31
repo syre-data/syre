@@ -1,15 +1,14 @@
 #!/bin/bash
-program_basename=syre-project-watcher
+program_basename=syre-project-daemon
 root=../..
 releases=${root}/target/release
-crate_release_dir=target/release
+crate_release_dir=${root}/target/release
 target=x86_64-apple-darwin
 target_file=${program_basenaem}-${target}
 target_out=${releases}/${target_file}
 
 mkdir -p ${dir}
 cargo build --release -F server --target ${target}
-mv ${crate_release_dir}/${program_basename} ${target_out}
 
 # copy to other packages
 lang=${root}/lang

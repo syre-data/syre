@@ -28,7 +28,7 @@ to_json <- function(obj) {
 #'
 #' @returns Path to the local database executable for the current system.
 database_server_path <- function() {
-  exe_basename <- "syre-project-watcher"
+  exe_basename <- "syre-project-daemon"
   sys_info <- Sys.info()
   exe <- switch(sys_info["sysname"],
     "Linux" = "x86_64-unknown-linux-gnu",

@@ -1,5 +1,5 @@
 # Close syre database ports.
-$SYRE_DB_PROCESS_NAME = "syre-project-watcher"
+$SYRE_DB_PROCESS_NAME = "syre-project-daemon"
 $SYRE_PUB_PORT = 7048
 
 $OUT = Get-Process -Id (Get-NetTCPConnection -LocalPort $SYRE_PUB_PORT).OwningProcess # Handles, NPM(K), PM(K), WS(K), CPU(s), Id, SI, ProcessName

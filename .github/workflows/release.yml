@@ -34,13 +34,13 @@ jobs:
         uses: jetli/trunk-action@v0.4.0
       - name: install tauri
         run: cargo install tauri-cli
-      - name: build syre-project-watcher (linux, macos)
+      - name: build syre-project-daemon (linux, macos)
         if: (matrix.platform == 'ubuntu-20.04') || (matrix.platform == 'macos-latest')
         run: |
           cd local/database
           ./build.sh
           cd ../..
-      - name: build syre-project-watcher (windows)
+      - name: build syre-project-daemon (windows)
         if: matrix.platform == 'windows-latest'
         run: |
           cd local/database

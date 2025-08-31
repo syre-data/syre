@@ -31,7 +31,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["../../target/release/syre-project-watcher"],
+    "externalBin": ["../../target/release/syre-project-daemon"],
     "createUpdaterArtifacts": true
   },
   "plugins": {

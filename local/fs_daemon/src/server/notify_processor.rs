@@ -730,6 +730,24 @@ impl FsWatcher {
 
                 let path = normalize_path_root(path);
                 if path.exists() {
+                    // NB: This event indicates that the resource was moved from this path.
+                    // If a resource now exists there, then a later event will indicate its
+                    // creation.
+                    None
+                } else {
+                    Some(fs_event::Event::new(fs_event::Any::Removed(path), time))
+                }
+            }
+
+            NotifyEventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
+                // NB: Must check if paths exists due to operation of `notify` crate.
+                // See https://github.com/notify-rs/notify/issues/554.
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
+                };
+
+                let path = normalize_path_root(path);
+                if path.exists() {
                     if path.is_dir() {
                         Some(fs_event::Event::new(fs_event::Folder::Created(path), time))
                     } else if path.is_file() {
@@ -738,7 +756,7 @@ impl FsWatcher {
                         return Err(error::Process::UnknownFileType);
                     }
                 } else {
-                    Some(fs_event::Event::new(fs_event::Any::Removed(path), time))
+                    todo!("resource already removed");
                 }
             }
 
@@ -908,7 +926,7 @@ impl FsWatcher {
                 Some(fs_event::Event::new(fs_event::Any::Removed(path), time))
             }
 
-            event => unreachable!("unhandled event {event:?}"),
+            _kind => unreachable!("unhandled event {event:?}"),
         };
 
         Ok(event)

@@ -15,7 +15,13 @@ import filelock
 
 from syre import _LEGACY_
 from .types import OptStr, Tags, Metadata
-from .common import CONTAINER_ID_KEY, PROJECT_ID_KEY, ANALYSIS_ID_KEY, assets_file_of, flags_file_of
+from .common import (
+    CONTAINER_ID_KEY,
+    PROJECT_ID_KEY,
+    ANALYSIS_ID_KEY,
+    assets_file_of,
+    flags_file_of,
+)
 from .resources import Container, Asset, dict_to_container, dict_to_asset
 
 OptTags = Union[Tags, None]
@@ -28,7 +34,7 @@ if _LEGACY_:
 else:
     Containers = list[Container]
     Assets = list[Asset]
-    
+
 try:
     from enum import StrEnum as Enum
 except ImportError:
@@ -44,10 +50,12 @@ if platform.system() == "Windows":
 else:
     ROOT_DIR = "/"
 
+
 class FlagSeverity(Enum):
     Info = "Info"
     Warning = "Warning"
     Error = "Error"
+
 
 class Database:
     """
@@ -112,8 +120,7 @@ class Database:
             )
 
     def _init_dev(self, dev_root: str, chdir: bool):
-        """Initialize the database in a dev environment.
-        """
+        """Initialize the database in a dev environment."""
         # TODO: Allow relative paths
         # See `inspect.stack`
         if not os.path.isabs(dev_root):
@@ -180,7 +187,7 @@ class Database:
             )
         root_properties = root_properties["Ok"]
         self._root_id: str = root_properties["rid"]
-        
+
         user = self._active_user()
         self._creator = {"User": {"Id": user}}
 
@@ -218,7 +225,7 @@ class Database:
 
         if platform.system() == "Windows":
             if self._root.startswith(ROOT_DIR):
-                container_graph_path = self._root[len(ROOT_DIR):]
+                container_graph_path = self._root[len(ROOT_DIR) :]
             else:
                 raise RuntimeError(f"Invalid path for {CONTAINER_ID_KEY}")
         else:
@@ -237,11 +244,11 @@ class Database:
 
         root_properties = root["properties"]["Ok"]
         self._root_id: str = root_properties["rid"]
-        
+
         analysis_id: OptStr = os.getenv(ANALYSIS_ID_KEY)
         if analysis_id is None:
             raise RuntimeError(f"{ANALYSIS_ID_KEY} not set")
-        
+
         self._creator = {"Script": analysis_id}
 
         if chdir:
@@ -281,7 +288,7 @@ class Database:
 
         self._socket.send_json({"Config": "Id"})
         resp = self._socket.recv_json()
-        return resp == "syre local project daemon" # DATABASE_ID
+        return resp == "syre local project daemon"  # DATABASE_ID
 
     @property
     def root(self) -> Container:
@@ -576,9 +583,7 @@ class Database:
         if resource_type == Container:
             resource_container_path = "/"
         elif resource_type == Asset:
-            resource_container_path = os.path.relpath(
-                resource.file, container_path
-            )
+            resource_container_path = os.path.relpath(resource.file, container_path)
 
         flags_path = flags_file_of(container_path)
         if (not os.path.exists(flags_path)) or (os.stat(flags_path).st_size == 0):
@@ -588,21 +593,18 @@ class Database:
                 flags = json.load(f)
                 if type(flags) != dict:
                     raise RuntimeError("Invalid flags file.")
-        
+
         flag = {
             "id": str(uuid()),
             "message": message,
             "severity": severity,
         }
-        
+
         if "Script" in self._creator:
             stack = inspect.stack()
             caller = stack[1]
-            flag["source"] = {
-                "script": self._creator["Script"],
-                "line": caller.lineno
-            }
-        
+            flag["source"] = {"script": self._creator["Script"], "line": caller.lineno}
+
         if resource_container_path in flags:
             flags[resource_container_path].append(flag)
         else:
@@ -682,8 +684,7 @@ def ensure_root_path(path: str) -> str:
 
 
 def json_overwrite(obj: Any, f: io.TextIOWrapper):
-    """Overwrite a file's contents with the JSON serialization of the object.
-    """
+    """Overwrite a file's contents with the JSON serialization of the object."""
     # NB: Serialize object first to ensure success.
     #   If serailized directly to file, and an error occurs the file becomes corrupt.
     try:
@@ -691,7 +692,7 @@ def json_overwrite(obj: Any, f: io.TextIOWrapper):
     except TypeError as err:
         # TODO: Give better error message for user.
         raise err
-        
+
     f.seek(0)
     f.write(out)
     f.truncate()

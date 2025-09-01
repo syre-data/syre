@@ -2,9 +2,9 @@ use std::fmt;
 
 #[cfg(feature = "serde")]
 use serde::{
+    Deserialize, Serialize,
     de::{MapAccess, SeqAccess},
     ser::{SerializeSeq, SerializeStruct},
-    Deserialize, Serialize,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -27,8 +27,23 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn is_string(&self) -> bool {
+        matches!(self, Self::String(_))
+    }
+
     pub fn is_number(&self) -> bool {
         matches!(self, Self::Number(_))
+    }
+
+    pub fn is_quantity(&self) -> bool {
+        matches!(self, Self::Quantity { .. })
+    }
+
+    pub fn as_string(&self) -> Option<&String> {
+        match *self {
+            Self::String(ref s) => Some(s),
+            _ => None,
+        }
     }
 
     pub fn as_bool(&self) -> Option<bool> {

@@ -3,19 +3,19 @@ name = "syre-local"
 version = "0.10.2"
 edition = "2024"
 
-authors = [ "Brian Carlsen <carlsen.bri@gmail.com>" ]
+authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 description = "Local functionality for Syre data management and analysis software."
 license = "MIT OR Apache-2.0"
 
 homepage = "https://syre.ai"
 repository = "https://github.com/syre-data/syre"
-keywords = [ "syre", "syre-data", "data", "data-analysis", "data-management" ]
-categories = [ "science", "data-structures" ]
+keywords = ["syre", "syre-data", "data", "data-analysis", "data-management"]
+categories = ["science", "data-structures"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aquamarine.workspace = true  # TODO Only needed for documentation.
+aquamarine.workspace = true # TODO Only needed for documentation.
 chrono = { workspace = true, features = ["serde"] }
 csv.workspace = true
 derivative = "2.2"
@@ -37,7 +37,10 @@ tracing = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4", "v7"] }
 validator = "0.20"
 walkdir.workspace = true
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+] }
 
 syre-core = { workspace = true, features = ["serde"] }
 

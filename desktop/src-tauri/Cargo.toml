@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop"
-version = "0.11.10"
+version = "0.11.11"
 description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 edition = "2024"
@@ -42,7 +42,7 @@ tracing-subscriber = { workspace = true, features = [
 	"env-filter",
 ], optional = true }
 tracing-appender = { workspace = true, optional = true }
-tracing-timing = { version = "0.7", features = ["layer"], optional = true}
+tracing-timing = { version = "0.7", features = ["layer"], optional = true }
 trash.workspace = true
 uuid.workspace = true
 walkdir.workspace = true
@@ -60,3 +60,5 @@ tracing = [
     "dep:tracing-appender",
     "dep:tracing-timing",
 ]
+
+

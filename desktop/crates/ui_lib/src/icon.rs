@@ -11,27 +11,33 @@ pub use {
     icondata::VsChevronRight as ChevronRight,
 };
 
+pub mod workspace {
+    pub use {
+        icondata::BsGraphUp as Spreadsheet, icondata::ImTree as Graph, icondata::VsBrowser as Db,
+    };
+}
+
 pub mod file_type {
-    use std::{fmt::Display, path::Path};
     use leptos::prelude::*;
     use leptos_icons::Symbol;
+    use std::{fmt::Display, path::Path};
 
     const DEFAULT_ICON: icondata::Icon = icondata::FaFileRegular;
     const ICON_SYMBOL_IDS: &[(icondata::Icon, &str)] = &[
-            (icondata::FaFileRegular, "default"),
-            (icondata::FaFileAudioRegular, "audio"),
-            (icondata::FaPythonBrands, "python"),
-            (icondata::FaRProjectBrands, "r"),
-            (icondata::FaFileCodeRegular, "code"),
-            (icondata::FaFileExcelRegular, "excel"),
-            (icondata::FaFileImageRegular, "image"),
-            (icondata::FaFileLinesRegular, "txt"),
-            (icondata::FaFilePdfRegular, "pdf"),
-            (icondata::FaFilePowerpointRegular, "ppt"),
-            (icondata::FaFileWordRegular, "doc"),
-            (icondata::FaFileVideoRegular, "video"),
-            (icondata::FaFileZipperRegular, "zip"),
-            (icondata::OcFileBinaryLg, "binary"),
+        (icondata::FaFileRegular, "default"),
+        (icondata::FaFileAudioRegular, "audio"),
+        (icondata::FaPythonBrands, "python"),
+        (icondata::FaRProjectBrands, "r"),
+        (icondata::FaFileCodeRegular, "code"),
+        (icondata::FaFileExcelRegular, "excel"),
+        (icondata::FaFileImageRegular, "image"),
+        (icondata::FaFileLinesRegular, "txt"),
+        (icondata::FaFilePdfRegular, "pdf"),
+        (icondata::FaFilePowerpointRegular, "ppt"),
+        (icondata::FaFileWordRegular, "doc"),
+        (icondata::FaFileVideoRegular, "video"),
+        (icondata::FaFileZipperRegular, "zip"),
+        (icondata::OcFileBinaryLg, "binary"),
     ];
 
     pub type Color = &'static str;
@@ -73,11 +79,12 @@ pub mod file_type {
             };
 
             let icon = icon_from_extension(extension);
-            let symbol_id = ICON_SYMBOL_IDS.iter().find_map(|(sym_icon, id)| {
-                (icon == *sym_icon).then_some(id)
-            }).unwrap();
+            let symbol_id = ICON_SYMBOL_IDS
+                .iter()
+                .find_map(|(sym_icon, id)| (icon == *sym_icon).then_some(id))
+                .unwrap();
 
-             Self {
+            Self {
                 icon,
                 color: color_from_extension(extension),
                 symbol_id,
@@ -91,7 +98,7 @@ pub mod file_type {
         pub fn color(&self) -> &ThemedColor {
             &self.color
         }
-        
+
         pub fn symbol_id(&self) -> &'static str {
             self.symbol_id
         }
@@ -105,7 +112,7 @@ pub mod file_type {
                 symbol_id: "default",
             }
         }
-    } 
+    }
 
     pub fn icon_from_extension(ext: impl AsRef<str>) -> icondata::Icon {
         match ext.as_ref() {
@@ -127,11 +134,13 @@ pub mod file_type {
     }
 
     pub fn color_from_extension(ext: impl AsRef<str>) -> ThemedColor {
-         let (light, dark) = match ext.as_ref() {
+        let (light, dark) = match ext.as_ref() {
             "mp3" | "m4a" | "flac" | "wav" => ("syre-yellow-800", "syre-yellow-500"),
             "py" | "r" | "m" | "js" | "ts" | "cpp" | "c" | "rs" => ("primary-700", "primary-400"),
             "csv" | "xlsx" | "xlsm" | "xml" | "odf" => ("syre-green-700", "syre-green-400"),
-            "png" | "svg" | "jpg" | "jpeg" | "tiff" | "bmp" => ("syre-yellow-700", "syre-yellow-400"),
+            "png" | "svg" | "jpg" | "jpeg" | "tiff" | "bmp" => {
+                ("syre-yellow-700", "syre-yellow-400")
+            }
             "txt" => ("primary-800", "primary-100"),
             "pdf" => ("syre-red-800", "syre-red-500"),
             "pptx" | "pptm" | "ppt" => ("syre-red-700", "syre-red-400"),
@@ -169,17 +178,15 @@ pub mod file_type {
             return ThemedColor::default();
         };
 
-       color_from_extension(extension)
+        color_from_extension(extension)
     }
 
     /// Display all possible file type icons as `<symbol>`s.
     #[component]
     pub fn IconSymbols(prefix: &'static str) -> impl IntoView {
-        ICON_SYMBOL_IDS.iter().map(|(icon, id)| view! {
-            <Symbol 
-                id=format!("{prefix}-{id}")
-                icon=*icon
-            />
-        }).collect::<Vec<_>>()
+        ICON_SYMBOL_IDS
+            .iter()
+            .map(|(icon, id)| view! { <Symbol id=format!("{prefix}-{id}") icon=*icon /> })
+            .collect::<Vec<_>>()
     }
 }

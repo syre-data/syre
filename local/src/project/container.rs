@@ -413,7 +413,7 @@ pub mod functions {
 #[cfg(feature = "fs")]
 pub mod builder {
     //! Build containers.
-    use super::{super::project, error, Container};
+    use super::{super::project, Container, error};
     use crate::{common::app_dir, loader::container::Loader as ContainerLoader};
     use std::{
         fs,

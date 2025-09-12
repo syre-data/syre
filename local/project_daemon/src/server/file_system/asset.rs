@@ -1,7 +1,7 @@
-use crate::{common, event as update, server, state, Update, Daemon};
+use crate::{Daemon, Update, common, event as update, server, state};
 use std::{assert_matches::assert_matches, path::PathBuf};
 use syre_core as core;
-use syre_fs_daemon::{event, EventKind};
+use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible};
 
 impl Daemon {
@@ -344,10 +344,7 @@ impl Daemon {
         }
     }
 
-    fn handle_fs_event_asset_file_modified(
-        &mut self,
-        event: syre_fs_daemon::Event,
-    ) -> Vec<Update> {
+    fn handle_fs_event_asset_file_modified(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
         use event::ModifiedKind;
 
         let EventKind::AssetFile(event::ResourceEvent::Modified(kind)) = event.kind() else {

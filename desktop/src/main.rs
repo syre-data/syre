@@ -9,7 +9,7 @@ fn main() {
 
 #[cfg(all(feature = "tracing", debug_assertions))]
 mod tracing {
-    use tracing_subscriber::{filter, fmt::time::UtcTime, prelude::*};
+    use tracing_subscriber::{filter, prelude::*};
 
     pub fn enable() {
         let target_filter = filter::Targets::new()

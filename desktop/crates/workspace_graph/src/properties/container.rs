@@ -964,7 +964,7 @@ mod properties {
             super::properties::InputDebounce,
             common::analysis_associations::{AddAssociation as AddAssociationEditor, AnalysisInfo},
         };
-        use crate::{commands};
+        use crate::commands;
         use has_id::HasId;
         use leptos::{ev::MouseEvent, html, prelude::*};
         use leptos_icons::Icon;

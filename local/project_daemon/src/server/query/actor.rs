@@ -1,4 +1,4 @@
-use crate::{common, Error, Result};
+use crate::{Error, Result, common};
 use crossbeam::channel::Sender;
 
 pub struct Query {

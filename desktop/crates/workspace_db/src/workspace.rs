@@ -3,6 +3,7 @@ use leptos::{either::Either, ev::MouseEvent, html, prelude::*, task::spawn_local
 use leptos_icons::{Icon, Symbol};
 use std::{ffi::OsString, path::PathBuf};
 use syre_core::{self as core, types::ResourceId};
+use syre_desktop_lib as lib;
 use syre_desktop_ui_lib as ui_lib;
 use wasm_bindgen::{JsCast, prelude::Closure};
 
@@ -1533,7 +1534,7 @@ async fn update_asset_properties(
     container: impl Into<PathBuf>,
     asset: impl Into<PathBuf>,
     properties: core::project::AssetProperties,
-) -> Result<(), ()> {
+) -> Result<(), lib::command::asset::error::Update> {
     #[derive(serde::Serialize)]
     struct Args {
         project: ResourceId,

@@ -143,7 +143,7 @@ impl Actor {
         }
     }
 
-    /// Emits events to windows listening to the [`crate::db::FS_EVENT_TOPIC`].
+    /// Emit events to windows listening to [`crate::db::FS_EVENT_TOPIC`].
     ///
     /// # Arguments
     /// + `topic`: Event name.

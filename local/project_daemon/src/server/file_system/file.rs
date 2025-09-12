@@ -1,6 +1,6 @@
-use crate::{event::Update, Daemon};
+use crate::{Daemon, event::Update};
 use std::assert_matches::assert_matches;
-use syre_fs_daemon::{event, EventKind};
+use syre_fs_daemon::{EventKind, event};
 
 impl Daemon {
     pub(super) fn handle_fs_event_file(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {

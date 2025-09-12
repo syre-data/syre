@@ -1,11 +1,11 @@
 //! App state.
-use super::{config::State as App, Project};
+use super::{Project, config::State as App};
 use crate::state::{self, ConfigState, ManifestState};
 pub use action::Action;
 pub use error::Error;
 use std::path::{Path, PathBuf};
 use syre_core::{system::User, types::ResourceId};
-use syre_local::{system::resources::Config as LocalConfig, Reducible, TryReducible};
+use syre_local::{Reducible, TryReducible, system::resources::Config as LocalConfig};
 
 /// Application state.
 #[derive(Debug)]

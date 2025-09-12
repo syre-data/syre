@@ -50,11 +50,8 @@ pub fn Editor() -> impl IntoView {
     }
 }
 
-
 #[component]
-pub fn AnalysesError(
-    error: local::error::IoSerde,
-) -> impl IntoView {
+pub fn AnalysesError(error: local::error::IoSerde) -> impl IntoView {
     view! {
         <div class="px-1">
             <h3>"Analyses"</h3>

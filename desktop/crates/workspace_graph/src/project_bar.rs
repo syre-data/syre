@@ -400,7 +400,8 @@ mod analyze {
                         {
                             Ok(rx) => rx,
                             Err(err) => {
-                                tracing::error!(?err);
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not trigger analysis: {err:?}");
                                 analysis_state.set(AnalysisState::Idle);
                                 let msg = ui_lib::message::Builder::error(
                                     "Could not initialize analysis.",
@@ -759,6 +760,7 @@ mod analyze {
         messages: ui_lib::message::Messages,
     ) {
         while let Some(event) = rx.next().await {
+            #[cfg(feature = "tracing")]
             tracing::trace!(?event);
             match event {
                 lib::event::analysis::Update::Progress {
@@ -792,7 +794,6 @@ mod analyze {
                 }),
 
                 lib::event::analysis::Update::Done(status) => {
-                    tracing::trace!("done");
                     analysis_state.set(AnalysisState::Idle);
                     handle_analysis_update_done(status, analyses.read_only(), graph, messages);
                     break;
@@ -867,7 +868,8 @@ mod analyze {
                 })
                 .collect();
 
-            tracing::error!(?errors);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("errors occurred during analysis: {errors:?}");
             let msg = ui_lib::message::Builder::error("Errors occurred during analysis.");
             let msg = msg.body(UpdateErrors { errors });
             messages.push_message(msg.build());

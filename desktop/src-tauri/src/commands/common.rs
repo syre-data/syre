@@ -32,8 +32,7 @@ pub async fn file_size(paths: Vec<PathBuf>) -> Result<Vec<u64>, Vec<(PathBuf, Io
             } else if path.is_dir() {
                 dir_size(&path).map_err(|err| (path, err.into()))
             } else {
-                tracing::debug!(?path);
-                todo!();
+                todo!("unknown path type {path:?}");
             }
         })
         .collect::<Vec<_>>();

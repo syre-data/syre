@@ -28,7 +28,7 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 validator = "0.20"
 
@@ -47,7 +47,7 @@ db = ["project"]
 project = []
 runner = ["project", "dep:serde", "dep:rayon", "indexmap/rayon"]
 system = []
-
 serde = ["dep:serde", "serde/rc", "has_id/serde"]
 clap = ["dep:clap"]
 js = ["uuid/js"]
+tracing = ["dep:tracing"]

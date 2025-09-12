@@ -17,8 +17,16 @@ categories = [ "science", "data-structures" ]
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-tracing.workspace = true
+tracing = { workspace = true, optional = true }
 
 syre-core.workspace = true
 syre-local = { workspace = true, features = ["fs"] }
 syre-project-daemon.workspace = true
+
+[features]
+tracing = [
+    "dep:tracing", 
+    "syre-core/tracing",
+    "syre-local/tracing", 
+    "syre-project-daemon/tracing"
+]

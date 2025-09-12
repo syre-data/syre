@@ -33,7 +33,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tempfile.workspace = true
 thiserror = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4", "v7"] }
 validator = "0.20"
 walkdir.workspace = true
@@ -50,3 +50,4 @@ test-log = { version = "0.2.16", features = ["trace"] }
 
 [features]
 fs = ["dep:directories", "dep:glob", "dep:ignore"]
+tracing = ["dep:tracing", "syre-core/tracing"]

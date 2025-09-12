@@ -18,7 +18,7 @@ const TAURI_SIGNING_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1
 /// 2. Launches `resource_db`.
 /// 3. Launches the update listener.
 /// 4. Creates the inital app state.
-#[tracing::instrument(skip(app))]
+#[cfg_attr(feature = "tracing", tracing::instrument(skip(app)))]
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if !cfg!(feature = "no-auto-update") {
         let update = tauri::async_runtime::spawn({
@@ -36,6 +36,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     let main = app.get_webview_window("main").unwrap();
     main.listen(crate::project_daemon::FS_EVENT_TOPIC, move |event| {
+        #[cfg(feature = "tracing")]
         tracing::debug!(?event);
     });
 
@@ -62,6 +63,7 @@ async fn check_for_update(app: tauri::AppHandle) {
     }
 
     let endpoints = if cfg!(debug_assertions) {
+        #[cfg(feature = "tracing")]
         tracing::trace!("checking for updates locally, too");
         vec![
             format!(
@@ -95,33 +97,40 @@ async fn check_for_update(app: tauri::AppHandle) {
     let update = match update {
         Ok(update) => update,
         Err(err) => {
-            tracing::error!("could not retrieve update: {err:?}");
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not retrieve update: {err:?}");
             return;
         }
     };
 
     if let Some(update) = update {
+        #[cfg(feature = "tracing")]
         tracing::trace!("update available");
         let mut downloaded = 0;
         let response = update
             .download_and_install(
                 |chunk_length, content_length| {
                     downloaded += chunk_length;
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("downloaded {downloaded} of {content_length:?}");
                 },
                 || {
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("download finished");
                 },
             )
             .await;
 
         if let Err(err) = response {
-            tracing::error!("could not download or install new version: {err:?}");
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not download or install new version: {err:?}");
         } else {
+            #[cfg(feature = "tracing")]
             tracing::trace!("update installed, restarting app");
             app.restart();
         }
     } else {
+        #[cfg(feature = "tracing")]
         tracing::trace!("no update available");
     }
 }
@@ -129,6 +138,7 @@ async fn check_for_update(app: tauri::AppHandle) {
 fn setup_project_daemon(app: &mut tauri::App) {
     if let Some((_rx, _child)) = crate::project_daemon::start_project_daemon_if_needed(app.handle())
     {
+        #[cfg(feature = "tracing")]
         tracing::trace!("initializing project daemon");
         let mut attempt = 0;
         while !project_daemon::Client::server_available() {
@@ -142,8 +152,10 @@ fn setup_project_daemon(app: &mut tauri::App) {
             ));
         }
 
+        #[cfg(feature = "tracing")]
         tracing::debug!("initialized project daemon");
     } else {
+        #[cfg(feature = "tracing")]
         tracing::debug!("project daemon already running");
     };
 

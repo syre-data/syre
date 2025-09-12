@@ -19,7 +19,9 @@ mod server {
     /// # Notes
     /// + Must run with the `server` feature enabled.
     pub fn main() {
+        #[cfg(feature = "tracing")]
         logging::enable();
+
         let default_panic_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |panic_info| {
             panic_hook(panic_info);
@@ -30,7 +32,8 @@ mod server {
         let projects = match ProjectManifest::load_or_default() {
             Ok(projects) => projects.to_vec(),
             Err(err) => {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not load project manifest: {err:?}");
                 vec![]
             }
         };
@@ -53,9 +56,12 @@ mod server {
         };
 
         let location = panic_info.location().map(|location| location.to_string());
-        tracing::error!("local/project_daemon panicked: {location:?} : {payload:?}");
+        #[cfg(feature = "tracing")]
+        tracing::error!("local/project_daemon panicked at {location:?}: {payload:?}");
+        // TODO: If `tracing` is nor enabled?
     }
 
+    #[cfg(feature = "tracing")]
     mod logging {
         use std::io;
         use syre_local::system::common;

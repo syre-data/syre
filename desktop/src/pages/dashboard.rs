@@ -342,7 +342,8 @@ fn CreateProjectDialog(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                         });
                     }
                     Err(err) => {
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not create project: {err:?}");
                         set_error(Some("Could not create project."));
                     }
                 }
@@ -526,6 +527,7 @@ fn handle_project_manifest_event(
     event: lib::Event,
     set_projects: WriteSignal<Vec<ArcRwSignal<(PathBuf, db::state::ProjectData)>>>,
 ) {
+    #[cfg(feature = "tracing")]
     tracing::debug!(?event);
     let lib::EventKind::ProjectManifest(update) = event.kind() else {
         panic!("invalid event kind");

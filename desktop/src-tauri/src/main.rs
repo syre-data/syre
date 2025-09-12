@@ -9,6 +9,7 @@ use syre_desktop::{
 };
 
 fn main() {
+    #[cfg(feature = "tracing")]
     let _log_guard = logging::enable();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -81,10 +82,11 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+#[cfg(feature = "tracing")]
 mod logging {
     use syre_desktop as desktop;
     use tracing_subscriber::{
-        Registry, filter,
+        EnvFilter, Registry, filter,
         fmt::{self, time},
         prelude::*,
     };
@@ -114,13 +116,13 @@ mod logging {
             .with_writer(std::io::stdout)
             .with_timer(time::UtcTime::rfc_3339())
             .pretty();
-            
+
         #[cfg(debug_assertions)]
         let timing_layer = tracing_timing::Builder::default()
             .layer(|| tracing_timing::Histogram::new_with_max(1_000_000, 2).unwrap());
 
         let subscriber = Registry::default()
-            .with(filter::EnvFilter::from_default_env())
+            .with(EnvFilter::from_default_env())
             .with(file_logger);
 
         #[cfg(debug_assertions)]

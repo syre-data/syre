@@ -533,8 +533,7 @@ impl Daemon {
             if let Err(err) =
                 local::project::Project::save_properties_only(&project_path, &properties)
             {
-                tracing::error!(?err);
-                todo!();
+                todo!("{err:?}");
             }
         }
 
@@ -718,22 +717,19 @@ impl Daemon {
             if let Err(err) =
                 local::project::Project::save_properties_only(&project_path, &properties)
             {
-                tracing::error!(?err);
-                todo!();
+                todo!("{err:?}");
             }
 
             let mut container =
                 match local::loader::container::Loader::load_from_only_properties(to) {
                     Ok(container) => container,
                     Err(err) => {
-                        tracing::error!(?err);
-                        todo!();
+                        todo!("{err:?}");
                     }
                 };
             container.properties.name = to.file_name().unwrap().to_string_lossy().to_string();
             if let Err(err) = container.save(to) {
-                tracing::error!(?err);
-                todo!();
+                todo!("{err:?}");
             }
         }
 

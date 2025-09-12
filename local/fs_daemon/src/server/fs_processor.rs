@@ -29,6 +29,7 @@ impl FsWatcher {
         (converted, errors)
     }
 
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     fn process_event_fs_to_apps(
         &self,
         event: &fs_event::Event,
@@ -120,7 +121,8 @@ impl FsWatcher {
                     Ok(kind) => Event::with_time(kind, event.time, event.id().clone())
                         .add_path(path.clone()),
                     Err(err) => {
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not handle folder creation event: {err:?}");
                         Event::with_time(
                             EventKind::Folder(app::ResourceEvent::Created),
                             event.time,
@@ -174,7 +176,8 @@ impl FsWatcher {
                             }
                         }
 
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not handle folder removed event: {err:?}");
                         Event::with_time(
                             app::EventKind::Folder(app::ResourceEvent::Removed),
                             event.time,
@@ -769,6 +772,7 @@ impl FsWatcher {
                         ..
                     }
                 ) {
+                    #[cfg(feature = "tracing")]
                     tracing::warn!("UNUSUAL SITUATION: project moved and replaced");
                     vec![
                         Event::with_time(app::Project::Moved.into(), time, parent)
@@ -922,6 +926,7 @@ impl FsWatcher {
 
         let from_kind = resources::dir_kind(&from);
         let to_kind = resources::dir_kind(&to);
+        #[cfg(feature = "tracing")]
         tracing::debug!(?from_kind, ?to_kind);
         match (from_kind, to_kind) {
             (Err(from_err), Err(to_err)) => {
@@ -1977,6 +1982,7 @@ impl FsWatcher {
                     "project exists in two locations: {from:?} -> {to:?}"
                 );
 
+                #[cfg(feature = "tracing")]
                 tracing::warn!("UNUSUAL SITUATION: Project moved and replaced");
                 vec![
                     Event::with_time(app::Project::Moved.into(), time, parent)

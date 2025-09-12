@@ -241,12 +241,14 @@ async fn add_file_system_resource_file_resource(
                         let Ok(mut assets) =
                             local::loader::container::Loader::load_from_only_assets(&parent_path)
                         else {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("assets file could not be loaded");
                             return;
                         };
 
                         let Some(asset) = assets.iter_mut().find(|asset| asset.path == to_name)
                         else {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("asset not found");
                             return;
                         };
@@ -259,6 +261,7 @@ async fn add_file_system_resource_file_resource(
                         }
 
                         if let Err(err) = assets.save(&parent_path) {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("could not save assets: {err:?}");
                         }
                     }

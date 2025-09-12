@@ -255,7 +255,9 @@ impl Store {
                 Ok(project_id) => project_id,
                 Err(err) => {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!(
+                        "could not retrieve project record id from path, aborting search: {err:?}"
+                    );
                     Self::send_response(tx, Err(err));
                     return;
                 }
@@ -334,7 +336,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("container query error, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -353,7 +355,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("asset query error, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -363,7 +365,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("could not take container results, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -373,7 +375,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("could not take asset results, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -421,7 +423,9 @@ impl Store {
                 Ok(project_id) => project_id,
                 Err(err) => {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!(
+                        "could not obtain project record id from path, aborting search: {err:?}"
+                    );
                     Self::send_response(tx, Err(err));
                     return;
                 }
@@ -476,7 +480,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("query error, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -486,7 +490,7 @@ impl Store {
             Ok(results) => results,
             Err(err) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!(?err);
+                tracing::warn!("could not take result, aborting search: {err:?}");
                 Self::send_response(tx, Err(err));
                 return;
             }
@@ -511,7 +515,7 @@ impl Store {
             Ok(_) => {}
             Err(_) => {
                 #[cfg(feature = "tracing")]
-                tracing::error!("could not send response")
+                tracing::warn!("could not send response")
             }
         }
     }

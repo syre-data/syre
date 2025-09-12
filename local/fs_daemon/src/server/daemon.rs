@@ -117,6 +117,7 @@ impl Builder {
                     notify::ErrorKind::Io(io_err)
                         if io_err.kind() == std::io::ErrorKind::NotFound =>
                     {
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{path:?} not found");
                         path_watcher_command_tx
                             .send(path_watcher::Command::Watch(path.clone()))
@@ -128,6 +129,7 @@ impl Builder {
                     notify::ErrorKind::Generic(msg)
                         if msg.contains(WINDOWS_GENERIC_NOT_FOUND_MSG) =>
                     {
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{path:?} not found");
                         path_watcher_command_tx
                             .send(path_watcher::Command::Watch(path.clone()))
@@ -219,7 +221,8 @@ impl FsWatcher {
         loop {
             let shutdown = self.shutdown.lock().unwrap();
             if *shutdown {
-                tracing::debug!("shutting down");
+                #[cfg(feature = "tracing")]
+                tracing::trace!("shutting down");
                 break;
             }
 
@@ -227,7 +230,8 @@ impl FsWatcher {
                 recv(self.command_rx) -> cmd => match cmd {
                     Ok(cmd) => self.handle_command(cmd),
                     Err(err) => {
-                        tracing::error!("command rx channel closed, shutting down");
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("command rx channel closed, shutting down");
                         return Err(err);
                     }
                 },
@@ -235,7 +239,8 @@ impl FsWatcher {
                 recv(self.event_rx) -> events => match events {
                     Ok(events) => self.handle_events(events),
                     Err(err) => {
-                        tracing::error!("event rx channel closed, shutting down");
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("event rx channel closed, shutting down");
                         return Err(err);
                     }
                 },
@@ -243,7 +248,8 @@ impl FsWatcher {
                 recv(self.path_watcher_rx) -> paths => match paths {
                     Ok(events) => self.handle_path_watcher_event(events),
                     Err(err) => {
-                        tracing::error!("path watcher rx channel closed, shutting down");
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("path watcher rx channel closed, shutting down");
                         return Err(err);
                     }
                 }
@@ -254,6 +260,7 @@ impl FsWatcher {
     }
 
     fn handle_command(&self, command: Command) {
+        #[cfg(feature = "tracing")]
         tracing::debug!(?command);
         match command {
             Command::Watch(path) => {
@@ -423,6 +430,7 @@ impl FsWatcher {
     /// # Returns
     /// Tuple of (events, errors).
     fn process_events(&self, events: Vec<DebouncedEvent>) -> (Vec<Event>, Vec<Error>) {
+        #[cfg(feature = "tracing")]
         tracing::debug!(?events);
 
         #[cfg(target_os = "linux")]
@@ -434,10 +442,12 @@ impl FsWatcher {
         #[cfg(target_os = "windows")]
         let (fs_events, mut errors) = self.windows_postprocess_fs_conversion(fs_events, errors);
 
+        #[cfg(feature = "tracing")]
         tracing::debug!(?fs_events, ?errors);
         let (mut app_events, app_errors) = self.process_events_fs_to_app(fs_events);
         app_events.sort_by_key(|event| event.time().clone());
 
+        #[cfg(feature = "tracing")]
         tracing::debug!(?app_events, ?app_errors);
         errors.extend(app_errors);
         let errors = errors.into_iter().map(|err| err.into()).collect();
@@ -451,6 +461,7 @@ impl FsWatcher {
         // Required due to match arm guard expression.
         // See https://github.com/rust-lang/rfcs/pull/3637
         fn watch_path(tx: &Sender<path_watcher::Command>, path: PathBuf) {
+            #[cfg(feature = "tracing")]
             tracing::debug!("watching {path:?} for creation");
             tx.send(path_watcher::Command::Watch(path)).unwrap();
         }
@@ -479,8 +490,7 @@ impl FsWatcher {
                 | notify::ErrorKind::MaxFilesWatch => todo!(),
 
                 notify::ErrorKind::WatchNotFound | notify::ErrorKind::InvalidConfig(_) => {
-                    tracing::error!(?err);
-                    unreachable!()
+                    unreachable!("{err:?}");
                 }
             }
         }
@@ -512,9 +522,8 @@ impl FsWatcher {
                         .unwrap();
                 }
 
-                _ => {
-                    tracing::error!(?err);
-                    unreachable!();
+                err => {
+                    unreachable!("{err:?}");
                 }
             }
         }

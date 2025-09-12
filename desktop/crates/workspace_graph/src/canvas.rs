@@ -1065,7 +1065,8 @@ fn CreateChildContainer(
                             unreachable!()
                         }
                         container::error::Build::Save(err) => {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not save container: {err:?}");
                             Err("Could not save the container.")
                         }
                         container::error::Build::AlreadyResource => {
@@ -1105,7 +1106,8 @@ fn CreateChildContainer(
                             .value()
                             .with(|value| {
                                 if let Some(Err(error)) = value {
-                                    tracing::debug!(?error);
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!("could not create child container: {error:?}");
                                     let msg = "Something went wrong.";
                                     Either::Left(view! { <div>{msg}</div> })
                                 } else {
@@ -1295,7 +1297,8 @@ fn ContainerOk(
             let data = e.data_transfer().unwrap();
             let data = data.get_data(ui_lib::common::APPLICATION_JSON).unwrap();
             let Ok(action) = serde_json::from_str::<ui_lib::types::container::Action>(&data) else {
-                tracing::warn!("invalid action: `{}`", data);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("invalid action: `{data}`");
                 return;
             };
             match action {
@@ -1592,7 +1595,8 @@ fn Asset(asset: ui_lib::state::Asset) -> impl IntoView {
                 .await
                 {
                     if fs_resource_present || !matches!(err, io::ErrorKind::NotFound) {
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not remove asset file: {err:?}");
                         let msg = ui_lib::message::Builder::error("Could not remove asset file");
                         let msg = msg.body(format!("{err:?}"));
                         messages.push_message(msg.build_str());
@@ -1780,7 +1784,8 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                 )
                 .await
                 {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not update analysis associations: {err:?}");
                     let msg =
                         ui_lib::message::Builder::error("Could not update analysis associations.");
                     let msg = msg.body(format!("{err:?}"));
@@ -2367,7 +2372,8 @@ fn handle_container_action_add_analysis_accociation(
             commands::container::update_analysis_associations(project, container, associations)
                 .await
         {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not save container: {err:?}");
             let msg = ui_lib::message::Builder::error("Could not save container.");
             let msg = msg.body(format!("{err:?}"));
             messages.push_message(msg.build_str());
@@ -2526,7 +2532,8 @@ async fn handle_context_menu_container_ok_events_container_duplicate(
             size[0]
         }
         Err(err) => {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not get file sizes: {err:?}");
             0
         }
     };

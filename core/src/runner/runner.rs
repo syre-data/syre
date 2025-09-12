@@ -443,7 +443,7 @@ impl Analyzer {
     /// 1. Container tree to evaluate.
     /// 2. Root of subtree.
     /// 3. Maximum number of analysis tasks to run at once.
-    #[tracing::instrument(skip(self, analyses))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, analyses)))]
     fn evaluate_tree(
         &self,
         root: tree::Node,
@@ -479,7 +479,7 @@ impl Analyzer {
     }
 
     /// Evaluates a single container.
-    #[tracing::instrument(skip(self, analyses))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, analyses)))]
     fn evaluate_container(
         &self,
         container: &tree::Node,
@@ -536,7 +536,7 @@ impl Analyzer {
     ///    post_analysis --> pre_analysis
     ///    post_analysis -- "complete" --> exit("Ok(())")
     /// ```
-    #[tracing::instrument(skip(self, analyses))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, analyses)))]
     fn run_analysis_group(
         &self,
         analyses: Vec<&Box<dyn Runnable + Send + Sync>>,
@@ -635,7 +635,7 @@ impl Analyzer {
     /// # Errors
     /// + If launching or waiting for the command fails.
     /// + Does **not** error if the analysis errors.
-    #[tracing::instrument(skip(self, analysis))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self, analysis)))]
     fn run_analysis(
         &self,
         analysis: &Box<dyn Runnable + Send + Sync>,
@@ -644,6 +644,7 @@ impl Analyzer {
         container_id: &ResourceId,
         project: ResourceId,
     ) -> Result<(), error::Evaluation> {
+        #[cfg(feature = "tracing")]
         tracing::trace!("running {} on {:?}", analysis.id(), container_path);
 
         let mut status = self.status.lock().unwrap();
@@ -667,7 +668,8 @@ impl Analyzer {
         {
             Ok(child) => child,
             Err(err) => {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not run analysis: {err:?}");
                 return Err(error::Evaluation::Command {
                     project: project.clone(),
                     analysis: analysis.id().clone(),
@@ -686,9 +688,11 @@ impl Analyzer {
                     break;
                 }
                 AnalyzerState::Kill => {
-                    tracing::trace!("killing analysis {} on {container_path:?}", analysis.id());
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("killing analysis {} on {container_path:?}", analysis.id());
                     if let Err(err) = child.kill() {
-                        tracing::error!(
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!(
                             "could not kill analysis {} on {container_path:?}: {err:?}",
                             analysis.id()
                         );
@@ -710,7 +714,8 @@ impl Analyzer {
         let output = match output {
             Ok(output) => output,
             Err(err) => {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("analysis error: {err:?}");
                 return Err(error::Evaluation::Command {
                     project: project.clone(),
                     analysis: analysis.id().clone(),
@@ -721,7 +726,8 @@ impl Analyzer {
             }
         };
 
-        tracing::trace!(?output);
+        #[cfg(feature = "tracing")]
+        tracing::trace!("analysis output: {output:?}");
         let AnalysisStatus::Complete(ref mut status_output) = status[status_idx].status else {
             unreachable!();
         };

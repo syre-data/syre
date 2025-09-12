@@ -23,8 +23,9 @@ impl Daemon {
             .collect()
     }
 
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip(self)))]
     fn process_event(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
+        #[cfg(feature = "tracing")]
         tracing::trace!(?event);
         match event.kind() {
             EventKind::Config(_) => self.handle_fs_event_config(event),

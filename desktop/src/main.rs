@@ -1,13 +1,13 @@
 use leptos::prelude::*;
 
 fn main() {
-    #[cfg(debug_assertions)]
+    #[cfg(all(feature = "tracing", debug_assertions))]
     tracing::enable();
     console_error_panic_hook::set_once();
     mount_to_body(syre_desktop_ui::App);
 }
 
-#[cfg(debug_assertions)]
+#[cfg(all(feature = "tracing", debug_assertions))]
 mod tracing {
     use tracing_subscriber::{filter, fmt::time::UtcTime, prelude::*};
 

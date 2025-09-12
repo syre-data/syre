@@ -336,7 +336,8 @@ async fn handle_drop_event_analyses(
             .reduce(|total, size| total + size)
             .unwrap_or(0),
         Err(err) => {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not get files sizes: {err:?}");
             0
         }
     };

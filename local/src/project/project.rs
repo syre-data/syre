@@ -180,7 +180,8 @@ impl Project {
 
         #[cfg(target_os = "windows")]
         if let Err(err) = common::fs::hide_folder(parent) {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not ide folder `{parent:?}: {err:?}");
         };
 
         fs::write(
@@ -924,7 +925,8 @@ pub mod duplicate {
         if let Some(analysis_root) = project.analysis_root_path() {
             common::copy_dir(project_src.analysis_root_path().unwrap(), analysis_root).map_err(
                 |errors| {
-                    tracing::error!(?errors);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not copy directory: {errors:?}");
                     let errors = errors
                         .into_iter()
                         .map(|(path, err)| error::File { path, error: err })
@@ -938,6 +940,7 @@ pub mod duplicate {
             loader::tree::Loader::load(project_src.data_root_path()).map_err(|err| match err {
                 loader::tree::error::Error::Root(_) => panic!("can not access graph root"),
                 loader::tree::error::Error::Ignore { path, err } => {
+                    #[cfg(feature = "tracing")]
                     tracing::error!(?path, ?err);
                     todo!("invalid ignore file")
                 }

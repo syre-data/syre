@@ -170,6 +170,7 @@ impl FsWatcher {
             }
         });
 
+        #[cfg(feature = "tracing")]
         tracing::trace!("filtered {} nested events", len_orig - events.len());
         events
     }
@@ -195,6 +196,8 @@ impl FsWatcher {
                     {
                         let entry = grouped_id.entry(id).or_insert(vec![]);
                         entry.push(event);
+
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{event:?} added to grouped id");
                     }
 
@@ -204,6 +207,8 @@ impl FsWatcher {
 
                     let entry = grouped_path.entry(path).or_insert(vec![]);
                     entry.push(event);
+
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{event:?} added to grouped path");
                 }
 
@@ -211,9 +216,13 @@ impl FsWatcher {
                     let id = match file_id::get_file_id(event.paths[0].clone()) {
                         Ok(id) => id,
                         Err(err) => {
-                            tracing::error!("could not retrieve id from watcher: {err:?}");
-                            remaining.push(event);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not retrieve id from watcher: {err:?}");
+
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{event:?} added to remaining");
+
+                            remaining.push(event);
                             continue;
                         }
                     };
@@ -224,12 +233,14 @@ impl FsWatcher {
                     match grouped_path.get_mut(path) {
                         Some(path_events) => {
                             path_events.push(event);
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{event:?} added to grouped path");
                         }
 
                         None => {
                             let entry = grouped_id.entry(id).or_insert(vec![]);
                             entry.push(event);
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{event:?} added to grouped id");
                         }
                     }
@@ -241,13 +252,16 @@ impl FsWatcher {
                         .cached_file_id(&event.paths[0])
                         .map(|id| id.as_ref().clone())
                     else {
-                        remaining.push(event);
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{event:?} added to remaining");
+                        remaining.push(event);
                         continue;
                     };
 
                     let entry = grouped_id.entry(id).or_insert(vec![]);
                     entry.push(event);
+
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{event:?} added to grouped id");
                 }
 
@@ -255,15 +269,19 @@ impl FsWatcher {
                     let id = match file_id::get_file_id(event.paths[0].clone()) {
                         Ok(id) => id,
                         Err(err) => {
-                            tracing::error!("could not retrieve id from watcher: {err:?}");
-                            remaining.push(event);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not retrieve id from watcher: {err:?}");
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{event:?} added to remaining");
+
+                            remaining.push(event);
                             continue;
                         }
                     };
 
                     let entry = grouped_id.entry(id).or_insert(vec![]);
                     entry.push(event);
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{event:?} added to grouped id");
                 }
 
@@ -276,15 +294,18 @@ impl FsWatcher {
                         let id = match file_id::get_file_id(event.paths[0].clone()) {
                             Ok(id) => id,
                             Err(err) => {
-                                tracing::error!("could not retrieve id from watcher: {err:?}");
-                                remaining.push(event);
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not retrieve id from watcher: {err:?}");
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("{event:?} added to remaining");
+                                remaining.push(event);
                                 continue;
                             }
                         };
 
                         let entry = grouped_id.entry(id).or_insert(vec![]);
                         entry.push(event);
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{event:?} added to grouped id");
                     } else {
                         let file_ids = self.file_ids.lock().unwrap();
@@ -292,30 +313,35 @@ impl FsWatcher {
                             .cached_file_id(&event.paths[0])
                             .map(|id| id.as_ref().clone())
                         else {
-                            remaining.push(event);
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{event:?} added to remaining");
+                            remaining.push(event);
                             continue;
                         };
 
                         let entry = grouped_id.entry(id).or_insert(vec![]);
                         entry.push(event);
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{event:?} added to grouped id");
                     }
                 }
 
                 _ => {
-                    remaining.push(event);
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{event:?} added to remaining");
+                    remaining.push(event);
                 }
             }
         }
 
+        #[cfg(feature = "tracing")]
         tracing::trace!("converting grouped id");
         let mut converted = Vec::with_capacity(grouped_id.len() / 2);
         for mut events in grouped_id.into_values() {
             events.sort_unstable_by_key(|event| event.time);
             match &events[..] {
                 [e] => {
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{e:?} is alone");
                     match e.kind {
                         NotifyEventKind::Remove(_) | NotifyEventKind::Create(_) => {
@@ -324,12 +350,14 @@ impl FsWatcher {
                             };
 
                             if !grouped_path.iter().any(|(p, _)| *p == path) {
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("event not paired by path added to remaining");
                                 remaining.push(e);
                             }
                         }
 
                         _ => {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("{e:?} added to remaining");
                             remaining.push(e);
                         }
@@ -359,6 +387,7 @@ impl FsWatcher {
                                 .add_parent(e1)
                                 .add_parent(e2);
 
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else if path_to.is_dir() {
@@ -372,9 +401,11 @@ impl FsWatcher {
                                 .add_parent(e1)
                                 .add_parent(e2);
 
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else {
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("could not convert {events:?}");
                                 remaining.extend(events);
                             }
@@ -390,6 +421,7 @@ impl FsWatcher {
                                 .add_parent(e1)
                                 .add_parent(e2);
 
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else if path_to.is_dir() {
@@ -403,9 +435,11 @@ impl FsWatcher {
                                 .add_parent(e1)
                                 .add_parent(e2);
 
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                                 converted.push(event);
                             } else {
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("could not convert {e1:?} and {e2:?}");
                                 remaining.extend(events);
                             }
@@ -428,6 +462,7 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         } else {
@@ -441,6 +476,7 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         }
@@ -462,6 +498,7 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         } else {
@@ -475,6 +512,7 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         }
@@ -484,7 +522,7 @@ impl FsWatcher {
                         NotifyEventKind::Create(CreateKind::Any),
                     ) => {
                         #[cfg(not(target_os = "windows"))]
-                        todo!();
+                        todo!("non-windows");
 
                         let path_from = normalize_path_root(e1.paths[0].clone());
                         let path_to = normalize_path_root(e2.paths[0].clone());
@@ -513,6 +551,7 @@ impl FsWatcher {
                                 todo!();
                             };
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         } else {
@@ -540,24 +579,28 @@ impl FsWatcher {
                                 todo!();
                             };
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                         }
                     }
 
                     _ => {
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("could not convert {e1:?} and {e2:?} added to remaining");
                         remaining.extend(events);
                     }
                 },
 
                 _ => {
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("could not convert {events:?} added to remaining");
                     remaining.extend(events);
                 }
             }
         }
 
+        #[cfg(feature = "tracing")]
         tracing::trace!("converting grouped path");
         let mut converted_parents = converted
             .iter()
@@ -566,8 +609,10 @@ impl FsWatcher {
         for (path, events) in grouped_path.into_iter() {
             match &events[..] {
                 [e] => {
+                    #[cfg(feature = "tracing")]
                     tracing::trace!("{e:?} is alone");
                     if !(converted_parents.contains(e) || remaining.contains(e)) {
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("{e:?} add to remaining");
                         remaining.push(e);
                     }
@@ -588,6 +633,7 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                             converted_parents.extend(events);
@@ -601,18 +647,22 @@ impl FsWatcher {
                             .add_parent(e1)
                             .add_parent(e2);
 
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("converted {e1:?} and {e2:?} to {event:?}");
                             converted.push(event);
                             converted_parents.extend(events);
                         }
 
                         NotifyEventKind::Create(_) => {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("could not convert {events:?}");
                             if !(converted_parents.contains(e1) || remaining.contains(e1)) {
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("{e1:?} added to remaining");
                                 remaining.push(e1);
                             }
                             if !(converted_parents.contains(e2) || remaining.contains(e2)) {
+                                #[cfg(feature = "tracing")]
                                 tracing::trace!("{e2:?} added to remaining");
                                 remaining.push(e2);
                             }
@@ -625,6 +675,7 @@ impl FsWatcher {
                 _ => {
                     for event in events {
                         if !(converted_parents.contains(&event) || remaining.contains(&event)) {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("added {event:?} to remaining");
                             remaining.push(event);
                         }
@@ -1017,6 +1068,7 @@ impl FsWatcher {
 
             _ => true,
         });
+        #[cfg(feature = "tracing")]
         tracing::trace!("filtered {} nested events", len_orig - events.len());
 
         events

@@ -256,7 +256,8 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")] 
+                            tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -306,7 +307,8 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")] 
+                            tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -356,7 +358,8 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")] 
+                            tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -406,7 +409,8 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")] 
+                            tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -498,8 +502,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
-                            todo!()
+                            todo!("unhandled error while updating asset properties: {err:?}");
                         } else {
                             if let Some(onclose) = onclose {
                                 onclose.run(());
@@ -583,7 +586,8 @@ mod properties {
                                 )
                                 .await
                                 {
-                                    tracing::error!(?err);
+                                    #[cfg(feature = "tracing")] 
+                                    tracing::warn!("could not update asset properties: {err:?}");
                                     let msg =
                                         ui_lib::message::Builder::error("Could not save asset");
                                     let msg = msg.body(format!("{err:?}"));
@@ -622,7 +626,8 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")] 
+                            tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());

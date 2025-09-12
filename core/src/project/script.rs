@@ -180,7 +180,7 @@ pub enum ScriptLang {
 impl ScriptLang {
     /// Returns the language type from a file extension
     /// or `None` if none match.
-    #[tracing::instrument]
+    #[cfg_attr(feature = "tracing", tracing::instrument)]
     pub fn from_extension(ext: &OsStr) -> Option<Self> {
         let ext = ext.to_ascii_lowercase();
         let Some(ext) = ext.as_os_str().to_str() else {

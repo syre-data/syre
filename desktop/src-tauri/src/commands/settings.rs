@@ -154,7 +154,8 @@ pub fn app_settings_update(
     );
     let result = store.save();
     if let Err(err) = result.as_ref() {
-        tracing::error!("could not save desktop settings: {err:?}");
+        #[cfg(feature = "tracing")]
+        tracing::warn!("could not save desktop settings: {err:?}");
     }
 
     result.map_err(|err| match err {

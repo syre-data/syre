@@ -44,6 +44,7 @@ impl Builder {
 }
 
 impl Builder {
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn run(self) -> Result<(), zmq::Error> {
         let zmq_context = zmq::Context::new();
         let update_tx = zmq_context.socket(zmq::PUB)?;
@@ -75,7 +76,8 @@ impl Builder {
             .name("syre local database query actor".to_string())
             .spawn(move || {
                 if let Err(err) = query_actor.run() {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::error!("query actor died: {err:?}");
                 }
             })
             .unwrap();
@@ -122,11 +124,13 @@ impl Builder {
 
                                 local_config_state = Err(err.into());
                             } else {
-                                tracing::error!(?err);
+                                #[cfg(feature = "tracing")]
+                                tracing::debug!("unhandled file system error: {err:?}");
                             }
                         }
                     }
                     daemon::Error::Processing { events, kind } => {
+                        #[cfg(feature = "tracing")]
                         tracing::error!(?events, ?kind);
                         todo!()
                     }
@@ -183,6 +187,7 @@ impl Builder {
             }
         }
 
+        #[cfg(feature = "tracing")]
         tracing::trace!(target: "syre-project-daemon::state", ?state);
         let mut db = Daemon {
             config: self.config,
@@ -256,7 +261,8 @@ impl Daemon {
                     Ok(query::Query{query, tx}) => {
                         let response = self.handle_query(query);
                         if let Err(err) = tx.send(response) {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not send query response: {err:?}");
                         }
                     }
                     Err(err) => panic!("{err:?}")
@@ -356,6 +362,7 @@ impl Daemon {
     fn handle_query(&self, query: crate::Query) -> JsValue {
         use crate::Query;
 
+        #[cfg(feature = "tracing")]
         tracing::debug!(?query);
         match query {
             Query::Config(query) => self.handle_query_config(query),
@@ -377,7 +384,7 @@ mod windows {
     impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
-        #[tracing::instrument(skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
         pub fn handle_file_system_events(&mut self, events: daemon::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
@@ -385,8 +392,10 @@ mod windows {
             };
 
             let updates = self.process_file_system_events(events);
+            #[cfg(feature = "tracing")]
             tracing::debug!(?updates);
             self.publish_updates(&updates);
+            #[cfg(feature = "tracing")]
             tracing::trace!(target: "syre-project-daemon::state", state = ?self.state);
             Ok(())
         }
@@ -427,6 +436,7 @@ mod windows {
 
             match *kind {
                 daemon::error::Process::NotFound => {
+                    #[cfg(feature = "tracing")]
                     tracing::trace!(
                         "could not process events because resource was not found, they are being ignored: {events:?}"
                     );
@@ -457,7 +467,7 @@ mod macos {
     impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
-        #[tracing::instrument(skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
         pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
             let events = match events {
                 Ok(events) => events,
@@ -508,6 +518,7 @@ mod macos {
                 .collect::<Vec<_>>();
 
             if moved_roots.len() == 0 && unhandled_errors.len() > 0 {
+                #[cfg(feature = "tracing")]
                 tracing::debug!("watch error: {unhandled_errors:?}");
                 return Err(crate::Error::Database(format!("{unhandled_errors:?}")));
             }
@@ -518,6 +529,7 @@ mod macos {
                     Ok(Some(final_path)) => Some(final_path),
 
                     Ok(None) => {
+                        #[cfg(feature = "tracing")]
                         tracing::debug!("could not get final path of {path:?}");
                         continue;
                     }
@@ -528,11 +540,13 @@ mod macos {
                     }
 
                     Err(err) => {
+                        #[cfg(feature = "tracing")]
                         tracing::debug!("error retrieving final path of {path:?}: {err:?}");
                         continue;
                     }
                 };
 
+                #[cfg(feature = "tracing")]
                 tracing::debug!(?final_path);
 
                 events.push(DebouncedEvent::new(
@@ -557,6 +571,7 @@ mod macos {
                     }
                 }
             }
+            #[cfg(feature = "tracing")]
             tracing::debug!(?events);
 
             Ok(events)
@@ -597,7 +612,7 @@ mod linux {
     impl Daemon {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
-        #[tracing::instrument(skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
         pub fn handle_file_system_events(&mut self, events: daemon::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
@@ -605,6 +620,7 @@ mod linux {
             };
 
             let updates = self.process_file_system_events(events);
+            #[cfg(feature = "tracing")]
             tracing::debug!(?updates);
             self.publish_updates(&updates);
             Ok(())
@@ -614,8 +630,7 @@ mod linux {
             &self,
             errors: Vec<daemon::Error>,
         ) -> crate::Result<Vec<daemon::Event>> {
-            tracing::error!(?errors);
-            todo!();
+            todo!("{errors:?}");
         }
     }
 

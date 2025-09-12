@@ -98,6 +98,7 @@ impl Daemon {
         };
 
         if cfg!(target_os = "windows") {
+            #[cfg(feature = "tracing")]
             tracing::warn!("asset already present")
         } else {
             assert!(!asset_state.is_present());
@@ -215,12 +216,14 @@ impl Daemon {
                     match assets.save() {
                         Ok(_) => return vec![],
                         Err(err) => {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not save assets: {err:?}");
                         }
                     }
                 }
                 Err(err) => {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not load assets: {err:?}");
                 }
             }
         }
@@ -319,14 +322,12 @@ impl Daemon {
                     match assets.save() {
                         Ok(_) => return vec![],
                         Err(err) => {
-                            tracing::error!(?err);
-                            todo!();
+                            todo!("{err:?}");
                         }
                     }
                 }
                 Err(err) => {
-                    tracing::error!(?err);
-                    todo!();
+                    todo!("{err:?}");
                 }
             }
         } else {

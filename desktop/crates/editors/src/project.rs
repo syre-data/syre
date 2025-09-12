@@ -217,7 +217,8 @@ mod name {
                 spawn_local({
                     async move {
                         if let Err(err) = update_properties(properties).await {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!(?err);
                             let msg = ui_lib::message::Builder::error("Could not save project.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -259,7 +260,8 @@ mod description {
                 spawn_local({
                     async move {
                         if let Err(err) = update_properties(properties).await {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::debug!(?err);
                             let msg = ui_lib::message::Builder::error("Could not save project.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());

@@ -1369,8 +1369,7 @@ fn DataRowActive(datum: state::data::Datum) -> impl IntoView {
                 .await
                 {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
-
+                    tracing::warn!("could not update asset properties: {err:?}");
                     let msg = ui_lib::message::Builder::error("Could not save asset.");
                     let msg = msg.body(format!("{err:?}"));
                     messages.push_message(msg.build_str());
@@ -1763,7 +1762,7 @@ pub(self) mod editor {
             if let Some(input_node) = input_node.get() {
                 if let Err(err) = input_node.focus() {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!("could not focus input node: {err:?}");
                 };
             }
         });
@@ -1928,7 +1927,7 @@ pub(self) mod editor {
             if let Some(input_node) = input_node.get() {
                 if let Err(err) = input_node.focus() {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!("could not focus input node: {err:?}");
                 };
             }
         });

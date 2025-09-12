@@ -67,19 +67,22 @@ impl Watcher {
             };
         }
 
+        #[cfg(feature = "tracing")]
         tracing::debug!("command channel closed, shutting down");
     }
 
     fn watch(&mut self, path: impl Into<PathBuf>) {
         let path = path.into();
-        tracing::debug!("watching {path:?}");
+        #[cfg(feature = "tracing")]
+        tracing::trace!("watching {path:?}");
 
         self.paths.push(path);
     }
 
     fn unwatch(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
-        tracing::debug!("unwatching {path:?}");
+        #[cfg(feature = "tracing")]
+        tracing::trace!("unwatching {path:?}");
 
         self.paths.retain(|p| p != path);
     }

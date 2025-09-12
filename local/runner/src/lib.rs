@@ -211,7 +211,8 @@ impl RunnerHooks for Runner {
         let mut flags = match local::loader::container::flags::Loader::load(&container_path) {
             Ok(flags) => flags,
             Err(err) => {
-                tracing::error!("`pre_analysis` runner hook could not load flags: {err:?}");
+                #[cfg(feature = "tracing")]
+                tracing::warn!("`pre_analysis` runner hook could not load flags: {err:?}");
                 return;
             }
         };
@@ -231,7 +232,8 @@ impl RunnerHooks for Runner {
             local::common::flags_file_of(&container_path),
             serde_json::to_string_pretty(&flags_map).unwrap(),
         ) {
-            tracing::error!("could not save flags: {err:?}");
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not save flags: {err:?}");
         };
     }
 
@@ -241,6 +243,7 @@ impl RunnerHooks for Runner {
         exit_code: i32,
         err: &str,
     ) -> core::runner::ErrorResponse {
+        #[cfg(feature = "tracing")]
         tracing::trace!(
             "analysis `{}` running on container `{:?}` in project `{:?}` exited with code {exit_code}: {err}",
             ctx.analysis,

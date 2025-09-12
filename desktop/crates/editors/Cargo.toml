@@ -17,6 +17,13 @@ syre-desktop-ui-components = { path = "../ui_components" }
 syre-desktop-ui-lib = { path = "../ui_lib" }
 syre-local.workspace = true
 tauri-sys = { workspace = true, features = ["core"] }
-tracing.workspace = true
+tracing = { workspace = true, optional = true }
 wasm-bindgen.workspace = true
 web-sys = { workspace = true, features = ["HtmlInputElement"] }
+
+[features]
+tracing = [
+    "dep:tracing", 
+    "leptos/tracing", 
+    "syre-desktop-ui-components/tracing", 
+]

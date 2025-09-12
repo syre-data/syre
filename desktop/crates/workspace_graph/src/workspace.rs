@@ -379,7 +379,8 @@ async fn handle_drop_event_container(
         }) {
         Ok(size) => size,
         Err(err) => {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not get file sizes: {err:?}");
             0
         }
     };
@@ -397,8 +398,7 @@ async fn handle_drop_event_container(
             }
         }
         Err(errors) => {
-            tracing::error!(?errors);
-            todo!();
+            todo!("unhandled error: {errors:?}");
         }
     }
 }
@@ -451,7 +451,8 @@ async fn handle_drop_event_analyses(
             .reduce(|total, size| total + size)
             .unwrap_or(0),
         Err(err) => {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not get file sies: {err:?}");
             0
         }
     };

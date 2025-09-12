@@ -195,7 +195,8 @@ pub fn asset_remove_file(
 
     if asset_path.exists() {
         trash::delete(&asset_path).map_err(|err| {
-            tracing::debug!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::debug!("could not trash {asset_path:?}: {err:?}");
             let err = match err {
                 trash::Error::Unknown { description } => todo!(),
                 trash::Error::Os { code, description } => todo!(),
@@ -217,6 +218,7 @@ pub fn asset_remove_file(
             .extract_if(.., |stored_asset| stored_asset.path == asset)
             .collect::<Vec<_>>();
         if removed.is_empty() {
+            #[cfg(feature = "tracing")]
             tracing::trace!("asset {:?} not present", asset_path);
             Ok(())
         } else if removed.len() == 1 {

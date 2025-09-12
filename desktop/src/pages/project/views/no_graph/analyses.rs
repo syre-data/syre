@@ -292,7 +292,8 @@ fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
                 use lib::command::project::error::AnalysesUpdate;
 
                 if let Err(err) = remove_analysis(project, path).await {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not remove analysis: {err:?}");
                     let msg = match err {
                         AnalysesUpdate::AnalysesFile(err) => {
                             let msg = ui_lib::message::Builder::error("Could not save container.");

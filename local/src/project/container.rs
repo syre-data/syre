@@ -172,7 +172,8 @@ impl Container {
 
         #[cfg(target_os = "windows")]
         if let Err(err) = common::fs::hide_folder(app_folder) {
-            tracing::error!("could not hide folder {app_folder:?}: {err:?}");
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not hide folder {app_folder:?}: {err:?}");
         }
 
         let properties: StoredProperties = self.inner.clone().into();

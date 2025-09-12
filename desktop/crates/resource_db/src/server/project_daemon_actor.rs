@@ -54,7 +54,7 @@ impl Actor {
                 Ok(msg) => msg,
                 Err(err) => {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!("could not receive messages: {err:?}");
                     continue;
                 }
             };
@@ -66,13 +66,13 @@ impl Actor {
 
             let Some(topic) = messages.get(0) else {
                 #[cfg(feature = "tracing")]
-                tracing::error!("could not get topic from message {messages:?}");
+                tracing::warn!("could not get topic from message {messages:?}");
                 continue;
             };
 
             let Some(topic) = topic.as_str() else {
                 #[cfg(feature = "tracing")]
-                tracing::error!("could not convert topic to str");
+                tracing::warn!("could not convert topic to str");
                 continue;
             };
 
@@ -80,7 +80,7 @@ impl Actor {
             for msg in messages.iter().skip(1) {
                 let Some(msg) = msg.as_str() else {
                     #[cfg(feature = "tracing")]
-                    tracing::error!("could not convert message to str");
+                    tracing::warn!("could not convert message to str");
                     continue 'main;
                 };
 
@@ -91,9 +91,7 @@ impl Actor {
                 Ok(events) => events,
                 Err(err) => {
                     #[cfg(feature = "tracing")]
-                    tracing::error!(?message);
-                    #[cfg(feature = "tracing")]
-                    tracing::error!(?err);
+                    tracing::warn!("could not convert message to json: `{message}`; {err:?}");
                     continue;
                 }
             };

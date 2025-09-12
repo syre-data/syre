@@ -35,10 +35,14 @@ tauri-plugin-shell = "2.2"
 tempfile.workspace = true
 tokio = { version = "1.42", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["full"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["json", "time"] }
-tracing-appender.workspace = true
-tracing-timing = { version = "0.7", features = ["layer"] }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = [
+    "json",
+    "time",
+	"env-filter",
+], optional = true }
+tracing-appender = { workspace = true, optional = true }
+tracing-timing = { version = "0.7", features = ["layer"], optional = true}
 trash.workspace = true
 uuid.workspace = true
 walkdir.workspace = true
@@ -50,17 +54,9 @@ tauri-plugin-updater = "2"
 
 [features]
 no-auto-update = []
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+tracing = [
+    "dep:tracing",
+    "dep:tracing-subscriber",
+    "dep:tracing-appender",
+    "dep:tracing-timing",
+]

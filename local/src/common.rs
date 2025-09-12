@@ -422,7 +422,8 @@ pub mod fs {
     impl Drop for TempDir {
         fn drop(&mut self) {
             if let Err(err) = std::fs::remove_dir_all(self.path()) {
-                tracing::error!(
+                #[cfg(feature = "tracing")]
+                tracing::warn!(
                     "could not remove temporary directory {:?}: {err:?}",
                     self.path()
                 );

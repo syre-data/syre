@@ -91,8 +91,7 @@ impl Daemon {
         builder.with_new_ids(true);
         builder.with_assets();
         if let Err(err) = builder.build(&path) {
-            tracing::error!(?err);
-            todo!();
+            todo!("{err:?}");
         }
 
         let local::loader::container::State {

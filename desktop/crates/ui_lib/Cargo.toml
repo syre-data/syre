@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["deref"] }
 js-sys.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true

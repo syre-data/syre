@@ -95,7 +95,8 @@ pub fn initialize_project(
     if !local::project::project::is_valid_project_path(&path)
         .map_err(|err| error::Initialize::ProjectManifest(err))?
     {
-        tracing::error!("invalid project root path");
+        #[cfg(feature = "tracing")]
+        tracing::warn!("invalid project root path");
         return Err(error::Initialize::InvalidRootPath);
     }
 
@@ -168,7 +169,8 @@ pub async fn duplicate_project(
 
     if let Err(err) = local::project::project::duplicate(&src, dst.clone()) {
         if let Err(err) = fs::remove_dir_all(&dst) {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not duplicate project: {err:?}");
         };
 
         return Err(error::Duplicate::Duplicate(err));
@@ -311,9 +313,8 @@ pub fn project_analysis_remove(
                 trash::Error::TargetedRoot => io::ErrorKind::InvalidFilename,
                 trash::Error::CouldNotAccess { .. } => io::ErrorKind::PermissionDenied,
                 trash::Error::CanonicalizePath { .. } => io::ErrorKind::NotFound,
-                _ => {
-                    tracing::error!(?err);
-                    todo!();
+                err => {
+                    todo!("unhandled error while removing project analysis: {err:?}");
                 }
             };
 
@@ -536,8 +537,9 @@ fn handle_post_analysis_actions(
                         match local::loader::container::flags::Loader::load(&container_path_fs) {
                             Ok(flags) => flags,
                             Err(err) => {
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not load container flags: {err:?}");
                                 // TODO: Return error?
-                                tracing::error!(?err);
                                 return;
                             }
                         };
@@ -571,8 +573,9 @@ fn handle_post_analysis_actions(
                     ) {
                         Ok(properties) => properties,
                         Err(err) => {
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not load container properties: {err:?}");
                             // TODO: Return error?
-                            tracing::error!(?err);
                             return;
                         }
                     };
@@ -586,7 +589,8 @@ fn handle_post_analysis_actions(
                     });
 
                 if let Err(err) = properties.save(container_path_fs) {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not save project properties: {err:?}");
                 }
             }
         });

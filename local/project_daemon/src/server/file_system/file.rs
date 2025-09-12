@@ -37,6 +37,7 @@ impl Daemon {
         let [from, to] = &event.paths()[..] else {
             panic!("invalid paths");
         };
+        #[cfg(feature = "tracing")]
         tracing::info!("file renamed from {from:?} to {to:?}");
 
         // TODO: May want to perform additional checks on if file is a resource worth watching.
@@ -49,6 +50,7 @@ impl Daemon {
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
+        #[cfg(feature = "tracing")]
         tracing::info!("file removed {path:?}");
 
         // TODO: May want to perform additional checks on if file is a resource worth watching.
@@ -66,10 +68,12 @@ impl Daemon {
 
         match kind {
             event::ModifiedKind::Data => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("file modified data {path:?}");
                 vec![]
             }
             event::ModifiedKind::Other => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("file modified other {path:?}");
                 vec![]
             }

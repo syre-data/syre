@@ -73,7 +73,8 @@ impl Daemon {
 
         if self.config.handle_fs_resource_changes() {
             if let Err(err) = self.handle_fs_event_container_renamed_changes(&event) {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not handle container renamed changes: {err:?}");
             }
         }
 
@@ -171,18 +172,21 @@ impl Daemon {
                 container_state.properties(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("container properties already exists");
             }
             if !matches!(
                 container_state.settings(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("container settings already exists");
             }
             if !matches!(
                 container_state.assets(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("container assets already exists");
             }
         } else {
@@ -474,6 +478,7 @@ impl Daemon {
                 container_state.properties(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("container properties already exists");
             }
         } else {
@@ -820,6 +825,7 @@ impl Daemon {
                 container_state.settings(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("container settings already exists");
             }
         } else {
@@ -1152,6 +1158,7 @@ impl Daemon {
                 container_state.assets(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             ) {
+                #[cfg(feature = "tracing")]
                 tracing::warn!("asset created event occurred late");
             }
         } else {

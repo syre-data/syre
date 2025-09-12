@@ -809,8 +809,7 @@ mod kind {
                 async move {
                     match update_properties(project, containers, update).await {
                         Err(err) => {
-                            tracing::error!(?err);
-                            todo!();
+                            todo!("unhandled error: {err:?}");
                         }
 
                         Ok(container_results) => {
@@ -871,8 +870,7 @@ mod description {
                 async move {
                     match update_properties(project, containers, update).await {
                         Err(err) => {
-                            tracing::error!(?err);
-                            todo!();
+                            todo!("unhandled error: {err:?}");
                         }
 
                         Ok(container_results) => {
@@ -952,8 +950,7 @@ mod tags {
                     async move {
                         match update_properties(project, containers, update).await {
                             Err(err) => {
-                                tracing::error!(?err);
-                                todo!();
+                                todo!("unhandled error: {err:?}");
                             }
 
                             Ok(container_results) => {
@@ -1106,8 +1103,7 @@ mod metadata {
                     async move {
                         match update_properties(project, containers, update).await {
                             Err(err) => {
-                                tracing::error!(?err);
-                                todo!();
+                                todo!("unhandled error: {err:?}");
                             }
 
                             Ok(container_results) => {
@@ -1732,7 +1728,8 @@ mod analysis_associations {
                     if let Err(err) =
                         add_analysis_association(project, container_paths, association).await
                     {
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not add analysis association: {err:?}");
                         let msg = ui_lib::message::Builder::error("Could not save container.");
                         let msg = msg.body(format!("{err:?}"));
                         messages.push_message(msg.build_str())

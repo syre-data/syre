@@ -83,6 +83,7 @@ pub fn Search() -> impl IntoView {
             let query = query.clone();
             async move {
                 let results = search(query, project.get_untracked()).await;
+                #[cfg(feature = "tracing")] 
                 tracing::trace!(?results);
                 set_results(results);
             }

@@ -41,6 +41,7 @@ fn IndexView(user: Option<core::system::User>) -> impl IntoView {
             .unwrap();
 
         while let Some(events) = listener.next().await {
+            #[cfg(feature = "tracing")]
             tracing::debug!(?events);
             for event in events.payload {
                 let lib::EventKind::User(user) = event.kind() else {

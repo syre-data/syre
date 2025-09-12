@@ -112,7 +112,7 @@ impl ContainerTreeDuplicator {
     ///
     /// # Notes
     /// + `Asset`s are duplicated.
-    #[tracing::instrument(skip(graph))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(graph)))]
     pub fn duplicate(graph: &ContainerTree, root: &ResourceId) -> syre_core::Result<ContainerTree> {
         // ensure root exists
         let Some(node) = graph.get(root) else {

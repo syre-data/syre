@@ -32,13 +32,14 @@ impl Actor {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
     fn listen(&self) -> Result {
         loop {
             let query = match self.receive_query() {
                 Ok(query) => query,
                 Err(Error::Deserialize { message, error }) => {
-                    tracing::error!(?message, ?error);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not deserialize message: {message}; {error:?}");
                     self.zmq_socket.send("", 0)?; // TODO: Respond with error?
                     continue;
                 }

@@ -161,6 +161,7 @@ fn WorkspaceView(
                 .unwrap();
 
             while let Some(events) = listener.next().await {
+                #[cfg(feature = "tracing")]
                 tracing::debug!(?events);
                 for event in events.payload {
                     let lib::EventKind::Project(update) = event.kind() else {
@@ -1987,6 +1988,7 @@ fn handle_event_graph_container_flags_created(event: lib::Event, flags: ui_lib::
             insert_graph_container_flags(path, update, flags);
         }
         Err(err) => {
+            #[cfg(feature = "tracing")]
             tracing::debug!("corrupt flags file created: {err:?}");
         }
     }

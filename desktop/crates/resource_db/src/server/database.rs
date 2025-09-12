@@ -106,7 +106,7 @@ impl Database {
         for project in projects.iter() {
             if let Err(err) = self.init_project(project).await {
                 #[cfg(feature = "tracing")]
-                tracing::error!("could not load project {:?}: {err:?}", project.path());
+                tracing::debug!("could not load project {:?}: {err:?}", project.path());
             }
         }
 
@@ -552,7 +552,7 @@ mod project_events {
             for project in projects.iter() {
                 if let Err(err) = self.init_project(project).await {
                     #[cfg(feature = "tracing")]
-                    tracing::error!("could not load project {:?}: {err:?}", project.path());
+                    tracing::debug!("could not load project {:?}: {err:?}", project.path());
                 }
             }
         }

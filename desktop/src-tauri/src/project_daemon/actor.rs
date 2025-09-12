@@ -60,7 +60,8 @@ impl Actor {
             let messages = match self.zmq_socket.recv_multipart(0) {
                 Ok(msg) => msg,
                 Err(err) => {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not receive messages");
                     continue;
                 }
             };
@@ -71,19 +72,22 @@ impl Actor {
                 .collect::<Vec<_>>();
 
             let Some(topic) = messages.get(0) else {
-                tracing::error!("could not get topic from message {messages:?}");
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not get topic from message {messages:?}");
                 continue;
             };
 
             let Some(topic) = topic.as_str() else {
-                tracing::error!("could not convert topic to str");
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not convert topic to str");
                 continue;
             };
 
             let mut message = String::new();
             for msg in messages.iter().skip(1) {
                 let Some(msg) = msg.as_str() else {
-                    tracing::error!("could not convert message to str");
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not convert message to str");
                     continue 'main;
                 };
 
@@ -93,8 +97,8 @@ impl Actor {
             let updates: Vec<db::event::Update> = match serde_json::from_str(&message) {
                 Ok(events) => events,
                 Err(err) => {
-                    tracing::error!(?message);
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not convert message to json: `{message}`; {err:?}");
                     continue;
                 }
             };
@@ -106,6 +110,7 @@ impl Actor {
 
 impl Actor {
     fn handle_updates(&self, topic: &str, updates: Vec<db::event::Update>) {
+        #[cfg(feature = "tracing")]
         tracing::debug!(?updates);
         let topic = topic.replace("local-project-daemon", "project-daemon/update");
 
@@ -114,6 +119,7 @@ impl Actor {
             .flat_map(|event| self.process_event(&topic, event))
             .collect::<Vec<_>>();
 
+        #[cfg(feature = "tracing")]
         tracing::debug!(?events);
         let mut grouped = HashMap::with_capacity(events.len());
         for (topic, update) in events {
@@ -147,7 +153,8 @@ impl Actor {
             topic.as_ref(),
             events,
         ) {
-            tracing::error!(?err);
+            #[cfg(feature = "tracing")]
+            tracing::warn!("could not emit events to windows: {err:?}");
         }
     }
 }

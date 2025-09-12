@@ -296,7 +296,7 @@ pub mod project {
         type Action = Action;
         type Error = Error;
 
-        #[tracing::instrument(level = "trace", skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip(self)))]
         fn try_reduce(&mut self, action: Self::Action) -> std::result::Result<(), Self::Error> {
             match action {
                 Action::SetPath(_) | Action::RemoveFolder | Action::CreateFolder(_) => {
@@ -336,7 +336,7 @@ pub mod project {
     }
 
     impl State {
-        #[tracing::instrument(level = "trace", skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip(self)))]
         fn try_reduce_graph(&mut self, action: action::Graph) -> Result<(), Error> {
             match action {
                 super::action::Graph::Set(graph) => {
@@ -348,24 +348,28 @@ pub mod project {
                     graph: subgraph,
                 } => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
-                        tracing::error!("graph does not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     let Some(parent_node) = graph.find(&parent).unwrap().cloned() else {
-                        tracing::error!("parent does not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("parent does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     if let Err(err) = graph.insert(&parent_node, subgraph.clone()) {
-                        tracing::error!(?err);
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("could not insert graph node: {err:?}");
                         match err {
                             graph::error::Insert::ParentNotFound => {
                                 return Err(Error::DoesNotExist);
                             }
                             graph::error::Insert::NameCollision => {
                                 if cfg!(target_os = "windows") {
-                                    tracing::warn!("inserting graph with name collision");
+                                    #[cfg(feature = "tracing")]
+                                    tracing::debug!("inserting graph with name collision");
                                     let root = subgraph.root().lock().unwrap();
                                     let existing_path = parent.join(root.name());
                                     drop(root);
@@ -385,18 +389,21 @@ pub mod project {
                 }
                 action::Graph::Remove(path) => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
-                        tracing::error!("graph does not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     let Some(root) = graph.find(&path).unwrap().cloned() else {
-                        tracing::error!("root node does not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("root node does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     graph.remove(&root).map_err(|err| match err {
                         graph::error::Remove::NotFound => {
-                            tracing::error!("node not found");
+                            #[cfg(feature = "tracing")]
+                            tracing::debug!("node not found");
                             Error::DoesNotExist
                         }
                         graph::error::Remove::Root => {
@@ -406,12 +413,14 @@ pub mod project {
                 }
                 action::Graph::Move { from, to } => {
                     let FolderResource::Present(ref mut graph) = self.graph else {
+                        #[cfg(feature = "tracing")]
                         tracing::trace!("graph does not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     graph.mv(&from, &to).map_err(|err| match err {
                         graph::error::Move::FromNotFound | graph::error::Move::ParentNotFound => {
+                            #[cfg(feature = "tracing")]
                             tracing::trace!("parent node not found");
                             Error::DoesNotExist
                         }
@@ -423,18 +432,20 @@ pub mod project {
             }
         }
 
-        #[tracing::instrument(level = "trace", skip(self))]
+        #[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip(self)))]
         fn try_reduce_container(
             &mut self,
             path: PathBuf,
             action: action::Container,
         ) -> std::result::Result<(), Error> {
             let FolderResource::Present(graph) = &self.graph else {
+                #[cfg(feature = "tracing")]
                 tracing::trace!("graph not present");
                 return Err(Error::DoesNotExist);
             };
 
             let Some(container) = graph.find(&path).unwrap() else {
+                #[cfg(feature = "tracing")]
                 tracing::trace!("container not found");
                 return Err(Error::DoesNotExist);
             };
@@ -463,12 +474,14 @@ pub mod project {
                 }
                 action::Container::Asset { rid, action } => {
                     let Ok(assets) = &mut container.assets else {
-                        tracing::error!("container assets do not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("container assets do not exist");
                         return Err(Error::DoesNotExist);
                     };
 
                     let Some(asset) = assets.iter_mut().find(|asset| asset.rid() == &rid) else {
-                        tracing::error!("asset does not exist");
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("asset does not exist");
                         return Err(Error::DoesNotExist);
                     };
 

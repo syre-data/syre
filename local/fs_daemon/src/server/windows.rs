@@ -33,6 +33,7 @@ impl FsWatcher {
             .iter()
             .filter_map(|err| {
                 if !matches!(err.kind, error::Process::NotFound) {
+                    #[cfg(feature = "tracing")]
                     tracing::debug!("not notfound");
                     return None;
                 }
@@ -136,6 +137,7 @@ impl FsWatcher {
                     event = event.add_parent(parent);
                 }
 
+                #[cfg(feature = "tracing")]
                 tracing::trace!("project root {path:?} moved to trash");
                 event
             })

@@ -50,38 +50,51 @@ mod windows {
                 }
             }
 
-            tracing::debug!("command channel closed, shutting down");
+            #[cfg(feature = "tracing")]
+            tracing::trace!("command channel closed, shutting down");
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
             if let Err(err) = self.watcher.watch(path, notify::RecursiveMode::Recursive) {
-                if let Err(err) = tx.send(Err(err)) {
-                    tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not watch path `{path:?}`: {err:?}");
+                if let Err(send_err) = tx.send(Err(err)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send watcher error: {send_err:?}");
                 }
 
                 return;
             }
 
-            tracing::debug!("watching {path:?}");
+            #[cfg(feature = "tracing")]
+            tracing::trace!("watching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
             }
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn unwatch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
             if let Err(err) = self.watcher.unwatch(path) {
-                if let Err(err) = tx.send(Err(err)) {
-                    tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not unwatch path `{path:?}`: {err:?}");
+                if let Err(send_err) = tx.send(Err(err)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send unwatch error: {send_err:?}");
                 }
 
                 return;
             }
 
-            tracing::debug!("unwatching {path:?}");
+            #[cfg(feature = "tracing")]
+            tracing::trace!("unwatching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
             }
         }
 
@@ -90,6 +103,7 @@ mod windows {
         ///
         /// # Response
         ///
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn final_path(
             &mut self,
             path: impl AsRef<Path>,
@@ -99,23 +113,21 @@ mod windows {
             let id = match file_id::get_file_id(path) {
                 Ok(id) => id,
                 Err(err) => {
-                    tracing::error!(?err);
-                    match tx.send(Ok(None)) {
-                        Ok(_) => {}
-                        Err(err) => tracing::error!(?err),
-                    };
+                    if let Err(send_err) = tx.send(Ok(None)) {
+                        #[cfg(feature = "tracing")]
+                        tracing::warn!("could not send file id error: {err:?}");
+                    }
+
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not get file id of `{path:?}: {err:?}");
                     return;
                 }
             };
 
-            let path_res = match file_path_from_id::path_from_id(&id) {
-                Ok(path) => Ok(Some(path)),
-                Err(err) => Err(err),
-            };
-
-            match tx.send(path_res) {
-                Ok(_) => {}
-                Err(err) => tracing::debug!(?err),
+            let path_res = file_path_from_id::path_from_id(&id).map(|path| Some(path));
+            if let Err(err) = tx.send(path_res) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send file id: {err:?}");
             }
         }
     }
@@ -171,7 +183,8 @@ mod macos {
         pub fn run(&mut self) {
             loop {
                 let Ok(cmd) = self.command_rx.recv() else {
-                    tracing::debug!("command channel closed, shutting down");
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!("command channel closed, shutting down");
                     break;
                 };
 
@@ -182,13 +195,15 @@ mod macos {
                         if let Err(err) =
                             tx.send(self.watcher.cache().cached_file_id(&path).cloned())
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not send file id: {err:?}");
                         };
                     }
                 }
             }
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn watch(&mut self, path: impl AsRef<Path>) {
             let path = path.as_ref();
             self.watcher
@@ -201,6 +216,7 @@ mod macos {
                 .add_root(path, notify::RecursiveMode::Recursive);
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn unwatch(&mut self, path: impl AsRef<Path>) {
             let path = path.as_ref();
             self.watcher.watcher().unwatch(path).unwrap();
@@ -252,15 +268,18 @@ mod linux {
                         if let Err(err) =
                             tx.send(self.watcher.cache().cached_file_id(&path).cloned())
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not send file id: {err:?}");
                         };
                     }
                 }
             }
 
-            tracing::debug!("command channel closed, shutting down");
+            #[cfg(feature = "tracing")]
+            tracing::trace!("command channel closed, shutting down");
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
             if let Err(err) = self
@@ -269,7 +288,8 @@ mod linux {
                 .watch(path, notify::RecursiveMode::Recursive)
             {
                 if let Err(err) = tx.send(Err(err)) {
-                    tracing::error!(?err);
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send watch error: {err:?}");
                 }
 
                 return;
@@ -279,26 +299,33 @@ mod linux {
                 .cache()
                 .add_root(path, notify::RecursiveMode::Recursive);
 
-            tracing::debug!("watching {path:?}");
+            #[cfg(feature = "tracing")]
+            tracing::trace!("watching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
             }
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn unwatch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
             if let Err(err) = self.watcher.watcher().unwatch(path) {
-                if let Err(err) = tx.send(Err(err)) {
-                    tracing::error!(?err);
+                if let Err(send_err) = tx.send(Err(err)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send unwatch error: {err:?}");
                 }
 
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not unwatch `{path:?}`: {err:?}");
                 return;
             }
 
             self.watcher.cache().remove_root(path);
-            tracing::debug!("unwatching {path:?}");
+            tracing::trace!("unwatching {path:?}");
             if let Err(err) = tx.send(Ok(())) {
-                tracing::error!(?err);
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
             }
         }
 
@@ -309,6 +336,7 @@ mod linux {
         ///
         /// # Errors
         /// + If the final path could not be obtained.
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn final_path(
             &mut self,
             path: impl AsRef<Path>,
@@ -317,10 +345,10 @@ mod linux {
             let path = path.as_ref();
             let cache = self.watcher.cache();
             let Some(id) = cache.cached_file_id(path) else {
-                match tx.send(Ok(None)) {
-                    Ok(_) => {}
-                    Err(err) => tracing::debug!(?err),
-                };
+                if let Err(err) = tx.send(Ok(None)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send response: {err:?}");
+                }
                 return;
             };
 
@@ -329,9 +357,9 @@ mod linux {
                 Err(err) => Err(err),
             };
 
-            match tx.send(path_res) {
-                Ok(_) => {}
-                Err(err) => tracing::debug!(?err),
+            if let Err(err) = tx.send(path_res) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send result: {err:?}");
             }
         }
     }

@@ -73,6 +73,7 @@ impl Daemon {
                     match (&err.properties, &err.assets) {
                         (Some(error::LoadSave::Load(local::error::IoSerde::Io(io::ErrorKind::NotFound))), Some(error::LoadSave::Load(local::error::IoSerde::Io(io::ErrorKind::NotFound)))) => {
                             if local::common::app_dir_of(&path).exists() {
+                                #[cfg(feature = "tracing")]
                                 tracing::warn!("{path:?}: `.syre` folder exists without `container.json` and `assets.json` files");
                                 Err((path, error::GraphCreate::Reassign(err)))
                             } else {
@@ -121,7 +122,8 @@ impl Daemon {
             if root.properties.name != dir_name {
                 root.properties.name = dir_name.to_string();
                 if let Err(err) = root.save(path) {
-                    tracing::error!("{err:?}");
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not save root: {err:?}");
                 }
             }
         }
@@ -140,6 +142,7 @@ impl Daemon {
         let root_path = parent_path.join(root.name());
         drop(root);
         if graph.find(&root_path).unwrap().is_some() {
+            #[cfg(feature = "tracing")]
             tracing::trace!("{root_path:?} already exists");
             self.state
                 .try_reduce(server::state::Action::Project {
@@ -367,6 +370,7 @@ impl Daemon {
                     .unwrap();
 
                 if self.config.handle_fs_resource_changes() {
+                    #[cfg(feature = "tracing")]
                     tracing::debug!(?parent_container_path);
                     let mut local_assets =
                         local::project::Assets::load_from(parent_container_path).unwrap();

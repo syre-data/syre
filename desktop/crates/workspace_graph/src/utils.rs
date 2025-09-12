@@ -25,7 +25,8 @@ pub fn asset_title_closure(asset: &ui_lib::state::Asset) -> impl Fn() -> String 
         }) {
             path
         } else {
-            tracing::error!("invalid asset: no name or path");
+            #[cfg(feature = "tracing")]
+            tracing::warn!("invalid asset: no name or path");
             "(invalid asset)".to_string()
         }
     }

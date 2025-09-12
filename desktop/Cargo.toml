@@ -47,9 +47,9 @@ tauri-sys = { workspace = true, features = [
 	"window",
 ] }
 time = { version = "0.3", features = ["wasm-bindgen"] }
-tracing-subscriber = { workspace = true, features = ["time"] }
-tracing-web = "0.1.3"
-tracing.workspace = true
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = ["time"], optional = true }
+tracing-web = { version = "0.1.3", optional = true }
 uuid = { workspace = true, features = ["js"] }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
@@ -97,11 +97,14 @@ features = [
 ]
 
 [features]
+default = ["tracing"]
 tracing = [
-	"leptos/tracing", 
+	"dep:tracing",
+	"dep:tracing-subscriber",
+	"dep:tracing-web",
+	"leptos/tracing",
 	"syre-desktop-ui-components/tracing",
 	"syre-desktop-workspace-graph/tracing",
 	"syre-desktop-workspace-db/tracing",
 ]
 perf = ["tracing"]
-

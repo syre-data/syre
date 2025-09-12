@@ -582,7 +582,8 @@ mod properties {
                     let path = graph.path(&node).unwrap();
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not update container properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save container.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -639,7 +640,8 @@ mod properties {
                         let path = graph.path(&node).unwrap();
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
-                                tracing::error!(?err);
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not update container properties: {err:?}");
                                 let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
                                 let msg = msg.body(format!("{err:?}"));
@@ -696,7 +698,8 @@ mod properties {
                         let path = graph.path(&node).unwrap();
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
-                                tracing::error!(?err);
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not update container properties: {err:?}");
                                 let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
                                 let msg = msg.body(format!("{err:?}"));
@@ -798,8 +801,7 @@ mod properties {
                     let project = project.rid().get_untracked();
                     async move {
                         if let Err(err) = update_properties(project, path, properties).await {
-                            tracing::error!(?err);
-                            todo!()
+                            todo!("unhandled error {err:?}")
                         } else {
                             if let Some(onclose) = onclose {
                                 onclose.run(());
@@ -882,7 +884,10 @@ mod properties {
                             async move {
                                 if let Err(err) = update_properties(project, path, properties).await
                                 {
-                                    tracing::error!(?err);
+                                    #[cfg(feature = "tracing")]
+                                    tracing::warn!(
+                                        "could not update container properties: {err:?}"
+                                    );
                                     let msg = ui_lib::message::Builder::error(
                                         "Could not save container.",
                                     );
@@ -923,7 +928,8 @@ mod properties {
                         let path = graph.path(&node).unwrap();
                         async move {
                             if let Err(err) = update_properties(project, path, properties).await {
-                                tracing::error!(?err);
+                                #[cfg(feature = "tracing")]
+                                tracing::warn!("could not update container properties: {err:?}");
                                 let msg =
                                     ui_lib::message::Builder::error("Could not save container.");
                                 let msg = msg.body(format!("{err:?}"));
@@ -1010,7 +1016,8 @@ mod properties {
                         )
                         .await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not update analysis associations: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save container.");
                             let msg = msg.body(format!("{err:?}"));
                             messages.push_message(msg.build_str());
@@ -1069,7 +1076,8 @@ mod properties {
                         )
                         .await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not update analysis associations: {err:?}");
                             let msg = ui_lib::message::Builder::error(
                                 "Could not update analysis associations.",
                             );
@@ -1193,7 +1201,8 @@ mod properties {
                         )
                         .await
                         {
-                            tracing::error!(?err);
+                            #[cfg(feature = "tracing")]
+                            tracing::warn!("could not update analysis associations: {err:?}");
                             let msg = ui_lib::message::Builder::error(
                                 "Could not update analysis associations.",
                             );

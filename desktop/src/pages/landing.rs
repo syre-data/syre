@@ -172,6 +172,7 @@ async fn register(email: String, name: Option<String>) -> Result<User, String> {
         .await
         .map_err(|err| match err {
             syre_local::Error::IoSerde(err) => {
+                #[cfg(feature = "tracing")]
                 tracing::debug!(?err);
                 "Could not load user manifest.".to_string()
             }
@@ -182,6 +183,7 @@ async fn register(email: String, name: Option<String>) -> Result<User, String> {
                 "Email is already registered.".to_string()
             }
             err => {
+                #[cfg(feature = "tracing")]
                 tracing::debug!(?err);
                 "Could not create user.".to_string()
             }
